@@ -1,33 +1,46 @@
+'\" t
 .\"     Title: \fBmysql_install_db\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQL_INSTALL_DB\\" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_install_db
 .SH "NAME"
 mysql_install_db \- initialize MySQL data directory
 .SH "SYNOPSIS"
-.HP 27
+.HP \w'\fBmysql_install_db\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysql_install_db [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
 \fBmysql_install_db\fR
-initializes the MySQL data directory and creates the system tables that it contains, if they do not exist.
+initializes the MySQL data directory and creates the system tables that it contains, if they do not exist\&.
 .PP
 To invoke
 \fBmysql_install_db\fR, use the following syntax:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysql_install_db [\fR\fB\fIoptions\fR\fR\fB]\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Because the MySQL server,
 \fBmysqld\fR, needs to access the data directory when it runs later, you should either run
@@ -40,21 +53,25 @@ and use the
 \fB\-\-user\fR
 option to indicate the user name that
 \fBmysqld\fR
-will run as. It might be necessary to specify other options such as
+will run as\&. It might be necessary to specify other options such as
 \fB\-\-basedir\fR
 or
 \fB\-\-datadir\fR
 if
 \fBmysql_install_db\fR
-does not use the correct locations for the installation directory or data directory. For example:
+does not use the correct locations for the installation directory or data directory\&. For example:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBbin/mysql_install_db \-\-user=mysql \\\fR
-         \fB\-\-basedir=/opt/mysql/mysql \\\fR
+shell> \fBbin/mysql_install_db \-\-user=mysql \e\fR
+         \fB\-\-basedir=/opt/mysql/mysql \e\fR
          \fB\-\-datadir=/opt/mysql/mysql/data\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fBmysql_install_db\fR
 needs to invoke
@@ -64,90 +81,184 @@ with the
 and
 \fB\-\-skip\-grant\-tables\fR
 options (see
-Section\ 2.10.2, \(lqTypical \fBconfigure\fR Options\(rq). If MySQL was configured with the
+Section\ \&2.10.2, \(lqTypical configure Options\(rq)\&. If MySQL was configured with the
 \fB\-\-disable\-grant\-options\fR
 option,
 \fB\-\-bootstrap\fR
 and
 \fB\-\-skip\-grant\-tables\fR
-will be disabled. To handle this, set the
+will be disabled\&. To handle this, set the
 MYSQLD_BOOTSTRAP
-environment variable to the full path name of a server that has all options enabled.
+environment variable to the full path name of a server that has all options enabled\&.
 \fBmysql_install_db\fR
-will use that server.
+will use that server\&.
 .PP
 \fBmysql_install_db\fR
-supports the options in the following list. It also reads option files and supports the options for processing them described at
-Section\ 4.2.3.2.1, \(lqCommand\-Line Options that Affect Option\-File Handling\(rq.
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: basedir option
+.\" basedir option: mysql_install_db
 \fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL installation directory.
-.TP 3n
-\(bu
+The path to the MySQL installation directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: force option
+.\" force option: mysql_install_db
 \fB\-\-force\fR
 .sp
-Causes
+Cause
 \fBmysql_install_db\fR
-to run even if DNS does not work. In that case, grant table entries that normally use host names will use IP addresses.
-.TP 3n
-\(bu
+to run even if DNS does not work\&. In that case, grant table entries that normally use host names will use IP addresses\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: datadir option
+.\" datadir option: mysql_install_db
+.\" mysql_install_db: ldata option
+.\" ldata option: mysql_install_db
 \fB\-\-datadir=\fR\fB\fIpath\fR\fR,
 \fB\-\-ldata=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL data directory.
-.TP 3n
-\(bu
+The path to the MySQL data directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: rpm option
+.\" rpm option: mysql_install_db
 \fB\-\-rpm\fR
 .sp
-For internal use. This option is used by RPM files during the MySQL installation process.
-.TP 3n
-\(bu
+For internal use\&. This option is used by RPM files during the MySQL installation process\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: skip-name-resolve option
+.\" skip-name-resolve option: mysql_install_db
 \fB\-\-skip\-name\-resolve\fR
 .sp
-Use IP addresses rather than host names when creating grant table entries. This option can be useful if your DNS does not work.
-.TP 3n
-\(bu
+Use IP addresses rather than host names when creating grant table entries\&. This option can be useful if your DNS does not work\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: srcdir option
+.\" srcdir option: mysql_install_db
 \fB\-\-srcdir=\fR\fB\fIpath\fR\fR
 .sp
-For internal use. The directory under which
+For internal use\&. The directory under which
 \fBmysql_install_db\fR
-looks for support files such as the error message file and the file for populating the help tables. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+looks for support files such as the error message file and the file for populating the help tables\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: user option
+.\" user option: mysql_install_db
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The login user name to use for running
-\fBmysqld\fR. Files and directories created by
+\fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
-will be owned by this user. You must be
+will be owned by this user\&. You must be
 root
-to use this option. By default,
+to use this option\&. By default,
 \fBmysqld\fR
-runs using your current login name and files and directories that it creates will be owned by you.
-.TP 3n
-\(bu
+runs using your current login name and files and directories that it creates will be owned by you\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: verbose option
+.\" verbose option: mysql_install_db
 \fB\-\-verbose\fR
 .sp
-Verbose mode. Print more information about what the program does.
-.TP 3n
-\(bu
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: windows option
+.\" windows option: mysql_install_db
 \fB\-\-windows\fR
 .sp
-For internal use. This option is used for creating Windows distributions.
+For internal use\&. This option is used for creating Windows distributions\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

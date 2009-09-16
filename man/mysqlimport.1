@@ -1,220 +1,474 @@
+'\" t
 .\"     Title: \fBmysqlimport\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQLIMPORT\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlimport
+.\" importing: data
+.\" data: importing
+.\" files: text
+.\" text files: importing
 .SH "NAME"
 mysqlimport \- a data import program
 .SH "SYNOPSIS"
-.HP 44
-\fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB ...\fR
+.HP \w'\fBmysqlimport\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\fB\ \fR\fB\fItextfile1\fR\fR\fB\ \&.\&.\&.\fR\ 'u
+\fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB \&.\&.\&.\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmysqlimport\fR
 client provides a command\-line interface to the
 LOAD DATA INFILE
-SQL statement. Most options to
+SQL statement\&. Most options to
 \fBmysqlimport\fR
 correspond directly to clauses of
 LOAD DATA INFILE
-syntax. See
-Section\ 12.2.6, \(lqLOAD DATA INFILE Syntax\(rq.
+syntax\&. See
+Section\ \&12.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 .PP
 Invoke
 \fBmysqlimport\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB [\fR\fB\fItextfile2\fR\fR\fB ...]\fR
+shell> \fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB [\fR\fB\fItextfile2\fR\fR\fB \&.\&.\&.]\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 For each text file named on the command line,
 \fBmysqlimport\fR
-strips any extension from the file name and uses the result to determine the name of the table into which to import the file's contents. For example, files named
-\fIpatient.txt\fR,
-\fIpatient.text\fR, and
-\fIpatient\fR
+strips any extension from the file name and uses the result to determine the name of the table into which to import the file\'s contents\&. For example, files named
+patient\&.txt,
+patient\&.text, and
+patient
 all would be imported into a table named
-patient.
+patient\&.
 .PP
 \fBmysqlimport\fR
-supports the following options:
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: help option
+.\" help option: mysqlimport
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: character-sets-dir option
+.\" character-sets-dir option: mysqlimport
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: columns option
+.\" columns option: mysqlimport
 \fB\-\-columns=\fR\fB\fIcolumn_list\fR\fR,
 \fB\-c \fR\fB\fIcolumn_list\fR\fR
 .sp
-This option takes a comma\-separated list of column names as its value. The order of the column names indicates how to match data file columns with table columns.
-.TP 3n
-\(bu
+This option takes a comma\-separated list of column names as its value\&. The order of the column names indicates how to match data file columns with table columns\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: compress option
+.\" compress option: mysqlimport
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression.
-.TP 3n
-\(bu
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: debug option
+.\" debug option: mysqlimport
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
-Write a debugging log. The
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string often is
-\'d:t:o,\fIfile_name\fR'.
-.TP 3n
-\(bu
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: debug-check option
+.\" debug-check option: mysqlimport
 \fB\-\-debug\-check\fR
 .sp
-Print some debugging information when the program exits. This option was added in MySQL 5.1.21.
-.TP 3n
-\(bu
+Print some debugging information when the program exits\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: debug-info option
+.\" debug-info option: mysqlimport
 \fB\-\-debug\-info\fR
 .sp
-Print debugging information and memory and CPU usage statistics when the program exits. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+Print debugging information and memory and CPU usage statistics when the program exits\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: default-character-set option
+.\" default-character-set option: mysqlimport
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
 \fIcharset_name\fR
-as the default character set. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+as the default character set\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: delete option
+.\" delete option: mysqlimport
 \fB\-\-delete\fR,
 \fB\-D\fR
 .sp
-Empty the table before importing the text file.
-.TP 3n
-\(bu
-\fB\-\-fields\-terminated\-by=...\fR,
-\fB\-\-fields\-enclosed\-by=...\fR,
-\fB\-\-fields\-optionally\-enclosed\-by=...\fR,
-\fB\-\-fields\-escaped\-by=...\fR
+Empty the table before importing the text file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: fields-terminated-by option
+.\" fields-terminated-by option: mysqldump
+\fB\-\-fields\-terminated\-by=\&.\&.\&.\fR,
+.\" mysqldump: fields-enclosed-by option
+.\" fields-enclosed-by option: mysqldump
+\fB\-\-fields\-enclosed\-by=\&.\&.\&.\fR,
+.\" mysqldump: fields-optionally-enclosed-by option
+.\" fields-optionally-enclosed-by option: mysqldump
+\fB\-\-fields\-optionally\-enclosed\-by=\&.\&.\&.\fR,
+.\" mysqldump: fields-escaped-by option
+.\" fields-escaped-by option: mysqldump
+\fB\-\-fields\-escaped\-by=\&.\&.\&.\fR
 .sp
 These options have the same meaning as the corresponding clauses for
-LOAD DATA INFILE. See
-Section\ 12.2.6, \(lqLOAD DATA INFILE Syntax\(rq.
-.TP 3n
-\(bu
+LOAD DATA INFILE\&. See
+Section\ \&12.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: force option
+.\" force option: mysqlimport
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
-Ignore errors. For example, if a table for a text file does not exist, continue processing any remaining files. Without
+Ignore errors\&. For example, if a table for a text file does not exist, continue processing any remaining files\&. Without
 \fB\-\-force\fR,
 \fBmysqlimport\fR
-exits if a table does not exist.
-.TP 3n
-\(bu
+exits if a table does not exist\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: host option
+.\" host option: mysqlimport
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
-Import data to the MySQL server on the given host. The default host is
-localhost.
-.TP 3n
-\(bu
+Import data to the MySQL server on the given host\&. The default host is
+localhost\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: ignore option
+.\" ignore option: mysqlimport
 \fB\-\-ignore\fR,
 \fB\-i\fR
 .sp
 See the description for the
 \fB\-\-replace\fR
-option.
-.TP 3n
-\(bu
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: ignore-lines option
+.\" ignore-lines option: mysqlimport
 \fB\-\-ignore\-lines=\fR\fB\fIN\fR\fR
 .sp
 Ignore the first
 \fIN\fR
-lines of the data file.
-.TP 3n
-\(bu
-\fB\-\-lines\-terminated\-by=...\fR
+lines of the data file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: lines-terminated-by option
+.\" lines-terminated-by option: mysqldump
+\fB\-\-lines\-terminated\-by=\&.\&.\&.\fR
 .sp
 This option has the same meaning as the corresponding clause for
-LOAD DATA INFILE. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
-\fB\-\-lines\-terminated\-by="\\r\\n"\fR. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter.) See
-Section\ 12.2.6, \(lqLOAD DATA INFILE Syntax\(rq.
-.TP 3n
-\(bu
+LOAD DATA INFILE\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
+\fB\-\-lines\-terminated\-by="\er\en"\fR\&. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter\&.) See
+Section\ \&12.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: local option
+.\" local option: mysqlimport
 \fB\-\-local\fR,
 \fB\-L\fR
 .sp
-Read input files locally from the client host.
-.TP 3n
-\(bu
+Read input files locally from the client host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: lock-tables option
+.\" lock-tables option: mysqlimport
 \fB\-\-lock\-tables\fR,
 \fB\-l\fR
 .sp
 Lock
 \fIall\fR
-tables for writing before processing any text files. This ensures that all tables are synchronized on the server.
-.TP 3n
-\(bu
+tables for writing before processing any text files\&. This ensures that all tables are synchronized on the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: low-priority option
+.\" low-priority option: mysqlimport
 \fB\-\-low\-priority\fR
 .sp
 Use
 LOW_PRIORITY
-when loading the table. This affects only storage engines that use only table\-level locking (MyISAM,
+when loading the table\&. This affects only storage engines that use only table\-level locking (MyISAM,
 MEMORY,
-MERGE).
-.TP 3n
-\(bu
+MERGE)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: password option
+.\" password option: mysqlimport
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server. If you use the short option form (\fB\-p\fR), you
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
 \fIcannot\fR
-have a space between the option and the password. If you omit the
+have a space between the option and the password\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
+option on the command line, you are prompted for one\&.
 .sp
-Specifying a password on the command line should be considered insecure. See
-Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
-.TP 3n
-\(bu
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: pipe option
+.\" pipe option: mysqlimport
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe. This option applies only for connections to a local server, and only if the server supports named\-pipe connections.
-.TP 3n
-\(bu
+On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: port option
+.\" port option: mysqlimport
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection.
-.TP 3n
-\(bu
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: protocol option
+.\" protocol option: mysqlimport
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want. For details on the allowable values, see
-Section\ 4.2.2, \(lqConnecting to the MySQL Server\(rq.
-.TP 3n
-\(bu
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: replace option
+.\" replace option: mysqlimport
 \fB\-\-replace\fR,
 \fB\-r\fR
 .sp
@@ -222,79 +476,150 @@ The
 \fB\-\-replace\fR
 and
 \fB\-\-ignore\fR
-options control handling of input rows that duplicate existing rows on unique key values. If you specify
-\fB\-\-replace\fR, new rows replace existing rows that have the same unique key value. If you specify
-\fB\-\-ignore\fR, input rows that duplicate an existing row on a unique key value are skipped. If you do not specify either option, an error occurs when a duplicate key value is found, and the rest of the text file is ignored.
-.TP 3n
-\(bu
+options control handling of input rows that duplicate existing rows on unique key values\&. If you specify
+\fB\-\-replace\fR, new rows replace existing rows that have the same unique key value\&. If you specify
+\fB\-\-ignore\fR, input rows that duplicate an existing row on a unique key value are skipped\&. If you do not specify either option, an error occurs when a duplicate key value is found, and the rest of the text file is ignored\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: silent option
+.\" silent option: mysqlimport
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Silent mode. Produce output only when errors occur.
-.TP 3n
-\(bu
+Silent mode\&. Produce output only when errors occur\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: socket option
+.\" socket option: mysqlimport
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
 For connections to
-localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use.
-.TP 3n
-\(bu
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: SSL options
+.\" SSL options: mysqlimport
 \fB\-\-ssl*\fR
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates. See
-Section\ 5.5.7.3, \(lqSSL Command Options\(rq.
-.TP 3n
-\(bu
+specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&5.5.7.3, \(lqSSL Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: user option
+.\" user option: mysqlimport
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server.
-.TP 3n
-\(bu
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: use-threads option
+.\" use-threads option: mysqlimport
 \fB\-\-use\-threads=\fR\fB\fIN\fR\fR
 .sp
 Load files in parallel using
 \fIN\fR
-threads. This option was added in MySQL 5.1.7.
-.TP 3n
-\(bu
+threads\&. This option was added in MySQL 5\&.1\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: verbose option
+.\" verbose option: mysqlimport
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print more information about what the program does.
-.TP 3n
-\(bu
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: version option
+.\" version option: mysqlimport
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
-.sp
+Display version information and exit\&.
 .RE
 .PP
 Here is a sample session that demonstrates use of
 \fBmysqlimport\fR:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmysql \-e 'CREATE TABLE imptest(id INT, n VARCHAR(30))' test\fR
+shell> \fBmysql \-e \'CREATE TABLE imptest(id INT, n VARCHAR(30))\' test\fR
 shell> \fBed\fR
 a
 100     Max Sydow
 101     Count Dracula
-.
-w imptest.txt
+\&.
+w imptest\&.txt
 32
 q
-shell> \fBod \-c imptest.txt\fR
-0000000   1   0   0  \\t   M   a   x       S   y   d   o   w  \\n   1   0
-0000020   1  \\t   C   o   u   n   t       D   r   a   c   u   l   a  \\n
+shell> \fBod \-c imptest\&.txt\fR
+0000000   1   0   0  \et   M   a   x       S   y   d   o   w  \en   1   0
+0000020   1  \et   C   o   u   n   t       D   r   a   c   u   l   a  \en
 0000040
-shell> \fBmysqlimport \-\-local test imptest.txt\fR
-test.imptest: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
-shell> \fBmysql \-e 'SELECT * FROM imptest' test\fR
+shell> \fBmysqlimport \-\-local test imptest\&.txt\fR
+test\&.imptest: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+shell> \fBmysql \-e \'SELECT * FROM imptest\' test\fR
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
 | id   | n             |
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
@@ -302,19 +627,23 @@ shell> \fBmysql \-e 'SELECT * FROM imptest' test\fR
 |  101 | Count Dracula |
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
 .fi
+.if n \{\
 .RE
+.\}
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

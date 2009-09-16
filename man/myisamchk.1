@@ -1,246 +1,381 @@
+'\" t
 .\"     Title: \fBmyisamchk\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYISAMCHK\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" myisamchk
 .SH "NAME"
 myisamchk \- MyISAM table\-maintenance utility
 .SH "SYNOPSIS"
-.HP 33
-\fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB ...\fR
+.HP \w'\fBmyisamchk\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fItbl_name\fR\fR\fB\ \&.\&.\&.\fR\ 'u
+\fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmyisamchk\fR
-utility gets information about your database tables or checks, repairs, or optimizes them.
+utility gets information about your database tables or checks, repairs, or optimizes them\&.
 \fBmyisamchk\fR
 works with
 MyISAM
 tables (tables that have
-\fI.MYD\fR
+\&.MYD
 and
-\fI.MYI\fR
-files for storing data and indexes).
+\&.MYI
+files for storing data and indexes)\&.
 .PP
 The use of
 \fBmyisamchk\fR
-with partitioned tables is not supported.
+with partitioned tables is not supported\&.
+.if n \{\
 .sp
+.\}
+.RS 4
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
+.ps +1
 \fBCaution\fR
+.ps -1
+.br
 .PP
-It is best to make a backup of a table before performing a table repair operation; under some circumstances the operation might cause data loss. Possible causes include but are not limited to file system errors.
+It is best to make a backup of a table before performing a table repair operation; under some circumstances the operation might cause data loss\&. Possible causes include but are not limited to file system errors\&.
+.sp .5v
+.RE
 .PP
 Invoke
 \fBmyisamchk\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB ...\fR
+shell> \fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 The
 \fIoptions\fR
 specify what you want
 \fBmyisamchk\fR
-to do. They are described in the following sections. You can also get a list of options by invoking
-\fBmyisamchk \-\-help\fR.
+to do\&. They are described in the following sections\&. You can also get a list of options by invoking
+\fBmyisamchk \-\-help\fR\&.
 .PP
 With no options,
 \fBmyisamchk\fR
-simply checks your table as the default operation. To get more information or to tell
+simply checks your table as the default operation\&. To get more information or to tell
 \fBmyisamchk\fR
-to take corrective action, specify options as described in the following discussion.
+to take corrective action, specify options as described in the following discussion\&.
 .PP
 \fItbl_name\fR
-is the database table you want to check or repair. If you run
+is the database table you want to check or repair\&. If you run
 \fBmyisamchk\fR
 somewhere other than in the database directory, you must specify the path to the database directory, because
 \fBmyisamchk\fR
-has no idea where the database is located. In fact,
+has no idea where the database is located\&. In fact,
 \fBmyisamchk\fR
-does not actually care whether the files you are working on are located in a database directory. You can copy the files that correspond to a database table into some other location and perform recovery operations on them there.
+does not actually care whether the files you are working on are located in a database directory\&. You can copy the files that correspond to a database table into some other location and perform recovery operations on them there\&.
 .PP
 You can name several tables on the
 \fBmyisamchk\fR
-command line if you wish. You can also specify a table by naming its index file (the file with the
-\fI.MYI\fR
-suffix). This allows you to specify all tables in a directory by using the pattern
-\fI*.MYI\fR. For example, if you are in a database directory, you can check all the
+command line if you wish\&. You can also specify a table by naming its index file (the file with the
+\&.MYI
+suffix)\&. This allows you to specify all tables in a directory by using the pattern
+*\&.MYI\&. For example, if you are in a database directory, you can check all the
 MyISAM
 tables in that directory like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk *.MYI\fR
+shell> \fBmyisamchk *\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 If you are not in the database directory, you can check all the tables there by specifying the path to the directory:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/database_dir/\fR\fR\fB*.MYI\fR
+shell> \fBmyisamchk \fR\fB\fI/path/to/database_dir/\fR\fR\fB*\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 You can even check all tables in all databases by specifying a wildcard with the path to the MySQL data directory:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB.MYI\fR
+shell> \fBmyisamchk \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 The recommended way to quickly check all
 MyISAM
 tables is:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-fast \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB.MYI\fR
+shell> \fBmyisamchk \-\-silent \-\-fast \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 If you want to check all
 MyISAM
 tables and repair any that are corrupted, you can use the following command:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \\\fR
-          \fB\-\-key_buffer_size=64M \-\-sort_buffer_size=64M \\\fR
-          \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \\\fR
-          \fB\fI/path/to/datadir/*/*\fR\fR\fB.MYI\fR
+shell> \fBmyisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e\fR
+          \fB\-\-key_buffer_size=64M \-\-sort_buffer_size=64M \e\fR
+          \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \e\fR
+          \fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
-This command assumes that you have more than 64MB free. For more information about memory allocation with
+This command assumes that you have more than 64MB free\&. For more information about memory allocation with
 \fBmyisamchk\fR, see
-the section called \(lq\fBMYISAMCHK\fR MEMORY USAGE\(rq.
+the section called \(lqMYISAMCHK MEMORY USAGE\(rq\&.
+.if n \{\
 .sp
+.\}
+.RS 4
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
+.ps +1
 \fBImportant\fR
+.ps -1
+.br
 .PP
-\fIYou must ensure that no other program is using the tables while you are running \fR\fI\fBmyisamchk\fR\fR. The most effective means of doing so is to shut down the MySQL server while running
+\fIYou must ensure that no other program is using the tables while you are running \fR\fI\fBmyisamchk\fR\fR\&. The most effective means of doing so is to shut down the MySQL server while running
 \fBmyisamchk\fR, or to lock all tables that
 \fBmyisamchk\fR
-is being used on.
+is being used on\&.
 .PP
 Otherwise, when you run
 \fBmyisamchk\fR, it may display the following error message:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-warning: clients are using or haven't closed the table properly
+warning: clients are using or haven\'t closed the table properly
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 This means that you are trying to check a table that has been updated by another program (such as the
 \fBmysqld\fR
-server) that hasn't yet closed the file or that has died without closing the file properly, which can sometimes lead to the corruption of one or more
+server) that hasn\'t yet closed the file or that has died without closing the file properly, which can sometimes lead to the corruption of one or more
 MyISAM
-tables.
+tables\&.
 .PP
 If
 \fBmysqld\fR
 is running, you must force it to flush any table modifications that are still buffered in memory by using
-FLUSH TABLES. You should then ensure that no one is using the tables while you are running
+FLUSH TABLES\&. You should then ensure that no one is using the tables while you are running
 \fBmyisamchk\fR
 .PP
 However, the easiest way to avoid this problem is to use
 CHECK TABLE
 instead of
 \fBmyisamchk\fR
-to check tables. See
-Section\ 12.5.2.3, \(lqCHECK TABLE Syntax\(rq.
+to check tables\&. See
+Section\ \&12.5.2.3, \(lqCHECK TABLE Syntax\(rq\&.
+.sp .5v
+.RE
 .PP
-A complete listing of all the
 \fBmyisamchk\fR
-options follows.
-.SH "\fBMYISAMCHK\fR GENERAL OPTIONS"
+supports the options in the following table\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.SH "MYISAMCHK GENERAL OPTIONS"
+.\" options: myisamchk
+.\" myisamchk: options
 .PP
 The options described in this section can be used for any type of table maintenance operation performed by
-\fBmyisamchk\fR. The sections following this one describe options that pertain only to specific operations, such as table checking or repairing.
-.TP 3n
-\(bu
+\fBmyisamchk\fR\&. The sections following this one describe options that pertain only to specific operations, such as table checking or repairing\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: help option
+.\" help option: myisamchk
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit. Options are grouped by type of operation.
-.TP 3n
-\(bu
+Display a help message and exit\&. Options are grouped by type of operation\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: HELP option
+.\" HELP option: myisamchk
 \fB\-\-HELP\fR,
 \fB\-H\fR
 .sp
-Display a help message and exit. Options are presented in a single list.
-.TP 3n
-\(bu
+Display a help message and exit\&. Options are presented in a single list\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: debug option
+.\" debug option: myisamchk
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR\fB, \-# \fR\fB\fIdebug_options\fR\fR
 .sp
-Write a debugging log. The
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string often is
-\'d:t:o,\fIfile_name\fR'.
-.TP 3n
-\(bu
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o,/tmp/myisamchk\&.trace\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: silent option
+.\" silent option: myisamchk
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Silent mode. Write output only when errors occur. You can use
+Silent mode\&. Write output only when errors occur\&. You can use
 \fB\-s\fR
 twice (\fB\-ss\fR) to make
 \fBmyisamchk\fR
-very silent.
-.TP 3n
-\(bu
+very silent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: verbose option
+.\" verbose option: myisamchk
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print more information about what the program does. This can be used with
+Verbose mode\&. Print more information about what the program does\&. This can be used with
 \fB\-d\fR
 and
-\fB\-e\fR. Use
+\fB\-e\fR\&. Use
 \fB\-v\fR
 multiple times (\fB\-vv\fR,
-\fB\-vvv\fR) for even more output.
-.TP 3n
-\(bu
+\fB\-vvv\fR) for even more output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: version option
+.\" version option: myisamchk
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
-.TP 3n
-\(bu
+Display version information and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: wait option
+.\" wait option: myisamchk
 \fB\-\-wait\fR,
 \fB\-w\fR
 .sp
-Instead of terminating with an error if the table is locked, wait until the table is unlocked before continuing. If you are running
+Instead of terminating with an error if the table is locked, wait until the table is unlocked before continuing\&. If you are running
 \fBmysqld\fR
 with external locking disabled, the table can be locked only by another
 \fBmyisamchk\fR
-command.
-.sp
+command\&.
 .RE
 .PP
 You can also set the following variables by using
 \fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
 syntax:
+.\" decode_bits myisamchk variable
+.\" ft_max_word_len myisamchk variable
+.\" ft_min_word_len myisamchk variable
+.\" ft_stopword_file myisamchk variable
+.\" key_buffer_size myisamchk variable
+.\" myisam_block_size myisamchk variable
+.\" read_buffer_size myisamchk variable
+.\" sort_buffer_size myisamchk variable
+.\" sort_key_blocks myisamchk variable
+.\" stats_method myisamchk variable
+.\" write_buffer_size myisamchk variable
 .TS
 allbox tab(:);
 l l
@@ -259,21 +394,6 @@ T{
 \fBVariable\fR
 T}:T{
 \fBDefault Value\fR
-T}
-T{
-sort_key_blocks
-T}:T{
-16
-T}
-T{
-stats_method
-T}:T{
-nulls_unequal
-T}
-T{
-write_buffer_size
-T}:T{
-262136
 T}
 T{
 decode_bits
@@ -315,8 +435,23 @@ sort_buffer_size
 T}:T{
 2097144
 T}
+T{
+sort_key_blocks
+T}:T{
+16
+T}
+T{
+stats_method
+T}:T{
+nulls_unequal
+T}
+T{
+write_buffer_size
+T}:T{
+262136
+T}
 .TE
-.sp
+.sp 1
 .PP
 The possible
 \fBmyisamchk\fR
@@ -325,98 +460,116 @@ variables and their default values can be examined with
 .PP
 sort_buffer_size
 is used when the keys are repaired by sorting keys, which is the normal case when you use
-\fB\-\-recover\fR.
+\fB\-\-recover\fR\&.
 .PP
 key_buffer_size
 is used when you are checking the table with
 \fB\-\-extend\-check\fR
-or when the keys are repaired by inserting keys row by row into the table (like when doing normal inserts). Repairing through the key buffer is used in the following cases:
-.TP 3n
-\(bu
+or when the keys are repaired by inserting keys row by row into the table (like when doing normal inserts)\&. Repairing through the key buffer is used in the following cases:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 You use
-\fB\-\-safe\-recover\fR.
-.TP 3n
-\(bu
-The temporary files needed to sort the keys would be more than twice as big as when creating the key file directly. This is often the case when you have large key values for
+\fB\-\-safe\-recover\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The temporary files needed to sort the keys would be more than twice as big as when creating the key file directly\&. This is often the case when you have large key values for
 CHAR,
 VARCHAR, or
 TEXT
-columns, because the sort operation needs to store the complete key values as it proceeds. If you have lots of temporary space and you can force
+columns, because the sort operation needs to store the complete key values as it proceeds\&. If you have lots of temporary space and you can force
 \fBmyisamchk\fR
 to repair by sorting, you can use the
 \fB\-\-sort\-recover\fR
-option.
-.sp
+option\&.
 .RE
 .PP
-Repairing through the key buffer takes much less disk space than using sorting, but is also much slower.
+Repairing through the key buffer takes much less disk space than using sorting, but is also much slower\&.
 .PP
 If you want a faster repair, set the
 key_buffer_size
 and
 sort_buffer_size
-variables to about 25% of your available memory. You can set both variables to large values, because only one of them is used at a time.
+variables to about 25% of your available memory\&. You can set both variables to large values, because only one of them is used at a time\&.
 .PP
 myisam_block_size
-is the size used for index blocks.
+is the size used for index blocks\&.
 .PP
 stats_method
 influences how
 NULL
 values are treated for index statistics collection when the
 \fB\-\-analyze\fR
-option is given. It acts like the
+option is given\&. It acts like the
 myisam_stats_method
-system variable. For more information, see the description of
+system variable\&. For more information, see the description of
 myisam_stats_method
 in
-Section\ 5.1.3, \(lqServer System Variables\(rq, and
-Section\ 7.4.7, \(lqMyISAM Index Statistics Collection\(rq. For MySQL 5.1,
+Section\ \&5.1.4, \(lqServer System Variables\(rq, and
+Section\ \&7.4.6, \(lqMyISAM Index Statistics Collection\(rq\&. For MySQL 5\&.1,
 stats_method
-was added in MySQL 5.0.14. For older versions, the statistics collection method is equivalent to
-nulls_equal.
+was added in MySQL 5\&.0\&.14\&. For older versions, the statistics collection method is equivalent to
+nulls_equal\&.
 .PP
 The
 ft_min_word_len
 and
 ft_max_word_len
-variables are available as of MySQL 4.0.0.
+variables are available as of MySQL 4\&.0\&.0\&.
 ft_stopword_file
-is available as of MySQL 4.0.19.
+is available as of MySQL 4\&.0\&.19\&.
 .PP
 ft_min_word_len
 and
 ft_max_word_len
 indicate the minimum and maximum word length for
 FULLTEXT
-indexes.
+indexes\&.
 ft_stopword_file
-names the stopword file. These need to be set under the following circumstances.
+names the stopword file\&. These need to be set under the following circumstances\&.
 .PP
 If you use
 \fBmyisamchk\fR
 to perform an operation that modifies table indexes (such as repair or analyze), the
 FULLTEXT
-indexes are rebuilt using the default full\-text parameter values for minimum and maximum word length and the stopword file unless you specify otherwise. This can result in queries failing.
+indexes are rebuilt using the default full\-text parameter values for minimum and maximum word length and the stopword file unless you specify otherwise\&. This can result in queries failing\&.
 .PP
-The problem occurs because these parameters are known only by the server. They are not stored in
+The problem occurs because these parameters are known only by the server\&. They are not stored in
 MyISAM
-index files. To avoid the problem if you have modified the minimum or maximum word length or the stopword file in the server, specify the same
+index files\&. To avoid the problem if you have modified the minimum or maximum word length or the stopword file in the server, specify the same
 ft_min_word_len,
 ft_max_word_len, and
 ft_stopword_file
 values to
 \fBmyisamchk\fR
 that you use for
-\fBmysqld\fR. For example, if you have set the minimum word length to 3, you can repair a table with
+\fBmysqld\fR\&. For example, if you have set the minimum word length to 3, you can repair a table with
 \fBmyisamchk\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \-\-recover \-\-ft_min_word_len=3 \fR\fB\fItbl_name\fR\fR\fB.MYI\fR
+shell> \fBmyisamchk \-\-recover \-\-ft_min_word_len=3 \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 To ensure that
 \fBmyisamchk\fR
@@ -426,14 +579,18 @@ and
 [myisamchk]
 sections of an option file:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 [mysqld]
 ft_min_word_len=3
 [myisamchk]
 ft_min_word_len=3
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 An alternative to using
 \fBmyisamchk\fR
@@ -441,280 +598,593 @@ is to use the
 REPAIR TABLE,
 ANALYZE TABLE,
 OPTIMIZE TABLE, or
-ALTER TABLE. These statements are performed by the server, which knows the proper full\-text parameter values to use.
-.SH "\fBMYISAMCHK\fR CHECK OPTIONS"
+ALTER TABLE\&. These statements are performed by the server, which knows the proper full\-text parameter values to use\&.
+.SH "MYISAMCHK CHECK OPTIONS"
+.\" check options: myisamchk
+.\" tables: checking
 .PP
 \fBmyisamchk\fR
 supports the following options for table checking operations:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: check option
+.\" check option: myisamchk
 \fB\-\-check\fR,
 \fB\-c\fR
 .sp
-Check the table for errors. This is the default operation if you specify no option that selects an operation type explicitly.
-.TP 3n
-\(bu
+Check the table for errors\&. This is the default operation if you specify no option that selects an operation type explicitly\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: check-only-changed option
+.\" check-only-changed option: myisamchk
 \fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
 .sp
-Check only tables that have changed since the last check.
-.TP 3n
-\(bu
+Check only tables that have changed since the last check\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: extend-check option
+.\" extend-check option: myisamchk
 \fB\-\-extend\-check\fR,
 \fB\-e\fR
 .sp
-Check the table very thoroughly. This is quite slow if the table has many indexes. This option should only be used in extreme cases. Normally,
+Check the table very thoroughly\&. This is quite slow if the table has many indexes\&. This option should only be used in extreme cases\&. Normally,
 \fBmyisamchk\fR
 or
 \fBmyisamchk \-\-medium\-check\fR
-should be able to determine whether there are any errors in the table.
+should be able to determine whether there are any errors in the table\&.
 .sp
 If you are using
 \fB\-\-extend\-check\fR
 and have plenty of memory, setting the
 key_buffer_size
-variable to a large value helps the repair operation run faster.
-.TP 3n
-\(bu
+variable to a large value helps the repair operation run faster\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: fast option
+.\" fast option: myisamchk
 \fB\-\-fast\fR,
 \fB\-F\fR
 .sp
-Check only tables that haven't been closed properly.
-.TP 3n
-\(bu
+Check only tables that haven\'t been closed properly\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: force option
+.\" force option: myisamchk
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
 Do a repair operation automatically if
 \fBmyisamchk\fR
-finds any errors in the table. The repair type is the same as that specified with the
+finds any errors in the table\&. The repair type is the same as that specified with the
 \fB\-\-recover\fR
 or
 \fB\-r\fR
-option.
-.TP 3n
-\(bu
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: information option
+.\" information option: myisamchk
 \fB\-\-information\fR,
 \fB\-i\fR
 .sp
-Print informational statistics about the table that is checked.
-.TP 3n
-\(bu
+Print informational statistics about the table that is checked\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: medium-check option
+.\" medium-check option: myisamchk
 \fB\-\-medium\-check\fR,
 \fB\-m\fR
 .sp
 Do a check that is faster than an
 \fB\-\-extend\-check\fR
-operation. This finds only 99.99% of all errors, which should be good enough in most cases.
-.TP 3n
-\(bu
+operation\&. This finds only 99\&.99% of all errors, which should be good enough in most cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: read-only option
+.\" read-only option: myisamchk
 \fB\-\-read\-only\fR,
 \fB\-T\fR
 .sp
-Do not mark the table as checked. This is useful if you use
+Do not mark the table as checked\&. This is useful if you use
 \fBmyisamchk\fR
 to check a table that is in use by some other application that does not use locking, such as
 \fBmysqld\fR
-when run with external locking disabled.
-.TP 3n
-\(bu
+when run with external locking disabled\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: update-state option
+.\" update-state option: myisamchk
 \fB\-\-update\-state\fR,
 \fB\-U\fR
 .sp
 Store information in the
-\fI.MYI\fR
-file to indicate when the table was checked and whether the table crashed. This should be used to get full benefit of the
+\&.MYI
+file to indicate when the table was checked and whether the table crashed\&. This should be used to get full benefit of the
 \fB\-\-check\-only\-changed\fR
-option, but you shouldn't use this option if the
+option, but you shouldn\'t use this option if the
 \fBmysqld\fR
-server is using the table and you are running it with external locking disabled.
-.SH "\fBMYISAMCHK\fR REPAIR OPTIONS"
+server is using the table and you are running it with external locking disabled\&.
+.RE
+.SH "MYISAMCHK REPAIR OPTIONS"
+.\" repair options: myisamchk
+.\" files: repairing
 .PP
 \fBmyisamchk\fR
 supports the following options for table repair operations:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: backup option
+.\" backup option: myisamchk
 \fB\-\-backup\fR,
 \fB\-B\fR
 .sp
 Make a backup of the
-\fI.MYD\fR
+\&.MYD
 file as
-\fI\fIfile_name\fR\fR\fI\-\fR\fI\fItime\fR\fR\fI.BAK\fR
-.TP 3n
-\(bu
+\fIfile_name\fR\-\fItime\fR\&.BAK
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: character-sets-dir option
+.\" character-sets-dir option: myisamchk
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: correct-checksum option
+.\" correct-checksum option: myisamchk
 \fB\-\-correct\-checksum\fR
 .sp
-Correct the checksum information for the table.
-.TP 3n
-\(bu
+Correct the checksum information for the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: data-file-length option
+.\" data-file-length option: myisamchk
 \fB\-\-data\-file\-length=\fR\fB\fIlen\fR\fR\fB, \-D \fR\fB\fIlen\fR\fR
 .sp
-Maximum length of the data file (when re\-creating data file when it is
-\(lqfull\(rq).
-.TP 3n
-\(bu
+The maximum length of the data file (when re\-creating data file when it is
+\(lqfull\(rq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: extend-check option
+.\" extend-check option: myisamchk
 \fB\-\-extend\-check\fR,
 \fB\-e\fR
 .sp
-Do a repair that tries to recover every possible row from the data file. Normally, this also finds a lot of garbage rows. Do not use this option unless you are desperate.
-.TP 3n
-\(bu
+Do a repair that tries to recover every possible row from the data file\&. Normally, this also finds a lot of garbage rows\&. Do not use this option unless you are desperate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: force option
+.\" force option: myisamchk
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
 Overwrite old intermediate files (files with names like
-\fI\fItbl_name\fR\fR\fI.TMD\fR) instead of aborting.
-.TP 3n
-\(bu
+\fItbl_name\fR\&.TMD) instead of aborting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: keys-used option
+.\" keys-used option: myisamchk
 \fB\-\-keys\-used=\fR\fB\fIval\fR\fR,
 \fB\-k \fR\fB\fIval\fR\fR
 .sp
 For
-\fBmyisamchk\fR, the option value is a bit\-value that indicates which indexes to update. Each binary bit of the option value corresponds to a table index, where the first index is bit 0. An option value of 0 disables updates to all indexes, which can be used to get faster inserts. Deactivated indexes can be reactivated by using
-\fBmyisamchk \-r\fR.
-.TP 3n
-\(bu
+\fBmyisamchk\fR, the option value is a bit\-value that indicates which indexes to update\&. Each binary bit of the option value corresponds to a table index, where the first index is bit 0\&. An option value of 0 disables updates to all indexes, which can be used to get faster inserts\&. Deactivated indexes can be reactivated by using
+\fBmyisamchk \-r\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: no-symlinks option
+.\" no-symlinks option: myisamchk
 \fB\-\-no\-symlinks\fR,
 \fB\-l\fR
 .sp
-Do not follow symbolic links. Normally
+Do not follow symbolic links\&. Normally
 \fBmyisamchk\fR
-repairs the table that a symlink points to. This option does not exist as of MySQL 4.0 because versions from 4.0 on do not remove symlinks during repair operations.
-.TP 3n
-\(bu
+repairs the table that a symlink points to\&. This option does not exist as of MySQL 4\&.0 because versions from 4\&.0 on do not remove symlinks during repair operations\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: max-record-length option
+.\" max-record-length option: myisamchk
 \fB\-\-max\-record\-length=\fR\fB\fIlen\fR\fR
 .sp
 Skip rows larger than the given length if
 \fBmyisamchk\fR
-cannot allocate memory to hold them.
-.TP 3n
-\(bu
+cannot allocate memory to hold them\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: parallel-recover option
+.\" parallel-recover option: myisamchk
 \fB\-\-parallel\-recover\fR,
 \fB\-p\fR
 .sp
-Uses the same technique as
+Use the same technique as
 \fB\-r\fR
 and
-\fB\-n\fR, but creates all the keys in parallel, using different threads.
-\fIThis is beta\-quality code. Use at your own risk!\fR
-.TP 3n
-\(bu
+\fB\-n\fR, but create all the keys in parallel, using different threads\&.
+\fIThis is beta\-quality code\&. Use at your own risk!\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: quick option
+.\" quick option: myisamchk
 \fB\-\-quick\fR,
 \fB\-q\fR
 .sp
-Achieve a faster repair by not modifying the data file. You can specify this option twice to force
+Achieve a faster repair by not modifying the data file\&. You can specify this option twice to force
 \fBmyisamchk\fR
-to modify the original data file in case of duplicate keys.
-.TP 3n
-\(bu
+to modify the original data file in case of duplicate keys\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: recover option
+.\" recover option: myisamchk
 \fB\-\-recover\fR,
 \fB\-r\fR
 .sp
 Do a repair that can fix almost any problem except unique keys that are not unique (which is an extremely unlikely error with
 MyISAM
-tables). If you want to recover a table, this is the option to try first. You should try
+tables)\&. If you want to recover a table, this is the option to try first\&. You should try
 \fB\-\-safe\-recover\fR
 only if
 \fBmyisamchk\fR
 reports that the table cannot be recovered using
-\fB\-\-recover\fR. (In the unlikely case that
+\fB\-\-recover\fR\&. (In the unlikely case that
 \fB\-\-recover\fR
-fails, the data file remains intact.)
+fails, the data file remains intact\&.)
 .sp
 If you have lots of memory, you should increase the value of
-sort_buffer_size.
-.TP 3n
-\(bu
+sort_buffer_size\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: safe-recover option
+.\" safe-recover option: myisamchk
 \fB\-\-safe\-recover\fR,
 \fB\-o\fR
 .sp
-Do a repair using an old recovery method that reads through all rows in order and updates all index trees based on the rows found. This is an order of magnitude slower than
+Do a repair using an old recovery method that reads through all rows in order and updates all index trees based on the rows found\&. This is an order of magnitude slower than
 \fB\-\-recover\fR, but can handle a couple of very unlikely cases that
 \fB\-\-recover\fR
-cannot. This recovery method also uses much less disk space than
-\fB\-\-recover\fR. Normally, you should repair first using
+cannot\&. This recovery method also uses much less disk space than
+\fB\-\-recover\fR\&. Normally, you should repair first using
 \fB\-\-recover\fR, and then with
 \fB\-\-safe\-recover\fR
 only if
 \fB\-\-recover\fR
-fails.
+fails\&.
 .sp
 If you have lots of memory, you should increase the value of
-key_buffer_size.
-.TP 3n
-\(bu
+key_buffer_size\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: set-character-set option
+.\" set-character-set option: myisamchk
 \fB\-\-set\-character\-set=\fR\fB\fIname\fR\fR
 .sp
-Change the character set used by the table indexes. This option was replaced by
+Change the character set used by the table indexes\&. This option was replaced by
 \fB\-\-set\-collation\fR
-in MySQL 5.0.3.
-.TP 3n
-\(bu
+in MySQL 5\&.0\&.3\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: set-collation option
+.\" set-collation option: myisamchk
 \fB\-\-set\-collation=\fR\fB\fIname\fR\fR
 .sp
-Specify the collation to use for sorting table indexes. The character set name is implied by the first part of the collation name.
-.TP 3n
-\(bu
+Specify the collation to use for sorting table indexes\&. The character set name is implied by the first part of the collation name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: sort-recover option
+.\" sort-recover option: myisamchk
 \fB\-\-sort\-recover\fR,
 \fB\-n\fR
 .sp
 Force
 \fBmyisamchk\fR
-to use sorting to resolve the keys even if the temporary files would be very large.
-.TP 3n
-\(bu
+to use sorting to resolve the keys even if the temporary files would be very large\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: tmpdir option
+.\" tmpdir option: myisamchk
 \fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
 \fB\-t \fR\fB\fIpath\fR\fR
 .sp
-Path of the directory to be used for storing temporary files. If this is not set,
+The path of the directory to be used for storing temporary files\&. If this is not set,
 \fBmyisamchk\fR
 uses the value of the
 TMPDIR
-environment variable.
+environment variable\&.
 tmpdir
-can be set to a list of directory paths that are used successively in round\-robin fashion for creating temporary files. The separator character between directory names is the colon (\(lq:\(rq) on Unix and the semicolon (\(lq;\(rq) on Windows, NetWare, and OS/2.
-.TP 3n
-\(bu
+can be set to a list of directory paths that are used successively in round\-robin fashion for creating temporary files\&. The separator character between directory names is the colon (\(lq:\(rq) on Unix and the semicolon (\(lq;\(rq) on Windows, NetWare, and OS/2\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: unpack option
+.\" unpack option: myisamchk
 \fB\-\-unpack\fR,
 \fB\-u\fR
 .sp
 Unpack a table that was packed with
-\fBmyisampack\fR.
+\fBmyisampack\fR\&.
+.RE
 .SH "OTHER MYISAMCHK OPTIONS"
 .PP
 \fBmyisamchk\fR
 supports the following options for actions other than table checks and repairs:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: analyze option
+.\" analyze option: myisamchk
 \fB\-\-analyze\fR,
 \fB\-a\fR
 .sp
-Analyze the distribution of key values. This improves join performance by enabling the join optimizer to better choose the order in which to join the tables and which indexes it should use. To obtain information about the key distribution, use a
+Analyze the distribution of key values\&. This improves join performance by enabling the join optimizer to better choose the order in which to join the tables and which indexes it should use\&. To obtain information about the key distribution, use a
 \fBmyisamchk \-\-description \-\-verbose \fR\fB\fItbl_name\fR\fR
 command or the
 SHOW INDEX FROM \fItbl_name\fR
-statement.
-.TP 3n
-\(bu
+statement\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: block-search option
+.\" block-search option: myisamchk
 \fB\-\-block\-search=\fR\fB\fIoffset\fR\fR,
 \fB\-b \fR\fB\fIoffset\fR\fR
 .sp
-Find the record that a block at the given offset belongs to.
-.TP 3n
-\(bu
+Find the record that a block at the given offset belongs to\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: description option
+.\" description option: myisamchk
 \fB\-\-description\fR,
 \fB\-d\fR
 .sp
-Print some descriptive information about the table.
-.TP 3n
-\(bu
+Print some descriptive information about the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: set-auto-increment[ option
+.\" set-auto-increment[ option: myisamchk
 \fB\-\-set\-auto\-increment[=\fR\fB\fIvalue\fR\fR\fB]\fR,
 \fB\-A[\fR\fB\fIvalue\fR\fR\fB]\fR
 .sp
@@ -722,120 +1192,175 @@ Force
 AUTO_INCREMENT
 numbering for new records to start at the given value (or higher, if there are existing records with
 AUTO_INCREMENT
-values this large). If
+values this large)\&. If
 \fIvalue\fR
 is not specified,
 AUTO_INCREMENT
-numbers for new records begin with the largest value currently in the table, plus one.
-.TP 3n
-\(bu
+numbers for new records begin with the largest value currently in the table, plus one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: sort-index option
+.\" sort-index option: myisamchk
 \fB\-\-sort\-index\fR,
 \fB\-S\fR
 .sp
-Sort the index tree blocks in high\-low order. This optimizes seeks and makes table scans that use indexes faster.
-.TP 3n
-\(bu
+Sort the index tree blocks in high\-low order\&. This optimizes seeks and makes table scans that use indexes faster\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisamchk: sort-records option
+.\" sort-records option: myisamchk
 \fB\-\-sort\-records=\fR\fB\fIN\fR\fR,
 \fB\-R \fR\fB\fIN\fR\fR
 .sp
-Sort records according to a particular index. This makes your data much more localized and may speed up range\-based
+Sort records according to a particular index\&. This makes your data much more localized and may speed up range\-based
 SELECT
 and
 ORDER BY
-operations that use this index. (The first time you use this option to sort a table, it may be very slow.) To determine a table's index numbers, use
-SHOW INDEX, which displays a table's indexes in the same order that
+operations that use this index\&. (The first time you use this option to sort a table, it may be very slow\&.) To determine a table\'s index numbers, use
+SHOW INDEX, which displays a table\'s indexes in the same order that
 \fBmyisamchk\fR
-sees them. Indexes are numbered beginning with 1.
+sees them\&. Indexes are numbered beginning with 1\&.
 .sp
 If keys are not packed (PACK_KEYS=0), they have the same length, so when
 \fBmyisamchk\fR
-sorts and moves records, it just overwrites record offsets in the index. If keys are packed (PACK_KEYS=1),
+sorts and moves records, it just overwrites record offsets in the index\&. If keys are packed (PACK_KEYS=1),
 \fBmyisamchk\fR
-must unpack key blocks first, then re\-create indexes and pack the key blocks again. (In this case, re\-creating indexes is faster than updating offsets for each index.)
-.SH "\fBMYISAMCHK\fR MEMORY USAGE"
+must unpack key blocks first, then re\-create indexes and pack the key blocks again\&. (In this case, re\-creating indexes is faster than updating offsets for each index\&.)
+.RE
+.SH "MYISAMCHK MEMORY USAGE"
+.\" memory usage: myisamchk
 .PP
 Memory allocation is important when you run
-\fBmyisamchk\fR.
+\fBmyisamchk\fR\&.
 \fBmyisamchk\fR
-uses no more memory than its memory\-related variables are set to. If you are going to use
+uses no more memory than its memory\-related variables are set to\&. If you are going to use
 \fBmyisamchk\fR
-on very large tables, you should first decide how much memory you want it to use. The default is to use only about 3MB to perform repairs. By using larger values, you can get
+on very large tables, you should first decide how much memory you want it to use\&. The default is to use only about 3MB to perform repairs\&. By using larger values, you can get
 \fBmyisamchk\fR
-to operate faster. For example, if you have more than 32MB RAM, you could use options such as these (in addition to any other options you might specify):
+to operate faster\&. For example, if you have more than 32MB RAM, you could use options such as these (in addition to any other options you might specify):
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \-\-sort_buffer_size=16M \-\-key_buffer_size=16M \\\fR
-           \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M ...\fR
+shell> \fBmyisamchk \-\-sort_buffer_size=16M \-\-key_buffer_size=16M \e\fR
+           \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \&.\&.\&.\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Using
 \fB\-\-sort_buffer_size=16M\fR
-should probably be enough for most cases.
+should probably be enough for most cases\&.
 .PP
 Be aware that
 \fBmyisamchk\fR
 uses temporary files in
-TMPDIR. If
+TMPDIR\&. If
 TMPDIR
-points to a memory file system, you may easily get out of memory errors. If this happens, run
+points to a memory file system, you may easily get out of memory errors\&. If this happens, run
 \fBmyisamchk\fR
 with the
 \fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
-option to specify some directory located on a file system that has more space.
+option to specify some directory located on a file system that has more space\&.
 .PP
 When repairing,
 \fBmyisamchk\fR
 also needs a lot of disk space:
-.TP 3n
-\(bu
-Double the size of the data file (the original file and a copy). This space is not needed if you do a repair with
-\fB\-\-quick\fR; in this case, only the index file is re\-created.
-\fIThis space must be available on the same file system as the original data file\fR, as the copy is created in the same directory as the original.
-.TP 3n
-\(bu
-Space for the new index file that replaces the old one. The old index file is truncated at the start of the repair operation, so you usually ignore this space. This space must be available on the same file system as the original data file.
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Double the size of the data file (the original file and a copy)\&. This space is not needed if you do a repair with
+\fB\-\-quick\fR; in this case, only the index file is re\-created\&.
+\fIThis space must be available on the same file system as the original data file\fR, as the copy is created in the same directory as the original\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Space for the new index file that replaces the old one\&. The old index file is truncated at the start of the repair operation, so you usually ignore this space\&. This space must be available on the same file system as the original data file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 When using
 \fB\-\-recover\fR
 or
 \fB\-\-sort\-recover\fR
 (but not when using
-\fB\-\-safe\-recover\fR), you need space for a sort buffer. The following formula yields the amount of space required:
+\fB\-\-safe\-recover\fR), you need space for a sort buffer\&. The following formula yields the amount of space required:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 (\fIlargest_key\fR + \fIrow_pointer_length\fR) \(mu \fInumber_of_rows\fR \(mu 2
 .fi
+.if n \{\
 .RE
+.\}
+.sp
 You can check the length of the keys and the
 row_pointer_length
 with
-\fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR. This space is allocated in the temporary directory (specified by
+\fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR\&. This space is allocated in the temporary directory (specified by
 TMPDIR
 or
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR).
-.sp
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR)\&.
 .RE
 .PP
 If you have a problem with disk space during repair, you can try
 \fB\-\-safe\-recover\fR
 instead of
-\fB\-\-recover\fR.
+\fB\-\-recover\fR\&.
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

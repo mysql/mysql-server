@@ -11,7 +11,7 @@
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.35), and OS indicates the type of operating system for which
+   5.1.39), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -156,10 +156,10 @@ shell> chown -R mysql data
        Permissions in Grant Tables." For Perl module installation
        instructions, see Section 2.15, "Perl Installation Notes."
    11. If you would like to use mysqlaccess and have the MySQL
-       distribution in some non-standard location, you must change
-       the location where mysqlaccess expects to find the mysql
-       client. Edit the bin/mysqlaccess script at approximately line
-       18. Search for a line that looks like this:
+       distribution in some nonstandard location, you must change the
+       location where mysqlaccess expects to find the mysql client.
+       Edit the bin/mysqlaccess script at approximately line 18.
+       Search for a line that looks like this:
 $MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
        Change the path to reflect the location where mysql actually
        is stored on your system. If you do not do this, a Broken pipe

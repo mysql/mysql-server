@@ -1,116 +1,176 @@
+'\" t
 .\"     Title: \fBreplace\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBREPLACE\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBREPLACE\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" replace utility
+.\" string replacement: replace utility
 .SH "NAME"
 replace \- a string\-replacement utility
 .SH "SYNOPSIS"
-.HP 18
+.HP \w'\fBreplace\ \fR\fB\fIarguments\fR\fR\ 'u
 \fBreplace \fR\fB\fIarguments\fR\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBreplace\fR
-utility program changes strings in place in files or on the standard input.
+utility program changes strings in place in files or on the standard input\&.
 .PP
 Invoke
 \fBreplace\fR
 in one of the following ways:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] ... \-\- \fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fIfile_name\fR\fR\fB] ...\fR
-shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] ... < \fR\fB\fIfile_name\fR\fR
+shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] \&.\&.\&. \-\- \fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fIfile_name\fR\fR\fB] \&.\&.\&.\fR
+shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] \&.\&.\&. < \fR\fB\fIfile_name\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fIfrom\fR
 represents a string to look for and
 \fIto\fR
-represents its replacement. There can be one or more pairs of strings.
+represents its replacement\&. There can be one or more pairs of strings\&.
 .PP
 Use the
 \fB\-\-\fR
-option to indicate where the string\-replacement list ends and the file names begin. In this case, any file named on the command line is modified in place, so you may want to make a copy of the original before converting it.
+option to indicate where the string\-replacement list ends and the file names begin\&. In this case, any file named on the command line is modified in place, so you may want to make a copy of the original before converting it\&.
 \fIreplace\fR
-prints a message indicating which of the input files it actually modifies.
+prints a message indicating which of the input files it actually modifies\&.
 .PP
 If the
 \fB\-\-\fR
 option is not given,
 \fBreplace\fR
-reads the standard input and writes to the standard output.
+reads the standard input and writes to the standard output\&.
 .PP
 \fBreplace\fR
-uses a finite state machine to match longer strings first. It can be used to swap strings. For example, the following command swaps
+uses a finite state machine to match longer strings first\&. It can be used to swap strings\&. For example, the following command swaps
 a
 and
 b
 in the given files,
-\fIfile1\fR
+file1
 and
-\fIfile2\fR:
+file2:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBreplace a b b a \-\- file1 file2 ...\fR
+shell> \fBreplace a b b a \-\- file1 file2 \&.\&.\&.\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 The
 \fBreplace\fR
 program is used by
-\fBmsql2mysql\fR. See
-\fBmsql2mysql\fR(1).
+\fBmsql2mysql\fR\&. See
+\fBmsql2mysql\fR(1)\&.
 .PP
 \fBreplace\fR
 supports the following options:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-?\fR,
 \fB\-I\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-#\fR\fB\fIdebug_options\fR\fR
 .sp
-Enable debugging.
-.TP 3n
-\(bu
+Enable debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-s\fR
 .sp
-Silent mode. Print less information what the program does.
-.TP 3n
-\(bu
+Silent mode\&. Print less information what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-v\fR
 .sp
-Verbose mode. Print more information about what the program does.
-.TP 3n
-\(bu
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-V\fR
 .sp
-Display version information and exit.
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

@@ -1,82 +1,98 @@
+'\" t
 .\"     Title: \fBmysqld_safe\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQLD_SAFE\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqld_safe
+.\" tools: mysqld_safe
+.\" scripts
 .SH "NAME"
 mysqld_safe \- MySQL server startup script
 .SH "SYNOPSIS"
-.HP 20
+.HP \w'\fBmysqld_safe\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBmysqld_safe \fR\fB\fIoptions\fR\fR
 .SH "DESCRIPTION"
 .PP
 \fBmysqld_safe\fR
 is the recommended way to start a
 \fBmysqld\fR
-server on Unix and NetWare.
+server on Unix and NetWare\&.
 \fBmysqld_safe\fR
-adds some safety features such as restarting the server when an error occurs and logging runtime information to an error log file. Descriptions of error logging and NetWare\-specific behaviors are given later in this section.
+adds some safety features such as restarting the server when an error occurs and logging runtime information to an error log file\&. Descriptions of error logging and NetWare\-specific behaviors are given later in this section\&.
+.if n \{\
 .sp
+.\}
+.RS 4
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
+.ps +1
 \fBNote\fR
+.ps -1
+.br
 .PP
-In MySQL 5.1.20 (only), the default error logging behavior with
+In MySQL 5\&.1\&.20 (only), the default error logging behavior with
 \fBmysqld_safe\fR
 is to write errors to
 syslog
 on systems that support the
 \fBlogger\fR
-program. This differs from the default behavior of writing an error log file for other versions.
+program\&. This differs from the default behavior of writing an error log file for other versions\&.
 .PP
-\fBIn 5.1.20, logging to \fR\fBsyslog\fR\fB may fail to operate correctly in some cases, so we recommend that you use \fR\fB\fB\-\-skip\-syslog\fR\fR\fB to use the default log file or \fR\fB\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR\fR\fB to specify a log file name explicitly.\fR
+\fBIn 5\&.1\&.20, logging to \fR\fBsyslog\fR\fB may fail to operate correctly in some cases; if so, use \fR\fB\fB\-\-skip\-syslog\fR\fR\fB to use the default log file or \fR\fB\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR\fR\fB to specify a log file name explicitly\&.\fR
+.sp .5v
+.RE
 .PP
 \fBmysqld_safe\fR
 tries to start an executable named
-\fBmysqld\fR. To override the default behavior and specify explicitly the name of the server you want to run, specify a
+\fBmysqld\fR\&. To override the default behavior and specify explicitly the name of the server you want to run, specify a
 \fB\-\-mysqld\fR
 or
 \fB\-\-mysqld\-version\fR
 option to
-\fBmysqld_safe\fR. You can also use
+\fBmysqld_safe\fR\&. You can also use
 \fB\-\-ledir\fR
 to indicate the directory where
 \fBmysqld_safe\fR
-should look for the server.
+should look for the server\&.
 .PP
 Many of the options to
 \fBmysqld_safe\fR
 are the same as the options to
-\fBmysqld\fR. See
-Section\ 5.1.2, \(lqServer Command Options\(rq.
+\fBmysqld\fR\&. See
+Section\ \&5.1.2, \(lqServer Command Options\(rq\&.
 .PP
-All options specified to
+Options unknown to
 \fBmysqld_safe\fR
-on the command line are passed to
-\fBmysqld\fR. If you want to use any options that are specific to
-\fBmysqld_safe\fR
-and that
+are passed to
 \fBmysqld\fR
-doesn't support, do not specify them on the command line. Instead, list them in the
+if they are specified on the command line, but ignored if they are specified in the
 [mysqld_safe]
-group of an option file. See
-Section\ 4.2.3.2, \(lqUsing Option Files\(rq.
+group of an option file\&. See
+Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
 .PP
 \fBmysqld_safe\fR
 reads all options from the
 [mysqld],
 [server], and
 [mysqld_safe]
-sections in option files. For example, if you specify a
+sections in option files\&. For example, if you specify a
 [mysqld]
 section like this,
 \fBmysqld_safe\fR
@@ -84,12 +100,16 @@ will find and use the
 \fB\-\-log\-error\fR
 option:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 [mysqld]
-log\-error=error.log
+log\-error=error\&.log
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 For backward compatibility,
 \fBmysqld_safe\fR
@@ -97,101 +117,216 @@ also reads
 [safe_mysqld]
 sections, although you should rename such sections to
 [mysqld_safe]
-in MySQL 5.1 installations.
+in MySQL 5\&.1 installations\&.
 .PP
 \fBmysqld_safe\fR
-supports the following options:
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: help option
+.\" help option: mysqld_safe
 \fB\-\-help\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: autoclose option
+.\" autoclose option: mysqld_safe
 \fB\-\-autoclose\fR
 .sp
 (NetWare only) On NetWare,
 \fBmysqld_safe\fR
-provides a screen presence. When you unload (shut down) the
+provides a screen presence\&. When you unload (shut down) the
 \fBmysqld_safe\fR
-NLM, the screen does not by default go away. Instead, it prompts for user input:
+NLM, the screen does not by default go away\&. Instead, it prompts for user input:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 *<NLM has terminated; Press any key to close the screen>*
 .fi
+.if n \{\
 .RE
+.\}
+.sp
 If you want NetWare to close the screen automatically instead, use the
 \fB\-\-autoclose\fR
 option to
-\fBmysqld_safe\fR.
-.TP 3n
-\(bu
+\fBmysqld_safe\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: basedir option
+.\" basedir option: mysqld_safe
 \fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL installation directory.
-.TP 3n
-\(bu
+The path to the MySQL installation directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: core-file-size option
+.\" core-file-size option: mysqld_safe
 \fB\-\-core\-file\-size=\fR\fB\fIsize\fR\fR
 .sp
 The size of the core file that
 \fBmysqld\fR
-should be able to create. The option value is passed to
-\fBulimit \-c\fR.
-.TP 3n
-\(bu
+should be able to create\&. The option value is passed to
+\fBulimit \-c\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: datadir option
+.\" datadir option: mysqld_safe
 \fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the data directory.
-.TP 3n
-\(bu
+The path to the data directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: defaults-extra-file option
+.\" defaults-extra-file option: mysqld_safe
 \fB\-\-defaults\-extra\-file=\fR\fB\fIpath\fR\fR
 .sp
-The name of an option file to be read in addition to the usual option files. This must be the first option on the command line if it is used. If the file does not exist or is otherwise inaccessible, the server will exit with an error.
-.TP 3n
-\(bu
+The name of an option file to be read in addition to the usual option files\&. This must be the first option on the command line if it is used\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: defaults-file option
+.\" defaults-file option: mysqld_safe
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The name of an option file to be read instead of the usual option files. This must be the first option on the command line if it is used.
-.TP 3n
-\(bu
+The name of an option file to be read instead of the usual option files\&. This must be the first option on the command line if it is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: ledir option
+.\" ledir option: mysqld_safe
 \fB\-\-ledir=\fR\fB\fIpath\fR\fR
 .sp
 If
 \fBmysqld_safe\fR
-cannot find the server, use this option to indicate the path name to the directory where the server is located.
-.TP 3n
-\(bu
+cannot find the server, use this option to indicate the path name to the directory where the server is located\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: log-error option
+.\" log-error option: mysqld_safe
 \fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR
 .sp
-Write the error log to the given file. See
-Section\ 5.2.2, \(lqThe Error Log\(rq.
-.TP 3n
-\(bu
+Write the error log to the given file\&. See
+Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: mysqld option
+.\" mysqld option: mysqld_safe
 \fB\-\-mysqld=\fR\fB\fIprog_name\fR\fR
 .sp
 The name of the server program (in the
 ledir
-directory) that you want to start. This option is needed if you use the MySQL binary distribution but have the data directory outside of the binary distribution. If
+directory) that you want to start\&. This option is needed if you use the MySQL binary distribution but have the data directory outside of the binary distribution\&. If
 \fBmysqld_safe\fR
 cannot find the server, use the
 \fB\-\-ledir\fR
-option to indicate the path name to the directory where the server is located.
-.TP 3n
-\(bu
+option to indicate the path name to the directory where the server is located\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: mysqld-version option
+.\" mysqld-version option: mysqld_safe
 \fB\-\-mysqld\-version=\fR\fB\fIsuffix\fR\fR
 .sp
 This option is similar to the
 \fB\-\-mysqld\fR
-option, but you specify only the suffix for the server program name. The basename is assumed to be
-\fBmysqld\fR. For example, if you use
+option, but you specify only the suffix for the server program name\&. The basename is assumed to be
+\fBmysqld\fR\&. For example, if you use
 \fB\-\-mysqld\-version=debug\fR,
 \fBmysqld_safe\fR
 starts the
 \fBmysqld\-debug\fR
 program in the
 ledir
-directory. If the argument to
+directory\&. If the argument to
 \fB\-\-mysqld\-version\fR
 is empty,
 \fBmysqld_safe\fR
@@ -199,57 +334,139 @@ uses
 \fBmysqld\fR
 in the
 ledir
-directory.
-.TP 3n
-\(bu
+directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: nice option
+.\" nice option: mysqld_safe
 \fB\-\-nice=\fR\fB\fIpriority\fR\fR
 .sp
 Use the
 nice
-program to set the server's scheduling priority to the given value.
-.TP 3n
-\(bu
+program to set the server\'s scheduling priority to the given value\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: no-defaults option
+.\" no-defaults option: mysqld_safe
 \fB\-\-no\-defaults\fR
 .sp
-Do not read any option files. This must be the first option on the command line if it is used.
-.TP 3n
-\(bu
+Do not read any option files\&. This must be the first option on the command line if it is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: open-files-limit option
+.\" open-files-limit option: mysqld_safe
 \fB\-\-open\-files\-limit=\fR\fB\fIcount\fR\fR
 .sp
 The number of files that
 \fBmysqld\fR
-should be able to open. The option value is passed to
-\fBulimit \-n\fR. Note that you need to start
+should be able to open\&. The option value is passed to
+\fBulimit \-n\fR\&. Note that you need to start
 \fBmysqld_safe\fR
 as
 root
 for this to work properly!
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: pid-file option
+.\" pid-file option: mysqld_safe
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name of the process ID file.
-.TP 3n
-\(bu
+The path name of the process ID file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: port option
+.\" port option: mysqld_safe
 \fB\-\-port=\fR\fB\fIport_num\fR\fR
 .sp
-The port number that the server should use when listening for TCP/IP connections. The port number must be 1024 or higher unless the server is started by the
+The port number that the server should use when listening for TCP/IP connections\&. The port number must be 1024 or higher unless the server is started by the
 root
-system user.
-.TP 3n
-\(bu
+system user\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: skip-kill-mysqld option
+.\" skip-kill-mysqld option: mysqld_safe
 \fB\-\-skip\-kill\-mysqld\fR
 .sp
 Do not try to kill stray
 \fBmysqld\fR
-processes at startup. This option works only on Linux.
-.TP 3n
-\(bu
+processes at startup\&. This option works only on Linux\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: socket option
+.\" socket option: mysqld_safe
 \fB\-\-socket=\fR\fB\fIpath\fR\fR
 .sp
-The Unix socket file that the server should use when listening for local connections.
-.TP 3n
-\(bu
+The Unix socket file that the server should use when listening for local connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: syslog option
+.\" syslog option: mysqld_safe
+.\" mysqld_safe: skip-syslog option
+.\" skip-syslog option: mysqld_safe
 \fB\-\-syslog\fR,
 \fB\-\-skip\-syslog\fR
 .sp
@@ -258,12 +475,22 @@ causes error messages to be sent to
 syslog
 on systems that support the
 \fBlogger\fR
-program.
+program\&.
 \-\-skip\-syslog
 suppresses the use of
-syslog; messages are written to an error log file. These options were added in MySQL 5.1.20.
-.TP 3n
-\(bu
+syslog; messages are written to an error log file\&. These options were added in MySQL 5\&.1\&.20\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: syslog-tag option
+.\" syslog-tag option: mysqld_safe
 \fB\-\-syslog\-tag=\fR\fB\fItag\fR\fR
 .sp
 For logging to
@@ -274,20 +501,40 @@ and
 are written with a tag of
 mysqld_safe
 and
-mysqld, respectively. To specify a suffix for the tag, use
+mysqld, respectively\&. To specify a suffix for the tag, use
 \fB\-\-syslog\-tag=\fR\fB\fItag\fR\fR, which modifies the tags to be
 mysqld_safe\-\fItag\fR
 and
-mysqld\-\fItag\fR. This option was added in MySQL 5.1.21.
-.TP 3n
-\(bu
+mysqld\-\fItag\fR\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: timezone option
+.\" timezone option: mysqld_safe
 \fB\-\-timezone=\fR\fB\fItimezone\fR\fR
 .sp
 Set the
 TZ
-time zone environment variable to the given option value. Consult your operating system documentation for legal time zone specification formats.
-.TP 3n
-\(bu
+time zone environment variable to the given option value\&. Consult your operating system documentation for legal time zone specification formats\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: user option
+.\" user option: mysqld_safe
 \fB\-\-user={\fR\fB\fIuser_name\fR\fR\fB|\fR\fB\fIuser_id\fR\fR\fB}\fR
 .sp
 Run the
@@ -295,9 +542,8 @@ Run the
 server as the user having the name
 \fIuser_name\fR
 or the numeric user ID
-\fIuser_id\fR. (\(lqUser\(rq
-in this context refers to a system login account, not a MySQL user listed in the grant tables.)
-.sp
+\fIuser_id\fR\&. (\(lqUser\(rq
+in this context refers to a system login account, not a MySQL user listed in the grant tables\&.)
 .RE
 .PP
 If you execute
@@ -306,56 +552,78 @@ with the
 \fB\-\-defaults\-file\fR
 or
 \fB\-\-defaults\-extra\-file\fR
-option to name an option file, the option must be the first one given on the command line or the option file will not be used. For example, this command will not use the named option file:
+option to name an option file, the option must be the first one given on the command line or the option file will not be used\&. For example, this command will not use the named option file:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 mysql> \fBmysqld_safe \-\-port=\fR\fB\fIport_num\fR\fR\fB \-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Instead, use the following command:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 mysql> \fBmysqld_safe \-\-defaults\-file=\fR\fB\fIfile_name\fR\fR\fB \-\-port=\fR\fB\fIport_num\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 The
 \fBmysqld_safe\fR
-script is written so that it normally can start a server that was installed from either a source or a binary distribution of MySQL, even though these types of distributions typically install the server in slightly different locations. (See
-Section\ 2.1.5, \(lqInstallation Layouts\(rq.)
+script is written so that it normally can start a server that was installed from either a source or a binary distribution of MySQL, even though these types of distributions typically install the server in slightly different locations\&. (See
+Section\ \&2.1.5, \(lqInstallation Layouts\(rq\&.)
 \fBmysqld_safe\fR
 expects one of the following conditions to be true:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 The server and databases can be found relative to the working directory (the directory from which
 \fBmysqld_safe\fR
-is invoked). For binary distributions,
+is invoked)\&. For binary distributions,
 \fBmysqld_safe\fR
 looks under its working directory for
-\fIbin\fR
+bin
 and
-\fIdata\fR
-directories. For source distributions, it looks for
-\fIlibexec\fR
+data
+directories\&. For source distributions, it looks for
+libexec
 and
-\fIvar\fR
-directories. This condition should be met if you execute
+var
+directories\&. This condition should be met if you execute
 \fBmysqld_safe\fR
 from your MySQL installation directory (for example,
-\fI/usr/local/mysql\fR
-for a binary distribution).
-.TP 3n
-\(bu
+/usr/local/mysql
+for a binary distribution)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 If the server and databases cannot be found relative to the working directory,
 \fBmysqld_safe\fR
-attempts to locate them by absolute path names. Typical locations are
-\fI/usr/local/libexec\fR
+attempts to locate them by absolute path names\&. Typical locations are
+/usr/local/libexec
 and
-\fI/usr/local/var\fR. The actual locations are determined from the values configured into the distribution at the time it was built. They should be correct if MySQL is installed in the location specified at configuration time.
-.sp
+/usr/local/var\&. The actual locations are determined from the values configured into the distribution at the time it was built\&. They should be correct if MySQL is installed in the location specified at configuration time\&.
 .RE
 .PP
 Because
@@ -364,12 +632,16 @@ tries to find the server and databases relative to its own working directory, yo
 \fBmysqld_safe\fR
 from the MySQL installation directory:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBcd \fR\fB\fImysql_installation_directory\fR\fR
 shell> \fBbin/mysqld_safe &\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 If
 \fBmysqld_safe\fR
@@ -377,7 +649,7 @@ fails, even when invoked from the MySQL installation directory, you can specify 
 \fB\-\-ledir\fR
 and
 \fB\-\-datadir\fR
-options to indicate the directories in which the server and databases are located on your system.
+options to indicate the directories in which the server and databases are located on your system\&.
 .PP
 When you use
 \fBmysqld_safe\fR
@@ -386,43 +658,73 @@ to start
 \fBmysqld_safe\fR
 arranges for error (and notice) messages from itself and from
 \fBmysqld\fR
-to go to the same destination.
+to go to the same destination\&.
 .PP
-As of MySQL 5.1.20, there are several
+As of MySQL 5\&.1\&.20, there are several
 \fBmysqld_safe\fR
 options for controlling the destination of these messages:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-syslog\fR: Write error messages to
 syslog
 on systems that support the
 \fBlogger\fR
-program.
-.TP 3n
-\(bu
+program\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-skip\-syslog\fR: Do not write error messages to
-syslog. Messages are written to the default error log file (\fI\fIhost_name\fR\fR\fI.err\fR
+syslog\&. Messages are written to the default error log file (\fIhost_name\fR\&.err
 in the data directory), or to a named file if the
 \fB\-\-log\-error\fR
-option is given.
-.TP 3n
-\(bu
-\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR: Write error messages to the named error file.
+option is given\&.
+.RE
 .sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR: Write error messages to the named error file\&.
 .RE
 .PP
 If none of these options is given, the default is
-\fB\-\-skip\-syslog\fR.
+\fB\-\-skip\-syslog\fR\&.
+.if n \{\
 .sp
+.\}
+.RS 4
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
+.ps +1
 \fBNote\fR
+.ps -1
+.br
 .PP
-In MySQL 5.1.20
+In MySQL 5\&.1\&.20
 \fIonly\fR, the default is
-\fB\-\-syslog\fR. This differs from logging behavior for other versions of MySQL, for which the default is to write messages to the default error log file.
+\fB\-\-syslog\fR\&. This differs from logging behavior for other versions of MySQL, for which the default is to write messages to the default error log file\&.
+.sp .5v
+.RE
 .PP
 If
 \fB\-\-syslog\fR
@@ -430,77 +732,127 @@ and
 \fB\-\-log\-error\fR
 are both given, a warning is issued and
 \fB\-\-log\-error\fR
-takes precedence.
+takes precedence\&.
 .PP
 When
 \fBmysqld_safe\fR
 writes a message, notices go to the logging destination (syslog
 or the error log file) and
-stdout. Errors go to the logging destination and
-stderr.
+stdout\&. Errors go to the logging destination and
+stderr\&.
 .PP
-Before MySQL 5.1.20, error logging is controlled only with the
+Before MySQL 5\&.1\&.20, error logging is controlled only with the
 \fB\-\-log\-error\fR
-option. If it is given, messages go to the named error file. Otherwise, messages go to the default error file.
+option\&. If it is given, messages go to the named error file\&. Otherwise, messages go to the default error file\&.
 .PP
 Normally, you should not edit the
 \fBmysqld_safe\fR
-script. Instead, configure
+script\&. Instead, configure
 \fBmysqld_safe\fR
 by using command\-line options or options in the
 [mysqld_safe]
 section of a
-\fImy.cnf\fR
-option file. In rare cases, it might be necessary to edit
+my\&.cnf
+option file\&. In rare cases, it might be necessary to edit
 \fBmysqld_safe\fR
-to get it to start the server properly. However, if you do this, your modified version of
+to get it to start the server properly\&. However, if you do this, your modified version of
 \fBmysqld_safe\fR
-might be overwritten if you upgrade MySQL in the future, so you should make a copy of your edited version that you can reinstall.
+might be overwritten if you upgrade MySQL in the future, so you should make a copy of your edited version that you can reinstall\&.
 .PP
 On NetWare,
 \fBmysqld_safe\fR
-is a NetWare Loadable Module (NLM) that is ported from the original Unix shell script. It starts the server as follows:
-.TP 3n
-1.
-Runs a number of system and option checks.
-.TP 3n
-2.
+is a NetWare Loadable Module (NLM) that is ported from the original Unix shell script\&. It starts the server as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Runs a number of system and option checks\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
 Runs a check on
 MyISAM
-tables.
-.TP 3n
-3.
-Provides a screen presence for the MySQL server.
-.TP 3n
-4.
+tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Provides a screen presence for the MySQL server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
 Starts
-\fBmysqld\fR, monitors it, and restarts it if it terminates in error.
-.TP 3n
-5.
+\fBmysqld\fR, monitors it, and restarts it if it terminates in error\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
 Sends error messages from
 \fBmysqld\fR
 to the
-\fI\fIhost_name\fR\fR\fI.err\fR
-file in the data directory.
-.TP 3n
-6.
+\fIhost_name\fR\&.err
+file in the data directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  6." 4.2
+.\}
 Sends
 \fBmysqld_safe\fR
 screen output to the
-\fI\fIhost_name\fR\fR\fI.safe\fR
-file in the data directory.
+\fIhost_name\fR\&.safe
+file in the data directory\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

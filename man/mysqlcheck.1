@@ -1,37 +1,62 @@
+'\" t
 .\"     Title: \fBmysqlcheck\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQLCHECK\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlcheck
+.\" maintenance: tables
+.\" repair: tables
+.\" tables: maintenance
+.\" tables: repair
 .SH "NAME"
-mysqlcheck \- a table maintenance and repair program
+mysqlcheck \- a table maintenance program
 .SH "SYNOPSIS"
-.HP 46
-\fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB ...]]\fR
+.HP \w'\fBmysqlcheck\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIdb_name\fR\fR\fB\ [\fR\fB\fItbl_name\fR\fR\fB\ \&.\&.\&.]]\fR\ 'u
+\fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.]]\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmysqlcheck\fR
-client checks, repairs, optimizes, and analyzes tables.
+client performs table maintenance: It checks, repairs, optimizes, or analyzes tables\&.
+.PP
+Each table is locked and therefore unavailable to other sessions while it is being processed\&. Table maintenance operations can be time\-consuming, particularly for large tables\&. If you use the
+\fB\-\-databases\fR
+or
+\fB\-\-all\-databases\fR
+option to process all tables in one or more databases, an invocation of
+\fBmysqlcheck\fR
+might take a long time\&. (This is also true for
+\fBmysql_upgrade\fR
+because that program invokes
+\fBmysqlcheck\fR
+to check all tables and repair them if necessary\&.)
 .PP
 \fBmysqlcheck\fR
 is similar in function to
-\fBmyisamchk\fR, but works differently. The main operational difference is that
+\fBmyisamchk\fR, but works differently\&. The main operational difference is that
 \fBmysqlcheck\fR
 must be used when the
 \fBmysqld\fR
 server is running, whereas
 \fBmyisamchk\fR
-should be used when it is not. The benefit of using
+should be used when it is not\&. The benefit of using
 \fBmysqlcheck\fR
-is that you do not have to stop the server to check or repair your tables.
+is that you do not have to stop the server to perform table maintenance\&.
 .PP
 \fBmysqlcheck\fR
 uses the SQL statements
@@ -39,51 +64,77 @@ CHECK TABLE,
 REPAIR TABLE,
 ANALYZE TABLE, and
 OPTIMIZE TABLE
-in a convenient way for the user. It determines which statements to use for the operation you want to perform, and then sends the statements to the server to be executed. For details about which storage engines each statement works with, see the descriptions for those statements in
-Chapter\ 12, SQL Statement Syntax.
+in a convenient way for the user\&. It determines which statements to use for the operation you want to perform, and then sends the statements to the server to be executed\&. For details about which storage engines each statement works with, see the descriptions for those statements in
+Section\ \&12.5.2, \(lqTable Maintenance Statements\(rq\&.
 .PP
 The
 MyISAM
-storage engine supports all four statements, so
+storage engine supports all four maintenance operations, so
 \fBmysqlcheck\fR
-can be used to perform all four operations on
+can be used to perform any of them on
 MyISAM
-tables. Other storage engines do not necessarily support all operations. In such cases, an error message is displayed. For example, if
-test.t
+tables\&. Other storage engines do not necessarily support all operations\&. In such cases, an error message is displayed\&. For example, if
+test\&.t
 is a
 MEMORY
 table, an attempt to check it produces this result:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysqlcheck test t\fR
-test.t
-note     : The storage engine for the table doesn't support check
+test\&.t
+note     : The storage engine for the table doesn\'t support check
 .fi
+.if n \{\
 .RE
+.\}
+.PP
+If
+\fBmysqlcheck\fR
+is unable to repair a table, see
+Section\ \&2.12.4, \(lqRebuilding or Repairing Tables or Indexes\(rq
+for manual table repair strategies\&. This will be the case, for example, for
+InnoDB
+tables, which can be checked with
+CHECK TABLE, but not repaired with
+REPAIR TABLE\&.
 .PP
 The use of
 \fBmysqlcheck\fR
-with partitioned tables is not supported before MySQL 5.1.27.
+with partitioned tables is not supported before MySQL 5\&.1\&.27\&.
+.if n \{\
 .sp
+.\}
+.RS 4
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
+.ps +1
 \fBCaution\fR
+.ps -1
+.br
 .PP
-It is best to make a backup of a table before performing a table repair operation; under some circumstances the operation might cause data loss. Possible causes include but are not limited to file system errors.
+It is best to make a backup of a table before performing a table repair operation; under some circumstances the operation might cause data loss\&. Possible causes include but are not limited to file system errors\&.
+.sp .5v
+.RE
 .PP
 There are three general ways to invoke
 \fBmysqlcheck\fR:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItables\fR\fR\fB]\fR
-shell> \fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] \-\-databases \fR\fB\fIdb_name1\fR\fR\fB [\fR\fB\fIdb_name2\fR\fR\fB \fR\fB\fIdb_name3\fR\fR\fB...]\fR
+shell> \fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] \-\-databases \fR\fB\fIdb_name1\fR\fR\fB [\fR\fB\fIdb_name2\fR\fR\fB \fR\fB\fIdb_name3\fR\fR\fB\&.\&.\&.]\fR
 shell> \fBmysqlcheck [\fR\fB\fIoptions\fR\fR\fB] \-\-all\-databases\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 If you do not name any tables following
 \fIdb_name\fR
@@ -91,21 +142,21 @@ or if you use the
 \fB\-\-databases\fR
 or
 \fB\-\-all\-databases\fR
-option, entire databases are checked.
+option, entire databases are checked\&.
 .PP
 \fBmysqlcheck\fR
-has a special feature compared to other client programs. The default behavior of checking tables (\fB\-\-check\fR) can be changed by renaming the binary. If you want to have a tool that repairs tables by default, you should just make a copy of
+has a special feature compared to other client programs\&. The default behavior of checking tables (\fB\-\-check\fR) can be changed by renaming the binary\&. If you want to have a tool that repairs tables by default, you should just make a copy of
 \fBmysqlcheck\fR
 named
 \fBmysqlrepair\fR, or make a symbolic link to
 \fBmysqlcheck\fR
 named
-\fBmysqlrepair\fR. If you invoke
-\fBmysqlrepair\fR, it repairs tables.
+\fBmysqlrepair\fR\&. If you invoke
+\fBmysqlrepair\fR, it repairs tables\&.
 .PP
 The following names can be used to change
 \fBmysqlcheck\fR
-default behavior.
+default behavior\&.
 .TS
 allbox tab(:);
 l l
@@ -127,61 +178,151 @@ T}:T{
 The default option is \fB\-\-optimize\fR
 T}
 .TE
-.sp
+.sp 1
 .PP
 \fBmysqlcheck\fR
-supports the following options:
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: help option
+.\" help option: mysqlcheck
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: all-databases option
+.\" all-databases option: mysqlcheck
 \fB\-\-all\-databases\fR,
 \fB\-A\fR
 .sp
-Check all tables in all databases. This is the same as using the
+Check all tables in all databases\&. This is the same as using the
 \fB\-\-databases\fR
-option and naming all the databases on the command line.
-.TP 3n
-\(bu
+option and naming all the databases on the command line\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: all-in-1 option
+.\" all-in-1 option: mysqlcheck
 \fB\-\-all\-in\-1\fR,
 \fB\-1\fR
 .sp
-Instead of issuing a statement for each table, execute a single statement for each database that names all the tables from that database to be processed.
-.TP 3n
-\(bu
+Instead of issuing a statement for each table, execute a single statement for each database that names all the tables from that database to be processed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: analyze option
+.\" analyze option: mysqlcheck
 \fB\-\-analyze\fR,
 \fB\-a\fR
 .sp
-Analyze the tables.
-.TP 3n
-\(bu
+Analyze the tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: auto-repair option
+.\" auto-repair option: mysqlcheck
 \fB\-\-auto\-repair\fR
 .sp
-If a checked table is corrupted, automatically fix it. Any necessary repairs are done after all tables have been checked.
-.TP 3n
-\(bu
+If a checked table is corrupted, automatically fix it\&. Any necessary repairs are done after all tables have been checked\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: character-sets-dir option
+.\" character-sets-dir option: mysqlcheck
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: check option
+.\" check option: mysqlcheck
 \fB\-\-check\fR,
 \fB\-c\fR
 .sp
-Check the tables for errors. This is the default operation.
-.TP 3n
-\(bu
+Check the tables for errors\&. This is the default operation\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: check-only-changed option
+.\" check-only-changed option: mysqlcheck
 \fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
 .sp
-Check only tables that have changed since the last check or that have not been closed properly.
-.TP 3n
-\(bu
+Check only tables that have changed since the last check or that have not been closed properly\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: check-upgrade option
+.\" check-upgrade option: mysqlcheck
 \fB\-\-check\-upgrade\fR,
 \fB\-g\fR
 .sp
@@ -189,223 +330,507 @@ Invoke
 CHECK TABLE
 with the
 FOR UPGRADE
-option to check tables for incompatibilities with the current version of the server. This option automatically enables the
+option to check tables for incompatibilities with the current version of the server\&. This option automatically enables the
 \fB\-\-fix\-db\-names\fR
 and
 \fB\-\-fix\-table\-names\fR
-options.
+options\&.
 \fB\-\-check\-upgrade\fR
-was added in MySQL 5.1.7.
-.TP 3n
-\(bu
+was added in MySQL 5\&.1\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: compress option
+.\" compress option: mysqlcheck
 \fB\-\-compress\fR
 .sp
-Compress all information sent between the client and the server if both support compression.
-.TP 3n
-\(bu
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: databases option
+.\" databases option: mysqlcheck
 \fB\-\-databases\fR,
 \fB\-B\fR
 .sp
-Process all tables in the named databases. Normally,
+Process all tables in the named databases\&. Normally,
 \fBmysqlcheck\fR
-treats the first name argument on the command line as a database name and following names as table names. With this option, it treats all name arguments as database names.
-.TP 3n
-\(bu
+treats the first name argument on the command line as a database name and following names as table names\&. With this option, it treats all name arguments as database names\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: debug option
+.\" debug option: mysqlcheck
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
-Write a debugging log. A typical
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string is often
-\'d:t:o,\fIfile_name\fR'.
-.TP 3n
-\(bu
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: debug-check option
+.\" debug-check option: mysqlcheck
 \fB\-\-debug\-check\fR
 .sp
-Print some debugging information when the program exits. This option was added in MySQL 5.1.21.
-.TP 3n
-\(bu
+Print some debugging information when the program exits\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: debug-info option
+.\" debug-info option: mysqlcheck
 \fB\-\-debug\-info\fR
 .sp
-Print debugging information and memory and CPU usage statistics when the program exits. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+Print debugging information and memory and CPU usage statistics when the program exits\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: default-character-set option
+.\" default-character-set option: mysqlcheck
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
 \fIcharset_name\fR
-as the default character set. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+as the default character set\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: extended option
+.\" extended option: mysqlcheck
 \fB\-\-extended\fR,
 \fB\-e\fR
 .sp
-If you are using this option to check tables, it ensures that they are 100% consistent but takes a long time.
+If you are using this option to check tables, it ensures that they are 100% consistent but takes a long time\&.
 .sp
 If you are using this option to repair tables, it runs an extended repair that may not only take a long time to execute, but may produce a lot of garbage rows also!
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: fast option
+.\" fast option: mysqlcheck
 \fB\-\-fast\fR,
 \fB\-F\fR
 .sp
-Check only tables that have not been closed properly.
-.TP 3n
-\(bu
+Check only tables that have not been closed properly\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: fix-db-names option
+.\" fix-db-names option: mysqlcheck
 \fB\-\-fix\-db\-names\fR
 .sp
-Convert database names to 5.1 format. Only database names that contain special characters are affected. This option was added in MySQL 5.1.7.
-.TP 3n
-\(bu
+Convert database names to 5\&.1 format\&. Only database names that contain special characters are affected\&. This option was added in MySQL 5\&.1\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: fix-table-names option
+.\" fix-table-names option: mysqlcheck
 \fB\-\-fix\-table\-names\fR
 .sp
-Convert table names to 5.1 format. Only table names that contain special characters are affected. This option was added in MySQL 5.1.7. As of MySQL 5.1.23, this option also applies to views.
-.TP 3n
-\(bu
+Convert table names to 5\&.1 format\&. Only table names that contain special characters are affected\&. This option was added in MySQL 5\&.1\&.7\&. As of MySQL 5\&.1\&.23, this option also applies to views\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: force option
+.\" force option: mysqlcheck
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
-Continue even if an SQL error occurs.
-.TP 3n
-\(bu
+Continue even if an SQL error occurs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: host option
+.\" host option: mysqlcheck
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
-Connect to the MySQL server on the given host.
-.TP 3n
-\(bu
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: medium-check option
+.\" medium-check option: mysqlcheck
 \fB\-\-medium\-check\fR,
 \fB\-m\fR
 .sp
 Do a check that is faster than an
 \fB\-\-extended\fR
-operation. This finds only 99.99% of all errors, which should be good enough in most cases.
-.TP 3n
-\(bu
+operation\&. This finds only 99\&.99% of all errors, which should be good enough in most cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: optimize option
+.\" optimize option: mysqlcheck
 \fB\-\-optimize\fR,
 \fB\-o\fR
 .sp
-Optimize the tables.
-.TP 3n
-\(bu
+Optimize the tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: password option
+.\" password option: mysqlcheck
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server. If you use the short option form (\fB\-p\fR), you
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
 \fIcannot\fR
-have a space between the option and the password. If you omit the
+have a space between the option and the password\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
+option on the command line, you are prompted for one\&.
 .sp
-Specifying a password on the command line should be considered insecure. See
-Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
-.TP 3n
-\(bu
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: pipe option
+.\" pipe option: mysql
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe. This option applies only for connections to a local server, and only if the server supports named\-pipe connections.
-.TP 3n
-\(bu
+On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: port option
+.\" port option: mysqlcheck
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection.
-.TP 3n
-\(bu
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: protocol option
+.\" protocol option: mysqlcheck
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want. For details on the allowable values, see
-Section\ 4.2.2, \(lqConnecting to the MySQL Server\(rq.
-.TP 3n
-\(bu
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: quick option
+.\" quick option: mysqlcheck
 \fB\-\-quick\fR,
 \fB\-q\fR
 .sp
-If you are using this option to check tables, it prevents the check from scanning the rows to check for incorrect links. This is the fastest check method.
+If you are using this option to check tables, it prevents the check from scanning the rows to check for incorrect links\&. This is the fastest check method\&.
 .sp
-If you are using this option to repair tables, it tries to repair only the index tree. This is the fastest repair method.
-.TP 3n
-\(bu
+If you are using this option to repair tables, it tries to repair only the index tree\&. This is the fastest repair method\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: repair option
+.\" repair option: mysqlcheck
 \fB\-\-repair\fR,
 \fB\-r\fR
 .sp
-Perform a repair that can fix almost anything except unique keys that are not unique.
-.TP 3n
-\(bu
+Perform a repair that can fix almost anything except unique keys that are not unique\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: silent option
+.\" silent option: mysqlcheck
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Silent mode. Print only error messages.
-.TP 3n
-\(bu
+Silent mode\&. Print only error messages\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: socket option
+.\" socket option: mysqlcheck
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
 For connections to
-localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use.
-.TP 3n
-\(bu
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: SSL options
+.\" SSL options: mysqlcheck
 \fB\-\-ssl*\fR
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates. See
-Section\ 5.5.7.3, \(lqSSL Command Options\(rq.
-.TP 3n
-\(bu
+specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&5.5.7.3, \(lqSSL Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: tables option
+.\" tables option: mysqlcheck
 \fB\-\-tables\fR
 .sp
-Overrides the
+Override the
 \fB\-\-databases\fR
 or
 \fB\-B\fR
-option. All name arguments following the option are regarded as table names.
-.TP 3n
-\(bu
+option\&. All name arguments following the option are regarded as table names\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: use-frm option
+.\" use-frm option: mysqlcheck
 \fB\-\-use\-frm\fR
 .sp
 For repair operations on
 MyISAM
 tables, get the table structure from the
-\fI.frm\fR
+\&.frm
 file so that the table can be repaired even if the
-\fI.MYI\fR
-header is corrupted.
-.TP 3n
-\(bu
+\&.MYI
+header is corrupted\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: user option
+.\" user option: mysqlcheck
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server.
-.TP 3n
-\(bu
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: verbose option
+.\" verbose option: mysqlcheck
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print information about the various stages of program operation.
-.TP 3n
-\(bu
+Verbose mode\&. Print information about the various stages of program operation\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlcheck: version option
+.\" version option: mysqlcheck
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

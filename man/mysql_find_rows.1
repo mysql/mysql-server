@@ -1,20 +1,29 @@
+'\" t
 .\"     Title: \fBmysql_find_rows\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQL_FIND_ROWS\\F" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQL_FIND_ROWS\F" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_find_rows
 .SH "NAME"
 mysql_find_rows \- extract SQL statements from files
 .SH "SYNOPSIS"
-.HP 42
-\fBmysql_find_rows [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB ...]\fR
+.HP \w'\fBmysql_find_rows\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIfile_name\fR\fR\fB\ \&.\&.\&.]\fR\ 'u
+\fBmysql_find_rows [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.]\fR
 .SH "DESCRIPTION"
 .PP
 \fBmysql_find_rows\fR
@@ -22,77 +31,137 @@ reads files containing SQL statements and extracts statements that match a given
 USE \fIdb_name\fR
 or
 SET
-statements. The utility was written for use with update log files (as used prior to MySQL 5.0) and as such expects statements to be terminated with semicolon (;) characters. It may be useful with other files that contain SQL statements as long as statements are terminated with semicolons.
+statements\&. The utility was written for use with update log files (as used prior to MySQL 5\&.0) and as such expects statements to be terminated with semicolon (;) characters\&. It may be useful with other files that contain SQL statements as long as statements are terminated with semicolons\&.
 .PP
 Invoke
 \fBmysql_find_rows\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmysql_find_rows [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB ...]\fR
+shell> \fBmysql_find_rows [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.]\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Each
 \fIfile_name\fR
-argument should be the name of file containing SQL statements. If no file names are given,
+argument should be the name of file containing SQL statements\&. If no file names are given,
 \fBmysql_find_rows\fR
-reads the standard input.
+reads the standard input\&.
 .PP
 Examples:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-mysql_find_rows \-\-regexp=problem_table \-\-rows=20 < update.log
-mysql_find_rows \-\-regexp=problem_table  update\-log.1 update\-log.2
+mysql_find_rows \-\-regexp=problem_table \-\-rows=20 < update\&.log
+mysql_find_rows \-\-regexp=problem_table  update\-log\&.1 update\-log\&.2
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fBmysql_find_rows\fR
 supports the following options:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_find_rows: help option
+.\" help option: mysql_find_rows
 \fB\-\-help\fR,
 \fB\-\-Information\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_find_rows: regexp option
+.\" regexp option: mysql_find_rows
 \fB\-\-regexp=\fR\fB\fIpattern\fR\fR
 .sp
-Display queries that match the pattern.
-.TP 3n
-\(bu
+Display queries that match the pattern\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_find_rows: rows option
+.\" rows option: mysql_find_rows
 \fB\-\-rows=\fR\fB\fIN\fR\fR
 .sp
 Quit after displaying
 \fIN\fR
-queries.
-.TP 3n
-\(bu
+queries\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_find_rows: skip-use-db option
+.\" skip-use-db option: mysql_find_rows
 \fB\-\-skip\-use\-db\fR
 .sp
 Do not include
 USE \fIdb_name\fR
-statements in the output.
-.TP 3n
-\(bu
+statements in the output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_find_rows: start_row option
+.\" start_row option: mysql_find_rows
 \fB\-\-start_row=\fR\fB\fIN\fR\fR
 .sp
-Start output from this row.
+Start output from this row\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

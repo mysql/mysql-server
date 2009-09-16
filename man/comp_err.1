@@ -1,137 +1,262 @@
+'\" t
 .\"     Title: \fBcomp_err\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBCOMP_ERR\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBCOMP_ERR\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" comp_err
 .SH "NAME"
 comp_err \- compile MySQL error message file
 .SH "SYNOPSIS"
-.HP 19
+.HP \w'\fBcomp_err\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
 \fBcomp_err\fR
 creates the
-\fIerrmsg.sys\fR
+errmsg\&.sys
 file that is used by
 \fBmysqld\fR
-to determine the error messages to display for different error codes.
+to determine the error messages to display for different error codes\&.
 \fBcomp_err\fR
-normally is run automatically when MySQL is built. It compiles the
-\fIerrmsg.sys\fR
+normally is run automatically when MySQL is built\&. It compiles the
+errmsg\&.sys
 file from the plaintext file located at
-\fIsql/share/errmsg.txt\fR
-in MySQL source distributions.
+sql/share/errmsg\&.txt
+in MySQL source distributions\&.
 .PP
 \fBcomp_err\fR
 also generates
-\fImysqld_error.h\fR,
-\fImysqld_ername.h\fR, and
-\fIsql_state.h\fR
-header files.
+mysqld_error\&.h,
+mysqld_ername\&.h, and
+sql_state\&.h
+header files\&.
 .PP
-For more information about how error messages are defined, see the MySQL Internals Manual.
+For more information about how error messages are defined, see the MySQL Internals Manual\&.
 .PP
 Invoke
 \fBcomp_err\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fBcomp_err\fR
-understands the options described in the following list.
-.TP 3n
-\(bu
+supports the options described in the following list\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: help option
+.\" help option: comp_err
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: charset option
+.\" charset option: comp_err
 \fB\-\-charset=\fR\fB\fIpath\fR\fR\fB, \-C \fR\fB\fIpath\fR\fR
 .sp
-The character set directory. The default is
-\fI../sql/share/charsets\fR.
-.TP 3n
-\(bu
+The character set directory\&. The default is
+\&.\&./sql/share/charsets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: debug option
+.\" debug option: comp_err
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR\fB, \-# \fR\fB\fIdebug_options\fR\fR
 .sp
-Write a debugging log. The
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string often is
-\'d:t:O,\fIfile_name\fR'. The default is
-\'d:t:O,/tmp/comp_err.trace'.
-.TP 3n
-\(bu
+string is
+\'d:t:O,\fIfile_name\fR\'\&. The default is
+\'d:t:O,/tmp/comp_err\&.trace\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: debug-info option
+.\" debug-info option: comp_err
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
 .sp
-Print some debugging information when the program exits.
-.TP 3n
-\(bu
+Print some debugging information when the program exits\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: header_file option
+.\" header_file option: comp_err
 \fB\-\-header_file=\fR\fB\fIfile_name\fR\fR\fB, \-H \fR\fB\fIfile_name\fR\fR
 .sp
-The name of the error header file. The default is
-\fImysqld_error.h\fR.
-.TP 3n
-\(bu
+The name of the error header file\&. The default is
+mysqld_error\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: in_file option
+.\" in_file option: comp_err
 \fB\-\-in_file=\fR\fB\fIfile_name\fR\fR\fB, \-F \fR\fB\fIfile_name\fR\fR
 .sp
-The name of the input file. The default is
-\fI../sql/share/errmsg.txt\fR.
-.TP 3n
-\(bu
+The name of the input file\&. The default is
+\&.\&./sql/share/errmsg\&.txt\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: name_file option
+.\" name_file option: comp_err
 \fB\-\-name_file=\fR\fB\fIfile_name\fR\fR\fB, \-N \fR\fB\fIfile_name\fR\fR
 .sp
-The name of the error name file. The default is
-\fImysqld_ername.h\fR.
-.TP 3n
-\(bu
+The name of the error name file\&. The default is
+mysqld_ername\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: out_dir option
+.\" out_dir option: comp_err
 \fB\-\-out_dir=\fR\fB\fIpath\fR\fR\fB, \-D \fR\fB\fIpath\fR\fR
 .sp
-The name of the output base directory. The default is
-\fI../sql/share/\fR.
-.TP 3n
-\(bu
+The name of the output base directory\&. The default is
+\&.\&./sql/share/\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: out_file option
+.\" out_file option: comp_err
 \fB\-\-out_file=\fR\fB\fIfile_name\fR\fR\fB, \-O \fR\fB\fIfile_name\fR\fR
 .sp
-The name of the output file. The default is
-\fIerrmsg.sys\fR.
-.TP 3n
-\(bu
+The name of the output file\&. The default is
+errmsg\&.sys\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: statefile option
+.\" statefile option: comp_err
 \fB\-\-statefile=\fR\fB\fIfile_name\fR\fR\fB, \-S \fR\fB\fIfile_name\fR\fR
 .sp
-The name for the SQLSTATE header file. The default is
-\fIsql_state.h\fR.
-.TP 3n
-\(bu
+The name for the SQLSTATE header file\&. The default is
+sql_state\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" comp_err: version option
+.\" version option: comp_err
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).
