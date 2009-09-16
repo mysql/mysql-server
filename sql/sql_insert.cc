@@ -2274,44 +2274,9 @@ void kill_delayed_threads(void)
 }
 
 
-/*
- * Create a new delayed insert thread
-*/
-
-pthread_handler_t handle_delayed_insert(void *arg)
+static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 {
-  Delayed_insert *di=(Delayed_insert*) arg;
-  THD *thd= &di->thd;
-
-  pthread_detach_this_thread();
-  /* Add thread to THD list so that's it's visible in 'show processlist' */
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  thd->set_current_time();
-  threads.append(thd);
-  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
-  pthread_mutex_unlock(&LOCK_thread_count);
-
-  /*
-    Wait until the client runs into pthread_cond_wait(),
-    where we free it after the table is opened and di linked in the list.
-    If we did not wait here, the client might detect the opened table
-    before it is linked to the list. It would release LOCK_delayed_create
-    and allow another thread to create another handler for the same table,
-    since it does not find one in the list.
-  */
-  pthread_mutex_lock(&di->mutex);
-#if !defined( __WIN__) /* Win32 calls this in pthread_create */
-  if (my_thread_init())
-  {
-    /* Can't use my_error since store_globals has not yet been called */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
-    goto end;
-  }
-#endif
-
-  DBUG_ENTER("handle_delayed_insert");
+  DBUG_ENTER("handle_delayed_insert_impl");
   thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
@@ -2500,6 +2465,49 @@ err:
    */
   ha_autocommit_or_rollback(thd, 1);
 
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+ * Create a new delayed insert thread
+*/
+
+pthread_handler_t handle_delayed_insert(void *arg)
+{
+  Delayed_insert *di=(Delayed_insert*) arg;
+  THD *thd= &di->thd;
+
+  pthread_detach_this_thread();
+  /* Add thread to THD list so that's it's visible in 'show processlist' */
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  thd->set_current_time();
+  threads.append(thd);
+  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
+  /*
+    Wait until the client runs into pthread_cond_wait(),
+    where we free it after the table is opened and di linked in the list.
+    If we did not wait here, the client might detect the opened table
+    before it is linked to the list. It would release LOCK_delayed_create
+    and allow another thread to create another handler for the same table,
+    since it does not find one in the list.
+  */
+  pthread_mutex_lock(&di->mutex);
+#if !defined( __WIN__) /* Win32 calls this in pthread_create */
+  if (my_thread_init())
+  {
+    /* Can't use my_error since store_globals has not yet been called */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
+    goto end;
+  }
+#endif
+
+  handle_delayed_insert_impl(thd, di);
+
 #ifndef __WIN__
 end:
 #endif
@@ -2523,7 +2531,8 @@ end:
 
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 
