@@ -30,6 +30,9 @@ let $skip_delete= 1;
 let $skip_truncate= 1;
 let $skip_update= 1;
 let $only_ai_pk= 1;
+# Bug#45823 Assertion failure in file row/row0mysql.c line 1386
+# Archive does not handle negative autoincrement values correctly
+let $skip_negative_auto_inc= 1;
 
 ##### Storage engine to be tested
 let $engine= 'Archive';
