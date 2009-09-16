@@ -778,6 +778,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
   name(pname),
   m_createTable(true),
   m_createAll(false),
+  m_connect_cluster(true),
   m_logging(true),
   m_driverType(NdbApiDriver)
 {
@@ -810,6 +811,10 @@ void NDBT_TestSuite::setRunAllTables(bool _flag){
 }
 void NDBT_TestSuite::setCreateAllTables(bool _flag){
   m_createAll = _flag;
+}
+void NDBT_TestSuite::setConnectCluster(bool _flag){
+  assert(m_createTable == false);
+  m_connect_cluster = _flag;
 }
 
 void NDBT_TestSuite::setTemporaryTables(bool val){
@@ -1408,10 +1413,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   for(int i = 0; i<num_tables; i++)
   {
     if (argc == 0)
-    {
       m_tables_in_test.push_back(NDBT_Tables::getTable(i)->getName());
-      ndbout_c("pushback: %s", NDBT_Tables::getTable(i)->getName());
-    }
     else
       m_tables_in_test.push_back(_argv[i]);
   }
@@ -1473,7 +1475,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   }
 
   Ndb_cluster_connection con;
-  if(con.connect(12, 5, 1))
+  if(m_connect_cluster && con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
