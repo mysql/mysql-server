@@ -2291,16 +2291,11 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   /* All scans use NdbRecord internally */
   assert(theStatus == UseNdbRecord);
   
-  /* Calculate the extra bytes needed per row for extra getValues */
-  Uint32 extra_size= 0;
-  if (theReceiver.theFirstRecAttr != NULL)
-    extra_size= calcGetValueSize();
-  
   assert(theParallelism > 0);
-  Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
-                                                    key_size,
-                                                    m_read_range_no,
-                                                    extra_size);
+  Uint32 rowsize= NdbReceiver::ndbrecord_rowsize(m_attribute_record,
+                                                 theReceiver.theFirstRecAttr,
+                                                 key_size,
+                                                 m_read_range_no);
   Uint32 bufsize= batch_size*rowsize;
   char *buf= new char[bufsize*theParallelism];
   if (!buf)
@@ -2340,26 +2335,6 @@ NdbScanOperation::doSendSetAISectionSizes()
 
   return 0;
 }
-
-/*
-  Compute extra space needed to buffer getValue() results in NdbRecord
-  scans.
- */
-Uint32
-NdbScanOperation::calcGetValueSize()
-{
-  Uint32 size= 0;
-  const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
-  while (ra != NULL)
-  {
-    size+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
-    ra= ra->next();
-  }
-  return size;
-}
-
-
-
 
 
 /*****************************************************************************

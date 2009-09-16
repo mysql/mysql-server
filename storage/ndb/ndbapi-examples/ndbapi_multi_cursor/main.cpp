@@ -488,7 +488,7 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
 
-#if 0
+#if 1
   //////////////////////////////////////////////////
   printf("q4_1\n");
   const NdbQueryDef* q4_1 = 0;

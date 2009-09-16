@@ -534,7 +534,6 @@ protected:
   Uint32 m_keyInfo;
 
   int getFirstATTRINFOScan();
-  Uint32 calcGetValueSize();
   int doSendScan(int ProcessorId);
   int finaliseScanOldApi();
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);

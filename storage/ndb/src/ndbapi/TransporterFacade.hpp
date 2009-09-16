@@ -130,9 +130,9 @@ public:
   int close_local(BlockNumber blockNumber);
 
   // Scan batch configuration parameters
-  Uint32 get_scan_batch_size();
-  Uint32 get_batch_byte_size();
-  Uint32 get_batch_size();
+  Uint32 get_scan_batch_size() const;
+  Uint32 get_batch_byte_size() const;
+  Uint32 get_batch_size() const;
   Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
@@ -439,19 +439,19 @@ TransporterFacade::getNodeSequence(NodeId n) const {
 
 inline
 Uint32
-TransporterFacade::get_scan_batch_size() {
+TransporterFacade::get_scan_batch_size() const {
   return m_scan_batch_size;
 }
 
 inline
 Uint32
-TransporterFacade::get_batch_byte_size() {
+TransporterFacade::get_batch_byte_size() const {
   return m_batch_byte_size;
 }
 
 inline
 Uint32
-TransporterFacade::get_batch_size() {
+TransporterFacade::get_batch_size() const {
   return m_batch_size;
 }
 

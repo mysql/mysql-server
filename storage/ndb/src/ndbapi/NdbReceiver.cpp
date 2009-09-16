@@ -142,29 +142,31 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 
   TODO : Check whether these numbers need to be revised w.r.t. read packed
 */
+//static
 void
-NdbReceiver::calculate_batch_size(Uint32 key_size,
+NdbReceiver::calculate_batch_size(const TransporterFacade *tp,
+                                  const NdbRecord *record,
+                                  const NdbRecAttr *first_rec_attr,
+                                  Uint32 key_size,
                                   Uint32 parallelism,
                                   Uint32& batch_size,
                                   Uint32& batch_byte_size,
-                                  Uint32& first_batch_size,
-                                  const NdbRecord *record) const
+                                  Uint32& first_batch_size)
 {
-  TransporterFacade *tp= m_ndb->theImpl->m_transporter_facade;
-  Uint32 max_scan_batch_size= tp->get_scan_batch_size();
-  Uint32 max_batch_byte_size= tp->get_batch_byte_size();
-  Uint32 max_batch_size= tp->get_batch_size();
-  Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
+  const Uint32 max_scan_batch_size= tp->get_scan_batch_size();
+  const Uint32 max_batch_byte_size= tp->get_batch_byte_size();
+  const Uint32 max_batch_size= tp->get_batch_size();
 
+  Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
   if (record)
   {
     tot_size+= record->m_max_transid_ai_bytes;
   }
 
-  NdbRecAttr *rec_attr= theFirstRecAttr;
+  const NdbRecAttr *rec_attr= first_rec_attr;
   while (rec_attr != NULL) {
     Uint32 attr_size= rec_attr->getColumn()->getSizeInBytes();
-    attr_size= ((attr_size + 7) >> 2) << 2; //Even to word + overhead
+    attr_size= ((attr_size + 4 + 3) >> 2) << 2; //Even to word + overhead
     tot_size+= attr_size;
     rec_attr= rec_attr->next();
   }
@@ -204,6 +206,21 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
 }
 
 void
+NdbReceiver::calculate_batch_size(Uint32 key_size,
+                                  Uint32 parallelism,
+                                  Uint32& batch_size,
+                                  Uint32& batch_byte_size,
+                                  Uint32& first_batch_size,
+                                  const NdbRecord *record) const
+{
+  calculate_batch_size(m_ndb->theImpl->m_transporter_facade,
+                       record,
+                       theFirstRecAttr,
+                       key_size, parallelism, batch_size, batch_byte_size,
+                       first_batch_size);
+}
+
+void
 NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                                 Uint32 key_size, Uint32 read_range_no,
                                 Uint32 rowsize, char *row_buffer,
@@ -218,11 +235,15 @@ NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
   m_record.m_column_count= column_count;
 }
 
+//static
 Uint32
-NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                               Uint32 read_range_no, Uint32 extra_size)
+NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record,
+                               const NdbRecAttr *first_rec_attr,
+                               Uint32 key_size,
+                               bool read_range_no)
 {
-  Uint32 rowsize= ndb_record->m_row_size;
+  Uint32 rowsize= (ndb_record) ? ndb_record->m_row_size : 0;
+
   /* Room for range_no. */
   if (read_range_no)
     rowsize+= 4;
@@ -232,8 +253,15 @@ NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
   */
   if (key_size)
     rowsize+= 8 + key_size*4;
-  /* Space for reading blob heads. */
-  rowsize+= extra_size;
+  /*
+    Compute extra space needed to buffer getValue() results in NdbRecord
+    scans.
+  */
+  const NdbRecAttr *ra= first_rec_attr;
+  while (ra != NULL)
+  { rowsize+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
+    ra= ra->next();
+  }
   /* Ensure 4-byte alignment. */
   rowsize= (rowsize+3) & 0xfffffffc;
   return rowsize;
@@ -617,6 +645,7 @@ NdbReceiver::getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) c
   pos+= size;
   data= row_end - pos;
 
+  assert (pos <= m_record.m_row_offset);
   return 0;
 }
 
@@ -712,10 +741,11 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
         if (attrSize > 0)
         {
           save_pos+= attrSize;
+          assert (save_pos<=m_record.m_row_offset);
           memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
                  aDataPtr, attrSize);
         }
-        
+
         Uint32 sizeInWords= (attrSize+3)>>2;
         aDataPtr+= sizeInWords;
         aLength-= sizeInWords;
