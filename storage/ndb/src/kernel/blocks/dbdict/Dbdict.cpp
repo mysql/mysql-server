@@ -2344,10 +2344,9 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
   return 0;
 }
 
+
 Uint32
-Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
-                        SchemaFile::EntryState op,
-                        ErrorInfo& error)
+Dbdict::check_write_obj(Uint32 objId, Uint32 transId)
 {
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   if (objId < (NDB_SF_PAGE_ENTRIES * xsf->noOfPages))
@@ -2358,7 +2357,6 @@ Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
     if (te->m_tableState == SchemaFile::SF_UNUSED)
     {
       jam();
-      setError(error, GetTabInfoRef::TableNotDefined, __LINE__);
       return GetTabInfoRef::TableNotDefined;
     }
     
@@ -2368,11 +2366,24 @@ Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
       return 0;
     }
 
-    setError(error, DropTableRef::ActiveSchemaTrans, __LINE__);
     return DropTableRef::ActiveSchemaTrans;
   }
-  setError(error, GetTabInfoRef::InvalidTableId, __LINE__);
   return GetTabInfoRef::InvalidTableId;
+}
+
+Uint32
+Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
+                        SchemaFile::EntryState op,
+                        ErrorInfo& error)
+{
+  Uint32 err = check_write_obj(objId, transId);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+  }
+
+  return err;
 }
 
 
@@ -8270,94 +8281,6 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
     return;
   }
 
-  jam();
-
-  TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
-
-  const Uint32 changeMask = impl_req->changeMask;
-  Uint32& changeMaskDone = alterTabPtr.p->m_changeMaskDone; // ref
-
-  if (AlterTableReq::getNameFlag(changeMask))
-  {
-    jam();
-    const Uint32 sz = MAX_TAB_NAME_SIZE;
-    D("alter name:"
-      << " old=" << copyRope<sz>(tablePtr.p->tableName)
-      << " new=" << copyRope<sz>(newTablePtr.p->tableName));
-
-    Ptr<DictObject> obj_ptr;
-    c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
-
-    // remove old name from hash
-    c_obj_hash.remove(obj_ptr);
-
-    // save old name and replace it by new
-    bool ok =
-      copyRope<sz>(alterTabPtr.p->m_oldTableName, tablePtr.p->tableName) &&
-      copyRope<sz>(tablePtr.p->tableName, newTablePtr.p->tableName);
-    ndbrequire(ok);
-
-    // add new name to object hash
-    obj_ptr.p->m_name = tablePtr.p->tableName;
-    c_obj_hash.add(obj_ptr);
-
-    AlterTableReq::setNameFlag(changeMaskDone, true);
-  }
-
-  if (AlterTableReq::getFrmFlag(changeMask))
-  {
-    jam();
-    // save old frm and replace it by new
-    const Uint32 sz = MAX_FRM_DATA_SIZE;
-    bool ok =
-      copyRope<sz>(alterTabPtr.p->m_oldFrmData, tablePtr.p->frmData) &&
-      copyRope<sz>(tablePtr.p->frmData, newTablePtr.p->frmData);
-    ndbrequire(ok);
-
-    AlterTableReq::setFrmFlag(changeMaskDone, true);
-  }
-
-  if (AlterTableReq::getAddAttrFlag(changeMask))
-  {
-    jam();
-
-    /* Move the column definitions to the real table definitions. */
-    LocalDLFifoList<AttributeRecord>
-      list(c_attributeRecordPool, tablePtr.p->m_attributes);
-    LocalDLFifoList<AttributeRecord>
-      newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
-
-    const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
-    ndbrequire(noOfNewAttr > 0);
-    Uint32 i;
-
-    /* Move back to find the first column to move. */
-    AttributeRecordPtr pPtr;
-    ndbrequire(newlist.last(pPtr));
-    for (i = 1; i < noOfNewAttr; i++) {
-      jam();
-      ndbrequire(newlist.prev(pPtr));
-    }
-
-    /* Move columns. */
-    for (i = 0; i < noOfNewAttr; i++) {
-      AttributeRecordPtr qPtr = pPtr;
-      newlist.next(pPtr);
-      newlist.remove(qPtr);
-      list.addLast(qPtr);
-    }
-    tablePtr.p->noOfAttributes += noOfNewAttr;
-  }
-
-  if (AlterTableReq::getAddFragFlag(changeMask))
-  {
-    jam();
-    Uint32 save = tablePtr.p->fragmentCount;
-    tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
-    newTablePtr.p->fragmentCount = save;
-    AlterTableReq::setAddFragFlag(changeMaskDone, true);
-  }
-
   /**
    * Write new table definition on prepare
    */
@@ -8544,6 +8467,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   if (op_ptr.p->m_sections)
   {
     jam();
+    // main-op
+    ndbrequire(AlterTableReq::getReorgSubOp(impl_req->changeMask) == false);
+
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
     const Uint32 size = tabInfoSec.getSize();
@@ -8552,6 +8478,87 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     tablePtr.p->packedSize = size;
     tablePtr.p->tableVersion = impl_req->newTableVersion;
     tablePtr.p->gciTableCreated = impl_req->gci;
+
+    TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
+
+    const Uint32 changeMask = impl_req->changeMask;
+
+    // perform DICT memory changes
+    if (AlterTableReq::getNameFlag(changeMask))
+    {
+      jam();
+      const Uint32 sz = MAX_TAB_NAME_SIZE;
+      D("alter name:"
+        << " old=" << copyRope<sz>(tablePtr.p->tableName)
+        << " new=" << copyRope<sz>(newTablePtr.p->tableName));
+
+      Ptr<DictObject> obj_ptr;
+      c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
+
+      // remove old name from hash
+      c_obj_hash.remove(obj_ptr);
+
+      // save old name and replace it by new
+      bool ok =
+        copyRope<sz>(alterTabPtr.p->m_oldTableName, tablePtr.p->tableName) &&
+        copyRope<sz>(tablePtr.p->tableName, newTablePtr.p->tableName);
+      ndbrequire(ok);
+
+      // add new name to object hash
+      obj_ptr.p->m_name = tablePtr.p->tableName;
+      c_obj_hash.add(obj_ptr);
+    }
+
+    if (AlterTableReq::getFrmFlag(changeMask))
+    {
+      jam();
+      // save old frm and replace it by new
+      const Uint32 sz = MAX_FRM_DATA_SIZE;
+      bool ok =
+        copyRope<sz>(alterTabPtr.p->m_oldFrmData, tablePtr.p->frmData) &&
+        copyRope<sz>(tablePtr.p->frmData, newTablePtr.p->frmData);
+      ndbrequire(ok);
+    }
+
+    if (AlterTableReq::getAddAttrFlag(changeMask))
+    {
+      jam();
+
+      /* Move the column definitions to the real table definitions. */
+      LocalDLFifoList<AttributeRecord>
+        list(c_attributeRecordPool, tablePtr.p->m_attributes);
+      LocalDLFifoList<AttributeRecord>
+        newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
+
+      const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
+      ndbrequire(noOfNewAttr > 0);
+      Uint32 i;
+
+      /* Move back to find the first column to move. */
+      AttributeRecordPtr pPtr;
+      ndbrequire(newlist.last(pPtr));
+      for (i = 1; i < noOfNewAttr; i++) {
+        jam();
+        ndbrequire(newlist.prev(pPtr));
+      }
+
+      /* Move columns. */
+      for (i = 0; i < noOfNewAttr; i++) {
+        AttributeRecordPtr qPtr = pPtr;
+        newlist.next(pPtr);
+        newlist.remove(qPtr);
+        list.addLast(qPtr);
+      }
+      tablePtr.p->noOfAttributes += noOfNewAttr;
+    }
+
+    if (AlterTableReq::getAddFragFlag(changeMask))
+    {
+      jam();
+      Uint32 save = tablePtr.p->fragmentCount;
+      tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
+      newTablePtr.p->fragmentCount = save;
+    }
   }
 
   alterTabPtr.p->m_blockIndex = 0;
@@ -8882,77 +8889,6 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
      */
     sendTransConf(signal, op_ptr);
     return;
-  }
-
-  // reset DICT memory changes (there was no prepare to disk)
-  {
-    jam();
-
-    TableRecordPtr tablePtr;
-    c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
-    TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
-
-    const Uint32 changeMask = alterTabPtr.p->m_changeMaskDone;
-
-    if (AlterTableReq::getNameFlag(changeMask))
-    {
-      jam();
-      const Uint32 sz = MAX_TAB_NAME_SIZE;
-      D("reset name:"
-        << " new=" << copyRope<sz>(tablePtr.p->tableName)
-        << " old=" << copyRope<sz>(alterTabPtr.p->m_oldTableName));
-
-      Ptr<DictObject> obj_ptr;
-      c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
-
-      // remove new name from hash
-      c_obj_hash.remove(obj_ptr);
-
-      // copy old name back
-      bool ok =
-        copyRope<sz>(tablePtr.p->tableName, alterTabPtr.p->m_oldTableName);
-      ndbrequire(ok);
-
-      // add old name to object hash
-      obj_ptr.p->m_name = tablePtr.p->tableName;
-      c_obj_hash.add(obj_ptr);
-    }
-
-    if (AlterTableReq::getFrmFlag(changeMask))
-    {
-      jam();
-      const Uint32 sz = MAX_FRM_DATA_SIZE;
-
-      // copy old frm back
-      bool ok =
-        copyRope<sz>(tablePtr.p->frmData, alterTabPtr.p->m_oldFrmData);
-      ndbrequire(ok);
-    }
-
-    if (AlterTableReq::getAddAttrFlag(changeMask))
-    {
-      jam();
-
-      /* Release the extra columns, not to be used anyway. */
-      LocalDLFifoList<AttributeRecord>
-        list(c_attributeRecordPool, tablePtr.p->m_attributes);
-
-      const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
-      ndbrequire(noOfNewAttr > 0);
-      Uint32 i;
-
-      for (i= 0; i < noOfNewAttr; i++) {
-        AttributeRecordPtr pPtr;
-        ndbrequire(list.last(pPtr));
-        list.release(pPtr);
-      }
-    }
-
-    if (AlterTableReq::getAddFragFlag(changeMask))
-    {
-      jam();
-      tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
-    }
   }
 
   if (alterTabPtr.p->m_blockIndex > 0)
@@ -18482,7 +18418,7 @@ void
 Dbdict::execBACKUP_LOCK_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  const BackupLockTab *req = (const BackupLockTab *)signal->getDataPtrSend();
+  BackupLockTab *req = (BackupLockTab *)signal->getDataPtrSend();
   Uint32 senderRef = req->m_senderRef;
   Uint32 tableId = req->m_tableId;
   Uint32 lock = req->m_lock_unlock;
@@ -18490,10 +18426,15 @@ Dbdict::execBACKUP_LOCK_TAB_REQ(Signal* signal)
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId, true);
 
+  Uint32 err = 0;
   if(lock == BackupLockTab::LOCK_TABLE)
   {
     jam();
-    tablePtr.p->m_read_locked = 1;
+    if ((err = check_write_obj(tableId)) == 0)
+    {
+      jam();
+      tablePtr.p->m_read_locked = 1;
+    }
   }
   else
   {
@@ -18501,6 +18442,7 @@ Dbdict::execBACKUP_LOCK_TAB_REQ(Signal* signal)
     tablePtr.p->m_read_locked = 0;
   }
 
+  req->errorCode = err;
   sendSignal(senderRef, GSN_BACKUP_LOCK_TAB_CONF, signal,
              BackupLockTab::SignalLength, JBB);
 }
