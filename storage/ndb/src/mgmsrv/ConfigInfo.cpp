@@ -2769,7 +2769,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
     ConfigInfo::CI_USED,
-    0,
+    false,
     ConfigInfo::CI_INT,
     "0",
     "0",
