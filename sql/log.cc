@@ -1024,14 +1024,10 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   Log_event_handler **current_handler= general_log_handler_list;
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
-  ulong id;
   uint user_host_len= 0;
   time_t current_time;
 
-  if (thd)
-    id= thd->thread_id;                 /* Normal thread */
-  else
-    id= 0;                              /* Log from connect handler */
+  DBUG_ASSERT(thd);
 
   lock_shared();
   if (!opt_log)
@@ -1050,7 +1046,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
-                  user_host_len, id,
+                  user_host_len, thd->thread_id,
                   command_name[(uint) command].str,
                   command_name[(uint) command].length,
                   query, query_length,
