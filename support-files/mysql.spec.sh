@@ -38,13 +38,6 @@
 %{?_with_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}
 %{!?_with_bundled_zlib:%define WITH_BUNDLED_ZLIB 0}
 
-# ----------------------------------------------------------------------
-# use "rpmbuild --without innodb_plugin" or "rpm --define '_without_innodb_plugin 1'"
-# (for RPM 3.x) to not build the innodb plugin (on by default with innodb builds)
-# ----------------------------------------------------------------------
-%{?_without_innodb_plugin:%define WITHOUT_INNODB_PLUGIN 1}
-%{!?_without_innodb_plugin:%define WITHOUT_INNODB_PLUGIN 0}
-
 # use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
 # to build with cluster support (off by default)
 %{?_with_cluster:%define CLUSTER_BUILD 1}
@@ -306,9 +299,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-thread-safe-client \
 	    --with-readline \
 		--with-innodb \
-%if %{WITHOUT_INNODB_PLUGIN}
-		--without-plugin-innodb_plugin \
-%endif
 %if %{CLUSTER_BUILD}
 		--with-ndbcluster \
 %else
@@ -873,6 +863,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Aug 28 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Merge up form 5.1 to 5.4: Remove handling for the InnoDB plugin.
+  
 * Mon Aug 24 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Add conditionals for bundled zlib and innodb plugin
