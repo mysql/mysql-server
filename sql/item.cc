@@ -1673,7 +1673,7 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 bool agg_item_set_converter(DTCollation &coll, const char *fname,
                             Item **args, uint nargs, uint flags, int item_sep)
 {
-  Item **arg, *safe_args[2];
+  Item **arg, *safe_args[2]= {NULL, NULL};
 
   /*
     For better error reporting: save the first and the second argument.
@@ -1682,8 +1682,6 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       doesn't display each argument's characteristics.
     - if nargs is 1, then this error cannot happen.
   */
-  LINT_INIT(safe_args[0]);
-  LINT_INIT(safe_args[1]);
   if (nargs >=2 && nargs <= 3)
   {
     safe_args[0]= args[0];
@@ -3305,8 +3303,7 @@ Item_copy *Item_copy::create (Item *item)
         new Item_copy_uint (item) : new Item_copy_int (item);
     case DECIMAL_RESULT:
       return new Item_copy_decimal (item);
-
-    case ROW_RESULT:
+    default:
       DBUG_ASSERT (0);
   }
   /* should not happen */
@@ -5508,9 +5505,8 @@ bool Item_null::send(Protocol *protocol, String *packet)
 
 bool Item::send(Protocol *protocol, String *buffer)
 {
-  bool result;
+  bool UNINIT_VAR(result);                       // Will be set if null_value == 0
   enum_field_types f_type;
-  LINT_INIT(result);                     // Will be set if null_value == 0
 
   switch ((f_type=field_type())) {
   default:
@@ -6853,14 +6849,21 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 }
 
 /**
-  Return true if the value stored in the field is equal to the const
-  item.
+  Compare the value stored in field, with the original item.
 
-  We need to use this on the range optimizer because in some cases
-  we can't store the value in the field without some precision/character loss.
+  @param field   field which the item is converted and stored in
+  @param item    original item
+
+  @return Return an integer greater than, equal to, or less than 0 if
+          the value stored in the field is greater than,  equal to,
+          or less than the original item
+
+  @note We only use this on the range optimizer/partition pruning,
+        because in some cases we can't store the value in the field
+        without some precision/character loss.
 */
 
-bool field_is_equal_to_item(Field *field,Item *item)
+int stored_field_cmp_to_item(Field *field, Item *item)
 {
 
   Item_result res_type=item_cmp_type(field->result_type(),
@@ -6871,28 +6874,49 @@ bool field_is_equal_to_item(Field *field,Item *item)
     char field_buff[MAX_FIELD_WIDTH];
     String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin),*item_result;
     String field_tmp(field_buff,sizeof(field_buff),&my_charset_bin);
+    enum_field_types field_type;
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
-      return 1;					// This must be true
+      return 0;
     field->val_str(&field_tmp);
-    return !stringcmp(&field_tmp,item_result);
+
+    /*
+      If comparing DATE with DATETIME, append the time-part to the DATE.
+      So that the strings are equally formatted.
+      A DATE converted to string is 10 characters, and a DATETIME converted
+      to string is 19 characters.
+    */
+    field_type= field->type();
+    if (field_type == MYSQL_TYPE_DATE &&
+        item_result->length() == 19)
+      field_tmp.append(" 00:00:00");
+    else if (field_type == MYSQL_TYPE_DATETIME &&
+             item_result->length() == 10)
+      item_result->append(" 00:00:00");
+
+    return stringcmp(&field_tmp,item_result);
   }
   if (res_type == INT_RESULT)
-    return 1;					// Both where of type int
+    return 0;					// Both are of type int
   if (res_type == DECIMAL_RESULT)
   {
     my_decimal item_buf, *item_val,
                field_buf, *field_val;
     item_val= item->val_decimal(&item_buf);
     if (item->null_value)
-      return 1;					// This must be true
+      return 0;
     field_val= field->val_decimal(&field_buf);
-    return !my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(item_val, field_val);
   }
   double result= item->val_real();
   if (item->null_value)
+    return 0;
+  double field_result= field->val_real();
+  if (field_result < result)
+    return -1;
+  else if (field_result > result)
     return 1;
-  return result == field->val_real();
+  return 0;
 }
 
 Item_cache* Item_cache::get_cache(const Item *item)

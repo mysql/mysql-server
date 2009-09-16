@@ -129,6 +129,9 @@ CREATE DATABASE  bug42217_db;
 GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
         IDENTIFIED BY 'create_rout_db' WITH GRANT OPTION;
 
+-- sync_slave_with_master
+-- connection master
+
 connect (create_rout_db_master, localhost, create_rout_db, create_rout_db, bug42217_db,$MASTER_MYPORT,);
 connect (create_rout_db_slave, localhost, create_rout_db, create_rout_db, bug42217_db, $SLAVE_MYPORT,);
 
