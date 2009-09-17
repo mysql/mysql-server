@@ -1,3 +1,13 @@
+2009-09-17	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
+	Make the test pass with zlib 1.2.3.3.  Apparently, the definition
+	of compressBound() has changed between zlib versions, and the
+	maximum record size of a table with 1K compressed page size has
+	been reduced by one byte.  This is an arbitrary test.  In
+	practical applications, for good write performance, the compressed
+	page size should be chosen to be bigger than the absolute minimum.
+
 2009-09-16	The InnoDB Team
 
 	* handler/ha_innodb.cc:
