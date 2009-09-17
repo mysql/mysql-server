@@ -180,8 +180,6 @@ NULL	mysqltest_db1	trg5	DELETE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 5	ROW	BEFOR
 DROP USER mysqltest_dfn@localhost;
 DROP USER mysqltest_inv@localhost;
 DROP DATABASE mysqltest_db1;
-Warnings:
-Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
 DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
 DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
 DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
