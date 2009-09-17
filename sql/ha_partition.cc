@@ -3037,7 +3037,7 @@ int ha_partition::write_row(uchar * buf)
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
-  start_part_bulk_insert(part_id);
+  start_part_bulk_insert(thd, part_id);
 
   tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
   error= m_file[part_id]->ha_write_row(buf);
@@ -3101,7 +3101,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
 
   m_last_part= new_part_id;
-  start_part_bulk_insert(new_part_id);
+  start_part_bulk_insert(thd, new_part_id);
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
@@ -3282,17 +3282,63 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   Check if start_bulk_insert has been called for this partition,
   if not, call it and mark it called
 */
-void ha_partition::start_part_bulk_insert(uint part_id)
+void ha_partition::start_part_bulk_insert(THD *thd, uint part_id)
 {
+  long old_buffer_size;
   if (!bitmap_is_set(&m_bulk_insert_started, part_id) &&
       bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
   {
+    old_buffer_size= thd->variables.read_buff_size;
+    /* Update read_buffer_size for this partition */
+    thd->variables.read_buff_size= estimate_read_buffer_size(old_buffer_size);
     m_file[part_id]->ha_start_bulk_insert(guess_bulk_insert_rows());
     bitmap_set_bit(&m_bulk_insert_started, part_id);
+    thd->variables.read_buff_size= old_buffer_size;
   }
   m_bulk_inserted_rows++;
 }
 
+/*
+  Estimate the read buffer size for each partition.
+  SYNOPSIS
+    ha_partition::estimate_read_buffer_size()
+    original_size  read buffer size originally set for the server
+  RETURN VALUE
+    estimated buffer size.
+  DESCRIPTION
+    If the estimated number of rows to insert is less than 10 (but not 0)
+    the new buffer size is same as original buffer size.
+    In case of first partition of when partition function is monotonic 
+    new buffer size is same as the original buffer size.
+    For rest of the partition total buffer of 10*original_size is divided 
+    equally if number of partition is more than 10 other wise each partition
+    will be allowed to use original buffer size.
+*/
+long ha_partition::estimate_read_buffer_size(long original_size)
+{
+  /*
+    If number of rows to insert is less than 10, but not 0,
+    return original buffer size.
+  */
+  if (estimation_rows_to_insert && (estimation_rows_to_insert < 10))
+    return (original_size);
+  /*
+    If first insert/partition and monotonic partition function,
+    allow using buffer size originally set.
+   */
+  if (!m_bulk_inserted_rows &&
+      m_part_func_monotonicity_info != NON_MONOTONIC &&
+      m_tot_parts > 1)
+    return original_size;
+  /*
+    Allow total buffer used in all partition to go up to 10*read_buffer_size.
+    11*read_buffer_size in case of monotonic partition function.
+  */
+
+  if (m_tot_parts < 10)
+      return original_size;
+  return (original_size * 10 / m_tot_parts);
+}
 
 /*
   Try to predict the number of inserts into this partition.
