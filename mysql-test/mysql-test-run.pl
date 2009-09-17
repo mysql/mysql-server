@@ -4433,7 +4433,9 @@ sub mysqld_start ($$) {
   if (IS_WINDOWS)
   {
     # Trick the server to send output to stderr, with --console
-    mtr_add_arg($args, "--console");
+    if (!(join(' ', @$args) =~ /--log-error/)) {
+      mtr_add_arg($args, "--console");
+    }
   }
 
   if ( $opt_gdb || $opt_manual_gdb )
@@ -5056,7 +5058,9 @@ sub start_mysqltest ($) {
     if (IS_WINDOWS)
     {
       # Trick the server to send output to stderr, with --console
-      mtr_add_arg($args, "--server-arg=--console");
+      if (!(join(' ', @$args) =~ /--log-error/)) {
+        mtr_add_arg($args, "--server-arg=--console");
+      }
     }
   }
 
