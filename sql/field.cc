@@ -1922,16 +1922,16 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *int_digits_tail_from;
+  const uchar *UNINIT_VAR(int_digits_tail_from);
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
-  uint int_digits_added_zeros;
+  uint UNINIT_VAR(int_digits_added_zeros);
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *frac_digits_head_end;
+  const uchar *UNINIT_VAR(frac_digits_head_end);
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
-  uint frac_digits_added_zeros;
+  uint UNINIT_VAR(frac_digits_added_zeros);
   uchar *pos,*tmp_left_pos,*tmp_right_pos;
   /* Pointers that are used as limits (begin and end of the field buffer) */
   uchar *left_wall,*right_wall;
@@ -1941,11 +1941,6 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     to do that only once
   */
   bool is_cuted_fields_incr=0;
-
-  LINT_INIT(int_digits_tail_from);
-  LINT_INIT(int_digits_added_zeros);
-  LINT_INIT(frac_digits_head_end);
-  LINT_INIT(frac_digits_added_zeros);
 
   /*
     There are three steps in this function :
@@ -10001,10 +9996,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  TYPELIB *interval,
 		  const char *field_name)
 {
-  uchar *bit_ptr;
-  uchar bit_offset;
-  LINT_INIT(bit_ptr);
-  LINT_INIT(bit_offset);
+  uchar *UNINIT_VAR(bit_ptr);
+  uchar UNINIT_VAR(bit_offset);
   if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;

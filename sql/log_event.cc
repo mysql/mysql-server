@@ -3203,6 +3203,15 @@ Default database: '%s'. Query: '%s'",
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
+      /*
+        When an error is expected and matches the actual error the
+        slave does not report any error and by consequence changes
+        on transactional tables are not rolled back in the function
+        close_thread_tables(). For that reason, we explicitly roll
+        them back here.
+      */
+      if (expected_error && expected_error == actual_error)
+        ha_autocommit_or_rollback(thd, TRUE);
     }
     /*
       If we expected a non-zero error code and get nothing and, it is a concurrency
@@ -8298,6 +8307,16 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
   
   /* Honor next number column if present */
   m_table->next_number_field= m_table->found_next_number_field;
+  /*
+   * Fixed Bug#45999, In RBR, Store engine of Slave auto-generates new
+   * sequence numbers for auto_increment fields if the values of them are 0.
+   * If generateing a sequence number is decided by the values of
+   * table->auto_increment_field_not_null and SQL_MODE(if includes
+   * MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
+   * SQL_MODE of slave sql thread is always consistency with master's.
+   * In RBR, auto_increment fields never are NULL.
+   */
+  m_table->auto_increment_field_not_null= TRUE;
   return error;
 }
 
@@ -8307,6 +8326,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
 {
   int local_error= 0;
   m_table->next_number_field=0;
+  m_table->auto_increment_field_not_null= FALSE;
   if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {

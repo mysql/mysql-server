@@ -1118,7 +1118,7 @@ class Dummy_error_handler : public Internal_error_handler
 {
 public:
   bool handle_condition(THD *thd,
-                        uint sql_errno, 
+                        uint sql_errno,
                         const char* sqlstate,
                         MYSQL_ERROR::enum_warning_level level,
                         const char* msg,
@@ -1127,6 +1127,33 @@ public:
     /* Ignore error */
     return TRUE;
   }
+};
+
+
+/**
+  This class is an internal error handler implementation for
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
+*/
+
+class Drop_table_error_handler : public Internal_error_handler
+{
+public:
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
+
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
+
+private:
+  Internal_error_handler *m_err_handler;
 };
 
 
