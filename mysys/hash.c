@@ -332,11 +332,8 @@ my_bool my_hash_insert(HASH *info,const byte *record)
 {
   int flag;
   uint halfbuff,hash_nr,first_index,idx;
-  byte *ptr_to_rec,*ptr_to_rec2;
-  HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
-
-  LINT_INIT(gpos); LINT_INIT(gpos2);
-  LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
+  byte *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
+  HASH_LINK *data,*empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
 
   flag=0;
   if (!(empty=(HASH_LINK*) alloc_dynamic(&info->array)))
