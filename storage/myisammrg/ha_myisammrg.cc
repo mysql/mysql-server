@@ -309,7 +309,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   TABLE         *parent;
   TABLE         *child;
   TABLE_LIST    *child_l;
-  MI_INFO       *myisam;
+  MI_INFO       *myisam= NULL;
   DBUG_ENTER("myisammrg_attach_children_callback");
 
   my_errno= 0;
