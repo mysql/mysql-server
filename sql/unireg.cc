@@ -417,10 +417,10 @@ int rea_create_table(THD *thd, const char *path,
   DBUG_ASSERT(*fn_rext(frm_name));
   if (thd->variables.keep_files_on_create)
     create_info->options|= HA_CREATE_KEEP_FILES;
-  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG, create_info))
-    goto err_handler;
-  if (!create_info->frm_only && ha_create_table(thd, path, db, table_name,
-                                                create_info,0))
+  if (!create_info->frm_only &&
+      (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
+                                     create_info) ||
+       ha_create_table(thd, path, db, table_name, create_info, 0)))
     goto err_handler;
   DBUG_RETURN(0);
 

@@ -6178,17 +6178,17 @@ ER_FUNC_INEXISTENT_NAME_COLLISION 42000
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
-  eng "Database `%s`"
-  swe "Databas `%s`"
+  eng "Database"
+  swe "Databas"
 ER_TABLE_NAME
-  eng "Table `%s`"
-  swe "Tabell `%s`"
+  eng "Table"
+  swe "Tabell"
 ER_PARTITION_NAME
-  eng "Partition `%s`"
-  swe "Partition `%s`"
+  eng "Partition"
+  swe "Partition"
 ER_SUBPARTITION_NAME
-  eng "Subpartition `%s`"
-  swe "Subpartition `%s`"
+  eng "Subpartition"
+  swe "Subpartition"
 ER_TEMPORARY_NAME
   eng "Temporary"
   swe "Temporär"

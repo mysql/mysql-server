@@ -6914,6 +6914,22 @@ CALL p1();
 CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
+#
+# Bug #46629: Item_in_subselect::val_int(): Assertion `0' 
+# on subquery inside a SP
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT, b INT PRIMARY KEY);
+CREATE PROCEDURE p1 () 
+BEGIN 
+SELECT a FROM t1 A WHERE A.b IN (SELECT b FROM t2 AS B);
+END|
+CALL p1;
+ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
+CALL p1;
+ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
