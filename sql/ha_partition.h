@@ -367,7 +367,8 @@ public:
   virtual int end_bulk_insert();
 private:
   ha_rows guess_bulk_insert_rows();
-  void start_part_bulk_insert(uint part_id);
+  void start_part_bulk_insert(THD *thd, uint part_id);
+  long estimate_read_buffer_size(long original_size);
 public:
 
   virtual bool is_fatal_error(int error, uint flags)
