@@ -139,9 +139,9 @@ typedef long long longlong;
 #include <mysql.h>
 #include <ctype.h>
 
-static pthread_mutex_t LOCK_hostname;
-
 #ifdef HAVE_DLOPEN
+
+static pthread_mutex_t LOCK_hostname;
 
 /* These must be right or mysqld will not find the symbol! */
 
