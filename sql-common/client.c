@@ -482,6 +482,15 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   int i;
 
   /*
+    If this is NULL, somebody freed the MYSQL* options.  mysql_close()
+    is a good candidate.  We don't just silently (re)set it to
+    def_shared_memory_base_name as that would create really confusing/buggy
+    behavior if the user passed in a different name on the command-line or
+    in a my.cnf.
+  */
+  DBUG_ASSERT(shared_memory_base_name != NULL);
+
+  /*
      get enough space base-name + '_' + longest suffix we might ever send
    */
   if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
@@ -1849,7 +1858,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  char		*end,*host_info;
+  char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1867,7 +1876,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
-  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
