@@ -435,8 +435,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 
 Field *Item_func::tmp_table_field(TABLE *table)
 {
-  Field *field;
-  LINT_INIT(field);
+  Field *field= NULL;
 
   switch (result_type()) {
   case INT_RESULT:
@@ -4236,9 +4235,8 @@ void Item_func_set_user_var::save_item_result(Item *item)
 bool
 Item_func_set_user_var::update()
 {
-  bool res;
+  bool res= NULL;
   DBUG_ENTER("Item_func_set_user_var::update");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
