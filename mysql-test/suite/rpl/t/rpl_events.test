@@ -46,12 +46,62 @@ connection master;
 
 DROP EVENT event2;
 
-sync_slave_with_master;
+#
+# BUG#44331
+# This test verifies if the definer is consistent between master and slave,
+# when the event is created without the DEFINER clause set explicitly or the 
+# DEFINER is set to CURRENT_USER
+#
+CREATE TABLE test.t1(details CHAR(30));
 
-# Doing cleanup of the table referred to in the event to guarantee
-# that there is no bad timing cauing it to try to access the table.
+CREATE EVENT /*!50000 event44331_1 */
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_1 fired - no definer');
+
+CREATE DEFINER=CURRENT_USER /*!50000 EVENT event44331_2 */
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_2 fired - DEFINER=CURRENT_USER');
+            
+CREATE DEFINER=CURRENT_USER() EVENT event44331_3
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_3 fired - DEFINER=CURRENT_USER() function');
+
+CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
+  ON SCHEDULE AT CURRENT_TIMESTAMP
+  ON COMPLETION PRESERVE DISABLE
+  DO INSERT INTO test.t1 VALUES('event event44331_4 fired - DEFINER=user1');
+
+--echo #on master 
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
+
+sync_slave_with_master;
+connection slave;
+--echo #on slave
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
 
 connection master;
 SET @@global.event_scheduler= @old_event_scheduler;
 DROP TABLE t28953;
+DROP TABLE t1;
+DROP EVENT event44331_1;
+DROP EVENT event44331_2;
+DROP EVENT event44331_3;
+DROP EVENT event44331_4;
 sync_slave_with_master;
