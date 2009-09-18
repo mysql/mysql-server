@@ -955,7 +955,7 @@ close_more:
 			" while the maximum\n"
 			"InnoDB: allowed value would be %lu.\n"
 			"InnoDB: You may need to raise the value of"
-			" innodb_max_files_open in\n"
+			" innobase_open_files in\n"
 			"InnoDB: my.cnf.\n",
 			(ulong) fil_system->n_open,
 			(ulong) fil_system->max_n_open);
@@ -1535,7 +1535,7 @@ fil_open_log_and_system_tablespace_files(void)
 					fprintf(stderr,
 						"InnoDB: Warning: you must"
 						" raise the value of"
-						" innodb_max_open_files in\n"
+						" innobase_open_files in\n"
 						"InnoDB: my.cnf! Remember that"
 						" InnoDB keeps all log files"
 						" and all system\n"
