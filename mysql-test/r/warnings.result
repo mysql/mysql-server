@@ -313,4 +313,9 @@ ERROR 22001: Data too long for column 'c_tinytext' at row 1
 insert into t2 values(@q);
 ERROR 22001: Data too long for column 'c_tinyblob' at row 1
 drop table t1, t2;
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
+SHOW ERRORS;
+Level	Code	Message
+Error	1051	Unknown table 't1'
 End of 5.0 tests

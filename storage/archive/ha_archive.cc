@@ -1000,6 +1000,7 @@ int ha_archive::rnd_init(bool scan)
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
   {
+    scan_rows= stats.records;
     DBUG_PRINT("info", ("archive will retrieve %llu rows", 
                         (unsigned long long) scan_rows));
 
@@ -1484,7 +1485,6 @@ int ha_archive::info(uint flag)
   stats.records= share->rows_recorded;
   pthread_mutex_unlock(&share->mutex);
 
-  scan_rows= stats.records;
   stats.deleted= 0;
 
   DBUG_PRINT("ha_archive", ("Stats rows is %d\n", (int)stats.records));
@@ -1495,11 +1495,12 @@ int ha_archive::info(uint flag)
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    stats.mean_rec_length= table->s->reclength + buffer.alloced_length();
     stats.data_file_length= file_stat.st_size;
     stats.create_time= (ulong) file_stat.st_ctime;
     stats.update_time= (ulong) file_stat.st_mtime;
-    stats.max_data_file_length= share->rows_recorded * stats.mean_rec_length;
+    stats.mean_rec_length= stats.records ?
+      stats.data_file_length / stats.records : table->s->reclength;
+    stats.max_data_file_length= MAX_FILE_SIZE;
   }
   stats.delete_length= 0;
   stats.index_file_length=0;

@@ -174,6 +174,17 @@ INSERT INTO global_suppressions VALUES
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
 
+ /* Added 2009-08-XX after fixing Bug #42408 */
+
+ ("Although a path was specified for the .* option, log tables are used"),
+ ("Backup: Operation aborted"),
+ ("Restore: Operation aborted"),
+ ("Restore: The grant .* was skipped because the user does not exist"),
+ ("The path specified for the variable .* is not a directory or cannot be written:"),
+ ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
+ (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

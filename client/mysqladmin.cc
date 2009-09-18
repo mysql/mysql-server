@@ -22,6 +22,7 @@
 #endif
 #include <sys/stat.h>
 #include <mysql.h>
+#include <sql_common.h>
 
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
@@ -353,6 +354,11 @@ int main(int argc,char *argv[])
 
   if (sql_connect(&mysql, option_wait))
   {
+    /*
+      We couldn't get an initial connection and will definitely exit.
+      The following just determines the exit-code we'll give.
+    */
+
     unsigned int err= mysql_errno(&mysql);
     if (err >= CR_MIN_ERROR && err <= CR_MAX_ERROR)
       error= 1;
@@ -371,41 +377,79 @@ int main(int argc,char *argv[])
   }
   else
   {
-    while (!interrupted)
+    /*
+      --count=0 aborts right here. Otherwise iff --sleep=t ("interval")
+      is given a t!=0, we get an endless loop, or n iterations if --count=n
+      was given an n!=0. If --sleep wasn't given, we get one iteration.
+
+      To wit, --wait loops the connection-attempts, while --sleep loops
+      the command execution (endlessly if no --count is given).
+    */
+
+    while (!interrupted && (!opt_count_iterations || nr_iterations))
     {
       new_line = 0;
-      if ((error=execute_commands(&mysql,argc,commands)))
+
+      if ((error= execute_commands(&mysql,argc,commands)))
       {
+        /*
+          Unknown/malformed command always aborts and can't be --forced.
+          If the user got confused about the syntax, proceeding would be
+          dangerous ...
+        */
 	if (error > 0)
-	  break;				/* Wrong command error */
-	if (!option_force)
+	  break;
+
+        /*
+          Command was well-formed, but failed on the server. Might succeed
+          on retry (if conditions on server change etc.), but needs --force
+          to retry.
+        */
+        if (!option_force)
+          break;
+      }                                         /* if((error= ... */
+
+      if (interval)                             /* --sleep=interval given */
+      {
+        /*
+          If connection was dropped (unintentionally, or due to SHUTDOWN),
+          re-establish it if --wait ("retry-connect") was given and user
+          didn't signal for us to die. Otherwise, signal failure.
+        */
+
+	if (mysql.net.vio == 0)
 	{
 	  if (option_wait && !interrupted)
 	  {
-	    mysql_close(&mysql);
-	    if (!sql_connect(&mysql, option_wait))
-	    {
-	      sleep(1);				/* Don't retry too rapidly */
-	      continue;				/* Retry */
-	    }
+	    sleep(1);
+	    sql_connect(&mysql, option_wait);
+	    /*
+	      continue normally and decrease counters so that
+	      "mysqladmin --count=1 --wait=1 shutdown"
+	      cannot loop endlessly.
+	    */
 	  }
-	  error=1;
-	  break;
-	}
-      }
-      if (interval)
-      {
-	if (opt_count_iterations && --nr_iterations == 0)
-          break;
+	  else
+	  {
+	    /*
+	      connexion broke, and we have no order to re-establish it. fail.
+	    */
+	    if (!option_force)
+	      error= 1;
+	    break;
+	  }
+	}                                       /* lost connection */
+
 	sleep(interval);
 	if (new_line)
 	  puts("");
       }
       else
-	break;
-    }
-    mysql_close(&mysql);
-  }
+        break;                                  /* no --sleep, done looping */
+    }                                           /* command-loop */
+  }                                             /* got connection */
+
+  mysql_close(&mysql);
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef HAVE_SMEM
@@ -423,6 +467,17 @@ sig_handler endprog(int signal_number __attribute__((unused)))
   interrupted=1;
 }
 
+/**
+   @brief connect to server, optionally waiting for same to come up
+
+   @param  mysql     connection struct
+   @param  wait      wait for server to come up?
+                     (0: no, ~0: forever, n: cycles)
+
+   @return Operation result
+   @retval 0         success
+   @retval 1         failure
+*/
 
 static my_bool sql_connect(MYSQL *mysql, uint wait)
 {
@@ -431,7 +486,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   for (;;)
   {
     if (mysql_real_connect(mysql,host,user,opt_password,NullS,tcp_port,
-			   unix_port, 0))
+			   unix_port, CLIENT_REMEMBER_OPTIONS))
     {
       mysql->reconnect= 1;
       if (info)
@@ -442,9 +497,9 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
       return 0;
     }
 
-    if (!wait)
+    if (!wait)                                  // was or reached 0, fail
     {
-      if (!option_silent)
+      if (!option_silent)                       // print diagnostics
       {
 	if (!host)
 	  host= (char*) LOCAL_HOST;
@@ -468,11 +523,18 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
       }
       return 1;
     }
+
     if (wait != (uint) ~0)
-      wait--;				/* One less retry */
+      wait--;				/* count down, one less retry */
+
     if ((mysql_errno(mysql) != CR_CONN_HOST_ERROR) &&
 	(mysql_errno(mysql) != CR_CONNECTION_ERROR))
     {
+      /*
+        Error is worse than "server doesn't answer (yet?)";
+        fail even if we still have "wait-coins" unless --force
+        was also given.
+      */
       fprintf(stderr,"Got error: %s\n", mysql_error(mysql));
       if (!option_force)
 	return 1;
@@ -496,11 +558,18 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 }
 
 
-/*
-  Execute a command.
-  Return 0 on ok
-	 -1 on retryable error
-	 1 on fatal error
+/**
+   @brief Execute all commands
+
+   @details We try to execute all commands we were given, in the order
+            given, but return with non-zero as soon as we encounter trouble.
+            By that token, individual commands can be considered a conjunction
+            with boolean short-cut.
+
+   @return success?
+   @retval 0       Yes!  ALL commands worked!
+   @retval 1       No, one failed and will never work (malformed): fatal error!
+   @retval -1      No, one failed on the server, may work next time!
 */
 
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
@@ -570,7 +639,6 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 			mysql_error(mysql));
 	return -1;
       }
-      mysql_close(mysql);	/* Close connection to avoid error messages */
       argc=1;                   /* force SHUTDOWN to be the last command    */
       if (got_pidfile)
       {
@@ -1036,14 +1104,16 @@ static void usage(void)
 static int drop_db(MYSQL *mysql, const char *db)
 {
   char name_buff[FN_REFLEN+20], buf[10];
+  char *input;
+
   if (!option_force)
   {
     puts("Dropping the database is potentially a very bad thing to do.");
     puts("Any data stored in the database will be destroyed.\n");
     printf("Do you really want to drop the '%s' database [y/N] ",db);
     fflush(stdout);
-    VOID(fgets(buf,sizeof(buf)-1,stdin));
-    if ((*buf != 'y') && (*buf != 'Y'))
+    input= fgets(buf, sizeof(buf)-1, stdin);
+    if (!input || ((*input != 'y') && (*input != 'Y')))
     {
       puts("\nOK, aborting database drop!");
       return -1;
