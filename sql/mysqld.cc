@@ -4604,7 +4604,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
