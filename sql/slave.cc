@@ -2678,15 +2678,19 @@ Log entry on master is longer than max_allowed_packet (%ld) on \
 slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
+          mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
+                     ER(ER_NET_PACKET_TOO_LARGE));
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
-          sql_print_error(ER(mysql_error_number), mysql_error_number,
-                          mysql_error(mysql));
+          mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
+                     ER(ER_MASTER_FATAL_ERROR_READING_BINLOG),
+                     mysql_error_number, mysql_error(mysql));
           goto err;
-        case EE_OUTOFMEMORY:
-        case ER_OUTOFMEMORY:
+        case ER_OUT_OF_RESOURCES:
           sql_print_error("\
 Stopping slave I/O thread due to out-of-memory error from master");
+          mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
+                     ER(ER_OUT_OF_RESOURCES));
           goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
