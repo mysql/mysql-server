@@ -518,7 +518,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
 create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
 Warnings:
@@ -529,7 +529,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
 create table t1 (a int, key(a)) transactional=0;
 insert into t1 values (0),(1),(2),(3),(4);

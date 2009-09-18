@@ -2234,7 +2234,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `n` int(11) NOT NULL,
   `c` char(1) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
 drop table t1;
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
 INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
