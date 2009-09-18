@@ -54,7 +54,7 @@ static void run_recover (void) {
     // strip the end_checkpoint from the log.  this will force recovery to run the over
     // the entire log.
     // TODO need an API to do this
-    struct stat s;
+    toku_struct_stat s;
     r = toku_stat(ENVDIR "/log000000000000.tokulog", &s);                               CKERR(r);
     r = truncate(ENVDIR "/log000000000000.tokulog", s.st_size - 0x25);                  CKERR(r);
 
