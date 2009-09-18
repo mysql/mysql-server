@@ -725,6 +725,9 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
     case HA_ENGINE_DATA_AMOUNT:
         return tokudb_show_data_size(thd, stat_print, false);
         break;
+    case HA_ENGINE_DATA_EXACT_AMOUNT:
+        return tokudb_show_data_size(thd, stat_print, true);
+        break;
     case HA_ENGINE_LOGS:
         return tokudb_show_logs(thd, stat_print);
         break;
