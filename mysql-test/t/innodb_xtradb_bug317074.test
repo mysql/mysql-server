@@ -1,4 +1,5 @@
--- source include/have_innodb.inc
+--source include/big_test.inc
+--source include/have_innodb.inc
 
 SET @old_innodb_file_format=@@innodb_file_format;
 SET @old_innodb_file_per_table=@@innodb_file_per_table;
