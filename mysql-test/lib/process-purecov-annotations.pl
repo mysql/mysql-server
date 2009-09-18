@@ -47,7 +47,7 @@ foreach my $in_file_name ( @ARGV )
     #
     my @arr= split(/:/, $line);
     if ($skipping || $line =~ /purecov: *(inspected|deadcode)/ || 
-        $arr[2] =~ m/^{ */)
+        $arr[2] =~ m/^{ *$/)
     {
       # Change '####' to '-'.
       $arr[0] =~ s/#####/    -/g;
@@ -57,8 +57,7 @@ foreach my $in_file_name ( @ARGV )
   }
   close(IN);
   close(OUT);
-  system("cat $out_file_name > $in_file_name");
-  system("rm $out_file_name");
+  system("mv", "-f", $out_file_name, $in_file_name);
 }
 
 
