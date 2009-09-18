@@ -1,6 +1,7 @@
 // this test makes sure the LSN filtering is used during recovery
 
 #include <sys/stat.h>
+#include <fcntl.h>
 #include "test.h"
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
@@ -47,6 +48,14 @@ static void run_test (void) {
     abort();
 }
 
+static int my_truncate(const char *fname, toku_off_t offset) {
+    int fd = open(fname, O_RDWR + O_BINARY);
+    if (fd == -1) return errno;
+    int r = ftruncate(fd, offset);
+    close(fd);
+    return r;
+}
+
 static void run_recover (void) {
     DB_ENV *env;
     int r;
@@ -56,7 +65,7 @@ static void run_recover (void) {
     // TODO need an API to do this
     toku_struct_stat s;
     r = toku_stat(ENVDIR "/log000000000000.tokulog", &s);                               CKERR(r);
-    r = truncate(ENVDIR "/log000000000000.tokulog", s.st_size - 0x25);                  CKERR(r);
+    r = my_truncate(ENVDIR "/log000000000000.tokulog", s.st_size - 0x25);               CKERR(r);
 
     // run recovery
     r = db_env_create(&env, 0);                                                         CKERR(r);
@@ -75,7 +84,7 @@ static void run_recover (void) {
     r = cursor->c_get(cursor, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_FIRST);
     assert(r == DB_NOTFOUND);
 
-    r = cursor->c_close(cursor);                                                          CKERR(r);
+    r = cursor->c_close(cursor);                                                        CKERR(r);
 
     r = txn->commit(txn, 0); CKERR(r);
     r = db->close(db, 0); CKERR(r);
