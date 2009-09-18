@@ -64,7 +64,8 @@ sub gcov_collect ($$$) {
 	$dir_reported= 1;
       }
       system("$gcov $f 2>>$start_dir/$gcov_err >>$start_dir/$gcov_msg");
-      system("perl $basedir/mysql-test/lib/process-purecov-annotations.pl $f.gcov");
+      system("perl", "$basedir/mysql-test/lib/process-purecov-annotations.pl", "$f.gcov");
+
     }
     chdir($start_dir);
   }
