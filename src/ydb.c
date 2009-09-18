@@ -469,17 +469,13 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
-#if 1
+            if ( flags && DB_CLOSE_DONT_TRIM_LOG ) {
+                toku_logger_trim_log_files(env->i->logger, FALSE);
+            }
             r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
             assert(r0 == 0);
-#else
-            // TODO locks?
-            r0 = toku_cachetable_begin_checkpoint(env->i->cachetable, env->i->logger);
-            if (r0 == 0)
-                toku_cachetable_end_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL);
+            r0 = toku_logger_shutdown(env->i->logger); 
             assert(r0 == 0);
-#endif
-            r0 = toku_logger_shutdown(env->i->logger); assert(r0 == 0);
         }
 	toku_ydb_lock();
         r0=toku_cachetable_close(&env->i->cachetable);
@@ -521,7 +517,7 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     toku_free(env->i);
     toku_free(env);
     ydb_unref();
-    if (flags!=0) return EINVAL;
+    if ( (flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG) ) return EINVAL;
     if (r0) return r0;
     if (r1) return r1;
     return is_panicked;

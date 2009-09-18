@@ -773,17 +773,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
     assert(r == 0);
 
     // checkpoint 
-#if 1
     r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
-#else
-    // TODO: checkpoint locks needed here?
-    r = toku_cachetable_begin_checkpoint(renv->ct, renv->logger);
-    assert(r == 0);
-    // TODO: what about the error_string?
-    r = toku_cachetable_end_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL);
-    assert(r == 0);
-#endif
 
     r = chdir(org_wd); 
     assert(r == 0);

@@ -26,6 +26,7 @@ int toku_logger_lock_init(void);
 int toku_logger_lock_destroy(void);
 
 void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files);
+void toku_logger_trim_log_files(TOKULOGGER logger, BOOL trim_log_files);
 
 // Restart the logger.  This function is used by recovery to really start
 // logging.
