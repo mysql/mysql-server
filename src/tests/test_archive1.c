@@ -46,10 +46,13 @@ test_main (int argc, char *argv[]) {
 	char **list;
 	r=env->log_archive(env, &list, 0);
 	CKERR(r);
-	assert(list);
-	assert(list[0]);
-	if (verbose) printf("file[0]=%s\n", list[0]);
-	toku_free(list);
+        //this test no longer produces a list with any entries
+        //   - txn_checkpoint trims unused logfiles
+        //assert(list);
+	//assert(list[0]);
+	//if (verbose) printf("file[0]=%s\n", list[0]);
+   	//toku_free(list);
+	assert(list==NULL); 
     }
 
     r=db->close(db, 0); CKERR(r);
