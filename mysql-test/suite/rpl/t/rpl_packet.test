@@ -5,6 +5,7 @@
 
 # max-out size db name 
 source include/master-slave.inc;
+source include/have_binlog_format_row.inc;
 
 let $db= DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 disable_warnings;
@@ -86,6 +87,35 @@ connection slave;
 --source include/wait_for_slave_io_to_stop.inc
 let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 --echo Slave_IO_Running = $slave_io_running (expect No)
+#
+# Bug#42914: The slave I/O thread must stop after trying to read the above
+# event, However there is no Last_IO_Error report.
+#
+let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+eval SELECT "$last_io_error" AS Last_IO_Error;
+
+#
+# Bug#42914: On the master, if a binary log event is larger than
+# max_allowed_packet, the error message ER_MASTER_FATAL_ERROR_READING_BINLOG
+# is sent to a slave when it requests a dump from the master, thus leading the
+# I/O thread to stop. However, there is no Last_IO_Error reported.
+#
+source include/master-slave-reset.inc;
+connection master;
+CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
+sync_slave_with_master;
+
+connection master;
+INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
+
+connection slave;
+# The slave I/O thread must stop after receiving
+# ER_MASTER_FATAL_ERROR_READING_BINLOG error message from master.
+--source include/wait_for_slave_io_to_stop.inc
+let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
+--echo Slave_IO_Running = $slave_io_running (expect No)
+let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+eval SELECT "$last_io_error" AS Last_IO_Error;
 
 --echo ==== clean up ====
 connection master;
