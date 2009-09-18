@@ -6656,9 +6656,19 @@ view_err:
     goto err;
   }
 
+  /*
+   If this is an ALTER TABLE and no explicit row type specified reuse
+   the table's row type.
+   Note : this is the same as if the row type was specified explicitly.
+  */
   if (create_info->row_type == ROW_TYPE_NOT_USED)
   {
+    /* ALTER TABLE without explicit row type */
     create_info->row_type= table->s->row_type;
+  }
+  else
+  {
+    /* ALTER TABLE with specific row type */
     create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
   }
 
