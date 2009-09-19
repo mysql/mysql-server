@@ -13,5 +13,5 @@ rpl_ndb.rpl_ndb_log                      # Bug#38998
 rpl.rpl_innodb_bug28430                  # Bug#46029
 rpl.rpl_get_master_version_and_clock     # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
 
-ndb.*                                    # Consider all NDB tests experimental.
-rpl_ndb.*                                # Consider all NDB tests experimental.
+ndb.n*                                   # Consider all NDB tests experimental.
+rpl_ndb.r*                               # Consider all NDB tests experimental.
