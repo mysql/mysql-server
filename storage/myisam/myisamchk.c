@@ -83,7 +83,9 @@ HA_CHECK check_param;
 int main(int argc, char **argv)
 {
   int error;
+  uchar rc;
   MY_INIT(argv[0]);
+  my_progname_short= "myisamchk";
 
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */
@@ -132,7 +134,8 @@ int main(int argc, char **argv)
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-  exit(error);
+  rc= (uchar) error;
+  exit(rc);
 #ifndef _lint
   return 0;				/* No compiler warning */
 #endif
