@@ -455,6 +455,54 @@ void Dbdict::packTableIntoPages(Signal* signal)
   const Uint32 type= signal->theData[2];
   const Uint32 pageId= signal->theData[3];
 
+  {
+    Uint32 transId = c_retrieveRecord.schemaTransId;
+    GetTabInfoReq req_copy;
+    req_copy.senderRef = c_retrieveRecord.blockRef;
+    req_copy.senderData = c_retrieveRecord.m_senderData;
+    req_copy.schemaTransId = c_retrieveRecord.schemaTransId;
+    req_copy.requestType = c_retrieveRecord.requestType;
+    req_copy.tableId = tableId;
+
+    SchemaFile::TableEntry *objEntry = 0;
+    if(tableId != RNIL)
+    {
+      XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+      objEntry = getTableEntry(xsf, tableId);
+    }
+
+    // The table seached for was not found
+    if(objEntry == 0)
+    {
+      jam();
+      sendGET_TABINFOREF(signal, &req_copy,
+                         GetTabInfoRef::TableNotDefined, __LINE__);
+      initRetrieveRecord(0, 0, 0);
+      return;
+    }
+
+    if (transId != 0 && transId == objEntry->m_transId)
+    {
+      jam();
+      // see own trans always
+    }
+    else if (refToBlock(req_copy.senderRef) != DBUTIL && /** XXX cheat */
+             refToBlock(req_copy.senderRef) != SUMA)
+    {
+      jam();
+      Uint32 err;
+      if ((err = check_read_obj(objEntry)))
+      {
+        jam();
+        // cannot see another uncommitted trans
+        sendGET_TABINFOREF(signal, &req_copy,
+                           (GetTabInfoRef::ErrorCode)err, __LINE__);
+        initRetrieveRecord(0, 0, 0);
+        return;
+      }
+    }
+  }
+
   PageRecordPtr pagePtr;
   c_pageRecordArray.getPtr(pagePtr, pageId);
 
@@ -2313,6 +2361,12 @@ Dbdict::check_read_obj(Uint32 objId, Uint32 transId)
 Uint32
 Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
 {
+  if (te->m_tableState == SchemaFile::SF_UNUSED)
+  {
+    jam();
+    return GetTabInfoRef::TableNotDefined;
+  }
+
   if (te->m_transId == 0 || te->m_transId == transId)
   {
     jam();
@@ -2323,6 +2377,7 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
   case SchemaFile::SF_CREATE:
     jam();
     return GetTabInfoRef::TableNotDefined;
+    break;
   case SchemaFile::SF_ALTER:
     jam();
     return 0;
@@ -2333,15 +2388,10 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
   case SchemaFile::SF_IN_USE:
     jam();
     return 0;
-  case SchemaFile::SF_UNUSED:
-    jam();
-    return GetTabInfoRef::TableNotDefined;   
   default:
-    jam();
     /** weird... */
-    return 0;
+    return GetTabInfoRef::TableNotDefined;
   }
-  return 0;
 }
 
 
@@ -4327,17 +4377,14 @@ void Dbdict::printTables()
 
 Dbdict::DictObject *
 Dbdict::get_object(const char * name, Uint32 len, Uint32 hash){
-  DictObject key;
-  key.m_key.m_name_ptr = name;
-  key.m_key.m_name_len = len;
-  key.m_key.m_pool = &c_rope_pool;
-  key.m_name.m_hash = hash;
   Ptr<DictObject> old_ptr;
-  c_obj_hash.find(old_ptr, key);
-  return old_ptr.p;
+  if (get_object(old_ptr, name, len, hash))
+  {
+    return old_ptr.p;
+  }
+  return 0;
 }
 
-//wl3600_todo remove the duplication
 bool
 Dbdict::get_object(DictObjectPtr& obj_ptr, const char* name, Uint32 len, Uint32 hash)
 {
@@ -6423,13 +6470,19 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   unlinkDictObject(op_ptr);
 
   dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_blockNo[0] = DBTC;
+  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[2] = DBDIH; //
+  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[4] = 0;
+
   dropTabPtr.p->m_callback.m_callbackData =
     oplnk_ptr.p->op_key;
   dropTabPtr.p->m_callback.m_callbackFunction =
     safe_cast(&Dbdict::createTable_abortLocalConf);
 
-  // invoke the "commit" phase of drop table
-  dropTab_nextStep(signal, oplnk_ptr);
+  // invoke the "complete" phase of drop table
+  dropTable_complete_nextStep(signal, oplnk_ptr);
 
   if (tabPtr.p->m_tablespace_id != RNIL) {
     FilegroupPtr ptr;
@@ -6771,8 +6824,6 @@ Dbdict::dropTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   D("dropTable_prepare" << *op_ptr.p);
 
-  dropTabPtr.p->m_block = 0;
-
   Mutex mutex(signal, c_mutexMgr, dropTabPtr.p->m_define_backup_mutex);
   Callback c = {
     safe_cast(&Dbdict::dropTable_backup_mutex_locked),
@@ -6814,157 +6865,8 @@ Dbdict::dropTable_backup_mutex_locked(Signal* signal,
     return;
   }
 
-  prepDropTab_nextStep(signal, op_ptr);
-}
-
-void
-Dbdict::prepDropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
-{
-  DropTableRecPtr dropTabPtr;
-  getOpRec(op_ptr, dropTabPtr);
-  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
-
-  /**
-   * No errors currently allowed
-   */
-  ndbrequire(!hasError(op_ptr.p->m_error));
-
-  Uint32& block = dropTabPtr.p->m_block; // ref
-  D("prepDropTab_nextStep" << hex << V(block) << *op_ptr.p);
-
-  switch (block) {
-  case 0:
-    jam();
-    block = DBDICT;
-    prepDropTab_writeSchema(signal, op_ptr);
-    return;
-  case DBDICT:
-    jam();
-    block = DBLQH;
-    break;
-  case DBLQH:
-    jam();
-    block = DBTC;
-    break;
-  case DBTC:
-    jam();
-    block = DBDIH;
-    break;
-  case DBDIH:
-    jam();
-    prepDropTab_complete(signal, op_ptr);
-    return;
-  default:
-    ndbrequire(false);
-    break;
-  }
-
-  if (ERROR_INSERTED(6131) &&
-      block == DBDIH) {
-    jam();
-    CLEAR_ERROR_INSERT_VALUE;
-
-    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
-    ref->senderRef = numberToRef(block, getOwnNodeId());
-    ref->senderData = op_ptr.p->op_key;
-    ref->tableId = impl_req->tableId;
-    ref->errorCode = 9131;
-    sendSignal(reference(), GSN_PREP_DROP_TAB_REF, signal,
-               PrepDropTabRef::SignalLength, JBB);
-    return;
-  }
- 
-
-  PrepDropTabReq* prep = (PrepDropTabReq*)signal->getDataPtrSend();
-  prep->senderRef = reference();
-  prep->senderData = op_ptr.p->op_key;
-  prep->tableId = impl_req->tableId;
-  prep->requestType = impl_req->requestType;
-
-  BlockReference ref = numberToRef(block, getOwnNodeId());
-  sendSignal(ref, GSN_PREP_DROP_TAB_REQ, signal,
-             PrepDropTabReq::SignalLength, JBB);
-}
-
-void
-Dbdict::execPREP_DROP_TAB_REQ(Signal* signal)
-{
-  // no longer received
-  ndbrequire(false);
-}
-
-void
-Dbdict::prepDropTab_writeSchema(Signal* signal, SchemaOpPtr op_ptr)
-{
-  jamEntry();
-
-  prepDropTab_fromLocal(signal, op_ptr.p->op_key, 0);
-}
-
-void
-Dbdict::execPREP_DROP_TAB_CONF(Signal * signal)
-{
-  jamEntry();
-  const PrepDropTabConf* conf = (const PrepDropTabConf*)signal->getDataPtr();
-
-  Uint32 nodeId = refToNode(conf->senderRef);
-  Uint32 block = refToBlock(conf->senderRef);
-  ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
-
-  prepDropTab_fromLocal(signal, conf->senderData, 0);
-}
-
-void
-Dbdict::execPREP_DROP_TAB_REF(Signal* signal)
-{
-  jamEntry();
-  const PrepDropTabRef* ref = (const PrepDropTabRef*)signal->getDataPtr();
-
-  Uint32 nodeId = refToNode(ref->senderRef);
-  Uint32 block = refToBlock(ref->senderRef);
-  ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
-
-  Uint32 errorCode = ref->errorCode;
-  ndbrequire(errorCode != 0);
-
-  if (errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH)
-  {
-    jam();
-    /**
-     * Ignore errors:
-     * 1) no such table and LQH, it might not exists in different LQH's
-     */
-    errorCode = 0;
-  }
-  prepDropTab_fromLocal(signal, ref->senderData, errorCode);
-}
-
-void
-Dbdict::prepDropTab_fromLocal(Signal* signal, Uint32 op_key, Uint32 errorCode)
-{
-  SchemaOpPtr op_ptr;
-  DropTableRecPtr dropTabPtr;
-  findSchemaOp(op_ptr, dropTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
-  if (errorCode != 0)
-  {
-    jam();
-    setError(op_ptr, errorCode, __LINE__);
-  }
-
-  prepDropTab_nextStep(signal, op_ptr);
-}
-
-void
-Dbdict::prepDropTab_complete(Signal* signal, SchemaOpPtr op_ptr)
-{
-  jam();
-  D("prepDropTab_complete");
-
   sendTransConf(signal, op_ptr);
 }
-
 // DropTable: COMMIT
 
 void
@@ -6979,12 +6881,6 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, dropTabPtr.p->m_request.tableId);
-
-  dropTabPtr.p->m_block = 0;
-  dropTabPtr.p->m_callback.m_callbackData =
-    op_ptr.p->op_key;
-  dropTabPtr.p->m_callback.m_callbackFunction =
-    safe_cast(&Dbdict::dropTab_complete);
 
   if (tablePtr.p->m_tablespace_id != RNIL)
   {
@@ -7012,12 +6908,168 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     LocalDLFifoList<TableRecord> list(c_tableRecordPool, basePtr.p->m_indexes);
     list.remove(tablePtr);
   }
+  dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_blockNo[0] = DBLQH;
+  dropTabPtr.p->m_blockNo[1] = DBTC;
+  dropTabPtr.p->m_blockNo[2] = DBDIH;
+  dropTabPtr.p->m_blockNo[3] = 0;
+  dropTable_commit_nextStep(signal, op_ptr);
+}
 
-  dropTab_nextStep(signal, op_ptr);
+
+void
+Dbdict::dropTable_commit_nextStep(Signal* signal, SchemaOpPtr op_ptr)
+{
+  DropTableRecPtr dropTabPtr;
+  getOpRec(op_ptr, dropTabPtr);
+  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
+
+  /**
+   * No errors currently allowed
+   */
+  ndbrequire(!hasError(op_ptr.p->m_error));
+
+  Uint32 block = dropTabPtr.p->m_block;
+  Uint32 blockNo = dropTabPtr.p->m_blockNo[block];
+  D("dropTable_commit_nextStep" << hex << V(blockNo) << *op_ptr.p);
+
+  if (blockNo == 0)
+  {
+    jam();
+    dropTable_commit_done(signal, op_ptr);
+    return;
+  }
+
+  if (ERROR_INSERTED(6131) &&
+      blockNo == DBDIH) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+
+    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = numberToRef(block, getOwnNodeId());
+    ref->senderData = op_ptr.p->op_key;
+    ref->tableId = impl_req->tableId;
+    ref->errorCode = 9131;
+    sendSignal(reference(), GSN_PREP_DROP_TAB_REF, signal,
+               PrepDropTabRef::SignalLength, JBB);
+    return;
+  }
+ 
+
+  PrepDropTabReq* prep = (PrepDropTabReq*)signal->getDataPtrSend();
+  prep->senderRef = reference();
+  prep->senderData = op_ptr.p->op_key;
+  prep->tableId = impl_req->tableId;
+  prep->requestType = impl_req->requestType;
+
+  BlockReference ref = numberToRef(blockNo, getOwnNodeId());
+  sendSignal(ref, GSN_PREP_DROP_TAB_REQ, signal,
+             PrepDropTabReq::SignalLength, JBB);
 }
 
 void
-Dbdict::dropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
+Dbdict::execPREP_DROP_TAB_REQ(Signal* signal)
+{
+  // no longer received
+  ndbrequire(false);
+}
+
+void
+Dbdict::execPREP_DROP_TAB_CONF(Signal * signal)
+{
+  jamEntry();
+  const PrepDropTabConf* conf = (const PrepDropTabConf*)signal->getDataPtr();
+
+  Uint32 nodeId = refToNode(conf->senderRef);
+  Uint32 block = refToBlock(conf->senderRef);
+  ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
+
+  dropTable_commit_fromLocal(signal, conf->senderData, 0);
+}
+
+void
+Dbdict::execPREP_DROP_TAB_REF(Signal* signal)
+{
+  jamEntry();
+  const PrepDropTabRef* ref = (const PrepDropTabRef*)signal->getDataPtr();
+
+  Uint32 nodeId = refToNode(ref->senderRef);
+  Uint32 block = refToBlock(ref->senderRef);
+  ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
+
+  Uint32 errorCode = ref->errorCode;
+  ndbrequire(errorCode != 0);
+
+  if (errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH)
+  {
+    jam();
+    /**
+     * Ignore errors:
+     * 1) no such table and LQH, it might not exists in different LQH's
+     */
+    errorCode = 0;
+  }
+  dropTable_commit_fromLocal(signal, ref->senderData, errorCode);
+}
+
+void
+Dbdict::dropTable_commit_fromLocal(Signal* signal, Uint32 op_key, Uint32 errorCode)
+{
+  SchemaOpPtr op_ptr;
+  DropTableRecPtr dropTabPtr;
+  findSchemaOp(op_ptr, dropTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (errorCode != 0)
+  {
+    jam();
+    setError(op_ptr, errorCode, __LINE__);
+  }
+
+  dropTabPtr.p->m_block++;
+  dropTable_commit_nextStep(signal, op_ptr);
+}
+
+void
+Dbdict::dropTable_commit_done(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("dropTable_commit_done");
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropTable: COMPLETE
+
+void
+Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  DropTableRecPtr dropTabPtr;
+  getOpRec(op_ptr, dropTabPtr);
+
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, dropTabPtr.p->m_request.tableId);
+
+  dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_blockNo[0] = DBTC;
+  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[2] = DBDIH; //
+  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[4] = 0;
+  dropTabPtr.p->m_callback.m_callbackData =
+    op_ptr.p->op_key;
+  dropTabPtr.p->m_callback.m_callbackFunction =
+    safe_cast(&Dbdict::dropTable_complete_done);
+
+  dropTable_complete_nextStep(signal, op_ptr);
+}
+
+void
+Dbdict::dropTable_complete_nextStep(Signal* signal, SchemaOpPtr op_ptr)
 {
   DropTableRecPtr dropTabPtr;
   getOpRec(op_ptr, dropTabPtr);
@@ -7031,47 +7083,15 @@ Dbdict::dropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
 
-  Uint32& block = dropTabPtr.p->m_block; // ref
-  D("dropTab_nextStep" << hex << V(block) << *op_ptr.p);
+  Uint32 block = dropTabPtr.p->m_block;
+  Uint32 blockNo = dropTabPtr.p->m_blockNo[block];
+  D("dropTable_complete_nextStep" << hex << V(blockNo) << *op_ptr.p);
 
-  switch (block) {
-  case 0:
-    jam();
-    block = DBTC;
-    break;
-  case DBTC:
-    jam();
-    if (tablePtr.p->isTable() || tablePtr.p->isHashIndex())
-      block = DBACC;
-    if (tablePtr.p->isOrderedIndex())
-      block = DBTUP;
-    break;
-  case DBACC:
-    jam();
-    block = DBTUP;
-    break;
-  case DBTUP:
-    jam();
-    if (tablePtr.p->isTable() || tablePtr.p->isHashIndex())
-      block = DBLQH;
-    if (tablePtr.p->isOrderedIndex())
-      block = DBTUX;
-    break;
-  case DBTUX:
-    jam();
-    block = DBLQH;
-    break;
-  case DBLQH:
-    jam();
-    block = DBDIH;
-    break;
-  case DBDIH:
+  if (blockNo == 0)
+  {
     jam();
     execute(signal, dropTabPtr.p->m_callback, 0);
     return;
-  default:
-    ndbrequire(false);
-    break;
   }
 
   DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
@@ -7080,7 +7100,7 @@ Dbdict::dropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
   req->tableId = impl_req->tableId;
   req->requestType = impl_req->requestType;
 
-  BlockReference ref = numberToRef(block, getOwnNodeId());
+  BlockReference ref = numberToRef(blockNo, getOwnNodeId());
   sendSignal(ref, GSN_DROP_TAB_REQ, signal,
              DropTabReq::SignalLength, JBB);
 }
@@ -7095,7 +7115,7 @@ Dbdict::execDROP_TAB_CONF(Signal* signal)
   Uint32 block = refToBlock(conf->senderRef);
   ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
 
-  dropTab_fromLocal(signal, conf->senderData);
+  dropTable_complete_fromLocal(signal, conf->senderData);
 }
 
 void
@@ -7109,11 +7129,11 @@ Dbdict::execDROP_TAB_REF(Signal* signal)
   ndbrequire(nodeId == getOwnNodeId() && block != DBDICT);
   ndbrequire(ref->errorCode == DropTabRef::NoSuchTable);
 
-  dropTab_fromLocal(signal, ref->senderData);
+  dropTable_complete_fromLocal(signal, ref->senderData);
 }
 
 void
-Dbdict::dropTab_fromLocal(Signal* signal, Uint32 op_key)
+Dbdict::dropTable_complete_fromLocal(Signal* signal, Uint32 op_key)
 {
   jamEntry();
 
@@ -7123,15 +7143,16 @@ Dbdict::dropTab_fromLocal(Signal* signal, Uint32 op_key)
   ndbrequire(!op_ptr.isNull());
   //const DropTabReq* impl_req = &dropTabPtr.p->m_request;
 
-  D("dropTab_fromLocal" << *op_ptr.p);
+  D("dropTable_complete_fromLocal" << *op_ptr.p);
 
-  dropTab_nextStep(signal, op_ptr);
+  dropTabPtr.p->m_block++;
+  dropTable_complete_nextStep(signal, op_ptr);
 }
 
 void
-Dbdict::dropTab_complete(Signal* signal,
-                         Uint32 op_key,
-                         Uint32 ret)
+Dbdict::dropTable_complete_done(Signal* signal,
+                                Uint32 op_key,
+                                Uint32 ret)
 {
   jam();
 
@@ -7167,15 +7188,6 @@ Dbdict::dropTab_complete(Signal* signal,
   sendTransConf(signal, trans_ptr);
 }
 
-// DropTable: COMPLETE
-
-void
-Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
-{
-  jam();
-  sendTransConf(signal, op_ptr);
-}
-
 // DropTable: ABORT
 
 void
@@ -7190,9 +7202,6 @@ void
 Dbdict::dropTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("dropTable_abortPrepare" << *op_ptr.p);
-
-  // no errors currently allowed...
-  ndbrequire(false);
 
   sendTransConf(signal, op_ptr);
 }
@@ -9210,9 +9219,11 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   else if (refToBlock(req->senderRef) != DBUTIL && /** XXX cheat */
            refToBlock(req->senderRef) != SUMA)
   {
+    jam();
     Uint32 err;
     if ((err = check_read_obj(objEntry)))
     {
+      jam();
       // cannot see another uncommitted trans
       sendGET_TABINFOREF(signal, req, (GetTabInfoRef::ErrorCode)err, __LINE__);
       return;
@@ -9226,6 +9237,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   c_retrieveRecord.currentSent = 0;
   c_retrieveRecord.m_useLongSig = useLongSig;
   c_retrieveRecord.m_table_type = objEntry->m_tableType;
+  c_retrieveRecord.schemaTransId = transId;
+  c_retrieveRecord.requestType = req->requestType;
   c_packTable.m_state = PackTable::PTS_GET_TAB;
 
   Uint32 len = 4;

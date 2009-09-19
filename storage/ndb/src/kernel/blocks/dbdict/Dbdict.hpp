@@ -1079,6 +1079,9 @@ private:
      * Long signal stuff
      */
     bool m_useLongSig;
+
+    Uint32 schemaTransId;
+    Uint32 requestType;
   };
   RetrieveRecord c_retrieveRecord;
 
@@ -2265,6 +2268,8 @@ private:
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
 
     Uint32 m_block;
+    enum { BlockCount = 5 };
+    Uint32 m_blockNo[BlockCount];
     Callback m_callback;
 
     DropTableRec() :
@@ -2299,15 +2304,16 @@ private:
 
   // prepare
   void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
-  void prepDropTab_nextStep(Signal*, SchemaOpPtr);
-  void prepDropTab_writeSchema(Signal* signal, SchemaOpPtr);
-  void prepDropTab_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
-  void prepDropTab_complete(Signal*, SchemaOpPtr);
 
   // commit
-  void dropTab_nextStep(Signal*, SchemaOpPtr);
-  void dropTab_fromLocal(Signal*, Uint32 op_key);
-  void dropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
+  void dropTable_commit_nextStep(Signal*, SchemaOpPtr);
+  void dropTable_commit_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
+  void dropTable_commit_done(Signal*, SchemaOpPtr);
+
+  // complete
+  void dropTable_complete_nextStep(Signal*, SchemaOpPtr);
+  void dropTable_complete_fromLocal(Signal*, Uint32 op_key);
+  void dropTable_complete_done(Signal*, Uint32 op_key, Uint32 ret);
 
   // MODULE: AlterTable
 

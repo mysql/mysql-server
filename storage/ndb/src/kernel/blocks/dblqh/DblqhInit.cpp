@@ -318,6 +318,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+  addRecSignal(GSN_DROP_TAB_REF, &Dblqh::execDROP_TAB_REF);
+  addRecSignal(GSN_DROP_TAB_CONF, &Dblqh::execDROP_TAB_CONF);
 
   addRecSignal(GSN_LQH_ALLOCREQ, &Dblqh::execLQH_ALLOCREQ);
   addRecSignal(GSN_LQH_WRITELOG_REQ, &Dblqh::execLQH_WRITELOG_REQ);

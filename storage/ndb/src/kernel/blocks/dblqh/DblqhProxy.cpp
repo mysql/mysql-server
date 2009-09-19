@@ -989,6 +989,12 @@ DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
     conf->tableId = ss.m_req.tableId;
     sendSignal(dictRef, GSN_DROP_TAB_CONF,
                signal, DropTabConf::SignalLength, JBB);
+
+    // inform DBTUP proxy
+    DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
+    *req = ss.m_req;
+    EXECUTE_DIRECT(DBTUP, GSN_DROP_TAB_REQ,
+                   signal, DropTabReq::SignalLength);
   } else {
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
