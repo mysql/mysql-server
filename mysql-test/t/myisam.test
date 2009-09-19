@@ -1478,7 +1478,10 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYISAMCHK -d $MYSQLD_DATADIR/test/t1
 DROP TABLE t1;
 
+#
 # Test warnings with transactional=1 with MyISAM
+# MariaDB: Note that the table will still have 'TRANSACTIONAL=1' attribute.
+# That's the intended behavior atm.
 #
 create table t1 (n int not null, c char(1)) transactional=1;
 show create table t1;

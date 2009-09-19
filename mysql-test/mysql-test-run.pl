@@ -4433,7 +4433,7 @@ sub mysqld_start ($$) {
   if (IS_WINDOWS)
   {
     # Trick the server to send output to stderr, with --console
-    if (!(join(' ', @$args) =~ /--log-error/)) {
+    if (!(grep(/^--log-error/, @$args))) {
       mtr_add_arg($args, "--console");
     }
   }
@@ -5058,7 +5058,7 @@ sub start_mysqltest ($) {
     if (IS_WINDOWS)
     {
       # Trick the server to send output to stderr, with --console
-      if (!(join(' ', @$args) =~ /--log-error/)) {
+      if (!(grep(/^--server-arg=--log-error/, @$args))) {
         mtr_add_arg($args, "--server-arg=--console");
       }
     }
