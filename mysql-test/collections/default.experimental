@@ -1,6 +1,17 @@
 funcs_1.charset_collation_1              # depends on compile-time decisions
+
 binlog.binlog_tmp_table                  # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
+
+innodb.innodb_information_schema         # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
+
 main.ctype_gbk_binlog                    # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
+main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
+
 rpl.rpl_row_create_table                 # Bug#45576: rpl_row_create_table fails on PB2
 rpl_ndb.rpl_ndb_log                      # Bug#38998
 rpl.rpl_innodb_bug28430                  # Bug#46029
+rpl.rpl_get_master_version_and_clock     # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
+
+ndb.*                                    # Consider all NDB tests experimental.
+rpl_ndb.*                                # Consider all NDB tests experimental.
