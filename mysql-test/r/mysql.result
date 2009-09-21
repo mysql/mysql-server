@@ -162,8 +162,8 @@ ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 Test connect with dbname + hostname
 Test connect with dbname + _invalid_ hostname
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
+ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
 The commands reported in the bug report
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 Too long dbname
@@ -198,7 +198,7 @@ COUNT (*)
 1
 COUNT (*)
 1
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
 End of 5.0 tests
 WARNING: --server-arg option not supported in this configuration.
 Warning (Code 1286): Unknown table engine 'nonexistent'
@@ -229,5 +229,10 @@ a:  b
   </row>
 </resultset>
 drop table t1;
+
+Bug #47147: mysql client option --skip-column-names does not apply to vertical output
+
+*************************** 1. row ***************************
+1
 
 End of tests

@@ -3510,7 +3510,8 @@ print_table_data_vertically(MYSQL_RES *result)
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
-      tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
+      if (column_names)
+        tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
         unsigned int i;
