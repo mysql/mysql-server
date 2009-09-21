@@ -1442,7 +1442,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
     goto error_handler;
 
   // Start transaction with table id as hint
-  tConnection = this->startTransaction(table,
+  tConnection = this->startTransaction(m_sys_tab_0,
                                        (const char *) &aTableId,
                                        sizeof(Uint32));
   if (tConnection == NULL)

@@ -149,12 +149,6 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
 static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
-/*
-  Helper functions
-*/
-static bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-static bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
@@ -3930,7 +3924,7 @@ err:
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static bool
+bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 {
   char key[FN_REFLEN + 1];
@@ -3952,7 +3946,7 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
-static bool
+bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
 {
   DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
