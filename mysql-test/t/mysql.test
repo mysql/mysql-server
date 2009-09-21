@@ -402,4 +402,9 @@ insert into t1 values ('\0b\0');
 drop table t1;
 
 --echo
+--echo Bug #47147: mysql client option --skip-column-names does not apply to vertical output
+--echo
+--exec $MYSQL --skip-column-names --vertical test -e "select 1 as a"
+
+--echo
 --echo End of tests
