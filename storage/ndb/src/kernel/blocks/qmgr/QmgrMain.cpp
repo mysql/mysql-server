@@ -3947,7 +3947,7 @@ Qmgr::sendCommitFailReq(Signal* signal)
     ptrAss(nodePtr, nodeRec);
 
 #ifdef ERROR_INSERT    
-    if (ERROR_INSERTED(935) && nodePtr.i == c_error_insert_extra)
+    if (false && ERROR_INSERTED(935) && nodePtr.i == c_error_insert_extra)
     {
       ndbout_c("skipping node %d", c_error_insert_extra);
       CLEAR_ERROR_INSERT_VALUE;
@@ -4064,6 +4064,9 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 {
   NodeRecPtr nodePtr;
   jamEntry();
+
+  CRASH_INSERTION(935);
+
   BlockReference Tblockref = signal->theData[0];
   UintR TfailureNr = signal->theData[1];
   if (Tblockref != cpdistref) {

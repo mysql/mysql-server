@@ -7923,11 +7923,25 @@ Dbtc::checkScanFragList(Signal* signal,
 void Dbtc::execTAKE_OVERTCCONF(Signal* signal) 
 {
   jamEntry();
+
+  if (!checkNodeFailSequence(signal))
+  {
+    jam();
+    return;
+  }
+
   tfailedNodeId = signal->theData[0];
   hostptr.i = tfailedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-  if (signal->getSendersBlockRef() != reference())
+  Uint32 senderRef = signal->theData[1];
+  if (signal->getLength() < 2)
+  {
+    jam();
+    senderRef = 0; // currently only used to see if it's from self
+  }
+
+  if (senderRef != reference())
   {
     jam();
 
@@ -8259,7 +8273,8 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     /*------------------------------------------------------------*/
     NodeReceiverGroup rg(DBTC, c_alive_nodes);
     signal->theData[0] = tcNodeFailptr.p->takeOverNode;
-    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
+    signal->theData[1] = reference();
+    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 2, JBB);
     
     if (tcNodeFailptr.p->queueIndex > 0) {
       jam();
