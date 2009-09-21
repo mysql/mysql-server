@@ -1503,5 +1503,20 @@ SELECT h+0, d + 0, e, g + 0 FROM t1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
+--echo # (same content / differen checksum)
+--echo #
+
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+drop table t1,t2,t3;
+
 --echo End of 5.1 tests
 
