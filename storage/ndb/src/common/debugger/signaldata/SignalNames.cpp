@@ -655,5 +655,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_START_TOREF, "START_TOREF" }
   ,{ GSN_END_TOREF, "END_TOREF" }
   ,{ GSN_START_PERMREP, "START_PERMREP" }
+
+  ,{ GSN_LOCAL_ROUTE_ORD, "LOCAL_ROUTE_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);
