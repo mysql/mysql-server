@@ -1,3 +1,17 @@
+2009-09-19	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-consistent-master.opt,
+	mysql-test/innodb-consistent.result,
+	mysql-test/innodb-consistent.test:
+	Fix Bug#37232 Innodb might get too many read locks for DML with
+	repeatable-read
+
+2009-09-19	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#31183 Tablespace full problems not reported in error log,
+	error message unclear
+
 2009-09-17	The InnoDB Team
 
 	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
