@@ -17457,6 +17457,13 @@ void
 Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
  {
    jamEntry();
+
+   if (!checkNodeFailSequence(signal))
+   {
+     jam();
+     return;
+   }
+
    DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtr();
    Uint32 masterRef = req->senderRef;
    Uint32 op_count = 0;
