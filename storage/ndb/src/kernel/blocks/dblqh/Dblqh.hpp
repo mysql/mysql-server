@@ -2995,6 +2995,10 @@ public:
 #ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
 #endif
+
+#ifdef ERROR_INSERT
+  Uint32 c_master_node_id;
+#endif
 };
 
 inline
