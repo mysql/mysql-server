@@ -8491,7 +8491,17 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
       goto err;
     }
   }
-
+#ifdef HAVE_NDB_BINLOG
+  if (ndbcluster_check_if_local_table(db, name))
+  {
+    DBUG_PRINT("info", ("ndbcluster_discover: Skipping locally defined table '%s.%s'",
+                        db, name));
+    sql_print_error("ndbcluster_discover: Skipping locally defined table '%s.%s'",
+                    db, name);
+    error= 1;
+    goto err;
+  }
+#endif
   *frmlen= len;
   *frmblob= data;
   
