@@ -6959,6 +6959,7 @@ runBug41905getTable(NDBT_Context* ctx, NDBT_Step* step)
   }
 
 out:
+  (void)pDic->dropTable(tabName.c_str());
   return NDBT_OK;
 }
 
