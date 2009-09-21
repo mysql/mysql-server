@@ -27,6 +27,10 @@
 
 void Dblqh::initData() 
 {
+#ifdef ERROR_INSERT
+  c_master_node_id = RNIL;
+#endif
+
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;

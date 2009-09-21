@@ -1031,6 +1031,10 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
   ndbrequire(ind == cnoOfNodes);
   ndbrequire(cnoOfNodes >= 1 && cnoOfNodes < MAX_NDB_NODES);
   ndbrequire(!(cnoOfNodes == 1 && cstartType == NodeState::ST_NODE_RESTART));
+
+#ifdef ERROR_INSERT
+  c_master_node_id = readNodes->masterNodeId;
+#endif
   
   caddNodeState = ZFALSE;
   if (cstartType == NodeState::ST_SYSTEM_RESTART) 
@@ -8308,6 +8312,10 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
     }//if
   }//for
 
+#ifdef ERROR_INSERT
+  c_master_node_id = nodeFail->masterNodeId;
+#endif
+  
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   
@@ -8423,6 +8431,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
        *
        * now scan markers
        */
+#ifdef ERROR_INSERT
       if (ERROR_INSERTED(5050))
       {
         ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
@@ -8434,11 +8443,11 @@ void Dblqh::lqhTransNextLab(Signal* signal)
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
         
         signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, 
-                               refToNode(tcNodeFailptr.p->newTcBlockref)), 
+        sendSignal(numberToRef(CMVMI, c_master_node_id), 
                    GSN_NDB_TAMPER, signal, 1, JBB);
         return;
       }
+#endif
       scanMarkers(signal, tcNodeFailptr.i, 0, RNIL);
       return;
     }//if
