@@ -312,7 +312,10 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
   
-  loops *= (restarter.getNumDbNodes() > 4 ? 4 : restarter.getNumDbNodes());
+  loops *= (restarter.getNumDbNodes() > 2 ? 2 : restarter.getNumDbNodes());
+  if (loops < restarter.getNumDbNodes())
+    loops = restarter.getNumDbNodes();
+
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
 
     int id = lastId % restarter.getNumDbNodes();
