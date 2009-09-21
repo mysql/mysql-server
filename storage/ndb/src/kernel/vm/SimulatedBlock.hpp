@@ -218,6 +218,33 @@ protected:
   void handle_lingering_sections_after_execute(Signal*) const;
   void handle_lingering_sections_after_execute(SectionHandle*) const;
 
+  /**
+   * Send routed signals (ONLY LOCALLY)
+   *
+   * NOTE: Only localhost is allowed!
+   */
+  struct RoutePath
+  {
+    Uint32 ref;
+    JobBufferLevel prio;
+  };
+  void sendRoutedSignal(RoutePath path[],
+                        Uint32 pathcnt,      // #hops
+                        Uint32 dst[],        // Final destination(s)
+                        Uint32 dstcnt,       // #final destination(s)
+                        Uint32 gsn,          // Final GSN
+                        Signal*,
+                        Uint32 len,
+                        JobBufferLevel prio, // Final prio
+                        SectionHandle * handle = 0);
+
+
+  /**
+   * Check that signal sent from remote node
+   *   is guaranteed to be correctly serialized wrt to NODE_FAILREP
+   */
+  bool checkNodeFailSequence(Signal*);
+
   /**********************************************************
    * Fragmented signals
    */
@@ -485,6 +512,8 @@ protected:
   void execCONTINUE_FRAGMENTED(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+
+  void execLOCAL_ROUTE_ORD(Signal*);
 private:
   /**
    * Node state

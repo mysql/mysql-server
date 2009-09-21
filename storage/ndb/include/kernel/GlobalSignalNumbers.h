@@ -544,7 +544,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 426 unused */
 /* 427 unused */
 /* 428 unused */
-/* 429 unused */
+#define GSN_LOCAL_ROUTE_ORD             429 /* local */
 /* 430 unused */
 #define GSN_TUPFRAGCONF                 431
 #define GSN_TUPFRAGREF                  432
