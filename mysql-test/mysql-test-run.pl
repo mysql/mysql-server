@@ -1796,7 +1796,7 @@ sub environment_setup {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
-       $plugin_filename = "ha_example.dll"; 
+       $plugin_filename = "ha_example.dll";
     }
     else 
     {
