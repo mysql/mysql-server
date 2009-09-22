@@ -498,11 +498,8 @@ GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
   for(Uint32 i = 0; i < sz; i++)
   {
     TableVersion & ver = (* vers)[i];
-    if(ver.m_version == tableVersion && ver.m_impl && 
-       (Uint32) ver.m_impl->m_id == tableId)
+    if(ver.m_impl == impl)
     {
-      if (ver.m_impl != impl)
-        abort();
       if (value == +1)
       {
         DBUG_PRINT("info", ("%s id=%u ver=0x%x: inc old ref count %u",

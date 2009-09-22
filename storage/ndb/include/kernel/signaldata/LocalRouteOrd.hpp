@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,22 +13,22 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#ifndef NDB_DBACC_PROXY_HPP
-#define NDB_DBACC_PROXY_HPP
+#ifndef LOCAL_ROUTE_ORD_HPP
+#define LOCAL_ROUTE_ORD_HPP
 
-#include <LocalProxy.hpp>
-#include <signaldata/DropTab.hpp>
+#include "SignalData.hpp"
 
-class DbaccProxy : public LocalProxy {
-public:
-  DbaccProxy(Block_context& ctx);
-  virtual ~DbaccProxy();
-  BLOCK_DEFINES(DbaccProxy);
+struct LocalRouteOrd
+{
+  STATIC_CONST( StaticLen = 3 );
 
-protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  Uint32 cnt; // 16-bit path, 16-bit destination
+  Uint32 gsn; // Final gsn
+  Uint32 prio;// Final prio
+  Uint32 path[1];
 };
 
 #endif

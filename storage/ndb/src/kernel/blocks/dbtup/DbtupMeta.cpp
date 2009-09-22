@@ -770,7 +770,6 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       return;
     }
     regAlterTabOpPtr.p->tableDescriptor= tableDescriptorRef;
-    regAlterTabOpPtr.p->desAllocSize= allocSize;
 
     /*
       Get new pointers into tableDescriptor, and copy over old data.
@@ -868,15 +867,26 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
     /* Allocate the new (possibly larger) dynamic descriptor. */
     allocSize= getDynTabDescrOffsets((dyn_nullbits+31)>>5,
                                      regAlterTabOpPtr.p->dynTabDesOffset);
-    Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
+    Uint32 dynTableDescriptorRef = RNIL;
+    if (ERROR_INSERTED(4029))
+    {
+      jam();
+      dynTableDescriptorRef = RNIL;
+      terrorCode = ZMEM_NOTABDESCR_ERROR;
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+    else
+    {
+      jam();
+      dynTableDescriptorRef = allocTabDescr(allocSize);
+    }
     if (dynTableDescriptorRef == RNIL) {
       jam();
-      freeTabDescr(tableDescriptorRef, regAlterTabOpPtr.p->desAllocSize);
+      releaseTabDescr(tableDescriptorRef);
       releaseAlterTabOpRec(regAlterTabOpPtr);
       sendAlterTabRef(signal, terrorCode);
       return;
     }
-    regAlterTabOpPtr.p->dynDesAllocSize= allocSize;
     regAlterTabOpPtr.p->dynTableDescriptor= dynTableDescriptorRef;
     connectPtr = regAlterTabOpPtr.i;
   }
@@ -1031,10 +1041,8 @@ Dbtup::handleAlterTableAbort(Signal *signal,
       regAlterTabOpPtr.i= req->connectPtr;
       ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
 
-      freeTabDescr(regAlterTabOpPtr.p->tableDescriptor,
-                   regAlterTabOpPtr.p->desAllocSize);
-      freeTabDescr(regAlterTabOpPtr.p->dynTableDescriptor,
-                   regAlterTabOpPtr.p->dynDesAllocSize);
+      releaseTabDescr(regAlterTabOpPtr.p->tableDescriptor);
+      releaseTabDescr(regAlterTabOpPtr.p->dynTableDescriptor);
       releaseAlterTabOpRec(regAlterTabOpPtr);
     }
   }
@@ -1568,12 +1576,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
 
     // move to start of descriptor
     descriptor -= offset[3];
-    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
-    ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
-    ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
-    ndbrequire(ZTD_TYPE_NORMAL ==
-               getTabDescrWord((descriptor + retNo) - ZTD_TR_TYPE));
-    freeTabDescr(descriptor, retNo);
+    releaseTabDescr(descriptor);
   }
 
   descriptor= regTabPtr->dynTabDescriptor;
@@ -1583,12 +1586,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     regTabPtr->dynTabDescriptor= RNIL;
     regTabPtr->dynVarSizeMask= NULL;
     regTabPtr->dynFixSizeMask= NULL;
-    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
-    ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
-    ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
-    ndbrequire(ZTD_TYPE_NORMAL ==
-               getTabDescrWord((descriptor + retNo) - ZTD_TR_TYPE));
-    freeTabDescr(descriptor, retNo);
+    releaseTabDescr(descriptor);
   }
 }
 

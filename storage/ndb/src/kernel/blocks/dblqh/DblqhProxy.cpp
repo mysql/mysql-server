@@ -989,6 +989,12 @@ DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
     conf->tableId = ss.m_req.tableId;
     sendSignal(dictRef, GSN_DROP_TAB_CONF,
                signal, DropTabConf::SignalLength, JBB);
+
+    // inform DBTUP proxy
+    DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
+    *req = ss.m_req;
+    EXECUTE_DIRECT(DBTUP, GSN_DROP_TAB_REQ,
+                   signal, DropTabReq::SignalLength);
   } else {
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
@@ -1285,6 +1291,22 @@ DblqhProxy::execLQH_TRANSREQ(Signal* signal)
   ss.m_req = *req;
   ndbrequire(signal->getLength() == LqhTransReq::SignalLength);
   sendREQ(signal, ss);
+
+  /**
+   * See if this is a "resend" (i.e multi TC failure)
+   *   and if so, mark "old" record as invalid
+   */
+  Uint32 nodeId = ss.m_req.failedNodeId;
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(c_ss_LQH_TRANSREQ.m_pool); i++)
+  {
+    if (c_ss_LQH_TRANSREQ.m_pool[i].m_ssId != 0 &&
+        c_ss_LQH_TRANSREQ.m_pool[i].m_ssId != ss.m_ssId &&
+        c_ss_LQH_TRANSREQ.m_pool[i].m_req.failedNodeId == nodeId)
+    {
+      jam();
+      c_ss_LQH_TRANSREQ.m_pool[i].m_valid = false;
+    }
+  }
 }
 
 void
@@ -1308,6 +1330,67 @@ DblqhProxy::execLQH_TRANSCONF(Signal* signal)
   Uint32 ssId = conf->tcRef;
   Ss_LQH_TRANSREQ& ss = ssFind<Ss_LQH_TRANSREQ>(ssId);
   ss.m_conf = *conf;
+
+  BlockReference ref = signal->getSendersBlockRef();
+  ndbrequire(refToMain(ref) == number());
+  const Uint32 ino = refToInstance(ref);
+  const Uint32 worker = workerIndex(ino);
+  
+  ndbrequire(ref == workerRef(worker));
+  ndbrequire(worker < c_workers);
+  
+  if (ss.m_valid == false)
+  {
+    jam();
+    /**
+     * This is an in-flight signal to an old take-over "session"
+     */
+    if (ss.m_conf.operationStatus == LqhTransConf::LastTransConf)
+    {
+      jam();
+      ndbrequire(ss.m_workerMask.get(worker));
+      ss.m_workerMask.clear(worker);
+      if (ss.m_workerMask.isclear())
+      {
+        jam();
+        ssRelease<Ss_LQH_TRANSREQ>(ssId);
+      }
+    }
+    return;
+  }
+  else if (ss.m_conf.operationStatus == LqhTransConf::LastTransConf)
+  {
+    jam();
+    /**
+     * When completing(LqhTransConf::LastTransConf) a LQH_TRANSREQ
+     *   also check if one can release obsoleteded records
+     *
+     * This could have been done on each LQH_TRANSCONF, but there is no
+     *   urgency, so it's ok todo only on LastTransConf
+     */
+    Uint32 nodeId = ss.m_req.failedNodeId;
+    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(c_ss_LQH_TRANSREQ.m_pool); i++)
+    {
+      if (c_ss_LQH_TRANSREQ.m_pool[i].m_ssId != 0 &&
+          c_ss_LQH_TRANSREQ.m_pool[i].m_ssId != ssId &&
+          c_ss_LQH_TRANSREQ.m_pool[i].m_req.failedNodeId == nodeId &&
+          c_ss_LQH_TRANSREQ.m_pool[i].m_valid == false)
+      {
+        jam();
+        if (c_ss_LQH_TRANSREQ.m_pool[i].m_workerMask.get(worker))
+        {
+          jam();
+          c_ss_LQH_TRANSREQ.m_pool[i].m_workerMask.clear(worker);
+          if (c_ss_LQH_TRANSREQ.m_pool[i].m_workerMask.isclear())
+          {
+            jam();
+            ssRelease<Ss_LQH_TRANSREQ>(c_ss_LQH_TRANSREQ.m_pool[i].m_ssId);
+          }
+        }
+      }
+    }
+  }
+
   recvCONF(signal, ss);
 }
 

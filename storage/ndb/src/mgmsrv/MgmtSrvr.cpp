@@ -757,15 +757,6 @@ MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
 
 MgmtSrvr::~MgmtSrvr()
 {
-
-  /* Stop config manager */
-  if (m_config_manager != 0)
-  {
-    m_config_manager->stop();
-    delete m_config_manager;
-    m_config_manager= 0;
-  }
-
   /* Stop log level thread */
   void* res = 0;
   _isStopThread = true;
@@ -784,6 +775,14 @@ MgmtSrvr::~MgmtSrvr()
   {
     g_eventLogger->error("Failed to wait for all sessions to stop, "
                          "continuing with shutdown anyway.");
+  }
+
+  /* Stop config manager */
+  if (m_config_manager != 0)
+  {
+    m_config_manager->stop();
+    delete m_config_manager;
+    m_config_manager= 0;
   }
 
   // Stop transporter

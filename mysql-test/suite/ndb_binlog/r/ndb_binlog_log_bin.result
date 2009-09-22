@@ -53,10 +53,10 @@ use mysqltest;
 insert into t2 values (1,1);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t1`
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t2`
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; create table t1 (d int key, e int) engine=ndb
-mysqld-bin.000001	#	Query	1	#	use `mysqltest`; create table t2 (d int key, e int) engine=ndb
+mysqld-bin.000001	#	Query	2	#	use `mysqltest`; drop table `mysqltest`.`t1`
+mysqld-bin.000001	#	Query	2	#	use `mysqltest`; drop table `mysqltest`.`t2`
+mysqld-bin.000001	#	Query	2	#	use `mysqltest`; create table t1 (d int key, e int) engine=ndb
+mysqld-bin.000001	#	Query	2	#	use `mysqltest`; create table t2 (d int key, e int) engine=ndb
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysqltest.t1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
