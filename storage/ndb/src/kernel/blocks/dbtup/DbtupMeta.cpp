@@ -703,6 +703,8 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
   regAlterTabOpPtr.p->newNoOfAttrs= newNoOfAttr;
   regAlterTabOpPtr.p->newNoOfCharsets= newNoOfCharsets;
   regAlterTabOpPtr.p->newNoOfKeyAttrs= newNoOfKeyAttrs;
+  regAlterTabOpPtr.p->tableDescriptor = RNIL;
+  regAlterTabOpPtr.p->dynTableDescriptor = RNIL;
 
   /* Allocate a new (possibly larger) table descriptor buffer. */
   Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
@@ -1548,6 +1550,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
   }
 
   releaseTabDescr(regTabPtr->dynTabDescriptor);
+  regTabPtr->dynTabDescriptor = RNIL;
 }
 
 void Dbtup::releaseFragment(Signal* signal, Uint32 tableId, 
