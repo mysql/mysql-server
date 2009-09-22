@@ -70,6 +70,12 @@ struct ManagerRow
   Uint32 my_key;
 };
 
+struct ManagerPKRow
+{
+  Uint32 emp_no;
+  char   dept_no[4+1];
+};
+
 struct EmployeeRow
 {
   Uint32 emp_no;
@@ -118,11 +124,13 @@ const char* dept_managerDef =
 "   my_key       INT             NOT NULL,"
 "   KEY         (emp_no),"
 "   KEY         (dept_no),"
-"   FOREIGN KEY (emp_no)  REFERENCES employees (emp_no)    ON DELETE CASCADE,"
-"   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON DELETE CASCADE,"
+//"   FOREIGN KEY (emp_no)  REFERENCES employees (emp_no)    ON DELETE CASCADE,"
+//"   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON DELETE CASCADE,"
 "   UNIQUE KEY MYINDEXNAME (my_key),"
 "   PRIMARY KEY (emp_no,dept_no))"
-" ENGINE=NDB";
+" ENGINE=NDB"
+//" PARTITION BY KEY(dept_no)"
+;
 
 const char* dept_empDef = 
 "CREATE TABLE dept_emp ("
@@ -279,8 +287,8 @@ int testQueryBuilder(Ndb &myNdb)
 {
   const NdbDictionary::Table *manager, *employee, *salary;
   int res;
-  NdbTransaction* myTransaction;
-  NdbQuery* myQuery;
+  NdbTransaction* myTransaction = NULL;
+  NdbQuery* myQuery = NULL;
 
   char* dept_no = "d005";
   Uint32 emp_no = 110567;
@@ -309,6 +317,45 @@ int testQueryBuilder(Ndb &myNdb)
    * reusable query object - no ::execute() is performed yet.
    */
   NdbQueryBuilder myBuilder(myNdb);
+
+#if 0
+  printf("Compare with old API interface\n");
+
+  {
+    myTransaction= myNdb.startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+    // Lookup Primary key for manager table
+    const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
+    if (myPIndex == NULL)
+      APIERROR(myDict->getNdbError());
+
+    NdbIndexScanOperation* ixScan = 
+      myTransaction->scanIndex(myPIndex->getDefaultRecord(),
+                               manager->getDefaultRecord());
+
+    if (ixScan == NULL)
+      APIERROR(myTransaction->getNdbError());
+
+
+    /* Add a bound
+     */
+    ManagerPKRow low={0,"d005"};
+    ManagerPKRow high={110567,"d005"};
+
+    NdbIndexScanOperation::IndexBound bound;
+    bound.low_key=(char*)&low;
+    bound.low_key_count=2;
+    bound.low_inclusive=true;
+    bound.high_key=(char*)&high;
+    bound.high_key_count=2;
+    bound.high_inclusive=false;
+    bound.range_no=0;
+
+    if (ixScan->setBound(myPIndex->getDefaultRecord(), bound))
+      APIERROR(myTransaction->getNdbError());
+  }
+#endif
 
 #if 1
   /* qt1 is 'const defined' */
@@ -808,21 +855,22 @@ int testQueryBuilder(Ndb &myNdb)
 
     const NdbQueryOperand* low[] =  // Manager PK index is {"emp_no","dept_no", }
     {
-//     qb->constValue(110567),      // emp_no  = 110567
        qb->paramValue(),
-//     qb->constValue("d005"),      // dept_no = "d005"
+//     qb->constValue(110567),      // emp_no  = 110567
+       qb->constValue("d005"),      // dept_no = "d005"
        0
     };
     const NdbQueryOperand* high[] =  // Manager PK index is {"emp_no","dept_no", }
-    {  qb->constValue("illegal key"),
+    {
+       qb->constValue(110567),      // emp_no  = 110567
+       qb->constValue("d005"),      // dept_no = "d005"
        0
     };
-    const NdbQueryIndexBound  bound        (low, NULL);   // emp_no = [110567, oo]
-    const NdbQueryIndexBound  bound_illegal(low, high);   // 'high' is char type -> illegal
+    const NdbQueryIndexBound  bound        (low, high);   // emp_no = [110567, oo]
     const NdbQueryIndexBound  boundEq(low);
 
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
-    const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
+    const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &bound);
     if (scanManager == NULL) APIERROR(qb->getNdbError());
 
     // THEN: employee table is joined:
