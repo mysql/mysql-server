@@ -42,7 +42,6 @@ extern "C" {
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
 }
-#include "handler0vars.h"
 
 static const char plugin_author[] = "Innobase Oy";
 
