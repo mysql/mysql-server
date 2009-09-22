@@ -322,6 +322,14 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 
 void set_binlog_flags(NDB_SHARE *share);
 
+/*
+  Helper functions
+*/
+bool
+ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
+bool
+ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
+
 inline
 Thd_ndb *
 get_thd_ndb(THD *thd)

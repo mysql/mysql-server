@@ -5,8 +5,8 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5054
 Next DBDICT 6013
-Next DBDIH 7220
-Next DBTC 8080
+Next DBDIH 7221
+Next DBTC 8081
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -282,7 +282,7 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 8045: (ABORTCONF only as part of take-over)
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
-8050: Send ZABORT_TIMEOUT_BREAK delayed
+8080: Send ZABORT_TIMEOUT_BREAK delayed
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 

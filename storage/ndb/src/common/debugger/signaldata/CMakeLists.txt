@@ -44,5 +44,6 @@ ADD_LIBRARY(ndbsignaldata STATIC
         SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp
         UtilLock.cpp TuxMaint.cpp AccLock.cpp
         LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp
-        ScanFrag.cpp ApiVersion.cpp)
+        ScanFrag.cpp ApiVersion.cpp
+        LocalRouteOrd.cpp)
 

@@ -679,7 +679,8 @@ Dbacc::execDROP_TAB_REQ(Signal* signal){
   
   tabPtr.p->tabUserRef = req->senderRef;
   tabPtr.p->tabUserPtr = req->senderData;
-  
+  tabPtr.p->tabUserGsn = GSN_DROP_TAB_REQ;
+
   signal->theData[0] = ZREL_ROOT_FRAG;
   signal->theData[1] = tabPtr.i;
   sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
@@ -696,6 +697,7 @@ Dbacc::execDROP_FRAG_REQ(Signal* signal){
 
   tabPtr.p->tabUserRef = req->senderRef;
   tabPtr.p->tabUserPtr = req->senderData;
+  tabPtr.p->tabUserGsn = GSN_DROP_FRAG_REQ;
 
   for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
   {
@@ -718,19 +720,20 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
 
-  const BlockNumber dictBlock = !isNdbMtLqh() ? DBDICT : DBACC;
-  if (refToBlock(tabPtr.p->tabUserRef) == dictBlock)
+  if (tabPtr.p->tabUserGsn == GSN_DROP_TAB_REQ)
   {
     jam();
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    {
       jam();
-      if (tabPtr.p->fragholder[i] != RNIL) {
+      if (tabPtr.p->fragholder[i] != RNIL)
+      {
         jam();
         tabPtr.p->fragholder[i] = RNIL;
         releaseFragResources(signal, tabPtr.p->fragptrholder[i]);
         return;
-      }//if
-    }//for
+      }
+    }
 
     /**
      * Finished...
@@ -744,7 +747,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   }
   else
   {
-    ndbrequire(refToMain(tabPtr.p->tabUserRef) == DBLQH);
+    ndbrequire(tabPtr.p->tabUserGsn == GSN_DROP_FRAG_REQ);
 
     DropFragConf * conf = (DropFragConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -756,6 +759,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   
   tabPtr.p->tabUserPtr = RNIL;
   tabPtr.p->tabUserRef = 0;
+  tabPtr.p->tabUserGsn = 0;
 }//Dbacc::releaseRootFragResources()
 
 void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)

@@ -149,12 +149,6 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
 static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
-/*
-  Helper functions
-*/
-static bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-static bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
@@ -2000,10 +1994,34 @@ int ndbcluster_log_schema_op(THD *thd,
       r|= op->setValue(SCHEMA_TYPE_I, log_type);
       DBUG_ASSERT(r == 0);
       /* any value */
-      if (!(thd->options & OPTION_BIN_LOG))
-        r|= op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+      Uint32 anyValue;
+      if (! thd->slave_thread)
+      {
+        /* Schema change originating from this MySQLD, check SQL_LOG_BIN
+         * variable and pass 'setting' to all logging MySQLDs via AnyValue  
+         */
+        if (thd->options & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
+        {
+          DBUG_PRINT("info", ("Schema event for binlogging"));
+          anyValue = 0;
+        }
+        else
+        {
+          DBUG_PRINT("info", ("Schema event not for binlogging")); 
+          anyValue = NDB_ANYVALUE_FOR_NOLOGGING;
+        }
+      }
       else
-        r|= op->setAnyValue(thd->server_id);
+      {
+        /* Slave applying replicated schema event
+         * Pass original applier's serverId in AnyValue
+         */
+        DBUG_PRINT("info", ("Replicated schema event with original server id %d",
+                            thd->server_id));
+        anyValue = thd->server_id;
+      }
+
+      r|= op->setAnyValue(anyValue);
       DBUG_ASSERT(r == 0);
 #if 0
       if (log_db != new_db && new_db && new_table_name)
@@ -2249,14 +2267,34 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
 static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
 {
-  if (schema->any_value & NDB_ANYVALUE_RESERVED)
+  /* any_value == 0 means local cluster sourced change that
+   * should be logged
+   */
+  if (schema->any_value != 0)
   {
-    if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
-      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                        "query not logged",
-                        schema->any_value);
-    return;
+    if (schema->any_value & NDB_ANYVALUE_RESERVED)
+    {
+      /* Originating SQL node did not want this query logged */
+      if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
+        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                          "query not logged",
+                          schema->any_value);
+      return;
+    }
+    else 
+    {
+      /* AnyValue is set to non-zero serverId, must be a query applied
+       * by a slave mysqld.
+       * TODO : Assert that we are running in the Binlog injector thread?
+       */
+      if (! g_ndb_log_slave_updates)
+      {
+        /* This MySQLD does not log slave updates */
+        return;
+      }
+    }
   }
+
   uint32 thd_server_id_save= thd->server_id;
   DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
   char *thd_db_save= thd->db;
@@ -3900,7 +3938,7 @@ err:
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static bool
+bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 {
   char key[FN_REFLEN + 1];
@@ -3922,7 +3960,7 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
-static bool
+bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
 {
   DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
@@ -5791,6 +5829,7 @@ restart_cluster_failure:
     if (unlikely(schema_res > 0))
     {
       thd->proc_info= "Processing events from schema table";
+      g_ndb_log_slave_updates= opt_log_slave_updates;
       s_ndb->
         setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
       s_ndb->

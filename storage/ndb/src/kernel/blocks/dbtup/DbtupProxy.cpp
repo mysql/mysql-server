@@ -32,10 +32,7 @@ DbtupProxy::DbtupProxy(Block_context& ctx) :
 {
   // GSN_CREATE_TAB_REQ
   addRecSignal(GSN_CREATE_TAB_REQ, &DbtupProxy::execCREATE_TAB_REQ);
-
-  // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
-  addRecSignal(GSN_DROP_TAB_CONF, &DbtupProxy::execDROP_TAB_CONF);
 
   // GSN_BUILD_INDX_IMPL_REQ
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &DbtupProxy::execBUILD_INDX_IMPL_REQ);
@@ -101,71 +98,14 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
   D("proxy: created table" << V(tableId));
 }
 
-// GSN_DROP_TAB_REQ
-
 void
 DbtupProxy::execDROP_TAB_REQ(Signal* signal)
 {
   const DropTabReq* req = (const DropTabReq*)signal->getDataPtr();
-  Uint32 ssId = getSsId(req);
-  Ss_DROP_TAB_REQ& ss = ssSeize<Ss_DROP_TAB_REQ>(ssId);
-  ss.m_req = *req;
-  ndbrequire(signal->getLength() == DropTabReq::SignalLength);
-  sendREQ(signal, ss);
-}
-
-void
-DbtupProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
-{
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-
-  DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
-  *req = ss.m_req;
-  req->senderRef = reference();
-  req->senderData = ssId; // redundant since tableId is used
-  sendSignal(workerRef(ss.m_worker), GSN_DROP_TAB_REQ,
-             signal, DropTabReq::SignalLength, JBB);
-}
-
-void
-DbtupProxy::execDROP_TAB_CONF(Signal* signal)
-{
-  const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
-  Uint32 ssId = getSsId(conf);
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-  recvCONF(signal, ss);
-}
-
-void
-DbtupProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
-{
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-  BlockReference dictRef = ss.m_req.senderRef;
-
-  if (!lastReply(ss))
-    return;
-
-  if (ss.m_error == 0) {
-    jam();
-    DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
-    conf->senderRef = reference();
-    conf->senderData = ss.m_req.senderData;
-    conf->tableId = ss.m_req.tableId;
-    sendSignal(dictRef, GSN_DROP_TAB_CONF,
-               signal, DropTabConf::SignalLength, JBB);
-    // for completeness (not needed for UNDO code)
-    const Uint32 tableId = conf->tableId;
-    // make sure to not crash for nothing
-    if (tableId < c_tableRecSize && c_tableRec[tableId] == 1) {
-      jam();
-      c_tableRec[tableId] = 0;
-      D("proxy: dropped table" << V(tableId));
-    }
-  } else {
-    ndbrequire(false);
-  }
-
-  ssRelease<Ss_DROP_TAB_REQ>(ssId);
+  const Uint32 tableId = req->tableId;
+  ndbrequire(tableId < c_tableRecSize);
+  c_tableRec[tableId] = 0;
+  D("proxy: dropped table" << V(tableId));
 }
 
 // GSN_BUILD_INDX_IMPL_REQ

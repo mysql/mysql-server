@@ -307,13 +307,19 @@ protected:
   // GSN_LQH_TRANSREQ
   struct Ss_LQH_TRANSREQ : SsParallel {
     static const char* name() { return "LQH_TRANSREQ"; }
+    /**
+     * Is this entry valid, or has it been made obsolete by
+     *   a new LQH_TRANSREQ (i.e a new TC-failure)
+     */
+    bool m_valid; 
     LqhTransReq m_req;
     LqhTransConf m_conf; // latest conf
     Ss_LQH_TRANSREQ() {
+      m_valid = true;
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLQH_TRANSREQ;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendLQH_TRANSCONF;
     }
-    enum { poolSize = 1 };
+    enum { poolSize = MAX_NDB_NODES };
     static SsPool<Ss_LQH_TRANSREQ>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_LQH_TRANSREQ;
     }
