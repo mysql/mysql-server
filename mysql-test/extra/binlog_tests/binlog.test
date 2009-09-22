@@ -258,3 +258,15 @@ dec $it;
 }
 show master status /* must show new binlog index after rotating */;
 drop table t3;
+
+--echo #
+--echo # Bug #45998: database crashes when running "create as select"
+--echo #
+CREATE DATABASE test1;
+USE test1;
+DROP DATABASE test1;
+CREATE TABLE test.t1(a int);
+INSERT INTO test.t1 VALUES (1), (2);
+CREATE TABLE test.t2 SELECT * FROM test.t1;
+USE test;
+DROP TABLES t1, t2;
