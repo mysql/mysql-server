@@ -2999,6 +2999,8 @@ public:
 #ifdef ERROR_INSERT
   Uint32 c_master_node_id;
 #endif
+
+  Uint32 get_node_status(Uint32 nodeId) const;
 };
 
 inline

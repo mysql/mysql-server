@@ -4033,16 +4033,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }
 
+  if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
-    HostRecordPtr Thostptr;
-    Thostptr.i = refToNode(sig5); // TC-ref
-    ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
-    if (unlikely(Thostptr.p->nodestatus != ZNODE_UP))
-    {
-      releaseSections(handle);
-      noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
-      return;
-    }
+    noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    return;
   }
   
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
@@ -6022,7 +6016,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   else
   {
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
-      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
+      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
+                get_node_status(nextNodeId) != ZNODE_UP);
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
@@ -8510,9 +8505,23 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	  default:
 	    ndbrequire(false);
 	  }
-        }//if
-      }//if
-    }//if
+        }
+      }
+      else
+      {
+#if defined VM_TRACE || defined ERROR_INSERT
+        jam();
+        ndbrequire(tcConnectptr.p->tcScanRec == RNIL);
+#endif
+      }
+    }
+    else
+    {
+#if defined VM_TRACE || defined ERROR_INSERT
+      jam();
+      ndbrequire(tcConnectptr.p->tcScanRec == RNIL);
+#endif
+    }
   }//for
   tcNodeFailptr.p->tcRecNow = tend + 1;
   signal->theData[0] = ZLQH_TRANS_NEXT;
@@ -11181,6 +11190,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   tcConnectptr.p->savePointId = gci;
   tcConnectptr.p->applRef = 0;
+  tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
+
   scanptr.p->scanState = ScanRecord::WAIT_ACC_COPY;
   AccScanReq * req = (AccScanReq*)&signal->theData[0];
   req->senderData = scanptr.i;
@@ -21339,4 +21350,11 @@ Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
 }
 #endif
 
-
+Uint32
+Dblqh::get_node_status(Uint32 nodeId) const
+{
+  HostRecordPtr Thostptr;
+  Thostptr.i = nodeId;
+  ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  return Thostptr.p->nodestatus;
+}
