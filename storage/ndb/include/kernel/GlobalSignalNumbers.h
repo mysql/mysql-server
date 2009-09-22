@@ -552,7 +552,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_FRAG_REQ               426 /* local */
 #define GSN_DROP_FRAG_REF               427 /* local */
 #define GSN_DROP_FRAG_CONF              428 /* local */
-/* 429 unused */
+#define GSN_LOCAL_ROUTE_ORD             429 /* local */
 /* 430 unused */
 #define GSN_TUPFRAGCONF                 431
 #define GSN_TUPFRAGREF                  432

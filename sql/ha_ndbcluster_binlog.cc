@@ -149,12 +149,6 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
 static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
-/*
-  Helper functions
-*/
-static bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-static bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
@@ -1064,7 +1058,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
     DBUG_RETURN(0);
 
-  char buf[1024], *end;
+  char buf[1024 + 1], *end;
 
   if (ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_APPLY_TABLE);
@@ -1074,7 +1068,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    build_table_filename(buf, sizeof(buf),
+    build_table_filename(buf, sizeof(buf) - 1,
                          NDB_REP_DB, NDB_APPLY_TABLE, reg_ext, 0);
     if (my_delete(buf, MYF(0)) == 0)
     {
@@ -1137,7 +1131,7 @@ static int ndbcluster_create_schema_table(THD *thd)
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
     DBUG_RETURN(0);
 
-  char buf[1024], *end;
+  char buf[1024 + 1], *end;
 
   if (ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_SCHEMA_TABLE);
@@ -1147,7 +1141,7 @@ static int ndbcluster_create_schema_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    build_table_filename(buf, sizeof(buf),
+    build_table_filename(buf, sizeof(buf) - 1,
                          NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext, 0);
     if (my_delete(buf, MYF(0)) == 0)
     {
@@ -1833,8 +1827,8 @@ int ndbcluster_log_schema_op(THD *thd,
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
-    char key[FN_REFLEN];
-    build_table_filename(key, sizeof(key), db, table_name, "", 0);
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
     ndb_schema_object= ndb_get_schema_object(key, TRUE, FALSE);
   }
 
@@ -2000,10 +1994,34 @@ int ndbcluster_log_schema_op(THD *thd,
       r|= op->setValue(SCHEMA_TYPE_I, log_type);
       DBUG_ASSERT(r == 0);
       /* any value */
-      if (!(thd->options & OPTION_BIN_LOG))
-        r|= op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+      Uint32 anyValue;
+      if (! thd->slave_thread)
+      {
+        /* Schema change originating from this MySQLD, check SQL_LOG_BIN
+         * variable and pass 'setting' to all logging MySQLDs via AnyValue  
+         */
+        if (thd->options & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
+        {
+          DBUG_PRINT("info", ("Schema event for binlogging"));
+          anyValue = 0;
+        }
+        else
+        {
+          DBUG_PRINT("info", ("Schema event not for binlogging")); 
+          anyValue = NDB_ANYVALUE_FOR_NOLOGGING;
+        }
+      }
       else
-        r|= op->setAnyValue(thd->server_id);
+      {
+        /* Slave applying replicated schema event
+         * Pass original applier's serverId in AnyValue
+         */
+        DBUG_PRINT("info", ("Replicated schema event with original server id %d",
+                            thd->server_id));
+        anyValue = thd->server_id;
+      }
+
+      r|= op->setAnyValue(anyValue);
       DBUG_ASSERT(r == 0);
 #if 0
       if (log_db != new_db && new_db && new_table_name)
@@ -2249,14 +2267,34 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
 static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
 {
-  if (schema->any_value & NDB_ANYVALUE_RESERVED)
+  /* any_value == 0 means local cluster sourced change that
+   * should be logged
+   */
+  if (schema->any_value != 0)
   {
-    if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
-      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                        "query not logged",
-                        schema->any_value);
-    return;
+    if (schema->any_value & NDB_ANYVALUE_RESERVED)
+    {
+      /* Originating SQL node did not want this query logged */
+      if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
+        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                          "query not logged",
+                          schema->any_value);
+      return;
+    }
+    else 
+    {
+      /* AnyValue is set to non-zero serverId, must be a query applied
+       * by a slave mysqld.
+       * TODO : Assert that we are running in the Binlog injector thread?
+       */
+      if (! g_ndb_log_slave_updates)
+      {
+        /* This MySQLD does not log slave updates */
+        return;
+      }
+    }
   }
+
   uint32 thd_server_id_save= thd->server_id;
   DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
   char *thd_db_save= thd->db;
@@ -2265,9 +2303,11 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   else
     thd->server_id= schema->any_value;
   thd->db= schema->db;
+  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                     schema->query_length, FALSE,
-                    schema->name[0] == 0 || thd->db[0] == 0);
+                    schema->name[0] == 0 || thd->db[0] == 0,
+                    errcode);
   thd->server_id= thd_server_id_save;
   thd->db= thd_db_save;
 }
@@ -2394,8 +2434,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           // Fall through
 	case SOT_TRUNCATE_TABLE:
         {
-          char key[FN_REFLEN];
-          build_table_filename(key, sizeof(key),
+          char key[FN_REFLEN + 1];
+          build_table_filename(key, sizeof(key) - 1,
                                schema->db, schema->name, "", 0);
           /* ndb_share reference temporary, free below */
           NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
@@ -2661,8 +2701,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
     int log_query= 0;
     {
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
-      char key[FN_REFLEN];
-      build_table_filename(key, sizeof(key), schema->db, schema->name, "", 0);
+      char key[FN_REFLEN + 1];
+      build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
         pthread_mutex_lock(&ndbcluster_mutex);
@@ -3898,11 +3938,11 @@ err:
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static bool
+bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 {
-  char key[FN_REFLEN];
-  char ndb_file[FN_REFLEN];
+  char key[FN_REFLEN + 1];
+  char ndb_file[FN_REFLEN + 1];
 
   DBUG_ENTER("ndbcluster_check_if_local_table");
   build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
@@ -3920,16 +3960,16 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
-static bool
+bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
 {
   DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
   DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
   LEX_STRING *tabname;
   List<LEX_STRING> files;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
 
-  build_table_filename(path, sizeof(path), dbname, "", "", 0);
+  build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
   if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
   {
     DBUG_PRINT("info", ("Failed to find files"));
@@ -5789,6 +5829,7 @@ restart_cluster_failure:
     if (unlikely(schema_res > 0))
     {
       thd->proc_info= "Processing events from schema table";
+      g_ndb_log_slave_updates= opt_log_slave_updates;
       s_ndb->
         setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
       s_ndb->

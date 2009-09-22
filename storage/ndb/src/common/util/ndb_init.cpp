@@ -37,6 +37,7 @@ extern "C" void NdbCondition_Init(int need_monotonic);
 extern "C" void NdbTick_Init(int need_monotonic);
 extern "C" int NdbThread_Init();
 extern "C" void NdbThread_End();
+extern void NdbOut_Init();
 
 extern "C"
 {
@@ -44,6 +45,7 @@ extern "C"
 void
 ndb_init_internal()
 {
+  NdbOut_Init();
   if (!g_ndb_connection_mutex)
     g_ndb_connection_mutex = NdbMutex_Create();
   if (!g_eventLogger)

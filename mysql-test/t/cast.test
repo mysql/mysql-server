@@ -269,3 +269,18 @@ SELECT HOUR(NULL),
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo #  Bug #44766: valgrind error when using convert() in a subquery
+--echo #
+
+CREATE TABLE t1(a tinyint);
+INSERT INTO t1 VALUES (127);
+SELECT 1 FROM
+(
+ SELECT CONVERT(t2.a USING UTF8) FROM t1, t1 t2 LIMIT 1
+) AS s LIMIT 1;
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests

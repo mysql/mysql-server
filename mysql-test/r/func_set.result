@@ -146,3 +146,16 @@ NULL
 0
 0
 drop table t1;
+CREATE TABLE t1( a SET('a', 'b', 'c') );
+CREATE TABLE t2( a SET('a', 'b', 'c') );
+INSERT INTO t1 VALUES ('d');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+INSERT INTO t2 VALUES ('');
+SELECT CONVERT( a USING latin1 ) FROM t1;
+CONVERT( a USING latin1 )
+
+SELECT CONVERT( a USING latin1 ) FROM t2;
+CONVERT( a USING latin1 )
+
+DROP TABLE t1, t2;

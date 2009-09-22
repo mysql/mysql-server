@@ -18,6 +18,10 @@ create table t1 (
   `a>b` text
 );
 insert into t1 values (1, 2, 'a&b a<b a>b');
+
+# Determine the number of open sessions
+--source include/count_sessions.inc
+
 --exec $MYSQL --xml test -e "select * from t1"
 --exec $MYSQL_DUMP --xml --skip-create test
 
@@ -33,3 +37,8 @@ drop table t1;
 
 # Restore global concurrent_insert value
 set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till the number of open sessions is <= the number before the runs with
+# $MYSQL and $MYSQL_DUMP
+# = The session caused by mysql and mysqldump have finished their disconnect
+--source include/wait_until_count_sessions.inc

@@ -383,17 +383,43 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_FRAG, &cnoOfFragrec));
   
   Uint32 noOfTriggers= 0;
+  Uint32 noOfAttribs = 0;
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE_DESC, 
-					&cnoOfTabDescrRec));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noOfAttribs));
+
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
 					&noOfTriggers));
 
-  cnoOfTabDescrRec = (cnoOfTabDescrRec & 0xFFFFFFF0) + 16;
+
+  {
+    Uint32 keyDesc = noOfAttribs;
+    Uint32 maxKeyDesc = cnoOfTablerec * MAX_ATTRIBUTES_IN_INDEX;
+    if (keyDesc > maxKeyDesc)
+    {
+      /**
+       * There can be no-more key's
+       *   than "cnoOfTablerec * MAX_ATTRIBUTES_IN_INDEX"
+       */
+      jam();
+      keyDesc = maxKeyDesc;
+    }
+
+    cnoOfTabDescrRec =
+      cnoOfTablerec * 2 * (ZTD_SIZE + ZTD_TRAILER_SIZE) +
+      noOfAttribs * (sizeOfReadFunction() + // READ
+                     sizeOfReadFunction() + // UPDATE
+                     (sizeof(char*) >> 2) + // Charset
+                     ZAD_SIZE +             // Descriptor
+                     1 +                    // real order
+                     InternalMaxDynFix) +   // Worst case dynamic
+      keyDesc;                              // key-descr
+
+    cnoOfTabDescrRec = (cnoOfTabDescrRec & 0xFFFFFFF0) + 16;
+  }
 
   initRecords();
 
@@ -698,6 +724,7 @@ Dbtup::initTab(Tablerec* const regTabPtr)
 
   regTabPtr->tabDescriptor = RNIL;
   regTabPtr->readKeyArray = RNIL;
+  regTabPtr->dynTabDescriptor = RNIL;
 
   regTabPtr->m_bits = 0;
 

@@ -1535,4 +1535,24 @@ SELECT * FROM m1;
 
 DROP VIEW v1;
 DROP TABLE m1, t1;
+
+--echo #
+--echo # Bug #45796: invalid memory reads and writes when altering merge and 
+--echo #             base tables
+--echo #
+
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE m1(c1 INT) ENGINE=MERGE UNION=(t1);
+ALTER TABLE m1 ADD INDEX idx_c1(c1);
+# Open the MERGE table and allocate buffers based on children's definition.
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+# Change the child table definition.
+ALTER TABLE t1 ADD INDEX idx_c1(c1);
+# Check that old buffers are not reused
+SELECT * FROM m1;
+
+DROP TABLE m1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

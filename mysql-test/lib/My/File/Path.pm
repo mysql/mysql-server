@@ -164,6 +164,9 @@ sub copytree {
       copytree("$from_dir/$_", "$to_dir/$_");
       next;
     }
+
+    # Only copy plain files
+    next unless -f "$from_dir/$_";
     copy("$from_dir/$_", "$to_dir/$_");
   }
   closedir(DIR);

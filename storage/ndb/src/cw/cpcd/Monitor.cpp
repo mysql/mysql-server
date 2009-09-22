@@ -40,7 +40,7 @@ CPCD::Monitor::Monitor(CPCD *cpcd, int poll) {
   m_changeMutex = NdbMutex_Create();
   m_monitorThread = NdbThread_Create(monitor_thread_create_wrapper,
 				     (NDB_THREAD_ARG*) this,
-				     32768,
+                                     0, // default stack size
 				     "ndb_cpcd_monitor",
 				     NDB_THREAD_PRIO_MEAN);
   m_monitorThreadQuitFlag = false;

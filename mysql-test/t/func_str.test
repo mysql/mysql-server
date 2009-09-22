@@ -1282,6 +1282,16 @@ INSERT INTO t1 VALUES ('2008-12-31','aaaaaa');
 SELECT DATE_FORMAT(c, GET_FORMAT(DATE, 'eur')) h, CONCAT(UPPER(aa),', ', aa) i FROM t1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # BUG#44774: load_file function produces valgrind warnings
+--echo #
+CREATE TABLE t1 (a TINYBLOB);
+INSERT INTO t1 VALUES ('aaaaaaaa');
+SELECT LOAD_FILE(a) FROM t1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 #

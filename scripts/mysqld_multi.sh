@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use Getopt::Long;
-use POSIX qw(strftime);
+use POSIX qw(strftime getcwd);
 
 $|=1;
 $VER="2.16";
@@ -295,6 +295,7 @@ sub start_mysqlds()
   {
     @options = defaults_for_group($groups[$i]);
 
+    $basedir_found= 0; # The default
     $mysqld_found= 1; # The default
     $mysqld_found= 0 if (!length($mysqld));
     $com= "$mysqld";
@@ -310,17 +311,25 @@ sub start_mysqlds()
 	$com= $options[$j];
         $mysqld_found= 1;
       }
+      elsif ("--basedir=" eq substr($options[$j], 0, 10))
+      {
+        $basedir= $options[$j];
+        $basedir =~ s/^--basedir=//;
+        $basedir_found= 1;
+        $options[$j]= quote_shell_word($options[$j]);
+        $tmp.= " $options[$j]";
+      }
       else
       {
 	$options[$j]= quote_shell_word($options[$j]);
 	$tmp.= " $options[$j]";
       }
     }
-    if ($opt_verbose && $com =~ m/\/safe_mysqld$/ && !$info_sent)
+    if ($opt_verbose && $com =~ m/\/(safe_mysqld|mysqld_safe)$/ && !$info_sent)
     {
-      print "WARNING: safe_mysqld is being used to start mysqld. In this case you ";
+      print "WARNING: $1 is being used to start mysqld. In this case you ";
       print "may need to pass\n\"ledir=...\" under groups [mysqldN] to ";
-      print "safe_mysqld in order to find the actual mysqld binary.\n";
+      print "$1 in order to find the actual mysqld binary.\n";
       print "ledir (library executable directory) should be the path to the ";
       print "wanted mysqld binary.\n\n";
       $info_sent= 1;
@@ -337,7 +346,16 @@ sub start_mysqlds()
       print "group [$groups[$i]] separately.\n";
       exit(1);
     }
+    if ($basedir_found)
+    {
+      $curdir=getcwd();
+      chdir($basedir) or die "Can't change to datadir $basedir";
+    }
     system($com);
+    if ($basedir_found)
+    {
+      chdir($curdir) or die "Can't change back to original dir $curdir";
+    }
   }
   if (!$i && !$opt_no_log)
   {
@@ -670,9 +688,9 @@ language   = @datadir@/mysql/english
 user       = unix_user1
 
 [mysqld3]
-mysqld     = /path/to/safe_mysqld/safe_mysqld
+mysqld     = /path/to/mysqld_safe
 ledir      = /path/to/mysqld-binary/
-mysqladmin = /path/to/mysqladmin/mysqladmin
+mysqladmin = /path/to/mysqladmin
 socket     = /tmp/mysql.sock3
 port       = 3308
 pid-file   = @localstatedir@3/hostname.pid3

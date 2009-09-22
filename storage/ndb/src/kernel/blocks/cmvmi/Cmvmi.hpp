@@ -71,6 +71,8 @@ private:
   void execNODE_START_REP(Signal* signal);
 
   void execCONTINUEB(Signal* signal);
+
+  void execROUTE_ORD(Signal* signal);
   
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);

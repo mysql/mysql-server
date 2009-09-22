@@ -14,16 +14,18 @@ flush privileges;
 connect (sample,localhost,sample,password,d1);
 connection sample;
 select database();
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create database d2;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create database D1;
 disconnect sample;
+--source include/wait_until_disconnected.inc
 
 connection master;
 drop user 'sample'@'localhost';
 drop database if exists d1;
 disconnect master;
+--source include/wait_until_disconnected.inc
 connection default;
 
 # End of 4.1 tests

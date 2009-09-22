@@ -444,6 +444,13 @@ Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
   case BackupLockTab::GET_TABINFO_CONF:
   {
     jam();
+    if (conf->errorCode)
+    {
+      jam();
+      defineBackupRef(signal, ptr, conf->errorCode);
+      return;
+    }
+
     ptr.p->tables.next(tabPtr);
     afterGetTabinfoLockTab(signal, ptr, tabPtr);
     return;

@@ -4226,6 +4226,57 @@ DROP DATABASE mysqldump_test_db;
 # -- End of test case for Bug#32538.
 
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
+
+Bug #34861 - mysqldump with --tab gives weird output for triggers.
+
+CREATE TABLE t1 (f1 INT);
+CREATE TRIGGER tr1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1 = 1;
+CREATE PROCEDURE pr1 () SELECT "Meow";
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
+
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+pr1	SELECT "Meow"
+
+dump table; if anything goes to stdout, it ends up here: ---------------
+
+drop everything
+DROP EVENT ev1;
+DROP TRIGGER tr1;
+DROP TABLE t1;
+DROP PROCEDURE pr1;
+
+reload table; this should restore table and trigger
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+
+reload db; this should restore routines and events
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+pr1	SELECT "Meow"
+
+cleanup
+DROP EVENT IF EXISTS ev1;
+DROP PROCEDURE IF EXISTS pr1;
+DROP TRIGGER IF EXISTS tr1;
+DROP TABLE IF EXISTS t1;
 #
 # End of 5.1 tests
 #

@@ -28,7 +28,7 @@ class BackupLockTab {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 6);
+  STATIC_CONST( SignalLength = 7 );
 
 private:
   /* Values for m_lock_unlock. */
@@ -47,6 +47,7 @@ private:
   Uint32 m_senderRef;
   Uint32 m_tableId;
   Uint32 m_lock_unlock;
+  Uint32 errorCode;
   /* The remaining words are used to keep track of state in block Backup. */
   Uint32 m_backup_state;
   Uint32 m_backupRecordPtr_I;

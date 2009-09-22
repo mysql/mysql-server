@@ -2073,4 +2073,18 @@ select @a, @b;
 drop trigger trg1;
 drop trigger trg2;
 drop table t1, t2;
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY, b INT );
+INSERT INTO t1 (a) VALUES (1);
+CREATE TRIGGER tr1
+BEFORE INSERT ON t2
+FOR EACH ROW 
+BEGIN 
+UPDATE a_nonextisting_table SET a = 1;
+END//
+CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
+ERROR 42S02: Table 'test.a_nonextisting_table' doesn't exist
+SELECT * FROM t2;
+a	b
+DROP TABLE t1, t2;
 End of 5.1 tests.

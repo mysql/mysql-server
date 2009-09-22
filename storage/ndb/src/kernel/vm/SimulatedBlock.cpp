@@ -42,6 +42,7 @@
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
+#include <signaldata/LocalRouteOrd.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -214,6 +215,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
   a[GSN_SYNC_THREAD_REQ] = &SimulatedBlock::execSYNC_THREAD_REQ;
   a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
+  a[GSN_LOCAL_ROUTE_ORD] = &SimulatedBlock::execLOCAL_ROUTE_ORD;
 }
 
 void
@@ -3319,6 +3321,189 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
 
 CArray<KeyDescriptor> g_key_descriptor_pool;
 
+void
+SimulatedBlock::sendRoutedSignal(RoutePath path[], Uint32 pathcnt,
+                                 Uint32 dst[],
+                                 Uint32 dstcnt,
+                                 Uint32 gsn,
+                                 Signal * signal,
+                                 Uint32 sigLen,
+                                 JobBufferLevel prio,
+                                 SectionHandle * userhandle)
+{
+  ndbrequire(pathcnt > 0); // don't support (now) directly multi-cast
+  pathcnt--; // first hop is made from here
+
+
+  Uint32 len = LocalRouteOrd::StaticLen + (2 * pathcnt) + dstcnt;
+  ndbrequire(len <= 25);
+
+  SectionHandle handle(this, signal);
+  if (userhandle)
+  {
+    ljam();
+    handle.m_cnt = userhandle->m_cnt;
+    for (Uint32 i = 0; i<handle.m_cnt; i++)
+      handle.m_ptr[i] = userhandle->m_ptr[i];
+    userhandle->m_cnt = 0;
+  }
+
+  if (len + sigLen > 25)
+  {
+    ljam();
+
+    /**
+     * we need to store theData in a section
+     */
+    ndbrequire(handle.m_cnt < 3);
+    handle.m_ptr[2] = handle.m_ptr[1];
+    handle.m_ptr[1] = handle.m_ptr[0];
+    Ptr<SectionSegment> tmp;
+    ndbrequire(import(tmp, signal->theData, sigLen));
+    handle.m_ptr[0].p = tmp.p;
+    handle.m_ptr[0].i = tmp.i;
+    handle.m_ptr[0].sz = sigLen;
+    handle.m_cnt ++;
+  }
+  else
+  {
+    ljam();
+    memmove(signal->theData + len, signal->theData, 4 * sigLen);
+    len += sigLen;
+  }
+
+  LocalRouteOrd * ord = (LocalRouteOrd*)signal->getDataPtrSend();
+  ord->cnt = (pathcnt << 16) | (dstcnt);
+  ord->gsn = gsn;
+  ord->prio = Uint32(prio);
+
+  Uint32 * dstptr = ord->path;
+  for (Uint32 i = 1; i <= pathcnt; i++)
+  {
+    ndbrequire(refToNode(path[i].ref) == 0 ||
+               refToNode(path[i].ref) == getOwnNodeId());
+
+    * dstptr++ = path[i].ref;
+    * dstptr++ = Uint32(path[i].prio);
+  }
+
+  for (Uint32 i = 0; i<dstcnt; i++)
+  {
+    ndbrequire(refToNode(dst[i]) == 0 ||
+               refToNode(dst[i]) == getOwnNodeId());
+
+    * dstptr++ = dst[i];
+  }
+
+  sendSignal(path[0].ref, GSN_LOCAL_ROUTE_ORD, signal, len,
+             path[0].prio, &handle);
+}
+
+void
+SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
+{
+  ljamEntry();
+
+  if (!assembleFragments(signal))
+  {
+    ljam();
+    return;
+  }
+
+  if (ERROR_INSERTED(1001))
+  {
+    /**
+     * This NDBCNTR error code 1001
+     */
+    ljam();
+    SectionHandle handle(this, signal);
+    sendSignalWithDelay(reference(), GSN_LOCAL_ROUTE_ORD, signal, 200, 
+                        signal->getLength(), &handle);
+    return;
+  }
+
+  LocalRouteOrd* ord = (LocalRouteOrd*)signal->getDataPtr();
+  Uint32 pathcnt = ord->cnt >> 16;
+  Uint32 dstcnt = ord->cnt & 0xFFFF;
+  Uint32 sigLen = signal->getLength();
+
+  if (pathcnt == 0)
+  {
+    /**
+     * Send to final destination(s);
+     */
+    ljam();
+    Uint32 gsn = ord->gsn;
+    Uint32 prio = ord->prio;
+    memcpy(signal->theData+25, ord->path, 4*dstcnt);
+    SectionHandle handle(this, signal);
+    if (sigLen > LocalRouteOrd::StaticLen + dstcnt)
+    {
+      ljam();
+      /**
+       * Data is at end of this...
+       */
+      memmove(signal->theData,
+              signal->theData + LocalRouteOrd::StaticLen + dstcnt,
+              4 * (sigLen - (LocalRouteOrd::StaticLen + dstcnt)));
+      sigLen = sigLen - (LocalRouteOrd::StaticLen + dstcnt);
+    }
+    else
+    {
+      ljam();
+      /**
+       * Put section 0 in signal->theData
+       */
+      sigLen = handle.m_ptr[0].sz;
+      ndbrequire(sigLen <= 25);
+      copy(signal->theData, handle.m_ptr[0]);
+      release(handle.m_ptr[0]);
+
+      for (Uint32 i = 0; i < handle.m_cnt - 1; i++)
+        handle.m_ptr[i] = handle.m_ptr[i+1];
+      handle.m_cnt--;
+    }
+
+    /*
+     * The extra if-statement is as sendSignalNoRelease will copy sections
+     *   which is not necessary is only sending to one destination
+     */
+    if (dstcnt > 1)
+    {
+      jam();
+      for (Uint32 i = 0; i<dstcnt; i++)
+      {
+        ljam();
+        sendSignalNoRelease(signal->theData[25+i], gsn, signal, sigLen,
+                            JobBufferLevel(prio), &handle);
+      }
+      releaseSections(handle);
+    }
+    else
+    {
+      jam();
+      sendSignal(signal->theData[25+0], gsn, signal, sigLen,
+                 JobBufferLevel(prio), &handle);
+    }
+  }
+  else
+  {
+    /**
+     * Reroute
+     */
+    ljam();
+    SectionHandle handle(this, signal);
+    Uint32 ref = ord->path[0];
+    Uint32 prio = ord->path[1];
+    Uint32 len = sigLen - 2;
+    ord->cnt = ((pathcnt - 1) << 16) | dstcnt;
+    memmove(ord->path, ord->path+2, 4 * (len - LocalRouteOrd::StaticLen));
+    sendSignal(ref, GSN_LOCAL_ROUTE_ORD, signal, len,
+               JobBufferLevel(prio), &handle);
+  }
+}
+
+
 #ifdef VM_TRACE
 bool
 SimulatedBlock::debugOutOn()
@@ -3417,4 +3602,47 @@ SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
     return;
   }
   ptr.p->m_cnt --;
+}
+
+bool
+SimulatedBlock::checkNodeFailSequence(Signal* signal)
+{
+  Uint32 ref = signal->getSendersBlockRef();
+
+  /**
+   * Make sure that a signal being part of node-failure handling
+   *   from a remote node, does not get to us before we got the NODE_FAILREP
+   *   (this to avoid tricky state handling)
+   *
+   * To ensure this, we send the signal via QMGR (GSN_COMMIT_FAILREQ)
+   *   and NDBCNTR (which sends NODE_FAILREP)
+   *
+   * The extra time should be negilable
+   *
+   * Note, make an exception for signals sent by our self
+   *       as they are only sent as a consequence of NODE_FAILREP
+   */
+  if (ref == reference() ||
+      (refToNode(ref) == getOwnNodeId() &&
+       refToMain(ref) == NDBCNTR))
+  {
+    ljam();
+    return true;
+  }
+
+  RoutePath path[2];
+  path[0].ref = QMGR_REF;
+  path[0].prio = JBB;
+  path[1].ref = NDBCNTR_REF;
+  path[1].prio = JBB;
+
+  Uint32 dst[1];
+  dst[0] = reference();
+
+  SectionHandle handle(this, signal);
+  Uint32 gsn = signal->header.theVerId_signalNumber;
+  Uint32 len = signal->getLength();
+
+  sendRoutedSignal(path, 2, dst, 1, gsn, signal, len, JBB, &handle);
+  return false;
 }

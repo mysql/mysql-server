@@ -109,5 +109,21 @@ bool isOrdinaryIdentifier(const char* s)
   }
   return true;
 }
+
+/**
+  Fill memory with a 16-bit word.
   
+  @param p  Pointer to space to fill.
+  @param v  Value to fill
+  @param l  Length of space (in 16-bit words)
+*/
+void memset16(void* p, uint16 v, size_t l)
+{
+  uint16* p2=(uint16*)p;
+  while (l--)
+  {
+    *(p2++) = v;
+  }
+}
+
 #endif

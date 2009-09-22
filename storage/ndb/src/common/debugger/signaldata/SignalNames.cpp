@@ -747,5 +747,7 @@ const GsnName SignalNames [] = {
 
   ,{ GSN_SYNC_THREAD_REQ, "SYNC_THREAD_REQ" }
   ,{ GSN_SYNC_THREAD_CONF, "SYNC_THREAD_CONF" }
+
+  ,{ GSN_LOCAL_ROUTE_ORD, "LOCAL_ROUTE_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

@@ -238,7 +238,18 @@ DROP TABLE t1;
 --enable_query_log
 select 'is still running; no cipher request crashed the server' as result from dual;
 
-##
+#
+# Bug#42158: leak: SSL_get_peer_certificate() doesn't have matching X509_free()
+#
+
+GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
+FLUSH PRIVILEGES;
+connect(con1,localhost,bug42158,,,,,SSL);
+SHOW STATUS LIKE 'Ssl_cipher';
+disconnect con1;
+connection default;
+DROP USER bug42158@localhost;
+
 --echo End of 5.1 tests
 
 # Wait till we reached the initial number of concurrent sessions

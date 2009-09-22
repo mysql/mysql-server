@@ -6,6 +6,25 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
 reset master;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('a');
+include/stop_slave.inc
+include/start_slave.inc
+INSERT INTO t1 VALUES ('b');
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
+INSERT INTO `t1` set `a`=128,`b`='128';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+include/stop_slave.inc
+include/start_slave.inc
+INSERT INTO `t1` set `a`=128,`b`='128';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+DROP TABLE t1;
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation

@@ -14,6 +14,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "fsp0fsp.h"
 #include "mach0data.h"
+#include "mtr0log.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "srv0srv.h"

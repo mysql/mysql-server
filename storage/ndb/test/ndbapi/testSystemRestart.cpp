@@ -1441,6 +1441,9 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     int cnt = 0;
     CHECK(hugoTrans.selectCount(pNdb, 0, &cnt) == 0);
     ndbout << "Found " << cnt << " records..." << endl;
+    ndbout << "Updating..." << endl;
+    CHECK(hugoTrans.scanUpdateRecords(pNdb,
+                                      NdbScanOperation::SF_TupScan, cnt) == 0);
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1541,6 +1544,9 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     int cnt = 0;
     CHECK(hugoTrans.selectCount(pNdb, 0, &cnt) == 0);
     ndbout << "Found " << cnt << " records..." << endl;
+    ndbout << "Updating..." << endl;
+    CHECK(hugoTrans.scanUpdateRecords(pNdb,
+                                      NdbScanOperation::SF_TupScan, cnt) == 0);
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1554,6 +1560,142 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   
   ndbout << "runSR_DD_2 finished" << endl;  
   ctx->stopTest();  
+  return result;
+}
+
+int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumLoops();
+  Uint32 rows = ctx->getNumRecords();
+  NdbRestarter restarter;
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  bool lcploop = ctx->getProperty("LCP", (unsigned)0);
+  bool all = ctx->getProperty("ALL", (unsigned)0);
+  int error = (int)ctx->getProperty("ERROR", (unsigned)0);
+  rows = ctx->getProperty("ROWS", rows);
+
+  Uint32 i = 1;
+
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  int lcp = DumpStateOrd::DihMinTimeBetweenLCP;
+
+  if (error)
+  {
+    restarter.insertErrorInAllNodes(error);
+  }
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while(i<=loops && result != NDBT_FAILED)
+  {
+
+    if (lcploop)
+    {
+      CHECK(restarter.dumpStateAllNodes(&lcp, 1) == 0);
+    }
+
+    int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+
+    if (hugoTrans.loadTable(pNdb, rows) != 0)
+    {
+      return NDBT_FAILED;
+    }
+
+    if (!all)
+    {
+      ndbout << "Making " << nodeId << " crash" << endl;
+      int kill[] = { 9999, 3000, 10000 };
+      CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
+      CHECK(restarter.dumpStateOneNode(nodeId, kill, 3) == 0);
+    }
+    else
+    {
+      ndbout << "Crashing cluster" << endl;
+      ctx->setProperty("StopAbort", 3000 + rand() % (10000 - 3000));
+    }
+
+    int deletedrows[100];
+    Uint64 end = NdbTick_CurrentMillisecond() + 13000;
+    do {
+      Uint32 cnt = 0;
+      for (; cnt<NDB_ARRAY_SIZE(deletedrows); cnt++)
+      {
+        deletedrows[cnt] = rand() % rows;
+        if (hugoTrans.startTransaction(pNdb))
+          break;
+        if (hugoTrans.pkDeleteRecord(pNdb, deletedrows[cnt]))
+          break;
+        if (hugoTrans.execute_Commit(pNdb))
+          break;
+        hugoTrans.closeTransaction(pNdb);
+      }
+      if (hugoTrans.getTransaction() != 0)
+        hugoTrans.closeTransaction(pNdb);
+
+      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0)
+	break;
+
+      for (Uint32 n = 0; n<cnt; n++)
+      {
+        if (hugoTrans.startTransaction(pNdb))
+          break;
+        if (hugoTrans.pkInsertRecord(pNdb, deletedrows[n], 1, rand()))
+          break;
+        if (hugoTrans.execute_Commit(pNdb))
+          break;
+        hugoTrans.closeTransaction(pNdb);
+      }
+      if (hugoTrans.getTransaction() != 0)
+        hugoTrans.closeTransaction(pNdb);
+
+      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0)
+	break;
+    } while (NdbTick_CurrentMillisecond() < end);
+
+    if (!all)
+    {
+      ndbout << "Waiting for " << nodeId << " to restart" << endl;
+      CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
+      ndbout << "Restarting cluster" << endl;
+      CHECK(restarter.restartAll(false, true, true) == 0);
+    }
+    else
+    {
+      ndbout << "Waiting for cluster to restart" << endl;
+    }
+
+    CHECK(restarter.waitClusterNoStart() == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+    if (error)
+    {
+      restarter.insertErrorInAllNodes(error);
+    }
+
+    ndbout << "Starting backup..." << flush;
+    CHECK(backup.start() == 0);
+    ndbout << "done" << endl;
+
+    int cnt = 0;
+    CHECK(hugoTrans.selectCount(pNdb, 0, &cnt) == 0);
+    ndbout << "Found " << cnt << " records..." << endl;
+    ndbout << "Updating..." << endl;
+    CHECK(hugoTrans.scanUpdateRecords(pNdb,
+                                      NdbScanOperation::SF_TupScan, cnt) == 0);
+    ndbout << "Clearing..." << endl;
+    CHECK(hugoTrans.clearTable(pNdb,
+                               NdbScanOperation::SF_TupScan, cnt) == 0);
+    i++;
+  }
+
+  if (error)
+  {
+    restarter.insertErrorInAllNodes(0);
+  }
+
+  ndbout << "runSR_DD_3 finished" << endl;
+  ctx->stopTest();
   return result;
 }
 
@@ -1732,10 +1874,20 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
     NDB_TICKS now = NdbTick_CurrentMillisecond();
+    /**
+     * running transaction while cluster is down...
+     * causes *lots* of printouts...redirect to /dev/null
+     * so that log files doe't get megabytes
+     */
+    NullOutputStream null;
+    OutputStream * save[1];
+    save[0] = g_err.m_out;
+    g_err.m_out = &null;
     do
     {
       hugoTrans.scanUpdateRecords(pNdb, 0);
     } while (NdbTick_CurrentMillisecond() < (now + 30000));
+    g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
     
     hugoTrans.clearTable(pNdb);
@@ -1999,9 +2151,20 @@ loop:
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
+    Bitmask<256/32> mask;
     for (Uint32 i = 0; i<(nodeCount / 2); i++)
     {
-      res.insertErrorInNode(nodes[(nodeCount / 2) - (i + 1)], 7218);
+      int node = nodes[(nodeCount / 2) - (i + 1)];
+      mask.set(node);
+      res.insertErrorInNode(node, 7218);
+    }
+    
+    for (Uint32 i = 0; i<nodeCount; i++)
+    {
+      int node = nodes[i];
+      if (mask.get(node))
+        continue;
+      res.insertErrorInNode(node, 7220);
     }
 
     int lcp = 7099;
@@ -2261,6 +2424,36 @@ TESTCASE("SR_DD_2b_LCP", "")
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
   STEP(runSR_DD_2);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_3", "")
+{
+  TC_PROPERTY("ALL", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_3);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_3b", "")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSR_DD_3);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_3_LCP", "")
+{
+  TC_PROPERTY("ALL", 1);
+  TC_PROPERTY("LCP", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_3);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_3b_LCP", "")
+{
+  TC_PROPERTY("LCP", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runSR_DD_3);
   FINALIZER(runClearTable);
 }
 TESTCASE("Bug29167", "")

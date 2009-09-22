@@ -101,7 +101,8 @@ _rl_init_eightbit ()
 /* If we have setlocale(3), just check the current LC_CTYPE category
    value, and go into eight-bit mode if it's not C or POSIX. */
 #if defined (HAVE_SETLOCALE)
-  char *lspec, *t;
+  const char *lspec;
+  char *t;
 
   /* Set the LC_CTYPE locale category from environment variables. */
   lspec = _rl_get_locale_var ("LC_CTYPE");
@@ -127,7 +128,8 @@ _rl_init_eightbit ()
     return (0);
 
 #else /* !HAVE_SETLOCALE */
-  char *lspec, *t;
+  const char *lspec;
+  char *t;
   int i;
 
   /* We don't have setlocale.  Finesse it.  Check the environment for the

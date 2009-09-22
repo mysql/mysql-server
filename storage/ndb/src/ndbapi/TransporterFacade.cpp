@@ -458,13 +458,13 @@ TransporterFacade::start_instance(NodeId nodeId,
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
-                                      32768,
+                                      0, // Use default stack size
                                       "ndb_receive",
                                       NDB_THREAD_PRIO_LOW);
 
   theSendThread = NdbThread_Create(runSendRequest_C,
                                    (void**)this,
-                                   32768,
+                                   0, // Use default stack size
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
 
@@ -886,7 +886,7 @@ TransporterFacade::configure(NodeId nodeId,
       timeout = tmp1;
   }
   m_waitfor_timeout = timeout;
-  
+
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif

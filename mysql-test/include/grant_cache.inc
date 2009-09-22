@@ -171,15 +171,30 @@ show status like "Qcache_not_cached";
 
 # Cleanup
 
---echo ----- switch to connection default and close connections -----
-connection default;
+--echo ----- close connections -----
+connection root;
 disconnect root;
+--source include/wait_until_disconnected.inc
+connection root2;
 disconnect root2;
+--source include/wait_until_disconnected.inc
+connection user1;
 disconnect user1;
+--source include/wait_until_disconnected.inc
+connection user2;
 disconnect user2;
+--source include/wait_until_disconnected.inc
+connection user3;
 disconnect user3;
+--source include/wait_until_disconnected.inc
+connection user4;
 disconnect user4;
+--source include/wait_until_disconnected.inc
+connection unkuser;
 disconnect unkuser;
+--source include/wait_until_disconnected.inc
+--echo ----- switch to connection default -----
+connection default;
 
 #
 # A temporary 4.1 workaround to make this test pass if

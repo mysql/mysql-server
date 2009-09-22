@@ -440,10 +440,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 noOfDynFix;
     Uint32 noOfDynamic;
     Uint32 tabDesOffset[7];
-    Uint32 desAllocSize;
     Uint32 tableDescriptor;
     Uint32 dynTabDesOffset[3];
-    Uint32 dynDesAllocSize;
     Uint32 dynTableDescriptor;
   };
   typedef Ptr<AlterTabOperation> AlterTabOperationPtr;
@@ -575,9 +573,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Local_key m_key;
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
-    Uint16 m_estimated_free_space; // in bytes/records
-    Uint16 m_list_index;           // in Disk_alloc_info.m_page_requests
-    Uint16 m_ref_count;            // Waiters for page
+    Uint16 m_original_estimated_free_space; // in bytes/records
+    Uint16 m_list_index;                  // in Disk_alloc_info.m_page_requests
+    Uint16 m_ref_count;                   // Waiters for page
     Uint16 m_uncommitted_used_space;
     Uint32 nextList;
     Uint32 prevList;
@@ -2874,6 +2872,8 @@ private:
   Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32*);
   Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset);
   Uint32 allocTabDescr(Uint32 allocSize);
+  void releaseTabDescr(Uint32 desc);
+
   void freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal = true);
   Uint32 getTabDescrWord(Uint32 index);
   void setTabDescrWord(Uint32 index, Uint32 word);
@@ -3171,9 +3171,21 @@ private:
   void drop_table_logsync_callback(Signal*, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
-  void restart_setup_page(Disk_alloc_info&, Ptr<Page>);
-  void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>);
-  
+  void restart_setup_page(Disk_alloc_info&, Ptr<Page>, Int32 estimate);
+  void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>, Int32 delta);
+
+  void disk_page_move_page_request(Disk_alloc_info& alloc,
+                                   Ptr<Extent_info>,
+                                   Ptr<Page_request> req,
+                                   Uint32 old_idx, Uint32 new_idx);
+
+  void disk_page_move_dirty_page(Disk_alloc_info& alloc,
+                                 Ptr<Extent_info> extentPtr,
+                                 Ptr<Page> pagePtr,
+                                 Uint32 old_idx, Uint32 new_idx);
+
+  void disk_page_get_allocated(const Tablerec*, const Fragrecord*,
+                               Uint64 res[2]);
   /**
    * Disk restart code
    */

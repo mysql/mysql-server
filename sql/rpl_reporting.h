@@ -16,6 +16,8 @@
 class Slave_reporting_capability
 {
 public:
+  /** lock used to synchronize m_last_error on 'SHOW SLAVE STATUS' **/
+  mutable pthread_mutex_t err_lock;
   /**
      Constructor.
 
@@ -24,6 +26,7 @@ public:
   Slave_reporting_capability(char const *thread_name)
     : m_thread_name(thread_name)
   {
+      pthread_mutex_init(&err_lock, MY_MUTEX_INIT_FAST);
   }
 
   /**
@@ -44,7 +47,9 @@ public:
      STATUS</code>.
    */
   void clear_error() {
+    pthread_mutex_lock(&err_lock);
     m_last_error.clear();
+    pthread_mutex_unlock(&err_lock);
   }
 
   /**
@@ -72,6 +77,7 @@ public:
 
   Error const& last_error() const { return m_last_error; }
 
+  virtual ~Slave_reporting_capability()= 0;
 private:
   /**
      Last error produced by the I/O or SQL thread respectively.
@@ -79,6 +85,10 @@ private:
   mutable Error m_last_error;
 
   char const *const m_thread_name;
+
+  // not implemented
+  Slave_reporting_capability(const Slave_reporting_capability& rhs);
+  Slave_reporting_capability& operator=(const Slave_reporting_capability& rhs);
 };
 
 #endif // RPL_REPORTING_H

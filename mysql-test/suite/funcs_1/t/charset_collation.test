@@ -1,58 +1,16 @@
-# suite/funcs_1/datadict/charset_collation.inc
+# suite/funcs_1/t/charset_collation.test
 #
 # Tests checking the content of the information_schema tables
 #      character_sets
 #      collations
 #      collation_character_set_applicability
 #
-#
-# The amount and properties of character_sets/collations depend on the
-# build type
-# 2007-12 MySQL 5.0, 2008-06 MySQL 5.1
-# ---------------------------------------------------------------------
-#
-# Variant 1 fits to
-#    version_comment       MySQL Enterprise Server (Commercial)
-#    version_comment       MySQL Enterprise Server (GPL)
-#    version_comment       MySQL Classic Server (Commercial)
-#    version_comment       MySQL Pushbuild Edition, build <number>
-#   (version_comment       Source distribution
-#    and
-#    compile was without "max" - > no collation 'utf8_general_ci')
-#
-# Variant 2 fits to
-#    version_comment       MySQL Enterprise Server (GPL)
-#    version_comment       MySQL Classic Server (Commercial)
-#    version_comment       MySQL Pushbuild Edition, build <number>
-#   (version_comment       Source distribution
-#    and
-#    compile was without "max" - > collation 'utf8_general_ci' exists)
-#
-# Difference between variant 1 and 2 is the collation 'utf8_general_ci'.
-#
-# Variant 3 fits to
-#    version_comment       MySQL Community Server (GPL)
-#    version_comment       MySQL Cluster Server (Commercial)
-#    version_comment       MySQL Advanced Server (GPL)         5.1
-#    version_comment       MySQL Advanced Server (Commercial)  5.1
-#
-# Difference between variant 3 and 2 is within the collation properties
-# IS_COMPILED and SORTLEN.
-#
-# 2008-06 All time excluded variant is "vanilla".
-# How to build "vanilla":
-#    ./BUILD/autorun.sh
-#    ./configure
-#    ./make
-# Some properties of "vanilla"
-#    version_comment       Source distribution
-#    Compared to the variants 1 to 3 a lot of character sets are missing.
-#    Example: "ucs2_bin" is in variant 1 to 3 but not in "vanilla".
-#
 # Created:
-# 2007-12-18 mleich - remove the unstable character_set/collation subtests
-#                     from include/datadict-master.inc
-#                   - create this new test
+# 2009-04-28 mleich Replace the charset_collation_* test which failed too often
+#                   because of changes
+#                   - in general available character sets and collations
+#                   - in build types
+#                   (Bug#40545, Bug#40209, Bug#40618, Bug#38346)
 #
 
 # Create a low privileged user.
@@ -61,7 +19,6 @@ DROP USER dbdict_test@localhost;
 CREATE USER dbdict_test@localhost;
 
 --echo # Establish connection con (user=dbdict_test)
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (con,localhost,dbdict_test,,);
 ################################################################################
 #
@@ -97,32 +54,48 @@ connect (con,localhost,dbdict_test,,);
 #          combinations for which the current user and PUBLIC have no
 #          USAGE privilege.
 #
-# Notes (2007-12-19 mleich):
+# Notes (2009-04-28 mleich):
 # - The requirements are outdated because grant/revoke privilege for using a
 #   characterset/collation were never implemented.
-#   Therefore the tests should simply check the content of these tables.
-#
+#   Therefore the tests focus on the completeness and correctness of the
+#   content (rows and columns) of these tables.
 # - The amount of collations/character sets grows with new MySQL releases.
-#
-# - Even within the same release the amount of records within these tables
+#   Even within the same release the amount of records within these tables
 #   can differ between different build types (community, enterprise, source,...)
-#
+#   Therefore we limit the queries to character sets and collations which
+#   - exist in all build types
+#   - have in all build types the same "state".
+#   The character set
+#   - utf8 is used for Metadata
+#   - ascii is a quite usual
+#   The collations <character set>_general_ci and <character set>_bin seem
+#   to be available all time.
 #
 ################################################################################
+
+let $char_set_condition= character_set_name IN ('utf8','latin1','binary');
+let $collation_condition=
+   (collation_name LIKE CONCAT(character_set_name,'_general_ci')
+    OR
+    collation_name LIKE CONCAT(character_set_name,'_bin'));
 --echo
-SELECT *
+eval SELECT *
 FROM information_schema.character_sets
+WHERE $char_set_condition
 ORDER BY character_set_name;
 
 --echo
-SELECT *
+eval SELECT *
 FROM information_schema.collations
+WHERE $char_set_condition
+  AND $collation_condition
 ORDER BY collation_name;
 
-echo;
 --echo
-SELECT *
+eval SELECT *
 FROM information_schema.collation_character_set_applicability
+WHERE $char_set_condition
+  AND $collation_condition
 ORDER BY collation_name, character_set_name;
 
 

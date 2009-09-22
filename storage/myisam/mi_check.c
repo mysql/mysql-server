@@ -1550,9 +1550,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
+#if SIZEOF_CHARP == 4
+  DBUG_ASSERT(param->use_buffers < ((ulonglong) 1 << 32));
+#endif
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
-                        param->use_buffers, 0, 0));
+                        (size_t)param->use_buffers, 0, 0));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,

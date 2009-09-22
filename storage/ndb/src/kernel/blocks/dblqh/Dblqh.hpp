@@ -238,7 +238,7 @@ class Lgman;
 #define ZCHECK_LCP_STOP_BLOCKED 17
 #define ZSCAN_MARKERS 18
 #define ZOPERATION_EVENT_REP 19
-#define ZPREP_DROP_TABLE 20
+#define ZDROP_TABLE_WAIT_USAGE 20
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
 #define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
@@ -1402,8 +1402,10 @@ public:
       CLOSING_EXEC_LOG = 18,
       OPEN_INIT = 19,
       OPEN = 20,                         ///< Log file open
-      OPEN_SR_INVALIDATE_PAGES = 21,
-      CLOSE_SR_INVALIDATE_PAGES = 22
+      OPEN_SR_READ_INVALIDATE_PAGES = 21,
+      CLOSE_SR_READ_INVALIDATE_PAGES = 22,
+      OPEN_SR_WRITE_INVALIDATE_PAGES = 23,
+      CLOSE_SR_WRITE_INVALIDATE_PAGES = 24
     };
     
     /**
@@ -1817,8 +1819,12 @@ public:
       TABLE_DEFINED = 0,
       NOT_DEFINED = 1,
       ADD_TABLE_ONGOING = 2,
-      PREP_DROP_TABLE_ONGOING = 3,
-      PREP_DROP_TABLE_DONE = 4
+      PREP_DROP_TABLE_DONE = 3,
+      DROP_TABLE_WAIT_USAGE = 4,
+      DROP_TABLE_WAIT_DONE = 5,
+      DROP_TABLE_ACC = 6,
+      DROP_TABLE_TUP = 7,
+      DROP_TABLE_TUX = 8
     };
     
     UintR fragrec[MAX_FRAG_PER_NODE];
@@ -2186,6 +2192,9 @@ private:
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execDROP_TAB_REF(Signal*);
+  void execDROP_TAB_CONF(Signal*);
+  void dropTable_nextStep(Signal*, AddFragRecordPtr);
 
   void execLQH_ALLOCREQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
@@ -2209,7 +2218,8 @@ private:
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
   void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
   void sendLCP_FRAGIDREQ(Signal* signal);
-  void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &) const;
+  void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &,
+                        const Fragrecord*) const;
 
   void updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId);
   void LQHKEY_abort(Signal* signal, int errortype);
@@ -2386,7 +2396,9 @@ private:
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal);
-  void readFileInInvalidate(Signal *signal, bool stepNext);
+  Uint32 nextLogFilePtr(Uint32 logFilePtrI);
+  void readFileInInvalidate(Signal *signal, int stepNext);
+  void writeFileInInvalidate(Signal *signal, int stepPrev);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
@@ -2540,8 +2552,8 @@ private:
   void sendCreateTabReq(Signal*, AddFragRecordPtr);
   void sendAddAttrReq(Signal* signal);
   void sendAddFragReq(Signal* signal);
-  void checkDropTab(Signal*);
-  Uint32 checkDropTabState(Tablerec::TableStatus, Uint32) const;
+  void dropTab_wait_usage(Signal*);
+  Uint32 get_table_state_error(Ptr<Tablerec> tabPtr) const;
 
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
@@ -2985,6 +2997,12 @@ public:
 #ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
 #endif
+
+#ifdef ERROR_INSERT
+  Uint32 c_master_node_id;
+#endif
+
+  Uint32 get_node_status(Uint32 nodeId) const;
 };
 
 inline

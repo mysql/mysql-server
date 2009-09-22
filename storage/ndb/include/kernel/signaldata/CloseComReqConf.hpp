@@ -42,10 +42,17 @@ class CloseComReqConf {
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
   
 public:
-  STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NodeBitmask::Size );
 private:
   
+  enum RequestType {
+    RT_API_FAILURE   = 0,
+    RT_NODE_FAILURE  = 1,
+    RT_NO_REPLY      = 2
+  };
+
   Uint32 xxxBlockRef;
+  Uint32 requestType;
   Uint32 failNo;
   
   Uint32 noOfNodes;
