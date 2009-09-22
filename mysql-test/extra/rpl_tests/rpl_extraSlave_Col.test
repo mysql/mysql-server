@@ -22,6 +22,8 @@ DROP TABLE IF EXISTS t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t14a,t15,t1
 #          should stop the slave.               #
 #################################################
 
+call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
+
 --echo **** Diff Table Def Start ****
 
 ##############################################
