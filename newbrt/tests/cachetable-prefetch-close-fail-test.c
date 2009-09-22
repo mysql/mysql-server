@@ -55,7 +55,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
 
     // close with the prefetch in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -90,7 +90,7 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, 
 // associated with the key are returned.
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
 
-void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, LSN), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
+void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
 // Before starting a checkpoint, we call checkpoint_prepare_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().
@@ -167,8 +167,9 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
 // the cachetable.  The flush callback is called for each of these objects.  The
 // close function does not return until all of the objects are evicted.  The cachefile
 // object is freed.
+// If oplsn_valid is TRUE then use oplsn as the LSN of the close instead of asking the logger.  oplsn_valid being TRUE is only allowed during recovery, and requires that you are removing the last reference (otherwise the lsn wouldn't make it in.)
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string, LSN);
+int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string, BOOL oplsn_valid, LSN oplsn);
 
 // Flush the cachefile.
 // Effect: Flush everything owned by the cachefile from the cachetable. All dirty

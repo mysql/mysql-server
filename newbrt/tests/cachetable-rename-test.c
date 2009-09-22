@@ -158,7 +158,7 @@ static void test_rename (void) {
     r = toku_cachetable_rename(f, okey, nkey);
     assert(r != 0);
 
-    r = toku_cachefile_close(&f, 0, 0, ZERO_LSN);
+    r = toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);

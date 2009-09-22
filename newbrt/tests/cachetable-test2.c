@@ -226,13 +226,13 @@ static void test_chaining (void) {
 	    //printf("Close %d (%p), now n_present=%d\n", i, f[i], n_present);
 	    //print_ints();
 	    CACHEFILE oldcf=f[i];
-	    r = toku_cachefile_close(&f[i], 0, 0, ZERO_LSN);                           assert(r==0);
+	    r = toku_cachefile_close(&f[i], 0, 0, FALSE, ZERO_LSN);                           assert(r==0);
 	    file_is_not_present(oldcf);
 	    r = toku_cachetable_openf(&f[i], ct, fname[i], fname[i], O_RDWR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r==0);
 	}
     }
     for (i=0; i<N_FILES; i++) {
-	r = toku_cachefile_close(&f[i], 0, 0, ZERO_LSN); assert(r==0);
+	r = toku_cachefile_close(&f[i], 0, 0, FALSE, ZERO_LSN); assert(r==0);
     }
     r = toku_cachetable_close(&ct); assert(r==0);
 }

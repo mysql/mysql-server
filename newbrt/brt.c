@@ -581,6 +581,7 @@ brtheader_destroy(struct brt_header *h) {
         assert(h->type == BRTHEADER_CURRENT);
         toku_blocktable_destroy(&h->blocktable);
         if (h->descriptor.dbt.data) toku_free(h->descriptor.dbt.data);
+        if (h->fname) toku_free(h->fname);
     }
 }
 
@@ -2958,10 +2959,19 @@ brtheader_note_brt_close(BRT t) {
 }
 
 static int
-brtheader_note_brt_open(BRT live) {
+brtheader_note_brt_open(BRT live, char** fnamep) {
     struct brt_header *h = live->h;
     int retval = 0;
     toku_brtheader_lock(h);
+    //Steal fname reference.
+    char *fname = *fnamep;
+    assert(fname);
+    *fnamep     = NULL;
+    //Use fname, or throw it away.
+    if (h->fname == NULL)
+        h->fname = fname;
+    else
+        toku_free(fname);
     while (!list_empty(&h->zombie_brts)) {
         //Remove dead brt from list
         BRT zombie = list_struct(list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
@@ -2986,10 +2996,10 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     if (0) { died0:  assert(r); return r; }
 
     assert(is_create || !only_create);
-    t->fname = toku_strdup(fname_in_env);
-    if (t->fname==0) {
+    char* brt_fname = toku_strdup(fname_in_env);
+    if (brt_fname==NULL) {
         r = errno;
-        if (0) { died00: if (t->fname) toku_free(t->fname); t->fname=0; }
+        if (0) { died00: if (brt_fname) toku_free(brt_fname); brt_fname=NULL; }
         goto died0;
     }
     t->db = db;
@@ -3011,7 +3021,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     if (r!=0) {
         died_after_open: 
-        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0, ZERO_LSN);
+        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0, FALSE, ZERO_LSN);
         goto died00;
     }
     assert(t->nodesize>0);
@@ -3082,7 +3092,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
     if (r!=0) goto died_after_read_and_pin;
 
-    r = brtheader_note_brt_open(t);
+    r = brtheader_note_brt_open(t, &brt_fname);
     if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
     if (txn_created) {
@@ -3217,8 +3227,10 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
             r = toku_cachefile_fsync(cachefile);
 	    if (r!=0) 
 		toku_block_translation_note_failed_checkpoint(h->blocktable);
-	    else
+	    else {
 		h->checkpoint_count++;	// checkpoint succeeded, next checkpoint will save to alternate header location
+                h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
+            }
 	}
         toku_block_translation_note_end_checkpoint(h->blocktable, h);
     }
@@ -3230,25 +3242,47 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
 }
 
 int
-toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string, LSN lsn)
-{
+toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
     struct brt_header *h = header_v;
     assert(h->type == BRTHEADER_CURRENT);
     toku_brtheader_lock(h);
     assert(list_empty(&h->live_brts));
     assert(list_empty(&h->zombie_brts));
     toku_brtheader_unlock(h);
+    LSN lsn = ZERO_LSN;
     int r = 0;
-    if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
-        int r2;
-	//assert(lsn.lsn!=0);
-        r2 = toku_brtheader_begin_checkpoint(cachefile, lsn, header_v);
-        if (r==0) r = r2;
-        r2 = toku_brtheader_checkpoint(cachefile, h);
-        if (r==0) r = r2;
-        r2 = toku_brtheader_end_checkpoint(cachefile, header_v);
-        if (r==0) r = r2;
-	if (!h->panic) assert(!h->dirty);	// dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+    if (h->fname) { //Otherwise header has never fully been created.
+        //Get LSN
+        if (oplsn_valid) {
+            //Use recovery-specified lsn
+            lsn = oplsn;
+            //Recovery cannot reduce lsn of a header.
+            if (lsn.lsn < h->checkpoint_lsn.lsn)
+                lsn = h->checkpoint_lsn;
+        }
+        else {
+            //Get LSN from logger
+            lsn = ZERO_LSN; // if there is no logger, we use zero for the lsn
+            TOKULOGGER logger = toku_cachefile_logger(cachefile);
+            if (logger) {
+                //NEED NAME
+                assert(h->fname);
+                BYTESTRING bs = {.len=strlen(h->fname), .data=h->fname};
+                r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile)); // flush the log on close (if new header is being written), otherwise it might not make it out.
+                if (r!=0) return r;
+            }
+        }
+        if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
+            int r2;
+            //assert(lsn.lsn!=0);
+            r2 = toku_brtheader_begin_checkpoint(cachefile, lsn, header_v);
+            if (r==0) r = r2;
+            r2 = toku_brtheader_checkpoint(cachefile, h);
+            if (r==0) r = r2;
+            r2 = toku_brtheader_end_checkpoint(cachefile, header_v);
+            if (r==0) r = r2;
+            if (!h->panic) assert(!h->dirty);	// dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+        }
     }
     if (malloced_error_string) *malloced_error_string = h->panic_string;
     if (r==0) {
@@ -3299,7 +3333,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
     return r;
 }
 
-int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
+int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     assert(toku_omt_size(brt->txns)==0);
     int r;
     while (!list_empty(&brt->cursors)) {
@@ -3315,25 +3349,21 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
     brtheader_note_brt_close(brt);
 
     if (brt->cf) {
-	LSN lsn = ZERO_LSN; // if there is no logger, we use zero for the lsn
-        if (logger) {
-            assert(brt->fname);
-            BYTESTRING bs = {.len=strlen(brt->fname), .data=brt->fname};
-            r = toku_log_fclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
-            if (r!=0) return r;
-        }
 	if (!brt->h->panic)
 	    assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero (but if panic, don't worry)
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         // printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
 	if (error_string) assert(*error_string == 0);
-        r = toku_cachefile_close(&brt->cf, logger, error_string, lsn);
+        r = toku_cachefile_close(&brt->cf, logger, error_string, oplsn_valid, oplsn);
 	if (r==0 && error_string) assert(*error_string == 0);
     }
-    if (brt->fname) toku_free(brt->fname);
     if (brt->temp_descriptor.dbt.data) toku_free(brt->temp_descriptor.dbt.data);
     toku_free(brt);
     return r;
+}
+
+int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
+    return toku_close_brt_lsn(brt, logger, error_string, FALSE, ZERO_LSN);
 }
 
 int toku_brt_create(BRT *brt_ptr) {

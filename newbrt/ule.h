@@ -10,7 +10,7 @@
 #define ULE_H
 
 //1 does much slower debugging
-#define ULE_DEBUG 0
+#define ULE_DEBUG 1
 
 /////////////////////////////////////////////////////////////////////////////////
 // Following data structures are the unpacked format of a leafentry. 

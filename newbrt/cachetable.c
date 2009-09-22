@@ -191,7 +191,7 @@ struct cachefile {
     char *fname_relative_to_env; /* Used for logging */
 
     void *userdata;
-    int (*close_userdata)(CACHEFILE cf, void *userdata, char **error_string, LSN); // when closing the last reference to a cachefile, first call this function. 
+    int (*close_userdata)(CACHEFILE cf, void *userdata, char **error_string, BOOL lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
     int (*begin_checkpoint_userdata)(CACHEFILE cf, LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, void *userdata); // when checkpointing a cachefile, call this function.
     int (*end_checkpoint_userdata)(CACHEFILE cf, void *userdata); // after checkpointing cachefiles call this function.
@@ -375,7 +375,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_relative_to_e
     if (r != 0) { 
         r=errno; close(fd); return r; 
     }
-    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, 0, ZERO_LSN))) {
+    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, 0, FALSE, ZERO_LSN))) {
         return r;
     }
     cf->close_userdata = NULL;
@@ -427,12 +427,14 @@ static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
 
 static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
 
-int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string, LSN lsn) {
+int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn) {
 
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
     assert(cf->refcount>0);
+    if (oplsn_valid)
+        assert(cf->refcount==1); //Recovery is trying to force an lsn.  Must get passed through.
     cf->refcount--;
     if (cf->refcount==0) {
         //Checkpoint holds a reference, close should be impossible if still in use by a checkpoint.
@@ -467,7 +469,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	    cachetable_unlock(ct);
 	    return r;
         }
-	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string, lsn))) {
+	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string, oplsn_valid, oplsn))) {
 	    goto error;
 	}
        	cf->close_userdata = NULL;
@@ -1710,7 +1712,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
             ct->cachefiles_in_checkpoint = cf->next_in_checkpoint; 
             cf->next_in_checkpoint       = NULL;
             cf->for_checkpoint           = FALSE;
-            int r = toku_cachefile_close(&cf, logger, error_string, ct->lsn_of_checkpoint_in_progress);
+            int r = toku_cachefile_close(&cf, logger, error_string, FALSE, ZERO_LSN);
             if (r!=0) {
                 retval = r;
                 goto panic;
@@ -1871,7 +1873,7 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
 void
 toku_cachefile_set_userdata (CACHEFILE cf,
 			     void *userdata,
-			     int (*close_userdata)(CACHEFILE, void*, char**, LSN),
+			     int (*close_userdata)(CACHEFILE, void*, char**, BOOL, LSN),
 			     int (*checkpoint_userdata)(CACHEFILE, void*),
 			     int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*),
 			     int (*end_checkpoint_userdata)(CACHEFILE, void*)) {
