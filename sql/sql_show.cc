@@ -1151,7 +1151,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (strcmp(db->str, thd->db) != 0)
+    if (!thd->db || strcmp(db->str, thd->db))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
