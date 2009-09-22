@@ -6141,7 +6141,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond)
+      if (tmp || !cond || tab->type == JT_REF)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -6155,7 +6155,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           The guard will turn the predicate on only after
           the first match for outer tables is encountered.
 	*/        
-        if (cond)
+        if (cond && tmp)
         {
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
@@ -12931,6 +12931,8 @@ find_field_in_item_list (Field *field, void *data)
 
   The index must cover all fields in <order>, or it will not be considered.
 
+  @param no_changes No changes will be made to the query plan.
+
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
     by clustered PK values.
@@ -13265,6 +13267,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       }
       if (!no_changes)
       {
+        /* 
+           If ref_key used index tree reading only ('Using index' in EXPLAIN),
+           and best_key doesn't, then revert the decision.
+        */
+        if (!table->covering_keys.is_set(best_key) && table->key_read)
+        {
+          table->key_read= 0;
+          table->file->extra(HA_EXTRA_NO_KEYREAD);          
+        }        
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13281,16 +13292,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
-          else if (table->key_read)
-          {
-            /*
-              Clear the covering key read flags that might have been
-              previously set for some key other than the current best_key.
-            */
-            table->key_read= 0;
-            table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
-
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
