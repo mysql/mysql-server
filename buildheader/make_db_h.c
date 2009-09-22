@@ -344,6 +344,19 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
     printf("} DB_BTREE_STAT64;\n");
 
+
+    //engine status info
+    printf("typedef struct __toku_engine_status {\n");
+    printf("  int              ydb_lock_held;           /* is some thread holding the ydb lock? */ \n");
+    printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
+    printf("  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
+    printf("  struct timeval   tbegin;                  /* time of last checkpoint begin        */ \n");
+    printf("  struct timeval   tend;                    /* time of last checkpoint end          */ \n");
+    //    printf("  DB_LSN    lsn_of_last_checkpoint_begin;                                             \n");
+    //    printf("  DB_LSN    lsn_of_last_checkpoint_end;                                               \n");
+    printf("} ENGINE_STATUS;\n");
+
+
     print_dbtype();
 //    print_db_notices();
     print_defines();
@@ -364,6 +377,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
                              "int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
+			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }
