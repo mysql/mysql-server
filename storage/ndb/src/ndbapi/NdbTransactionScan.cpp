@@ -71,6 +71,10 @@ NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
 #endif //TODO_SPJ_NEED_SCAN_TABREF
 
   if(checkState_TransId(&ref->transId1)){
+    if (theScanningOp == NULL) {
+      printf("FIXME: No active Scanning op, 'REF' ignored - likely a NdbQuery\n");
+      return 0;
+    }
     theScanningOp->setErrorCode(ref->errorCode);
     theScanningOp->execCLOSE_SCAN_REP();
     if(!ref->closeNeeded){

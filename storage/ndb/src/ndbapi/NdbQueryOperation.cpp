@@ -224,6 +224,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_queryDef(queryDef),
   m_parallelism(0),
   m_maxBatchRows(0),
+  m_isPruned(false),
+  m_hashValue(0),
   m_signal(0),
   m_attrInfo(),
   m_keyInfo()
@@ -285,16 +287,20 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
   /**
    * Immediately build the serialize parameter representation in order 
    * to avoid storing param values elsewhere until query is executed.
+   * Also calculate prunable property, and possibly its hashValue.
    */
   // Build explicit key/filter/bounds for root operation, possibly refering paramValues
-  getRoot().getQueryOperationDef().prepareKeyInfo(m_keyInfo, paramValues);
+  const int error = getRoot().getQueryOperationDef()
+      .prepareKeyInfo(m_keyInfo, paramValues, m_isPruned, m_hashValue);
+  if (unlikely(error != 0))
+    return error;
 
   //TODO: No need to serialize for root (i==0) as root key is part of keyInfo above
   for (Uint32 i=0; i<getNoOfOperations(); ++i)
   {
     if (getQueryDef().getQueryOperation(i).getNoOfParameters() > 0)
     {
-      int error = getQueryOperation(i).serializeParams(paramValues);
+      const int error = getQueryOperation(i).serializeParams(paramValues);
       if (unlikely(error != 0))
         return error;
     }
@@ -421,10 +427,10 @@ NdbQueryImpl::prepareSend()
     m_pendingStreams = getRoot().getQueryOperationDef().getTable().getFragmentCount();
     m_tcKeyConfReceived = true;
 
-    if (m_parallelism == 0)  // -> Use 'max' as default value
+    // Parallelism may be user specified, else(==0) use default
+    if (m_parallelism == 0 || m_parallelism > m_pendingStreams) {
       m_parallelism = m_pendingStreams;
-    else if (m_parallelism > m_pendingStreams)
-      m_parallelism = m_pendingStreams;
+    }
 
     Ndb* const ndb = getNdbTransaction()->getNdb();
     TransporterFacade *tp = ndb->theImpl->m_transporter_facade;
@@ -581,25 +587,32 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
     ScanTabReq::setHoldLockFlag(reqInfo, false);
     ScanTabReq::setReadCommittedFlag(reqInfo, true);
-    scanTabReq->requestInfo = reqInfo;
 
 //  m_keyInfo = (scan_flags & NdbScanOperation::SF_KeyInfo) ? 1 : 0;
 
-    assert(m_signal->next() == NULL);
-    m_signal->setLength(ScanTabReq::StaticLength);
+    // If scan is pruned, use optional 'distributionKey' to hold hashvalue
+    // TODO: Use hashValue to also select TC where to ::startTransaction
+    if (m_isPruned)
+    {
+//    printf("Build pruned SCANREQ, w/ hashValue:%d\n", m_hashValue);
+      ScanTabReq::setDistributionKeyFlag(reqInfo, 1);
+      scanTabReq->distributionKey= m_hashValue;
+      m_signal->setLength(ScanTabReq::StaticLength + 1);
+    } else {
+      m_signal->setLength(ScanTabReq::StaticLength);
+    }
+    scanTabReq->requestInfo = reqInfo;
 
     /**
      * Then send the signal:
-     */
-
-    /* SCANTABREQ always has 2 mandatory sections and an optional
+     *
+     * SCANTABREQ always has 2 mandatory sections and an optional
      * third section
      * Section 0 : List of receiver Ids NDBAPI has allocated 
      *             for the scan
      * Section 1 : ATTRINFO section
      * Section 2 : Optional KEYINFO section
      */
-
     GenericSectionPtr secs[3];
     Uint32 prepared_receivers[64];  // TODO: 64 is a temp hack
  
@@ -671,7 +684,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     TcKeyReq::setSimpleFlag(reqInfo, true);
     tcKeyReq->requestInfo = reqInfo;
 
-    assert(m_signal->next() == NULL);
     m_signal->setLength(TcKeyReq::StaticLength);
 
 /****

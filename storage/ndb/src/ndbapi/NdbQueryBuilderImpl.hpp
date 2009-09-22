@@ -251,13 +251,17 @@ public:
 
   /**
    * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param ndbOperation The operation that the query is piggy backed on.
+   * @param keyInfo Actuall KEYINFO section the key / bounds are 
+   *                put into
    * @param actualParam Instance values for NdbParamOperands.
+   * @param isPruned 'true' for a scan of pruned to single partition.
+   * @param hashValue Valid only if 'isPruned'.
    * Returns: 0 if OK, or possible an errorcode.
    */
-  virtual int
-  prepareKeyInfo(Uint32Buffer& keyInfo,
-                     const constVoidPtr actualParam[]) const = 0;
+  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
+                             const constVoidPtr actualParam[],
+                             bool&   isPruned,
+                             Uint32& hashValue) const = 0;
 
   virtual ~NdbQueryOperationDefImpl() = 0;
 
