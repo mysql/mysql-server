@@ -69,6 +69,7 @@ int toku_ydb_lock_init(void);
 int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
+int toku_ydb_lock_held(void);
 
 /* *********************************************************
 

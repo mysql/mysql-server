@@ -18,9 +18,16 @@
 #include <sys/types.h>
 
 static toku_pthread_mutex_t ydb_big_lock = TOKU_PTHREAD_MUTEX_INITIALIZER;
+static int ydb_lock_held = 0;	// useful for debug at a live installation (int easier to pass to handlerton than BOOL)
+
+int 
+toku_ydb_lock_held(void) {
+    return ydb_lock_held;
+}
 
 int
 toku_ydb_lock_init(void) {
+    ydb_lock_held = 0;
     int r = toku_pthread_mutex_init(&ydb_big_lock, NULL); assert(r == 0);
     return r;
 }
@@ -33,9 +40,11 @@ toku_ydb_lock_destroy(void) {
 
 void toku_ydb_lock(void) {
     int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
+    ydb_lock_held = 1;
 }
 
 void toku_ydb_unlock(void) {
     int r = toku_pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
+    ydb_lock_held = 0;
 }
 
