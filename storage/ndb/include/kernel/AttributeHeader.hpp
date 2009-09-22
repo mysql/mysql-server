@@ -55,7 +55,13 @@ public:
   STATIC_CONST( READ_LCP     = 0xFFEF );
   STATIC_CONST( FLUSH_AI     = 0xFFEE );
   STATIC_CONST( READ_ANY_VALUE = 0xFFED );
+
+  // Extents * sizeof(Extent) allocated to fragment
+  STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
   
+  // Free but allocated DD extent space
+  STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
+
   /**
    * Optimize pseudo column and optimization options
    */

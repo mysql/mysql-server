@@ -1618,9 +1618,11 @@ int
 runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
 
   int result = NDBT_OK;
+  int abortAlter = ctx->getProperty("AbortAlter", Uint32(0));
 
   int records = ctx->getNumRecords();
   const int loops = ctx->getNumLoops();
+  NdbRestarter res;
 
   ndbout << "|- " << ctx->getTab()->getName() << endl;  
 
@@ -1669,10 +1671,20 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
                              NdbDictionary::Column::StorageTypeMemory, true);
       newTable.addColumn(newcol1);
       //ToDo: check #loops, how many columns l
-      
-      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
-	     "TableAddAttrsDuring failed");
-      
+
+      if (abortAlter == 0)
+      {
+        CHECK2(dict->alterTable(*oldTable, newTable) == 0,
+               "TableAddAttrsDuring failed");
+      }
+      else
+      {
+        int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        res.insertErrorInNode(nodeId, 4029);
+        CHECK2(dict->alterTable(*oldTable, newTable) != 0,
+               "TableAddAttrsDuring failed");
+      }
+
       dict->invalidateTable(myTab.getName());
       const NdbDictionary::Table * newTab = dict->getTable(myTab.getName());
       HugoTransactions hugoTrans(* newTab);
@@ -6947,6 +6959,7 @@ runBug41905getTable(NDBT_Context* ctx, NDBT_Step* step)
   }
 
 out:
+  (void)pDic->dropTable(tabName.c_str());
   return NDBT_OK;
 }
 
@@ -7255,6 +7268,16 @@ TESTCASE("TableAddAttrs",
 TESTCASE("TableAddAttrsDuring",
 	 "Try to add attributes to the table when other thread is using it\n"
 	 "do this loop number of times\n"){
+  INITIALIZER(runCreateTheTable);
+  STEP(runTableAddAttrsDuring);
+  STEP(runUseTableUntilStopped2);
+  STEP(runUseTableUntilStopped3);
+  FINALIZER(runDropTheTable);
+}
+TESTCASE("TableAddAttrsDuringError",
+	 "Try to add attributes to the table when other thread is using it\n"
+	 "do this loop number of times\n"){
+  TC_PROPERTY("AbortAlter", 1);
   INITIALIZER(runCreateTheTable);
   STEP(runTableAddAttrsDuring);
   STEP(runUseTableUntilStopped2);

@@ -23,10 +23,6 @@ DbtuxProxy::DbtuxProxy(Block_context& ctx) :
   addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &DbtuxProxy::execALTER_INDX_IMPL_REQ);
   addRecSignal(GSN_ALTER_INDX_IMPL_CONF, &DbtuxProxy::execALTER_INDX_IMPL_CONF);
   addRecSignal(GSN_ALTER_INDX_IMPL_REF, &DbtuxProxy::execALTER_INDX_IMPL_REF);
-
-  // GSN_DROP_TAB_REQ
-  addRecSignal(GSN_DROP_TAB_REQ, &DbtuxProxy::execDROP_TAB_REQ);
-  addRecSignal(GSN_DROP_TAB_CONF, &DbtuxProxy::execDROP_TAB_CONF);
 }
 
 DbtuxProxy::~DbtuxProxy()
@@ -108,65 +104,6 @@ DbtuxProxy::sendALTER_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_ALTER_INDX_IMPL_REQ>(ssId);
-}
-
-// GSN_DROP_TAB_REQ
-
-void
-DbtuxProxy::execDROP_TAB_REQ(Signal* signal)
-{
-  const DropTabReq* req = (const DropTabReq*)signal->getDataPtr();
-  Uint32 ssId = getSsId(req);
-  Ss_DROP_TAB_REQ& ss = ssSeize<Ss_DROP_TAB_REQ>(ssId);
-  ss.m_req = *req;
-  ndbrequire(signal->getLength() == DropTabReq::SignalLength);
-  sendREQ(signal, ss);
-}
-
-void
-DbtuxProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
-{
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-
-  DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
-  *req = ss.m_req;
-  req->senderRef = reference();
-  req->senderData = ssId; // redundant since tableId is used
-  sendSignal(workerRef(ss.m_worker), GSN_DROP_TAB_REQ,
-             signal, DropTabReq::SignalLength, JBB);
-}
-
-void
-DbtuxProxy::execDROP_TAB_CONF(Signal* signal)
-{
-  const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
-  Uint32 ssId = getSsId(conf);
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-  recvCONF(signal, ss);
-}
-
-void
-DbtuxProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
-{
-  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
-  BlockReference dictRef = ss.m_req.senderRef;
-
-  if (!lastReply(ss))
-    return;
-
-  if (ss.m_error == 0) {
-    jam();
-    DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
-    conf->senderRef = reference();
-    conf->senderData = ss.m_req.senderData;
-    conf->tableId = ss.m_req.tableId;
-    sendSignal(dictRef, GSN_DROP_TAB_CONF,
-               signal, DropTabConf::SignalLength, JBB);
-  } else {
-    ndbrequire(false);
-  }
-
-  ssRelease<Ss_DROP_TAB_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DbtuxProxy)

@@ -1,0 +1,47 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+
+# Confirm that ibmdb2i_create_index_option causes additional *HEX sorted indexes to be created for all non-binary keys.
+
+set ibmdb2i_create_index_option=1;
+--disable_warnings
+drop schema if exists test1;
+create schema test1;
+use test1;
+--enable_warnings
+
+--disable_abort_on_error
+--error 0,255
+exec system "DLTF QGPL/FDOUT" > /dev/null;
+--enable_abort_on_error
+
+#No additional index because no string fields in key
+CREATE TABLE t1 (f int primary key, index(f)) engine=ibmdb2i;
+--error 255
+exec system "DSPFD FILE(\"test1\"/PRIM0001) TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+--error 255
+exec system "DSPFD FILE(\"test1\"/\"f___H_t1\") TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+drop table t1;
+
+#No additional index because binary sorting
+CREATE TABLE t1 (f char(10) collate utf8_bin primary key, index(f)) engine=ibmdb2i;
+--error 255
+exec system "DSPFD FILE(\"test1\"/PRIM0001) TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+--error 255
+exec system "DSPFD FILE(\"test1\"/\"f___H_t1\") TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+drop table t1;
+
+CREATE TABLE t1 (f char(10) collate latin1_swedish_ci primary key, index(f)) engine=ibmdb2i;
+exec system "DSPFD FILE(\"test1\"/PRIM0001) TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+exec system "DSPFD FILE(\"test1\"/\"f___H_t1\") TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+drop table t1;
+
+CREATE TABLE t1 (f char(10) collate latin1_swedish_ci primary key, i int, index i(i,f)) engine=ibmdb2i;
+exec system "DSPFD FILE(\"test1\"/PRIM0001) TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+exec system "DSPFD FILE(\"test1\"/\"i___H_t1\") TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+drop table t1;
+
+
+create table fd (SQSSEQ CHAR(10)) engine=ibmdb2i;
+system system "CPYF FROMFILE(QGPL/FDOUT) TOFILE(\"test1\"/\"fd\") mbropt(*replace) fmtopt(*drop *map)" > /dev/null;
+select * from fd;
+drop table fd;

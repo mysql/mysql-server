@@ -7699,7 +7699,8 @@ void Dbdih::addtabrefuseLab(Signal* signal, ConnectRecordPtr connectPtr, Uint32 
 /***********              DELETE TABLE  MODULE                   *************/
 /*****************************************************************************/
 void
-Dbdih::execDROP_TAB_REQ(Signal* signal){
+Dbdih::execDROP_TAB_REQ(Signal* signal)
+{
   jamEntry();
   DropTabReq* req = (DropTabReq*)signal->getDataPtr();
 
@@ -7716,17 +7717,91 @@ Dbdih::execDROP_TAB_REQ(Signal* signal){
   case DropTabReq::OnlineDropTab:
     jam();
     ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
-    releaseTable(tabPtr);
     break;
   case DropTabReq::CreateTabDrop:
     jam();
-    releaseTable(tabPtr);
     break;
   case DropTabReq::RestartDropTab:
     break;
   }
   
-  startDeleteFile(signal, tabPtr);
+  if(isMaster())
+  {
+    /**
+     * Remove from queue
+     */
+    NodeRecordPtr nodePtr;
+    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+      jam();
+      ptrAss(nodePtr, nodeRecord);
+      if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+      {
+
+	Uint32 index = 0;
+	Uint32 count = nodePtr.p->noOfQueuedChkpt;
+	while(index < count){
+	  if(nodePtr.p->queuedChkpt[index].tableId == tabPtr.i){
+	    jam();
+	    //	    g_eventLogger->info("Unqueuing %d", index);
+
+	    count--;
+	    for(Uint32 i = index; i<count; i++){
+	      jam();
+	      nodePtr.p->queuedChkpt[i] = nodePtr.p->queuedChkpt[i + 1];
+	    }
+	  } else {
+	    index++;
+	  }
+	}
+	nodePtr.p->noOfQueuedChkpt = count;
+      }
+    }
+  }
+
+  {
+    /**
+     * Check table lcp state
+     */
+    bool ok = false;
+    switch(tabPtr.p->tabLcpStatus){
+    case TabRecord::TLS_COMPLETED:
+    case TabRecord::TLS_WRITING_TO_FILE:
+      ok = true;
+      jam();
+      break;
+      return;
+    case TabRecord::TLS_ACTIVE:
+      ok = true;
+      jam();
+
+      tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
+
+      /**
+       * First check if all fragments are done
+       */
+      if (checkLcpAllTablesDoneInLqh(__LINE__))
+      {
+	jam();
+
+        g_eventLogger->info("This is the last table");
+
+	/**
+	 * Then check if saving of tab info is done for all tables
+	 */
+	LcpStatus a = c_lcpState.lcpStatus;
+	checkLcpCompletedLab(signal);
+
+        if(a != c_lcpState.lcpStatus)
+        {
+          g_eventLogger->info("And all tables are written to already written disk");
+        }
+      }
+      break;
+    }
+    ndbrequire(ok);
+  }
+
+  waitDropTabWritingToFile(signal, tabPtr);
 }
 
 void Dbdih::startDeleteFile(Signal* signal, TabRecordPtr tabPtr)
@@ -7781,6 +7856,7 @@ void Dbdih::tableDeleteLab(Signal* signal, FileRecordPtr filePtr)
   
   tabPtr.p->m_dropTab.tabUserPtr = RNIL;
   tabPtr.p->m_dropTab.tabUserRef = 0;
+  releaseTable(tabPtr);
 }//Dbdih::tableDeleteLab()
 
 
@@ -10192,7 +10268,8 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 
     ptrAss(tabPtr, tabRecord);
 
-    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE) {
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+    {
       jam();
       tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
       continue;
@@ -12224,9 +12301,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     return;
   }//if
   
-  if(fromTimeQueue){
+  if(fromTimeQueue)
+  {
     jam();
-    
     ndbrequire(c_lcpState.noOfLcpFragRepOutstanding > 0);
     c_lcpState.noOfLcpFragRepOutstanding--;
   }
@@ -12250,14 +12327,19 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
    */
   m_local_lcp_state.lcp_frag_rep(lcpReport);
 
-  if(tableDone){
+  if (tableDone)
+  {
     jam();
 
-    if(tabPtr.p->tabStatus == TabRecord::TS_DROPPING){
+    if (tabPtr.p->tabStatus == TabRecord::TS_IDLE ||
+        tabPtr.p->tabStatus == TabRecord::TS_DROPPING)
+    {
       jam();
       g_eventLogger->info("TS_DROPPING - Neglecting to save Table: %d Frag: %d - ",
                           tableId, fragId);
-    } else {
+    }
+    else
+    {
       jam();
       /**
        * Write table description to file
@@ -12322,7 +12404,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   /* ----------------------------------------------------------------------- */
   // Check if there are more LCP's to start up.
   /* ----------------------------------------------------------------------- */
-  if(isMaster()){
+  if(isMaster())
+  {
     jam();
 
     /**
@@ -12360,7 +12443,8 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
     jam();
     ptrAss(tabPtr, tabRecord);
     if ((tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) &&
-        (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE)) {
+        (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE))
+    {
       jam();
       /**
        * Nope, not finished with all tables
@@ -12478,6 +12562,13 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   
+  if (tabPtr.p->tabStatus == TabRecord::TS_DROPPING ||
+      tabPtr.p->tabStatus == TabRecord::TS_IDLE)
+  {
+    jam();
+    return true;
+  }
+
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
   
@@ -12601,7 +12692,8 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
 
 void Dbdih::checkLcpCompletedLab(Signal* signal) 
 {
-  if(c_lcpState.lcpStatus < LCP_TAB_COMPLETED){
+  if(c_lcpState.lcpStatus < LCP_TAB_COMPLETED)
+  {
     jam();
     return;
   }
@@ -12610,13 +12702,12 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
   for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++) {
     jam();
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) {
-      if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED) {
-        jam();
-        return;
-      }//if
-    }//if
-  }//for
+    if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
+    {
+      jam();
+      return;
+    }
+  }
 
   CRASH_INSERTION2(7027, isMaster());
   CRASH_INSERTION2(7018, !isMaster());
@@ -15762,7 +15853,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
   }//for
 
 #ifdef ERROR_INSERT
-  if (!tmp.isclear())
+  if (ERROR_INSERTED(7220) && !tmp.isclear())
   {
     jam();
 
@@ -16513,7 +16604,8 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
     ndbrequire(ok);
   }
 
-  if(err != PrepDropTabRef::OK){
+  if(err != PrepDropTabRef::OK)
+  {
     jam();
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -16526,88 +16618,19 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
   }
 
   tabPtr.p->tabStatus = TabRecord::TS_DROPPING;
-  tabPtr.p->m_prepDropTab.senderRef = senderRef;
-  tabPtr.p->m_prepDropTab.senderData = senderData;
-  
-  if(isMaster()){
-    /**
-     * Remove from queue
-     */
-    NodeRecordPtr nodePtr;
-    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-      jam();
-      ptrAss(nodePtr, nodeRecord);
-      if (c_lcpState.m_participatingLQH.get(nodePtr.i)){
-	
-	Uint32 index = 0;
-	Uint32 count = nodePtr.p->noOfQueuedChkpt;
-	while(index < count){
-	  if(nodePtr.p->queuedChkpt[index].tableId == tabPtr.i){
-	    jam();
-	    //	    g_eventLogger->info("Unqueuing %d", index);
-	    
-	    count--;
-	    for(Uint32 i = index; i<count; i++){
-	      jam();
-	      nodePtr.p->queuedChkpt[i] = nodePtr.p->queuedChkpt[i + 1];
-	    }
-	  } else {
-	    index++;
-	  }
-	}
-	nodePtr.p->noOfQueuedChkpt = count;
-      }
-    }
-  }
-  
-  { /**
-     * Check table lcp state
-     */
-    
-    bool ok = false;
-    switch(tabPtr.p->tabLcpStatus){
-    case TabRecord::TLS_COMPLETED:
-    case TabRecord::TLS_WRITING_TO_FILE:
-      ok = true;
-      jam();
-      break;
-      return;
-    case TabRecord::TLS_ACTIVE:
-      ok = true;
-      jam();
-      
-      tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
-      
-      /**
-       * First check if all fragments are done
-       */
-      if(checkLcpAllTablesDoneInLqh(__LINE__)){
-	jam();
-	
-        g_eventLogger->info("This is the last table");
-	
-	/**
-	 * Then check if saving of tab info is done for all tables
-	 */
-	LcpStatus a = c_lcpState.lcpStatus;
-	checkLcpCompletedLab(signal);
-	
-        if(a != c_lcpState.lcpStatus){
-          g_eventLogger->info("And all tables are written to already written disk");
-        }
-      }
-      break;
-    }
-    ndbrequire(ok);
-  }  
-  
-  waitDropTabWritingToFile(signal, tabPtr);
+  PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
+  conf->tableId = tabPtr.i;
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF,
+             signal, PrepDropTabConf::SignalLength, JBB);
 }
 
 void
 Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
   
-  if(tabPtr.p->tabLcpStatus == TabRecord::TLS_WRITING_TO_FILE){
+  if (tabPtr.p->tabLcpStatus == TabRecord::TLS_WRITING_TO_FILE)
+  {
     jam();
     signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
     signal->theData[1] = tabPtr.i;
@@ -16616,33 +16639,13 @@ Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
   }
 
   ndbrequire(tabPtr.p->tabLcpStatus ==  TabRecord::TLS_COMPLETED);
-  checkPrepDropTabComplete(signal, tabPtr);
+  checkDropTabComplete(signal, tabPtr);
 }
 
 void
-Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
-  
-  if(tabPtr.p->tabLcpStatus !=  TabRecord::TLS_COMPLETED){
-    jam();
-    return;
-  }
-  
-  if(!tabPtr.p->m_prepDropTab.waitDropTabCount.done()){
-    jam();
-    return;
-  }
-  
-  const Uint32 ref = tabPtr.p->m_prepDropTab.senderRef;
-  if(ref != 0)
-  {
-    PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderRef = reference();
-    conf->senderData = tabPtr.p->m_prepDropTab.senderData;
-    sendSignal(tabPtr.p->m_prepDropTab.senderRef, GSN_PREP_DROP_TAB_CONF, 
-	       signal, PrepDropTabConf::SignalLength, JBB);
-    tabPtr.p->m_prepDropTab.senderRef = 0;
-  }
+Dbdih::checkDropTabComplete(Signal* signal, TabRecordPtr tabPtr)
+{
+  startDeleteFile(signal, tabPtr);
 }
 
 void

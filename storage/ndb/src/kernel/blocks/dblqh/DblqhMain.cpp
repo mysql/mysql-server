@@ -473,9 +473,9 @@ void Dblqh::execCONTINUEB(Signal* signal)
     signal->theData[1] = 0;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 2);
     break;
-  case ZPREP_DROP_TABLE:
+  case ZDROP_TABLE_WAIT_USAGE:
     jam();
-    checkDropTab(signal);
+    dropTab_wait_usage(signal);
     return;
     break;
   case ZENABLE_EXPAND_CHECK:
@@ -1031,6 +1031,10 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
   ndbrequire(ind == cnoOfNodes);
   ndbrequire(cnoOfNodes >= 1 && cnoOfNodes < MAX_NDB_NODES);
   ndbrequire(!(cnoOfNodes == 1 && cstartType == NodeState::ST_NODE_RESTART));
+
+#ifdef ERROR_INSERT
+  c_master_node_id = readNodes->masterNodeId;
+#endif
   
   caddNodeState = ZFALSE;
   if (cstartType == NodeState::ST_SYSTEM_RESTART) 
@@ -2141,7 +2145,31 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
   
   Uint32 errCode = 0;
-  errCode = checkDropTabState(tabPtr.p->tableStatus, GSN_PREP_DROP_TAB_REQ);
+  switch(tabPtr.p->tableStatus) {
+  case Tablerec::TABLE_DEFINED:
+    jam();
+    break;
+  case Tablerec::NOT_DEFINED:
+    jam();
+    // Fall through
+  case Tablerec::ADD_TABLE_ONGOING:
+    jam();
+    errCode = PrepDropTabRef::NoSuchTable;
+    break;
+  case Tablerec::PREP_DROP_TABLE_DONE:
+    jam();
+    errCode = PrepDropTabRef::DropInProgress;
+    break;
+  case Tablerec::DROP_TABLE_WAIT_USAGE:
+  case Tablerec::DROP_TABLE_WAIT_DONE:
+  case Tablerec::DROP_TABLE_ACC:
+  case Tablerec::DROP_TABLE_TUP:
+  case Tablerec::DROP_TABLE_TUX:
+    jam();
+    errCode = PrepDropTabRef::DropInProgress;
+    break;
+  }
+
   if(errCode != 0)
   {
     jam();
@@ -2156,17 +2184,18 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
     return;
   }
   
-  tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_ONGOING;
+  tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
   
-  signal->theData[0] = ZPREP_DROP_TABLE;
-  signal->theData[1] = tabPtr.i;
-  signal->theData[2] = senderRef;
-  signal->theData[3] = senderData;
-  checkDropTab(signal);
+  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
+  conf->tableId = tabPtr.i;
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+	     PrepDropTabConf::SignalLength, JBB);
 }
 
 void
-Dblqh::checkDropTab(Signal* signal){
+Dblqh::dropTab_wait_usage(Signal* signal){
 
   TablerecPtr tabPtr;
   tabPtr.i = signal->theData[1];
@@ -2175,9 +2204,10 @@ Dblqh::checkDropTab(Signal* signal){
   Uint32 senderRef = signal->theData[2];
   Uint32 senderData = signal->theData[3];
   
-  ndbrequire(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING);
+  ndbrequire(tabPtr.p->tableStatus == Tablerec::DROP_TABLE_WAIT_USAGE);
   
-  if(tabPtr.p->usageCount > 0){
+  if(tabPtr.p->usageCount > 0)
+  {
     jam();
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
     return;
@@ -2186,35 +2216,39 @@ Dblqh::checkDropTab(Signal* signal){
   bool lcpDone = true;
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
-  if(lcpPtr.p->lcpState != LcpRecord::LCP_IDLE){
+  if(lcpPtr.p->lcpState != LcpRecord::LCP_IDLE)
+  {
     jam();
 
-    if(lcpPtr.p->currentFragment.lcpFragOrd.tableId == tabPtr.i){
+    if(lcpPtr.p->currentFragment.lcpFragOrd.tableId == tabPtr.i)
+    {
       jam();
       lcpDone = false;
     }
     
     if(lcpPtr.p->lcpQueued && 
-       lcpPtr.p->queuedFragment.lcpFragOrd.tableId == tabPtr.i){
+       lcpPtr.p->queuedFragment.lcpFragOrd.tableId == tabPtr.i)
+    {
       jam();
       lcpDone = false;
     }
   }
   
-  if(!lcpDone){
+  if(!lcpDone)
+  {
     jam();
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
     return;
   }
   
-  tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
+  tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
 
-  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
+  DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
   conf->senderData = senderData;
-  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
-	     PrepDropTabConf::SignalLength, JBB);
+  sendSignal(senderRef, GSN_DROP_TAB_CONF, signal,
+	     DropTabConf::SignalLength, JBB);
 }
 
 void
@@ -2230,98 +2264,173 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
   
-  do {
-    if(req->requestType == DropTabReq::RestartDropTab){
+  Uint32 errCode = 0;
+  switch((DropTabReq::RequestType)req->requestType) {
+  case DropTabReq::RestartDropTab:
+    jam();
+    tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+    break;
+  case DropTabReq::CreateTabDrop:
+    jam();
+    tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
+    break;
+  case DropTabReq::OnlineDropTab:
+    jam();
+    switch(tabPtr.p->tableStatus) {
+    case Tablerec::TABLE_DEFINED:
+      jam();
+      errCode = DropTabRef::DropWoPrep;
+      break;
+    case Tablerec::NOT_DEFINED:
+      jam();
+      errCode = DropTabRef::NoSuchTable;
+      break;
+    case Tablerec::ADD_TABLE_ONGOING:
+      jam();
+      ndbassert(false);
+    case Tablerec::PREP_DROP_TABLE_DONE:
+      jam();
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
+      signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+      signal->theData[1] = tabPtr.i;
+      signal->theData[2] = senderRef;
+      signal->theData[3] = senderData;
+      dropTab_wait_usage(signal);
+      return;
+      break;
+    case Tablerec::DROP_TABLE_WAIT_USAGE:
+    case Tablerec::DROP_TABLE_ACC:
+    case Tablerec::DROP_TABLE_TUP:
+    case Tablerec::DROP_TABLE_TUX:
+      ndbrequire(false);
+    case Tablerec::DROP_TABLE_WAIT_DONE:
       jam();
       break;
     }
-    
-    if(req->requestType == DropTabReq::OnlineDropTab){
-      jam();
-      Uint32 errCode = 0;
-      errCode = checkDropTabState(tabPtr.p->tableStatus, GSN_DROP_TAB_REQ);
-      if(errCode != 0){
-	jam();
-	
-	DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
-	ref->senderRef = reference();
-	ref->senderData = senderData;
-	ref->tableId = tabPtr.i;
-	ref->errorCode = errCode;
-	sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
-		   DropTabRef::SignalLength, JBB);
-	return;
-      }
-    }
+  }
 
-    removeTable(tabPtr.i);
-    
-  } while(false);
-  
+  if (errCode)
+  {
+    jam();
+    DropTabRef * ref = (DropTabRef*)signal->getDataPtrSend();
+    ref->tableId = tabPtr.i;
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->errorCode = errCode;
+    sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
+               DropTabRef::SignalLength, JBB);
+    return;
+  }
+
   ndbrequire(tabPtr.p->usageCount == 0);
-  tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
-  
-  DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
-  dropConf->senderRef = reference();
-  dropConf->senderData = senderData;
-  dropConf->tableId = tabPtr.i;
-  sendSignal(senderRef, GSN_DROP_TAB_CONF,
-             signal, DropTabConf::SignalLength, JBB);
+  seizeAddfragrec(signal);
+  addfragptr.p->m_dropFragReq.tableId = tabPtr.i;
+  addfragptr.p->m_dropFragReq.senderRef = senderRef;
+  addfragptr.p->m_dropFragReq.senderData = senderData;
+
+  dropTable_nextStep(signal, addfragptr);
 }
 
-Uint32
-Dblqh::checkDropTabState(Tablerec::TableStatus status, Uint32 gsn) const{
-  
-  if(gsn == GSN_PREP_DROP_TAB_REQ){
-    switch(status){
-    case Tablerec::NOT_DEFINED:
+void
+Dblqh::execDROP_TAB_REF(Signal* signal)
+{
+  jamEntry();
+  DropTabRef * ref = (DropTabRef*)signal->getDataPtr();
+
+#if defined ERROR_INSERT || defined VM_TRACE
+  jamLine(ref->errorCode);
+  ndbrequire(false);
+#endif
+
+  Ptr<AddFragRecord> addFragPtr;
+  addFragPtr.i = ref->senderData;
+  ptrCheckGuard(addFragPtr, caddfragrecFileSize, addFragRecord);
+  dropTable_nextStep(signal, addFragPtr);
+}
+
+void
+Dblqh::execDROP_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+  DropTabConf * conf = (DropTabConf*)signal->getDataPtr();
+
+  Ptr<AddFragRecord> addFragPtr;
+  addFragPtr.i = conf->senderData;
+  ptrCheckGuard(addFragPtr, caddfragrecFileSize, addFragRecord);
+  dropTable_nextStep(signal, addFragPtr);
+}
+
+void
+Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
+{
+  jam();
+
+  TablerecPtr tabPtr;
+  tabPtr.i = addFragPtr.p->m_dropFragReq.tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  Uint32 ref = 0;
+  if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_WAIT_DONE)
+  {
+    jam();
+    if (DictTabInfo::isTable(tabPtr.p->tableType) ||
+        DictTabInfo::isHashIndex(tabPtr.p->tableType))
+    {
       jam();
-      // Fall through
-    case Tablerec::ADD_TABLE_ONGOING:
-      jam();
-      return PrepDropTabRef::NoSuchTable;
-      break;
-    case Tablerec::PREP_DROP_TABLE_ONGOING:
-      jam();
-      return PrepDropTabRef::PrepDropInProgress;
-      break;
-    case Tablerec::PREP_DROP_TABLE_DONE:
-      jam();
-      return PrepDropTabRef::DropInProgress;
-      break;
-    case Tablerec::TABLE_DEFINED:
-      jam();
-      return 0;
-      break;
+      ref = calcInstanceBlockRef(DBACC);
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_ACC;
     }
-    ndbrequire(0);
+    else
+    {
+      jam();
+      ref = calcInstanceBlockRef(DBTUP);
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUP;
+    }
+  }
+  else if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_ACC)
+  {
+    jam();
+    ref = calcInstanceBlockRef(DBTUP);
+    tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUP;
+  }
+  else if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_TUP)
+  {
+    jam();
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      ref = calcInstanceBlockRef(DBTUX);
+      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_TUX;
+    }
   }
 
-  if(gsn == GSN_DROP_TAB_REQ){
-    switch(status){
-    case Tablerec::NOT_DEFINED:
-      jam();
-      // Fall through
-    case Tablerec::ADD_TABLE_ONGOING:
-      jam();
-      return DropTabRef::NoSuchTable;
-      break;
-    case Tablerec::PREP_DROP_TABLE_ONGOING:
-      jam();
-      return DropTabRef::PrepDropInProgress;
-      break;
-    case Tablerec::PREP_DROP_TABLE_DONE:
-      jam();
-      return 0;
-      break;
-    case Tablerec::TABLE_DEFINED:
-      jam();
-      return DropTabRef::DropWoPrep;
-    }
-    ndbrequire(0);
+  if (ref)
+  {
+    jam();
+    DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
+    req->senderData = addFragPtr.i;
+    req->senderRef = reference();
+    req->tableId = tabPtr.i;
+    req->tableVersion = tabPtr.p->schemaVersion;
+    req->requestType = DropTabReq::OnlineDropTab;
+    sendSignal(ref, GSN_DROP_TAB_REQ, signal,
+               DropTabReq::SignalLength, JBB);
+    return;
   }
-  ndbrequire(0);
-  return RNIL;
+
+  removeTable(tabPtr.i);
+  tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
+
+  ref = addFragPtr.p->m_dropFragReq.senderRef;
+  DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = addFragPtr.p->m_dropFragReq.senderData;
+  conf->tableId = tabPtr.i;
+  sendSignal(ref, GSN_DROP_TAB_CONF, signal,
+             DropTabConf::SignalLength, JBB);
+
+  addfragptr = addFragPtr;
+  releaseAddfragrec(signal);
 }
 
 void Dblqh::removeTable(Uint32 tableId)
@@ -2424,7 +2533,14 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    jam();
+    AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->connectPtr = connectPtr;
+    ref->errorCode = errCode;
+    sendSignal(senderRef, GSN_ALTER_TAB_REF, signal,
+               AlterTabRef::SignalLength, JBB);
   }
 }
 
@@ -2606,6 +2722,39 @@ void Dblqh::noFreeRecordLab(Signal* signal,
   return;
 }//Dblqh::noFreeRecordLab()
 
+Uint32
+Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
+{
+  switch(tabPtr.p->tableStatus){
+  case Tablerec::NOT_DEFINED:
+    jam();
+    return ZTABLE_NOT_DEFINED;
+    break;
+  case Tablerec::ADD_TABLE_ONGOING:
+    jam();
+  case Tablerec::PREP_DROP_TABLE_DONE:
+    jam();
+  case Tablerec::DROP_TABLE_WAIT_USAGE:
+    jam();
+  case Tablerec::DROP_TABLE_WAIT_DONE:
+    jam();
+  case Tablerec::DROP_TABLE_ACC:
+    jam();
+  case Tablerec::DROP_TABLE_TUP:
+    jam();
+  case Tablerec::DROP_TABLE_TUX:
+    jam();
+    return PrepDropTabRef::DropInProgress;
+    break;
+  case Tablerec::TABLE_DEFINED:
+    ndbassert(0);
+    return ZTABLE_NOT_DEFINED;
+    break;
+  }
+  ndbassert(0);
+  return ~Uint32(0);
+}
+
 void Dblqh::LQHKEY_abort(Signal* signal, int errortype)
 {
   switch (errortype) {
@@ -2630,16 +2779,7 @@ void Dblqh::LQHKEY_abort(Signal* signal, int errortype)
     break;
   case 4:
     jam();
-    if(tabptr.p->tableStatus == Tablerec::NOT_DEFINED){
-      jam();
-      terrorCode = ZTABLE_NOT_DEFINED;
-    } else if (tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
-	       tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
-      jam();
-      terrorCode = ZDROP_TABLE_IN_PROGRESS;
-    } else {
-      ndbrequire(0);
-    }
+    terrorCode = get_table_state_error(tabptr);
     break;
   case 5:
     jam();
@@ -3903,16 +4043,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }
 
+  if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
-    HostRecordPtr Thostptr;
-    Thostptr.i = refToNode(sig5); // TC-ref
-    ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
-    if (unlikely(Thostptr.p->nodestatus != ZNODE_UP))
-    {
-      releaseSections(handle);
-      noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
-      return;
-    }
+    noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    return;
   }
   
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
@@ -5906,7 +6040,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   else
   {
     if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
-      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
+      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT ||
+                get_node_status(nextNodeId) != ZNODE_UP);
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
@@ -8199,6 +8334,10 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
     }//if
   }//for
 
+#ifdef ERROR_INSERT
+  c_master_node_id = nodeFail->masterNodeId;
+#endif
+  
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   
@@ -8314,6 +8453,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
        *
        * now scan markers
        */
+#ifdef ERROR_INSERT
       if (ERROR_INSERTED(5050))
       {
         ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
@@ -8325,11 +8465,11 @@ void Dblqh::lqhTransNextLab(Signal* signal)
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
         
         signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, 
-                               refToNode(tcNodeFailptr.p->newTcBlockref)), 
+        sendSignal(numberToRef(CMVMI, c_master_node_id), 
                    GSN_NDB_TAMPER, signal, 1, JBB);
         return;
       }
+#endif
       scanMarkers(signal, tcNodeFailptr.i, 0, RNIL);
       return;
     }//if
@@ -8392,9 +8532,23 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	  default:
 	    ndbrequire(false);
 	  }
-        }//if
-      }//if
-    }//if
+        }
+      }
+      else
+      {
+#if defined VM_TRACE || defined ERROR_INSERT
+        jam();
+        ndbrequire(tcConnectptr.p->tcScanRec == RNIL);
+#endif
+      }
+    }
+    else
+    {
+#if defined VM_TRACE || defined ERROR_INSERT
+      jam();
+      ndbrequire(tcConnectptr.p->tcScanRec == RNIL);
+#endif
+    }
   }//for
   tcNodeFailptr.p->tcRecNow = tend + 1;
   signal->theData[0] = ZLQH_TRANS_NEXT;
@@ -9334,16 +9488,8 @@ error_handler:
   return;
 
  error_handler_early_1:
-  if(tabptr.p->tableStatus == Tablerec::NOT_DEFINED){
-    jam();
-    errorCode = ZTABLE_NOT_DEFINED;
-  } else if (tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
-	     tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
-    jam();
-    errorCode = ZDROP_TABLE_IN_PROGRESS;
-  } else {
-    ndbrequire(0);
-  }
+  errorCode = get_table_state_error(tabptr);
+
  error_handler_early:
   releaseSections(handle);
   ref = (ScanFragRef*)&signal->theData[0];
@@ -11084,6 +11230,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   tcConnectptr.p->savePointId = gci;
   tcConnectptr.p->applRef = 0;
+  tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
+
   scanptr.p->scanState = ScanRecord::WAIT_ACC_COPY;
   AccScanReq * req = (AccScanReq*)&signal->theData[0];
   req->senderData = scanptr.i;
@@ -12217,7 +12365,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   ptrAss(lcpPtr, lcpRecord);
   
   lcpPtr.p->lastFragmentFlag = lcpFragOrd->lastFragmentFlag;
-  if (lcpFragOrd->lastFragmentFlag) {
+  if (lcpFragOrd->lastFragmentFlag)
+  {
     jam();
     if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
       jam();
@@ -12238,17 +12387,12 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  ndbrequire(tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
-	     tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE ||
-	     tabptr.p->tableStatus == Tablerec::TABLE_DEFINED);
-
-  ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
-  
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   ndbrequire(!lcpPtr.p->lcpQueued);
 
-  if (c_lcpId < lcpFragOrd->lcpId) {
+  if (c_lcpId < lcpFragOrd->lcpId)
+  {
     jam();
 
     lcpPtr.p->firstFragmentFlag= true;
@@ -12260,18 +12404,25 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     clcpCompletedState = LCP_RUNNING;
   }
   
-  if(tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
+  if (tabptr.p->tableStatus != Tablerec::TABLE_DEFINED)
+  {
     jam();
     LcpRecord::FragOrd fragOrd;
-    fragOrd.fragPtrI = fragptr.i;
+    fragOrd.fragPtrI = RNIL;
     fragOrd.lcpFragOrd = * lcpFragOrd;
-    sendLCP_FRAG_REP(signal, fragOrd);
+
+    Fragrecord tmp;
+    tmp.maxGciInLcp = cnewestGci;
+    tmp.maxGciCompletedInLcp = cnewestCompletedGci;
+    sendLCP_FRAG_REP(signal, fragOrd, &tmp);
     return;
   }
 
   cnoOfFragsCheckpointed++;
+  ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
 
-  if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE) {
+  if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE)
+  {
     ndbrequire(lcpPtr.p->lcpQueued == false);
     lcpPtr.p->lcpQueued = true;
     lcpPtr.p->queuedFragment.fragPtrI = fragptr.i;
@@ -12530,10 +12681,9 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
 
 void
 Dblqh::sendLCP_FRAG_REP(Signal * signal, 
-			const LcpRecord::FragOrd & fragOrd) const {
-  
-  const Fragrecord* fragPtrP = c_fragment_pool.getConstPtr(fragOrd.fragPtrI);
-  
+			const LcpRecord::FragOrd & fragOrd,
+                        const Fragrecord * fragPtrP) const
+{
   ndbrequire(fragOrd.lcpFragOrd.lcpNo < MAX_LCP_STORED);
   LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
   lcpReport->nodeId = cownNodeid;
@@ -12575,7 +12725,8 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
   /**
    * Send rep when fragment is done + unblocked
    */
-  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment);
+  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment,
+                   c_fragment_pool.getPtr(lcpPtr.p->currentFragment.fragPtrI));
   
   /* ------------------------------------------------------------------------
    *       WE ALSO RELEASE THE LOCAL LCP RECORDS.
@@ -12617,8 +12768,9 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   TablerecPtr tabPtr;
   tabPtr.i = lcpPtr.p->currentFragment.lcpFragOrd.tableId;
   ptrAss(tabPtr, tablerec);
-  if(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
-     tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
+
+  if(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED)
+  {
     jam();
     /**
      * Fake that the fragment is done
@@ -13402,6 +13554,7 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   jamEntry();
   logFilePtr.i = signal->theData[0];
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+  logFilePtr.p->fileRef = RNIL;
 
   if (DEBUG_REDO)
   {
@@ -13413,14 +13566,24 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   }
 
   switch (logFilePtr.p->logFileStatus) {
-  case LogFileRecord::CLOSE_SR_INVALIDATE_PAGES:
+  case LogFileRecord::CLOSE_SR_READ_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
 
     logPartPtr.i = logFilePtr.p->logPartRec;
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
 
-    exitFromInvalidate(signal);
+    readFileInInvalidate(signal, 2);
+    return;
+
+  case LogFileRecord::CLOSE_SR_WRITE_INVALIDATE_PAGES:
+    jam();
+    logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
+
+    logPartPtr.i = logFilePtr.p->logPartRec;
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
+    writeFileInInvalidate(signal, 1);
     return;
   case LogFileRecord::CLOSING_INIT:
     jam();
@@ -13463,10 +13626,15 @@ void Dblqh::execFSOPENCONF(Signal* signal)
   jamEntry();
   initFsopenconf(signal);
   switch (logFilePtr.p->logFileStatus) {
-  case LogFileRecord::OPEN_SR_INVALIDATE_PAGES:
+  case LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN;
-    readFileInInvalidate(signal, false);
+    readFileInInvalidate(signal, 0);
+    return;
+  case LogFileRecord::OPEN_SR_WRITE_INVALIDATE_PAGES:
+    jam();
+    logFilePtr.p->logFileStatus = LogFileRecord::OPEN;
+    writeFileInInvalidate(signal, 0);
     return;
   case LogFileRecord::OPENING_INIT:
     jam();
@@ -14911,11 +15079,15 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
+
   if (DEBUG_REDO)
+  {
     ndbout_c("writeSingle 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     pageNo);
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             pageNo);
+  }
 }//Dblqh::writeSinglePage()
 
 /* ##########################################################################
@@ -14982,11 +15154,13 @@ void Dblqh::readSrLastFileLab(Signal* signal)
 {
   logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
   if (DEBUG_REDO)
+  {
     ndbout_c("readSrLastFileLab part: %u logExecState: %u logPartState: %u logLap: %u",
-             logPartPtr.p->logPartNo,
- 	     logPartPtr.p->logExecState,
- 	     logPartPtr.p->logPartState,
- 	     logPartPtr.p->logLap);
+             logPartPtr.i,
+             logPartPtr.p->logExecState,
+             logPartPtr.p->logPartState,
+             logPartPtr.p->logLap);
+  }
   if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     jam();
     initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
@@ -16526,11 +16700,13 @@ void Dblqh::execSr(Signal* signal)
       jam();
       logWord = readLogword(signal);
       if (DEBUG_REDO)
-	ndbout_c("found gci: %u part: %u file: %u page: %u",
-		 logWord,
-		 logPartPtr.p->logPartNo,
-		 logFilePtr.p->fileNo,
-		 logFilePtr.p->currentFilepage);
+      {
+        ndbout_c("found gci: %u part: %u file: %u page: %u",
+                 logWord,
+                 logPartPtr.i,
+                 logFilePtr.p->fileNo,
+                 logFilePtr.p->currentFilepage);
+      }
       if (logWord == logPartPtr.p->logLastGci) {
         jam();
 /*---------------------------------------------------------------------------*/
@@ -16548,9 +16724,11 @@ void Dblqh::execSr(Signal* signal)
           logPartPtr.p->headPageIndex = 
                   logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
 	  logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
-	  if (DEBUG_REDO)
-	    ndbout_c("execSr part: %u logLap: %u",
-		     logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+          if (DEBUG_REDO)
+          {
+            ndbout_c("execSr part: %u logLap: %u",
+                     logPartPtr.i, logPartPtr.p->logLap);
+          }
         }//if
 /*---------------------------------------------------------------------------*/
 /* THERE IS NO NEED OF EXECUTING PAST THIS LINE SINCE THERE WILL ONLY BE LOG */
@@ -16701,8 +16879,17 @@ void Dblqh::execLogRecord(Signal* signal)
 // consistent. This function is executed last in start phase 3.
 // RT 450. EDTJAMO.
 //----------------------------------------------------------------------------
-void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
-  
+Uint32
+Dblqh::nextLogFilePtr(Uint32 logFilePtrI)
+{
+  LogFileRecordPtr tmp;
+  tmp.i = logFilePtrI;
+  ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+  return tmp.p->nextLogFile;
+}
+
+void Dblqh::invalidateLogAfterLastGCI(Signal* signal)
+{
   jam();
   if (logPartPtr.p->logExecState != LogPartRecord::LES_EXEC_LOG_INVALIDATE) {
     jam();
@@ -16724,13 +16911,13 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
     // restart.
     if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] == logPartPtr.p->logLap) 
     {
+      jam();
       // This page must be invalidated.
       // We search for end
       // read next
       releaseLfo(signal);
       releaseLogpage(signal); 
-      readFileInInvalidate(signal, true);
-      lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+      readFileInInvalidate(signal, 1);
       return;
     }
 
@@ -16755,145 +16942,226 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
 
       if (logFilePtr.p->fileNo == 0)
       {
-	/**
-	 * We're wrapping in the log...
-	 *   update logLap
-	 */
-	logPartPtr.p->logLap--;
+        jam();
+        /**
+         * We're wrapping in the log...
+         *   update logLap
+         */
+        logPartPtr.p->logLap--;
 	ndbrequire(logPartPtr.p->logLap); // Should always be > 0
-	if (DEBUG_REDO)
-	  ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
-		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
+                   logPartPtr.i, logPartPtr.p->logLap);
+        }
       }
       
-      /**
-       * Move to prev file
-       */
-      logFilePtr.i = logFilePtr.p->prevLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
-      logPartPtr.p->invalidatePageNo = clogFileSize * ZPAGES_IN_MBYTE - 1;
-    }
-    
-    if (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo &&
-	logPartPtr.p->invalidatePageNo == logPartPtr.p->headPageNo)
-    {
-      /**
-       * Done...
-       */
-      logFilePtr.i = logPartPtr.p->currentLogfile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      
-      logFilePtr.i = logFilePtr.p->nextLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-
-      // Close files if necessary. Current file and the next file should be 
-      // left open.
-      exitFromInvalidate(signal);
+      if (logFilePtr.p->fileNo != 0 &&
+          logFilePtr.i != logPartPtr.p->currentLogfile &&
+          logFilePtr.i != nextLogFilePtr(logPartPtr.p->currentLogfile))
+      {
+        jam();
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidate part: %u close %u(%u) (write) (%u)",
+                   logPartPtr.i,
+                   logFilePtr.p->fileNo,
+                   logFilePtr.i,
+                   logPartPtr.p->currentLogfile);
+        }
+        logFilePtr.p->logFileStatus =
+          LogFileRecord::CLOSE_SR_WRITE_INVALIDATE_PAGES;
+        closeFile(signal, logFilePtr, __LINE__);
+        return;
+      }
+      writeFileInInvalidate(signal, 1); // step prev
       return;
     }
-
-    seizeLogpage(signal);
-
-    /**
-     * Make page really empty
-     */
-    bzero(logPagePtr.p, sizeof(LogPageRecord));
-    writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
-		    ZPAGE_SIZE - 1, __LINE__);
-
-    lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
+    writeFileInInvalidate(signal, 0);
     return;
   default:
-    jam();
-    systemError(signal, __LINE__);
-    return;
-    break;
+    jamLine(lfoPtr.p->lfoState);
+    ndbrequire(false);
   }
+}
+
+void
+Dblqh::writeFileInInvalidate(Signal* signal, int stepPrev)
+{
+  /**
+   * Move to prev file
+   */
+  if (stepPrev == 1)
+  {
+    jam();
+    logFilePtr.i = logFilePtr.p->prevLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+    logPartPtr.p->invalidatePageNo = clogFileSize * ZPAGES_IN_MBYTE - 1;
+  }
+
+  if (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo &&
+      logPartPtr.p->invalidatePageNo == logPartPtr.p->headPageNo)
+  {
+    jam();
+    /**
+     * Done...
+     */
+    logFilePtr.i = logPartPtr.p->currentLogfile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    logFilePtr.i = logFilePtr.p->nextLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    exitFromInvalidate(signal);
+    return;
+  }
+
+  if (stepPrev == 1 && logFilePtr.p->logFileStatus != LogFileRecord::OPEN)
+  {
+    jam();
+    if (DEBUG_REDO)
+    {
+      ndbout_c("invalidate part: %u open for write %u",
+               logPartPtr.i, logFilePtr.p->fileNo);
+    }
+    logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_WRITE_INVALIDATE_PAGES;
+    openFileRw(signal, logFilePtr);
+    return;
+  }
+
+  seizeLogpage(signal);
+
+  /**
+   * Make page really empty
+   */
+  bzero(logPagePtr.p, sizeof(LogPageRecord));
+  writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
+                  ZPAGE_SIZE - 1, __LINE__);
+
+  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
+  return;
 }//Dblqh::invalidateLogAfterLastGCI
 
-void Dblqh::readFileInInvalidate(Signal* signal, bool stepNext) 
+void Dblqh::readFileInInvalidate(Signal* signal, int stepNext)
 {
   jam();
 
-  if (stepNext)
+  if (stepNext == 1)
   {
     logPartPtr.p->invalidatePageNo++;
-    if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE)) 
+    if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE))
     {
-      // We continue in the next file.
-      logFilePtr.i = logFilePtr.p->nextLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
-      // Page 0 is used for file descriptors.
-      logPartPtr.p->invalidatePageNo = 1; 
-
-      if (logFilePtr.p->fileNo == 0)
+      if (logFilePtr.p->fileNo != 0 &&
+          logFilePtr.i != logPartPtr.p->currentLogfile &&
+          logFilePtr.i != nextLogFilePtr(logPartPtr.p->currentLogfile))
       {
-	/**
-	 * We're wrapping in the log...
-	 *   update logLap
-	 */
-	logPartPtr.p->logLap++;
-	if (DEBUG_REDO)
-	  ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
-		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+        jam();
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidate part: %u close %u(%u) (read) (%u)",
+                   logPartPtr.i,
+                   logFilePtr.p->fileNo,
+                   logFilePtr.i,
+                   logPartPtr.p->currentLogfile);
+        }
+        logFilePtr.p->logFileStatus =
+          LogFileRecord::CLOSE_SR_READ_INVALIDATE_PAGES;
+        closeFile(signal, logFilePtr, __LINE__);
+        return;
       }
-      if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN) 
+      else
       {
-	jam();
-	logFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_INVALIDATE_PAGES;
-	openFileRw(signal, logFilePtr);
-	return;
+        jam();
+        stepNext = 2; // After close
       }
     }
   }
   
+  if (stepNext == 2)
+  {
+    jam();
+    // We continue in the next file.
+    logFilePtr.i = logFilePtr.p->nextLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+    // Page 0 is used for file descriptors.
+    logPartPtr.p->invalidatePageNo = 1;
+
+    if (logFilePtr.p->fileNo == 0)
+    {
+      /**
+       * We're wrapping in the log...
+       *   update logLap
+       */
+      logPartPtr.p->logLap++;
+      if (DEBUG_REDO)
+      {
+        ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
+                 logPartPtr.i, logPartPtr.p->logLap);
+      }
+    }
+
+    if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN)
+    {
+      jam();
+      if (DEBUG_REDO)
+      {
+        ndbout_c("invalidate part: %u open for read %u",
+                 logPartPtr.i, logFilePtr.p->fileNo);
+      }
+      logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES;
+      openFileRw(signal, logFilePtr);
+      return;
+    }
+  }
+
   // Contact NDBFS. Real time break.
   readSinglePage(signal, logPartPtr.p->invalidatePageNo); 
   lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
 }
 
-void Dblqh::exitFromInvalidate(Signal* signal) {
+void Dblqh::exitFromInvalidate(Signal* signal)
+{
   jam();
 
-loop:  
-  logFilePtr.i = logFilePtr.p->nextLogFile;
-  ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-
-  if (logFilePtr.i == logPartPtr.p->currentLogfile)
-  {
-    jam();
-    goto done;
-  }
-  
-  if (logFilePtr.p->fileNo == 0)
-  {
-    jam();
-    /**
-     * Logfile 0 shoult *not* be closed
-     */
-    goto loop;
-  }
-  
-  if (logFilePtr.p->logFileStatus == LogFileRecord::CLOSED)
-  {
-    jam();
-    goto done;
-  }
-
-  jam();
-  ndbrequire(logFilePtr.p->logFileStatus == LogFileRecord::OPEN);
-  logFilePtr.p->logFileStatus = LogFileRecord::CLOSE_SR_INVALIDATE_PAGES;
-  closeFile(signal, logFilePtr, __LINE__);
-  return;
-
-done:
   if (DEBUG_REDO)
-    ndbout_c("exitFromInvalidate part: %u head file: %u page: %u", 
-	     logPartPtr.p->logPartNo,
-	     logPartPtr.p->headFileNo,
-	     logPartPtr.p->headPageNo);
+  {
+    jam();
+    printf("exitFromInvalidate part: %u head file: %u page: %u open: ",
+           logPartPtr.i,
+           logPartPtr.p->headFileNo,
+           logPartPtr.p->headPageNo);
+
+    LogFileRecordPtr tmp;
+    tmp.i = logPartPtr.p->currentLogfile;
+    do
+    {
+      jam();
+      ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+      if (tmp.p->logFileStatus != LogFileRecord::LFS_IDLE &&
+          tmp.p->logFileStatus != LogFileRecord::CLOSED)
+      {
+        jam();
+        printf("%u ", tmp.p->fileNo);
+      }
+      tmp.i = tmp.p->nextLogFile;
+    } while (tmp.i != logPartPtr.p->currentLogfile && tmp.i != RNIL);
+    printf("\n");
+
+    tmp.i = logPartPtr.p->currentLogfile;
+    ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+      
+    LogPosition head = { tmp.p->fileNo, tmp.p->currentMbyte };
+    LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                         logPartPtr.p->logTailMbyte};
+    Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+    Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+    ndbout_c("head: [ %u %u ] tail: [ %u %u ] free: %llu total: %llu",
+             head.m_file_no, head.m_mbyte,
+             tail.m_file_no, tail.m_mbyte,
+             mb, total);
+  }
   
   logFilePtr.i = logPartPtr.p->firstLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
@@ -17293,8 +17561,7 @@ void Dblqh::readSrFourthZeroLab(Signal* signal)
   logPartPtr.p->invalidatePageNo = logPartPtr.p->headPageNo;
   logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_INVALIDATE;
    
-  readFileInInvalidate(signal, true);
-  lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+  readFileInInvalidate(signal, 1);
   return;
 }//Dblqh::readSrFourthZeroLab()
 
@@ -17799,12 +18066,16 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   signal->theData[5] = twlpNoPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 15, JBA);
 
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
+
   if (DEBUG_REDO)
+  {
     ndbout_c("writing %d pages at part: %u file: %u pos: %u",
-	     twlpNoPages,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logFilePtr.p->filePosition);
+             twlpNoPages,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logFilePtr.p->filePosition);
+  }
 
   if (twlpType == ZNORMAL) {
     jam();
@@ -18910,12 +19181,13 @@ void Dblqh::readExecLog(Signal* signal)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 16, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readExecLog %u page at part: %u file: %u pos: %u",
-	     lfoPtr.p->noPagesRw,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logPartPtr.p->execSrStartPageNo);
-
+             lfoPtr.p->noPagesRw,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logPartPtr.p->execSrStartPageNo);
+  }
 }//Dblqh::readExecLog()
 
 /* ------------------------------------------------------------------------- */
@@ -18980,12 +19252,13 @@ void Dblqh::readExecSr(Signal* signal)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 15, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readExecSr %u page at part: %u file: %u pos: %u",
-	     8,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     tresPageid);
-
+             8,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             tresPageid);
+  }
 }//Dblqh::readExecSr()
 
 /* ------------------------------------------------------------------------- */
@@ -19141,11 +19414,12 @@ void Dblqh::readSinglePage(Signal* signal, Uint32 pageNo)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readSinglePage 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     pageNo);
-
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             pageNo);
+  }
 }//Dblqh::readSinglePage()
 
 /* -------------------------------------------------------------------------- 
@@ -19667,11 +19941,13 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
     logFilePtr.p->remainingWordsInMbyte - ZCOMPLETED_GCI_LOG_SIZE;
 
   if (DEBUG_REDO)
+  {
     ndbout_c("writeCompletedGciLog gci: %u part: %u file: %u page: %u",
-	     cnewestCompletedGci,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logFilePtr.p->currentFilepage);
+             cnewestCompletedGci,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logFilePtr.p->currentFilepage);
+  }
 
   writeLogWord(signal, ZCOMPLETED_GCI_TYPE);
   writeLogWord(signal, cnewestCompletedGci);
@@ -19710,12 +19986,15 @@ void Dblqh::writeDirty(Signal* signal, Uint32 place)
   signal->theData[7] = logPartPtr.p->prevFilepage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
-  if (DEBUG_REDO)
-    ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logPartPtr.p->prevFilepage);
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
 
+  if (DEBUG_REDO)
+  {
+    ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logPartPtr.p->prevFilepage);
+  }
 }//Dblqh::writeDirty()
 
 /* --------------------------------------------------------------------------
@@ -21111,4 +21390,11 @@ Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
 }
 #endif
 
-
+Uint32
+Dblqh::get_node_status(Uint32 nodeId) const
+{
+  HostRecordPtr Thostptr;
+  Thostptr.i = nodeId;
+  ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  return Thostptr.p->nodestatus;
+}

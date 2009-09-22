@@ -96,7 +96,7 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (uchar**) &opts.daemon, (uchar**) &opts.daemon, 0,
-    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, IF_WIN(0,1), 0, 0, 0, 0, 0 },
   { "interactive", 256,
     "Run interactive. Not supported but provided for testing purposes",
     (uchar**) &opts.interactive, (uchar**) &opts.interactive, 0,
@@ -108,7 +108,7 @@ static struct my_option my_long_options[] =
   { "nodaemon", 256,
     "Don't run as daemon, but don't read from stdin",
     (uchar**) &opts.non_interactive, (uchar**) &opts.non_interactive, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 0, 0, 0, 0 },
   { "mycnf", 256,
     "Read cluster config from my.cnf",
     (uchar**) &opts.mycnf, (uchar**) &opts.mycnf, 0,
@@ -118,6 +118,10 @@ static struct my_option my_long_options[] =
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "configdir", 256,
+    "Directory for the binary configuration files (alias for --config-dir)",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "config-dir", 256,
     "Directory for the binary configuration files",
     (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -148,12 +152,6 @@ static void usage()
 
 static char **defaults_argv;
 
-/*
-   mgmd_exit()
-   do_exit=true:
-     if in a windows service, don't want process to exit()
-     until cleanup of other threads is done
-*/
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();

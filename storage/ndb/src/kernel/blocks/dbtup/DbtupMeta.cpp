@@ -354,11 +354,14 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
       if((terrorCode = lgman.alloc_log_space(sz)))
       {
+        jamEntry();
         addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
         return;
       }
       
+      jamEntry();
       int res= lgman.get_log_buffer(signal, sz, &cb);
+      jamEntry();
       switch(res){
       case 0:
         jam();
@@ -767,7 +770,6 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       return;
     }
     regAlterTabOpPtr.p->tableDescriptor= tableDescriptorRef;
-    regAlterTabOpPtr.p->desAllocSize= allocSize;
 
     /*
       Get new pointers into tableDescriptor, and copy over old data.
@@ -865,15 +867,26 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
     /* Allocate the new (possibly larger) dynamic descriptor. */
     allocSize= getDynTabDescrOffsets((dyn_nullbits+31)>>5,
                                      regAlterTabOpPtr.p->dynTabDesOffset);
-    Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
+    Uint32 dynTableDescriptorRef = RNIL;
+    if (ERROR_INSERTED(4029))
+    {
+      jam();
+      dynTableDescriptorRef = RNIL;
+      terrorCode = ZMEM_NOTABDESCR_ERROR;
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+    else
+    {
+      jam();
+      dynTableDescriptorRef = allocTabDescr(allocSize);
+    }
     if (dynTableDescriptorRef == RNIL) {
       jam();
-      freeTabDescr(tableDescriptorRef, regAlterTabOpPtr.p->desAllocSize);
+      releaseTabDescr(tableDescriptorRef);
       releaseAlterTabOpRec(regAlterTabOpPtr);
       sendAlterTabRef(signal, terrorCode);
       return;
     }
-    regAlterTabOpPtr.p->dynDesAllocSize= allocSize;
     regAlterTabOpPtr.p->dynTableDescriptor= dynTableDescriptorRef;
     connectPtr = regAlterTabOpPtr.i;
   }
@@ -1028,10 +1041,8 @@ Dbtup::handleAlterTableAbort(Signal *signal,
       regAlterTabOpPtr.i= req->connectPtr;
       ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
 
-      freeTabDescr(regAlterTabOpPtr.p->tableDescriptor,
-                   regAlterTabOpPtr.p->desAllocSize);
-      freeTabDescr(regAlterTabOpPtr.p->dynTableDescriptor,
-                   regAlterTabOpPtr.p->dynDesAllocSize);
+      releaseTabDescr(regAlterTabOpPtr.p->tableDescriptor);
+      releaseTabDescr(regAlterTabOpPtr.p->dynTableDescriptor);
       releaseAlterTabOpRec(regAlterTabOpPtr);
     }
   }
@@ -1323,12 +1334,14 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   Logfile_client::Change c[1] = {{ &create, sizeof(create) >> 2 } };
   
   Uint64 lsn= lgman.add_entry(c, 1);
+  jamEntry();
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= fragOperPtr.i;
   req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
+  jamEntry();
   switch(ret){
   case 0:
     return;
@@ -1563,12 +1576,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
 
     // move to start of descriptor
     descriptor -= offset[3];
-    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
-    ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
-    ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
-    ndbrequire(ZTD_TYPE_NORMAL ==
-               getTabDescrWord((descriptor + retNo) - ZTD_TR_TYPE));
-    freeTabDescr(descriptor, retNo);
+    releaseTabDescr(descriptor);
   }
 
   descriptor= regTabPtr->dynTabDescriptor;
@@ -1578,12 +1586,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     regTabPtr->dynTabDescriptor= RNIL;
     regTabPtr->dynVarSizeMask= NULL;
     regTabPtr->dynFixSizeMask= NULL;
-    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
-    ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
-    ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
-    ndbrequire(ZTD_TYPE_NORMAL ==
-               getTabDescrWord((descriptor + retNo) - ZTD_TR_TYPE));
-    freeTabDescr(descriptor, retNo);
+    releaseTabDescr(descriptor);
   }
 }
 
@@ -1625,6 +1628,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
     int r0 = lgman.alloc_log_space(sz);
+    jamEntry();
     if (r0)
     {
       jam();
@@ -1634,6 +1638,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     }
 
     int res= lgman.get_log_buffer(signal, sz, &cb);
+    jamEntry();
     switch(res){
     case 0:
       jam();
@@ -1642,6 +1647,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
       lgman.free_log_space(sz);
+      jamEntry();
       goto done;
       break;
     default:
@@ -1668,7 +1674,6 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     if (!alloc_info.m_unmap_pages.isEmpty())
     {
       jam();
-      ndbout_c("waiting for unmape pages");
       signal->theData[0] = ZUNMAP_PAGES;
       signal->theData[1] = tabPtr.i;
       signal->theData[2] = fragPtr.i;
@@ -1714,6 +1719,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     int flags= Page_cache_client::COMMIT_REQ;
     Page_cache_client pgman(this, c_pgman);
     int res= pgman.get_page(signal, req, flags);
+    jamEntry();
     m_pgman_ptr = pgman.m_ptr;
     switch(res)
     {
@@ -1744,6 +1750,7 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
   Uint32 tableId = ((Page*)page.p)->m_table_id;
   Page_cache_client pgman(this, c_pgman);
   pgman.drop_page(key, page_id);
+  jamEntry();
 
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
@@ -1779,10 +1786,12 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+        jamEntry();
 	
 	Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
 	
 	int res= lgman.get_log_buffer(signal, sz, &cb);
+        jamEntry();
 	switch(res){
 	case 0:
 	  jam();
@@ -1835,12 +1844,14 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   
   Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
   Uint64 lsn = lgman.add_entry(c, 1);
+  jamEntry();
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= tablePtrI;
   req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
+  jamEntry();
   switch(ret){
   case 0:
     return;
@@ -1911,6 +1922,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       
       Logfile_client::Change c[1] = {{ &free, sizeof(free) >> 2 } };
       Uint64 lsn = lgman.add_entry(c, 1);
+      jamEntry();
 #else
       Uint64 lsn = 0;
 #endif
@@ -1921,6 +1933,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
 			      fragPtr.p->m_tablespace_id);
       
       tsman.free_extent(&ext_ptr.p->m_key, lsn);
+      jamEntry();
       c_extent_hash.remove(ext_ptr);
       list.release(ext_ptr);
       

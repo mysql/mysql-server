@@ -21,10 +21,9 @@
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 
-static FileOutputStream ndbouts_fileoutputstream(stdout);
-NdbOut ndbout(ndbouts_fileoutputstream);
-static FileOutputStream ndberrs_fileoutputstream(stderr);
-NdbOut ndberr(ndberrs_fileoutputstream);
+/* Initialized in ndb_init() */
+NdbOut ndbout;
+NdbOut ndberr;
 
 static const char * fms[] = {
   "%d", "0x%02x",      // Int8
@@ -95,8 +94,20 @@ NdbOut::NdbOut(OutputStream & out, bool autoflush)
 {
 }
 
+NdbOut::NdbOut()
+  : m_out(NULL), isHex(0)
+{
+   /**
+    * m_out set to NULL!
+    */
+}
+
 NdbOut::~NdbOut()
 {
+   /**
+    *  don't delete m_out, as it's a reference given to us.
+    *  i.e we don't "own" it
+    */
 }
 
 void
@@ -175,3 +186,15 @@ FilteredNdbOut::getThreshold() const {
   return m_threshold;
 }
 
+static FileOutputStream ndbouts_fileoutputstream(0);
+static FileOutputStream ndberrs_fileoutputstream(0);
+
+void
+NdbOut_Init()
+{
+  new (&ndbouts_fileoutputstream) FileOutputStream(stdout);
+  new (&ndbout) NdbOut(ndbouts_fileoutputstream);
+
+  new (&ndberrs_fileoutputstream) FileOutputStream(stderr);
+  new (&ndberr) NdbOut(ndberrs_fileoutputstream);
+}

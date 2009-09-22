@@ -623,6 +623,7 @@ struct Tabrec {
   Uint32 fragptrholder[MAX_FRAG_PER_NODE];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
+  Uint32 tabUserGsn;
 };
   typedef Ptr<Tabrec> TabrecPtr;
 

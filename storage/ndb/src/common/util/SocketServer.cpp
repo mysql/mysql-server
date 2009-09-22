@@ -236,7 +236,7 @@ SocketServer::startServer()
   {
     m_thread = NdbThread_Create(socketServerThread_C,
 				(void**)this,
-				32768,
+                                0, // default stack size
 				"NdbSockServ",
 				NDB_THREAD_PRIO_LOW);
   }
@@ -278,7 +278,7 @@ void
 SocketServer::startSession(SessionInstance & si){
   si.m_thread = NdbThread_Create(sessionThread_C,
 				 (void**)si.m_session,
-				 32768,
+                                 0, // default stack size
 				 "NdbSock_Session",
 				 NDB_THREAD_PRIO_LOW);
 }

@@ -281,6 +281,7 @@ echo "date=$DATE" > info.txt
 echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
+echo "host=$HOST" >> info.txt
 find . | xargs chmod ugo+r
 
 cd ..

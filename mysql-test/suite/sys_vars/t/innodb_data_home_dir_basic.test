@@ -29,7 +29,7 @@
 #   Displaying default value                                       #
 ####################################################################
 SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
---echo 1 Expected
+--echo 0 Expected
 
 
 --echo '#---------------------BS_STVARS_025_02----------------------#'
@@ -42,7 +42,7 @@ SET @@GLOBAL.innodb_data_home_dir=1;
 --echo Expected error 'Read only variable'
 
 SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
---echo 1 Expected
+--echo 0 Expected
 
 
 
@@ -58,7 +58,7 @@ WHERE VARIABLE_NAME='innodb_data_home_dir';
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
---echo 1 Expected
+--echo 0 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -82,7 +82,7 @@ SELECT @@innodb_data_home_dir = @@GLOBAL.innodb_data_home_dir;
 ################################################################################
 
 SELECT COUNT(@@innodb_data_home_dir);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_data_home_dir);
@@ -93,7 +93,7 @@ SELECT COUNT(@@SESSION.innodb_data_home_dir);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_data_home_dir = @@SESSION.innodb_data_home_dir;

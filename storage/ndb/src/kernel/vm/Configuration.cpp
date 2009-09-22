@@ -808,7 +808,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_DIH_REPLICAS, 
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables *
-	    noOfDBNodes * noOfReplicas);
+	    noOfDBNodes * noOfReplicas * lqhInstances);
 
     cfg.put(CFG_DIH_TABLE, 
 	    noOfMetaTables);
@@ -864,15 +864,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
     
-    cfg.put(CFG_TUP_PAGE_RANGE, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
-    
     cfg.put(CFG_TUP_TABLE, 
 	    noOfMetaTables);
-    
-    cfg.put(CFG_TUP_TABLE_DESC, 
-	    6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
-	    10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);

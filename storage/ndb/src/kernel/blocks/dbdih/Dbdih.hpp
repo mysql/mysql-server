@@ -522,12 +522,6 @@ public:
       Uint32 tabUserPtr;
     } m_dropTab;
 
-    struct DropTable {
-      Uint32 senderRef;
-      Uint32 senderData;
-      SignalCounter waitDropTabCount;
-    } m_prepDropTab;
-
     Uint8 kvalue;
     Uint8 noOfBackups;
     Uint8 noPages;
@@ -793,7 +787,7 @@ private:
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   
   void waitDropTabWritingToFile(Signal *, TabRecordPtr tabPtr);
-  void checkPrepDropTabComplete(Signal *, TabRecordPtr tabPtr);
+  void checkDropTabComplete(Signal *, TabRecordPtr tabPtr);
 
   void execDICT_LOCK_CONF(Signal* signal);
   void execDICT_LOCK_REF(Signal* signal);

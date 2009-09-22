@@ -41,3 +41,57 @@ reset slave;
 start slave;
 sync_with_master;
 show status like 'slave_open_temp_tables';
+
+#
+#Bug#34654  	RESET SLAVE does not clear LAST_IO_Err* 
+#
+
+# clearing the status
+stop slave;
+reset slave;
+let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+echo *** errno must be zero: $last_io_errno ***;
+
+#
+# verifying start slave resets Last_IO_Error and Last_IO_Errno.
+#
+
+change master to master_user='impossible_user_name';
+start slave;
+source include/wait_for_slave_io_error.inc;
+let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+--disable_query_log
+eval SELECT $last_io_errno > 0 as ONE;
+--enable_query_log
+
+source include/stop_slave.inc;
+change master to master_user='root';
+source include/start_slave.inc;
+let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+--echo *** last errno must be  zero: $last_io_errno ***
+--echo *** last error must be blank: $last_io_error ***
+
+#
+# verifying reset slave resets Last_{IO,SQL}_Err{or,no}
+#
+
+source include/stop_slave.inc;
+change master to master_user='impossible_user_name';
+start slave;
+source include/wait_for_slave_io_error.inc;
+let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+--disable_query_log
+eval SELECT $last_io_errno > 0 as ONE;
+--enable_query_log
+
+source include/stop_slave.inc;
+reset slave;
+let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $last_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+let $last_sql_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+--echo *** io  last errno must be  zero: $last_io_errno  ***
+--echo *** io  last error must be blank: $last_io_error  ***
+--echo *** sql last errno must be  zero: $last_sql_errno ***
+--echo *** sql last error must be blank: $last_sql_error ***

@@ -3691,7 +3691,10 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   }
   if (g_thr_repository.stopped_threads < waitFor_count)
   {
-    nst = NST_Watchdog; // Make this abort fast
+    if (nst != NST_ErrorInsert)
+    {
+      nst = NST_Watchdog; // Make this abort fast
+    }
     ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
              waitFor_count - g_thr_repository.stopped_threads);
   }

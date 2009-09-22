@@ -271,7 +271,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH; }
   const char *func_name() const { return "password"; }
-  static char *alloc(THD *thd, const char *password);
+  static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
 
 
@@ -290,7 +290,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323; } 
   const char *func_name() const { return "old_password"; }
-  static char *alloc(THD *thd, const char *password);
+  static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
 
 

@@ -253,5 +253,13 @@ insert into t1 values (1, 1), (3, 3), (2, 2), (NULL, 1), (NULL, NULL), (0, 0);
 select * from t1 where a is null;
 drop table t1;
 
+-- echo #
+-- echo # bug#39918 - memory (heap) engine crashing while executing self join with delete
+-- echo #
+
+CREATE TABLE t1(a INT, KEY USING BTREE (a)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES(1),(1);
+DELETE a1 FROM t1 AS a1, t1 AS a2 WHERE a1.a=a2.a;
+DROP TABLE t1;
 --echo End of 5.0 tests
 

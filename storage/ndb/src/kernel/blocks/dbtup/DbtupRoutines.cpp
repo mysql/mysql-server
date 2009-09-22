@@ -2423,18 +2423,36 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[1] = operPtr.p->m_copy_tuple_location.m_page_no;
     outBuffer[2] = operPtr.p->m_copy_tuple_location.m_page_idx;
     break;
-  case AttributeHeader::FLUSH_AI:{
+  case AttributeHeader::FLUSH_AI:
+  {
     jam();
     Uint32 resultRef = inBuffer[inPos];
     Uint32 resultData = inBuffer[inPos + 1];
     flush_read_buffer(req_struct, outBuf, resultRef, resultData);
     return 2;
   }
-  case AttributeHeader::READ_ANY_VALUE:{
+  case AttributeHeader::READ_ANY_VALUE:
+  {
     jam();
     sz = 2;
     outBuffer[1] = operPtr.p->m_root_frag_id;
     outBuffer[2] = operPtr.p->m_any_value;
+    break;
+  }
+  case AttributeHeader::FRAGMENT_EXTENT_SPACE:
+  {
+    Uint64 res[2];
+    disk_page_get_allocated(tabptr.p, fragptr.p, res);
+    memcpy(outBuffer + 1, res + 0, 8);
+    sz = 2;
+    break;
+  }
+  case AttributeHeader::FRAGMENT_FREE_EXTENT_SPACE:
+  {
+    Uint64 res[2];
+    disk_page_get_allocated(tabptr.p, fragptr.p, res);
+    memcpy(outBuffer + 1, res + 1, 8);
+    sz = 2;
     break;
   }
   default:

@@ -597,6 +597,22 @@ max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2_O T6 T13 
+
 #
 # DICT TESTS
 max-time: 500
@@ -666,6 +682,14 @@ args: -n TableAddAttrsDuring T1 T6
 max-time: 500
 cmd: testDict
 args: -n Bug24631 T1
+
+max-time: 600
+cmd: testDict
+args: -n Bug41905 T1
+
+max-time: 600
+cmd: testDict
+args: -n TableAddAttrsDuringError
 
 #
 # TEST NDBAPI
@@ -937,6 +961,31 @@ max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --no-multiops
 
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier -l 2
+
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier_NR -l 2
+
+#
+max-time: 3600
+cmd: test_event
+args: -n MergeEventOperationApplier_NR -l 2
+
+#
+max-time: 2500
+cmd: test_event
+args: -n Multi
+
+#
+max-time: 3600
+cmd: test_event
+args: -n CreateDropNR -l 1
+
 max-time: 600
 cmd: testBasic
 args: -n PkRead T1
@@ -1117,6 +1166,38 @@ args: -n SR_DD_2_LCP D2
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2b_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3 D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D2
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1341,5 +1422,10 @@ args: -n Bug46651 T1
 max-time: 300
 cmd: testSystemRestart
 args: -n Bug46412 T1
+
+# Test clean ApiFailReq behaviour
+max-time: 300
+cmd: testNdbApi
+args: -n ApiFailReqBehaviour T1
 
 # end of 6.3

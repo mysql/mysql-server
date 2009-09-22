@@ -193,16 +193,6 @@ public:
     ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 
-  /**
-   * Return pointer and length for key to use when BaseString is
-   * used as Key in HashMap
-   */
-  static const void* get_key(const void* key, size_t* key_length) {
-    const BaseString* str = (const BaseString*)key;
-    *key_length = str->length();
-    return str->c_str();
-  }
-
   template<unsigned size>
   static BaseString getText(const Bitmask<size>& mask) {
     return BaseString::getText(size, mask.rep.data);
@@ -329,6 +319,18 @@ BaseString::assign(const Vector<BaseString> &vector,
 		   const BaseString &separator) {
   assign("");
   return append(vector, separator);
+}
+
+/**
+ * Return pointer and length for key to use when BaseString is
+ * used as Key in HashMap
+ */
+inline
+const void* BaseString_get_key(const void* key, size_t* key_length)
+{
+  const BaseString* str = (const BaseString*)key;
+  *key_length = str->length();
+  return str->c_str();
 }
 
 #endif /* !__UTIL_BASESTRING_HPP_INCLUDED__ */

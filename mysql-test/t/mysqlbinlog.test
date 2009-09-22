@@ -367,4 +367,16 @@ echo *** Unsigned server_id $s_id_max is found: $s_id_unsigned ***;
 eval SET @@global.server_id= $save_server_id;
 --remove_file $binlog_file
 
+#
+# Bug #41943: mysqlbinlog.exe crashes if --hexdump option is used
+#
+
+RESET MASTER;
+FLUSH LOGS;
+
+# We do not need the results, just make sure that mysqlbinlog does not crash
+--exec $MYSQL_BINLOG --hexdump --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT  master-bin.000001 >/dev/null
+
+--echo End of 5.0 tests
+
 --echo End of 5.1 tests

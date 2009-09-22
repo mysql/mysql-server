@@ -70,6 +70,20 @@ Dbtup::getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset)
   return allocSize;
 }
 
+void
+Dbtup::releaseTabDescr(Uint32 descriptor)
+{
+  if (descriptor != RNIL)
+  {
+    Uint32 retNo= getTabDescrWord(descriptor + ZTD_DATASIZE);
+    ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
+    ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));
+    ndbrequire(ZTD_TYPE_NORMAL ==
+               getTabDescrWord((descriptor + retNo) - ZTD_TR_TYPE));
+    freeTabDescr(descriptor, retNo);
+  }
+}
+
 Uint32 Dbtup::allocTabDescr(Uint32 allocSize)
 {
   Uint32 reference = RNIL;

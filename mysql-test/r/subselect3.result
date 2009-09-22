@@ -849,6 +849,25 @@ ROW(1,2) = (SELECT    1,    1)	ROW(1,2) IN (SELECT    1,    1)
 SELECT ROW(1,2) = (SELECT    1,    2), ROW(1,2) IN (SELECT    1,    2);
 ROW(1,2) = (SELECT    1,    2)	ROW(1,2) IN (SELECT    1,    2)
 1	1
+CREATE TABLE t1 (a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1,1,1), (1,1,1);
+EXPLAIN EXTENDED 
+SELECT c FROM 
+( SELECT 
+(SELECT COUNT(a) FROM 
+(SELECT COUNT(b) FROM t1) AS x GROUP BY c
+) FROM t1 GROUP BY b
+) AS y;
+ERROR 42S22: Unknown column 'c' in 'field list'
+SHOW WARNINGS;
+Level	Code	Message
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
+Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
+Error	1054	Unknown column 'c' in 'field list'
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `c`) AS `(SELECT COUNT(a) FROM 
+(SELECT COUNT(b) FROM t1) AS x GROUP BY c
+)` from `test`.`t1` group by `test`.`t1`.`b`) `y`
+DROP TABLE t1;
 End of 5.0 tests
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

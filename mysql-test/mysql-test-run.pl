@@ -181,7 +181,7 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
-our $opt_experimental;
+our $opt_experimental = "collections/default.experimental";
 our $experimental_test_cases;
 
 my $baseport;
@@ -209,6 +209,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
@@ -434,6 +435,7 @@ sub run_test_server ($$$) {
   my $completed= [];
   my %running;
   my $result;
+  my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
 
   my $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
 
@@ -505,7 +507,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file);
+			   My::CoreDump->show($core_file, $exe_mysqld);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -520,6 +522,7 @@ sub run_test_server ($$$) {
 	      }
 	    }
 	    $num_saved_datadir++;
+	    $num_failed_test++ unless $result->{retries};
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
@@ -530,11 +533,12 @@ sub run_test_server ($$$) {
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
+	      push(@$completed, $result);
+	      mtr_report_stats($completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
 	    }
-	    $num_failed_test++;
 	  }
 
 	  # Retry test run after test failure
@@ -559,9 +563,11 @@ sub run_test_server ($$$) {
 
 	  # Repeat test $opt_repeat number of times
 	  my $repeat= $result->{repeat} || 1;
-	  if ($repeat < $opt_repeat)
+	  # Don't repeat if test was skipped
+	  if ($repeat < $opt_repeat && $result->{'result'} ne 'MTR_RES_SKIPPED')
 	  {
 	    $result->{retries}= 0;
+	    $result->{rep_failures}++ if $result->{failures};
 	    $result->{failures}= 0;
 	    delete($result->{result});
 	    $result->{repeat}= $repeat+1;
@@ -660,6 +666,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
+      mtr_report_stats($completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
@@ -723,6 +730,8 @@ sub run_worker ($) {
       # reusing them from previous test
       delete($test->{'comment'});
       delete($test->{'logfile'});
+
+      $test->{worker} = $thread_num if $opt_parallel > 1;
 
       run_testcase($test);
       #$test->{result}= 'MTR_RES_PASSED';
@@ -885,6 +894,7 @@ sub command_line_setup {
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
+             'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
 	     'retry=i'                  => \$opt_retry,
@@ -1242,6 +1252,15 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Check use of wait-all
+  # --------------------------------------------------------------------------
+
+  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  {
+    mtr_error("--wait-all can only be used with --start or --start-dirty");
+  }
+
+  # --------------------------------------------------------------------------
   # Check timeout arguments
   # --------------------------------------------------------------------------
 
@@ -1331,28 +1350,30 @@ sub set_build_thread_ports($) {
 
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
-    $build_thread = 250;	# Start attempts from here
+    $build_thread = 300;	# Start attempts from here
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 299);
+      $build_thread= mtr_get_unique_id($build_thread, 349);
       if ( !defined $build_thread ) {
-	mtr_error("Could not get a unique build thread id");
+        mtr_error("Could not get a unique build thread id");
       }
       $found_free= check_ports_free($build_thread);
       # If not free, release and try from next number
-      mtr_release_unique_id($build_thread++) unless $found_free;
+      if (! $found_free) {
+        mtr_release_unique_id();
+        $build_thread++;
+      }
     }
   }
   else
   {
     $build_thread = $opt_build_thread + $thread - 1;
+    if (! check_ports_free($build_thread)) {
+      # Some port was not free(which one has already been printed)
+      mtr_error("Some port(s) was not free")
+    }
   }
   $ENV{MTR_BUILD_THREAD}= $build_thread;
-
-  if (! check_ports_free($build_thread)) {
-    # Some port was not free(which one has already been printed)
-    mtr_error("Some port(s) was not free")
-  }
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
@@ -3261,7 +3282,7 @@ sub run_testcase ($) {
     {
 
       # Remove old datadirs
-      clean_datadir();
+      clean_datadir() unless $opt_start_dirty;
 
       # Restore old ENV
       while (my ($option, $value)= each( %old_env )) {
@@ -3328,19 +3349,29 @@ sub run_testcase ($) {
   # --------------------------------------------------------------------
   # If --start or --start-dirty given, stop here to let user manually
   # run tests
+  # If --wait-all is also given, do the same, but don't die if one
+  # server exits
   # ----------------------------------------------------------------------
+
   if ( $opt_start or $opt_start_dirty )
   {
     mtr_print("\nStarted", started(all_servers()));
     mtr_print("Waiting for server(s) to exit...");
-    my $proc= My::SafeProcess->wait_any();
-    if ( grep($proc eq $_, started(all_servers())) )
-    {
-      mtr_print("Server $proc died");
+    if ( $opt_wait_all ) {
+      My::SafeProcess->wait_all();
+      mtr_print( "All servers exited" );
       exit(1);
     }
-    mtr_print("Unknown process $proc died");
-    exit(1);
+    else {
+      my $proc= My::SafeProcess->wait_any();
+      if ( grep($proc eq $_, started(all_servers())) )
+      {
+        mtr_print("Server $proc died");
+        exit(1);
+      }
+      mtr_print("Unknown process $proc died");
+      exit(1);
+    }
   }
 
   my $test_timeout_proc= My::SafeProcess->timer(testcase_timeout());
@@ -3358,10 +3389,38 @@ sub run_testcase ($) {
   }
 
   my $test= start_mysqltest($tinfo);
+  # Set only when we have to keep waiting after expectedly died server
+  my $keep_waiting_proc = 0;
 
   while (1)
   {
-    my $proc= My::SafeProcess->wait_any();
+    my $proc;
+    if ($keep_waiting_proc)
+    {
+      # Any other process exited?
+      $proc = My::SafeProcess->check_any();
+      if ($proc)
+      {
+	mtr_verbose ("Found exited process $proc");
+	# If that was the timeout, cancel waiting
+	if ( $proc eq $test_timeout_proc )
+	{
+	  $keep_waiting_proc = 0;
+	}
+      }
+      else
+      {
+	$proc = $keep_waiting_proc;
+      }
+    }
+    else
+    {
+      $proc= My::SafeProcess->wait_any();
+    }
+
+    # Will be restored if we need to keep waiting
+    $keep_waiting_proc = 0;
+
     unless ( defined $proc )
     {
       mtr_error("wait_any failed");
@@ -3457,8 +3516,12 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if it was an expected crash
     # ----------------------------------------------------
-    if ( check_expected_crash_and_restart($proc) )
+    my $check_crash = check_expected_crash_and_restart($proc);
+    if ($check_crash)
     {
+      # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
+      $keep_waiting_proc = 0 if $check_crash == 1;
+      $keep_waiting_proc = $proc if $check_crash == 2;
       next;
     }
 
@@ -3799,16 +3862,16 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      while (1){
-
+      for (my $waits = 0;  $waits < 50;  $waits++)
+      {
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
-	# up again
+	# up again. Keep trying for up to 5s at a time.
 	my $last_line= mtr_lastlinesfromfile($expect_file, 1);
 	if ($last_line =~ /^wait/ )
 	{
-	  mtr_verbose("Test says wait before restart");
+	  mtr_verbose("Test says wait before restart") if $waits == 0;
 	  mtr_milli_sleep(100);
 	  next;
 	}
@@ -3818,11 +3881,11 @@ sub check_expected_crash_and_restart {
 	# Start server with same settings as last time
 	mysqld_start($mysqld, $mysqld->{'started_opts'});
 
-	last;
+	return 1;
       }
+      # Loop ran through: we should keep waiting after a re-check
+      return 2;
     }
-
-    return 1;
   }
 
   # Not an expected crash
@@ -4553,14 +4616,17 @@ sub start_servers($) {
     my $mysqld_basedir= $mysqld->value('basedir');
     if ( $basedir eq $mysqld_basedir )
     {
-      # Copy datadir from installed system db
-      for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	my $install_db= "$path/install.db";
-	copytree($install_db, $datadir)
-	  if -d $install_db;
+      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+      {
+	# Copy datadir from installed system db
+	for my $path ( "$opt_vardir", "$opt_vardir/..") {
+	  my $install_db= "$path/install.db";
+	  copytree($install_db, $datadir)
+	    if -d $install_db;
+	}
+	mtr_error("Failed to copy system db to '$datadir'")
+	  unless -d $datadir;
       }
-      mtr_error("Failed to copy system db to '$datadir'")
-	unless -d $datadir;
     }
     else
     {
@@ -5100,10 +5166,13 @@ Options to control what engine/variation to run
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
-  config|defaults-file=<config template> Use fixed config template for all
+  defaults-file=<config template> Use fixed config template for all
                         tests
   defaults_extra_file=<config template> Extra config template to add to
                         all generated configs
+  combination=<opt>     Use at least twice to run tests with specified 
+                        options to mysqld
+  skip-combinations     Ignore combination file (or options)
 
 Options to control directories to use
   tmpdir=DIR            The directory where temporary files are stored
@@ -5126,7 +5195,6 @@ Options to control what test suites or cases to run
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster
-  skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
@@ -5141,6 +5209,9 @@ Options to control what test suites or cases to run
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
+  enable-disabled       Run also tests marked as disabled
+  print_testcases       Don't run the tests but print details about all the
+                        selected tests, in the order they would be run.
 
 Options that specify ports
 
@@ -5209,7 +5280,7 @@ Options for valgrind
   valgrind-options=ARGS Deprecated, use --valgrind-option
   valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
                         can be specified more then once
-  valgrind-path=[EXE]   Path to the valgrind executable
+  valgrind-path=<EXE>   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
 
 Misc options
@@ -5217,12 +5288,15 @@ Misc options
   comment=STR           Write STR to the output
   notimer               Don't show test case execution time
   verbose               More verbose output(use multiple times for even more)
+  verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers, using the
                         startup settings for the first specified test case
                         Example:
                          $0 --start alias &
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
+  wait-all              If --start or --start-dirty option is used, wait for all
+                        servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   parallel=N            Run tests in N parallel threads (default=1)
@@ -5244,6 +5318,12 @@ Misc options
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
+  experimental=<file>   Refer to list of tests considered experimental;
+                        failures will be marked exp-fail instead of fail.
+  report-features       First run a "test" that reports mysql features
+  timestamp             Print timestamp before each test report line
+  timediff              With --timestamp, also print time passed since
+                        *previous* test started
 
 HERE
   exit(1);

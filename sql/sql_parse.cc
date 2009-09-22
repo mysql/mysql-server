@@ -198,11 +198,8 @@ bool begin_trans(THD *thd)
     error= -1;
   else
   {
-    LEX *lex= thd->lex;
     thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
-    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
-      error= ha_start_consistent_snapshot(thd);
   }
   return error;
 }
@@ -1356,7 +1353,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
                        is_schema_db(db.str)))
 	break;
-      general_log_print(thd, command, packet);
+      general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
                       &create_info, 0);
@@ -1381,7 +1378,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_write(thd, command, db.str, db.length);
+      general_log_write(thd, command, "%.*s", db.length, db.str);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
@@ -1566,14 +1563,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->main_da.can_overwrite_status= TRUE;
-  ha_autocommit_or_rollback(thd, thd->is_error());
-  thd->main_da.can_overwrite_status= FALSE;
-
-  thd->transaction.stmt.reset();
-
-
   /* report error issued during command execution */
   if (thd->killed_errno())
   {
@@ -1585,6 +1574,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->killed= THD::NOT_KILLED;
     thd->mysys_var->abort= 0;
   }
+
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
+
+  thd->transaction.stmt.reset();
 
   net_end_statement(thd);
   query_cache_end_of_result(thd);
@@ -3889,7 +3885,9 @@ end_with_restore_list:
         res= mysql_routine_grant(thd, all_tables,
                                  lex->type == TYPE_ENUM_PROCEDURE, 
                                  lex->users_list, grants,
-                                 lex->sql_command == SQLCOM_REVOKE, 0);
+                                 lex->sql_command == SQLCOM_REVOKE, TRUE);
+        if (!res)
+          my_ok(thd);
       }
       else
       {
@@ -4033,6 +4031,11 @@ end_with_restore_list:
     }
     if (begin_trans(thd))
       goto error;
+    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+    {
+      if (ha_start_consistent_snapshot(thd))
+        goto error;
+    }
     my_ok(thd);
     break;
   case SQLCOM_COMMIT:
@@ -5173,7 +5176,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+    if ((!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL)) ||
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
@@ -5207,7 +5210,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~sctx->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
-      ! db && dont_check_global_grants)
+      (! db && dont_check_global_grants))
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
@@ -5485,7 +5488,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
       if (!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !check_grant(thd, access, table, 0, 1, 1))
+           !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -7808,7 +7811,7 @@ bool parse_sql(THD *thd,
   /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              mysql_parse_status && thd->is_error());
+              (mysql_parse_status && thd->is_error()));
 
   /* Reset parser state. */
 

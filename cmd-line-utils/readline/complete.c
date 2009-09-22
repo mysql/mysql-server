@@ -359,14 +359,14 @@ rl_complete (ignore, invoking_key)
 /* List the possible completions.  See description of rl_complete (). */
 int
 rl_possible_completions (ignore, invoking_key)
-     int ignore, invoking_key;
+     int ignore __attribute__((unused)), invoking_key __attribute__((unused));
 {
   return (rl_complete_internal ('?'));
 }
 
 int
 rl_insert_completions (ignore, invoking_key)
-     int ignore, invoking_key;
+     int ignore __attribute__((unused)), invoking_key __attribute__((unused));
 {
   return (rl_complete_internal ('*'));
 }
@@ -696,7 +696,8 @@ print_filename (to_print, full_pathname)
      char *to_print, *full_pathname;
 {
   int printed_len, extension_char, slen, tlen;
-  char *s, c, *new_full_pathname, *dn;
+  char *s, c, *new_full_pathname;
+  const char *dn;
 
   extension_char = 0;
   printed_len = fnprint (to_print);
@@ -783,7 +784,7 @@ print_filename (to_print, full_pathname)
 static char *
 rl_quote_filename (s, rtype, qcp)
      char *s;
-     int rtype;
+     int rtype __attribute__((unused));
      char *qcp;
 {
   char *r;
@@ -884,7 +885,7 @@ _rl_find_completion_word (fp, dp)
       /* We didn't find an unclosed quoted substring upon which to do
          completion, so use the word break characters to find the
          substring on which to complete. */
-      while (rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_ANY))
+      while ((rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_ANY)))
 	{
 	  scan = rl_line_buffer[rl_point];
 
@@ -1803,7 +1804,7 @@ rl_completion_matches (text, entry_function)
   match_list = (char **)xmalloc ((match_list_size + 1) * sizeof (char *));
   match_list[1] = (char *)NULL;
 
-  while (string = (*entry_function) (text, matches))
+  while ((string = (*entry_function) (text, matches)))
     {
       if (matches + 1 == match_list_size)
 	match_list = (char **)xrealloc
@@ -2111,7 +2112,7 @@ rl_filename_completion_function (text, state)
    ring the bell, and reset the counter to zero. */
 int
 rl_menu_complete (count, ignore)
-     int count, ignore;
+     int count, ignore __attribute__((unused));
 {
   rl_compentry_func_t *our_func;
   int matching_filenames, found_quote;
