@@ -3315,6 +3315,38 @@ EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #46749: Segfault in add_key_fields() with outer subquery level 
+--echo #   field references
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b int,
+  UNIQUE (a), KEY (b)
+);
+INSERT INTO t1 VALUES (1,1), (2,1);
+
+CREATE TABLE st1 like t1;
+INSERT INTO st1 VALUES (1,1), (2,1);
+
+CREATE TABLE st2 like t1;
+INSERT INTO st2 VALUES (1,1), (2,1);
+
+# should have "impossible where"
+EXPLAIN
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+
+# should not crash
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+
+DROP TABLE t1, st1, st2;
+
 --echo End of 5.0 tests.
 
 #
