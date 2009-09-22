@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-safedir = $(prefix)/mysql-test/lib/My/SafeProcess
+testroot = $(prefix)
+safedir = $(testroot)/mysql-test/lib/My/SafeProcess
 #nobase_bin_PROGRAMS = ...
 safe_PROGRAMS =		my_safe_process
 
