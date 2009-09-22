@@ -13,7 +13,12 @@ save_args=$*
 VERSION="autotest-run.sh version 1.00"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname -s`
+if [ `uname -s` != "SunOS" ]
+then
+  HOST=`hostname -s`
+else
+  HOST=`hostname`
+fi
 export DATE HOST
 
 set -e
@@ -276,6 +281,7 @@ echo "date=$DATE" > info.txt
 echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
+echo "host=$HOST" >> info.txt
 find . | xargs chmod ugo+r
 
 cd ..
