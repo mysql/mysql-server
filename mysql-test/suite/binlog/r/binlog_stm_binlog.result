@@ -773,3 +773,14 @@ show master status /* must show new binlog index after rotating */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	106		
 drop table t3;
+#
+# Bug #45998: database crashes when running "create as select"
+#
+CREATE DATABASE test1;
+USE test1;
+DROP DATABASE test1;
+CREATE TABLE test.t1(a int);
+INSERT INTO test.t1 VALUES (1), (2);
+CREATE TABLE test.t2 SELECT * FROM test.t1;
+USE test;
+DROP TABLES t1, t2;
