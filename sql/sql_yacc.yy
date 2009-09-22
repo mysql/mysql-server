@@ -9069,7 +9069,8 @@ procedure_clause:
               MYSQL_YYABORT;
             }
 
-            if (&lex->select_lex != lex->current_select)
+            if (&lex->select_lex != lex->current_select ||
+                lex->select_lex.get_table_list()->derived)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
