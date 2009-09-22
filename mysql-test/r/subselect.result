@@ -4361,6 +4361,34 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
 DROP TABLE t1;
+#
+# Bug #46749: Segfault in add_key_fields() with outer subquery level 
+#   field references
+#
+CREATE TABLE t1 (
+a int,
+b int,
+UNIQUE (a), KEY (b)
+);
+INSERT INTO t1 VALUES (1,1), (2,1);
+CREATE TABLE st1 like t1;
+INSERT INTO st1 VALUES (1,1), (2,1);
+CREATE TABLE st2 like t1;
+INSERT INTO st2 VALUES (1,1), (2,1);
+EXPLAIN
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	st1	index	NULL	a	5	NULL	2	Using index
+2	DEPENDENT SUBQUERY	st2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+NULL	0
+DROP TABLE t1, st1, st2;
 End of 5.0 tests.
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
