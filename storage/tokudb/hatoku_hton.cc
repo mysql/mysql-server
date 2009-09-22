@@ -582,6 +582,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
             if (error) { goto cleanup; }
             
             error = curr_db->open(curr_db, 0, name_buff, NULL, DB_BTREE, DB_THREAD, 0);
+            if (error == ENOENT) { error = 0; continue; }
             if (error) { goto cleanup; }
 
             if (exact) {
