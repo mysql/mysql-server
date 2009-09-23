@@ -11228,7 +11228,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     while ((i = nodemask.find(i+1)) != NdbNodeBitmask::NotFound)
     {
       if (getNodeInfo(i).m_version >=  checkversion)
-	sendSignal(calcLqhBlockRef(i), GSN_UPDATE_FRAG_DIST_KEY_ORD,
+	sendSignal(calcInstanceBlockRef(number(), i),
+                   GSN_UPDATE_FRAG_DIST_KEY_ORD,
 		   signal, UpdateFragDistKeyOrd::SignalLength, JBB);
     }
   }
