@@ -27,10 +27,152 @@
 #include <Vector.hpp>
 #include <NdbOut.hpp>
 
+// Forward declarations
 class NdbApiSignal;
 
 
+/** For scans, we receiver n parallel streams of data. There is a 
+  * QueryResultStream object for each such stream. (For lookups, there is a 
+  * single result stream.)
+  */
+class QueryResultStream {
+
+  /** A map from tuple correlation Id to tuple number.*/
+  class TupleIdMap {
+  public:
+    explicit TupleIdMap():m_vector(){}
+
+    void put(Uint16 id, Uint32 num);
+
+    Uint32 get(Uint16 id) const;
+
+  private:
+    struct Pair{
+      /** Tuple id, unique within this batch and stream.*/
+      Uint16 m_id;
+      /** Tuple number, among tuples received in this stream.*/
+      Uint16 m_num;
+    };
+    Vector<Pair> m_vector;
+
+    /** No copying.*/
+    TupleIdMap(const TupleIdMap&);
+    TupleIdMap& operator=(const TupleIdMap&);
+  }; // class TupleIdMap
+
+public:
+  /** Stream number within operation (0 - parallelism)*/
+  const Uint32 m_streamNo;
+  /** The receiver object that unpacks transid_AI messages.*/
+  NdbReceiver m_receiver;
+  /** The number of transid_AI messages received.*/
+  Uint32 m_transidAICount;
+  /** A map from tuple correlation Id to tuple number.*/
+  TupleIdMap m_correlToTupNumMap;
+  /** Number of pending TCKEYREF or TRANSID_AI messages for this stream.*/
+  int m_pendingResults;
+  /** True if there is a pending SCAN_TABCONF messages for this stream.*/
+  bool m_pendingScanTabConf;
+
+  explicit QueryResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo);
+
+  ~QueryResultStream();
+
+  Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const;
+  void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index);
+    
+  /** Prepare for receiving results (Invoked via NdbTransaction::execute()).*/
+  void prepare();
+
+  /** Get the correlation number of the parent of a given row. This number
+   * can be use.
+   */
+  Uint32 getParentTupleCorr(Uint32 rowNo) const { 
+    return m_parentTupleCorr[rowNo];
+  }
+
+  void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const;
+    
+  /** Check if batch is complete for this stream. */
+  bool isBatchComplete() const { 
+    return m_pendingResults==0 && !m_pendingScanTabConf;
+  }
+
+private:
+  /** Operation to which this resultStream belong.*/
+  NdbQueryOperationImpl& m_operation;
+
+  /** One-dimensional array. For each tuple, this array holds the correlation
+   * number of the corresponding parent tuple.
+   */
+  Uint32* m_parentTupleCorr;
+
+  /** Two dimenional array of indexes to child tuples 
+   * ([childOperationNo, ownTupleNo]) This is used for finding the child 
+   * tuple in the corresponding resultStream of 
+   * the child operation.
+   */
+  Uint32* m_childTupleIdx;
+
+  /** No copying.*/
+  QueryResultStream(const QueryResultStream&);
+  QueryResultStream& operator=(const QueryResultStream&);
+}; //class QueryResultStream
+
+
+
 class NdbQueryImpl {
+
+  /* NdbQueryOperations are allowed to access it containing query */
+  friend class NdbQueryOperationImpl;
+
+  /** Possible return values from NdbQuery::fetchMoreResults. Integer values
+   * matches those returned from PoolGuard::waitScan().
+   */
+  enum FetchResult{
+    FetchResult_otherError = -4,
+    FetchResult_sendFail = -3,
+    FetchResult_nodeFail = -2,
+    FetchResult_timeOut = -1,
+    FetchResult_ok = 0,
+    FetchResult_scanComplete = 1
+  };
+
+  /** A stack of QueryResultStream pointers. */
+  class StreamStack{
+  public:
+    explicit StreamStack();
+
+    ~StreamStack(){
+      delete[] m_array;
+    }
+
+    void prepare(int size);
+
+    QueryResultStream* top() const { 
+      return m_current>=0 ? m_array[m_current] : NULL; 
+    }
+
+    void pop(){ 
+      assert(m_current>=0);
+      m_current--;
+    }
+    
+    void push(QueryResultStream& stream);
+
+    void clear(){
+      m_current = -1;
+    }
+
+  private:
+    int m_size;
+    int m_current;
+    QueryResultStream** m_array;
+    // No copying.
+    StreamStack(const StreamStack&);
+    StreamStack& operator=(const StreamStack&);
+  }; // class StreamStack
+
 private:
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
@@ -75,7 +217,7 @@ public:
   }
   void setErrorCodeAbort(int aErrorCode);
 
- /** Process TCKEYCONF message. Return true if query is complete.*/
+  /** Process TCKEYCONF message. Return true if query is complete.*/
   bool execTCKEYCONF();
 
   /** Count number of completed streams within this batch. (There should be 
@@ -123,6 +265,17 @@ public:
 
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U);}
+
+private:
+  /** Get more scan results, ask for the next batch if necessary.*/
+  FetchResult fetchMoreResults(bool forceSend);
+
+  /** Close scan receivers used for lookups. (Since scans and lookups should
+   * have the same semantics for nextResult(), lookups use scan-type 
+   * NdbReceiver objects.)
+   */
+  void closeSingletonScans();
+
  
 private:
   NdbQuery m_interface;
@@ -131,9 +284,10 @@ private:
   NdbError m_error;
   /** Transaction in which this query instance executes.*/
   NdbTransaction& m_transaction;
+
   /** The operations constituting this query.*/
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
-  size_t m_countOperations;                       // #elements in above array
+  size_t m_countOperations;             // #elements in above array
 
   /** True if a TCKEYCONF message has been received for this query.*/
   bool m_tcKeyConfReceived;
@@ -151,6 +305,16 @@ private:
   /** Max rows (per resultStream) in a scan batch.*/
   Uint32 m_maxBatchRows;
 
+  /** Streams that the application is currently iterating over. Only accessed
+   *  by application thread.
+   */
+  StreamStack m_applStreams;
+
+  /** Streams that have received a complete batch. Shared between 
+   *  application thread and receiving thread. Access should be mutex protected.
+   */
+  StreamStack m_fullStreams;
+
   /** Prunable property, and optional hashValue, valid for scans, */
   bool m_isPruned;
   Uint32 m_hashValue;
@@ -166,8 +330,9 @@ private:
 
 
 /** This class contains data members for NdbQueryOperation, such that these
- * do not need to exposed in NdbQueryOperation.hpp. This class may be 
- * changed without forcing the customer to recompile his application.*/
+ *  do not need to exposed in NdbQueryOperation.hpp. This class may be 
+ *  changed without forcing the customer to recompile his application.
+ */
 class NdbQueryOperationImpl {
 
   /** For debugging.*/
@@ -181,17 +346,6 @@ public:
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
-
-  /** Fetch next result row. 
-   * @see NdbQuery::nextResult */
-  static NdbQuery::NextResultOutcome nextResult(NdbQueryImpl& queryImpl, 
-                                                bool fetchAllowed, 
-                                                bool forceSend);
-
-  /** Close scan receivers used for lookups. (Since scans and lookups should
-   * have the same semantics for nextResult(), lookups use scan-type 
-   * NdbReceiver objects.)*/
-  static void closeSingletonScans(const NdbQueryImpl& query);
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
@@ -327,141 +481,6 @@ private:
     int m_maxColNo;
   }; // class UserProjection
 
-  /** A 'void' index for a tuple in structures below.*/
-  STATIC_CONST( tupleNotFound = 0xffffffff);
-
-  /** A map from tuple correlation Id to tuple number.*/
-  class TupleIdMap{
-  public:
-    explicit TupleIdMap():m_vector(){}
-
-    void put(Uint16 id, Uint32 num);
-
-    Uint32 get(Uint16 id) const;
-
-  private:
-    struct Pair{
-      /** Tuple id, unique within this batch and stream.*/
-      Uint16 m_id;
-      /** Tuple number, among tuples received in this stream.*/
-      Uint16 m_num;
-    };
-    Vector<Pair> m_vector;
-    /** No copying.*/
-    TupleIdMap(const TupleIdMap&);
-    TupleIdMap& operator=(const TupleIdMap&);
-  }; // class TupleIdMap
-
-  /** For scans, we receiver n parallel streams of data. There is a 
-   * ResultStream object for each such stream. (For lookups, there is a 
-   * single result stream.)*/
-  class ResultStream{
-  public:
-    /** Stream number within operation (0 - parallelism)*/
-    const Uint32 m_streamNo;
-    /** The receiver object that unpacks transid_AI messages.*/
-    NdbReceiver m_receiver;
-    /** The number of transid_AI messages received.*/
-    Uint32 m_transidAICount;
-    /** A map from tuple correlation Id to tuple number.*/
-    TupleIdMap m_correlToTupNumMap;
-    /** Number of pending TCKEYREF or TRANSID_AI messages for this stream.*/
-    int m_pendingResults;
-    /** True if there is a pending SCAN_TABCONF messages for this stream.*/
-    bool m_pendingScanTabConf;
-
-    explicit ResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo);
-
-    ~ResultStream();
-
-    Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const {
-      return m_childTupleIdx[tupleNo*m_operation.getNoOfChildOperations()
-                             +childNo];
-    }
-
-    void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index){
-      m_childTupleIdx[tupleNo*m_operation.getNoOfChildOperations()
-                      +childNo] = index;
-    }
-    
-    /** Prepare for receiving results (Invoked via NdbTransaction::execute()).*/
-    void prepare();
-
-    /** Get the correlation number of the parent of a given row. This number
-     * can be used */
-    Uint32 getParentTupleCorr(Uint32 rowNo) const { 
-      return m_parentTupleCorr[rowNo];
-    }
-
-    void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const;
-    
-    /** Check if batch is complete for this stream. */
-    bool isBatchComplete() const { 
-      return m_pendingResults==0 && !m_pendingScanTabConf;
-    }
-
-  private:
-    /** Operation to which this resultStream belong.*/
-    NdbQueryOperationImpl& m_operation;
-    /** One-dimensional array. For each tuple, this array holds the correlation
-     * number of the corresponding parent tuple. */
-    Uint32* m_parentTupleCorr;
-    /** Two dimenional array of indexes to child tuples 
-     * ([childOperationNo, ownTupleNo]) This is used for finding the child 
-     * tuple in the corresponding resultStream of 
-     * the child operation. */
-    Uint32* m_childTupleIdx;
-    /** No copying.*/
-    ResultStream(const ResultStream&);
-    ResultStream& operator=(const ResultStream&);
-  };
-
-  /** A stack of ResultStream pointers.*/
-  class StreamStack{
-  public:
-    explicit StreamStack();
-
-    ~StreamStack(){
-      delete[] m_array;
-    }
-
-    void prepare(int size);
-
-    ResultStream* top() const { 
-      return m_current>=0 ? m_array[m_current] : NULL; 
-    }
-
-    void pop(){ 
-      assert(m_current>=0);
-      m_current--;
-    }
-    
-    void push(ResultStream& stream);
-
-    void clear(){
-      m_current = -1;
-    }
-
-  private:
-    int m_size;
-    int m_current;
-    ResultStream** m_array;
-    // No copying.
-    StreamStack(const StreamStack&);
-    StreamStack& operator=(const StreamStack&);
-  }; // class StreamStack
-
-  /** Possible return values from NdbQuery::fetchMoreResults. Integer values
-   * matches those returned from PoolGourad::waitScan().*/
-  enum FetchResult{
-    FetchResult_otherError = -4,
-    FetchResult_sendFail = -3,
-    FetchResult_nodeFail = -2,
-    FetchResult_timeOut = -1,
-    FetchResult_ok = 0,
-    FetchResult_scanComplete = 1
-  };
-
   /** Fix parent-child references when a complete batch has been received
    * for a given stream.*/
   static void buildChildTupleLinks(const NdbQueryImpl& query, Uint32 streamNo);
@@ -483,7 +502,7 @@ private:
   Vector<NdbQueryOperationImpl*> m_children;
 
   /** For processing results from this operation.*/
-  ResultStream** m_resultStreams;
+  QueryResultStream** m_resultStreams;
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
   /** Projection to be sent to the application.*/
@@ -504,13 +523,7 @@ private:
   Uint32 m_batchByteSize;
   /** Result record.*/
   const NdbRecord* m_ndbRecord;
-  /** Streams that the application is currently iterating over. Only accessed
-   * by application thread.*/
-  StreamStack m_applStreams;
-  /** Streams that have received a complete batch. Shared between 
-   * application thread and receiving thread. Access should be mutex protected.
-   */
-  StreamStack m_fullStreams;
+
   /** Head & tail of NdbRecAttr list defined by this operation.
     * Used for old-style result retrieval (using getValue()).*/
   NdbRecAttr* m_firstRecAttr;
@@ -518,12 +531,10 @@ private:
 
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
-  /** Get more scan results, ask for the next batch if necessary.*/
-  FetchResult fetchMoreResults(bool forceSend);
+
   /** Copy any NdbRecAttr results into application buffers.*/
   void fetchRecAttrResults(Uint32 streamNo);
 }; // class NdbQueryOperationImpl
-
 
 
 #endif
