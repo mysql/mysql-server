@@ -1,3 +1,6 @@
+#ifndef REPL_FAILSAFE_INCLUDED
+#define REPL_FAILSAFE_INCLUDED
+
 /* Copyright (C) 2001-2005 MySQL AB & Sasha
 
    This program is free software; you can redistribute it and/or modify
@@ -49,3 +52,4 @@ int register_slave(THD* thd, uchar* packet, uint packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
 
 #endif /* HAVE_REPLICATION */
+#endif /* REPL_FAILSAFE_INCLUDED */

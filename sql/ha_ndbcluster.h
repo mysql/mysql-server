@@ -1,3 +1,6 @@
+#ifndef HA_NDBCLUSTER_INCLUDED
+#define HA_NDBCLUSTER_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -581,3 +584,5 @@ static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
 extern int ndbcluster_terminating;
 extern int ndb_util_thread_running;
 extern pthread_cond_t COND_ndb_util_ready;
+
+#endif /* HA_NDBCLUSTER_INCLUDED */

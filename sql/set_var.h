@@ -1,3 +1,6 @@
+#ifndef SET_VAR_INCLUDED
+#define SET_VAR_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1449,3 +1452,5 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));
+
+#endif /* SET_VAR_INCLUDED */

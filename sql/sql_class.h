@@ -14,6 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef SQL_CLASS_INCLUDED
+#define SQL_CLASS_INCLUDED
+
 /* Classes in mysql */
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -3003,3 +3006,4 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 void mark_transaction_to_rollback(THD *thd, bool all);
 
 #endif /* MYSQL_SERVER */
+#endif /* SQL_CLASS_INCLUDED */

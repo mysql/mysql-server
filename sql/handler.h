@@ -1,3 +1,6 @@
+#ifndef HANDLER_INCLUDED
+#define HANDLER_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -2064,3 +2067,4 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
 #endif
+#endif /* HANDLER_INCLUDED */

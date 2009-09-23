@@ -1,3 +1,6 @@
+#ifndef PARTITION_ELEMENT_INCLUDED
+#define PARTITION_ELEMENT_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -97,3 +100,5 @@ public:
   }
   ~partition_element() {}
 };
+
+#endif /* PARTITION_ELEMENT_INCLUDED */
