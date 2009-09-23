@@ -2995,6 +2995,13 @@ fil_open_single_table_tablespace(
 		ulint	i;
 		int		len;
 		ib_uint64_t	current_lsn;
+		ulint		size_low, size_high, size;
+		ib_int64_t	size_bytes;
+		dict_table_t*	table;
+		dict_index_t*	index;
+		fil_system_t*	system;
+		fil_node_t*	node = NULL;
+		fil_space_t*	space;
 
 		current_lsn = log_get_lsn();
 
@@ -3016,25 +3023,20 @@ fil_open_single_table_tablespace(
 		success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* get file size */
-		ulint		size_low, size_high, size;
-		ib_int64_t	size_bytes;
 		os_file_get_size(file, &size_low, &size_high);
 		size_bytes = (((ib_int64_t)size_high) << 32)
 				+ (ib_int64_t)size_low;
 
 		/* get cruster index information */
-		dict_table_t*   table;
-		dict_index_t*   index;
 		table = dict_table_get_low(name);
 		index = dict_table_get_first_index(table);
 		ut_a(index->page==3);
 
-
 		/* read metadata from .exp file */
 		n_index = 0;
-		bzero(old_id, sizeof(old_id));
-		bzero(new_id, sizeof(new_id));
-		bzero(root_page, sizeof(root_page));
+		memset(old_id, 0, sizeof(old_id));
+		memset(new_id, 0, sizeof(new_id));
+		memset(root_page, 0, sizeof(root_page));
 
 		info_file_path = fil_make_ibd_name(name, FALSE);
 		len = strlen(info_file_path);
@@ -3084,18 +3086,54 @@ skip_info:
 			mem_heap_t*	heap = NULL;
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*		offsets = offsets_;
+			ib_int64_t	offset;
+
 			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 			/* over write space id of all pages */
-			ib_int64_t     offset;
-
 			rec_offs_init(offsets_);
 
 			fprintf(stderr, "InnoDB: Progress in %:");
 
 			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
+				ulint		checksum_field;
+				ulint		old_checksum_field;
+
 				success = os_file_read(file, page,
 							(ulint)(offset & 0xFFFFFFFFUL),
 							(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+
+				/* skip inconsistent pages, it may be free page. */
+				if (memcmp(page + FIL_PAGE_LSN + 4,
+					   page + UNIV_PAGE_SIZE
+					   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
+
+					goto skip_write;
+				}
+
+				checksum_field = mach_read_from_4(page
+								  + FIL_PAGE_SPACE_OR_CHKSUM);
+
+				old_checksum_field = mach_read_from_4(
+					page + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+				if (old_checksum_field != mach_read_from_4(page
+									   + FIL_PAGE_LSN)
+				    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
+				    && old_checksum_field
+				    != buf_calc_page_old_checksum(page)) {
+
+					goto skip_write;
+				}
+
+				if (checksum_field != 0
+				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+				    && checksum_field
+				    != buf_calc_page_new_checksum(page)) {
+
+					goto skip_write;
+				}
+
 				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
 					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
 
@@ -3125,13 +3163,30 @@ skip_info:
 							n_recs = page_get_n_recs(page);
 
 							while (rec && rec != supremum && n_recs > 0) {
+								ulint	n_fields;
+								ulint	i;
 								ulint	offset = index->trx_id_offset;
+								offsets = rec_get_offsets(rec, index, offsets,
+										ULINT_UNDEFINED, &heap);
+								n_fields = rec_offs_n_fields(offsets);
 								if (!offset) {
-									offsets = rec_get_offsets(rec, index, offsets,
-											ULINT_UNDEFINED, &heap);
 									offset = row_get_trx_id_offset(rec, index, offsets);
 								}
 								trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
+
+								for (i = 0; i < n_fields; i++) {
+									if (rec_offs_nth_extern(offsets, i)) {
+										ulint	local_len;
+										byte*	data;
+
+										data = rec_get_nth_field(rec, offsets, i, &local_len);
+
+										local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+										mach_write_to_4(data + local_len + BTR_EXTERN_SPACE_ID, id);
+									}
+								}
+
 								rec = page_rec_get_next(rec);
 								n_recs--;
 							}
@@ -3165,6 +3220,7 @@ skip_info:
 								(ulint)(offset >> 32), UNIV_PAGE_SIZE);
 				}
 
+skip_write:
 				if (size_bytes
 				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes)
 					!= ((offset * 100) / size_bytes)) {
@@ -3240,10 +3296,8 @@ skip_info:
 		}
 		mem_free(info_file_path);
 
-		fil_system_t*	system	= fil_system;
+		system	= fil_system;
 		mutex_enter(&(system->mutex));
-		fil_node_t*	node = NULL;
-		fil_space_t*	space;
 		space = fil_space_get_by_id(id);
 		if (space)
 			node = UT_LIST_GET_FIRST(space->chain);

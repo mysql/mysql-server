@@ -807,7 +807,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
             field_store_string(table->field[0], NULL);
             p = (char *)index->table_name;
           }
-          strcpy(table_name_raw, p);
+          strcpy(table_name_raw, (const char*)p);
           filename_to_tablename(table_name_raw, table_name, sizeof(table_name));
           field_store_string(table->field[1], table_name);
           field_store_string(table->field[2], index->name);
@@ -2862,7 +2862,7 @@ i_s_innodb_index_stats_fill(
 					} else {
 						rec_per_key = n_rows;
 					}
-					snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
+					ut_snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
 						 rec_per_key);
 					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
 				}

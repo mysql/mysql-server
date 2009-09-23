@@ -1263,13 +1263,13 @@ buf_flush_LRU_recommendation(void)
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
+		mutex_t* block_mutex;
 		if (!bpage->in_LRU_list) {
 			/* reatart. but it is very optimistic */
 			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 			continue;
 		}
-
-		mutex_t* block_mutex = buf_page_get_mutex_enter(bpage);
+		block_mutex = buf_page_get_mutex_enter(bpage);
 
 		ut_a(block_mutex);
 

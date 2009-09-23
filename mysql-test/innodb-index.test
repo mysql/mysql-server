@@ -1,5 +1,4 @@
 -- source include/have_innodb.inc
-
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -16,16 +15,6 @@ alter table t1 add unique index (b);
 show create table t1;
 alter table t1 add index (b);
 show create table t1;
-
-# Check how existing tables interfere with temporary tables.
-CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
-
---error 156
-alter table t1 add unique index (c), add index (d);
-rename table `t1#1` to `t1#2`;
---error 156
-alter table t1 add unique index (c), add index (d);
-drop table `t1#2`;
 
 alter table t1 add unique index (c), add index (d);
 show create table t1;
@@ -532,3 +521,4 @@ disconnect a;
 disconnect b;
 
 DROP TABLE t1;
+set global innodb_file_format_check=Antelope;

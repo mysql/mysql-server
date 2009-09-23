@@ -471,16 +471,15 @@ buf_buddy_relocate(
 	actually is a properly initialized buf_page_t object. */
 
 	if (size >= PAGE_ZIP_MIN_SIZE) {
-		if (!have_page_hash_mutex)
-			mutex_exit(&zip_free_mutex);
-
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
 		if (!have_page_hash_mutex) {
+			mutex_exit(&zip_free_mutex);
 			mutex_enter(&LRU_list_mutex);
 			rw_lock_x_lock(&page_hash_latch);
 		}
+
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
 		mach_read_from_4() calls below may attempt to read
