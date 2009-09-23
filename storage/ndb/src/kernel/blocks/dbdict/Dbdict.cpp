@@ -1674,6 +1674,17 @@ void Dbdict::readSchemaConf(Signal* signal,
     return;
   }
 
+  if (sf0->NdbVersion < NDB_MAKE_VERSION(6,4,0) && 
+      ! convertSchemaFileTo_6_4(xsf)) 
+  {
+    jam();
+    ndbrequire(! crashInd);
+    ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
+    readSchemaRef(signal, fsPtr);
+    return;
+  }
+
+
   for (Uint32 n = 0; n < xsf->noOfPages; n++) {
     SchemaFile * sf = &xsf->schemaPage[n];
     bool ok = false;
@@ -1811,6 +1822,48 @@ Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
   xsf->noOfPages = noOfPages;
   initSchemaFile(xsf, 0, xsf->noOfPages, false);
 
+  return true;
+}
+
+bool
+Dbdict::convertSchemaFileTo_6_4(XSchemaFile * xsf)
+{
+  for (Uint32 i = 0; i < xsf->noOfPages; i++)
+  {
+    for (Uint32 j = 0; j < NDB_SF_PAGE_ENTRIES; j++)
+    {
+      Uint32 n = i * NDB_SF_PAGE_ENTRIES + j;
+      SchemaFile::TableEntry * transEntry = getTableEntry(xsf, n);
+      
+      switch(SchemaFile::Old::TableState(transEntry->m_tableState)) {
+      case SchemaFile::Old::INIT:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::ADD_STARTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::TABLE_ADD_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      case SchemaFile::Old::DROP_TABLE_STARTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::DROP_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::ALTER_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      case SchemaFile::Old::TEMPORARY_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      default:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      }
+    }
+    computeChecksum(xsf, i);
+  }
   return true;
 }
 
@@ -3323,6 +3376,13 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     ndbrequire(ok);
   }
     
+  if (sf0->NdbVersion < NDB_MAKE_VERSION(6,4,0))
+  {
+    jam();
+    bool ok = convertSchemaFileTo_6_4(xsf);
+    ndbrequire(ok);
+  }
+
   validateChecksum(xsf);
 
   XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
@@ -3520,7 +3580,7 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 #ifdef PRINT_SCHEMA_RESTART
     printf("checkSchemaStatus: pass: %d table: %d",
            c_restartRecord.m_pass, tableId);
-    ndbout << "old: " << *ownEntry << " new: " << *masterEntry;
+    ndbout << "old: " << *ownEntry << " new: " << *masterEntry << endl;
 #endif
 
     if (c_restartRecord.m_pass <= CREATE_OLD_PASS)
@@ -3932,6 +3992,11 @@ Dbdict::restartCreateObj(Signal* signal,
 			 bool file){
   jam();
   
+
+#ifdef PRINT_SCHEMA_RESTART
+  ndbout_c("restartCreateObj table: %u file: %u", tableId, Uint32(file));
+#endif
+
   c_restartRecord.m_entry = *new_entry;
   if(file)
   {
