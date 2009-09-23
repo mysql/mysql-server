@@ -153,7 +153,7 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
   buf[db.length]= '.';
   memcpy(buf + db.length + 1, name.str, name.length);
   buf[db.length + name.length + 1]= 0;
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_ADMIN_WRONG_MRG_TABLE, ER(ER_ADMIN_WRONG_MRG_TABLE),
                       buf);
 }

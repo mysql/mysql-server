@@ -1083,6 +1083,7 @@ sp_head::execute(THD *thd)
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
 
   Object_creation_ctx *saved_creation_ctx;
+  Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
 
   /* Use some extra margin for possible SP recursion and functions */
   if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
@@ -1130,6 +1131,11 @@ sp_head::execute(THD *thd)
     ctx->clear_handler();
   thd->is_slave_error= 0;
   old_arena= thd->stmt_arena;
+
+  /* Push a new warning information area. */
+  warning_info.append_warning_info(thd, thd->warning_info);
+  saved_warning_info= thd->warning_info;
+  thd->warning_info= &warning_info;
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1278,29 +1284,33 @@ sp_head::execute(THD *thd)
     */
     if (ctx)
     {
-      uint hf;
+      uint handler_index;
 
-      switch (ctx->found_handler(&hip, &hf)) {
+      switch (ctx->found_handler(& hip, & handler_index)) {
       case SP_HANDLER_NONE:
 	break;
       case SP_HANDLER_CONTINUE:
         thd->restore_active_arena(&execute_arena, &backup_arena);
         thd->set_n_backup_active_arena(&execute_arena, &backup_arena);
         ctx->push_hstack(i->get_cont_dest());
-        // Fall through
+        /* Fall through */
       default:
+        if (ctx->end_partial_result_set)
+          thd->protocol->end_partial_result_set(thd);
 	ip= hip;
 	err_status= FALSE;
 	ctx->clear_handler();
-	ctx->enter_handler(hip);
+	ctx->enter_handler(hip, handler_index);
         thd->clear_error();
         thd->is_fatal_error= 0;
 	thd->killed= THD::NOT_KILLED;
         thd->mysys_var->abort= 0;
 	continue;
       }
+
+      ctx->end_partial_result_set= FALSE;
     }
-  } while (!err_status && !thd->killed);
+  } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.finish_current_query();
@@ -1333,6 +1343,10 @@ sp_head::execute(THD *thd)
 
   thd->stmt_arena= old_arena;
   state= EXECUTED;
+
+  /* Restore the caller's original warning information area. */
+  saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
+  thd->warning_info= saved_warning_info;
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -2523,7 +2537,8 @@ void sp_head::optimize()
     else
     {
       if (src != dst)
-      {                         // Move the instruction and update prev. jumps
+      {
+        /* Move the instruction and update prev. jumps */
 	sp_instr *ibp;
 	List_iterator_fast<sp_instr> li(bp);
 
@@ -2848,7 +2863,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-      if (thd->main_da.is_eof())
+      if (thd->stmt_da->is_eof())
         net_end_statement(thd);
 
       query_cache_end_of_result(thd);
@@ -2862,7 +2877,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
-      thd->main_da.reset_diagnostics_area();
+      thd->stmt_da->reset_diagnostics_area();
   }
   DBUG_RETURN(res || thd->is_error());
 }
@@ -3238,7 +3253,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   sp_cond_type_t *p;
 
   while ((p= li++))
-    thd->spcont->push_handler(p, m_ip+1, m_type, m_frame);
+    thd->spcont->push_handler(p, m_ip+1, m_type);
 
   *nextp= m_dest;
   DBUG_RETURN(0);
