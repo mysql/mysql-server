@@ -14,7 +14,7 @@ partition x3 values less than (20) nodegroup 14);
 ERROR HY000: Can't create table 'test.t1' (errno: 140)
 show warnings;
 Level	Code	Message
-Error	1296	Got error 771 'Given NODEGROUP doesn't exist in this cluster' from NDB
+Warning	1296	Got error 771 'Given NODEGROUP doesn't exist in this cluster' from NDB
 Error	1005	Can't create table 'test.t1' (errno: 140)
 CREATE TABLE t1 (
 a int not null,

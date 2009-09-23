@@ -1631,27 +1631,27 @@ select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8 character string: 'FF8F'
 select char(195 using utf8);
 char(195 using utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'C3'
+Warning	1300	Invalid utf8 character string: 'C3'
 select char(196 using utf8);
 char(196 using utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'C4'
+Warning	1300	Invalid utf8 character string: 'C4'
 select char(2557 using utf8);
 char(2557 using utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FD'
+Warning	1300	Invalid utf8 character string: 'FD'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8 character string: 'FF8F'
 select hex(convert(char(2557 using latin1) using utf8));
 hex(convert(char(2557 using latin1) using utf8))
 09C3BD
@@ -1815,12 +1815,12 @@ select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8 character string: 'FF'
 select hex(convert(0xFF using utf8));
 hex(convert(0xFF using utf8))
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8 character string: 'FF'
 select hex(_utf8 0x616263FF);
 ERROR HY000: Invalid utf8 character string: 'FF'
 select hex(_utf8 X'616263FF');

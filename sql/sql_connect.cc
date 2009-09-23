@@ -1001,7 +1001,7 @@ static void end_connection(THD *thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
-                        (thd->main_da.is_error() ? thd->main_da.message() :
+                        (thd->stmt_da->is_error() ? thd->stmt_da->message() :
                          ER(ER_UNKNOWN_ERROR)));
     }
   }
@@ -1046,7 +1046,7 @@ static void prepare_new_connection_state(THD* thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->main_da.message());
+      sql_print_warning("%s", thd->stmt_da->message());
     }
     thd->proc_info=0;
     thd->set_time();
