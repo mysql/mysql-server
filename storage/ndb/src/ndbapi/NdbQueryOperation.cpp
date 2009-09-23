@@ -295,8 +295,9 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
   if (unlikely(error != 0))
     return error;
 
-  //TODO: No need to serialize for root (i==0) as root key is part of keyInfo above
-  for (Uint32 i=0; i<getNoOfOperations(); ++i)
+  // Serialize parameter values for the other (non-root) operations
+  // (No need to serialize for root (i==0) as root key is part of keyInfo above)
+  for (Uint32 i=1; i<getNoOfOperations(); ++i)
   {
     if (getQueryDef().getQueryOperation(i).getNoOfParameters() > 0)
     {
@@ -476,6 +477,11 @@ NdbQueryImpl::prepareSend()
       setErrorCodeAbort(error);
       return -1;
     }
+  }
+
+  if (unlikely(m_attrInfo.isMemoryExhausted() || m_keyInfo.isMemoryExhausted())) {
+    setErrorCodeAbort(Err_MemoryAlloc);
+    return -1;
   }
 
   if (unlikely(m_attrInfo.getSize() > ScanTabReq::MaxTotalAttrInfo  ||
@@ -1305,9 +1311,6 @@ NdbQueryOperationImpl::UserProjection::serialize(Uint32Buffer& buffer,
   // Size of projection in words.
   size_t length = buffer.getSize() - startPos - 1 ;
   buffer.put(startPos, length);
-  if(unlikely(buffer.isMaxSizeExceeded())){
-    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
-  }
   return 0;
 }
 
@@ -1423,8 +1426,8 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
     m_params.append(len);          // paramValue length in #bytes
     m_params.append(paramValue,len);
 
-    if(unlikely(m_params.isMaxSizeExceeded())){
-      return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+    if(unlikely(m_params.isMemoryExhausted())){
+      return Err_MemoryAlloc;
     }
   }
   return 0;
@@ -1507,7 +1510,7 @@ NdbQueryOperationImpl::prepareReceiver()
 }//NdbQueryOperationImpl::prepareReceiver
 
 int 
-NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& serializedParams)
+NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 {
   // ::prepareReceiver() need to complete first:
   assert (m_resultStreams != NULL);
@@ -1522,84 +1525,96 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& serializedParams)
    */
   if (def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess)
   {
-    size_t startPos = serializedParams.getSize();
-    QN_LookupParameters* indexLookupParam = reinterpret_cast<QN_LookupParameters*>
-      (serializedParams.alloc(QN_LookupParameters::NodeSize));
-    indexLookupParam->len = 0;  // Temp value, fixup later
-    indexLookupParam->requestInfo = 0;
-    indexLookupParam->resultData = getIdOfReceiver();
+    // Reserve memory for LookupParameters, fill in contents later when
+    // 'length' and 'requestInfo' has been calculated.
+    size_t startPos = attrInfo.getSize();
+    attrInfo.alloc(QN_LookupParameters::NodeSize);
+    Uint32 requestInfo = 0;
 
-    if (m_params.getSize() > 0)   // def.getNoOfParameters() > 0)
+    if (m_params.getSize() > 0)
     {
       // parameter values has been serialized as part of NdbTransaction::createQuery()
       // Only need to append it to rest of the serialized arguments
-      indexLookupParam->requestInfo |= DABits::PI_KEY_PARAMS;
-      assert(m_params.getSize() > 0);
-      serializedParams.append(m_params);    
+      requestInfo |= DABits::PI_KEY_PARAMS;
+      attrInfo.append(m_params);    
     }
 
-    size_t length = serializedParams.getSize() - startPos;
-    QueryNodeParameters::setOpLen(indexLookupParam->len,
-				def.isScanOperation()
-                                  ?QueryNodeParameters::QN_SCAN_FRAG
-                                  :QueryNodeParameters::QN_LOOKUP,
-				length);
+    QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos));
+    if (unlikely(param==NULL))
+       return Err_MemoryAlloc;
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    size_t length = attrInfo.getSize() - startPos;
+    if (unlikely(length > 0xFFFF)) {
+      return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
+    } else {
+      QueryNodeParameters::setOpLen(param->len,
+                                    def.isScanOperation()
+                                      ?QueryNodeParameters::QN_SCAN_FRAG
+                                      :QueryNodeParameters::QN_LOOKUP,
+				    length);
+    }
 #ifdef __TRACE_SERIALIZATION
     ndbout << "Serialized params for index node " 
            << m_operationDef.getQueryOperationId()-1 << " : ";
-    for(Uint32 i = startPos; i < serializedParams.getSize(); i++){
+    for(Uint32 i = startPos; i < attrInfo.getSize(); i++){
       char buf[12];
-      sprintf(buf, "%.8x", serializedParams.get(i));
+      sprintf(buf, "%.8x", attrInfo.get(i));
       ndbout << buf << " ";
     }
     ndbout << endl;
 #endif
   } // if (UniqueIndexAccess ...
 
-  size_t startPos = serializedParams.getSize();
-  QN_LookupParameters* const param = reinterpret_cast<QN_LookupParameters*>
-    (serializedParams.alloc(QN_LookupParameters::NodeSize));
-  param->len = 0;  // Temp value, fixup later
-  param->requestInfo = 0;
-  param->resultData = getIdOfReceiver();
+  // Reserve memory for LookupParameters, fill in contents later when
+  // 'length' and 'requestInfo' has been calculated.
+  size_t startPos = attrInfo.getSize();
+  attrInfo.alloc(QN_LookupParameters::NodeSize);
+  Uint32 requestInfo = 0;
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
-  if (def.getNoOfParameters() > 0  && 
+  if (m_params.getSize() > 0 &&
       def.getType() == NdbQueryOperationDefImpl::PrimaryKeyAccess)
   {
     // parameter values has been serialized as part of NdbTransaction::createQuery()
     // Only need to append it to rest of the serialized arguments
-    param->requestInfo |= DABits::PI_KEY_PARAMS;
-    assert(m_params.getSize() > 0);
-    serializedParams.append(m_params);    
+    requestInfo |= DABits::PI_KEY_PARAMS;
+    attrInfo.append(m_params);    
   }
 
-  param->requestInfo |= DABits::PI_ATTR_LIST;
+  requestInfo |= DABits::PI_ATTR_LIST;
   const int error = 
-    m_userProjection.serialize(serializedParams,
+    m_userProjection.serialize(attrInfo,
                                m_resultStyle,
                                getRoot().getQueryDef().isScanQuery());
-  if (unlikely(error!=0)) {
+  if (unlikely(error)) {
     return error;
   }
 
-  size_t length = serializedParams.getSize() - startPos;
-  QueryNodeParameters::setOpLen(param->len,
-                                def.isScanOperation()
-                                  ?QueryNodeParameters::QN_SCAN_FRAG
-                                  :QueryNodeParameters::QN_LOOKUP,
-                                length);
+  QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
+  if (unlikely(param==NULL))
+     return Err_MemoryAlloc;
 
-  if(unlikely(serializedParams.isMaxSizeExceeded())) {
-    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+  param->requestInfo = requestInfo;
+  param->resultData = getIdOfReceiver();
+  size_t length = attrInfo.getSize() - startPos;
+  if (unlikely(length > 0xFFFF)) {
+    return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
+  } else {
+    QueryNodeParameters::setOpLen(param->len,
+                                  def.isScanOperation()
+                                    ?QueryNodeParameters::QN_SCAN_FRAG
+                                    :QueryNodeParameters::QN_LOOKUP,
+                                  length);
   }
 
 #ifdef __TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
          << m_operationDef.getQueryOperationId() << " : ";
-  for(Uint32 i = startPos; i < serializedParams.getSize(); i++){
+  for(Uint32 i = startPos; i < attrInfo.getSize(); i++){
     char buf[12];
-    sprintf(buf, "%.8x", serializedParams.get(i));
+    sprintf(buf, "%.8x", attrInfo.get(i));
     ndbout << buf << " ";
   }
   ndbout << endl;

@@ -36,8 +36,6 @@
 #define QRY_RESULT_ROW_ALREADY_DEFINED 4812
 
 #ifdef __cplusplus
-#include "signaldata/TcKeyReq.hpp"
-#include "signaldata/ScanTab.hpp"
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
 
@@ -55,37 +53,75 @@ class NdbLinkedOperandImpl;
 // For debuggging.
 #define TRACE_SERIALIZATION
 
-/** A buffer for holding serialized data.*/
+/** A buffer for holding serialized data.
+ *
+ *  Data is normaly appended to the end of this buffer by several variants
+ *  of ::append(). A chunk of memory may also be allocated (at end of buffer)
+ *  with ::alloc(). The buffer has a small local storage likely to be sufficent
+ *  for most buffer usage. If required it will allocate a buffer extension to
+ *  satisfy larger buffer requests.
+ *
+ * NOTE: When buffer grows, it contents may be relocated ta another memory area.
+ *       Pointers returned to ::alloc'ed objects or ::addr() request are therefore
+ *       not valid after another ::append() or ::alloc() has been performed.
+ *       If pointer persistency is required, use ::getSize() to store the current
+ *       end of buffer before the persistent object is allocated or appended.
+ *       You may then later use 'size' as a handle to ::addr() to get the address.
+ *
+ * NOTE: If memory allocation fails during append / alloc, a 'memoryExhausted' state
+ *       is set. Further allocation or append will then fail or be ignored. Before
+ *       using the contents in the Uint32Buffer, always check ::isMemoryExhausted()
+ *       to validate the contents of your buffer.
+ */
 class Uint32Buffer{
 public:
-  STATIC_CONST(maxSize = MAX(TcKeyReq::MaxTotalAttrInfo, 
-                             ScanTabReq::MaxTotalAttrInfo));
+  STATIC_CONST(initSize = 256); // Initial buffer size, extend on demand but probably sufficent
+
   explicit Uint32Buffer():
+    m_extension(NULL),
+    m_array(m_local),
+    m_avail(initSize),
     m_size(0),
-    m_maxSizeExceeded(false){
+    m_memoryExhausted(false)
+  {}
+
+  ~Uint32Buffer() {
+    delete[] m_extension;
   }
-  
+
   /**
    * Allocate a buffer extension at end of this buffer.
-   * NOTE: Return memory even if allocation failed ->
-   *       Always check ::isMaxSizeExceeded() before buffer
-   *       content is used
+   * NOTE: Return NULL if allocation fails and set 
+   *       isMemoryExhausted. This will also cause further
+   *       alloc() / append() to be skipped.
    */   
   Uint32* alloc(size_t count) {
-    if(unlikely(m_size+count >= maxSize)) {
-      //ndbout << "Uint32Buffer::get() Attempt to access " << newMax 
-      //       << "th element.";
-      m_maxSizeExceeded = true;
-      assert(count <= maxSize);
-      return &m_array[0];
+    size_t reqSize = m_size+count;
+    if(unlikely(reqSize >= m_avail)) {
+      if (unlikely(m_memoryExhausted)) {
+        return NULL;
+      }
+//    ndbout << "Uint32Buffer::alloc() Extend buffer from: " << m_avail
+//           << ", to: " << newSize << endl;
+      Uint32* newBuf = new Uint32[reqSize*2];
+      if (likely(newBuf)) {
+        assert(newBuf);
+        memcpy (newBuf, m_array, m_size*sizeof(Uint32));
+        delete[] m_extension;
+        m_array = m_extension = newBuf;
+        m_avail = reqSize*2;
+      } else {
+        m_size = m_avail;
+        m_memoryExhausted = true;
+        return NULL;
+      }
     }
     Uint32* extend = &m_array[m_size];
     m_size += count;
     return extend;
   }
 
-  /** Put the idx'th element. Make sure there is space for 'count' elements.
-   *  Prefer usage of append() when putting at end of the buffer.
+  /** Put the idx'th element already allocated.
    */
   void put(Uint32 idx, Uint32 value) {
     assert(idx < m_size);
@@ -95,18 +131,25 @@ public:
   /** append 'src' word to end of this buffer
    */
   void append(const Uint32 src) {
-    if (likely(m_size < maxSize))
+    if (likely(m_size < m_avail)) {
       m_array[m_size++] = src;
-    else
-      m_maxSizeExceeded = true;
+    } else {
+      Uint32* dst = alloc(1);
+      if (likely(dst!=NULL))
+        *dst = src;
+    }
   }
 
   /** append 'src' buffer to end of this buffer
    */
   void append(const Uint32Buffer& src) {
+    assert (!src.isMemoryExhausted());
     size_t len = src.getSize();
-    if (len > 0) {
-      memcpy(alloc(len), src.addr(), len*sizeof(Uint32));
+    if (likely(len > 0)) {
+      Uint32* dst = alloc(len);
+      if (likely(dst!=NULL)) {
+        memcpy(dst, src.addr(), len*sizeof(Uint32));
+      }
     }
   }
 
@@ -114,30 +157,34 @@ public:
    *  Zero pad possibly odd bytes in last Uint32 word
    */
   void append(const void* src, size_t len) {
-    if (len > 0) {
+    if (likely(len > 0)) {
       size_t wordCount = (len + sizeof(Uint32)-1) / sizeof(Uint32);
       Uint32* dst = alloc(wordCount);
-      // Make sure that any trailing bytes in the last word are zero.
-      dst[wordCount-1] = 0;
-      // Copy src 
-      memcpy(dst, src, len);
+      if (likely(dst!=NULL)) {
+        // Make sure that any trailing bytes in the last word are zero.
+        dst[wordCount-1] = 0;
+        // Copy src 
+        memcpy(dst, src, len);
+      }
     }
   }
 
-  const Uint32* addr() const {
-    return (m_size>0) ?m_array :NULL;
+  Uint32* addr(Uint32 idx=0) {
+    return (likely(!m_memoryExhausted && m_size>idx)) ?&m_array[idx] :NULL;
+  }
+  const Uint32* addr(Uint32 idx=0) const {
+    return (likely(!m_memoryExhausted && m_size>idx)) ?&m_array[idx] :NULL;
   }
 
   /** Get the idx'th element. Make sure there is space for 'count' elements.*/
   Uint32 get(Uint32 idx) const {
     assert(idx < m_size);
-    assert(!m_maxSizeExceeded);
     return m_array[idx];
   }
 
-  /** Check for out-of-bounds access.*/
-  bool isMaxSizeExceeded() const {
-    return m_maxSizeExceeded;
+  /** Check for possible memory alloc failure during build. */
+  bool isMemoryExhausted() const {
+    return m_memoryExhausted;
   }
 
   size_t getSize() const {
@@ -152,9 +199,13 @@ private:
 private:
   /* TODO: replace array with something that can grow and allocate from a 
    * pool as needed..*/
-  Uint32 m_array[maxSize];
-  Uint32 m_size;
-  bool m_maxSizeExceeded;
+  Uint32  m_local[initSize];
+  Uint32* m_extension;
+
+  Uint32* m_array;  // Refers m_local,  or m_extension if large buffer
+  Uint32  m_avail;
+  Uint32  m_size;  // <= m_avail
+  bool m_memoryExhausted;
 };
 
 
