@@ -1107,13 +1107,13 @@ void kill_mysql(void)
 
 #if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
+#define RETURN_FROM_KILL_SERVER return 0
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #endif
 {
   DBUG_ENTER("kill_server");
@@ -1121,7 +1121,10 @@ static void __cdecl kill_server(int sig_ptr)
   int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
+  {
+    DBUG_LEAVE;
     RETURN_FROM_KILL_SERVER;
+  }
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
   if (sig != 0) // 0 is not a valid signal number
@@ -1156,12 +1159,19 @@ static void __cdecl kill_server(int sig_ptr)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
   /* purecov: end */
 
-#endif /* EMBEDDED_LIBRARY */
+  RETURN_FROM_KILL_SERVER;                      // Avoid compiler warnings
+
+#else /* EMBEDDED_LIBRARY*/
+
+  DBUG_LEAVE;
   RETURN_FROM_KILL_SERVER;
+
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1935,8 +1945,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Impossible
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -2756,7 +2767,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
+      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);				// Safety
+      return 0;                                 // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
