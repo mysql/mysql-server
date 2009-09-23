@@ -492,11 +492,7 @@ SELECT * FROM t1;
 # The MySQL and InnoDB data dictionaries should now be out of sync.
 # The select should print message to the error log
 SELECT * FROM t1;
-# MySQL have made a change (http://lists.mysql.com/commits/75268) that no
-# longer results in the two data dictionaries being out of sync. If they
-# revert their changes then this check for ER_AUTOINC_READ_FAILED will need
-# to be enabled.
-# -- error ER_AUTOINC_READ_FAILED,1467
+-- error ER_AUTOINC_READ_FAILED,1467
 INSERT INTO t1 VALUES(null);
 ALTER TABLE t1 AUTO_INCREMENT = 3;
 INSERT INTO t1 VALUES(null);
