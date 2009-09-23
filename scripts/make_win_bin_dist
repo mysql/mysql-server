@@ -278,6 +278,7 @@ cp include/mysql/plugin.h $DESTDIR/include/mysql/
 
 mkdir -p $DESTDIR/lib/opt
 mkdir -p $DESTDIR/lib/plugin
+cp sql/$TARGET/mysqld.lib $DESTDIR/lib/
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
    libmysql/$TARGET/mysqlclient.lib \
