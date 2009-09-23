@@ -2136,15 +2136,14 @@ static void init_signals(void)
   win_install_sigabrt_handler();
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
-  else
-  {
+
     /* Avoid MessageBox()es*/
-   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 
    /*
      Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
@@ -2153,8 +2152,8 @@ static void init_signals(void)
      exception filter is not guaranteed to work in all situation
      (like heap corruption or stack overflow)
    */
-   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
-  }
+  SetErrorMode(SetErrorMode(0) | SEM_FAILCRITICALERRORS
+                               | SEM_NOOPENFILEERRORBOX);
   SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
@@ -4867,10 +4866,10 @@ static bool read_init_file(char *file_name)
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
-    return(1);
+    DBUG_RETURN(TRUE);
   bootstrap(file);
   (void) my_fclose(file,MYF(MY_WME));
-  return 0;
+  DBUG_RETURN(FALSE);
 }
 
 

@@ -5,8 +5,9 @@
 -- source include/have_cp932.inc
 -- source include/have_log_bin.inc
 
+RESET MASTER;
+
 # Bug#16217 (mysql client did not know how not switch its internal charset)
-flush logs;
 create table t3 (f text character set utf8);
 create table t4 (f text character set cp932); 
 --exec $MYSQL --default-character-set=utf8 test -e "insert into t3 values(_utf8'ソ')"
@@ -14,7 +15,7 @@ create table t4 (f text character set cp932);
 flush logs;
 rename table t3 to t03, t4 to t04;
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000002 | $MYSQL --default-character-set=utf8
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 | $MYSQL --default-character-set=utf8
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;
