@@ -4035,6 +4035,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
+    releaseSections(handle);
     noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
     return;
   }
