@@ -3540,6 +3540,7 @@ private:
   void closeReadSchemaConf(Signal* signal,
                            FsConnectRecordPtr fsPtr);
   bool convertSchemaFileTo_5_0_6(XSchemaFile*);
+  bool convertSchemaFileTo_6_4(XSchemaFile*);
 
   /* ------------------------------------------------------------ */
   // Get table definitions
