@@ -55,7 +55,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             Bitmask.cpp
 	    ndbinfo.c
 )
-TARGET_LINK_LIBRARIES(ndbgeneral zlib)
+TARGET_LINK_LIBRARIES(ndbgeneral zlib mysys ws2_32)
 
 ADD_EXECUTABLE(BaseString-t BaseString.cpp)
 SET_TARGET_PROPERTIES(BaseString-t
