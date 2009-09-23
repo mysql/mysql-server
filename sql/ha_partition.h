@@ -773,10 +773,10 @@ public:
     if (m_handler_status < handler_initialized ||
         m_handler_status >= handler_closed)
       DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
-    else
-      DBUG_RETURN((m_file[0]->ha_table_flags() &
-                   ~(PARTITION_DISABLED_TABLE_FLAGS)) |
-                  (PARTITION_ENABLED_TABLE_FLAGS));
+
+    DBUG_RETURN((m_file[0]->ha_table_flags() &
+                 ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+                (PARTITION_ENABLED_TABLE_FLAGS));
   }
 
   /*

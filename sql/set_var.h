@@ -621,6 +621,7 @@ public:
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+#ifndef DBUG_OFF
 class sys_var_thd_dbug :public sys_var_thd
 {
 public:
@@ -634,7 +635,7 @@ public:
   void set_default(THD *thd, enum_var_type type) { DBUG_POP(); }
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *b);
 };
-
+#endif /* DBUG_OFF */
 
 
 /* some variables that require special handling */
