@@ -22,16 +22,39 @@
 #include "mysys_priv.h"
 #include <myisampack.h>
 
+#ifdef UNIV_SOLARIS
+/*
+ * On Solaris, memcmp() is normally faster than the unrolled ptr_compare_N
+ * functions, as memcmp() is usually a platform-specific implementation
+ * written in assembler, provided in /usr/lib/libc/libc_hwcap*.so.1.
+ * This implementation is also usually faster than the built-in memcmp
+ * supplied by GCC, so it is recommended to build with "-fno-builtin-memcmp"
+ * in CFLAGS if building with GCC on Solaris.
+ */
+
+#include <string.h>
+
+static int native_compare(size_t *length, unsigned char **a, unsigned char **b)
+{
+  return memcmp(*a, *b, *length);
+}
+
+#else	/* UNIV_SOLARIS */
+
 static int ptr_compare(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_0(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_1(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_2(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_3(size_t *compare_length, uchar **a, uchar **b);
+#endif	/* UNIV_SOLARIS */
 
 	/* Get a pointer to a optimal byte-compare function for a given size */
 
 qsort2_cmp get_ptr_compare (size_t size)
 {
+#ifdef UNIV_SOLARIS
+  return (qsort2_cmp) native_compare;
+#else
   if (size < 4)
     return (qsort2_cmp) ptr_compare;
   switch (size & 3) {
@@ -41,6 +64,7 @@ qsort2_cmp get_ptr_compare (size_t size)
     case 3: return (qsort2_cmp) ptr_compare_3;
     }
   return 0;					/* Impossible */
+#endif /* UNIV_SOLARIS */
 }
 
 
