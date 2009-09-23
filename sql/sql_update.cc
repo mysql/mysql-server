@@ -725,7 +725,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->row_count++;
+    thd->warning_info->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -831,8 +831,9 @@ int mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
-	    (ulong) thd->cuted_fields);
+    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
+                (ulong) updated,
+	        (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     my_ok(thd, (ulong) thd->row_count_func, id, buff);

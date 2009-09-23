@@ -44,9 +44,12 @@ public:
 
   virtual ~Prelock_error_handler() {}
 
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
 
   bool safely_trapped_errors();
 
@@ -57,11 +60,14 @@ private:
 
 
 bool
-Prelock_error_handler::handle_error(uint sql_errno,
-                                    const char * /* message */,
-                                    MYSQL_ERROR::enum_warning_level /* level */,
-                                    THD * /* thd */)
+Prelock_error_handler::handle_condition(THD *,
+                                        uint sql_errno,
+                                        const char*,
+                                        MYSQL_ERROR::enum_warning_level,
+                                        const char*,
+                                        MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE)
   {
     m_handled_errors++;
@@ -473,7 +479,7 @@ static TABLE_SHARE
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
 
     DBUG_RETURN(share);
 
@@ -520,7 +526,7 @@ static TABLE_SHARE
     DBUG_RETURN(0);
   }
   /* Table existed in engine. Let's open it */
-  mysql_reset_errors(thd, 1);                   // Clear warnings
+  thd->warning_info->clear_warning_info(thd->query_id);
   thd->clear_error();                           // Clear error message
   DBUG_RETURN(get_table_share(thd, table_list, key, key_length,
                               db_flags, error));
@@ -1281,9 +1287,9 @@ void close_thread_tables(THD *thd)
    */
   if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
-    thd->main_da.can_overwrite_status= TRUE;
+    thd->stmt_da->can_overwrite_status= TRUE;
     ha_autocommit_or_rollback(thd, thd->is_error());
-    thd->main_da.can_overwrite_status= FALSE;
+    thd->stmt_da->can_overwrite_status= FALSE;
 
     /*
       Reset transaction state, but only if we're not inside a
@@ -3946,7 +3952,7 @@ retry:
       release_table_share(share, RELEASE_WAIT_FOR_DROP);
       if (!thd->killed)
       {
-        mysql_reset_errors(thd, 1);         // Clear warnings
+        thd->warning_info->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         goto retry;
       }
