@@ -67,3 +67,7 @@ SET_TARGET_PROPERTIES(Bitmask-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_BITMASK")
 TARGET_LINK_LIBRARIES(Bitmask-t ndbgeneral)
 
+ADD_EXECUTABLE(Parser-t Parser.cpp)
+SET_TARGET_PROPERTIES(Parser-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_PARSER")
+TARGET_LINK_LIBRARIES(Parser-t ndbgeneral)

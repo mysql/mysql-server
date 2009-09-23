@@ -122,11 +122,12 @@ trim(char * str){
 static
 bool
 split(char * buf, char ** name, char ** value){
-  
-  * value = strchr(buf, ':');
-  if(* value == 0)
-    * value = strchr(buf, '=');
 
+  for (*value=buf; **value; (*value)++) {
+    if (**value == ':' || **value == '=') {
+      break;
+    }
+  }
 
   if(* value == 0){
     return false;
@@ -357,3 +358,20 @@ ParserImpl::checkMandatory(Context* ctx, const Properties* props){
 }
 
 template class Vector<const ParserRow<ParserImpl::Dummy>*>;
+
+#ifdef TEST_PARSER
+#include <NdbTap.hpp>
+
+TAPTEST(Parser)
+{
+  char *str, *name, *value;
+
+  //split modifies arg so dup
+  str = strdup("x=c:\\windows");
+  OK(split(str, &name, &value));
+  OK(!strcmp(name, "x"));
+  OK(!strcmp(value, "c:\\windows"));
+
+  return 1;
+}
+#endif
