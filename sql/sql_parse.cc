@@ -409,29 +409,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-/**
-  Execute commands from bootstrap_file.
-
-  Used when creating the initial grant tables.
-*/
-
-pthread_handler_t handle_bootstrap(void *arg)
+static void handle_bootstrap_impl(THD *thd)
 {
-  THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
   const char* found_semicolon= NULL;
 
-  /* The following must be called before DBUG_ENTER */
-  thd->thread_stack= (char*) &thd;
-  if (my_thread_init() || thd->store_globals())
-  {
-#ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-#endif
-    thd->fatal_error();
-    goto end;
-  }
   DBUG_ENTER("handle_bootstrap");
 
 #ifndef EMBEDDED_LIBRARY
@@ -458,7 +441,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    char *query;
+    char *query, *res;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -475,7 +458,7 @@ pthread_handler_t handle_bootstrap(void *arg)
         break;
       }
       buff= (char*) thd->net.buff;
-      fgets(buff + length, thd->net.max_packet - length, file);
+      res= fgets(buff + length, thd->net.max_packet - length, file);
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }
@@ -526,6 +509,33 @@ pthread_handler_t handle_bootstrap(void *arg)
 #endif
   }
 
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute commands from bootstrap_file.
+
+  Used when creating the initial grant tables.
+*/
+
+pthread_handler_t handle_bootstrap(void *arg)
+{
+  THD *thd=(THD*) arg;
+
+  /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
+  if (my_thread_init() || thd->store_globals())
+  {
+#ifndef EMBEDDED_LIBRARY
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
+    thd->fatal_error();
+    goto end;
+  }
+
+  handle_bootstrap_impl(thd);
+
 end:
   net_end(&thd->net);
   thd->cleanup();
@@ -540,7 +550,8 @@ end:
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 

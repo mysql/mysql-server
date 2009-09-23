@@ -1,0 +1,30 @@
+#
+# Bug #46791: Assertion failed:(table->key_read==0),function unknown
+#    function,file sql_base.cc
+#
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,1),(2,2);
+CREATE TABLE t3 LIKE t1;
+# should have 1 impossible where and 2 dependent subqueries
+EXPLAIN
+SELECT 1 FROM t1
+WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
+ORDER BY count(*);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using index; Using temporary
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+# should not crash the next statement
+SELECT 1 FROM t1
+WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
+ORDER BY count(*);
+1
+1
+# should not crash: the crash is caused by the previous statement
+SELECT 1;
+1
+1
+DROP TABLE t1,t2,t3;
+End of 5.0 tests.
