@@ -2799,9 +2799,11 @@ err:
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 /*
@@ -3157,10 +3159,11 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_cond_broadcast(&rli->stop_cond);
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
-  
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 
