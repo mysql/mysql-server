@@ -1819,7 +1819,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  time_t now= my_time(0);
+  ulonglong unow= my_micro_time();
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
@@ -1877,8 +1877,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time ?
-                                      now - tmp->start_time : 0), FALSE);
+      const ulonglong utime= tmp->start_utime ? unow - tmp->start_utime : 0;
+      table->field[5]->store(utime / 1000000, TRUE);
       /* STATE */
 #ifndef EMBEDDED_LIBRARY
       val= (char*) (tmp->locked ? "Locked" :
@@ -1911,6 +1911,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length), cs);
         table->field[7]->set_notnull();
       }
+
+      /* TIME_MS */
+      table->field[8]->store((double)(utime / 1000.0));
 
       if (schema_table_store_record(thd, table))
       {
@@ -5542,7 +5545,7 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
     into it two numbers, based on modulus of base-10 numbers.  In the ones
     position is the number of decimals.  Tens position is unused.  In the
     hundreds and thousands position is a two-digit decimal number representing
-    length.  Encode this value with  (decimals*100)+length  , where
+    length.  Encode this value with  (length*100)+decimals  , where
     0<decimals<10 and 0<=length<100 .
 
   @param
@@ -6557,6 +6560,8 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
   {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
    SKIP_OPEN_TABLE},
+  {"TIME_MS", 100 * (MY_INT64_NUM_DECIMAL_DIGITS + 1) + 3, MYSQL_TYPE_DECIMAL,
+   0, 0, "Time_ms", SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
