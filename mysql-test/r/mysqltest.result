@@ -314,20 +314,9 @@ here is the sourced script
 1 = outer loop variable before dec
 
 0 = outer loop variable after dec
-
-2 = outer loop variable after while
+outer=2 ifval=0
+outer=1 ifval=1
 here is the sourced script
-
-2 = outer loop variable before dec
-
-1 = outer loop variable after dec
-
-1 = outer loop variable after while
-here is the sourced script
-
-1 = outer loop variable before dec
-
-0 = outer loop variable after dec
 
 In loop
 here is the sourced script
@@ -538,6 +527,10 @@ mysqltest: At line 1: Missing required argument 'filename' to command 'write_fil
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
 Content for test_file1
 mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
+These lines should be repeated,
+if things work as expected
+These lines should be repeated,
+if things work as expected
 Some data
 for cat_file command
 of mysqltest

@@ -2243,7 +2243,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     KEY *key_info;
     PARAM param;
 
-    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE + sizeof(PARAM), buff))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
@@ -4838,11 +4838,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows best_records;
+  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_records); /* protected by key_to_read */
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -5826,6 +5825,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
+        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -5855,11 +5855,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
             but we'll need to convert '>' to '>=' and '<' to '<='. This will
             be done together with other types at the end of this function
-            (grep for field_is_equal_to_item)
+            (grep for stored_field_cmp_to_item)
           */
         }
         else
+        {
+          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
+        }
       }
     }
 
@@ -5930,7 +5933,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (field_is_equal_to_item(field,value))
+    if (stored_field_cmp_to_item(field,value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5944,11 +5947,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     break;
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
-    if (field_is_equal_to_item(field,value) &&
-        !(key_part->flag & HA_PART_KEY_SEG))
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(field, value) <= 0))
       tree->min_flag=NEAR_MIN;
-    /* fall through */
+    tree->max_flag= NO_MAX_RANGE;
+    break;
   case Item_func::GE_FUNC:
+    /* Don't use open ranges for partial key_segments */
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(field,value) < 0))
+      tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
@@ -6439,13 +6447,6 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     return 0;					// Can't optimize this
   }
 
-  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
-  {
-    key1->free_tree();
-    key2->free_tree();
-    return 0;					// Can't optimize this
-  }
-
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -6796,9 +6797,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par);
-  LINT_INIT(last_element);
+  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
 
   for (element= this; element != &null_element ; )
   {
@@ -9403,7 +9402,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         goto next_index;
     }
     else
+    {
       DBUG_ASSERT(FALSE);
+    }
 
     /* Check (SA2). */
     if (min_max_arg_item)
@@ -9637,7 +9638,17 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   */
   if (cond_type == Item::SUBSELECT_ITEM)
     DBUG_RETURN(FALSE);
-  
+
+  /*
+    Condition of the form 'field' is equivalent to 'field <> 0' and thus
+    satisfies the SA3 condition.
+  */
+  if (cond_type == Item::FIELD_ITEM)
+  {
+    DBUG_PRINT("info", ("Analyzing: %s", cond->full_name()));
+    DBUG_RETURN(TRUE);
+  }
+
   /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
 
@@ -9795,11 +9806,22 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       return FALSE;
 
     uint field_length= cur_part->store_length;
-    if ((cur_range->maybe_null &&
-         cur_range->min_value[0] && cur_range->max_value[0]) ||
-        !memcmp(cur_range->min_value, cur_range->max_value, field_length))
-    {
-      /* cur_range specifies 'IS NULL' or an equality condition. */
+    if (cur_range->maybe_null &&
+         cur_range->min_value[0] && cur_range->max_value[0])
+    { 
+      /*
+        cur_range specifies 'IS NULL'. In this case the argument points
+        to a "null value" (is_null_string) that may not always be long
+        enough for a direct memcpy to a field.
+      */
+      DBUG_ASSERT (field_length > 0);
+      *key_ptr= 1;
+      bzero(key_ptr+1,field_length-1);
+      key_ptr+= field_length;
+      *key_infix_len+= field_length;
+    }
+    else if (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0)
+    { /* cur_range specifies an equality condition. */
       memcpy(key_ptr, cur_range->min_value, field_length);
       key_ptr+= field_length;
       *key_infix_len+= field_length;

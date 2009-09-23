@@ -1,3 +1,4 @@
+call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
 select @@innodb_file_format;
 @@innodb_file_format
 Antelope
