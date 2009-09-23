@@ -1,3 +1,6 @@
+#ifndef SSLOPT_LONGOPTS_INCLUDED
+#define SSLOPT_LONGOPTS_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -43,3 +46,4 @@
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #endif /* HAVE_OPENSSL */
+#endif /* SSLOPT_LONGOPTS_INCLUDED */

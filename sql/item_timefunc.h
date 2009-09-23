@@ -1,3 +1,6 @@
+#ifndef ITEM_TIMEFUNC_INCLUDED
+#define ITEM_TIMEFUNC_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1026,3 +1029,5 @@ public:
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
 };
+
+#endif /* ITEM_TIMEFUNC_INCLUDED */

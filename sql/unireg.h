@@ -1,3 +1,6 @@
+#ifndef UNIREG_INCLUDED
+#define UNIREG_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -15,8 +18,6 @@
 
 
 /*  Extra functions used by unireg library */
-
-#ifndef _unireg_h
 
 #ifndef NO_ALARM_LOOP
 #define NO_ALARM_LOOP		/* lib5 and popen can't use alarm */

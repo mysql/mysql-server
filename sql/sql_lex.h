@@ -17,6 +17,9 @@
   @defgroup Semantic_Analysis Semantic Analysis
 */
 
+#ifndef SQL_LEX_INCLUDED
+#define SQL_LEX_INCLUDED
+
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
@@ -1979,3 +1982,4 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 int my_missing_function_error(const LEX_STRING &token, const char *name);
 
 #endif /* MYSQL_SERVER */
+#endif /* SQL_LEX_INCLUDED */

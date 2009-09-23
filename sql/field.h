@@ -1,3 +1,6 @@
+#ifndef FIELD_INCLUDED
+#define FIELD_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -2180,3 +2183,5 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
 #define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
 #define f_is_hex_escape(x)      ((x) & FIELDFLAG_HEX_ESCAPE)
+
+#endif /* FIELD_INCLUDED */
