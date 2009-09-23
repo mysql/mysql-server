@@ -522,8 +522,8 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   {
     DBUG_RETURN(0);
   }
-  else
-    DBUG_RETURN(rc);
+
+  DBUG_RETURN(rc);
 }
 
 
@@ -1575,10 +1575,8 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     share->crashed= FALSE;
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
-  else
-  {
-    DBUG_RETURN(HA_ADMIN_OK);
-  }
+
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 /*

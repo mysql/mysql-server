@@ -1195,7 +1195,7 @@ err:
     if (master_res)
       mysql_free_result(master_res);
     DBUG_ASSERT(err_code != 0);
-    mi->report(ERROR_LEVEL, err_code, err_buff);
+    mi->report(ERROR_LEVEL, err_code, "%s", err_buff);
     DBUG_RETURN(1);
   }
 
@@ -2386,7 +2386,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   if (io_slave_killed(thd, mi))
   {
     if (info && global_system_variables.log_warnings)
-      sql_print_information(info);
+      sql_print_information("%s", info);
     return TRUE;
   }
   return FALSE;
@@ -2456,13 +2456,13 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
     }
     else
     {
-      sql_print_information(buf);
+      sql_print_information("%s", buf);
     }
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
     if (global_system_variables.log_warnings)
-      sql_print_information(messages[SLAVE_RECON_MSG_KILLED_AFTER]);
+      sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
     return 1;
   }
   return 0;
@@ -2679,7 +2679,7 @@ slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
           mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
-                     ER(ER_NET_PACKET_TOO_LARGE));
+                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
           mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
@@ -2690,7 +2690,7 @@ max_allowed_packet",
           sql_print_error("\
 Stopping slave I/O thread due to out-of-memory error from master");
           mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
-                     ER(ER_OUT_OF_RESOURCES));
+                     "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
@@ -3050,7 +3050,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), errmsg);
+            rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), "%s", errmsg);
           }
           else if (last_errno != thd->main_da.sql_errno())
           {
