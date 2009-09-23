@@ -500,7 +500,6 @@ sub collect_one_suite($)
       # Exceptions
       next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
       next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
-      next if ($test->{'name'} eq 'main.innodb-autoinc'); # Need dfrnt result file
       # innodb_file_per_table is rw with innodb_plugin
       next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
       # innodb_lock_wait_timeout is rw with innodb_plugin
