@@ -3054,6 +3054,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 
   ulonglong org_options= thd->options;
 
+  /*
+    If we are setting AUTOCOMMIT=1 and it was not already 1, then we
+    need to commit any outstanding transactions.
+   */
+  if (var->save_result.ulong_value != 0 &&
+      (thd->options & OPTION_NOT_AUTOCOMMIT) &&
+      ha_commit(thd))
+    return 1;
+
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
   else
@@ -3067,8 +3076,6 @@ static bool set_option_autocommit(THD *thd, set_var *var)
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-      if (ha_commit(thd))
-	return 1;
     }
     else
     {
