@@ -613,12 +613,10 @@ fil_node_open_file(
 	ulint		size_high;
 	ibool		ret;
 	ibool		success;
-#ifndef UNIV_HOTBACKUP
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
@@ -654,9 +652,11 @@ fil_node_open_file(
 		size_bytes = (((ib_int64_t)size_high) << 32)
 			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
-		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-		/* TODO: adjust to zip_size, like below? */
-#else
+		if (space->id == 0) {
+			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			goto add_size;
+		}
+#endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(space->id != 0);
 
@@ -735,7 +735,10 @@ fil_node_open_file(
 				(size_bytes
 				 / dict_table_flags_to_zip_size(flags));
 		}
-#endif
+
+#ifdef UNIV_HOTBACKUP
+add_size:
+#endif /* UNIV_HOTBACKUP */
 		space->size += node->size;
 	}
 
