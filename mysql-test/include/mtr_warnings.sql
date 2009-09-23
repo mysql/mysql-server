@@ -162,7 +162,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
- ("Slave I.O: The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
+ ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
  (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */

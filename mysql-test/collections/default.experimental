@@ -1,19 +1,19 @@
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+
+binlog.binlog_tmp_table*                 # Bug#45578:2009-07-10 alik Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
 funcs_1.charset_collation_1              # depends on compile-time decisions
-binlog.binlog_tmp_table*                 # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
-
 innodb.innodb_information_schema         # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
-
-main.ctype_gbk_binlog                    # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
-main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
+main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
-
-rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
-rpl_ndb.rpl_ndb_log                      # Bug#38998
-rpl.rpl_innodb_bug28430* @solaris        # Bug#46029
+main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
+main.plugin*  @solaris                   # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.plugin_load  @solaris               # Bug#47146
 rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
-main.plugin*  @solaris                   # Bug#47146 Linking problem with example plugin when dtrace enabled
+rpl.rpl_innodb_bug28430* @solaris        # Bug#46029
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
+rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
+rpl_ndb.rpl_ndb_log                      # Bug#38998
 
 ndb.n*                                   # Consider all NDB tests experimental.
 rpl_ndb.r*                               # Consider all NDB tests experimental.
