@@ -137,7 +137,7 @@ enum {
   /* 5.1.16 added value of master_ssl_verify_server_cert */
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
   /* 6.0 added value of master_ignore_server_id */
-  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 16,
+  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
   /* Number of lines currently used when saving master info file */
   LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
 };
@@ -329,11 +329,22 @@ file '%s')", fname);
         Starting from 6.0 list of server_id of ignorable servers might be
         in the file
       */
-      if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS &&
-          init_dynarray_intvar_from_file(&mi->ignore_server_ids, &mi->file))
+      if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
       {
-        sql_print_error("Failed to initialize master info ignore_server_ids");
-        goto errwithmsg;
+        int blank;
+        /* 
+           Precaution for merging with telco-6.3, the two blank (asserted)
+           lines are skipped.
+        */
+        init_intvar_from_file(&blank, &mi->file, 0);
+        DBUG_ASSERT(blank == 0);
+        init_intvar_from_file(&blank, &mi->file, 0);
+        DBUG_ASSERT(blank == 0);
+        if (init_dynarray_intvar_from_file(&mi->ignore_server_ids, &mi->file))
+          {
+            sql_print_error("Failed to initialize master info ignore_server_ids");
+            goto errwithmsg;
+          }
       }
     }
 
@@ -456,7 +467,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
 
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n\n\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
