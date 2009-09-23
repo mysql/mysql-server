@@ -1344,14 +1344,10 @@ bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
-  longlong value;
-  const char *str;
-  size_t length;
+  longlong UNINIT_VAR(value);
+  const char *UNINIT_VAR(str);
+  size_t UNINIT_VAR(length);
   CHARSET_INFO *cs=str_value->charset();
-
-  LINT_INIT(value);
-  LINT_INIT(str);
-  LINT_INIT(length);
 
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)

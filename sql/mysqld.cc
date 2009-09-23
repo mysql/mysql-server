@@ -3719,6 +3719,7 @@ static void end_ssl()
 
 static int init_server_components()
 {
+  FILE* reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3761,7 +3762,7 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        freopen(log_error_file, "a+", stderr);
+        reopen= freopen(log_error_file, "a+", stderr);
         setbuf(stderr, NULL);
       }
     }

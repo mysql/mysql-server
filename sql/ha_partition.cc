@@ -1001,7 +1001,7 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return TRUE;
   }
 
