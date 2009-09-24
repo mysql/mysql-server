@@ -3113,7 +3113,7 @@ int key_cache_write(KEY_CACHE *keycache,
           /* Used in the server. */
           keycache->global_cache_write++;
           keycache_pthread_mutex_unlock(&keycache->cache_lock);
-          if (my_pwrite(file, (uchar*) buff, read_length, filepos + offset,
+          if (my_pwrite(file, (byte*) buff, read_length, filepos + offset,
                         MYF(MY_NABP | MY_WAIT_IF_FULL)))
             error=1;
           keycache_pthread_mutex_lock(&keycache->cache_lock);
