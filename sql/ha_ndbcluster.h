@@ -833,9 +833,9 @@ private:
 
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
-  uint m_blob_expected_count;
+  uint m_blob_expected_count_per_row;
   uchar *m_blob_destination_record;
-  Uint64 m_blob_total_size;
+  Uint64 m_blobs_row_total_size; /* Bytes needed for all blobs in current row */
   
   // memory for blobs in one tuple
   uchar *m_blobs_buffer;
