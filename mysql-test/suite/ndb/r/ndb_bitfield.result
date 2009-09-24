@@ -204,7 +204,7 @@ b int
 ERROR HY000: Can't create table 'test.t1' (errno: 906)
 show warnings;
 Level	Code	Message
-Error	1296	Got error 906 'Unsupported attribute type in index' from NDB
+Warning	1296	Got error 906 'Unsupported attribute type in index' from NDB
 Error	1005	Can't create table 'test.t1' (errno: 906)
 create table t1 (
 pk1 int not null primary key,
@@ -214,7 +214,7 @@ key(b)
 ERROR HY000: Can't create table 'test.t1' (errno: 906)
 show warnings;
 Level	Code	Message
-Error	1296	Got error 906 'Unsupported attribute type in index' from NDB
+Warning	1296	Got error 906 'Unsupported attribute type in index' from NDB
 Error	1005	Can't create table 'test.t1' (errno: 906)
 create table t1 (
 pk1 int primary key,

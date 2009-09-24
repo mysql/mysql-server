@@ -1181,12 +1181,9 @@ public:
 
 #endif /* HAVE_DLOPEN */
 
-class MYSQL_ERROR;
-
 class Item_func_group_concat : public Item_sum
 {
   TMP_TABLE_PARAM *tmp_table_param;
-  MYSQL_ERROR *warning;
   String result;
   String *separator;
   TREE tree_base;
@@ -1207,7 +1204,7 @@ class Item_func_group_concat : public Item_sum
   uint arg_count_order;
   /** The number of selected items, aka the expr list. */
   uint arg_count_field;
-  uint count_cut_values;
+  uint row_count;
   bool distinct;
   bool warning_for_row;
   bool always_null;
