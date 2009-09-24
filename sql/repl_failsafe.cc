@@ -913,7 +913,7 @@ bool load_master_data(THD* thd)
 	goto err;
       }
       /* Clear the result of mysql_create_db(). */
-      thd->main_da.reset_diagnostics_area();
+      thd->stmt_da->reset_diagnostics_area();
 
       if (mysql_select_db(&mysql, db) ||
 	  mysql_real_query(&mysql, STRING_WITH_LEN("SHOW TABLES")) ||

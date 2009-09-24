@@ -315,8 +315,8 @@ MOD(col1,0)
 NULL
 NULL
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT INTO t1 (col1) VALUES(-129);
 ERROR 22003: Out of range value for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(128);
@@ -343,7 +343,7 @@ SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 1;
 MOD(col1,0)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
 ERROR 22003: Out of range value for column 'col1' at row 1
 UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
@@ -353,16 +353,16 @@ ERROR 22012: Division by 0
 set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
 INSERT INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 set @@sql_mode='ansi,traditional';
 SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 MOD(col1,0)
 NULL
 NULL
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
@@ -374,8 +374,8 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 set @@sql_mode='ansi';
 INSERT INTO t1 values (1/0,1/0);
 set @@sql_mode='ansi,traditional';
@@ -457,8 +457,8 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES(-32769,-1),(32768,65536);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -541,8 +541,8 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES(-8388609,-1),(8388608,16777216);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -625,8 +625,8 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 values (-2147483649, -1),(2147643648,4294967296);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -707,8 +707,8 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
-Error	1365	Division by 0
-Error	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES(-9223372036854775809,-1),(9223372036854775808,18446744073709551616);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -794,7 +794,7 @@ Warnings:
 Note	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0);
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES(1000),(-1000);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -861,7 +861,7 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES (1/0);
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES (+3.4E+39,-3.4E+39);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -910,7 +910,7 @@ Warnings:
 Warning	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) values (1/0);
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES (+1.9E+309,-1.9E+309);
 ERROR 22007: Illegal double '1.9E+309' value found during parsing
 INSERT IGNORE INTO t1 VALUES ('+2.0E+309','-2.0E+309');
@@ -1080,13 +1080,13 @@ Warnings:
 Warning	1292	Truncated incorrect datetime value: '31.10.2004 15.30 abc'
 insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
 Warnings:
-Error	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
+Warning	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
 Warnings:
-Error	1411	Incorrect time value: '22:22:33 AM' for function str_to_date
+Warning	1411	Incorrect time value: '22:22:33 AM' for function str_to_date
 insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
 Warnings:
-Error	1411	Incorrect time value: 'abc' for function str_to_date
+Warning	1411	Incorrect time value: 'abc' for function str_to_date
 insert into t1 values(STR_TO_DATE('31.10.2004 15.30','%d.%m.%Y %H.%i'));
 insert into t1 values(STR_TO_DATE('2004.12.12 11:22:33 AM','%Y.%m.%d %r'));
 insert into t1 values(STR_TO_DATE('2004.12.12 10:22:59','%Y.%m.%d %T'));
@@ -1104,9 +1104,9 @@ select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') I
 count(*)
 7
 Warnings:
-Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
+Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
+Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
+Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 drop table t1;
 create table t1 (col1 char(3), col2 integer);
 insert into t1 (col1) values (cast(1000 as char(3)));
