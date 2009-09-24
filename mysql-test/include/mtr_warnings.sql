@@ -207,7 +207,7 @@ BEGIN
     WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT file_name, line
+    SELECT line
         FROM error_log WHERE suspicious=1;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed
