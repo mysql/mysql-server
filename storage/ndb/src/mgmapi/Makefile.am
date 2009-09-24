@@ -24,7 +24,7 @@ libmgmapi_la_SOURCES = mgmapi.cpp ndb_logevent.cpp mgmapi_configuration.cpp Loca
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/mgmapi
 
 DEFS_LOC = -DNDB_MGMAPI -DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\"" \
-           -DNO_DEBUG_MESSAGES -DNDB_PORT="\"@ndb_port@\""
+           -DNO_DEBUG_MESSAGES
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
