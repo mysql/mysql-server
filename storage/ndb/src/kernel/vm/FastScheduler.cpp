@@ -475,6 +475,12 @@ FastScheduler::traceDumpGetNumThreads()
   return 1;                     // Single-threaded ndbd scheduler
 }
 
+int
+FastScheduler::traceDumpGetCurrentThread()
+{
+  return -1;                     // Single-threaded ndbd scheduler
+}
+
 bool
 FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
                                const Uint32 * & thrdTheEmulatedJam,
