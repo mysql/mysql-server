@@ -1055,8 +1055,18 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     my_free(ha->m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_PRINT("info", ("allocate blobs buffer size %u",
                         (uint32)(ha->m_blobs_row_total_size)));
+    /* Windows compiler complains about my_malloc on non-size_t
+     * validate mapping from Uint64 to size_t
+     */
+    if(((size_t)ha->m_blobs_row_total_size) != ha->m_blobs_row_total_size)
+    {
+      ha->m_blobs_buffer= NULL;
+      ha->m_blobs_buffer_size= 0;
+      DBUG_RETURN(-1);
+    }
+
     ha->m_blobs_buffer=
-      (uchar*) my_malloc(ha->m_blobs_row_total_size, MYF(MY_WME));
+      (uchar*) my_malloc((size_t) ha->m_blobs_row_total_size, MYF(MY_WME));
     if (ha->m_blobs_buffer == NULL)
     {
       ha->m_blobs_buffer_size= 0;
