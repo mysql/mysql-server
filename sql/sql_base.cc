@@ -24,6 +24,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
+#include "rpl_filter.h"
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -5094,7 +5095,16 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 
 int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+  /*
+    In SBR mode, we are only proceeding if we are binlogging this
+    statement, ie, the filtering rules won't later filter this out.
+
+    This check here is needed to prevent some spurious error to be
+    raised in some cases (See BUG#42829).
+   */
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
+      (thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
+       binlog_filter->db_ok(thd->db)))
   {
     /*
       Compute the starting vectors for the computations by creating a
