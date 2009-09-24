@@ -3539,7 +3539,13 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
       {
         Field_blob *field_blob= (Field_blob *)field;
         NdbBlob *ndb_blob= m_value[i].blob;
+        /* unpack_record *only* called for scan result processing
+         * *while* the scan is open and the Blob is active.
+         * Verify Blob state to be certain.
+         * Accessing PK/UK op Blobs after execute() is unsafe
+         */
         DBUG_ASSERT(ndb_blob != 0);
+        DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
         int isNull;
         res= ndb_blob->getNull(isNull);
         DBUG_ASSERT(res == 0);                  // Already succeeded once
@@ -3637,6 +3643,7 @@ void ha_ndbcluster::print_results()
     {
       NdbBlob *ndb_blob= value.blob;
       bool isNull= TRUE;
+      assert(ndb_blob->getState() == NdbBlob::Active);
       ndb_blob->getNull(isNull);
       if (isNull)
         strmov(buf, "NULL");
@@ -9150,14 +9157,6 @@ int ha_ndbcluster::write_ndb_file(const char *name)
 void 
 ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
 {
-  if (trans->hasBlobOperation())
-  {
-    /* We are reading/writing BLOB fields, 
-       releasing operation records is unsafe
-    */
-    return;
-  }
-  
   trans->releaseCompletedOperations();
 }
 
