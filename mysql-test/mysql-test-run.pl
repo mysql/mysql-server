@@ -1307,6 +1307,9 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
+
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
   }
@@ -3588,7 +3591,7 @@ sub extract_warning_lines ($) {
      # qr/^Error:|\[ERROR\]/,
      qr/^Warning:|mysqld: Warning/,
      qr/^Error:/,
-     qr/^==.* at 0x/,
+     qr/^==\d*==/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
