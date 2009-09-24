@@ -1,4 +1,4 @@
-// this test makes sure the LSN filtering is used during recovery
+// verify that the env close aborts open txns
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -18,6 +18,9 @@ static void run_test (void) {
 
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
+
+    DB_TXN *txnb;
+    r = env->txn_begin(env, txn, &txnb, 0);                                             CKERR(r);
 
     r = env->close(env, 0);
     assert(r == EINVAL);
