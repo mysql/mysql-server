@@ -217,15 +217,6 @@ public:
   }
   void setErrorCodeAbort(int aErrorCode);
 
-  /** Process TCKEYCONF message. Return true if query is complete.*/
-  bool execTCKEYCONF();
-
-  /** Count number of completed streams within this batch. (There should be 
-   * 'parallelism' number of streams for each operation.)
-   * @param increment Change in count of  completed operations.
-   * @return True if batch is complete.*/
-  bool incPendingStreams(int increment);
-
   /** Assign supplied parameter values to the parameter placeholders
    *  Created when the query was defined.
    *  Values are *copied* into this NdbQueryImpl object:
@@ -264,7 +255,23 @@ public:
   { return m_queryDef; }
 
   NdbQueryOperationImpl& getRoot() const 
-  { return getQueryOperation(0U);}
+  { return getQueryOperation(0U); }
+
+  /** Process TCKEYCONF message. Return true if query is complete.*/
+  bool execTCKEYCONF();
+
+  /** Count number of completed streams within this batch. (There should be 
+   *  'parallelism' number of streams for each operation.)
+   *  @param increment Change in count of  completed operations.
+   *  @return True if batch is complete.
+   */
+  bool incPendingStreams(int increment);
+
+  /** Fix parent-child references when a complete batch has been received
+   * for a given stream.
+   */
+  void buildChildTupleLinks(Uint32 streamNo);
+
 
 private:
   /** Get more scan results, ask for the next batch if necessary.*/
@@ -482,8 +489,9 @@ private:
   }; // class UserProjection
 
   /** Fix parent-child references when a complete batch has been received
-   * for a given stream.*/
-  static void buildChildTupleLinks(const NdbQueryImpl& query, Uint32 streamNo);
+   * for a given stream.
+   */
+  void buildChildTupleLinks(Uint32 streamNo);
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;
