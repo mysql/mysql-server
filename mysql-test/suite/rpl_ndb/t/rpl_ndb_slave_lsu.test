@@ -18,7 +18,7 @@
 #  - Second replicate via srv_slave1 and check all nodes' Binlog contents
 #  - Third replicate via srv_slave2 and check all nodes' Binlog contents
 #
-# Makes use of extra/rpl_tests/rpl_ndb_multi_binlog_update.test
+# Makes use of suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 # Originally motivated by bug#45756
 ###############################################################################
 
@@ -40,14 +40,50 @@ connect (srv_slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connect (srv_slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
 connect (srv_slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
 
---echo *** Configuring replication via Slave ***
 connection slave;
 --disable_warnings
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 --enable_warnings
 
+--echo *** Waiting for each cluster to startup ***
+
+# Check schema op binlogging enabled between servers on cluster1
+--let $source_server=srv_master
+--let $dest_server=srv_master2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master1
+--let $dest_server=srv_master
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master1
+--let $dest_server=srv_master2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master2
+--let $dest_server=srv_master
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+# Check schema op binlogging enabled between servers on cluster2
+--let $source_server=srv_slave
+--let $dest_server=srv_slave1
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave
+--let $dest_server=srv_slave2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave1
+--let $dest_server=srv_slave2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave2
+--let $dest_server=srv_slave1
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
 # Reset state of all Binlogging nodes
+--disable_query_log
 connection master;
 --disable_warnings
 RESET MASTER;
@@ -67,7 +103,9 @@ connection srv_slave2;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
+--enable_query_log
 
+--echo *** Configuring replication via Slave ***
 connection slave;
 --disable_warnings
 RESET SLAVE;
@@ -78,7 +116,7 @@ source include/wait_for_slave_to_start.inc;
 --enable_warnings
 
 --let $which_slave=srv_slave
---source extra/rpl_tests/rpl_ndb_multi_binlog_update.test
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
 
 
@@ -96,6 +134,7 @@ source include/wait_for_slave_to_stop.inc;
 --enable_warnings
 
 # Reset state of all Binlogging nodes
+--disable_query_log
 connection master;
 --disable_warnings
 RESET MASTER;
@@ -115,6 +154,7 @@ connection srv_slave2;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
+--enable_query_log
 
 connection srv_slave1;
 --disable_warnings
@@ -126,7 +166,7 @@ source include/wait_for_slave_to_start.inc;
 --enable_warnings
 
 --let $which_slave=srv_slave1
---source extra/rpl_tests/rpl_ndb_multi_binlog_update.test
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
 
 
@@ -144,6 +184,7 @@ source include/wait_for_slave_to_stop.inc;
 --enable_warnings
 
 # Reset state of all Binlogging nodes
+--disable_query_log
 connection master;
 --disable_warnings
 RESET MASTER;
@@ -163,6 +204,7 @@ connection srv_slave2;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
+--enable_query_log
 
 connection srv_slave2;
 --disable_warnings
@@ -174,4 +216,4 @@ source include/wait_for_slave_to_start.inc;
 --enable_warnings
 
 --let $which_slave=srv_slave2
---source extra/rpl_tests/rpl_ndb_multi_binlog_update.test
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc

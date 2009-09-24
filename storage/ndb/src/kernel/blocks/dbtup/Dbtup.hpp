@@ -439,10 +439,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 noOfDynFix;
     Uint32 noOfDynamic;
     Uint32 tabDesOffset[7];
-    Uint32 desAllocSize;
     Uint32 tableDescriptor;
     Uint32 dynTabDesOffset[3];
-    Uint32 dynDesAllocSize;
     Uint32 dynTableDescriptor;
   };
   typedef Ptr<AlterTabOperation> AlterTabOperationPtr;
@@ -2866,6 +2864,8 @@ private:
   Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32*);
   Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset);
   Uint32 allocTabDescr(Uint32 allocSize);
+  void releaseTabDescr(Uint32 desc);
+
   void freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal = true);
   Uint32 getTabDescrWord(Uint32 index);
   void setTabDescrWord(Uint32 index, Uint32 word);

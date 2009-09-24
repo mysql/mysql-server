@@ -201,6 +201,8 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
   ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
   ,{ GSN_START_FRAGREQ, printSTART_FRAG_REQ }
+
+  ,{ GSN_LOCAL_ROUTE_ORD, printLOCAL_ROUTE_ORD }
   ,{ 0, 0 }
 };
 
