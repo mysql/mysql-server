@@ -958,9 +958,21 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
     else {
-	engstat->ydb_lock_held = toku_ydb_lock_held();                     // is ydb lock held?
-	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock
+	engstat->ydb_lock_ctr = toku_ydb_lock_ctr();                       // is ydb lock held? how many times?
+	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock (take minicron lock, but that's a very ephemeral low-level lock)
 	engstat->checkpoint_footprint = toku_checkpoint_get_footprint();
+	{
+	    CACHETABLE_STATUS_S ctstat;
+	    toku_cachetable_get_status(env->i->cachetable, &ctstat);
+	    engstat->cachetable_lock_ctr     = ctstat.lock_ctr;
+	    engstat->cachetable_hit          = ctstat.hit;
+	    engstat->cachetable_miss         = ctstat.miss;
+	    engstat->cachetable_wait_reading = ctstat.wait_reading;
+	    engstat->cachetable_wait_writing = ctstat.wait_writing;
+	    engstat->cachetable_size_current = ctstat.size_current;
+	    engstat->cachetable_size_limit   = ctstat.size_limit;
+	    engstat->cachetable_size_writing = ctstat.size_writing;
+	}
     }
     return r;
 }
