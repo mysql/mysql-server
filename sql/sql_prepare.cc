@@ -250,7 +250,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->total_warn_count, 65535);
+  tmp= min(stmt->thd->warning_info->statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*
@@ -265,7 +265,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
                                           Protocol::SEND_EOF);
   }
   /* Flag that a response has already been sent */
-  thd->main_da.disable_status();
+  thd->stmt_da->disable_status();
   DBUG_RETURN(error);
 }
 #else
@@ -277,7 +277,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
   thd->client_stmt_id= stmt->id;
   thd->client_param_count= stmt->param_count;
   thd->clear_error();
-  thd->main_da.disable_status();
+  thd->stmt_da->disable_status();
 
   return 0;
 }
@@ -1835,6 +1835,10 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   lex->select_lex.context.resolve_in_table_list_only(select_lex->
                                                      get_table_list());
 
+  /* Reset warning count for each query that uses tables */
+  if (tables)
+    thd->warning_info->opt_clear_warning_info(thd->query_id);
+
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
@@ -2082,8 +2086,6 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  /* Reset warnings from previous command */
-  mysql_reset_errors(thd, 0);
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
   sp_cache_flush_obsolete(&thd->sp_func_cache);
 
@@ -2656,7 +2658,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_close");
 
-  thd->main_da.disable_status();
+  thd->stmt_da->disable_status();
 
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
     DBUG_VOID_RETURN;
@@ -2731,7 +2733,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   status_var_increment(thd->status_var.com_stmt_send_long_data);
 
-  thd->main_da.disable_status();
+  thd->stmt_da->disable_status();
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length < MYSQL_LONG_DATA_HEADER)
@@ -2821,6 +2823,30 @@ Select_fetch_protocol_binary::send_data(List<Item> &fields)
   thd->protocol= save_protocol;
   return rc;
 }
+
+/*******************************************************************
+* Reprepare_observer
+*******************************************************************/
+/** Push an error to the error stack and return TRUE for now. */
+
+bool
+Reprepare_observer::report_error(THD *thd)
+{
+  /*
+    This 'error' is purely internal to the server:
+    - No exception handler is invoked,
+    - No condition is added in the condition area (warn_list).
+    The diagnostics area is set to an error status to enforce
+    that this thread execution stops and returns to the caller,
+    backtracking all the way to Prepared_statement::execute_loop().
+  */
+  thd->stmt_da->set_error_status(thd, ER_NEED_REPREPARE,
+                                 ER(ER_NEED_REPREPARE), "HY000");
+  m_invalidated= TRUE;
+
+  return TRUE;
+}
+
 
 /***************************************************************************
  Prepared_statement
@@ -3262,7 +3288,7 @@ reexecute:
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
-    DBUG_ASSERT(thd->main_da.sql_errno() == ER_NEED_REPREPARE);
+    DBUG_ASSERT(thd->stmt_da->sql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3325,12 +3351,12 @@ Prepared_statement::reprepare()
 #endif
     /*
       Clear possible warnings during reprepare, it has to be completely
-      transparent to the user. We use mysql_reset_errors() since
+      transparent to the user. We use clear_warning_info() since
       there were no separate query id issued for re-prepare.
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    mysql_reset_errors(thd, TRUE);
+    thd->warning_info->clear_warning_info(thd->query_id);
   }
   return error;
 }

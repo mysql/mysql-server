@@ -28,13 +28,13 @@
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+bool net_send_error_packet(THD *, uint, const char *, const char *);
 /* Declared non-static only because of the embedded library. */
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err);
-bool net_send_ok(THD *, uint, uint, ha_rows, ulonglong, const char *);
-bool net_send_eof(THD *thd, uint server_status, uint total_warn_count);
+bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *);
+/* Declared non-static only because of the embedded library. */
+bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
 #ifndef EMBEDDED_LIBRARY
-static bool write_eof_packet(THD *thd, NET *net,
-                             uint server_status, uint total_warn_count);
+static bool write_eof_packet(THD *, NET *, uint, uint);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -80,29 +80,33 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
     @retval TRUE An error occurred and the message wasn't sent properly
 */
 
-bool net_send_error(THD *thd, uint sql_errno, const char *err)
+bool net_send_error(THD *thd, uint sql_errno, const char *err,
+                    const char* sqlstate)
 {
   DBUG_ENTER("net_send_error");
 
   DBUG_ASSERT(!thd->spcont);
   DBUG_ASSERT(sql_errno);
-  DBUG_ASSERT(err && err[0]);
+  DBUG_ASSERT(err);
 
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
   bool error;
+
+  if (sqlstate == NULL)
+    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
   /*
     It's one case when we can push an error even though there
     is an OK or EOF already.
   */
-  thd->main_da.can_overwrite_status= TRUE;
+  thd->stmt_da->can_overwrite_status= TRUE;
 
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
-  error= net_send_error_packet(thd, sql_errno, err);
+  error= net_send_error_packet(thd, sql_errno, err, sqlstate);
 
-  thd->main_da.can_overwrite_status= FALSE;
+  thd->stmt_da->can_overwrite_status= FALSE;
 
   DBUG_RETURN(error);
 }
@@ -124,7 +128,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err)
 
   @param thd		   Thread handler
   @param server_status     The server status
-  @param total_warn_count  Total number of warnings
+  @param statement_warn_count  Total number of warnings
   @param affected_rows	   Number of rows changed by statement
   @param id		   Auto_increment id for first row (if used)
   @param message	   Message to send to the client (Used by mysql_status)
@@ -138,8 +142,8 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err)
 #ifndef EMBEDDED_LIBRARY
 bool
 net_send_ok(THD *thd,
-            uint server_status, uint total_warn_count,
-            ha_rows affected_rows, ulonglong id, const char *message)
+            uint server_status, uint statement_warn_count,
+            ulonglong affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
@@ -162,12 +166,12 @@ net_send_ok(THD *thd,
 		(ulong) affected_rows,		
 		(ulong) id,
 		(uint) (server_status & 0xffff),
-		(uint) total_warn_count));
+		(uint) statement_warn_count));
     int2store(pos, server_status);
     pos+=2;
 
     /* We can only return up to 65535 warnings in two bytes */
-    uint tmp= min(total_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535);
     int2store(pos, tmp);
     pos+= 2;
   }
@@ -176,7 +180,7 @@ net_send_ok(THD *thd,
     int2store(pos, server_status);
     pos+=2;
   }
-  thd->main_da.can_overwrite_status= TRUE;
+  thd->stmt_da->can_overwrite_status= TRUE;
 
   if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
@@ -184,7 +188,7 @@ net_send_ok(THD *thd,
   if (!error)
     error= net_flush(net);
 
-  thd->main_da.can_overwrite_status= FALSE;
+  thd->stmt_da->can_overwrite_status= FALSE;
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_RETURN(error);
@@ -208,7 +212,7 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
 
   @param thd		Thread handler
   @param server_status The server status
-  @param total_warn_count Total number of warnings
+  @param statement_warn_count Total number of warnings
 
   @return
     @retval FALSE The message was successfully sent
@@ -216,7 +220,7 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
 */    
 
 bool
-net_send_eof(THD *thd, uint server_status, uint total_warn_count)
+net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 {
   NET *net= &thd->net;
   bool error= FALSE;
@@ -224,11 +228,11 @@ net_send_eof(THD *thd, uint server_status, uint total_warn_count)
   /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
-    thd->main_da.can_overwrite_status= TRUE;
-    error= write_eof_packet(thd, net, server_status, total_warn_count);
+    thd->stmt_da->can_overwrite_status= TRUE;
+    error= write_eof_packet(thd, net, server_status, statement_warn_count);
     if (!error)
       error= net_flush(net);
-    thd->main_da.can_overwrite_status= FALSE;
+    thd->stmt_da->can_overwrite_status= FALSE;
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_RETURN(error);
@@ -242,7 +246,7 @@ net_send_eof(THD *thd, uint server_status, uint total_warn_count)
   @param thd The thread handler
   @param net The network handler
   @param server_status The server status
-  @param total_warn_count The number of warnings
+  @param statement_warn_count The number of warnings
 
 
   @return
@@ -252,7 +256,7 @@ net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 
 static bool write_eof_packet(THD *thd, NET *net,
                              uint server_status,
-                             uint total_warn_count)
+                             uint statement_warn_count)
 {
   bool error;
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
@@ -262,7 +266,7 @@ static bool write_eof_packet(THD *thd, NET *net,
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp= min(total_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535);
     buff[0]= 254;
     int2store(buff+1, tmp);
     /*
@@ -309,7 +313,9 @@ bool send_old_password_request(THD *thd)
    @retval TRUE  An error occurred and the messages wasn't sent properly
 */
 
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
+                           const char* sqlstate)
+
 {
   NET *net= &thd->net;
   uint length;
@@ -338,7 +344,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
     {
       /* The first # is to make the protocol backward compatible */
       buff[2]= '#';
-      pos= (uchar*) strmov((char*) buff+3, mysql_errno_to_sqlstate(sql_errno));
+      pos= (uchar*) strmov((char*) buff+3, sqlstate);
     }
     length= (uint) (strmake((char*) pos, err, MYSQL_ERRMSG_SIZE-1) -
                     (char*) buff);
@@ -430,45 +436,45 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
 
 void net_end_statement(THD *thd)
 {
-  DBUG_ASSERT(! thd->main_da.is_sent);
+  DBUG_ASSERT(! thd->stmt_da->is_sent);
 
   /* Can not be true, but do not take chances in production. */
-  if (thd->main_da.is_sent)
+  if (thd->stmt_da->is_sent)
     return;
 
   bool error= FALSE;
 
-  switch (thd->main_da.status()) {
+  switch (thd->stmt_da->status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
     error= net_send_error(thd,
-                          thd->main_da.sql_errno(),
-                          thd->main_da.message());
+                          thd->stmt_da->sql_errno(),
+                          thd->stmt_da->message(),
+                          thd->stmt_da->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
     error= net_send_eof(thd,
-                        thd->main_da.server_status(),
-                        thd->main_da.total_warn_count());
+                        thd->stmt_da->server_status(),
+                        thd->stmt_da->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
     error= net_send_ok(thd,
-                       thd->main_da.server_status(),
-                       thd->main_da.total_warn_count(),
-                       thd->main_da.affected_rows(),
-                       thd->main_da.last_insert_id(),
-                       thd->main_da.message());
+                       thd->stmt_da->server_status(),
+                       thd->stmt_da->statement_warn_count(),
+                       thd->stmt_da->affected_rows(),
+                       thd->stmt_da->last_insert_id(),
+                       thd->stmt_da->message());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
   case Diagnostics_area::DA_EMPTY:
   default:
     DBUG_ASSERT(0);
-    error= net_send_ok(thd, thd->server_status, thd->total_warn_count,
-                       0, 0, NULL);
+    error= net_send_ok(thd, thd->server_status, 0, 0, 0, NULL);
     break;
   }
   if (!error)
-    thd->main_da.is_sent= TRUE;
+    thd->stmt_da->is_sent= TRUE;
 }
 
 
@@ -711,7 +717,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
       to show that there is no cursor.
       Send no warning information, as it will be sent at statement end.
     */
-    write_eof_packet(thd, &thd->net, thd->server_status, thd->total_warn_count);
+    write_eof_packet(thd, &thd->net, thd->server_status,
+                     thd->warning_info->statement_warn_count());
   }
   DBUG_RETURN(prepare_for_send(list));
 

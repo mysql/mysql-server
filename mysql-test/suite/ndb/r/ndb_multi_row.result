@@ -63,6 +63,6 @@ t4
 drop table t1, t2, t3, t4;
 drop table if exists t1, t3, t4;
 Warnings:
-Error	155	Table 'test.t1' doesn't exist
-Error	155	Table 'test.t3' doesn't exist
-Error	155	Table 'test.t4' doesn't exist
+Warning	155	Table 'test.t1' doesn't exist
+Warning	155	Table 'test.t3' doesn't exist
+Warning	155	Table 'test.t4' doesn't exist

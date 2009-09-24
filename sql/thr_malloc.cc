@@ -44,9 +44,10 @@ extern "C" {
           returned in the error packet.
           - SHOW ERROR/SHOW WARNINGS may be empty.
         */
-        thd->main_da.set_error_status(thd,
-                                      ER_OUT_OF_RESOURCES,
-                                      ER(ER_OUT_OF_RESOURCES));
+        thd->stmt_da->set_error_status(thd,
+                                       ER_OUT_OF_RESOURCES,
+                                       ER(ER_OUT_OF_RESOURCES),
+                                       NULL);
       }
     }
   }

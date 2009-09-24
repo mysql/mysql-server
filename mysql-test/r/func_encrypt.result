@@ -124,7 +124,7 @@ select des_encrypt("hello",10);
 des_encrypt("hello",10)
 NULL
 Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
+Warning	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt(NULL);
 des_encrypt(NULL)
 NULL
@@ -138,12 +138,12 @@ select des_encrypt(10, NULL);
 des_encrypt(10, NULL)
 NULL
 Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
+Warning	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_encrypt("hello", NULL);
 des_encrypt("hello", NULL)
 NULL
 Warnings:
-Error	1108	Incorrect parameters to procedure 'des_encrypt'
+Warning	1108	Incorrect parameters to procedure 'des_encrypt'
 select des_decrypt("hello",10);
 des_decrypt("hello",10)
 hello
@@ -177,7 +177,7 @@ select hex(des_decrypt(des_encrypt("hello","hidden")));
 hex(des_decrypt(des_encrypt("hello","hidden")))
 NULL
 Warnings:
-Error	1108	Incorrect parameters to procedure 'des_decrypt'
+Warning	1108	Incorrect parameters to procedure 'des_decrypt'
 explain extended select des_decrypt(des_encrypt("hello",4),'password2'), des_decrypt(des_encrypt("hello","hidden"));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
