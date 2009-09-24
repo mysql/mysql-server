@@ -107,7 +107,8 @@ thin_out(DB* db, int iter) {
 	}
     }
     
-    r = txn->commit(txn, 0);
+    if ( !do_log_recover )
+        r = txn->commit(txn, 0);
     CKERR(r);
 
 }
@@ -156,7 +157,11 @@ verify_and_insert (DB* db, int iter) {
     firstkey = iter * oper_per_iter;
     numkeys = oper_per_iter;
 
+    int r;
+    DB_TXN *txn;
+    r = env->txn_begin(env, NULL, &txn, 0);               CKERR(r);
     insert_n_fixed(db, NULL, NULL, firstkey, numkeys);
+    r = txn->commit(txn, 0);                              CKERR(r);
 }
 
 
@@ -219,8 +224,14 @@ run_test (int iter, int die) {
 
     if (verbose)
 	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08"PRIx64"\n", iter, cachebytes);
-    
-    env_startup(cachebytes, do_log_recover);
+
+    int recovery_flags = 0;
+    if ( do_log_recover ) {
+        flags += DB_INIT_LOG;
+        if ( iter != 0 )
+            flags += DB_RECOVER;
+    }
+    env_startup(cachebytes, recovery_flags);
 
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts

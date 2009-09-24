@@ -507,6 +507,18 @@ checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
 	) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+recover_stress.tdbrun: SHELL=/bin/bash
+recover_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	$(VGRIND) ./$< -C -n $(STRESS_SIZE) -l $(VERBVERBOSE) && \
+	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) -l $(VERBVERBOSE) && \
+	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
+		date; \
+		./$< -c -i $$i -n $(STRESS_SIZE) -l $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
+	done && \
+	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
+	) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
 helgrind1.tdbrun: MAYBEINVERTER=$(INVERTER)
