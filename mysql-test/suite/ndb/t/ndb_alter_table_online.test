@@ -732,6 +732,39 @@ b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'AT='
 
+DROP TABLE t1;
+
+--echo ********************
+--echo * bug#44695 ALTER TABLE during START BACKUP crashes mysqld     
+--echo ********************
+# Testing failure of online alter during ongoing backup
+
+CREATE TABLE t1(k INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ROW_FORMAT=DYNAMIC ENGINE=NDB;
+# create some data to slow down backup
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+SELECT COUNT(*) FROM t1;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
+--disable_warnings
+--error 0,762,1296
+ALTER ONLINE TABLE t1 ADD b INT;
+# waut for backup to complete
+--sleep 10
+
+--enable_warnings
 --echo ********************
 --echo * Cleanup Section
 --echo ********************
