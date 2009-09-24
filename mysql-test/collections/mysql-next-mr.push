@@ -1,0 +1,5 @@
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=n_mix --mysqld=--binlog-format=mixed --suite=main,binlog,innodb,federated,rpl
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=ps_row --ps-protocol --mysqld=--binlog-format=row --suite=main,binlog,innodb,federated,rpl
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=embedded --embedded --suite=main,binlog,innodb,federated,rpl
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_row --mysqld=--binlog-format=row --suite=rpl,binlog
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=funcs_1 --suite=funcs_1
