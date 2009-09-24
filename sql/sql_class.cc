@@ -42,6 +42,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "rpl_filter.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -2979,6 +2980,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
+}
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
 }
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
