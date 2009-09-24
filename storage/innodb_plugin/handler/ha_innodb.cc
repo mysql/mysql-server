@@ -7797,8 +7797,9 @@ ha_innobase::external_lock(
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
-		if (tx_isolation <= ISO_READ_COMMITTED &&
-		    binlog_format == BINLOG_FORMAT_STMT)
+		if (tx_isolation <= ISO_READ_COMMITTED
+                   && binlog_format == BINLOG_FORMAT_STMT
+                   && thd_binlog_filter_ok(thd))
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
