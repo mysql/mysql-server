@@ -5803,7 +5803,7 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
 
   if (ERROR_INSERTED(7204))
   {
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
   }
   else
   {
@@ -13136,7 +13136,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[2] = tabPtr.i + 1;
     if (ERROR_INSERTED(7204))
     {
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
     }
     else
     {
