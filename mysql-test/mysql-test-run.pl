@@ -252,6 +252,11 @@ my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
+# lock file to stop tests
+my $opt_stop_file= $ENV{MTR_STOP_FILE};
+# print messages when test suite is stopped (for buildbot)
+my $opt_stop_keep_alive= $ENV{MTR_STOP_KEEP_ALIVE};
+
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
@@ -450,6 +455,15 @@ sub run_test_server ($$$) {
   my $s= IO::Select->new();
   $s->add($server);
   while (1) {
+    if ($opt_stop_file)
+    {
+      if (mtr_wait_lock_file($opt_stop_file, $opt_stop_keep_alive))
+      {
+        # We were waiting so restart timer process
+        $suite_timeout_proc->kill();
+        $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
+      }
+    }
     my @ready = $s->can_read(1); # Wake up once every second
     foreach my $sock (@ready) {
       if ($sock == $server) {
@@ -931,6 +945,8 @@ sub command_line_setup {
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
 	     'timediff'                 => \&report_option,
+             'stop-file=s'              => \$opt_stop_file,
+             'stop-keep-alive=i'        => \$opt_stop_keep_alive,
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
@@ -5391,6 +5407,14 @@ Misc options
                         before killing servers (default $opt_shutdown_timeout)
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
+
+  stop-file=file        (also MTR_STOP_FILE environment variable) if this
+                        file detected mysql test will not start new tests
+                        until the file will be removed.
+  stop-keep-alive=sec   (also MTR_STOP_KEEP_ALIVE environment variable)
+                        works with stop-file, print messages every sec
+                        seconds when mysql test is waiting to removing
+                        the file (for buildbot)
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
