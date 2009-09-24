@@ -4201,7 +4201,7 @@ void Item_func_set_user_var::save_item_result(Item *item)
 bool
 Item_func_set_user_var::update()
 {
-  bool res= NULL;
+  bool res= 0;
   DBUG_ENTER("Item_func_set_user_var::update");
 
   switch (cached_result_type) {
