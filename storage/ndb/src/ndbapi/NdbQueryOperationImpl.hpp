@@ -61,6 +61,10 @@ class QueryResultStream {
   }; // class TupleIdMap
 
 public:
+  explicit QueryResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo);
+
+  ~QueryResultStream();
+
   /** Stream number within operation (0 - parallelism)*/
   const Uint32 m_streamNo;
   /** The receiver object that unpacks transid_AI messages.*/
@@ -73,17 +77,12 @@ public:
   int m_pendingResults;
   /** True if there is a pending SCAN_TABCONF messages for this stream.*/
   bool m_pendingScanTabConf;
-
-  explicit QueryResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo);
-
-  ~QueryResultStream();
+  /** Prepare for receiving results. */
+  int prepare();
 
   Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const;
   void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index);
     
-  /** Prepare for receiving results (Invoked via NdbTransaction::execute()).*/
-  void prepare();
-
   /** Get the correlation number of the parent of a given row. This number
    * can be use.
    */
@@ -147,7 +146,9 @@ class NdbQueryImpl {
       delete[] m_array;
     }
 
-    void prepare(int size);
+    // Prepare internal datastructures.
+    // Return 0 if ok, else errorcode
+    int prepare(int size);
 
     QueryResultStream* top() const { 
       return m_current>=0 ? m_array[m_current] : NULL; 

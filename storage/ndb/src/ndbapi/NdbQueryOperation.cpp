@@ -33,6 +33,7 @@
 
 /* Various error codes that are not specific to NdbQuery. */
 STATIC_CONST(Err_MemoryAlloc = 4000);
+STATIC_CONST(Err_SendFailed = 4002);
 STATIC_CONST(Err_UnknownColumn = 4004);
 STATIC_CONST(Err_ReceiveFromNdbFailed = 4008);
 STATIC_CONST(Err_NodeFailCausedAbort = 4028);
@@ -371,7 +372,7 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
   if (unlikely(m_applStreams.top()==NULL)) {
     /* m_applStreams is empty, so we cannot get more results without 
      * possibly blocking.*/
-    if( fetchAllowed) {
+    if (fetchAllowed) {
       /* fetchMoreResults() will either copy streams that are already
        * complete (under mutex protection), or block until more data arrives.*/
       const FetchResult fetchResult = fetchMoreResults(forceSend);
@@ -700,10 +701,6 @@ NdbQueryImpl::prepareSend()
     }
   }
 
-  // Setup m_applStreams and m_fullStreams for receiving results
-  m_applStreams.prepare(m_parallelism);
-  m_fullStreams.prepare(m_parallelism);
-
   if (unlikely(m_attrInfo.isMemoryExhausted() || m_keyInfo.isMemoryExhausted())) {
     setErrorCodeAbort(Err_MemoryAlloc);
     return -1;
@@ -712,6 +709,14 @@ NdbQueryImpl::prepareSend()
   if (unlikely(m_attrInfo.getSize() > ScanTabReq::MaxTotalAttrInfo  ||
                m_keyInfo.getSize()  > ScanTabReq::MaxTotalAttrInfo)) {
     setErrorCodeAbort(4257); // TODO: find a more suitable errorcode, 
+    return -1;
+  }
+
+  // Setup m_applStreams and m_fullStreams for receiving results
+  int error;
+  if (unlikely((error = m_applStreams.prepare(m_parallelism)) != 0)
+            || (error = m_fullStreams.prepare(m_parallelism)) != 0) {
+    setErrorCodeAbort(error);
     return -1;
   }
 
@@ -822,7 +827,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 //  m_keyInfo = (scan_flags & NdbScanOperation::SF_KeyInfo) ? 1 : 0;
 
     // If scan is pruned, use optional 'distributionKey' to hold hashvalue
-    // TODO: Use hashValue to also select TC where to ::startTransaction
     if (m_isPruned)
     {
 //    printf("Build pruned SCANREQ, w/ hashValue:%d\n", m_hashValue);
@@ -876,7 +880,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     const int res = tp->sendFragmentedSignal(m_signal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
-      setErrorCodeAbort(4002);  // Error: 'Send to NDB failed'
+      setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
       return -1;
     }
 
@@ -954,7 +958,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     const int res = tp->sendSignal(m_signal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
-      setErrorCodeAbort(4002);  // Error: 'Send to NDB failed'
+      setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
       return -1;
     }
   }
@@ -979,15 +983,18 @@ NdbQueryImpl::StreamStack::StreamStack():
   m_array(NULL){
 }
 
-void
+int
 NdbQueryImpl::StreamStack::prepare(int size)
 {
   assert(m_array==NULL);
-  assert(m_size ==0);
+  assert(m_size==0);
   if (size > 0) 
   { m_size = size;
-    m_array = new QueryResultStream*[size] ;
+    m_array = new QueryResultStream*[size];
+    if (unlikely(m_array==NULL))
+      return Err_MemoryAlloc;
   }
+  return 0;
 }
 
 void
@@ -1035,10 +1042,9 @@ QueryResultStream::~QueryResultStream() {
   delete[] m_parentTupleCorr; 
 }
 
-void 
-QueryResultStream::prepare() {
-  assert(m_parentTupleCorr==NULL); // Do not invoke twice.
-
+int  // Return 0 if ok, else errorcode
+QueryResultStream::prepare()
+{
   /* Parrent / child correlation is only relevant for scan type queries
    * Don't create m_parentTupleCorr[] and m_childTupleIdx[] for lookups!
    * Neither is these structures required for operations not having respective
@@ -1046,21 +1052,33 @@ QueryResultStream::prepare() {
    */
   if (m_operation.getQueryDef().isScanQuery()) {
 
+    // Root scan-operation need a ScanTabConf to complete
+    m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
+
     const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
     if (m_operation.getNoOfParentOperations()>0) {
       assert (m_operation.getNoOfParentOperations()==1);
       m_parentTupleCorr = new Uint32[batchRows];
+      if (unlikely(m_parentTupleCorr==NULL))
+        return Err_MemoryAlloc;
     }
 
     if (m_operation.getNoOfChildOperations()>0) {
       m_childTupleIdx = new Uint32[batchRows * m_operation.getNoOfChildOperations()];
+      if (unlikely(m_childTupleIdx==NULL))
+        return Err_MemoryAlloc;
+
       for (unsigned i=0; 
            i<batchRows * m_operation.getNoOfChildOperations(); 
            i++) {
         m_childTupleIdx[i] = tupleNotFound;
       }
     }
+  } else {  // Lookup query
+    // Root lookup operation need a CONF or REF reply to complete
+    m_pendingResults = (&m_operation.getRoot()==&m_operation);
   }
+  return 0;
 }
 
 void 
@@ -1502,10 +1520,15 @@ NdbQueryOperationImpl::prepareReceiver()
     size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
 #ifdef NDEBUG
     m_batchBuffer = new char[bufLen];
+    if (unlikely(m_batchBuffer == NULL)) {
+      return Err_MemoryAlloc;
+    }
 #else
     /* To be able to check for buffer overrun.*/
     m_batchBuffer = new char[bufLen+4];
-
+    if (unlikely(m_batchBuffer == NULL)) {
+      return Err_MemoryAlloc;
+    }
     m_batchBuffer[bufLen+0] = 'a';
     m_batchBuffer[bufLen+1] = 'b';
     m_batchBuffer[bufLen+2] = 'c';
@@ -1518,19 +1541,23 @@ NdbQueryOperationImpl::prepareReceiver()
   assert(m_queryImpl.getParallelism() > 0);
   m_resultStreams = new QueryResultStream*[m_queryImpl.getParallelism()];
   if (unlikely(m_resultStreams == NULL)) {
-    return Err_MemoryAlloc; // Allocation failure
+    return Err_MemoryAlloc;
   }
   for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++) {
-    m_resultStreams[i] = NULL;  // Init to legal contents
+    m_resultStreams[i] = NULL;  // Init to legal contents for d'tor
   }
   for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++) {
     m_resultStreams[i] = new QueryResultStream(*this, i);
     if (unlikely(m_resultStreams[i] == NULL)) {
-      return Err_MemoryAlloc; // Allocation failure
+      return Err_MemoryAlloc;
     }
+    const int error = m_resultStreams[i]->prepare();
+    if (unlikely(error)) {
+      return error;
+    }
+
     m_resultStreams[i]->m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, 
                                         false, this);
-    m_resultStreams[i]->prepare();
     m_resultStreams[i]->m_receiver
       .do_setup_ndbrecord(m_ndbRecord,
                           m_queryImpl.getMaxBatchRows(), 
@@ -1540,23 +1567,6 @@ NdbQueryOperationImpl::prepareReceiver()
                           &m_batchBuffer[m_batchByteSize*i],
                           m_userProjection.getColumnCount());
     m_resultStreams[i]->m_receiver.prepareSend();
-  }
-
-
-  if(m_operationDef.getQueryOperationIx()==0)
-  {
-    if (m_operationDef.isScanOperation())
-    {
-      for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++)
-      {
-         m_resultStreams[i]->m_pendingResults = 0;
-         m_resultStreams[i]->m_pendingScanTabConf = true;
-      }
-    }
-    else 
-    {
-      m_resultStreams[0]->m_pendingResults = 1; 
-    }
   }
 
   return 0;
@@ -1738,7 +1748,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
       m_queryImpl.m_fullStreams.push(*root.m_resultStreams[streamNo]);
     }
     return false;
-  }else{
+  } else { // Lookup query
     // The root operation is a lookup.
     m_resultStreams[0]->m_receiver.execTRANSID_AI(ptr, len);
     m_resultStreams[0]->m_transidAICount++;
