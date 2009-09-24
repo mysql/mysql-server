@@ -347,13 +347,23 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
-    printf("  int              ydb_lock_held;           /* is some thread holding the ydb lock? */ \n");
+    printf("  u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
-    printf("  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
-    printf("  struct timeval   tbegin;                  /* time of last checkpoint begin        */ \n");
-    printf("  struct timeval   tend;                    /* time of last checkpoint end          */ \n");
-    //    printf("  DB_LSN    lsn_of_last_checkpoint_begin;                                             \n");
-    //    printf("  DB_LSN    lsn_of_last_checkpoint_end;                                               \n");
+    printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
+    printf("  u_int32_t        cachetable_lock_ctr;     /* how many times has cachetable lock been taken/released */ \n");
+    printf("  u_int64_t        cachetable_hit;          /* how many cache hits   */ \n");
+    printf("  u_int64_t        cachetable_miss;         /* how many cache misses */ \n");
+    printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
+    printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
+    printf("  int64_t          cachetable_size_current; /*  */ \n");
+    printf("  int64_t          cachetable_size_limit;   /*  */ \n");
+    printf("  int64_t          cachetable_size_writing; /*  */ \n");
+
+    //    printf("  struct timeval   checkpoint_tbegin;       /* time of last checkpoint begin        */ \n");
+    //    printf("  struct timeval   checkpoint_tend;         /* time of last checkpoint end          */ \n");
+    //    printf("  DB_LSN           lsn_of_last_checkpoint_begin;                                       \n");
+    //    printf("  DB_LSN           lsn_of_last_checkpoint_end;                                         \n");
+
     printf("} ENGINE_STATUS;\n");
 
 
@@ -386,7 +396,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("db_key_range", 0, db_key_range_fields32, db_key_range_fields64, sizeof(db_key_range_fields32)/sizeof(db_key_range_fields32[0]), 0);
 
     assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
-    print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
+    {
+	//const char *extra[] = {"u_int64_t lsn", NULL};
+	print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
+    }
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);

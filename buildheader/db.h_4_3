@@ -43,11 +43,17 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
 } DB_BTREE_STAT64;
 typedef struct __toku_engine_status {
-  int              ydb_lock_held;           /* is some thread holding the ydb lock? */ 
+  u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
   u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
-  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
-  struct timeval   tbegin;                  /* time of last checkpoint begin        */ 
-  struct timeval   tend;                    /* time of last checkpoint end          */ 
+  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
+  u_int32_t        cachetable_lock_ctr;     /* how many times has cachetable lock been taken/released */ 
+  u_int64_t        cachetable_hit;          /* how many cache hits   */ 
+  u_int64_t        cachetable_miss;         /* how many cache misses */ 
+  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ 
+  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ 
+  int64_t          cachetable_size_current; /*  */ 
+  int64_t          cachetable_size_limit;   /*  */ 
+  int64_t          cachetable_size_writing; /*  */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
