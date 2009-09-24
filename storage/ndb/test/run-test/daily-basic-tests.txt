@@ -509,7 +509,7 @@ max-time: 500
 cmd: testScan
 args: -n Bug36124 T1
 
-max-time: 1000
+max-time: 1800
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
@@ -988,7 +988,7 @@ args: -n Multi
 #
 max-time: 3600
 cmd: test_event
-args: -n CreateDropNR -l 1
+args: -n CreateDropNR T1
 
 max-time: 600
 cmd: testBasic
@@ -1129,7 +1129,7 @@ args: -n ApiMgmStructEventTimeout T1
 
 max-time: 5000
 cmd: testNodeRestart
-args: -n GCP T1
+args: -n GCP -l 1 T1
 
 max-time: 1200
 cmd: testNodeRestart
