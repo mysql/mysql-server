@@ -799,11 +799,22 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     DBUG_VOID_RETURN;
   }
   
-  if (aConnection->theReleaseOnClose == false) {
+  /**
+   * NOTE: It's ok to call getNodeSequence() here wo/ having mutex,
+   */
+  Uint32 nodeId = aConnection->getConnectedNodeId();
+  TransporterFacade* tp = theImpl->m_transporter_facade;   
+  Uint32 seq = tp->getNodeSequence(nodeId);
+  if (aConnection->theNodeSequence != seq)
+  {
+    aConnection->theReleaseOnClose = true;
+  }
+  
+  if (aConnection->theReleaseOnClose == false) 
+  {
     /**
      * Put it back in idle list for that node
      */
-    Uint32 nodeId = aConnection->getConnectedNodeId();
     aConnection->theNext = theConnectionArray[nodeId];
     theConnectionArray[nodeId] = aConnection;
     DBUG_VOID_RETURN;
@@ -1431,7 +1442,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
     goto error_handler;
 
   // Start transaction with table id as hint
-  tConnection = this->startTransaction(table,
+  tConnection = this->startTransaction(m_sys_tab_0,
                                        (const char *) &aTableId,
                                        sizeof(Uint32));
   if (tConnection == NULL)

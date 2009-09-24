@@ -2978,6 +2978,8 @@ public:
 #ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
 #endif
+
+  Uint32 get_node_status(Uint32 nodeId) const;
 };
 
 inline
