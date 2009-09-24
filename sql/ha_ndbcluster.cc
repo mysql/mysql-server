@@ -530,14 +530,14 @@ void
 ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
                                             NdbTransaction *trans)
 {
-  if (trans->hasBlobOperation())
-  {
-    /* We are reading/writing BLOB fields, 
-       releasing operation records is unsafe
-    */
-    return;
-  }
-
+  /**
+   * mysqld reads/write blobs fully,
+   *   which means that it does not keep blobs
+   *   open/active over execute, which means
+   *   that it should be safe to release anything completed here
+   *
+   *   i.e don't check for blobs, but just go ahead and release
+   */
   trans->releaseCompletedOperations();
 }
 
