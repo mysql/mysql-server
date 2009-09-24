@@ -104,7 +104,7 @@ public:
 //    ndbout << "Uint32Buffer::alloc() Extend buffer from: " << m_avail
 //           << ", to: " << newSize << endl;
       Uint32* newBuf = new Uint32[reqSize*2];
-      if (likely(newBuf)) {
+      if (likely(newBuf!=NULL)) {
         assert(newBuf);
         memcpy (newBuf, m_array, m_size*sizeof(Uint32));
         delete[] m_extension;
