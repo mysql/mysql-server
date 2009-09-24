@@ -694,6 +694,9 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   DBUG_ENTER("g_get_ndb_blobs_value");
   DBUG_PRINT("info", ("destination row: %p", ha->m_blob_destination_record));
 
+  if (ha->m_blob_counter == 0)   /* Reset total size at start of row */
+    ha->m_blobs_row_total_size= 0;
+
   /* Count the total length needed for blob data. */
   int isNull;
   if (ndb_blob->getNull(isNull) != 0)
@@ -709,11 +712,15 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
       DBUG_ASSERT(FALSE);
       DBUG_RETURN(-1);
     }
+    DBUG_PRINT("info", ("Blob number %d needs size %llu, total buffer reqt. now %llu",
+                        ha->m_blob_counter,
+                        len64,
+                        ha->m_blobs_row_total_size));
   }
   ha->m_blob_counter++;
 
   /*
-    Wait until all blobs are active with reading, so we can allocate
+    Wait until all blobs in this row are active, so we can allocate
     and use a common buffer containing all.
   */
   if (ha->m_blob_counter < ha->m_blob_expected_count_per_row)
