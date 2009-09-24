@@ -601,6 +601,22 @@ max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2_O T6 T13 
+
 #
 # DICT TESTS
 max-time: 500
@@ -777,6 +793,14 @@ cmd: testNdbApi
 args: -n NdbRecordRowLength
 
 max-time: 500
+cmd: testNdbApi
+args: -n Bug44065
+
+max-time: 500
+cmd: testNdbApi
+args: -n Bug44065_org
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
@@ -940,6 +964,31 @@ args: --no-implicit-nulls --no-multiops --blob-version 1
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --no-multiops
+
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier -l 2
+
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier_NR -l 2
+
+#
+max-time: 3600
+cmd: test_event
+args: -n MergeEventOperationApplier_NR -l 2
+
+#
+max-time: 2500
+cmd: test_event
+args: -n Multi
+
+#
+max-time: 3600
+cmd: test_event
+args: -n CreateDropNR -l 1
 
 max-time: 600
 cmd: testBasic

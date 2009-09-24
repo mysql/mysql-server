@@ -25,6 +25,8 @@ SHOW TABLES;
 # insert some values on the slave and master
 --connection master
 INSERT INTO t1 VALUES (1,2);
+# Give time to propagate + close epoch, to ensure deterministic Binlog contents
+--sleep 1
 --connection slave
 INSERT INTO t1 VALUES (2,3);
 
@@ -42,6 +44,13 @@ SELECT * FROM t1 ORDER BY a;
 # BUG#34654 Last_IO_Errno is not reset - Mask columns 35 and 36
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical show slave status;
+
+--echo Slave Binlog contains all ops as log_slave_updates is on
+show variables like 'server_id';
+show variables like 'log_bin';
+show variables like 'log_slave_updates';
+--source include/show_binlog_events2.inc
+
 # connect to master and ensure data it there.
 --connection master
 SELECT * FROM t1 ORDER BY a;
@@ -49,6 +58,12 @@ SELECT * FROM t1 ORDER BY a;
 # BUG#34654 Last_IO_Errno is not reset - Mask columns 35 and 36
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical show slave status;
+
+--echo Master Binlog contains only Master ops as log_slave_updates is off
+show variables like 'server_id';
+show variables like 'log_bin';
+show variables like 'log_slave_updates';
+--source include/show_binlog_events2.inc
 
 # stop replication on "master" as not to replicate
 # shutdown circularly, eg drop table

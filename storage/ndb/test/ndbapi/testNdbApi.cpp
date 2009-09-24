@@ -2823,6 +2823,10 @@ runBug44065(NDBT_Context* ctx, NDBT_Step* step)
   int rowno = 0;
   aValue = 0;
   Ndb* pNdb = GETNDB(step);
+  Ndb * pNdb2 = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  pNdb2->init();
+  pNdb2->waitUntilReady();
+
   const NdbDictionary::Table* pTab= ctx->getTab();
   
   HugoOperations hugoOps1(*pTab);
@@ -2831,21 +2835,26 @@ runBug44065(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(hugoOps1.execute_NoCommit(pNdb) == 0);
 
   HugoOperations hugoOps2(*pTab);
-  CHECK(hugoOps2.startTransaction(pNdb) == 0);
+  CHECK(hugoOps2.startTransaction(pNdb2) == 0);
   
-  CHECK(hugoOps2.pkDeleteRecord(pNdb, rowno) == 0);
-  CHECK(hugoOps2.pkInsertRecord(pNdb, rowno) == 0);
+  CHECK(hugoOps2.pkDeleteRecord(pNdb2, rowno) == 0);
+  CHECK(hugoOps2.pkInsertRecord(pNdb2, rowno) == 0);
   
   NdbTransaction* trans = hugoOps2.getTransaction();
+  aValue = 0;
   
   trans->executeAsynch(NdbTransaction::NoCommit, a_callback, 0);
+  pNdb2->sendPreparedTransactions(1);
   CHECK(hugoOps1.execute_Commit(pNdb) == 0);
+  ndbout_c("waiting for callback");
   while (aValue == 0)
   {
+    pNdb2->pollNdb();
     NdbSleep_MilliSleep(100);
   }
-  CHECK(hugoOps2.execute_Rollback(pNdb) == 0);
+  CHECK(hugoOps2.execute_Rollback(pNdb2) == 0);
   
+  delete pNdb2;
   ctx->stopTest();
 
   return NDBT_OK;

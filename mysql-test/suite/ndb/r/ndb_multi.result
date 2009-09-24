@@ -143,3 +143,39 @@ show tables like '%$%';
 Tables_in_test (%$%)
 show tables like '%$%';
 Tables_in_test (%$%)
+create table t1(s char(1)) engine = myisam;
+insert into t1 values ("a"),("b"),("c");
+create table t1(s char(1)) engine = ndb;
+insert into t1 values ("d"),("e"),("f");
+Restarting mysqld
+use test;
+select * from t1 order by s;
+s
+a
+b
+c
+select * from t1 order by s;
+s
+d
+e
+f
+drop table t1;
+select * from t1 order by s;
+s
+a
+b
+c
+create table t1(s char(1)) engine = ndb;
+insert into t1 values ("g"),("h"),("i");
+show tables;
+Tables_in_test
+t1
+Warnings:
+Warning	1050	Local table test.t1 shadows ndb table
+select * from t1 order by s;
+s
+a
+b
+c
+drop table t1;
+drop table t1;

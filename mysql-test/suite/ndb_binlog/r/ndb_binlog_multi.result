@@ -30,7 +30,7 @@ a	b
 DROP TABLE t2;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY, b int) ENGINE = NDB
+mysqld-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY, b int) ENGINE = NDB
 mysqld-bin.000001	#	Query	1	#	BEGIN
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
