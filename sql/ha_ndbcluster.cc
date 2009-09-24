@@ -537,14 +537,14 @@ void
 ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
                                             NdbTransaction *trans)
 {
-  if (trans->hasBlobOperation())
-  {
-    /* We are reading/writing BLOB fields, 
-       releasing operation records is unsafe
-    */
-    return;
-  }
-
+  /**
+   * mysqld reads/write blobs fully,
+   *   which means that it does not keep blobs
+   *   open/active over execute, which means
+   *   that it should be safe to release anything completed here
+   *
+   *   i.e don't check for blobs, but just go ahead and release
+   */
   trans->releaseCompletedOperations();
 }
 
@@ -1014,6 +1014,9 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   DBUG_ENTER("g_get_ndb_blobs_value");
   DBUG_PRINT("info", ("destination row: %p", ha->m_blob_destination_record));
 
+  if (ha->m_blob_counter == 0)   /* Reset total size at start of row */
+    ha->m_blobs_row_total_size= 0;
+
   /* Count the total length needed for blob data. */
   int isNull;
   if (ndb_blob->getNull(isNull) != 0)
@@ -1023,43 +1026,43 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     if (ndb_blob->getLength(len64) != 0)
       ERR_RETURN(ndb_blob->getNdbError());
     /* Align to Uint64. */
-    ha->m_blob_total_size+= (len64 + 7) & ~((Uint64)7);
-    if (ha->m_blob_total_size > 0xffffffff)
+    ha->m_blobs_row_total_size+= (len64 + 7) & ~((Uint64)7);
+    if (ha->m_blobs_row_total_size > 0xffffffff)
     {
       DBUG_ASSERT(FALSE);
       DBUG_RETURN(-1);
     }
+    DBUG_PRINT("info", ("Blob number %d needs size %llu, total buffer reqt. now %llu",
+                        ha->m_blob_counter,
+                        len64,
+                        ha->m_blobs_row_total_size));
   }
   ha->m_blob_counter++;
 
   /*
-    Wait until all blobs are active with reading, so we can allocate
+    Wait until all blobs in this row are active, so we can allocate
     and use a common buffer containing all.
   */
-  if (ha->m_blob_counter < ha->m_blob_expected_count)
+  if (ha->m_blob_counter < ha->m_blob_expected_count_per_row)
     DBUG_RETURN(0);
+
+  /* Reset blob counter for next row (scan scenario) */
   ha->m_blob_counter= 0;
 
-  /* Re-allocate bigger blob buffer if necessary. */
-  if (ha->m_blob_total_size > ha->m_blobs_buffer_size)
+  /* Re-allocate bigger blob buffer for this row if necessary. */
+  if (ha->m_blobs_row_total_size > ha->m_blobs_buffer_size)
   {
     my_free(ha->m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_PRINT("info", ("allocate blobs buffer size %u",
-                        (uint32)(ha->m_blob_total_size)));
-	if(((size_t)ha->m_blob_total_size) != ha->m_blob_total_size)
-	{
-		ha->m_blobs_buffer= NULL;
-		ha->m_blobs_buffer_size= 0;
-		DBUG_RETURN(-1);
-	}
+                        (uint32)(ha->m_blobs_row_total_size)));
     ha->m_blobs_buffer=
-      (uchar*) my_malloc((size_t)ha->m_blob_total_size, MYF(MY_WME));
+      (uchar*) my_malloc(ha->m_blobs_row_total_size, MYF(MY_WME));
     if (ha->m_blobs_buffer == NULL)
     {
       ha->m_blobs_buffer_size= 0;
       DBUG_RETURN(-1);
     }
-    ha->m_blobs_buffer_size= ha->m_blob_total_size;
+    ha->m_blobs_buffer_size= ha->m_blobs_row_total_size;
   }
 
   /*
@@ -1151,9 +1154,9 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
   DBUG_ENTER("ha_ndbcluster::get_blob_values");
 
   m_blob_counter= 0;
-  m_blob_expected_count= 0;
+  m_blob_expected_count_per_row= 0;
   m_blob_destination_record= dst_record;
-  m_blob_total_size= 0;
+  m_blobs_row_total_size= 0;
 
   for (i= 0; i < table_share->fields; i++) 
   {
@@ -1168,7 +1171,7 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
       if ((ndb_blob= ndb_op->getBlobHandle(i)) == NULL ||
           ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
         DBUG_RETURN(1);
-      m_blob_expected_count++;
+      m_blob_expected_count_per_row++;
     }
     else
       ndb_blob= NULL;
@@ -1360,12 +1363,12 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap)
 void ha_ndbcluster::release_blobs_buffer()
 {
   DBUG_ENTER("releaseBlobsBuffer");
-  if (m_blob_total_size > 0)
+  if (m_blobs_buffer_size > 0)
   {
-    DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blob_total_size));
+    DBUG_PRINT("info", ("Deleting blobs buffer, size %u", m_blobs_buffer_size));
     my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     m_blobs_buffer= 0;
-    m_blob_total_size= 0;
+    m_blobs_row_total_size= 0;
     m_blobs_buffer_size= 0;
   }
   DBUG_VOID_RETURN;
@@ -4479,7 +4482,13 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
       {
         Field_blob *field_blob= (Field_blob *)field;
         NdbBlob *ndb_blob= m_value[i].blob;
+        /* unpack_record *only* called for scan result processing
+         * *while* the scan is open and the Blob is active.
+         * Verify Blob state to be certain.
+         * Accessing PK/UK op Blobs after execute() is unsafe
+         */
         DBUG_ASSERT(ndb_blob != 0);
+        DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
         int isNull;
         res= ndb_blob->getNull(isNull);
         DBUG_ASSERT(res == 0);                  // Already succeeded once
@@ -4577,6 +4586,7 @@ void ha_ndbcluster::print_results()
     {
       NdbBlob *ndb_blob= value.blob;
       bool isNull= TRUE;
+      assert(ndb_blob->getState() == NdbBlob::Active);
       ndb_blob->getNull(isNull);
       if (isNull)
         strmov(buf, "NULL");
@@ -8000,7 +8010,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_update_cannot_batch(FALSE),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
-  m_blob_total_size(0),
+  m_blobs_row_total_size(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
