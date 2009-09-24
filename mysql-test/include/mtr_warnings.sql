@@ -173,6 +173,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
 
  ("THE_LAST_SUPPRESSION")||
 

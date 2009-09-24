@@ -6,6 +6,8 @@
 # max-out size db name 
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
+call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
+call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
 
 let $db= DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 disable_warnings;
