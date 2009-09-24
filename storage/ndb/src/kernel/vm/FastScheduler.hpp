@@ -127,6 +127,9 @@ public:
   void traceDumpPrepare(NdbShutdownType&);
   /* Number of threads to create trace files for (thread id 0 .. N-1). */
   Uint32 traceDumpGetNumThreads();
+
+  int traceDumpGetCurrentThread(); // returns -1 if not found
+
   /* Get jam() buffers etc. for specific thread. */
   bool traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
                        const Uint32 * & thrdTheEmulatedJam,
