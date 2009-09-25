@@ -317,6 +317,12 @@ os_file_get_last_error(
 				" software or another instance\n"
 				"InnoDB: of MySQL."
 				" Please close it to get rid of this error.\n");
+		} else if (err == ERROR_WORKING_SET_QUOTA
+			   || err == ERROR_NO_SYSTEM_RESOURCES) {
+			fprintf(stderr,
+				"InnoDB: The error means that there are no"
+				" sufficient system resources or quota to"
+				" complete the operation.\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -338,6 +344,9 @@ os_file_get_last_error(
 	} else if (err == ERROR_SHARING_VIOLATION
 		   || err == ERROR_LOCK_VIOLATION) {
 		return(OS_FILE_SHARING_VIOLATION);
+	} else if (err == ERROR_WORKING_SET_QUOTA
+		   || err == ERROR_NO_SYSTEM_RESOURCES) {
+		return(OS_FILE_INSUFFICIENT_RESOURCE);
 	} else {
 		return(100 + err);
 	}
@@ -455,6 +464,10 @@ os_file_handle_error_cond_exit(
 	} else if (err == OS_FILE_SHARING_VIOLATION) {
 
 		os_thread_sleep(10000000);  /* 10 sec */
+		return(TRUE);
+	} else if (err == OS_FILE_INSUFFICIENT_RESOURCE) {
+
+		os_thread_sleep(100000);	/* 100 ms */
 		return(TRUE);
 	} else {
 		if (name) {
