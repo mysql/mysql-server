@@ -99,7 +99,7 @@ main(int argc, char ** argv){
       while(i < OP_COUNT && (use_ops & (1 << i)) == 0) i++;
       if(i == OP_COUNT)
 	break;
-      ndbout_c("-- loop\noperation: %c use_ops: %x", 'a'+i, use_ops);
+      ndbout_c("-- loop\noperation: %c use_ops: %x", int('a'+i), use_ops);
       g_use_ops = (1 << i);
     } else {
       i = OP_COUNT - 1;
@@ -116,7 +116,7 @@ main(int argc, char ** argv){
 	  " finished before SAVE_PAGES" << endl;
 	require(!load_table());
 	require(!pause_lcp(5900));
-	for(size_t j = 0; j<g_rows; j++){
+	for(size_t j = 0; j<(size_t)g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5900));
