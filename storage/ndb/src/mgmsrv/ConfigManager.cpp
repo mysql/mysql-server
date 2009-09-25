@@ -1494,6 +1494,7 @@ ConfigManager::execCONFIG_CHECK_CONF(SignalSender& ss, SimpleSignal* sig)
 {
   BlockReference from = sig->header.theSendersBlockRef;
   NodeId nodeId = refToNode(from);
+  assert(m_waiting_for.get(nodeId));
   m_waiting_for.clear(nodeId);
   m_checked.set(nodeId);
 
@@ -1509,6 +1510,7 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
 {
   BlockReference from = sig->header.theSendersBlockRef;
   NodeId nodeId = refToNode(from);
+  assert(m_waiting_for.get(nodeId));
 
   const ConfigCheckRef* const ref =
     CAST_CONSTPTR(ConfigCheckRef, sig->getDataPtr());
@@ -1528,7 +1530,7 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
 
   assert(ref->generation != ref->expected_generation ||
          ref->state != ref->expected_state);
-  assert(ref->state == m_config_state);
+  assert(ref->state == (Uint32)m_config_state);
 
   Config other_config;
   if (sig->header.theLength == ConfigCheckRef::SignalLengthWithConfig &&
@@ -1853,29 +1855,25 @@ ConfigManager::fetch_config(void)
 {
   DBUG_ENTER("ConfigManager::fetch_config");
 
-  /* Loop until config loaded from other mgmd(s) */
-  char buf[128];
-  g_eventLogger->info("Trying to get configuration from other mgmd(s) "\
-                      "using '%s'...",
-                      m_config_retriever.get_connectstring(buf, sizeof(buf)));
-
-  if (!m_config_retriever.is_connected())
+  while(true)
   {
+    /* Loop until config loaded from other mgmd(s) */
+    char buf[128];
+    g_eventLogger->info("Trying to get configuration from other mgmd(s) "\
+                        "using '%s'...",
+                        m_config_retriever.get_connectstring(buf, sizeof(buf)));
 
-    if (m_config_retriever.do_connect(-1 /* retry */,
+    if (m_config_retriever.is_connected() ||
+        m_config_retriever.do_connect(30 /* retry */,
                                       1 /* delay */,
-                                      0 /* verbose */) != 0)
+                                      0 /* verbose */) == 0)
     {
-      g_eventLogger->error("INTERNAL ERROR: Inifinite wait for connect " \
-                           "returned!");
-      abort();
+      g_eventLogger->info("Connected to '%s:%d'...",
+                          m_config_retriever.get_mgmd_host(),
+                          m_config_retriever.get_mgmd_port());
+      break;
     }
-    g_eventLogger->info("Connected to '%s:%d'...",
-                        m_config_retriever.get_mgmd_host(),
-                        m_config_retriever.get_mgmd_port());
-
   }
-
   // read config from other management server
   ndb_mgm_configuration * tmp =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
@@ -2071,14 +2069,20 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
       ; // allow other mgmd to fetch initial configuration
     else
     {
-      NodeBitmask not_started(m_all_mgm);
-      not_started.bitANDC(m_started);
-
       error.assign("The cluster configuration is not yet confirmed "
-                   "by all defined management servers. "
-                   "This management server is still waiting for node ");
-      error.append(BaseString::getPrettyText(not_started));
-      error.append(" to connect.");
+                   "by all defined management servers. ");
+      if (m_config_change_state != ConfigChangeState::IDLE)
+      {
+        error.append("Initial configuration change is in progress.");
+      }
+      else
+      {
+        NodeBitmask not_started(m_all_mgm);
+        not_started.bitANDC(m_checked);
+        error.append("This management server is still waiting for node ");
+        error.append(BaseString::getPrettyText(not_started));
+        error.append(" to connect.");
+      }
       return false;
     }
     break;
