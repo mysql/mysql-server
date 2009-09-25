@@ -1717,7 +1717,6 @@ restartNodes(NdbNodeBitmask mask)
     }
   }
 
-  int result;
   if (res.waitNodesNoStart(nodes, cnt) != 0)
     return NDBT_FAILED;
 

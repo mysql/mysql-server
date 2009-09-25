@@ -75,7 +75,7 @@ typedef struct {
   inline void stopLatency(){
     if((latencyCounter & 127) == 127){
       const NDB_TICKS tmp = NdbTick_CurrentMillisecond() - startTime;
-      latency.addObservation(tmp);
+      latency.addObservation((double)tmp);
     }
     latencyCounter++;
   }
