@@ -283,6 +283,7 @@ valid(const Sequence& s)
   return true;
 }
 
+#if 0
 static
 NdbOut& operator<<(NdbOut& out, const Sequence& s)
 {
@@ -306,6 +307,7 @@ NdbOut& operator<<(NdbOut& out, const Sequence& s)
   out << "]";
   return out;
 }
+#endif
 
 static
 void

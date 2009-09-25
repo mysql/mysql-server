@@ -1471,6 +1471,7 @@ static int createEventOperations(Ndb * ndb)
   DBUG_RETURN(NDBT_OK);
 }
 
+#if 0
 static int createAllEventOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
   DBUG_ENTER("createAllEventOperations");
@@ -1482,6 +1483,7 @@ static int createAllEventOperations(NDBT_Context* ctx, NDBT_Step* step)
   }
   DBUG_RETURN(NDBT_OK);
 }
+#endif
 
 static int dropEventOperations(Ndb * ndb)
 {
@@ -1499,6 +1501,7 @@ static int dropEventOperations(Ndb * ndb)
   DBUG_RETURN(NDBT_OK);
 }
 
+#if 0
 static int dropAllEventOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
   DBUG_ENTER("dropAllEventOperations");
@@ -1510,6 +1513,7 @@ static int dropAllEventOperations(NDBT_Context* ctx, NDBT_Step* step)
   }
   DBUG_RETURN(NDBT_OK);
 }
+#endif
 
 static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 {

@@ -54,6 +54,7 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+#if 0
 static void usage()
 {
   char desc[] =  "This program connects to ndbd, and then disconnects\n";
@@ -61,6 +62,7 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+#endif
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
