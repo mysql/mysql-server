@@ -131,7 +131,7 @@ struct __toku_ltm {
     u_int32_t          max_locks;
     /** The current number of locks for the environment. */
     u_int32_t          curr_locks;
-    /** The maximum number of locks allowed for the environment. */
+    /** The maximum number of locks allowed for the db. */
     u_int32_t          max_locks_per_db;
     /** The list of lock trees it manages. */
     toku_lth*          lth;
@@ -506,6 +506,8 @@ int toku_ltm_set_max_locks_per_db(toku_ltm* mgr, u_int32_t max_locks);
     - EINVAL if any parameter is NULL.
 */
 int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
+
+int toku_ltm_get_curr_locks(toku_ltm* mgr, u_int32_t* curr_locks);
 
 int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks);
 

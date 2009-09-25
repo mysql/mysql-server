@@ -359,6 +359,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  int64_t          cachetable_size_limit;   /*  */ \n");
     printf("  int64_t          cachetable_size_writing; /*  */ \n");
 
+    printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
+    printf("  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ \n");
+    printf("  u_int32_t        range_locks_curr;       /* total range locks currently in use */ \n");
+
     //    printf("  struct timeval   checkpoint_tbegin;       /* time of last checkpoint begin        */ \n");
     //    printf("  struct timeval   checkpoint_tend;         /* time of last checkpoint end          */ \n");
     //    printf("  DB_LSN           lsn_of_last_checkpoint_begin;                                       \n");

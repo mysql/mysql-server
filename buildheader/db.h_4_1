@@ -54,6 +54,9 @@ typedef struct __toku_engine_status {
   int64_t          cachetable_size_current; /*  */ 
   int64_t          cachetable_size_limit;   /*  */ 
   int64_t          cachetable_size_writing; /*  */ 
+  u_int32_t        range_locks_max;         /* max total number of range locks */ 
+  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ 
+  u_int32_t        range_locks_curr;       /* total range locks currently in use */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
