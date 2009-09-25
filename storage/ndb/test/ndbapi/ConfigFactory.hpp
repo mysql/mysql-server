@@ -25,10 +25,23 @@
 struct ConfigFactory
 {
 
+  static Uint32 get_ndbt_base_port(void)
+  {
+    Uint32 port = 0;
+    const char* base_port_str = getenv("NDBT_BASE_PORT");
+    if (base_port_str)
+      port = atoi(base_port_str);
+    if (!port)
+      port = 11000; // default
+    return port;
+  }
+
+
   static Properties create(unsigned mgmds = 1,
                            unsigned ndbds = 1,
                            unsigned mysqlds = 1)
   {
+    Uint32 base_port = get_ndbt_base_port();
     Properties config;
     assert(mgmds >= 1 && ndbds >= 1 && mysqlds >= 1);
     for (unsigned n = 1; n <= ndbds + mgmds + mysqlds; n++)
@@ -42,7 +55,7 @@ struct ConfigFactory
       {
         node = "ndb_mgmd";
         node_settings.put("HostName", "localhost");
-        node_settings.put("PortNumber", 11000 + n); // MASV from env
+        node_settings.put("PortNumber", base_port + n);
       } else if (n <= mgmds + ndbds)
       {
         node = "ndbd";

@@ -208,8 +208,7 @@ public:
 
   }
 
-  bool connect(const Properties& config,
-               int num_retries = 30, int retry_delay_in_seconds = 1)
+  const BaseString connectstring(const Properties& config)
   {
     const char* hostname;
     if (!get_section_string(config, m_name.c_str(), "HostName", &hostname))
@@ -221,7 +220,13 @@ public:
 
     BaseString constr;
     constr.assfmt("%s:%d", hostname, port);
+    return constr;
+  }
 
+  bool connect(const Properties& config,
+               int num_retries = 30, int retry_delay_in_seconds = 1)
+  {
+    BaseString constr = connectstring(config);
     g_info << "Connecting to " << name() << " @ " << constr.c_str() << endl;
 
     return m_mgmd_client.connect(constr.c_str(),
@@ -583,7 +588,8 @@ int runTestBug42015(NDBT_Context* ctx, NDBT_Step* step)
   // Start ndb_mgmd 2 by fetching from first
   Mgmd* mgmd2 = new Mgmd(2);
   CHECK(mgmd2->start(wd.path(),
-                     "--ndb-connectstring=localhost:11001",
+                     "--ndb-connectstring",
+                     mgmd->connectstring(config).c_str(),
                      NULL));
   mgmds.push_back(mgmd2);
 

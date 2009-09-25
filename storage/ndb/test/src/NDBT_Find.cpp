@@ -70,6 +70,9 @@ NDBT_find_binary(BaseString& name, const char* binary_name,
 void
 NDBT_find_ndb_mgmd(BaseString& path)
 {
-  NDBT_find_binary(path, "ndb_mgmd", "../../src/mgmsrv", NULL);
+  NDBT_find_binary(path, "ndb_mgmd",
+                   "../../src/mgmsrv",
+                   "../storage/ndb/src/mgmsrv/",
+                   NULL);
 }
 
