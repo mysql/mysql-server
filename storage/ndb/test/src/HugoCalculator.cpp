@@ -96,7 +96,7 @@ static
 Uint32
 calc_len(Uint32 rvalue, int maxlen)
 {
-  int minlen = 25;
+  Uint32 minlen = 25;
   
   if ((rvalue >> 16) < 4096)
     minlen = 15;

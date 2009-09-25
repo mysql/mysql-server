@@ -129,8 +129,6 @@ static int			tAttributeSize;
 static int			tNoOfOperations;
 static int			tNoOfRecords;
 static int			tNoOfLoops;
-static				ReadyType ThreadReady[NDB_MAXTHREADS];
-static				StartType ThreadStart[NDB_MAXTHREADS];
 static char			tableName[MAXTABLES][MAXSTRLEN];
 static char			attrName[MAXATTR][MAXSTRLEN];
 static int			theSimpleFlag = 0;

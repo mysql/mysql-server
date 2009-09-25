@@ -1068,6 +1068,7 @@ check_get_nodeid_invalid_nodetype1(NdbMgmd& mgmd)
 }
 
 
+#if 0
 static bool
 check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
 {
@@ -1083,7 +1084,7 @@ check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
   }
   return true;
 }
-
+#endif
 
 static bool
 check_get_nodeid_dynamic_nodeid(NdbMgmd& mgmd)
@@ -1153,11 +1154,10 @@ check_get_nodeid_nonode(NdbMgmd& mgmd)
   return get_nodeid_result_contains(mgmd, args, expected.c_str());
 }
 
-
+#if 0
 static bool
 check_get_nodeid_nodeid1(NdbMgmd& mgmd)
 {
-
   // Find a node that does exist
   Config conf;
   if (!mgmd.get_config(conf))
@@ -1188,7 +1188,7 @@ check_get_nodeid_nodeid1(NdbMgmd& mgmd)
   reply.print();
   return ok(reply);
 }
-
+#endif
 
 static bool
 check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)

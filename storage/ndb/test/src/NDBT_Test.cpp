@@ -843,15 +843,6 @@ int NDBT_TestSuite::addTest(NDBT_TestCase* pTest){
   return 0;
 }
 
-static int
-g_create_hook(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
-{
-  NDBT_TestSuite* ts = (NDBT_TestSuite*)arg;
-  
-  return ts->createHook(ndb, tab, when);
-}
-
-
 int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 			       const char* _testname){
 

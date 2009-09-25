@@ -16,11 +16,12 @@ struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+#if 0
 static void usage()
 {
   ndb_std_print_version();
 }
-#if 0
+
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       const char *argument)

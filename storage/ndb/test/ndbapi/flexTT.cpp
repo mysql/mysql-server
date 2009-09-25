@@ -833,7 +833,7 @@ readArguments(int argc, const char** argv){
       }
     } else if (strcmp(argv[i], "-e") == 0){
       tMinEvents = atoi(argv[i+1]);
-      if ((tMinEvents < 1) || (tMinEvents > (int)tNoOfParallelTrans)) {
+      if ((tMinEvents < 1) || (tMinEvents > tNoOfParallelTrans)) {
 	ndbout_c("Invalid no of loops");
         return -1;
       }

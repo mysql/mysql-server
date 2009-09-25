@@ -3967,6 +3967,7 @@ err:
   return -1;
 }
 
+#if 0
 static int
 st_wait_db_node_up(ST_Con& c, int node_id)
 {
@@ -3988,6 +3989,7 @@ st_wait_db_node_up(ST_Con& c, int node_id)
 err:
   return -1;
 }
+#endif
 
 // extra connection (separate API node)
 
@@ -4130,6 +4132,7 @@ st_find_obj(const char* dbname, const char* name)
   return ret_objp;
 }
 
+#if 0
 static void
 st_print_obj(const char* dbname, const char* name, int line = 0)
 {
@@ -4145,6 +4148,7 @@ st_print_obj(const char* dbname, const char* name, int line = 0)
     g_info << " line:" << line;
   g_info << endl;
 }
+#endif
 
 // set object state
 
@@ -4163,11 +4167,13 @@ st_set_commit_obj(ST_Con& c, ST_Obj& obj)
   }
 }
 
+#if 0
 static void
 st_set_commit_trg(ST_Con& c, ST_Trg& trg)
 {
   st_set_commit_obj(c, trg);
 }
+#endif
 
 static void
 st_set_commit_ind(ST_Con& c, ST_Ind& ind)
@@ -6187,14 +6193,14 @@ err:
   return NDBT_FAILED;
 }
 
+#if 0
 static int
 st_test_sr_commit(ST_Con& c, int arg = -1)
 {
   g_info << "not yet" << endl;
   return NDBT_OK;
-err:
-  return NDBT_FAILED;
 }
+#endif
 
 // run test cases
 

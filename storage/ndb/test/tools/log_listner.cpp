@@ -8,12 +8,15 @@ static struct my_option my_long_options[] =
   NDB_STD_OPTS("eventlog"),
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+#if 0
 static void usage()
 {
   ndb_std_print_version();
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+#endif
 
 int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		 15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
