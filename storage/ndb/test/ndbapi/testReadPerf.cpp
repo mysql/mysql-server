@@ -82,7 +82,6 @@ static const NdbDictionary::Index * g_i_ordered;
 static char g_table[256];
 static char g_unique[256];
 static char g_ordered[256];
-static char g_buffer[2*1024*1024];
 
 int create_table();
 int load_table();
