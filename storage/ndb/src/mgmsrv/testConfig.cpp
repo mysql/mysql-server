@@ -1,3 +1,22 @@
+/*
+  Copyright (C) 2009 Sun Microsystems Inc.
+
+   All rights reserved. Use is subject to license terms.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
 #include "ConfigInfo.hpp"
@@ -23,7 +42,6 @@ static const ConfigInfo g_info;
 bool
 check_param(const ConfigInfo::ParamInfo & param)
 {
-
   FILE* config_file= tmpfile();
   CHECK(config_file);
 
@@ -85,13 +103,14 @@ check_params(void)
   bool ok= true;
   for (int j=0; j<g_info.m_NoOfParams; j++) {
     const ConfigInfo::ParamInfo & param= g_info.m_ParamInfo[j];
+    printf("Checking %s...\n", param._fname);
     if (!check_param(param))
     {
       ok= false;
     }
   }
 
-  return true; // Ignore ok for now
+  return true; // Ignore "ok" for now, just checking it doesn't crash
 }
 
 
@@ -151,7 +170,6 @@ diff_config(void)
   CHECK(!c2->illegal_change(c1));
   CHECK(!c1->illegal_change(c2));
 
-
   ndbout_c("==================");
   ndbout_c("c1->print_diff(c2)");
   c1->print_diff(c2);
@@ -159,16 +177,58 @@ diff_config(void)
   ndbout_c("c2->print_diff(c1)");
   c2->print_diff(c1);
   ndbout_c("==================");
+
+  {
+
+
+    // BUG#47036 Reload of config shows only diff of last changed parameter
+    // - check that diff of c1 and c3 shows 2 diffs
+    Config* c1_bug47306=
+      create_config("[ndbd]", "NoOfReplicas=1",
+                    "DataMemory=100M", "IndexMemory=100M",
+                    "[ndb_mgmd]", "HostName=localhost",
+                    "[mysqld]", NULL);
+
+    ndbout_c("c1->print_diff(c1_bug47306)");
+    c1->print_diff(c1_bug47306);
+
+    Properties diff_list;
+    unsigned exclude[]= {CFG_SECTION_SYSTEM, 0};
+    c1->diff(c1_bug47306, diff_list, exclude);
+
+    // open section for ndbd with NodeId=1
+    const Properties* section;
+    CHECK(diff_list.get("NodeId=1", &section));
+
+    // Count the number of diffs for ndbd 1
+    const char* name;
+    int count= 0, found = 0;
+    Properties::Iterator prop_it(section);
+    while ((name = prop_it.next())){
+      if (strcmp(name, "IndexMemory") == 0)
+        found++;
+      if (strcmp(name, "DataMemory") == 0)
+        found++;
+      count++;
+    }
+    CHECK(found == 2 &&
+          count == found + 2); // Overhead == 2
+    ndbout_c("==================");
+
+    delete c1_bug47306;
+  }
+
   delete c1;
   delete c2;
 }
 
+#include <NdbTap.hpp>
 
-int
-main(void){
-  ndbout_c("1..1");
+TAPTEST(MgmConfig)
+{
+  ndb_init();
   diff_config();
   CHECK(check_params());
-  ndbout_c("ok");
-  exit(0);
+  ndb_end(0);
+  return 1; // OK
 }

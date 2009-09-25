@@ -63,8 +63,17 @@ public:
 
   ~NdbMgmd()
   {
+    close();
+  }
+
+  void close(void)
+  {
     if (m_handle)
+    {
+      ndb_mgm_disconnect_quiet(m_handle);
       ndb_mgm_destroy_handle(&m_handle);
+      m_handle = NULL;
+    }
   }
 
   NdbMgmHandle handle(void) const {
@@ -110,7 +119,8 @@ public:
     return ndb_mgm_get_latest_error_desc(m_handle);
   }
 
-  bool connect(const char* connect_string = NULL) {
+  bool connect(const char* connect_string = NULL,
+               int num_retries = 0, int retry_delay_in_seconds = 0) {
     assert(m_handle == NULL);
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){
@@ -131,10 +141,22 @@ public:
       return false;
     }
 
-    if (ndb_mgm_connect(m_handle,0,0,0) != 0){
+    if (ndb_mgm_connect(m_handle,num_retries,retry_delay_in_seconds,0) != 0){
       error("connect: ndb_mgm_connect failed");
       return false;
     }
+
+  // Handshake with the server to make sure it's really there
+    int major, minor, build;
+    char buf[16];
+    if (ndb_mgm_get_version(m_handle, &major, &minor, &build,
+                            sizeof(buf), buf) != 1)
+    {
+        error("connect: ndb_get_version failed");
+        return false;
+    }
+    printf("connected to ndb_mgmd version %d.%d.%d\n",
+            major, minor, build);
 
     if ((m_nodeid = ndb_mgm_get_mgmd_nodeid(m_handle)) == 0){
       error("connect: could not get nodeid of connected mgmd");

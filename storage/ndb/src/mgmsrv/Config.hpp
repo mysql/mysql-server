@@ -106,7 +106,8 @@ public:
   /*
     Print the difference to string buffer
   */
-  const char* diff2str(const Config* other, BaseString& str) const;
+  const char* diff2str(const Config* other, BaseString& str,
+                       const unsigned* exclude = NULL) const;
 
   /*
     Determine if changing to the other config is illegal
