@@ -84,6 +84,7 @@ bool g_StopServer= false;
 bool g_RestartServer= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
+static const char* opt_logname = "MgmtSrvr";
 
 static struct my_option my_long_options[] =
 {
@@ -137,6 +138,10 @@ static struct my_option my_long_options[] =
     "Delete all binary config files and start from config.ini or my.cnf",
     (uchar**) &opts.initial, (uchar**) &opts.initial, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "log-name", 256,
+    "Name to use when logging messages for this node",
+    (uchar**) &opt_logname, (uchar**) &opt_logname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -169,8 +174,6 @@ static int mgmd_main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
 
-  g_eventLogger->setCategory("MgmSrvr");
-
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&argv);
@@ -191,6 +194,8 @@ static int mgmd_main(int argc, char** argv)
       opts.print_full_config) {
     opts.daemon= 0;
   }
+
+  g_eventLogger->setCategory(opt_logname);
 
 #ifdef _WIN32
 #ifdef _DEBUG
