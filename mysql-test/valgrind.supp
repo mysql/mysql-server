@@ -1,4 +1,4 @@
-*# Suppress some common (not fatal) errors in system libraries found by valgrind
+# Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
 #
@@ -721,3 +721,4 @@
    fun:_dl_allocate_tls
    fun:pthread_create*
 }
+
