@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef CACHETABLE_H
 #define CACHETABLE_H
 
@@ -240,5 +241,19 @@ void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("
 void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
 u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
+
+typedef struct cachetable_status {
+    u_int32_t lock_ctr;
+    u_int64_t hit;
+    u_int64_t miss;
+    u_int64_t wait_reading;
+    u_int64_t wait_writing;
+    int64_t   size_current;            // the sum of the sizes of the pairs in the cachetable
+    int64_t   size_limit;              // the limit to the sum of the pair sizes
+    int64_t   size_writing;            // the sum of the sizes of the pairs being written
+} CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
+
+void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
+
 
 #endif

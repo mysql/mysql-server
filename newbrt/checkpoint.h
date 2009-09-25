@@ -67,5 +67,5 @@ int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
  * (If checkpoint is in progress, it may overwrite status info while it is being read.)
  *****/
 
-u_int64_t toku_checkpoint_get_footprint(void);
+u_int32_t toku_checkpoint_get_footprint(void);
 
