@@ -3524,7 +3524,9 @@ template class Vector<ST_Obj*>;
 typedef Vector<ST_Obj*> ST_Objlist;
 
 static ST_Objlist st_objlist;
+#ifndef NDEBUG
 static const ST_Obj* st_find_obj(const char* db, const char* name);
+#endif
 
 #define ST_MAX_NAME_SIZE  (MAX_TAB_NAME_SIZE + 100)
 
@@ -4115,7 +4117,7 @@ err:
 }
 
 // debug aid
-
+#ifndef NDEBUG
 static const ST_Obj*
 st_find_obj(const char* dbname, const char* name)
 {
@@ -4131,6 +4133,7 @@ st_find_obj(const char* dbname, const char* name)
   }
   return ret_objp;
 }
+#endif
 
 #if 0
 static void
