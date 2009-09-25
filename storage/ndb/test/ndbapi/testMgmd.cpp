@@ -175,7 +175,15 @@ public:
     if (!m_proc->stop())
     {
       fprintf(stderr, "Failed to stop process %s\n", name());
+      return false; // Can't kill with -9 -> fatal error
     }
+    int ret;
+    if (!m_proc->wait(ret, 300))
+    {
+      fprintf(stderr, "Failed to wait for process %s\n", name());
+      return false; // Can't wait after kill with -9 -> fatal error
+    }
+    assert(ret == 9);
     delete m_proc;
     m_proc = 0;
 
@@ -555,7 +563,49 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
 
 }
 
+int runTestBug42015(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
 
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create(2);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  MgmdProcessList mgmds;
+  // Start ndb_mgmd 1 from config.ini
+  Mgmd* mgmd = new Mgmd(1);
+  CHECK(mgmd->start_from_config_ini(wd.path()));
+  mgmds.push_back(mgmd);
+
+  // Start ndb_mgmd 2 by fetching from first
+  Mgmd* mgmd2 = new Mgmd(2);
+  CHECK(mgmd2->start(wd.path(),
+                     "--ndb-connectstring=localhost:11001",
+                     NULL));
+  mgmds.push_back(mgmd2);
+
+  // Connect the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->connect(config));
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+  // Check binary config files created
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_2_config.bin.1",
+                         NULL).c_str()));
+
+  return NDBT_OK;
+
+}
 
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
@@ -570,6 +620,12 @@ TESTCASE("Bug45495",
          "Test that mgmd can be restarted in any order")
 {
   INITIALIZER(runTestBug45495);
+}
+
+TESTCASE("Bug42015",
+         "Test that mgmd can fetch configuration from another mgmd")
+{
+  INITIALIZER(runTestBug42015);
 }
 
 NDBT_TESTSUITE_END(testMgmd);
