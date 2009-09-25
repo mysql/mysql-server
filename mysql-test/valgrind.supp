@@ -1,5 +1,4 @@
-#
-# Suppress some common (not fatal) errors in system libraries found by valgrind
+*# Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
 #
@@ -625,6 +624,8 @@
    fun:start_thread
 }
 
+# suppressions for glibc 2.6.1 64 bit
+
 {
    Mem loss within nptl_pthread_exit_hack_handler 6
    Memcheck:Leak
@@ -709,3 +710,14 @@
    fun:nptl_pthread_exit_hack_handler
 }
 
+#
+# Pthread doesn't free all thread specific memory before program exists
+#
+{
+   pthread allocate_tls memory loss in 2.6.1.
+   Memcheck:Leak 
+   fun:calloc
+   obj:*/ld-*.so
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
