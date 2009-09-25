@@ -70,15 +70,21 @@ static void wait_for_kill_signal(THD *thd)
 
 /**
   @brief Helper function for explain_filename
+  @param thd          Thread handle
+  @param to_p         Explained name in system_charset_info
+  @param end_p        End of the to_p buffer
+  @param name         Name to be converted
+  @param name_len     Length of the name, in bytes
 */
-static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, bool add_quotes)
+static char* add_identifier(THD* thd, char *to_p, const char * end_p,
+                            const char* name, uint name_len)
 {
   uint res;
   uint errors;
   const char *conv_name;
   char tmp_name[FN_REFLEN];
   char conv_string[FN_REFLEN];
+  int quote;
 
   DBUG_ENTER("add_identifier");
   if (!name[name_len])
@@ -102,19 +108,21 @@ static char* add_identifier(char *to_p, const char * end_p,
     conv_name= conv_string;
   }
 
-  if (add_quotes && (end_p - to_p > 2))
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+
+  if (quote != EOF && (end_p - to_p > 2))
   {
-    *(to_p++)= '`';
+    *(to_p++)= (char) quote;
     while (*conv_name && (end_p - to_p - 1) > 0)
     {
       uint length= my_mbcharlen(system_charset_info, *conv_name);
       if (!length)
         length= 1;
-      if (length == 1 && *conv_name == '`')
+      if (length == 1 && *conv_name == (char) quote)
       { 
         if ((end_p - to_p) < 3)
           break;
-        *(to_p++)= '`';
+        *(to_p++)= (char) quote;
         *(to_p++)= *(conv_name++);
       }
       else if (((long) length) < (end_p - to_p))
@@ -125,7 +133,11 @@ static char* add_identifier(char *to_p, const char * end_p,
       else
         break;                               /* string already filled */
     }
-    to_p= strnmov(to_p, "`", end_p - to_p);
+    if (end_p > to_p) {
+      *(to_p++)= (char) quote;
+      if (end_p > to_p)
+	*to_p= 0; /* terminate by NUL, but do not include it in the count */
+    }
   }
   else
     to_p= strnmov(to_p, conv_name, end_p - to_p);
@@ -145,6 +157,7 @@ static char* add_identifier(char *to_p, const char * end_p,
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
 
+   @param      thd          Thread handle
    @param      from         Path name in my_charset_filename
                             Null terminated in my_charset_filename, normalized
                             to use '/' as directory separation character.
@@ -161,13 +174,12 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
-                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
 
-uint explain_filename(const char *from,
+uint explain_filename(THD* thd,
+		      const char *from,
                       char *to,
                       uint to_length,
                       enum_explain_filename_mode explain_mode)
@@ -281,14 +293,12 @@ uint explain_filename(const char *from,
     {
       to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
       *(to_p++)= ' ';
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           (explain_mode !=
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
@@ -296,16 +306,13 @@ uint explain_filename(const char *from,
   {
     to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         (explain_mode !=
-                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
-        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -321,20 +328,15 @@ uint explain_filename(const char *from,
     }
     to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
     *(to_p++)= ' ';
-    to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         (explain_mode !=
-                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+    to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
       to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
       *(to_p++)= ' ';
-      to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           (explain_mode !=
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+      to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
-        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
