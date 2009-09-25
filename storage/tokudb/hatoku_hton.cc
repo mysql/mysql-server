@@ -743,13 +743,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       u_int32_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
       sprintf(buf, "%" PRIu32, lockctr);  
-      STATPRINT("ydb lock held", lockstat);
+      STATPRINT("ydb lock", lockstat);
       STATPRINT("ydb lock counter", buf);
 
       lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
       sprintf(buf, "%" PRIu32, lockctr);  
-      STATPRINT("cachetable lock held", lockstat);
+      STATPRINT("cachetable lock", lockstat);
       STATPRINT("cachetable lock counter", buf);
 
       sprintf(buf, "%" PRIu64, engstat.cachetable_hit);  
@@ -768,9 +768,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable size_writing", buf);
 
       sprintf(buf, "%" PRIu32, engstat.checkpoint_period);
-      STATPRINT("Checkpoint period", buf);
+      STATPRINT("checkpoint period", buf);
       sprintf(buf, "%" PRIu32, engstat.checkpoint_footprint);
-      STATPRINT("Checkpoint status code (0 = idle)", buf);
+      STATPRINT("checkpoint status code (0 = idle)", buf);
+
+      sprintf(buf, "%" PRIu32, engstat.range_locks_max);
+      STATPRINT("max range locks", buf);
+      sprintf(buf, "%" PRIu32, engstat.range_locks_max_per_db);
+      STATPRINT("max range locks per db", buf);
+      sprintf(buf, "%" PRIu32, engstat.range_locks_curr);
+      STATPRINT("range locks in use", buf);
+
+      
     }
     TOKUDB_DBUG_RETURN(error);
 }
