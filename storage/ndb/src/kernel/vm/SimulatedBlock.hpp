@@ -1212,18 +1212,18 @@ SectionHandle::~SectionHandle()
 #define RSS_OP_SNAPSHOT_SAVE(x) rss_##x = x
 #define RSS_OP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x)
 #else
-#define RSS_AP_SNAPSHOT(x)
+#define RSS_AP_SNAPSHOT(x) struct rss_dummy0_##x { int dummy; }
 #define RSS_AP_SNAPSHOT_SAVE(x)
 #define RSS_AP_SNAPSHOT_CHECK(x)
 
-#define RSS_OP_COUNTER(x)
+#define RSS_OP_COUNTER(x) struct rss_dummy1_##x { int dummy; }
 #define RSS_OP_COUNTER_INIT(x)
 #define RSS_OP_ALLOC(x)
 #define RSS_OP_FREE(x)
 #define RSS_OP_ALLOC_X(x,n)
 #define RSS_OP_FREE_X(x,n)
 
-#define RSS_OP_SNAPSHOT(x)
+#define RSS_OP_SNAPSHOT(x) struct rss_dummy2_##x { int dummy; }
 #define RSS_OP_SNAPSHOT_SAVE(x)
 #define RSS_OP_SNAPSHOT_CHECK(x)
 

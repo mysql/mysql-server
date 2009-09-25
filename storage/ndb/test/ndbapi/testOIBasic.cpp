@@ -434,9 +434,9 @@ const char*
 Tmr::time()
 {
   if (m_cnt == 0) {
-    sprintf(m_time, "%u ms", m_ms);
+    sprintf(m_time, "%u ms", (unsigned)m_ms);
   } else {
-    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", m_ms, m_cnt, (1000 * m_ms) / m_cnt);
+    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", (unsigned)m_ms, m_cnt, (unsigned)((1000 * m_ms) / m_cnt));
   }
   return m_time;
 }
@@ -445,7 +445,7 @@ const char*
 Tmr::pct(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
-    sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+    sprintf(m_text, "%u pct", (unsigned)((100 * m_ms) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -457,9 +457,9 @@ Tmr::over(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
     if (t1.m_ms <= m_ms)
-      sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+      sprintf(m_text, "%u pct", (unsigned)((100 * (m_ms - t1.m_ms)) / t1.m_ms));
     else
-      sprintf(m_text, "-%u pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
+      sprintf(m_text, "-%u pct", (unsigned)((100 * (t1.m_ms - m_ms)) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }

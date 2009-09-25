@@ -1449,7 +1449,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
   bool null = false;
-  for (int i = 0; i<tab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (tab->getColumn(i)->getNullable())
     {
@@ -1474,7 +1474,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp = pTrans->getNdbOperation(tab->getName());
   pOp->insertTuple();
   hugoTrans.equalForRow(pOp, 0);
-  for (int i = 0; i<tab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         !tab->getColumn(i)->getNullable())
@@ -1493,7 +1493,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp->readTuple();
   hugoTrans.equalForRow(pOp, 0);
   Vector<NdbRecAttr*> values;
-  for (int i = 0; i<tab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         tab->getColumn(i)->getNullable())

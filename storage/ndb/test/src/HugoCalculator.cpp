@@ -96,7 +96,7 @@ static
 Uint32
 calc_len(Uint32 rvalue, int maxlen)
 {
-  Uint32 minlen = 25;
+  int minlen = 25;
   
   if ((rvalue >> 16) < 4096)
     minlen = 15;
@@ -242,6 +242,8 @@ write_char:
   case NdbDictionary::Column::Blob:
   case NdbDictionary::Column::Undefined:
   case NdbDictionary::Column::Text:
+  case NdbDictionary::Column::Year:
+  case NdbDictionary::Column::Timestamp:
     abort();
     break;
   }
