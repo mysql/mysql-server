@@ -118,7 +118,7 @@ extern double userGetTimeSync(void);
 
 extern void userCheckpoint(UserHandle *uh);
 
-extern UserHandle *userDbConnect(uint32 createDb, char *dbName);
+extern UserHandle *userDbConnect(uint32 createDb, const char *dbName);
 extern void        userDbDisconnect(UserHandle *uh);
 
 extern int userDbInsertServer(UserHandle      *uh,

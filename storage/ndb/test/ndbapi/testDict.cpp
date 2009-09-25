@@ -331,7 +331,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
     i++;
   }
   
-  for (Uint32 i = 0; i<numTables; i++)
+  for (Uint32 i = 0; i<(Uint32)numTables; i++)
     if (tabList[i])
       pDic->dropTable(NDBT_Tables::getTable(i)->getName());
   
@@ -1288,7 +1288,7 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
 int
 runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
 
-  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~0, 256*256*256-2};
+  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~Uint32(0), 256*256*256-2};
 
   int ret = NDBT_OK;
 
@@ -1317,7 +1317,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
-    if (startvalue != ~0) // check that default value starts with 1
+    if (startvalue != ~Uint32(0)) // check that default value starts with 1
       myColumn.setAutoIncrementInitialValue(startvalue);
     myTable.addColumn(myColumn);
 
@@ -1328,7 +1328,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 
 
-    if (startvalue == ~0) // check that default value starts with 1
+    if (startvalue == ~Uint32(0)) // check that default value starts with 1
       startvalue = 1;
 
     for (int i = 0; i < 16; i++) {
@@ -1848,13 +1848,13 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
 
   const Uint32 count = NDBT_Tables::getNumTables();
-  for (i=0; i < count; i++){
+  for (i=0; i < (int)count; i++){
     const NdbDictionary::Table * tab = NDBT_Tables::getTable(i);
     pNdb->getDictionary()->createTable(* tab);
     
     const NdbDictionary::Table * tab2 = pNdb->getDictionary()->getTable(tab->getName());
     
-    for(size_t j = 0; j<tab->getNoOfColumns(); j++){
+    for(size_t j = 0; j<(size_t)tab->getNoOfColumns(); j++){
       cols.push_back((char*)tab2);
       cols.push_back(strdup(tab->getColumn(j)->getName()));
     }
@@ -1869,9 +1869,9 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
 
   srand(time(0));
   Uint32 size = cols.size() / 2;
-  char ** columns = &cols[0];
+  //char ** columns = &cols[0];
   Uint64 start = NdbTick_CurrentMillisecond();
-  for(i = 0; i<times; i++){
+  for(i = 0; i<(int)times; i++){
     int j = 2 * (rand() % size);
     const NdbDictionary::Table* tab = (const NdbDictionary::Table*)tcols[j];
     const char * col = tcols[j+1];
@@ -1885,8 +1885,8 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   per *= 1000;
   per /= times;
   
-  ndbout_c("%d random getColumn(name) in %Ld ms -> %d us/get",
-	   times, stop, per);
+  ndbout_c("%d random getColumn(name) in %Ld ms -> %u us/get",
+	   times, stop, Uint32(per));
 
   return NDBT_OK;
 }
@@ -1969,7 +1969,7 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   NdbDictionary::Table tab = *ctx->getTab();
   tab.setTablespaceName("DEFAULT-TS");
   
-  for(Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  for(Uint32 i = 0; i<(Uint32)tab.getNoOfColumns(); i++)
     if(!tab.getColumn(i)->getPrimaryKey())
       tab.getColumn(i)->setStorageType(NdbDictionary::Column::StorageTypeDisk);
   
@@ -2029,7 +2029,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
-  for (Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab.getNoOfColumns(); i++)
   {
     if (tab.getColumn(i)->getStorageType() == 
         NdbDictionary::Column::StorageTypeDisk)
@@ -2500,7 +2500,7 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   idx0.setType(NdbDictionary::Index::OrderedIndex);
   idx0.setTable(pTab0.getName());
   idx0.setStoredIndex(false);
-  for (Uint32 i = 0; i<pTab0.getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)pTab0.getNoOfColumns(); i++)
   {
     const NdbDictionary::Column * col = pTab0.getColumn(i);
     if(col->getPrimaryKey()){
@@ -2725,7 +2725,6 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 {
   int lgError = 15000;
   int tsError = 16000;
-  int res;
   char lgname[256];
   char ufname[256];
   char tsname[256];
@@ -3032,7 +3031,7 @@ RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
   idx0.setTable(pTab->getName());
   idx0.setStoredIndex(ordered ? false : stored);
 
-  for (Uint32 i = 0; i<pTab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)pTab->getNoOfColumns(); i++)
   {
     if (pTab->getColumn(i)->getPrimaryKey())
       idx0.addColumn(pTab->getColumn(i)->getName());
@@ -3206,7 +3205,7 @@ runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
   if (res.init(ctx, step))
     return NDBT_FAILED;
   
-  for (Uint32 i = 0; i<loops; i++)
+  for (int i = 0; i<loops; i++)
   {
     for (Uint32 j = 0; j<10; j++)
       if (dict.schema_op(pNdb))

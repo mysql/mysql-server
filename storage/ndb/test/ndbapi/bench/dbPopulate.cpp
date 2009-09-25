@@ -44,7 +44,7 @@ static void getRandomSubscriberData(int              subscriberNo,
 		                    SubscriberNumber number,
 		                    SubscriberName   name);
 
-static void populate(char *title,
+static void populate(const char *title,
                      int   count,
                      void (*func)(UserHandle*,int),
                      UserHandle *uh);
@@ -85,7 +85,7 @@ static void getRandomSubscriberData(int              subscriberNo,
    memset(name, myRandom48(26)+'A', SUBSCRIBER_NAME_LENGTH);
 }
 
-static void populate(char *title,
+static void populate(const char *title,
                      int   count,
                      void (*func)(UserHandle*, int),
                      UserHandle *uh)

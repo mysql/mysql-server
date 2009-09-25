@@ -2468,7 +2468,7 @@ runBug32922(NDBT_Context* ctx, NDBT_Step* step)
     int master = res.getMasterNodeId();    
 
     int victim = 32768;
-    for (Uint32 i = 0; i<res.getNumDbNodes(); i++)
+    for (Uint32 i = 0; i<(Uint32)res.getNumDbNodes(); i++)
     {
       int node = res.getDbNodeId(i);
       if (node != master && node < victim)
