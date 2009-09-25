@@ -10,6 +10,9 @@
 
 --source include/not_embedded.inc
 
+# mysqld refuses to run as root normally.
+-- source include/not_as_root.inc
+
 # We have not run (and do not need) bootstrap of the server. We just
 # give it a dummy data directory (for log files etc).
 

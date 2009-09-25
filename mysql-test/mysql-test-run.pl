@@ -2288,7 +2288,7 @@ sub  check_running_as_root () {
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
-    $ENV{'MYSQL_TEST_ROOT'}= "YES";
+    $ENV{'MYSQL_TEST_ROOT'}= "1";
   }
 
   chmod(oct("0755"), $test_file);
