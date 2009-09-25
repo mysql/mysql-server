@@ -1380,6 +1380,17 @@ select user,db from information_schema.processlist;
 user	db
 user3148	test
 drop user user3148@localhost;
+SELECT 'other connection here' AS who;
+who
+other connection here
+SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
+IF(`time` < 1000, 'OK', `time`) AS time_high,
+IF(time_ms > 900, 'OK', time_ms) AS time_ms_low,
+IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
+FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=@tid;
+time_low	time_high	time_ms_low	time_ms_high
+OK	OK	OK	OK
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
 SET GLOBAL event_scheduler=1;
@@ -1602,8 +1613,7 @@ CREATE_OPTIONS
 key_block_size=1
 DROP TABLE t1;
 SET TIMESTAMP=@@TIMESTAMP + 10000000;
-SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
-OK
 SET TIMESTAMP=DEFAULT;
 End of 5.1 tests.
