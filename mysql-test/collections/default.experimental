@@ -18,6 +18,7 @@ rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get
 rpl.rpl_innodb_bug28430* @solaris        # Bug#46029
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
+rpl.rpl_trigger*                         # Bug#46656 2009-09-25 alik InnoDB plugin: memory leaks (Valgrind)
 
 rpl_ndb.rpl_ndb_log                      # Bug#38998
 
