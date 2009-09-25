@@ -713,9 +713,9 @@ void Config::print_diff(const Config* other) const {
 
 
 const char*
-Config::diff2str(const Config* other, BaseString& str) const {
+Config::diff2str(const Config* other, BaseString& str, const unsigned * exclude) const {
   Properties diff_list;
-  diff(other, diff_list);
+  diff(other, diff_list, exclude);
   return diff2str(diff_list, str);
 }
 

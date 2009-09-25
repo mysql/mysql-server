@@ -21,6 +21,8 @@
 #ifndef NDB_PROCESS_HPP
 #define NDB_PROCESS_HPP
 
+#include <portlib/NdbSleep.h>
+
 class NdbProcess
 {
 #ifdef _WIN32
@@ -47,6 +49,13 @@ public:
     void add(const char* str)
     {
       m_args.push_back(str);
+    }
+
+    void add(const char* str, const char* str2)
+    {
+      BaseString tmp;
+      tmp.assfmt("%s%s", str, str2);
+      m_args.push_back(tmp);
     }
 
     void add(const char* str, int val)
@@ -108,6 +117,49 @@ public:
     printf("Stopped process %d\n", m_pid);
     return true;
   }
+
+  bool wait(int& ret, int timeout = 0)
+  {
+    int retries = 0;
+    int status;
+    while (true)
+    {
+      pid_t ret_pid = waitpid(m_pid, &status, WNOHANG);
+      if (ret_pid == -1)
+      {
+        fprintf(stderr,
+                "Error occured when waiting for process %d, ret: %d, errno: %d\n",
+                m_pid, status, errno);
+        return false;
+      }
+
+      if (ret_pid == m_pid)
+      {
+        if (WIFEXITED(status))
+          ret = WEXITSTATUS(status);
+        else if (WIFSIGNALED(status))
+          ret = WTERMSIG(status);
+        else
+          ret = 37; // Unknown exit status
+
+        printf("Got process %d, status: %d, ret: %d\n", m_pid, status, ret);
+        return true;
+      }
+
+      if (timeout == 0)
+        return false;
+
+      if (retries++ > timeout*10)
+      {
+        fprintf(stderr,
+                "Timeout when waiting for process %d\n", m_pid);
+        return false;
+      }
+      NdbSleep_MilliSleep(10);
+    }
+    assert(false); // Never reached
+  }
+
 private:
 
   NdbProcess(BaseString name) :
