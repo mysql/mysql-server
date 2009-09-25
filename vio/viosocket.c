@@ -361,7 +361,20 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 my_bool vio_poll_read(Vio *vio,uint timeout)
 {
 #ifndef HAVE_POLL
+#if __WIN__
+  int res;
+  struct fd_set fds;
+  struct timeval tv;
+  DBUG_ENTER("vio_poll");
+  fds.fd_count= 1;
+  fds.fd_array[0]= vio->sd;
+  tv.tv_sec= timeout;
+  tv.tv_usec= 0;
+  res= select(1, &fds, NULL, NULL, &tv) ? 0 : 1;
+  DBUG_RETURN(res);
+#else
   return 0;
+#endif
 #else
   struct pollfd fds;
   int res;

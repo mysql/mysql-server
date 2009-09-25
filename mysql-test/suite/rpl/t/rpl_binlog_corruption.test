@@ -15,6 +15,9 @@
 # BUG#31793: log event corruption causes crash
 # BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
 
+# Temporarily disabled on Windows due to bug #47639 
+--source include/not_windows.inc
+
 source include/have_log_bin.inc;
 # BUG#40482 only manifested itself in debug-compiled binaries.
 source include/have_debug.inc;
