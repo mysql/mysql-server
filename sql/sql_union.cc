@@ -653,10 +653,22 @@ bool st_select_lex_unit::cleanup()
       join->tables= 0;
     }
     error|= fake_select_lex->cleanup();
-    if (fake_select_lex->order_list.elements)
+    /*
+      There are two cases when we should clean order items:
+      1. UNION with SELECTs which all enclosed into braces
+        in this case global_parameters == fake_select_lex
+      2. UNION where last SELECT is not enclosed into braces
+        in this case global_parameters == 'last select'
+      So we should use global_parameters->order_list for
+      proper order list clean up.
+      Note: global_parameters and fake_select_lex are always
+            initialized for UNION
+    */
+    DBUG_ASSERT(global_parameters);
+    if (global_parameters->order_list.elements)
     {
       ORDER *ord;
-      for (ord= (ORDER*)fake_select_lex->order_list.first; ord; ord= ord->next)
+      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
         (*ord->item)->cleanup();
     }
   }

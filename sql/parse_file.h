@@ -83,7 +83,7 @@ sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
 			   uchar* base, File_option *parameters);
 my_bool rename_in_schema_file(THD *thd,
                               const char *schema, const char *old_name,
-                              const char *new_name);
+                              const char *new_db, const char *new_name);
 
 class File_parser: public Sql_alloc
 {

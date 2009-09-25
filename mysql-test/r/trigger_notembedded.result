@@ -462,4 +462,18 @@ unlock tables;
 select * from t1;
 i
 drop table t1;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a char(30)) ENGINE=MEMORY;
+CREATE TRIGGER db1.trg AFTER INSERT ON db1.t1 FOR EACH ROW
+INSERT INTO db1.t1 VALUES('Some very sensitive data goes here');
+CREATE USER 'no_rights'@'localhost';
+REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
+FLUSH PRIVILEGES;
+SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema = 'db1';
+trigger_name
+SHOW CREATE TRIGGER db1.trg;
+ERROR 42000: Access denied; you need the TRIGGER privilege for this operation
+DROP USER 'no_rights'@'localhost';
+DROP DATABASE db1;
 End of 5.1 tests.

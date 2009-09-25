@@ -1,57 +1,162 @@
+'\" t
 .\"     Title: \fBndbd_redo_log_reader\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBNDBD_REDO_LOG_REA" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBNDBD_REDO_LOG_REA" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" ndbd_redo_log_reader
 .SH "NAME"
 ndbd_redo_log_reader \- check and print content of cluster redo log
 .SH "SYNOPSIS"
-.HP 41
+.HP \w'\fBndbd_redo_log_reader\ \fR\fB\fIfile_name\fR\fR\fB\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBndbd_redo_log_reader \fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
-Reads a redo log file, checking it for errors, printing its contents in a human\-readable format, or both.
+Reads a redo log file, checking it for errors, printing its contents in a human\-readable format, or both\&.
 \fBndbd_redo_log_reader\fR
-is intended for use primarily by MySQL developers and support personnel in debugging and diagnosing problems.
+is intended for use primarily by MySQL developers and support personnel in debugging and diagnosing problems\&.
 .PP
-This utility was made available as part of default builds beginning with MySQL Cluster NDB 6.1.3. It remains under development, and its syntax and behavior are subject to change in future releases. For this reason, it should be considered experimental at this time.
+This utility was made available as part of default builds beginning with MySQL Cluster NDB 6\&.1\&.3\&. It remains under development, and its syntax and behavior are subject to change in future releases\&. For this reason, it should be considered experimental at this time\&.
 .PP
 The C++ source files for
 \fBndbd_redo_log_reader\fR
 can be found in the directory
-\fI/storage/ndb/src/kernel/blocks/dblqh/redoLogReader\fR.
+/storage/ndb/src/kernel/blocks/dblqh/redoLogReader\&.
 .PP
 \fBUsage\fR:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 ndbd_redo_log_reader \fIfile_name\fR [\fIoptions\fR]
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fIfile_name\fR
-is the name of a cluster REDO log file. REDO log files are located in the numbered directories under the data node's data directory (DataDir); the path under this directory to the REDO log files matches the pattern
-\fIndb_\fR\fI\fI#\fR\fR\fI_fs/D\fR\fI\fI#\fR\fR\fI/LCP/\fR\fI\fI#\fR\fR\fI/T\fR\fI\fI#\fR\fR\fIF\fR\fI\fI#\fR\fR\fI.Data\fR. In each case, the
+is the name of a cluster REDO log file\&. REDO log files are located in the numbered directories under the data node\'s data directory (DataDir); the path under this directory to the REDO log files matches the pattern
+ndb_\fI#\fR_fs/D\fI#\fR/LCP/\fI#\fR/T\fI#\fRF\fI#\fR\&.Data\&. In each case, the
 \fI#\fR
-represents a number (not necessarily the same number). For more information, see
-[1]\&\fICluster Data Node FileSystemDir Files\fR.
+represents a number (not necessarily the same number)\&. For more information, see
+\m[blue]\fBCluster Data Node FileSystemDir Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 \fBAdditional Options\fR:
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBCommand Line Format\fR
+T}:T{
+\-noprint
+T}
+T{
+\fBPermitted Values \fR
+T}:T{
+[\fInested\ table\fR]*
+T}
+.TE
+.sp 1
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B *[nested\ table]
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBCommand Line Format\fR
+T}:T{
+\-nocheck
+T}
+T{
+\fBPermitted Values \fR
+T}:T{
+[\fInested\ table\fR]*
+T}
+.TE
+.sp 1
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B *[nested\ table]
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
 .PP
 The name of the file to be read may be followed by one or more of the options listed here:
-.TP 3n
-\(bu
-\fB\-noprint\fR: Do not print the contents of the log file.
-.TP 3n
-\(bu
-\fB\-nocheck\fR: Do not check the log filre for errors.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-noprint\fR: Do not print the contents of the log file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-nocheck\fR: Do not check the log file for errors\&.
+.RE
 .sp
 .RE
 .PP
@@ -63,23 +168,27 @@ and
 NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndbd_redo_log_reader\fR
-must be run on a cluster data node, since it accesses the data node file system directly. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down.
+must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
-.SH "REFERENCES"
-.TP 3
-1.\ Cluster Data Node FileSystemDir Files
-\%http://dev.mysql.com/doc/ndbapi/en/ndb\-internals\-ndbd\-filesystem.html#ndb\-internals\-ndbd\-filesystemdir\-files
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "NOTES"
+.IP " 1." 4
+Cluster Data Node FileSystemDir Files
+.RS 4
+\%http://dev.mysql.com/doc/ndbapi/en/ndb-internals-ndbd-filesystem.html#ndb-internals-ndbd-filesystemdir-files
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

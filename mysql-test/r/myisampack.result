@@ -54,3 +54,36 @@ test.t1	repair	error	Table 'test.t1' is read only
 Warnings:
 Error	1036	Table 't1' is read only
 drop table t1;
+#
+# BUG#41541 - Valgrind warnings on packed MyISAM table
+#
+CREATE TABLE  t1(f1 VARCHAR(200), f2 TEXT);
+INSERT INTO  t1 VALUES ('foo', 'foo1'), ('bar', 'bar1');
+FLUSH TABLE t1;
+# Compress the table using MYISAMPACK tool
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1024
+DROP TABLE t1;
+#
+# Bug #43973 - backup_myisam.test fails on 6.0-bugteam
+#
+CREATE DATABASE mysql_db1;
+CREATE TABLE mysql_db1.t1 (c1 VARCHAR(5), c2 int);
+CREATE INDEX i1 ON mysql_db1.t1 (c1, c2);
+INSERT INTO mysql_db1.t1 VALUES ('A',1);
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+FLUSH TABLE mysql_db1.t1;
+# Compress the table using MYISAMPACK tool
+# Run MYISAMCHK tool on the compressed table
+SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
+COUNT(*)
+128
+DROP TABLE mysql_db1.t1;
+DROP DATABASE mysql_db1;

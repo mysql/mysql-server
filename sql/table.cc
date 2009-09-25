@@ -779,7 +779,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-					 sizeof(ulong*)*key_parts)))
+                                         sizeof(ulong)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
@@ -3343,6 +3343,7 @@ void TABLE_LIST::hide_view_error(THD *thd)
 
   if (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
       thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST ||
+      thd->main_da.sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
       thd->main_da.sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||

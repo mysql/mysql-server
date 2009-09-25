@@ -71,7 +71,7 @@ mysqldump_SOURCES=              mysqldump.c \
 	                        $(top_srcdir)/mysys/mf_getdate.c
 
 mysqlimport_SOURCES=		mysqlimport.c
-
+mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -80,14 +80,14 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 mysqlshow_SOURCES=		mysqlshow.c
 
 mysqlslap_SOURCES=		mysqlslap.c
-mysqlslap_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
+mysqlslap_CFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a
 
 mysqltest_SOURCES=		mysqltest.cc
-mysqltest_CXXFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
+mysqltest_CXXFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -99,9 +99,9 @@ mysql_upgrade_SOURCES=          mysql_upgrade.c \
                                 $(top_srcdir)/mysys/my_getpagesize.c
 
 # Fix for mit-threads
-DEFS =			-DUNDEF_THREADS_HACK \
+DEFS =			-DMYSQL_CLIENT_NO_THREADS \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
-			-DDATADIR="\"$(localstatedir)\""
+			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
 sql_src=log_event.h mysql_priv.h rpl_constants.h \
 	rpl_utility.h rpl_tblmap.h rpl_tblmap.cc \

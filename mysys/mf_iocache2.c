@@ -465,6 +465,7 @@ err:
   return (size_t) -1;
 }
 
+
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val)
 {

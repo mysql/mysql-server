@@ -40,7 +40,8 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DHAVE_EVENT_SCHEDULER)
 
-ADD_EXECUTABLE(mysqld
+
+SET (SQL_SOURCE
                ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
@@ -83,57 +84,45 @@ ADD_EXECUTABLE(mysqld
                ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
                ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
                ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
+ADD_LIBRARY(sql ${SQL_SOURCE})
 
-TARGET_LINK_LIBRARIES(mysqld
-                      heap myisam myisammrg mysys yassl zlib debug dbug yassl 
-                      taocrypt strings vio regex libevent wsock32 ws2_32)
+IF (NOT EXISTS cmake_dummy.cc)
+  FILE (WRITE cmake_dummy.cc "")
+ENDIF (NOT EXISTS cmake_dummy.cc)
+ADD_EXECUTABLE(mysqld cmake_dummy.cc)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
+SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 
-IF(cmake_version EQUAL 20406)
-# Work around for 2.4.6 bug, OUTPUT_NAME will not set the right .PDB
-# file name. Note that COMPILE_FLAGS set some temporary pdb during build,
-# LINK_FLAGS sets the real one.
-SET_TARGET_PROPERTIES(mysqld PROPERTIES
-                      COMPILE_FLAGS "/Fd${CMAKE_CFG_INTDIR}/mysqld${MYSQLD_EXE_SUFFIX}.pdb"
-                      LINK_FLAGS  "/PDB:${CMAKE_CFG_INTDIR}/mysqld${MYSQLD_EXE_SUFFIX}.pdb")
-ENDIF(cmake_version EQUAL 20406)
+SET (MYSQLD_CORE_LIBS mysys zlib dbug strings yassl taocrypt vio regex sql libevent)
+TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_CORE_LIBS} ${MYSQLD_STATIC_ENGINE_LIBS})
+TARGET_LINK_LIBRARIES(mysqld ws2_32.lib)
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("mysqld" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld archive)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld blackhole)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-IF(WITH_CSV_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld csv)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld example)
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld federated)
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld innobase)
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-IF(WITH_MARIA_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld maria)
-ENDIF(WITH_MARIA_STORAGE_ENGINE)
 
-ADD_DEPENDENCIES(mysqld GenError)
+IF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
+  # Set module definition file. Also use non-incremental linker, 
+  # incremental appears to crash from time to time,if used with /DEF option
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "/DEF:mysqld.def /INCREMENTAL:NO")
 
-# NOTE CMake 2.4.6 creates strange dependencies between files in OUTPUT,
-# so for now we only list one if more than one
+  FOREACH (CORELIB ${MYSQLD_CORE_LIBS})
+    GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
+    FILE(TO_NATIVE_PATH ${LOC} LOC)
+    SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
+  ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
+ 
+  ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
+    COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+                  ${PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/sql)
+ENDIF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
+
+ADD_DEPENDENCIES(sql GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
         OUTPUT ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-#              ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-        COMMAND bison.exe ARGS -y -p MYSQL --defines=sql_yacc.h
+               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
+        COMMAND bison ARGS -y -p MYSQL --defines=sql_yacc.h
                                --output=sql_yacc.cc sql_yacc.yy
         DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy)
 
@@ -150,16 +139,16 @@ ADD_CUSTOM_COMMAND(
 ADD_CUSTOM_TARGET(
         GenServerSource ALL
         DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-#               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
+                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                 ${PROJECT_SOURCE_DIR}/sql/message.h
-#               ${PROJECT_SOURCE_DIR}/sql/message.rc
+                ${PROJECT_SOURCE_DIR}/sql/message.rc
                 ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 
 ADD_DEPENDENCIES(mysqld GenServerSource)
 
 # Remove the auto-generated files as part of 'Clean Solution'
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
-                         "lex_hash.h;sql_yacc.h;sql_yacc.cc")
+  "lex_hash.h;sql_yacc.h;sql_yacc.cc;mysqld.def")
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings GenError)

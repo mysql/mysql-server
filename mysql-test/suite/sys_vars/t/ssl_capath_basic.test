@@ -27,7 +27,7 @@
 #   Displaying default value                                       #
 ####################################################################
 SELECT COUNT(@@GLOBAL.ssl_capath);
---echo 1 Expected
+--echo 0 Expected
 
 
 --echo '#---------------------BS_STVARS_046_02----------------------#'
@@ -40,7 +40,7 @@ SET @@GLOBAL.ssl_capath=1;
 --echo Expected error 'Read only variable'
 
 SELECT COUNT(@@GLOBAL.ssl_capath);
---echo 1 Expected
+--echo 0 Expected
 
 
 
@@ -56,7 +56,7 @@ WHERE VARIABLE_NAME='ssl_capath';
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.ssl_capath);
---echo 1 Expected
+--echo 0 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -80,7 +80,7 @@ SELECT @@ssl_capath = @@GLOBAL.ssl_capath;
 ################################################################################
 
 SELECT COUNT(@@ssl_capath);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.ssl_capath);
@@ -91,7 +91,7 @@ SELECT COUNT(@@SESSION.ssl_capath);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.ssl_capath);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT ssl_capath = @@SESSION.ssl_capath;

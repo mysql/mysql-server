@@ -59,3 +59,13 @@ BEGIN
     mysql.user;
 
 END||
+
+--
+-- Procedure used by test case used to force all
+-- servers to restart after testcase and thus skipping
+-- check test case after test
+--
+CREATE DEFINER=root@localhost PROCEDURE force_restart()
+BEGIN
+  SELECT 1 INTO OUTFILE 'force_restart';
+END||

@@ -1,0 +1,1 @@
+innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal

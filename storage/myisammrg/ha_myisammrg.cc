@@ -139,7 +139,8 @@ extern int check_definition(MI_KEYDEF *t1_keyinfo,
                             uint t1_keys, uint t1_recs,
                             MI_KEYDEF *t2_keyinfo,
                             MI_COLUMNDEF *t2_recinfo,
-                            uint t2_keys, uint t2_recs, bool strict);
+                            uint t2_keys, uint t2_recs, bool strict,
+                            TABLE *table_arg);
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name);
 
@@ -308,7 +309,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   TABLE         *parent;
   TABLE         *child;
   TABLE_LIST    *child_l;
-  MI_INFO       *myisam;
+  MI_INFO       *myisam= NULL;
   DBUG_ENTER("myisammrg_attach_children_callback");
 
   my_errno= 0;
@@ -546,7 +547,8 @@ int ha_myisammrg::attach_children(void)
 
   if (myrg_attach_children(this->file, this->test_if_locked |
                            current_thd->open_options,
-                           myisammrg_attach_children_callback, this))
+                           myisammrg_attach_children_callback, this,
+                           (my_bool *) &need_compat_check))
   {
     DBUG_PRINT("error", ("my_errno %d", my_errno));
     DBUG_RETURN(my_errno ? my_errno : -1);
@@ -597,7 +599,7 @@ int ha_myisammrg::attach_children(void)
       if (check_definition(keyinfo, recinfo, keys, recs,
                            u_table->table->s->keyinfo, u_table->table->s->rec,
                            u_table->table->s->base.keys,
-                           u_table->table->s->base.fields, false))
+                           u_table->table->s->base.fields, false, NULL))
       {
         DBUG_PRINT("error", ("table definition mismatch: '%s'",
                              u_table->table->filename));
@@ -884,7 +886,6 @@ int ha_myisammrg::info(uint flag)
     */
     mrg_info.errkey= MAX_KEY;
   }
-  errkey= mrg_info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
   stats.mean_rec_length= mrg_info.reclength;
   
@@ -926,13 +927,18 @@ int ha_myisammrg::info(uint flag)
         with such a number, it'll be an error later anyway.
       */
       bzero((char*) table->key_info[0].rec_per_key,
-            sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
+            sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,
-             sizeof(table->key_info[0].rec_per_key) *
+             sizeof(table->key_info[0].rec_per_key[0]) *
              min(file->keys, table->s->key_parts));
     }
+  }
+  if (flag & HA_STATUS_ERRKEY)
+  {
+    errkey= mrg_info.errkey;
+    my_store_ptr(dup_ref, ref_length, mrg_info.dupp_key_pos);
   }
   return 0;
 }

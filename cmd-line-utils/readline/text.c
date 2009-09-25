@@ -410,7 +410,7 @@ rl_backward (count, key)
 /* Move to the beginning of the line. */
 int
 rl_beg_of_line (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   rl_point = 0;
   return 0;
@@ -419,7 +419,7 @@ rl_beg_of_line (count, key)
 /* Move to the end of the line. */
 int
 rl_end_of_line (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   rl_point = rl_end;
   return 0;
@@ -527,7 +527,7 @@ rl_backward_word (count, key)
 /* Clear the current line.  Numeric argument to C-l does this. */
 int
 rl_refresh_line (ignore1, ignore2)
-     int ignore1, ignore2;
+     int ignore1 __attribute__((unused)), ignore2 __attribute__((unused));
 {
   int curr_line;
 
@@ -566,7 +566,7 @@ rl_clear_screen (count, key)
 
 int
 rl_arrow_keys (count, c)
-     int count, c;
+     int count, c __attribute__((unused));
 {
   int ch;
 
@@ -884,7 +884,7 @@ _rl_insert_next_callback (data)
   
 int
 rl_quoted_insert (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   /* Let's see...should the callback interface futz with signal handling? */
 #if defined (HANDLE_SIGNALS)
@@ -907,7 +907,7 @@ rl_quoted_insert (count, key)
 /* Insert a tab character. */
 int
 rl_tab_insert (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   return (_rl_insert_char (count, '\t'));
 }
@@ -917,7 +917,7 @@ rl_tab_insert (count, key)
    meaning in the future. */
 int
 rl_newline (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   rl_done = 1;
 
@@ -951,7 +951,7 @@ rl_newline (count, key)
    is special cased. */
 int
 rl_do_lowercase_version (ignore1, ignore2)
-     int ignore1, ignore2;
+     int ignore1 __attribute__((unused)), ignore2 __attribute__((unused));
 {
   return 0;
 }
@@ -1118,7 +1118,7 @@ rl_rubout_or_delete (count, key)
 /* Delete all spaces and tabs around point. */
 int
 rl_delete_horizontal_space (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   int start = rl_point;
 
@@ -1163,9 +1163,9 @@ rl_delete_or_show_completions (count, key)
    A K*rn shell style function. */
 int
 rl_insert_comment (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
-  char *rl_comment_text;
+  const char *rl_comment_text;
   int rl_comment_len;
 
   rl_beg_of_line (1, key);
@@ -1202,7 +1202,7 @@ rl_insert_comment (count, key)
 /* Uppercase the word at point. */
 int
 rl_upcase_word (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   return (rl_change_case (count, UpCase));
 }
@@ -1210,7 +1210,7 @@ rl_upcase_word (count, key)
 /* Lowercase the word at point. */
 int
 rl_downcase_word (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   return (rl_change_case (count, DownCase));
 }
@@ -1218,7 +1218,7 @@ rl_downcase_word (count, key)
 /* Upcase the first letter, downcase the rest. */
 int
 rl_capitalize_word (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
  return (rl_change_case (count, CapCase));
 }
@@ -1381,7 +1381,7 @@ rl_transpose_words (count, key)
    then transpose the characters before point. */
 int
 rl_transpose_chars (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
 #if defined (HANDLE_MULTIBYTE)
   char *dummy;
@@ -1560,7 +1560,7 @@ _rl_char_search_callback (data)
 
 int
 rl_char_search (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
 #if defined (READLINE_CALLBACKS)
   if (RL_ISSTATE (RL_STATE_CALLBACK))
@@ -1578,7 +1578,7 @@ rl_char_search (count, key)
 
 int
 rl_backward_char_search (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
 #if defined (READLINE_CALLBACKS)
   if (RL_ISSTATE (RL_STATE_CALLBACK))
@@ -1615,7 +1615,7 @@ _rl_set_mark_at_pos (position)
 /* A bindable command to set the mark. */
 int
 rl_set_mark (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   return (_rl_set_mark_at_pos (rl_explicit_arg ? count : rl_point));
 }
@@ -1623,7 +1623,7 @@ rl_set_mark (count, key)
 /* Exchange the position of mark and point. */
 int
 rl_exchange_point_and_mark (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (rl_mark > rl_end)
     rl_mark = -1;

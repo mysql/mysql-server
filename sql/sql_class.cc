@@ -27,6 +27,7 @@
 
 #include "mysql_priv.h"
 #include "rpl_rli.h"
+#include "rpl_filter.h"
 #include "rpl_record.h"
 #include "slave.h"
 #include <my_bitmap.h>
@@ -551,6 +552,7 @@ THD::THD()
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   examined_row_count(0),
    global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -597,7 +599,7 @@ THD::THD()
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
-  start_utime= 0L;
+  start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -636,7 +638,7 @@ THD::THD()
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
-  pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -685,31 +687,40 @@ THD::THD()
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
-  /*
-    TODO: The current implementation is limited to 1 handler at a time only.
-    THD and sp_rcontext need to be modified to use a common handler stack.
-  */
-  DBUG_ASSERT(m_internal_handler == NULL);
-  m_internal_handler= handler;
+  if (m_internal_handler)
+  {
+    handler->m_prev_internal_handler= m_internal_handler;
+    m_internal_handler= handler;
+  }
+  else
+  {
+    m_internal_handler= handler;
+  }
 }
 
 
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
-  if (m_internal_handler)
+  if (!m_internal_handler)
+    return FALSE;
+
+  for (Internal_error_handler *error_handler= m_internal_handler;
+       error_handler;
+       error_handler= m_internal_handler->m_prev_internal_handler)
   {
-    return m_internal_handler->handle_error(sql_errno, message, level, this);
+    if (error_handler->handle_error(sql_errno, message, level, this))
+    return TRUE;
   }
 
-  return FALSE;                                 // 'FALSE', as per coding style
+  return FALSE;
 }
 
 
 void THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
-  m_internal_handler= NULL;
+  m_internal_handler= m_internal_handler->m_prev_internal_handler;
 }
 
 extern "C"
@@ -757,6 +768,12 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
 }
 
+#ifdef _WIN32
+extern "C"   THD *_current_thd_noinline(void)
+{
+  return my_pthread_getspecific_ptr(THD*,THR_THD);
+}
+#endif
 /*
   Init common variables that has to be reset on start and on change_user
 */
@@ -912,8 +929,8 @@ THD::~THD()
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
-  pthread_mutex_lock(&LOCK_delete);
-  pthread_mutex_unlock(&LOCK_delete);
+  pthread_mutex_lock(&LOCK_thd_data);
+  pthread_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
@@ -941,7 +958,7 @@ THD::~THD()
   free_root(&transaction.mem_root,MYF(0));
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
-  pthread_mutex_destroy(&LOCK_delete);
+  pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
@@ -1022,7 +1039,7 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
@@ -1075,7 +1092,7 @@ void THD::awake(THD::killed_state state_to_set)
       pthread_mutex_lock(), we can cause a deadlock as we are here locking
       the mysys_var->mutex and mysys_var->current_mutex in a different order
       than in the thread we are trying to kill.
-      We only sleep for 2 seconds as we don't want to have LOCK_delete
+      We only sleep for 2 seconds as we don't want to have LOCK_thd_data
       locked too long time.
 
       There is a small change we may not succeed in aborting a thread that
@@ -1139,11 +1156,11 @@ bool THD::store_globals()
 
 #ifdef SAFE_MUTEX
   /* Register order of mutex for wrong mutex deadlock detector */
-  pthread_mutex_lock(&LOCK_delete);
+  pthread_mutex_lock(&LOCK_thd_data);
   pthread_mutex_lock(&mysys_var->mutex);
 
   pthread_mutex_unlock(&mysys_var->mutex);
-  pthread_mutex_unlock(&LOCK_delete);
+  pthread_mutex_unlock(&LOCK_thd_data);
 #endif
   return 0;
 }
@@ -1453,7 +1470,7 @@ int THD::send_explain_fields(select_result *result)
 void THD::close_active_vio()
 {
   DBUG_ENTER("close_active_vio");
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
@@ -1834,6 +1851,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
+  write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
+
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
   /* Check if there is any blobs in data */
@@ -1852,6 +1871,31 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       else
         non_string_results= TRUE;
     }
+  }
+  if (exchange->escaped->numchars() > 1 || exchange->enclosed->numchars() > 1)
+  {
+    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
+    return TRUE;
+  }
+  if (exchange->escaped->length() > 1 || exchange->enclosed->length() > 1 ||
+      !my_isascii(exchange->escaped->ptr()[0]) ||
+      !my_isascii(exchange->enclosed->ptr()[0]) ||
+      !exchange->field_term->is_ascii() || !exchange->line_term->is_ascii() ||
+      !exchange->line_start->is_ascii())
+  {
+    /*
+      Current LOAD DATA INFILE recognizes field/line separators "as is" without
+      converting from client charset to data file charset. So, it is supposed,
+      that input file of LOAD DATA INFILE consists of data in one charset and
+      separators in other charset. For the compatibility with that [buggy]
+      behaviour SELECT INTO OUTFILE implementation has been saved "as is" too,
+      but the new warning message has been added:
+
+        Non-ASCII separator arguments are not fully supported
+    */
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
+                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
   field_term_length=exchange->field_term->length();
   field_term_char= field_term_length ?
@@ -1902,6 +1946,8 @@ bool select_export::send_data(List<Item> &items)
 
   DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
+  char cvt_buff[MAX_FIELD_WIDTH];
+  String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
   bool space_inited=0;
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
@@ -1925,6 +1971,37 @@ bool select_export::send_data(List<Item> &items)
     bool enclosed = (exchange->enclosed->length() &&
                      (!exchange->opt_enclosed || result_type == STRING_RESULT));
     res=item->str_result(&tmp);
+    if (res && !my_charset_same(write_cs, res->charset()) &&
+        !my_charset_same(write_cs, &my_charset_bin))
+    {
+      const char *well_formed_error_pos;
+      const char *cannot_convert_error_pos;
+      const char *from_end_pos;
+      const char *error_pos;
+      uint32 bytes;
+      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+                                     res->charset(), res->ptr(), res->length(),
+                                     sizeof(cvt_buff),
+                                     &well_formed_error_pos,
+                                     &cannot_convert_error_pos,
+                                     &from_end_pos);
+      error_pos= well_formed_error_pos ? well_formed_error_pos
+                                       : cannot_convert_error_pos;
+      if (error_pos)
+      {
+        char printable_buff[32];
+        convert_to_printable(printable_buff, sizeof(printable_buff),
+                             error_pos, res->ptr() + res->length() - error_pos,
+                             res->charset(), 6);
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                            ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                            "string", printable_buff,
+                            item->name, row_count);
+      }
+      cvt_str.length(bytes);
+      res= &cvt_str;
+    }
     if (res && enclosed)
     {
       if (my_b_write(&cache,(uchar*) exchange->enclosed->ptr(),
@@ -2654,7 +2731,7 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
       suv->fix_fields(thd, 0);
-      suv->check(0);
+      suv->save_item_result(item);
       suv->update();
     }
   }
@@ -3098,6 +3175,25 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+}
+
+
+void THD::set_statement(Statement *stmt)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  Statement::set_statement(stmt);
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void THD::set_query(char *query_arg, uint32 query_length_arg)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  query= query_arg;
+  query_length= query_length_arg;
+  pthread_mutex_unlock(&LOCK_thd_data);
 }
 
 
@@ -3642,7 +3738,7 @@ show_query_type(THD::enum_binlog_query_type qtype)
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       ulong query_len, bool is_trans, bool suppress_use,
-                      THD::killed_state killed_status_arg)
+                      int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
@@ -3667,12 +3763,18 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     we should print a warning.
   */
   if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
-      variables.binlog_format == BINLOG_FORMAT_STMT)
+      variables.binlog_format == BINLOG_FORMAT_STMT && 
+      binlog_filter->db_ok(this->db))
   {
-    push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
+   /*
+     A warning can be elevated a error when STRICT sql mode.
+     But we don't want to elevate binlog warning to error here.
+   */
+    push_warning(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
-    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    if (global_system_variables.log_warnings &&
+        !(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
     {
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -3705,7 +3807,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
      */
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
-                            killed_status_arg);
+                            errcode);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event

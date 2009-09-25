@@ -427,6 +427,21 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+/*
+  True if the bootstrap thread is running. Protected by LOCK_thread_count,
+  just like thread_count.
+  Used in bootstrap() function to determine if the bootstrap thread
+  has completed. Note, that we can't use 'thread_count' instead,
+  since in 5.1, in presence of the Event Scheduler, there may be
+  event threads running in parallel, so it's impossible to know
+  what value of 'thread_count' is a sign of completion of the
+  bootstrap thread.
+
+  At the same time, we can't start the event scheduler after
+  bootstrap either, since we want to be able to process event-related
+  SQL commands in the init file and in --bootstrap mode.
+*/
+bool in_bootstrap= FALSE;
 /**
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
@@ -519,7 +534,8 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
-ulong binlog_cache_size=0, max_binlog_cache_size=0;
+ulong binlog_cache_size=0;
+ulonglong  max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -632,7 +648,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
                 LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count;
+                LOCK_connection_count, LOCK_uuid_generator;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -661,7 +677,8 @@ uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
 ulong master_retry_count=0;
 char *master_user, *master_password, *master_host, *master_info_file;
-char *relay_log_info_file, *report_user, *report_password, *report_host;
+char *relay_log_info_file;
+char *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 my_bool master_ssl;
 char *master_ssl_key, *master_ssl_cert;
@@ -1011,6 +1028,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
@@ -1356,7 +1374,6 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  my_uuid_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1430,7 +1447,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
-  (void) pthread_mutex_destroy(&LOCK_uuid_short);
+  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -1741,7 +1758,6 @@ static void network_init(void)
       opt_enable_named_pipe)
   {
 
-    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
     bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
@@ -2178,15 +2194,14 @@ static void init_signals(void)
   win_install_sigabrt_handler();
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
-  else
-  {
+
     /* Avoid MessageBox()es*/
-   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 
    /*
      Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
@@ -2195,8 +2210,8 @@ static void init_signals(void)
      exception filter is not guaranteed to work in all situation
      (like heap corruption or stack overflow)
    */
-   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
-  }
+  SetErrorMode(SetErrorMode(0) | SEM_FAILCRITICALERRORS
+                               | SEM_NOOPENFILEERRORBOX);
   SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
@@ -3607,7 +3622,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open, NULL);
+  (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -3625,7 +3640,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_uuid_short, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -3755,14 +3770,17 @@ static void init_ssl()
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher);
+					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
+      sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -4412,7 +4430,6 @@ int main(int argc, char **argv)
 
   select_thread=pthread_self();
   select_thread_in_use=1;
-  init_ssl();
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -4467,6 +4484,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     unireg_abort(1);
 
+  init_ssl();
   network_init();
 
 #ifdef __WIN__
@@ -4534,6 +4552,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     unireg_abort(1);
   }
 
+  execute_ddl_log_recovery();
+
+  if (Events::init(opt_noacl || opt_bootstrap))
+    unireg_abort(1);
+
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
@@ -4545,13 +4568,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     if (read_init_file(opt_init_file))
       unireg_abort(1);
   }
-  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   start_handle_manager();
-
-  if (Events::init(opt_noacl))
-    unireg_abort(1);
 
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
@@ -4678,15 +4697,28 @@ default_service_handling(char **argv,
 			 const char *account_name)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
+  const char *opt_delim;
   end= path_and_service + sizeof(path_and_service)-3;
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
   if (*extra_opt)
   {
-    /* Add (possible quoted) option after file_path */
+    /* 
+     Add option after file_path. There will be zero or one extra option.  It's 
+     assumed to be --defaults-file=file but isn't checked.  The variable (not
+     the option name) should be quoted if it contains a string.  
+    */
     *pos++= ' ';
-    pos= add_quoted_string(pos, extra_opt, end);
+    if (opt_delim= strchr(extra_opt, '='))
+    {
+      size_t length= ++opt_delim - extra_opt;
+      strnmov(pos, extra_opt, length);
+    }
+    else
+      opt_delim= extra_opt;
+    
+    pos= add_quoted_string(pos, opt_delim, end);
   }
   /* We must have servicename last */
   *pos++= ' ';
@@ -4832,6 +4864,7 @@ static void bootstrap(FILE *file)
   thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thread_count++;
+  in_bootstrap= TRUE;
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
@@ -4844,7 +4877,7 @@ static void bootstrap(FILE *file)
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  while (thread_count)
+  while (in_bootstrap)
   {
     (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
@@ -4889,9 +4922,10 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  thd->connect_utime= my_micro_time();
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-  handle_one_connection((void*) thd);
+  thd->start_utime= my_micro_time();
+  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->start_utime= my_micro_time();
+  handle_one_connection(thd);
 }
 
 
@@ -4916,7 +4950,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->connect_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -6799,8 +6833,7 @@ log and this option does nothing anymore.",
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (uchar**) &max_binlog_cache_size, (uchar**) &max_binlog_cache_size, 0,
-   GET_ULONG, REQUIRED_ARG, (longlong) ULONG_MAX, IO_SIZE,
-   (longlong) ULONG_MAX, 0, IO_SIZE, 0},
+   GET_ULL, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULONGLONG_MAX, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
    "Binary log will be rotated automatically when the size exceeds this \
 value. Will also apply to relay logs if max_relay_log_size is 0. \
@@ -6981,7 +7014,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
-   "Optional colon-separated list of plugins to load, where each plugin is "
+   "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
@@ -7851,7 +7884,7 @@ static int mysql_init_variables(void)
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
-  strmake(mysql_real_data_home, get_relative_path(DATADIR),
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;

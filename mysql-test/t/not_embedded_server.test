@@ -32,8 +32,14 @@ select 1;
 ## End of 4.1 tests
 #
 #prepare stmt1 from ' SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!=\'Daemon\' ';
-#--replace_column 1 number 6 time 3 localhost
+#--replace_column 1 number 6 time 3 localhost 9 time_ms
 #execute stmt1;
 #deallocate prepare stmt1;
+
+#
+# Bug#43835: SHOW VARIABLES does not include 0 for slave_skip_errors
+#
+
+SHOW VARIABLES like 'slave_skip_errors';
 
 # End of 5.1 tests

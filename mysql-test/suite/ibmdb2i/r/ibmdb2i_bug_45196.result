@@ -1,0 +1,33 @@
+drop table if exists t1;
+create table t1 (c char(10), index(c)) collate ucs2_czech_ci engine=ibmdb2i;
+insert into t1 values ("ch"),("h"),("i");
+select * from t1 order by c;
+c
+h
+ch
+i
+drop table t1;
+create table t1 (c char(10), index(c)) collate utf8_czech_ci engine=ibmdb2i;
+insert into t1 values ("ch"),("h"),("i");
+select * from t1 order by c;
+c
+h
+ch
+i
+drop table t1;
+create table t1 (c char(10), index(c)) collate ucs2_danish_ci engine=ibmdb2i;
+insert into t1 values("abc"),("abcd"),("aaaa");
+select c from t1 order by c;
+c
+abc
+abcd
+aaaa
+drop table t1;
+create table t1 (c char(10), index(c)) collate utf8_danish_ci engine=ibmdb2i;
+insert into t1 values("abc"),("abcd"),("aaaa");
+select c from t1 order by c;
+c
+abc
+abcd
+aaaa
+drop table t1;

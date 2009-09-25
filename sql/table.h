@@ -361,7 +361,9 @@ typedef struct st_table_share
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
+  /** Transactional or not. */
   enum ha_choice transactional;
+  /** Per-page checksums or not. */
   enum ha_choice page_checksum;
 
   uint ref_count;                       /* How many TABLE objects uses this */
@@ -753,7 +755,13 @@ struct st_table {
   */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
-  my_bool key_read, no_keyread;
+
+  /**
+     If set, the optimizer has found that row retrieval should access index 
+     tree only.
+   */
+  my_bool key_read;
+  my_bool no_keyread;
   /*
     Placeholder for an open table which prevents other connections
     from taking name-locks on this table. Typically used with

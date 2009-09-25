@@ -2788,6 +2788,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
 String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
+  null_value= 0;
   if (!nodeset_func ||
       !(res= args[0]->val_str(str)) || 
       !parse_xml(res, &pxml))
@@ -2804,6 +2805,7 @@ String *Item_func_xml_update::val_str(String *str)
 {
   String *res, *nodeset, *rep;
 
+  null_value= 0;
   if (!nodeset_func || 
       !(res= args[0]->val_str(str)) ||
       !(rep= args[2]->val_str(&tmp_value3)) ||

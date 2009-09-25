@@ -79,6 +79,7 @@ struct st_plugin_int
   void *data;                   /* plugin type specific, e.g. handlerton */
   MEM_ROOT mem_root;            /* memory for dynamic plugin structures */
   sys_var *system_vars;         /* server variables for this plugin */
+  bool is_mandatory;            /* If true then plugin must not fail to load */
 };
 
 

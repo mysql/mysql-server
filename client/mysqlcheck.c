@@ -286,6 +286,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     what_to_do= DO_UPGRADE;
     break;
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			/* Don't require password */
     if (argument)
     {
       char *start = argument;
@@ -440,7 +442,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
 {
   if (use_db(db))
     return 1;
-  if (opt_all_in_1)
+  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
   {
     /* 
       We need table list in form `a`, `b`, `c`
@@ -534,7 +536,7 @@ static int process_all_tables_in_db(char *database)
 
   num_columns= mysql_num_fields(res);
 
-  if (opt_all_in_1)
+  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
   {
     /*
       We need table list in form `a`, `b`, `c`

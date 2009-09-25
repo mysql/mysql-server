@@ -1,111 +1,192 @@
+'\" t
 .\"     Title: \fBmysql.server\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQL.SERVER\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQL\&.SERVER\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql.server
 .SH "NAME"
 mysql.server \- MySQL server startup script
 .SH "SYNOPSIS"
-.HP 19
+.HP \w'\fBmysql\ {start|stop}\fR\ 'u
 \fBmysql {start|stop}\fR
 .SH "DESCRIPTION"
 .PP
 MySQL distributions on Unix include a script named
-\fBmysql.server\fR. It can be used on systems such as Linux and Solaris that use System V\-style run directories to start and stop system services. It is also used by the Mac OS X Startup Item for MySQL.
+\fBmysql\&.server\fR\&. It can be used on systems such as Linux and Solaris that use System V\-style run directories to start and stop system services\&. It is also used by the Mac OS X Startup Item for MySQL\&.
 .PP
-\fBmysql.server\fR
+\fBmysql\&.server\fR
 can be found in the
-\fIsupport\-files\fR
-directory under your MySQL installation directory or in a MySQL source distribution.
+support\-files
+directory under your MySQL installation directory or in a MySQL source distribution\&.
 .PP
-If you use the Linux server RPM package (MySQL\-server\-\fIVERSION\fR.rpm), the
-\fBmysql.server\fR
+If you use the Linux server RPM package (MySQL\-server\-\fIVERSION\fR\&.rpm), the
+\fBmysql\&.server\fR
 script will be installed in the
-\fI/etc/init.d\fR
+/etc/init\&.d
 directory with the name
-\fImysql\fR. You need not install it manually. See
-Section\ 2.4, \(lqInstalling MySQL from RPM Packages on Linux\(rq, for more information on the Linux RPM packages.
+mysql\&. You need not install it manually\&. See
+Section\ \&2.4, \(lqInstalling MySQL from RPM Packages on Linux\(rq, for more information on the Linux RPM packages\&.
 .PP
 Some vendors provide RPM packages that install a startup script under a different name such as
-\fBmysqld\fR.
+\fBmysqld\fR\&.
 .PP
 If you install MySQL from a source distribution or using a binary distribution format that does not install
-\fBmysql.server\fR
-automatically, you can install it manually. Instructions are provided in
-Section\ 2.11.2.2, \(lqStarting and Stopping MySQL Automatically\(rq.
+\fBmysql\&.server\fR
+automatically, you can install it manually\&. Instructions are provided in
+Section\ \&2.11.2.2, \(lqStarting and Stopping MySQL Automatically\(rq\&.
 .PP
-\fBmysql.server\fR
+\fBmysql\&.server\fR
 reads options from the
-[mysql.server]
+[mysql\&.server]
 and
 [mysqld]
-sections of option files. For backward compatibility, it also reads
+sections of option files\&. For backward compatibility, it also reads
 [mysql_server]
 sections, although you should rename such sections to
-[mysql.server]
-when using MySQL 5.1.
+[mysql\&.server]
+when using MySQL 5\&.1\&.
 .PP
-\fBmysql.server\fR
-understands the following options:
-.TP 3n
-\(bu
+\fBmysql\&.server\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: basedir option
+.\" basedir option: mysql.server
 \fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL installation directory.
-.TP 3n
-\(bu
+The path to the MySQL installation directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: datadir option
+.\" datadir option: mysql.server
 \fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL data directory.
-.TP 3n
-\(bu
+The path to the MySQL data directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: pid-file option
+.\" pid-file option: mysql.server
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name of the file in which the server should write its process ID.
-.TP 3n
-\(bu
+The path name of the file in which the server should write its process ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: service-startup-timeout option
+.\" service-startup-timeout option: mysql.server
 \fB\-\-service\-startup\-timeout=\fR\fB\fIfile_name\fR\fR
 .sp
-How long in seconds to wait for confirmation of server startup. If the server does not start within this time,
-\fBmysql.server\fR
-exits with an error. The default value is 900. A value of 0 means not to wait at all for startup. Negative values mean to wait forever (no timeout). This option was added in MySQL 5.1.17. Before that, a value of 900 is always used.
-.TP 3n
-\(bu
+How long in seconds to wait for confirmation of server startup\&. If the server does not start within this time,
+\fBmysql\&.server\fR
+exits with an error\&. The default value is 900\&. A value of 0 means not to wait at all for startup\&. Negative values mean to wait forever (no timeout)\&. This option was added in MySQL 5\&.1\&.17\&. Before that, a value of 900 is always used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: use-mysqld_safe option
+.\" use-mysqld_safe option: mysql.server
 \fB\-\-use\-mysqld_safe\fR
 .sp
 Use
 \fBmysqld_safe\fR
-to start the server. This is the default.
-.TP 3n
-\(bu
+to start the server\&. This is the default\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: use-manager option
+.\" use-manager option: mysql.server
 \fB\-\-use\-manager\fR
 .sp
-Use Instance Manager to start the server.
-.TP 3n
-\(bu
+Use Instance Manager to start the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql.server: user option
+.\" user option: mysql.server
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The login user name to use for running
-\fBmysqld\fR.
+\fBmysqld\fR\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

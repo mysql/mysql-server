@@ -86,30 +86,30 @@ insert into t2 select id, id+1, date_add('2008-06-22', interval id day) from t0;
 
 create view v1 as
 select 
-  F.id, A1.attr1, A2.attr2
+  f.id, a1.attr1, a2.attr2
 from 
-  t0 F 
-  left join t1 A1 on A1.id=F.id
-  left join t2 A2 on A2.id=F.id and 
-                     A2.fromdate=(select MAX(fromdate) from
-                                  t2 where id=A2.id);
+  t0 f 
+  left join t1 a1 on a1.id=f.id
+  left join t2 a2 on a2.id=f.id and 
+                     a2.fromdate=(select MAX(fromdate) from
+                                  t2 where id=a2.id);
 create view v2 as
 select 
-  F.id, A1.attr1, A2.attr2
+  f.id, a1.attr1, a2.attr2
 from 
-  t0 F 
-  left join t1 A1 on A1.id=F.id
-  left join t2 A2 on A2.id=F.id and 
-                     A2.fromdate=(select MAX(fromdate) from
-                                  t2 where id=F.id);
+  t0 f 
+  left join t1 a1 on a1.id=f.id
+  left join t2 a2 on a2.id=f.id and 
+                     a2.fromdate=(select MAX(fromdate) from
+                                  t2 where id=f.id);
 
 --echo This should use one table:
 explain select id from v1 where id=2;
 --echo This should use one table:
 explain extended select id from v1 where id in (1,2,3,4);
---echo This should use facts and A1 tables:
+--echo This should use facts and a1 tables:
 explain extended select id from v1 where attr1 between 12 and 14;
---echo This should use facts, A2 and its subquery:
+--echo This should use facts, a2 and its subquery:
 explain extended select id from v1 where attr2 between 12 and 14;
 
 # Repeat for v2: 
@@ -118,9 +118,9 @@ explain extended select id from v1 where attr2 between 12 and 14;
 explain select id from v2 where id=2;
 --echo This should use one table:
 explain extended select id from v2 where id in (1,2,3,4);
---echo This should use facts and A1 tables:
+--echo This should use facts and a1 tables:
 explain extended select id from v2 where attr1 between 12 and 14;
---echo This should use facts, A2 and its subquery:
+--echo This should use facts, a2 and its subquery:
 explain extended select id from v2 where attr2 between 12 and 14;
 
 drop view v1, v2;

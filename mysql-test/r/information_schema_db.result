@@ -30,7 +30,7 @@ begin
 select table_name from information_schema.key_column_usage
 order by table_name;
 end|
-create table t1 
+create table t1
 (f1 int(10) unsigned not null,
 f2 varchar(100) not null,
 primary key (f1), unique key (f2));
@@ -172,15 +172,15 @@ View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
 show create view testdb_1.v1;
 ERROR 42000: SHOW VIEW command denied to user 'testdb_2'@'localhost' for table 'v1'
-select table_name from information_schema.columns a 
+select table_name from information_schema.columns a
 where a.table_name = 'v2';
 table_name
 v2
-select view_definition from information_schema.views a 
+select view_definition from information_schema.views a
 where a.table_name = 'v2';
 view_definition
 select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
-select view_definition from information_schema.views a 
+select view_definition from information_schema.views a
 where a.table_name = 'testdb_1.v1';
 view_definition
 select * from v2;

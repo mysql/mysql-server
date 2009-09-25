@@ -1150,7 +1150,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (strcmp(db->str, thd->db) != 0)
+    if (!thd->db || strcmp(db->str, thd->db))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1769,6 +1769,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
+        /* Lock THD mutex that protects its data when looking at it. */
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query)
         {
 	  /*
@@ -1779,6 +1781,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -1816,7 +1819,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  time_t now= my_time(0);
+  ulonglong unow= my_micro_time();
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
@@ -1874,8 +1877,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time ?
-                                      now - tmp->start_time : 0), FALSE);
+      const ulonglong utime= tmp->start_utime ? unow - tmp->start_utime : 0;
+      table->field[5]->store(utime / 1000000, TRUE);
       /* STATE */
 #ifndef EMBEDDED_LIBRARY
       val= (char*) (tmp->locked ? "Locked" :
@@ -1908,6 +1911,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length), cs);
         table->field[7]->set_notnull();
       }
+
+      /* TIME_MS */
+      table->field[8]->store((double)(utime / 1000.0));
 
       if (schema_table_store_record(thd, table))
       {
@@ -2818,8 +2824,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
                      bool with_i_schema, LEX_STRING *db_name)
 {
-  char path[FN_REFLEN];
-  build_table_filename(path, sizeof(path), db_name->str, "", "", 0);
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
@@ -2981,8 +2987,8 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
   else
   {
     enum legacy_db_type not_used;
-    char path[FN_REFLEN];
-    (void) build_table_filename(path, sizeof(path), db_name->str,
+    char path[FN_REFLEN + 1];
+    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
     switch (mysql_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
@@ -3469,7 +3475,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
-    path_len= build_table_filename(path, sizeof(path),
+    path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
     if (!my_stat(path,&stat_info,MYF(0)))
@@ -5539,7 +5545,7 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
     into it two numbers, based on modulus of base-10 numbers.  In the ones
     position is the number of decimals.  Tens position is unused.  In the
     hundreds and thousands position is a two-digit decimal number representing
-    length.  Encode this value with  (decimals*100)+length  , where
+    length.  Encode this value with  (length*100)+decimals  , where
     0<decimals<10 and 0<=length<100 .
 
   @param
@@ -6554,6 +6560,8 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
   {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
    SKIP_OPEN_TABLE},
+  {"TIME_MS", 100 * (MY_INT64_NUM_DECIMAL_DIGITS + 1) + 3, MYSQL_TYPE_DECIMAL,
+   0, 0, "Time_ms", SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -7059,6 +7067,12 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 
   if (!lst)
     return TRUE;
+
+  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
+    return TRUE;
+  }
 
   /*
     Open the table by name in order to load Table_triggers_list object.

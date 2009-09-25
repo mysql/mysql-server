@@ -724,3 +724,7 @@ SELECT {fn CONCAT(a1,a2)} FROM t1;
 UPDATE t3 SET a4={d '1789-07-14'} WHERE a1=0;
 SELECT a1, a4 FROM t2 WHERE a4 LIKE {fn UCASE('1789-07-14')};
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # End of 5.1 tests
+--echo #

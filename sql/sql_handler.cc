@@ -199,6 +199,14 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                       tables->db, tables->table_name, tables->alias,
                       (int) reopen));
 
+  if (tables->schema_table)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
+             INFORMATION_SCHEMA_NAME.str);
+    DBUG_PRINT("exit",("ERROR"));
+    DBUG_RETURN(TRUE);
+  }
+
   if (! hash_inited(&thd->handler_tables_hash))
   {
     /*
@@ -244,14 +252,37 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 
   /* for now HANDLER can be used only for real TABLES */
   tables->required_type= FRMTYPE_TABLE;
+  /*
+    We use open_tables() here, rather than, say,
+    open_ltable() or open_table() because we would like to be able
+    to open a temporary table.
+  */
   error= open_tables(thd, &tables, &counter, 0);
-  /* restore the state and merge the opened table into handler_tables list */
   if (thd->open_tables)
   {
-    thd->open_tables->next= thd->handler_tables;
-    thd->handler_tables= thd->open_tables;
+    if (thd->open_tables->next)
+    {
+      /*
+        We opened something that is more than a single table.
+        This happens with MERGE engine. Don't try to link
+        this mess into thd->handler_tables list, close it
+        and report an error. We must do it right away
+        because mysql_ha_close_table(), called down the road,
+        can close a single table only.
+      */
+      close_thread_tables(thd);
+      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
+      error= 1;
+    }
+    else
+    {
+      /* Merge the opened table into handler_tables list. */
+      thd->open_tables->next= thd->handler_tables;
+      thd->handler_tables= thd->open_tables;
+    }
   }
 
+  /* Restore the state. */
   thd->open_tables= backup_open_tables;
 
   if (error)

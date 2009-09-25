@@ -1,0 +1,26 @@
+--source include/not_embedded.inc
+
+###########################################################################
+--echo #
+--echo # Bug#39559: dump of stored procedures / functions with C-style 
+--echo #     comment can't be read back
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
+select 2 as expected, /*!01000/**/*/ 2 as result;
+select 1 as expected, /*!99998/**/*/ 1 as result;
+select 3 as expected, /*!01000 1 + */ 2 as result;
+select 2 as expected, /*!99990 1 + */ 2 as result;
+select 7 as expected, /*!01000 1 + /* 8 + */ 2 + */ 4 as result;
+select 8 as expected, /*!99998 1 + /* 2 + */ 4 + */ 8 as result;
+select 7 as expected, /*!01000 1 + /*!01000 8 + */ 2 + */ 4 as result;
+select 7 as expected, /*!01000 1 + /*!99998 8 + */ 2 + */ 4 as result;
+select 4 as expected, /*!99998 1 + /*!99998 8 + */ 2 + */ 4 as result;
+select 4 as expected, /*!99998 1 + /*!01000 8 + */ 2 + */ 4 as result;
+select 7 as expected, /*!01000 1 + /*!01000 8 + /*!01000 error */ 16 + */ 2 + */ 4 as result;
+select 4 as expected, /* 1 + /*!01000 8 + */ 2 + */ 4;
+EOF
+
+--exec $MYSQL --comment --force --table test <$MYSQLTEST_VARDIR/tmp/bug39559.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
+

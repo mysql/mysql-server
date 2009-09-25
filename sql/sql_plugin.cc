@@ -29,6 +29,18 @@
 
 extern struct st_mysql_plugin *mysqld_builtins[];
 
+/**
+  @note The order of the enumeration is critical.
+  @see construct_options
+*/
+static const char *global_plugin_typelib_names[]=
+  { "OFF", "ON", "FORCE", NULL };
+enum enum_plugin_load_policy {PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE};
+static TYPELIB global_plugin_typelib=
+  { array_elements(global_plugin_typelib_names)-1,
+    "", global_plugin_typelib_names, NULL };
+
+
 char *opt_plugin_load= NULL;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
@@ -192,7 +204,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
 static int test_plugin_options(MEM_ROOT *, struct st_plugin_int *,
-                               int *, char **, my_bool);
+                               int *, char **);
 static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
                              struct st_plugin_int **);
 static void unlock_variables(THD *thd, struct system_variables *vars);
@@ -751,7 +763,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-      if (test_plugin_options(tmp_root, &tmp, argc, argv, true))
+      if (test_plugin_options(tmp_root, &tmp, argc, argv))
         tmp.state= PLUGIN_IS_DISABLED;
 
       if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
@@ -997,7 +1009,6 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   DBUG_ENTER("plugin_initialize");
 
   safe_mutex_assert_owner(&LOCK_plugin);
-
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1083,6 +1094,20 @@ uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
   return (uchar*) var->key;
 }
 
+static inline void convert_dash_to_underscore(char *str, int len)
+{
+  for (char *p= str; p <= str+len; p++)
+    if (*p == '-')
+      *p= '_';
+}
+
+static inline void convert_underscore_to_dash(char *str, int len)
+{
+  for (char *p= str; p <= str+len; p++)
+    if (*p == '_')
+      *p= '-';
+}
+
 
 /*
   The logic is that we first load and initialize all compiled in plugins.
@@ -1094,11 +1119,12 @@ uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
 int plugin_init(int *argc, char **argv, int flags)
 {
   uint i;
-  bool def_enabled, is_myisam;
+  bool is_myisam;
   struct st_mysql_plugin **builtins;
   struct st_mysql_plugin *plugin;
   struct st_plugin_int tmp, *plugin_ptr, **reap;
   MEM_ROOT tmp_root;
+  bool reaped_mandatory_plugin= FALSE;
   DBUG_ENTER("plugin_init");
 
   if (initialized)
@@ -1142,17 +1168,13 @@ int plugin_init(int *argc, char **argv, int flags)
           !my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
                         6, (const uchar*) "InnoDB", 6))
         continue;
-      /* by default, ndbcluster and federated are disabled */
-      def_enabled=
-        my_strcasecmp(&my_charset_latin1, plugin->name, "NDBCLUSTER") != 0 &&
-        my_strcasecmp(&my_charset_latin1, plugin->name, "FEDERATED") != 0;
       bzero(&tmp, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
       tmp.state= 0;
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-      if (test_plugin_options(&tmp_root, &tmp, argc, argv, def_enabled))
+      if (test_plugin_options(&tmp_root, &tmp, argc, argv))
         tmp.state= PLUGIN_IS_DISABLED;
       else
         tmp.state= PLUGIN_IS_UNINITIALIZED;
@@ -1227,6 +1249,8 @@ int plugin_init(int *argc, char **argv, int flags)
   while ((plugin_ptr= *(--reap)))
   {
     pthread_mutex_unlock(&LOCK_plugin);
+    if (plugin_ptr->is_mandatory)
+      reaped_mandatory_plugin= TRUE;
     plugin_deinitialize(plugin_ptr, true);
     pthread_mutex_lock(&LOCK_plugin);
     plugin_del(plugin_ptr);
@@ -1234,6 +1258,8 @@ int plugin_init(int *argc, char **argv, int flags)
 
   pthread_mutex_unlock(&LOCK_plugin);
   my_afree(reap);
+  if (reaped_mandatory_plugin)
+    goto err;
 
 end:
   free_root(&tmp_root, MYF(0));
@@ -1299,7 +1325,7 @@ bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
   pthread_mutex_lock(&LOCK_plugin);
   rw_wrlock(&LOCK_system_variables_hash);
 
-  if (test_plugin_options(thd->mem_root, &tmp, &dummy_argc, NULL, true))
+  if (test_plugin_options(thd->mem_root, &tmp, &dummy_argc, NULL))
     goto end;
   tmp.state= PLUGIN_IS_UNINITIALIZED;
   if ((result= register_builtin(plugin, &tmp, &ptr)))
@@ -2889,59 +2915,78 @@ my_bool get_one_plugin_option(int optid __attribute__((unused)),
 }
 
 
+/**
+  Creates a set of my_option objects associated with a specified plugin-
+  handle.
+
+  @param mem_root Memory allocator to be used.
+  @param tmp A pointer to a plugin handle
+  @param[out] options A pointer to a pre-allocated static array
+
+  The set is stored in the pre-allocated static array supplied to the function.
+  The size of the array is calculated as (number_of_plugin_varaibles*2+3). The
+  reason is that each option can have a prefix '--plugin-' in addtion to the
+  shorter form '--&lt;plugin-name&gt;'. There is also space allocated for
+  terminating NULL pointers.
+
+  @return
+    @retval -1 An error occurred
+    @retval 0 Success
+*/
+
 static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
-                             my_option *options, my_bool **enabled,
-                             bool can_disable)
+                             my_option *options)
 {
   const char *plugin_name= tmp->plugin->name;
-  uint namelen= strlen(plugin_name), optnamelen;
-  uint buffer_length= namelen * 4 + (can_disable ? 75 : 10);
-  char *name= (char*) alloc_root(mem_root, buffer_length) + 1;
-  char *optname, *p;
+  const LEX_STRING plugin_dash = { C_STRING_WITH_LEN("plugin-") };
+  uint plugin_name_len= strlen(plugin_name);
+  uint optnamelen;
+  const int max_comment_len= 180;
+  char *comment= (char *) alloc_root(mem_root, max_comment_len + 1);
+  char *optname;
+
   int index= 0, offset= 0;
   st_mysql_sys_var *opt, **plugin_option;
   st_bookmark *v;
+
+  /** Used to circumvent the const attribute on my_option::name */
+  char *plugin_name_ptr, *plugin_name_with_prefix_ptr;
+
   DBUG_ENTER("construct_options");
-  DBUG_PRINT("plugin", ("plugin: '%s'  enabled: %d  can_disable: %d",
-                        plugin_name, **enabled, can_disable));
 
+  options[0].name= plugin_name_ptr= (char*) alloc_root(mem_root,
+                                                       plugin_name_len + 1);
+  strcpy(plugin_name_ptr, plugin_name);
+  my_casedn_str(&my_charset_latin1, plugin_name_ptr);
+  convert_underscore_to_dash(plugin_name_ptr, plugin_name_len);
   /* support --skip-plugin-foo syntax */
-  memcpy(name, plugin_name, namelen + 1);
-  my_casedn_str(&my_charset_latin1, name);
-  strxmov(name + namelen + 1, "plugin-", name, NullS);
-  /* Now we have namelen + 1 + 7 + namelen + 1 == namelen * 2 + 9. */
+  options[1].name= plugin_name_with_prefix_ptr= (char*) alloc_root(mem_root,
+                                                plugin_name_len +
+                                                plugin_dash.length + 1);
+  strxmov(plugin_name_with_prefix_ptr, plugin_dash.str, options[0].name, NullS);
 
-  for (p= name + namelen*2 + 8; p > name; p--)
-    if (*p == '_')
-      *p= '-';
+  options[0].id= options[1].id= 256; /* must be >255. dup id ok */
+  options[0].var_type= options[1].var_type= GET_ENUM;
+  options[0].arg_type= options[1].arg_type= OPT_ARG;
+  options[0].def_value= options[1].def_value= 1; /* ON */
+  options[0].typelib= options[1].typelib= &global_plugin_typelib;
 
-  if (can_disable)
-  {
-    strxmov(name + namelen*2 + 10, "Enable ", plugin_name, " plugin. "
-            "Disable with --skip-", name," (will save memory).", NullS);
-    /*
-      Now we have namelen * 2 + 10 (one char unused) + 7 + namelen + 9 +
-      20 + namelen + 20 + 1 == namelen * 4 + 67.
-    */
-
-    options[0].comment= name + namelen*2 + 10;
-  }
+  strxnmov(comment, max_comment_len, "Enable or disable ", plugin_name,
+          " plugin. Possible values are ON, OFF, FORCE (don't start "
+          "if the plugin fails to load).", NullS);
+  options[0].comment= comment;
 
   /*
-    NOTE: 'name' is one char above the allocated buffer!
-    NOTE: This code assumes that 'my_bool' and 'char' are of same size.
+    Allocate temporary space for the value of the tristate.
+    This option will have a limited lifetime and is not used beyond
+    server initialization.
+    GET_ENUM value is an ulong.
   */
-  *((my_bool *)(name -1))= **enabled;
-  *enabled= (my_bool *)(name - 1);
+  options[0].value= options[1].value= (uchar **)alloc_root(mem_root,
+                                                           sizeof(ulong));
+  *((ulong*) options[0].value)= *((ulong*) options[1].value)=
+    (ulong) options[0].def_value;
 
-
-  options[1].name= (options[0].name= name) + namelen + 1;
-  options[0].id= options[1].id= 256; /* must be >255. dup id ok */
-  options[0].var_type= options[1].var_type= GET_BOOL;
-  options[0].arg_type= options[1].arg_type= NO_ARG;
-  options[0].def_value= options[1].def_value= **enabled;
-  options[0].value= options[0].u_max_value=
-  options[1].value= options[1].u_max_value= (uchar**) (name - 1);
   options+= 2;
 
   /*
@@ -2955,7 +3000,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     opt= *plugin_option;
     if (!(opt->flags & PLUGIN_VAR_THDLOCAL))
       continue;
-    if (!(register_var(name, opt->name, opt->flags)))
+    if (!(register_var(plugin_name_ptr, opt->name, opt->flags)))
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
@@ -3062,14 +3107,14 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     if (!(opt->flags & PLUGIN_VAR_THDLOCAL))
     {
       optnamelen= strlen(opt->name);
-      optname= (char*) alloc_root(mem_root, namelen + optnamelen + 2);
-      strxmov(optname, name, "-", opt->name, NullS);
-      optnamelen= namelen + optnamelen + 1;
+      optname= (char*) alloc_root(mem_root, plugin_name_len + optnamelen + 2);
+      strxmov(optname, plugin_name_ptr, "-", opt->name, NullS);
+      optnamelen= plugin_name_len + optnamelen + 1;
     }
     else
     {
       /* this should not fail because register_var should create entry */
-      if (!(v= find_bookmark(name, opt->name, opt->flags)))
+      if (!(v= find_bookmark(plugin_name_ptr, opt->name, opt->flags)))
       {
         sql_print_error("Thread local variable '%s' not allocated "
                         "in plugin '%s'.", opt->name, plugin_name);
@@ -3085,10 +3130,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
                                    (optnamelen= v->name_len) + 1);
     }
 
-    /* convert '_' to '-' */
-    for (p= optname; *p; p++)
-      if (*p == '_')
-        *p= '-';
+    convert_underscore_to_dash(optname, optnamelen);
 
     options->name= optname;
     options->comment= opt->comment;
@@ -3103,10 +3145,13 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     else
       options->value= options->u_max_value= *(uchar***) (opt + 1);
 
+    char *option_name_ptr;
     options[1]= options[0];
-    options[1].name= p= (char*) alloc_root(mem_root, optnamelen + 8);
-    options[1].comment= 0; // hidden
-    strxmov(p, "plugin-", optname, NullS);
+    options[1].name= option_name_ptr= (char*) alloc_root(mem_root,
+                                                        plugin_dash.length +
+                                                        optnamelen + 1);
+    options[1].comment= 0; /* Hidden from the help text */
+    strxmov(option_name_ptr, plugin_dash.str, optname, NullS);
 
     options+= 2;
   }
@@ -3120,8 +3165,6 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 {
   st_mysql_sys_var **opt;
   my_option *opts;
-  my_bool dummy, can_disable;
-  my_bool *dummy2= &dummy;
   uint count= EXTRA_OPTIONS;
   DBUG_ENTER("construct_help_options");
 
@@ -3133,43 +3176,46 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
   bzero(opts, sizeof(my_option) * count);
 
-  dummy= TRUE; /* plugin is enabled. */
-
-  can_disable=
-      my_strcasecmp(&my_charset_latin1, p->name.str, "MyISAM") &&
-      my_strcasecmp(&my_charset_latin1, p->name.str, "MEMORY");
-
-  if (construct_options(mem_root, p, opts, &dummy2, can_disable))
+  if (construct_options(mem_root, p, opts))
     DBUG_RETURN(NULL);
 
   DBUG_RETURN(opts);
 }
 
 
-/*
-  SYNOPSIS
-    test_plugin_options()
-    tmp_root                    temporary scratch space
-    plugin                      internal plugin structure
-    argc                        user supplied arguments
-    argv                        user supplied arguments
-    default_enabled             default plugin enable status
-  RETURNS:
-    0 SUCCESS - plugin should be enabled/loaded
-  NOTE:
-    Requires that a write-lock is held on LOCK_system_variables_hash
+/**
+  Create and register system variables supplied from the plugin and
+  assigns initial values from corresponding command line arguments.
+
+  @param tmp_root Temporary scratch space
+  @param[out] plugin Internal plugin structure
+  @param argc Number of command line arguments
+  @param argv Command line argument vector
+
+  The plugin will be updated with a policy on how to handle errors during
+  initialization.
+
+  @note Requires that a write-lock is held on LOCK_system_variables_hash
+
+  @return How initialization of the plugin should be handled.
+    @retval  0 Initialization should proceed.
+    @retval  1 Plugin is disabled.
+    @retval -1 An error has occurred.
 */
+
 static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
-                               int *argc, char **argv, my_bool default_enabled)
+                               int *argc, char **argv)
 {
   struct sys_var_chain chain= { NULL, NULL };
-  my_bool enabled_saved= default_enabled, can_disable;
-  my_bool *enabled= &default_enabled;
+  my_bool can_disable;
+  bool disable_plugin;
+  enum_plugin_load_policy plugin_load_policy= PLUGIN_ON;
+
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
   st_mysql_sys_var **opt;
   my_option *opts= NULL;
-  char *p, *varname;
+  char *varname;
   int error;
   st_mysql_sys_var *o;
   sys_var *v;
@@ -3178,12 +3224,16 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   DBUG_ENTER("test_plugin_options");
   DBUG_ASSERT(tmp->plugin && tmp->name.str);
 
+  /*
+    The 'federated' and 'ndbcluster' storage engines are always disabled by
+    default.
+  */
+  if (!(my_strcasecmp(&my_charset_latin1, tmp->name.str, "federated") &&
+      my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster")))
+    plugin_load_policy= PLUGIN_OFF;
+
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
     count+= 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
-
-  can_disable=
-      my_strcasecmp(&my_charset_latin1, tmp->name.str, "MyISAM") &&
-      my_strcasecmp(&my_charset_latin1, tmp->name.str, "MEMORY");
 
   if (count > EXTRA_OPTIONS || (*argc > 1))
   {
@@ -3194,11 +3244,17 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     }
     bzero(opts, sizeof(my_option) * count);
 
-    if (construct_options(tmp_root, tmp, opts, &enabled, can_disable))
+    if (construct_options(tmp_root, tmp, opts))
     {
       sql_print_error("Bad options for plugin '%s'.", tmp->name.str);
       DBUG_RETURN(-1);
     }
+
+    /*
+      We adjust the default value to account for the hardcoded exceptions
+      we have set for the federated and ndbcluster storage engines.
+    */
+    opts[0].def_value= opts[1].def_value= (int)plugin_load_policy;
 
     error= handle_options(argc, &argv, opts, get_one_plugin_option);
     (*argc)++; /* add back one for the program name */
@@ -3209,64 +3265,79 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
                        tmp->name.str);
        goto err;
     }
+    /*
+     Set plugin loading policy from option value. First element in the option
+     list is always the <plugin name> option value.
+    */
+    plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
   }
 
-  if (!*enabled && !can_disable)
+  disable_plugin= (plugin_load_policy == PLUGIN_OFF);
+  /*
+    The 'MyISAM' and 'Memory' storage engines currently can't be disabled.
+  */
+  can_disable=
+    my_strcasecmp(&my_charset_latin1, tmp->name.str, "MyISAM") &&
+    my_strcasecmp(&my_charset_latin1, tmp->name.str, "MEMORY");
+
+  tmp->is_mandatory= (plugin_load_policy == PLUGIN_FORCE) || !can_disable;
+
+  if (disable_plugin && !can_disable)
   {
     sql_print_warning("Plugin '%s' cannot be disabled", tmp->name.str);
-    *enabled= TRUE;
+    disable_plugin= FALSE;
+  }
+
+  /*
+    If the plugin is disabled it should not be initialized.
+  */
+  if (disable_plugin)
+  {
+    if (global_system_variables.log_warnings)
+      sql_print_information("Plugin '%s' is disabled.",
+                            tmp->name.str);
+    if (opts)
+      my_cleanup_options(opts);
+    DBUG_RETURN(1);
   }
 
   error= 1;
-
-  if (*enabled)
+  for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
-    for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
+    if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
+      continue;
+    if ((var= find_bookmark(tmp->name.str, o->name, o->flags)))
+      v= new (mem_root) sys_var_pluginvar(var->key + 1, o);
+    else
     {
-      if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
-        continue;
-
-      if ((var= find_bookmark(tmp->name.str, o->name, o->flags)))
-        v= new (mem_root) sys_var_pluginvar(var->key + 1, o);
-      else
-      {
-        len= tmp->name.length + strlen(o->name) + 2;
-        varname= (char*) alloc_root(mem_root, len);
-        strxmov(varname, tmp->name.str, "-", o->name, NullS);
-        my_casedn_str(&my_charset_latin1, varname);
-
-        for (p= varname; *p; p++)
-          if (*p == '-')
-            *p= '_';
-
-        v= new (mem_root) sys_var_pluginvar(varname, o);
-      }
-      DBUG_ASSERT(v); /* check that an object was actually constructed */
-
-      /*
-        Add to the chain of variables.
-        Done like this for easier debugging so that the
-        pointer to v is not lost on optimized builds.
-      */
-      v->chain_sys_var(&chain);
+      len= tmp->name.length + strlen(o->name) + 2;
+      varname= (char*) alloc_root(mem_root, len);
+      strxmov(varname, tmp->name.str, "-", o->name, NullS);
+      my_casedn_str(&my_charset_latin1, varname);
+      convert_dash_to_underscore(varname, len-1);
+      v= new (mem_root) sys_var_pluginvar(varname, o);
     }
-    if (chain.first)
+    DBUG_ASSERT(v); /* check that an object was actually constructed */
+    /*
+      Add to the chain of variables.
+      Done like this for easier debugging so that the
+      pointer to v is not lost on optimized builds.
+    */
+    v->chain_sys_var(&chain);
+  } /* end for */
+  if (chain.first)
+  {
+    chain.last->next = NULL;
+    if (mysql_add_sys_var_chain(chain.first, NULL))
     {
-      chain.last->next = NULL;
-      if (mysql_add_sys_var_chain(chain.first, NULL))
-      {
-        sql_print_error("Plugin '%s' has conflicting system variables",
-                        tmp->name.str);
-        goto err;
-      }
-      tmp->system_vars= chain.first;
+      sql_print_error("Plugin '%s' has conflicting system variables",
+                      tmp->name.str);
+      goto err;
     }
-    DBUG_RETURN(0);
+    tmp->system_vars= chain.first;
   }
-
-  if (enabled_saved && global_system_variables.log_warnings)
-    sql_print_information("Plugin '%s' disabled by command line option",
-                          tmp->name.str);
+  DBUG_RETURN(0);
+  
 err:
   if (opts)
     my_cleanup_options(opts);

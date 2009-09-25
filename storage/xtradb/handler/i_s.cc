@@ -795,7 +795,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
       	index = dict_index_get_if_in_cache_low(index_id);
       	if(index)
         {
-          if((p = strchr(index->table_name, '/')))
+          if((p = (char*) strchr(index->table_name, '/')))
           {
             strncpy(db_name_raw, index->table_name, p-index->table_name);
             db_name_raw[p-index->table_name] = 0;

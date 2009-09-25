@@ -340,8 +340,7 @@ Rpl_filter::add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
   e->tbl_name= e->db + (dot - table_spec) + 1;
   e->key_len= len;
   memcpy(e->db, table_spec, len);
-  insert_dynamic(a, (uchar*)&e);
-  return 0;
+  return insert_dynamic(a, (uchar*)&e);
 }
 
 

@@ -40,6 +40,9 @@ uint32 well_formed_copy_nchars(CHARSET_INFO *to_cs,
 size_t my_copy_with_hex_escaping(CHARSET_INFO *cs,
                                  char *dst, size_t dstlen,
                                  const char *src, size_t srclen);
+uint convert_to_printable(char *to, size_t to_len,
+                          const char *from, size_t from_len,
+                          CHARSET_INFO *from_cs, size_t nbytes= 0);
 
 class String
 {
@@ -370,6 +373,19 @@ public:
   inline bool uses_buffer_owned_by(const String *s) const
   {
     return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
+  }
+  bool is_ascii() const
+  {
+    if (length() == 0)
+      return TRUE;
+    if (charset()->mbminlen > 1)
+      return FALSE;
+    for (const char *c= ptr(), *end= c + length(); c < end; c++)
+    {
+      if (!my_isascii(*c))
+        return FALSE;
+    }
+    return TRUE;
   }
 };
 

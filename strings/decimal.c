@@ -30,7 +30,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that ï¿½-R^P <= n <= R^P.
 
   [...]
 

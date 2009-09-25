@@ -1,7 +1,7 @@
 SET @start_value = @@global.max_binlog_cache_size;
 SELECT @start_value;
 @start_value
-18446744073709551615
+18446744073709547520
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_cache_size = 5000;
 SET @@global.max_binlog_cache_size = DEFAULT;
@@ -39,7 +39,7 @@ SELECT @@global.max_binlog_cache_size;
 '#--------------------FN_DYNVARS_072_04-------------------------#'
 SET @@global.max_binlog_cache_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_binlog_cache_size value: '0'
+Warning	1292	Truncated incorrect max_binlog_cache_size value: '-1'
 SELECT @@global.max_binlog_cache_size;
 @@global.max_binlog_cache_size
 4096
@@ -54,7 +54,7 @@ SELECT @@global.max_binlog_cache_size;
 99999997952
 SET @@global.max_binlog_cache_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_binlog_cache_size value: '0'
+Warning	1292	Truncated incorrect max_binlog_cache_size value: '-1024'
 SELECT @@global.max_binlog_cache_size;
 @@global.max_binlog_cache_size
 4096

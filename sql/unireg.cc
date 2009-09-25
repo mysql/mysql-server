@@ -37,8 +37,7 @@ static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
 			List<Create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			ulong data_offset, handler *file);
-static uint get_interval_id(uint *int_count,List<Create_field> &create_fields,
-			    Create_field *last_field);
+static uint get_interval_id(uint *,List<Create_field> &, Create_field *);
 static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset);
 static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,

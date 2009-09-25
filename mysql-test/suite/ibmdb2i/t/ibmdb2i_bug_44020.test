@@ -1,0 +1,9 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+source include/have_case_sensitive_file_system.inc;
+
+create schema `A12345_@$#`;
+create table `A12345_@$#`.t1 (i int) engine=ibmdb2i;
+show create table `A12345_@$#`.t1;
+select * from `A12345_@$#`.t1;
+drop table `A12345_@$#`.t1;
+drop schema `A12345_@$#`;

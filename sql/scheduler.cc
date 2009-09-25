@@ -235,9 +235,9 @@ void thd_scheduler::thread_detach()
   if (thread_attached)
   {
     THD* thd = (THD*)list.data;
-    pthread_mutex_lock(&thd->LOCK_delete);
+    pthread_mutex_lock(&thd->LOCK_thd_data);
     thd->mysys_var= NULL;
-    pthread_mutex_unlock(&thd->LOCK_delete);
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
     thread_attached= FALSE;
 #ifndef DBUG_OFF
     /*
@@ -481,7 +481,7 @@ static void libevent_add_connection(THD *thd)
   @brief Signal a waiting connection it's time to die.
 
   @details This function will signal libevent the THD should be killed.
-    Either the global LOCK_thd_count or the THD's LOCK_delete must be locked
+    Either the global LOCK_thd_count or the THD's LOCK_thd_data must be locked
     upon entry.
 
   @param[in]  thd The connection to kill

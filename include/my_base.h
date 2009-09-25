@@ -450,7 +450,8 @@ enum ha_base_keytype {
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
 #define HA_ERR_ROW_NOT_VISIBLE    177
-#define HA_ERR_LAST               177    /* Copy of last error nr */
+#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 178 /*Too many active concurrent transactions */
+#define HA_ERR_LAST               178    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

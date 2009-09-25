@@ -211,7 +211,7 @@ _rl_nsearch_init (dir, pchar)
   rl_end = rl_point = 0;
 
   p = _rl_make_prompt_for_search (pchar ? pchar : ':');
-  rl_message ("%s", p, 0);
+  rl_message ("%s", p);
   free (p);
 
   RL_SETSTATE(RL_STATE_NSEARCH);
@@ -383,7 +383,7 @@ noninc_search (dir, pchar)
    code calls this, KEY will be `?'. */
 int
 rl_noninc_forward_search (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   return noninc_search (1, (key == '?') ? '?' : 0);
 }
@@ -392,7 +392,7 @@ rl_noninc_forward_search (count, key)
    calls this, KEY will be `/'. */
 int
 rl_noninc_reverse_search (count, key)
-     int count, key;
+     int count __attribute__((unused)), key;
 {
   return noninc_search (-1, (key == '/') ? '/' : 0);
 }
@@ -401,7 +401,7 @@ rl_noninc_reverse_search (count, key)
    for.  If there is no saved search string, abort. */
 int
 rl_noninc_forward_search_again (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int r;
 
@@ -418,7 +418,7 @@ rl_noninc_forward_search_again (count, key)
    for.  If there is no saved search string, abort. */
 int
 rl_noninc_reverse_search_again (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int r;
 

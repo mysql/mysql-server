@@ -2525,4 +2525,27 @@ SELECT DATE_FORMAT(c, GET_FORMAT(DATE, 'eur')) h, CONCAT(UPPER(aa),', ', aa) i F
 h	i
 31.12.2008	AAAAAA, aaaaaa
 DROP TABLE t1;
+#
+# BUG#44774: load_file function produces valgrind warnings
+#
+CREATE TABLE t1 (a TINYBLOB);
+INSERT INTO t1 VALUES ('aaaaaaaa');
+SELECT LOAD_FILE(a) FROM t1;
+LOAD_FILE(a)
+NULL
+DROP TABLE t1;
 End of 5.0 tests
+drop table if exists t1;
+create table t1(f1 tinyint default null)engine=myisam;
+insert into t1 values (-1),(null);
+explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1;

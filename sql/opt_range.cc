@@ -8557,7 +8557,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
                                    test(last_range->flag & EQ_RANGE),
-				   sorted);
+				   TRUE);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
 
@@ -10887,8 +10887,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       /* Compare the found key with max_key. */
       int cmp_res= key_cmp(index_info->key_part, max_key,
                            real_prefix_len + min_max_arg_len);
-      if (!(((cur_range->flag & NEAR_MAX) && (cmp_res == -1)) ||
-            (cmp_res <= 0)))
+      /*
+        The key is outside of the range if: 
+        the interval is open and the key is equal to the maximum boundry
+        or
+        the key is greater than the maximum
+      */
+      if (((cur_range->flag & NEAR_MAX) && cmp_res == 0) ||
+          cmp_res > 0)
       {
         result= HA_ERR_KEY_NOT_FOUND;
         continue;
@@ -11005,8 +11011,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
       /* Compare the found key with min_key. */
       int cmp_res= key_cmp(index_info->key_part, min_key,
                            real_prefix_len + min_max_arg_len);
-      if (!(((cur_range->flag & NEAR_MIN) && (cmp_res == 1)) ||
-            (cmp_res >= 0)))
+      /*
+        The key is outside of the range if: 
+        the interval is open and the key is equal to the minimum boundry
+        or
+        the key is less than the minimum
+      */
+      if (((cur_range->flag & NEAR_MIN) && cmp_res == 0) ||
+          cmp_res < 0)
         continue;
     }
     /* If we got to this point, the current key qualifies as MAX. */

@@ -3267,7 +3267,7 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		while (rec != supremum) {
-                        rec_t*	next_rec;
+			rec_t*	next_rec;
 			/* count recs */
 			if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
 				n_recs++;

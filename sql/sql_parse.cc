@@ -202,11 +202,8 @@ bool begin_trans(THD *thd)
     error= -1;
   else
   {
-    LEX *lex= thd->lex;
     thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
-    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
-      error= ha_start_consistent_snapshot(thd);
   }
   return error;
 }
@@ -467,6 +464,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
+    char *query;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -499,11 +497,10 @@ pthread_handler_t handle_bootstrap(void *arg)
     if (strncmp(buff, STRING_WITH_LEN("delimiter")) == 0)
       continue;
 
-    thd->query_length=length;
-    thd->query= (char*) thd->memdup_w_gap(buff, length+1, 
-                                          thd->db_length+1+
-                                          QUERY_CACHE_FLAGS_SIZE);
-    thd->query[length] = '\0';
+    query= (char *) thd->memdup_w_gap(buff, length + 1,
+                                      thd->db_length + 1 +
+                                      QUERY_CACHE_FLAGS_SIZE);
+    thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.start_new_query();
@@ -543,8 +540,9 @@ end:
 #ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  in_bootstrap= FALSE;
   (void) pthread_cond_broadcast(&COND_thread_count);
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -668,8 +666,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
-  thd->query_length=(uint) strlen(tbl_name);
-  thd->query = tbl_name;
+  thd->set_query(tbl_name, (uint) strlen(tbl_name));
   if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
@@ -1178,12 +1175,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_EXECUTE:
   {
-    mysql_stmt_execute(thd, packet, packet_length);
+    mysqld_stmt_execute(thd, packet, packet_length);
     break;
   }
   case COM_STMT_FETCH:
   {
-    mysql_stmt_fetch(thd, packet, packet_length);
+    mysqld_stmt_fetch(thd, packet, packet_length);
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
@@ -1193,17 +1190,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length);
+    mysqld_stmt_prepare(thd, packet, packet_length);
     break;
   }
   case COM_STMT_CLOSE:
   {
-    mysql_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysql_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet);
     break;
   }
   case COM_QUERY:
@@ -1256,9 +1253,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
 
+      thd->set_query(beginning_of_next_stmt, length);
       VOID(pthread_mutex_lock(&LOCK_thread_count));
-      thd->query_length= length;
-      thd->query= beginning_of_next_stmt;
       /*
         Count each statement from the client.
       */
@@ -1311,9 +1307,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    thd->query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(thd->query=fields= (char*) thd->memdup(packet,thd->query_length+1)))
+    uint query_length= (uint) (packet_end - packet); // Don't count end \0
+    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
       break;
+    thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
@@ -1367,7 +1364,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
                        is_schema_db(db.str)))
 	break;
-      general_log_print(thd, command, packet);
+      general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
                       &create_info, 0);
@@ -1392,7 +1389,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_write(thd, command, db.str, db.length);
+      general_log_write(thd, command, "%.*s", db.length, db.str);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
@@ -1582,14 +1579,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->main_da.can_overwrite_status= TRUE;
-  ha_autocommit_or_rollback(thd, thd->is_error());
-  thd->main_da.can_overwrite_status= FALSE;
-
-  thd->transaction.stmt.reset();
-
-
   /* report error issued during command execution */
   if (thd->killed_errno())
   {
@@ -1601,6 +1590,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->killed= THD::NOT_KILLED;
     thd->mysys_var->abort= 0;
   }
+
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
+
+  thd->transaction.stmt.reset();
 
 #ifdef WITH_MARIA_STORAGE_ENGINE
   ha_maria::implicit_commit(thd, FALSE);
@@ -1616,13 +1612,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd_proc_info(thd, 0);
+  thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  thd->query=0;
-  thd->query_length=0;
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
@@ -1828,6 +1823,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
+  char *query;
   /* Remove garbage at start and end of query */
   while (packet_length > 0 && my_isspace(thd->charset(), packet[0]))
   {
@@ -1842,14 +1838,13 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     packet_length--;
   }
   /* We must allocate some extra memory for query cache */
-  thd->query_length= 0;                        // Extra safety: Avoid races
-  if (!(thd->query= (char*) thd->memdup_w_gap((uchar*) (packet),
-					      packet_length,
-					      thd->db_length+ 1 +
-					      QUERY_CACHE_FLAGS_SIZE)))
-    return TRUE;
-  thd->query[packet_length]=0;
-  thd->query_length= packet_length;
+  if (! (query= (char*) thd->memdup_w_gap(packet,
+                                          packet_length,
+                                          1 + thd->db_length +
+                                          QUERY_CACHE_FLAGS_SIZE)))
+      return TRUE;
+  query[packet_length]= '\0';
+  thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -2236,8 +2231,15 @@ mysql_execute_command(THD *thd)
       res= check_access(thd,
                         lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL,
                         any_db, 0, 0, 0, 0);
-    if (!res)
-      res= execute_sqlcom_select(thd, all_tables);
+
+    if (res)
+      break;
+
+    if (!thd->locked_tables && lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      break;
+
+    res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_PREPARE:
   {
@@ -3052,6 +3054,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     res= (up_result= mysql_update(thd, all_tables,
@@ -3077,6 +3082,15 @@ end_with_restore_list:
     }
     else
       res= 0;
+
+    /*
+      Protection might have already been risen if its a fall through
+      from the SQLCOM_UPDATE case above.
+    */
+    if (!thd->locked_tables &&
+        lex->sql_command == SQLCOM_UPDATE_MULTI &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
 
     res= mysql_multi_update_prepare(thd);
 
@@ -3275,7 +3289,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-
+    if (!(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
   case SQLCOM_DELETE:
@@ -3448,6 +3463,10 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
                     lex->ignore, (bool) lex->local_file);
@@ -3517,6 +3536,9 @@ end_with_restore_list:
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                            UINT_MAX, FALSE))
+      goto error;
+    if (lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -3902,7 +3924,9 @@ end_with_restore_list:
         res= mysql_routine_grant(thd, all_tables,
                                  lex->type == TYPE_ENUM_PROCEDURE, 
                                  lex->users_list, grants,
-                                 lex->sql_command == SQLCOM_REVOKE, 0);
+                                 lex->sql_command == SQLCOM_REVOKE, TRUE);
+        if (!res)
+          my_ok(thd);
       }
       else
       {
@@ -4046,6 +4070,11 @@ end_with_restore_list:
     }
     if (begin_trans(thd))
       goto error;
+    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+    {
+      if (ha_start_consistent_snapshot(thd))
+        goto error;
+    }
     my_ok(thd);
     break;
   case SQLCOM_COMMIT:
@@ -5497,7 +5526,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
       if (!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !check_grant(thd, access, table, 0, 1, 1))
+           !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -5756,7 +5785,7 @@ mysql_new_select(LEX *lex, bool move_down)
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
-    mysql_stmt_prepare.
+    mysqld_stmt_prepare.
   */
   if (thd->stmt_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
@@ -6968,7 +6997,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       continue;
     if (tmp->thread_id == id)
     {
-      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
       break;
     }
   }
@@ -7001,7 +7030,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     }
     else
       error=ER_KILL_DENIED_ERROR;
-    pthread_mutex_unlock(&tmp->LOCK_delete);
+    pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);

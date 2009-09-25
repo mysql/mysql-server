@@ -33,18 +33,20 @@
 
 static const char *lock_descriptions[] =
 {
-  "No lock",
-  "Low priority read lock",
-  "Shared Read lock",
-  "High priority read lock",
-  "Read lock  without concurrent inserts",
-  "Write lock that allows other writers",
-  "Write lock, but allow reading",
-  "Concurrent insert lock",
-  "Lock Used by delayed insert",
-  "Low priority write lock",
-  "High priority write lock",
-  "Highest priority write lock"
+  /* TL_UNLOCK                  */  "No lock",
+  /* TL_READ_DEFAULT            */  NULL,
+  /* TL_READ                    */  "Low priority read lock",
+  /* TL_READ_WITH_SHARED_LOCKS  */  "Shared read lock",
+  /* TL_READ_HIGH_PRIORITY      */  "High priority read lock",
+  /* TL_READ_NO_INSERT          */  "Read lock without concurrent inserts",
+  /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
+  /* TL_WRITE_ALLOW_READ        */  "Write lock, but allow reading",
+  /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
+  /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
+  /* TL_WRITE_DEFAULT           */  NULL,
+  /* TL_WRITE_LOW_PRIORITY      */  "Low priority write lock",
+  /* TL_WRITE                   */  "High priority write lock",
+  /* TL_WRITE_ONLY              */  "Highest priority write lock"
 };
 
 
@@ -74,6 +76,8 @@ void print_cached_tables(void)
 {
   uint idx,count,unused;
   TABLE *start_link,*lnk;
+
+  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
 
   /* purecov: begin tested */
   VOID(pthread_mutex_lock(&LOCK_open));

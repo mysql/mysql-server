@@ -53,7 +53,6 @@ flush privileges;
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user1a, localhost, user_1, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc

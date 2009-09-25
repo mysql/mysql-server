@@ -1541,5 +1541,28 @@ DROP TABLE t1;
 create table `me:i`(id int);
 drop table `me:i`;
 
+###########################################################################
+
+#
+# Bug#45829 CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+#
+
+--echo
+--echo # --
+--echo # -- Bug#45829: CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+--echo # --
+--echo
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+--echo # Fix modified for MariaDB: we support this syntax
+create table t1 (a int) transactional=0;
+create table t2 (a int) page_checksum=1;
+create table t3 (a int) row_format=page;
+drop table t1,t2,t3;
+--echo
+--echo # -- End of Bug#45829
+
 --echo
 --echo End of 5.1 tests

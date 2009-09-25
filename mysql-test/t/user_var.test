@@ -286,6 +286,18 @@ select @lastid != id, @lastid, @lastid := id from t1;
 drop table t1;
 
 #
+# Bug#42009: SELECT into variable gives different results to direct SELECT
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (0, 0), (2, 1), (2, 3), (1, 1), (30, 20);
+SELECT a, b INTO @a, @b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+SELECT @a, @b;
+SELECT a, b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
+
+#
 # Bug#42188: crash and/or memory corruption with user variables in trigger
 #
 

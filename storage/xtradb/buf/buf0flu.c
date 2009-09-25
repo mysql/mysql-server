@@ -108,6 +108,20 @@ buf_flush_insert_sorted_into_flush_list(
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
+	if (srv_fast_recovery) {
+	/* speed hack */
+	if (b == NULL || b->oldest_modification < block->page.oldest_modification) {
+		UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, &block->page);
+	} else {
+		b = UT_LIST_GET_LAST(buf_pool->flush_list);
+		if (b->oldest_modification < block->page.oldest_modification) {
+			/* align oldest_modification not to sort */
+			block->page.oldest_modification = b->oldest_modification;
+		}
+		UT_LIST_ADD_LAST(flush_list, buf_pool->flush_list, &block->page);
+	}
+	} else {
+	/* normal */
 	while (b && b->oldest_modification > block->page.oldest_modification) {
 		ut_ad(b->in_flush_list);
 		prev_b = b;
@@ -119,6 +133,7 @@ buf_flush_insert_sorted_into_flush_list(
 	} else {
 		UT_LIST_INSERT_AFTER(flush_list, buf_pool->flush_list,
 				     prev_b, &block->page);
+	}
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -886,8 +901,9 @@ buf_flush_try_neighbors(
 					/* out: number of pages flushed */
 	ulint		space,		/* in: space id */
 	ulint		offset,		/* in: page offset */
-	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/* in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
+	ulint		flush_neighbors)
 {
 	buf_page_t*	bpage;
 	ulint		low, high;
@@ -896,7 +912,7 @@ buf_flush_try_neighbors(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
+	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN || !flush_neighbors) {
 		/* If there is little space, it is better not to flush any
 		block except from the end of the LRU list */
 
@@ -1091,6 +1107,8 @@ retry_lock_1:
 			mutex_exit(block_mutex);
 
 			if (ready) {
+				mutex_t* block_mutex;
+				buf_page_t* bpage_tmp;
 				space = buf_page_get_space(bpage);
 				offset = buf_page_get_page_no(bpage);
 
@@ -1101,32 +1119,11 @@ retry_lock_1:
 
 				old_page_count = page_count;
 
-				if (srv_flush_neighbor_pages) {
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
-					space, offset, flush_type);
-				} else {
-                                        mutex_t* block_mutex;
-                                        buf_page_t* bpage_tmp;
-					/* Try to flush the page only */
-					//buf_pool_mutex_enter();
-					rw_lock_s_lock(&page_hash_latch);
-
-					block_mutex = buf_page_get_mutex(bpage);
-retry_lock_2:
-					mutex_enter(block_mutex);
-					if (block_mutex != buf_page_get_mutex(bpage)) {
-						mutex_exit(block_mutex);
-						block_mutex = buf_page_get_mutex(bpage);
-						goto retry_lock_2;
-					}
-
-					bpage_tmp = buf_page_hash_get(space, offset);
-					if (bpage_tmp) {
-						buf_flush_page(bpage_tmp, flush_type);
-						page_count++;
-					}
-				}
+					space, offset, flush_type, srv_flush_neighbor_pages);
+				block_mutex = buf_page_get_mutex(bpage);
+				bpage_tmp = buf_page_hash_get(space, offset);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
@@ -1223,6 +1220,7 @@ buf_flush_LRU_recommendation(void)
 	ulint		n_replaceable;
 	ulint		distance	= 0;
 	ibool		have_LRU_mutex = FALSE;
+	mutex_t*	block_mutex;
 
 	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
 		have_LRU_mutex = TRUE;
@@ -1240,7 +1238,6 @@ buf_flush_LRU_recommendation(void)
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
-		mutex_t* block_mutex;
                 if (!bpage->in_LRU_list) {
 			/* reatart. but it is very optimistic */
 			bpage = UT_LIST_GET_LAST(buf_pool->LRU);

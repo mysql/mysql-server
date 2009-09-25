@@ -28,10 +28,10 @@
 
 #include "mysql_priv.h"
 
-SQL_CRYPT::SQL_CRYPT(const char *password)
+SQL_CRYPT::SQL_CRYPT(const char *password, uint length)
 {
   ulong rand_nr[2];
-  hash_password(rand_nr,password, (uint) strlen(password));
+  hash_password(rand_nr,password, length);
   crypt_init(rand_nr);
 }
 

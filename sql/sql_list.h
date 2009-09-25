@@ -86,7 +86,7 @@ struct list_node :public Sql_alloc
 };
 
 
-extern list_node end_of_list;
+extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
 class base_list :public Sql_alloc
 {

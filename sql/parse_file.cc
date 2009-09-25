@@ -231,7 +231,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
       including dir name, file name itself, and an extension,
       and with unpack_filename() executed over it.
     */    
-    path_end= strxnmov(path, FN_REFLEN, file_name->str, NullS) - path;
+    path_end= strxnmov(path, sizeof(path) - 1, file_name->str, NullS) - path;
   }
 
   // temporary file name
@@ -302,6 +302,7 @@ err_w_file:
   @thd                     thread handler
   @param schema            name of given schema
   @param old_name          original file name
+  @param new_db            new schema
   @param new_name          new file name
 
   @retval
@@ -311,14 +312,14 @@ err_w_file:
 */
 my_bool rename_in_schema_file(THD *thd,
                               const char *schema, const char *old_name, 
-                              const char *new_name)
+                              const char *new_db, const char *new_name)
 {
-  char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
+  char old_path[FN_REFLEN + 1], new_path[FN_REFLEN + 1], arc_path[FN_REFLEN + 1];
 
   build_table_filename(old_path, sizeof(old_path) - 1,
                        schema, old_name, reg_ext, 0);
   build_table_filename(new_path, sizeof(new_path) - 1,
-                       schema, new_name, reg_ext, 0);
+                       new_db, new_name, reg_ext, 0);
 
   if (my_rename(old_path, new_path, MYF(MY_WME)))
     return 1;

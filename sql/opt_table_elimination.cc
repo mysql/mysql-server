@@ -868,7 +868,7 @@ bool Dep_analysis_context::run_wave(List<Dep_module> *new_bound_modules)
     List_iterator<Dep_module> modules_it(*new_bound_modules);
     while ((module= modules_it++))
     {
-      char iter_buf[Dep_module::iterator_size];
+      char iter_buf[Dep_module::iterator_size + ALIGN_MAX_UNIT];
       Dep_module::Iterator iter;
       iter= module->init_unbound_values_iter(iter_buf);
       while ((value= module->get_next_unbound_value(this, iter)))
@@ -887,7 +887,7 @@ bool Dep_analysis_context::run_wave(List<Dep_module> *new_bound_modules)
     List_iterator<Dep_value> value_it(new_bound_values);
     while ((value= value_it++))
     {
-      char iter_buf[Dep_value::iterator_size];
+      char iter_buf[Dep_value::iterator_size + ALIGN_MAX_UNIT];
       Dep_value::Iterator iter;
       iter= value->init_unbound_modules_iter(iter_buf);
       while ((module= value->get_next_unbound_module(this, iter)))

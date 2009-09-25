@@ -207,6 +207,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
   case SQLCOM_REPAIR:
@@ -1011,8 +1012,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   else
     DBUG_RETURN(TRUE);
 
-  thd->query= pbuf;
-  thd->query_length= qbuf.length();
+  thd->set_query(pbuf, qbuf.length());
 
   DBUG_RETURN(FALSE);
 }
@@ -1248,7 +1248,7 @@ sp_head::execute(THD *thd)
     */
     if (thd->prelocked_mode == NON_PRELOCKED)
       thd->user_var_events_alloc= thd->mem_root;
-    
+
     err_status= i->execute(thd, &ip);
 
     if (i->free_list)
@@ -1778,8 +1778,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->options= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
+      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE);
+                            thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
@@ -2131,17 +2132,16 @@ sp_head::restore_lex(THD *thd)
 /**
   Put the instruction on the backpatch list, associated with the label.
 */
-void
+int
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
-  if (bp)
-  {
-    bp->lab= lab;
-    bp->instr= i;
-    (void)m_backpatch.push_front(bp);
-  }
+  if (!bp)
+    return 1;
+  bp->lab= lab;
+  bp->instr= i;
+  return m_backpatch.push_front(bp);
 }
 
 /**
@@ -2216,7 +2216,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 }
 
 
-void
+int
 sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
 {
   m_cont_level+= 1;
@@ -2224,15 +2224,17 @@ sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
   {
     /* Use the cont. destination slot to store the level */
     i->m_cont_dest= m_cont_level;
-    (void)m_cont_backpatch.push_front(i);
+    if (m_cont_backpatch.push_front(i))
+      return 1;
   }
+  return 0;
 }
 
-void
+int
 sp_head::add_cont_backpatch(sp_instr_opt_meta *i)
 {
   i->m_cont_dest= m_cont_level;
-  (void)m_cont_backpatch.push_front(i);
+  return m_cont_backpatch.push_front(i);
 }
 
 void
@@ -2467,7 +2469,7 @@ sp_head::show_create_routine(THD *thd, int type)
   @param instr   Instruction
 */
 
-void sp_head::add_instr(sp_instr *instr)
+int sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
@@ -2478,7 +2480,7 @@ void sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  insert_dynamic(&m_instr, (uchar*)&instr);
+  return insert_dynamic(&m_instr, (uchar*)&instr);
 }
 
 
@@ -2853,14 +2855,13 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->query= query;
-    thd->query_length= query_length;
+    thd->set_query(query, query_length);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();
   }
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 

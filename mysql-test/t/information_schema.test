@@ -1099,6 +1099,25 @@ disconnect con3148;
 drop user user3148@localhost;
 
 #
+# `time` and `time_ms` columns of INFORMATION_SCHEMA.PROCESSLIST.
+#
+connect (pslistcon,localhost,root,,test);
+let $ID= `select connection_id()`;
+SELECT 'other connection here' AS who;
+connection default;
+sleep 1;
+--disable_query_log
+eval SET @tid=$ID;
+--enable_query_log
+SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
+       IF(`time` < 1000, 'OK', `time`) AS time_high,
+       IF(time_ms > 900, 'OK', time_ms) AS time_ms_low,
+       IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
+  FROM INFORMATION_SCHEMA.PROCESSLIST
+ WHERE ID=@tid;
+disconnect pslistcon;
+
+#
 # Bug#26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS
 # in Event (see also openssl_1.test)
 #
@@ -1352,9 +1371,16 @@ DROP TABLE t1;
 # Bug #22047: Time in SHOW PROCESSLIST for SQL thread in replication seems
 # to become negative
 #
+# Note that at the time of writing, MariaDB differs in behaviour from MySQL on
+# the `time` column. In MySQL this changes depending on the setting of
+# @TIMESTAMP, which is contrary to the documented (and sensible) behaviour.
+# In MariaDB, the `time` column is independent of @TIMESTAMP.
+# (The rationale for this is to keep `time` and `time_ms` consistent;
+# @TIMESTAMP has no microsecond precision).
+#
 
 SET TIMESTAMP=@@TIMESTAMP + 10000000;
-SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 SET TIMESTAMP=DEFAULT;
 
 --echo End of 5.1 tests.

@@ -133,6 +133,8 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
+UNIV_INTERN ibool	srv_fast_recovery = FALSE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -287,7 +289,6 @@ concurrency check. */
 
 UNIV_INTERN ibool	srv_thread_concurrency_timer_based = FALSE;
 UNIV_INTERN ulong	srv_thread_concurrency	= 0;
-UNIV_INTERN ulong	srv_commit_concurrency	= 0;
 
 /* this mutex protects srv_conc data structures */
 UNIV_INTERN os_fast_mutex_t	srv_conc_mutex;
@@ -2691,12 +2692,12 @@ loop:
 
 					/* defence line (max_checkpoint_age * 1/2) */
 					ib_uint64_t	lsn = log_sys->lsn;
-
 					ib_uint64_t level, bpl;
 					buf_page_t* bpage;
 
                                         mutex_exit(&(log_sys->mutex));
 
+					mutex_exit(&(log_sys->mutex));
 					mutex_enter(&flush_list_mutex);
 
 					level = 0;

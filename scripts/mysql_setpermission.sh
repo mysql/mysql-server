@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 ## Emacs, this is -*- perl -*- mode? :-)
 ##
 ##        Permission setter for MySQL
@@ -257,7 +257,7 @@ sub addall {
        $sth = $dbh->do("GRANT ALL ON $db.* TO \'$user\'\@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
     } elsif ($todo == 7) {
        # all privileges set to N
-       $sth = $dbh->do("REVOKE ALL ON *.* FROM \'$user\'\@\'$host\'") || die $dbh->errstr;
+       $sth = $dbh->do("REVOKE ALL ON $db.* FROM \'$user\'\@\'$host\'") || die $dbh->errstr;
     }
     }
   $dbh->do("FLUSH PRIVILEGES") || print STDERR "Can't flush privileges\n";

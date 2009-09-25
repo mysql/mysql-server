@@ -78,9 +78,16 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String arg_val;
-  String *wkb= args[0]->val_str(&arg_val);
+  String *wkb;
   Geometry_buffer buffer;
   uint32 srid= 0;
+
+  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  {
+    return args[0]->val_str(str);
+  }
+
+  wkb= args[0]->val_str(&arg_val);
 
   if ((arg_count == 2) && !args[1]->null_value)
     srid= (uint32)args[1]->val_int();
@@ -91,8 +98,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   str->length(0);
   str->q_append(srid);
   if ((null_value= 
-       (args[0]->null_value ||
-        !Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(), str))))
+        (args[0]->null_value ||
+         !Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(), str))))
     return 0;
   return str;
 }
@@ -345,14 +352,16 @@ String *Item_func_point::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   double x= args[0]->val_real();
   double y= args[1]->val_real();
+  uint32 srid= 0;
 
   if ((null_value= (args[0]->null_value ||
 		    args[1]->null_value ||
-		    str->realloc(1 + 4 + SIZEOF_STORED_DOUBLE*2))))
+                    str->realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE*2))))
     return 0;
 
   str->set_charset(&my_charset_bin);
   str->length(0);
+  str->q_append(srid);
   str->q_append((char)Geometry::wkb_ndr);
   str->q_append((uint32)Geometry::wkb_point);
   str->q_append(x);
@@ -376,12 +385,14 @@ String *Item_func_spatial_collection::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String arg_value;
   uint i;
+  uint32 srid= 0;
 
   str->set_charset(&my_charset_bin);
   str->length(0);
-  if (str->reserve(1 + 4 + 4, 512))
+  if (str->reserve(4/*SRID*/ + 1 + 4 + 4, 512))
     goto err;
 
+  str->q_append(srid);
   str->q_append((char) Geometry::wkb_ndr);
   str->q_append((uint32) coll_type);
   str->q_append((uint32) arg_count);
@@ -399,13 +410,16 @@ String *Item_func_spatial_collection::val_str(String *str)
 	In the case of GeometryCollection we don't need any checkings
 	for item types, so just copy them into target collection
       */
-      if (str->append(res->ptr(), len, (uint32) 512))
+      if (str->append(res->ptr() + 4/*SRID*/, len - 4/*SRID*/, (uint32) 512))
         goto err;
     }
     else
     {
       enum Geometry::wkbType wkb_type;
-      const char *data= res->ptr() + 1;
+      const uint data_offset= 4/*SRID*/ + 1;
+      if (res->length() < data_offset + sizeof(uint32))
+        goto err;
+      const char *data= res->ptr() + data_offset;
 
       /*
 	In the case of named collection we must check that items
@@ -414,7 +428,7 @@ String *Item_func_spatial_collection::val_str(String *str)
 
       wkb_type= (Geometry::wkbType) uint4korr(data);
       data+= 4;
-      len-= 5;
+      len-= 5 + 4/*SRID*/;
       if (wkb_type != item_type)
         goto err;
 
@@ -428,7 +442,7 @@ String *Item_func_spatial_collection::val_str(String *str)
 	break;
 
       case Geometry::wkb_linestring:
-	if (str->append(data, POINT_DATA_SIZE, 512))
+	if (len < POINT_DATA_SIZE || str->append(data, POINT_DATA_SIZE, 512))
 	  goto err;
 	break;
       case Geometry::wkb_polygon:
@@ -437,11 +451,15 @@ String *Item_func_spatial_collection::val_str(String *str)
 	double x1, y1, x2, y2;
 	const char *org_data= data;
 
-	if (len < 4 + 2 * POINT_DATA_SIZE)
+	if (len < 4)
 	  goto err;
 
 	n_points= uint4korr(data);
 	data+= 4;
+
+        if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
+          goto err;
+        
 	float8get(x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 	float8get(y1, data);

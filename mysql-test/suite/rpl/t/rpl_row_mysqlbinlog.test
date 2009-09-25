@@ -246,7 +246,7 @@ connection master;
 
 # We should be gold by the time, so I will get rid of our file.
 
---exec rm $MYSQLTEST_VARDIR/tmp/remote.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/remote.sql
 ################### End Bug 17654 ######################
 
 # What is the point of this test? It seems entirely pointless. It
@@ -351,9 +351,9 @@ FLUSH LOGS;
 
 --diff_files $MYSQLTEST_VARDIR/tmp/local.sql $MYSQLTEST_VARDIR/tmp/remote.sql
 
---exec rm $MYSQLTEST_VARDIR/tmp/remote.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/remote.sql
 
---exec rm $MYSQLTEST_VARDIR/tmp/local.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/local.sql
 
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
 sync_slave_with_master;

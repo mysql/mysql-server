@@ -1,61 +1,101 @@
+'\" t
 .\"     Title: \fBmysqlshow\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQLSHOW\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQLSHOW\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlshow
+.\" databases: displaying
+.\" displaying: database information
+.\" tables: displaying
+.\" columns: displaying
+.\" showing: database information
 .SH "NAME"
 mysqlshow \- display database, table, and column information
 .SH "SYNOPSIS"
-.HP 52
+.HP \w'\fBmysqlshow\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIdb_name\fR\fR\fB\ [\fR\fB\fItbl_name\fR\fR\fB\ [\fR\fB\fIcol_name\fR\fR\fB]]]\fR\ 'u
 \fBmysqlshow [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB [\fR\fB\fIcol_name\fR\fR\fB]]]\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmysqlshow\fR
-client can be used to quickly see which databases exist, their tables, or a table's columns or indexes.
+client can be used to quickly see which databases exist, their tables, or a table\'s columns or indexes\&.
 .PP
 \fBmysqlshow\fR
 provides a command\-line interface to several SQL
 SHOW
-statements. See
-Section\ 12.5.5, \(lqSHOW Syntax\(rq. The same information can be obtained by using those statements directly. For example, you can issue them from the
+statements\&. See
+Section\ \&12.5.5, \(lqSHOW Syntax\(rq\&. The same information can be obtained by using those statements directly\&. For example, you can issue them from the
 \fBmysql\fR
-client program.
+client program\&.
 .PP
 Invoke
 \fBmysqlshow\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysqlshow [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB [\fR\fB\fIcol_name\fR\fR\fB]]]\fR
 .fi
+.if n \{\
 .RE
-.TP 3n
-\(bu
-If no database is given, a list of database names is shown.
-.TP 3n
-\(bu
-If no table is given, all matching tables in the database are shown.
-.TP 3n
-\(bu
-If no column is given, all matching columns and column types in the table are shown.
+.\}
 .sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If no database is given, a list of database names is shown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If no table is given, all matching tables in the database are shown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If no column is given, all matching columns and column types in the table are shown\&.
 .RE
 .PP
-The output displays only the names of those databases, tables, or columns for which you have some privileges.
+The output displays only the names of those databases, tables, or columns for which you have some privileges\&.
 .PP
 If the last argument contains shell or SQL wildcard characters (\(lq*\(rq,
 \(lq?\(rq,
 \(lq%\(rq, or
-\(lq_\(rq), only those names that are matched by the wildcard are shown. If a database name contains any underscores, those should be escaped with a backslash (some Unix shells require two) to get a list of the proper tables or columns.
+\(lq_\(rq), only those names that are matched by the wildcard are shown\&. If a database name contains any underscores, those should be escaped with a backslash (some Unix shells require two) to get a list of the proper tables or columns\&.
 \(lq*\(rq
 and
 \(lq?\(rq
@@ -63,175 +103,389 @@ characters are converted into SQL
 \(lq%\(rq
 and
 \(lq_\(rq
-wildcard characters. This might cause some confusion when you try to display the columns for a table with a
+wildcard characters\&. This might cause some confusion when you try to display the columns for a table with a
 \(lq_\(rq
 in the name, because in this case,
 \fBmysqlshow\fR
-shows you only the table names that match the pattern. This is easily fixed by adding an extra
+shows you only the table names that match the pattern\&. This is easily fixed by adding an extra
 \(lq%\(rq
-last on the command line as a separate argument.
+last on the command line as a separate argument\&.
 .PP
 \fBmysqlshow\fR
-supports the following options:
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: help option
+.\" help option: mysqlshow
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: character-sets-dir option
+.\" character-sets-dir option: mysqlshow
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: compress option
+.\" compress option: mysqlshow
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression.
-.TP 3n
-\(bu
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: count option
+.\" count option: mysqlshow
 \fB\-\-count\fR
 .sp
-Show the number of rows per table. This can be slow for non\-MyISAM
-tables.
-.TP 3n
-\(bu
+Show the number of rows per table\&. This can be slow for non\-MyISAM
+tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: debug option
+.\" debug option: mysqlshow
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
-Write a debugging log. The
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string often is
-\'d:t:o,\fIfile_name\fR'.
-.TP 3n
-\(bu
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: debug-check option
+.\" debug-check option: mysqlshow
 \fB\-\-debug\-check\fR
 .sp
-Print some debugging information when the program exits. This option was added in MySQL 5.1.21.
-.TP 3n
-\(bu
+Print some debugging information when the program exits\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: debug-info option
+.\" debug-info option: mysqlshow
 \fB\-\-debug\-info\fR
 .sp
-Print debugging information and memory and CPU usage statistics when the program exits. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+Print debugging information and memory and CPU usage statistics when the program exits\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: default-character-set option
+.\" default-character-set option: mysqlshow
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
 \fIcharset_name\fR
-as the default character set. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+as the default character set\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: host option
+.\" host option: mysqlshow
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
-Connect to the MySQL server on the given host.
-.TP 3n
-\(bu
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: keys option
+.\" keys option: mysqlshow
 \fB\-\-keys\fR,
 \fB\-k\fR
 .sp
-Show table indexes.
-.TP 3n
-\(bu
+Show table indexes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: password option
+.\" password option: mysqlshow
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server. If you use the short option form (\fB\-p\fR), you
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
 \fIcannot\fR
-have a space between the option and the password. If you omit the
+have a space between the option and the password\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
+option on the command line, you are prompted for one\&.
 .sp
-Specifying a password on the command line should be considered insecure. See
-Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
-.TP 3n
-\(bu
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: pipe option
+.\" pipe option: mysqlshow
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe. This option applies only for connections to a local server, and only if the server supports named\-pipe connections.
-.TP 3n
-\(bu
+On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: port option
+.\" port option: mysqlshow
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection.
-.TP 3n
-\(bu
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: protocol option
+.\" protocol option: mysqlshow
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want. For details on the allowable values, see
-Section\ 4.2.2, \(lqConnecting to the MySQL Server\(rq.
-.TP 3n
-\(bu
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: show-table-type option
+.\" show-table-type option: mysqlshow
 \fB\-\-show\-table\-type\fR,
 \fB\-t\fR
 .sp
 Show a column indicating the table type, as in
-SHOW FULL TABLES. The type is
+SHOW FULL TABLES\&. The type is
 BASE TABLE
 or
-VIEW.
-.TP 3n
-\(bu
+VIEW\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: socket option
+.\" socket option: mysqlshow
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
 For connections to
-localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use.
-.TP 3n
-\(bu
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: SSL options
+.\" SSL options: mysqlshow
 \fB\-\-ssl*\fR
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates. See
-Section\ 5.5.7.3, \(lqSSL Command Options\(rq.
-.TP 3n
-\(bu
+specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&5.5.7.3, \(lqSSL Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: status option
+.\" status option: mysqlshow
 \fB\-\-status\fR,
 \fB\-i\fR
 .sp
-Display extra information about each table.
-.TP 3n
-\(bu
+Display extra information about each table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: user option
+.\" user option: mysqlshow
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server.
-.TP 3n
-\(bu
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: verbose option
+.\" verbose option: mysqlshow
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print more information about what the program does. This option can be used multiple times to increase the amount of information.
-.TP 3n
-\(bu
+Verbose mode\&. Print more information about what the program does\&. This option can be used multiple times to increase the amount of information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlshow: version option
+.\" version option: mysqlshow
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

@@ -1,198 +1,351 @@
+'\" t
 .\"     Title: \fBmyisampack\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYISAMPACK\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" myisampack
+.\" compressed tables
+.\" tables: compressed
+.\" MyISAM: compressed tables
 .SH "NAME"
 myisampack \- generate compressed, read\-only MyISAM tables
 .SH "SYNOPSIS"
-.HP 35
-\fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB ...\fR
+.HP \w'\fBmyisampack\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIfile_name\fR\fR\fB\ \&.\&.\&.\fR\ 'u
+\fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmyisampack\fR
 utility compresses
 MyISAM
-tables.
+tables\&.
 \fBmyisampack\fR
-works by compressing each column in the table separately. Usually,
+works by compressing each column in the table separately\&. Usually,
 \fBmyisampack\fR
-packs the data file 40%\-70%.
+packs the data file 40%\(en70%\&.
 .PP
-When the table is used later, the server reads into memory the information needed to decompress columns. This results in much better performance when accessing individual rows, because you only have to uncompress exactly one row.
+When the table is used later, the server reads into memory the information needed to decompress columns\&. This results in much better performance when accessing individual rows, because you only have to uncompress exactly one row\&.
 .PP
 MySQL uses
 mmap()
-when possible to perform memory mapping on compressed tables. If
+when possible to perform memory mapping on compressed tables\&. If
 mmap()
-does not work, MySQL falls back to normal read/write file operations.
+does not work, MySQL falls back to normal read/write file operations\&.
 .PP
 Please note the following:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 If the
 \fBmysqld\fR
 server was invoked with external locking disabled, it is not a good idea to invoke
 \fBmyisampack\fR
-if the table might be updated by the server during the packing process. It is safest to compress tables with the server stopped.
-.TP 3n
-\(bu
-After packing a table, it becomes read only. This is generally intended (such as when accessing packed tables on a CD). Allowing writes to a packed table is on our TODO list, but with low priority.
+if the table might be updated by the server during the packing process\&. It is safest to compress tables with the server stopped\&.
+.RE
 .sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+After packing a table, it becomes read only\&. This is generally intended (such as when accessing packed tables on a CD)\&. Allowing writes to a packed table is on our TODO list, but with low priority\&.
 .RE
 .PP
 Invoke
 \fBmyisampack\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB ...\fR
+shell> \fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
-Each file name argument should be the name of an index (\fI.MYI\fR) file. If you are not in the database directory, you should specify the path name to the file. It is permissible to omit the
-\fI.MYI\fR
-extension.
+Each file name argument should be the name of an index (\&.MYI) file\&. If you are not in the database directory, you should specify the path name to the file\&. It is permissible to omit the
+\&.MYI
+extension\&.
 .PP
 After you compress a table with
 \fBmyisampack\fR, you should use
 \fBmyisamchk \-rq\fR
-to rebuild its indexes.
-\fBmyisamchk\fR(1).
+to rebuild its indexes\&.
+\fBmyisamchk\fR(1)\&.
 .PP
 \fBmyisampack\fR
-supports the following options:
-.TP 3n
-\(bu
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: help option
+.\" help option: myisampack
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: backup option
+.\" backup option: myisampack
 \fB\-\-backup\fR,
 \fB\-b\fR
 .sp
-Make a backup of each table's data file using the name
-\fI\fItbl_name\fR\fR\fI.OLD\fR.
-.TP 3n
-\(bu
+Make a backup of each table\'s data file using the name
+\fItbl_name\fR\&.OLD\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: character-sets-dir option
+.\" character-sets-dir option: myisampack
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. See
-Section\ 9.2, \(lqThe Character Set Used for Data and Sorting\(rq.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: debug option
+.\" debug option: myisampack
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
-Write a debugging log. The
+Write a debugging log\&. A typical
 \fIdebug_options\fR
-string often is
-\'d:t:o,\fIfile_name\fR'.
-.TP 3n
-\(bu
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: force option
+.\" force option: myisampack
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
 Produce a packed table even if it becomes larger than the original or if the intermediate file from an earlier invocation of
 \fBmyisampack\fR
-exists. (\fBmyisampack\fR
+exists\&. (\fBmyisampack\fR
 creates an intermediate file named
-\fI\fItbl_name\fR\fR\fI.TMD\fR
-in the database directory while it compresses the table. If you kill
+\fItbl_name\fR\&.TMD
+in the database directory while it compresses the table\&. If you kill
 \fBmyisampack\fR, the
-\fI.TMD\fR
-file might not be deleted.) Normally,
+\&.TMD
+file might not be deleted\&.) Normally,
 \fBmyisampack\fR
 exits with an error if it finds that
-\fI\fItbl_name\fR\fR\fI.TMD\fR
-exists. With
+\fItbl_name\fR\&.TMD
+exists\&. With
 \fB\-\-force\fR,
 \fBmyisampack\fR
-packs the table anyway.
-.TP 3n
-\(bu
+packs the table anyway\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: join option
+.\" join option: myisampack
 \fB\-\-join=\fR\fB\fIbig_tbl_name\fR\fR,
 \fB\-j \fR\fB\fIbig_tbl_name\fR\fR
 .sp
 Join all tables named on the command line into a single packed table
-\fIbig_tbl_name\fR. All tables that are to be combined
+\fIbig_tbl_name\fR\&. All tables that are to be combined
 \fImust\fR
-have identical structure (same column names and types, same indexes, and so forth).
+have identical structure (same column names and types, same indexes, and so forth)\&.
 .sp
 \fIbig_tbl_name\fR
-must not exist prior to the join operation. All source tables named on the command line to be merged into
+must not exist prior to the join operation\&. All source tables named on the command line to be merged into
 \fIbig_tbl_name\fR
-must exist. The source tables are read for the join operation but not modified. The join operation does not create a
-\fI.frm\fR
+must exist\&. The source tables are read for the join operation but not modified\&. The join operation does not create a
+\&.frm
 file for
 \fIbig_tbl_name\fR, so after the join operation finishes, copy the
-\fI.frm\fR
+\&.frm
 file from one of the source tables and name it
-\fI\fIbig_tbl_name\fR\fR\fI.frm\fR.
-.TP 3n
-\(bu
+\fIbig_tbl_name\fR\&.frm\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: silent option
+.\" silent option: myisampack
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Silent mode. Write output only when errors occur.
-.TP 3n
-\(bu
+Silent mode\&. Write output only when errors occur\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: test option
+.\" test option: myisampack
 \fB\-\-test\fR,
 \fB\-t\fR
 .sp
-Do not actually pack the table, just test packing it.
-.TP 3n
-\(bu
+Do not actually pack the table, just test packing it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: tmpdir option
+.\" tmpdir option: myisampack
 \fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
 \fB\-T \fR\fB\fIpath\fR\fR
 .sp
 Use the named directory as the location where
 \fBmyisampack\fR
-creates temporary files.
-.TP 3n
-\(bu
+creates temporary files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: verbose option
+.\" verbose option: myisampack
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Write information about the progress of the packing operation and its result.
-.TP 3n
-\(bu
+Verbose mode\&. Write information about the progress of the packing operation and its result\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: version option
+.\" version option: myisampack
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
-.TP 3n
-\(bu
+Display version information and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" myisampack: wait option
+.\" wait option: myisampack
 \fB\-\-wait\fR,
 \fB\-w\fR
 .sp
-Wait and retry if the table is in use. If the
+Wait and retry if the table is in use\&. If the
 \fBmysqld\fR
 server was invoked with external locking disabled, it is not a good idea to invoke
 \fBmyisampack\fR
-if the table might be updated by the server during the packing process.
-.sp
+if the table might be updated by the server during the packing process\&.
 .RE
+.\" examples: compressed tables
 .PP
 The following sequence of commands illustrates a typical table compression session:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBls \-l station.*\fR
-\-rw\-rw\-r\-\-   1 monty    my         994128 Apr 17 19:00 station.MYD
-\-rw\-rw\-r\-\-   1 monty    my          53248 Apr 17 19:00 station.MYI
-\-rw\-rw\-r\-\-   1 monty    my           5767 Apr 17 19:00 station.frm
+shell> \fBls \-l station\&.*\fR
+\-rw\-rw\-r\-\-   1 monty    my         994128 Apr 17 19:00 station\&.MYD
+\-rw\-rw\-r\-\-   1 monty    my          53248 Apr 17 19:00 station\&.MYI
+\-rw\-rw\-r\-\-   1 monty    my           5767 Apr 17 19:00 station\&.frm
 shell> \fBmyisamchk \-dvv station\fR
 MyISAM file:     station
 Isam\-version:  2
@@ -207,7 +360,7 @@ Record format: Fixed length
 table description:
 Key Start Len Index   Type                 Root  Blocksize    Rec/key
 1   2     4   unique  unsigned long        1024       1024          1
-2   32    30  multip. text                10240       1024          1
+2   32    30  multip\&. text                10240       1024          1
 Field Start Length Type
 1     1     1
 2     2     4
@@ -266,19 +419,19 @@ Field Start Length Type
 55    807   20
 56    827   4
 57    831   4
-shell> \fBmyisampack station.MYI\fR
-Compressing station.MYI: (1192 records)
+shell> \fBmyisampack station\&.MYI\fR
+Compressing station\&.MYI: (1192 records)
 \- Calculating statistics
 normal:     20  empty\-space:   16  empty\-zero:     12  empty\-fill:  11
 pre\-space:   0  end\-space:     12  table\-lookups:   5  zero:         7
 Original trees:  57  After join: 17
 \- Compressing file
-87.14%
+87\&.14%
 Remember to run myisamchk \-rq on compressed tables
-shell> \fBls \-l station.*\fR
-\-rw\-rw\-r\-\-   1 monty    my         127874 Apr 17 19:00 station.MYD
-\-rw\-rw\-r\-\-   1 monty    my          55296 Apr 17 19:04 station.MYI
-\-rw\-rw\-r\-\-   1 monty    my           5767 Apr 17 19:00 station.frm
+shell> \fBls \-l station\&.*\fR
+\-rw\-rw\-r\-\-   1 monty    my         127874 Apr 17 19:00 station\&.MYD
+\-rw\-rw\-r\-\-   1 monty    my          55296 Apr 17 19:04 station\&.MYI
+\-rw\-rw\-r\-\-   1 monty    my           5767 Apr 17 19:00 station\&.frm
 shell> \fBmyisamchk \-dvv station\fR
 MyISAM file:     station
 Isam\-version:  2
@@ -293,7 +446,7 @@ Record format: Compressed
 table description:
 Key Start Len Index   Type                 Root  Blocksize    Rec/key
 1   2     4   unique  unsigned long       10240       1024          1
-2   32    30  multip. text                54272       1024          1
+2   32    30  multip\&. text                54272       1024          1
 Field Start Length Type                         Huff tree  Bits
 1     1     1      constant                             1     0
 2     2     4      zerofill(1)                          2     9
@@ -353,171 +506,341 @@ Field Start Length Type                         Huff tree  Bits
 56    827   4      no zeros, zerofill(2)                2     9
 57    831   4      no zeros, zerofill(1)                2     9
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fBmyisampack\fR
 displays the following kinds of information:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 normal
 .sp
-The number of columns for which no extra packing is used.
-.TP 3n
-\(bu
+The number of columns for which no extra packing is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 empty\-space
 .sp
-The number of columns containing values that are only spaces. These occupy one bit.
-.TP 3n
-\(bu
+The number of columns containing values that are only spaces\&. These occupy one bit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 empty\-zero
 .sp
-The number of columns containing values that are only binary zeros. These occupy one bit.
-.TP 3n
-\(bu
+The number of columns containing values that are only binary zeros\&. These occupy one bit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 empty\-fill
 .sp
-The number of integer columns that do not occupy the full byte range of their type. These are changed to a smaller type. For example, a
+The number of integer columns that do not occupy the full byte range of their type\&. These are changed to a smaller type\&. For example, a
 BIGINT
 column (eight bytes) can be stored as a
 TINYINT
 column (one byte) if all its values are in the range from
 \-128
 to
-127.
-.TP 3n
-\(bu
+127\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 pre\-space
 .sp
-The number of decimal columns that are stored with leading spaces. In this case, each value contains a count for the number of leading spaces.
-.TP 3n
-\(bu
+The number of decimal columns that are stored with leading spaces\&. In this case, each value contains a count for the number of leading spaces\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 end\-space
 .sp
-The number of columns that have a lot of trailing spaces. In this case, each value contains a count for the number of trailing spaces.
-.TP 3n
-\(bu
+The number of columns that have a lot of trailing spaces\&. In this case, each value contains a count for the number of trailing spaces\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 table\-lookup
 .sp
 The column had only a small number of different values, which were converted to an
 ENUM
-before Huffman compression.
-.TP 3n
-\(bu
+before Huffman compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 zero
 .sp
-The number of columns for which all values are zero.
-.TP 3n
-\(bu
+The number of columns for which all values are zero\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Original trees
 .sp
-The initial number of Huffman trees.
-.TP 3n
-\(bu
+The initial number of Huffman trees\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 After join
 .sp
-The number of distinct Huffman trees left after joining trees to save some header space.
-.sp
+The number of distinct Huffman trees left after joining trees to save some header space\&.
 .RE
 .PP
 After a table has been compressed,
 \fBmyisamchk \-dvv\fR
 prints additional information about each column:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Type
 .sp
-The data type. The value may contain any of the following descriptors:
-.RS 3n
-.TP 3n
-\(bu
+The data type\&. The value may contain any of the following descriptors:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 constant
 .sp
-All rows have the same value.
-.TP 3n
-\(bu
+All rows have the same value\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 no endspace
 .sp
-Do not store endspace.
-.TP 3n
-\(bu
+Do not store endspace\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 no endspace, not_always
 .sp
-Do not store endspace and do not do endspace compression for all values.
-.TP 3n
-\(bu
+Do not store endspace and do not do endspace compression for all values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 no endspace, no empty
 .sp
-Do not store endspace. Do not store empty values.
-.TP 3n
-\(bu
+Do not store endspace\&. Do not store empty values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 table\-lookup
 .sp
 The column was converted to an
-ENUM.
-.TP 3n
-\(bu
+ENUM\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 zerofill(\fIN\fR)
 .sp
 The most significant
 \fIN\fR
-bytes in the value are always 0 and are not stored.
-.TP 3n
-\(bu
+bytes in the value are always 0 and are not stored\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 no zeros
 .sp
-Do not store zeros.
-.TP 3n
-\(bu
+Do not store zeros\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 always zero
 .sp
-Zero values are stored using one bit.
+Zero values are stored using one bit\&.
 .RE
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Huff tree
 .sp
-The number of the Huffman tree associated with the column.
-.TP 3n
-\(bu
+The number of the Huffman tree associated with the column\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Bits
 .sp
-The number of bits used in the Huffman tree.
-.sp
+The number of bits used in the Huffman tree\&.
 .RE
 .PP
 After you run
 \fBmyisampack\fR, you must run
 \fBmyisamchk\fR
-to re\-create any indexes. At this time, you can also sort the index blocks and create statistics needed for the MySQL optimizer to work more efficiently:
+to re\-create any indexes\&. At this time, you can also sort the index blocks and create statistics needed for the MySQL optimizer to work more efficiently:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBmyisamchk \-rq \-\-sort\-index \-\-analyze \fR\fB\fItbl_name\fR\fR\fB.MYI\fR
+shell> \fBmyisamchk \-rq \-\-sort\-index \-\-analyze \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 After you have installed the packed table into the MySQL database directory, you should execute
 \fBmysqladmin flush\-tables\fR
 to force
 \fBmysqld\fR
-to start using the new table.
+to start using the new table\&.
 .PP
 To unpack a packed table, use the
 \fB\-\-unpack\fR
 option to
-\fBmyisamchk\fR.
+\fBmyisamchk\fR\&.
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

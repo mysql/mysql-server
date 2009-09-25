@@ -71,7 +71,7 @@ SELECT @@session.max_tmp_tables;
 '#------------------FN_DYNVARS_086_05-----------------------#'
 SET @@global.max_tmp_tables = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_tmp_tables value: '0'
+Warning	1292	Truncated incorrect max_tmp_tables value: '-1024'
 SELECT @@global.max_tmp_tables;
 @@global.max_tmp_tables
 1
@@ -81,7 +81,7 @@ SELECT @@global.max_tmp_tables;
 4294967296
 SET @@global.max_tmp_tables = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_tmp_tables value: '0'
+Warning	1292	Truncated incorrect max_tmp_tables value: '-1'
 SELECT @@global.max_tmp_tables;
 @@global.max_tmp_tables
 1
@@ -105,7 +105,7 @@ SELECT @@session.max_tmp_tables;
 4294967296
 SET @@session.max_tmp_tables = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_tmp_tables value: '0'
+Warning	1292	Truncated incorrect max_tmp_tables value: '-1'
 SELECT @@session.max_tmp_tables;
 @@session.max_tmp_tables
 1
@@ -115,7 +115,7 @@ SELECT @@session.max_tmp_tables;
 429496729500
 SET @@session.max_tmp_tables = -001;
 Warnings:
-Warning	1292	Truncated incorrect max_tmp_tables value: '0'
+Warning	1292	Truncated incorrect max_tmp_tables value: '-1'
 SELECT @@session.max_tmp_tables;
 @@session.max_tmp_tables
 1

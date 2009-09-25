@@ -10,7 +10,7 @@ CREATE TABLE test.t1 (a INT, blob_column LONGBLOB, PRIMARY KEY(a));
 INSERT INTO test.t1  VALUES(1,'test');
 UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=1;
 Warnings:
-Warning	1592	Statement is not safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
 create procedure test.p1()
 begin
 INSERT INTO test.t1  VALUES(2,'test');
@@ -18,7 +18,7 @@ UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=2;
 end|
 CALL test.p1();
 Warnings:
-Warning	1592	Statement is not safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
 SELECT * FROM test.t1 ORDER BY blob_column;
 a	blob_column
 1	abase

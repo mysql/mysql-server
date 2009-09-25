@@ -1,101 +1,182 @@
+'\" t
 .\"     Title: \fBmysqltest\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/27/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/08/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
+.\"  Language: English
 .\"
-.TH "\fBMYSQLTEST\fR" "1" "03/27/2009" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "08/08/2009" "MySQL" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqltest
+.\" mysqltest_embedded
 .SH "NAME"
 mysqltest \- program to run test cases
 .br
 mysqltest_embedded \- program to run embedded test cases
 .SH "SYNOPSIS"
-.HP 30
+.HP \w'\fBmysqltest\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIdb_name\fR\fR\fB]\fR\ 'u
 \fBmysqltest [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB]\fR
-.HP 39
+.HP \w'\fBmysqltest_embedded\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIdb_name\fR\fR\fB]\fR\ 'u
 \fBmysqltest_embedded [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
 The
 \fBmysqltest\fR
-program runs a test case against a MySQL server and optionally compares the output with a result file. This program reads input written in a special test language. Typically, you invoke
+program runs a test case against a MySQL server and optionally compares the output with a result file\&. This program reads input written in a special test language\&. Typically, you invoke
 \fBmysqltest\fR
 via
-\fBmysql\-test\-run.pl\fR
-rather than invoking it directly.
+\fBmysql\-test\-run\&.pl\fR
+rather than invoking it directly\&.
 .PP
 \fBmysqltest_embedded\fR
 is similar but is built with support for the
 libmysqld
-embedded server.
+embedded server\&.
 .PP
 Features of
 \fBmysqltest\fR:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Can send SQL statements to MySQL servers for execution
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Can execute external shell commands
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Can test whether the result from an SQL statement or shell command is as expected
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Can connect to one or more standalone
 \fBmysqld\fR
 servers and switch between connections
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Can connect to an embedded server (libmysqld), if MySQL is compiled with support for
-libmysqld. (In this case, the executable is named
+libmysqld\&. (In this case, the executable is named
 \fBmysqltest_embedded\fR
 rather than
-\fBmysqltest\fR.)
-.sp
+\fBmysqltest\fR\&.)
 .RE
 .PP
 By default,
 \fBmysqltest\fR
-reads the test case on the standard input. To run
+reads the test case on the standard input\&. To run
 \fBmysqltest\fR
 this way, you normally invoke it like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysqltest [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIdb_name\fR\fR\fB] < \fR\fB\fItest_file\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 You can also name the test case file with a
 \fB\-\-test\-file=\fR\fB\fIfile_name\fR\fR
-option.
+option\&.
 .PP
 The exit value from
 \fBmysqltest\fR
-is 0 for success, 1 for failure, and 62 if it skips the test case (for example, if after checking some preconditions it decides not to run the test).
+is 0 for success, 1 for failure, and 62 if it skips the test case (for example, if after checking some preconditions it decides not to run the test)\&.
 .PP
 \fBmysqltest\fR
 supports the following options:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: help option
+.\" help option: mysqltest
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: basedir option
+.\" basedir option: mysqltest
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR,
 \fB\-b \fR\fB\fIdir_name\fR\fR
 .sp
-The base directory for tests.
-.TP 3n
-\(bu
+The base directory for tests\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: big-test option
+.\" big-test option: mysqltest
 \fB\-\-big\-test\fR,
 \fB\-B\fR
 .sp
@@ -103,197 +184,469 @@ Define the
 \fBmysqltest\fR
 variable
 $BIG_TEST
-as 1. This option was removed in MySQL 4.1.23, 5.0.30, and 5.1.13.
-.TP 3n
-\(bu
+as 1\&. This option was removed in MySQL 4\&.1\&.23, 5\&.0\&.30, and 5\&.1\&.13\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: character-sets-dir option
+.\" character-sets-dir option: mysqltest
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
-The directory where character sets are installed. This option was added in MySQL 4.1.23, 5.0.32, and 5.1.13.
-.TP 3n
-\(bu
+The directory where character sets are installed\&. This option was added in MySQL 4\&.1\&.23, 5\&.0\&.32, and 5\&.1\&.13\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: compress option
+.\" compress option: mysqltest
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression.
-.TP 3n
-\(bu
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: cursor-protocol option
+.\" cursor-protocol option: mysqltest
 \fB\-\-cursor\-protocol\fR
 .sp
 Use cursors for prepared statements (implies
-\fB\-\-ps\-protocol\fR). This option was added in MySQL 5.0.19.
-.TP 3n
-\(bu
+\fB\-\-ps\-protocol\fR)\&. This option was added in MySQL 5\&.0\&.19\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: database option
+.\" database option: mysqltest
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-D \fR\fB\fIdb_name\fR\fR
 .sp
-The default database to use.
-.TP 3n
-\(bu
+The default database to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: debug option
+.\" debug option: mysqltest
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-#[\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
-Write a debugging log if MySQL is built with debugging support. The default
+Write a debugging log if MySQL is built with debugging support\&. The default
 \fIdebug_options\fR
 value is
-\'d:t:S:i:O,/tmp/mysqltest.trace'.
-.TP 3n
-\(bu
+\'d:t:S:i:O,/tmp/mysqltest\&.trace\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: debug-check option
+.\" debug-check option: mysqltest
 \fB\-\-debug\-check\fR
 .sp
-Print some debugging information when the program exits. This option was added in MySQL 5.1.21.
-.TP 3n
-\(bu
+Print some debugging information when the program exits\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: debug-info option
+.\" debug-info option: mysqltest
 \fB\-\-debug\-info\fR
 .sp
-Print debugging information and memory and CPU usage statistics when the program exits. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+Print debugging information and memory and CPU usage statistics when the program exits\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: host option
+.\" host option: mysqltest
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
-Connect to the MySQL server on the given host.
-.TP 3n
-\(bu
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: include option
+.\" include option: mysqltest
 \fB\-\-include=\fR\fB\fIfile_name\fR\fR,
 \fB\-i \fR\fB\fIfile_name\fR\fR
 .sp
-Include the contents of the given file before processing the contents of the test file. The included file should have the same format as other
+Include the contents of the given file before processing the contents of the test file\&. The included file should have the same format as other
 \fBmysqltest\fR
-test files. This option has the same effect as putting a
+test files\&. This option has the same effect as putting a
 \-\-source \fIfile_name\fR
-command as the first line of the test file. This option was added in MySQL 4.1.23, 5.0.30, and 5.1.7.
-.TP 3n
-\(bu
+command as the first line of the test file\&. This option was added in MySQL 4\&.1\&.23, 5\&.0\&.30, and 5\&.1\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: logdir option
+.\" logdir option: mysqltest
 \fB\-\-logdir=\fR\fB\fIdir_name\fR\fR
 .sp
-The directory to use for log files. This option was added in MySQL 5.1.14.
-.TP 3n
-\(bu
+The directory to use for log files\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: mark-progress option
+.\" mark-progress option: mysqltest
 \fB\-\-mark\-progress\fR
 .sp
 Write the line number and elapsed time to
-\fI\fItest_file\fR\fR\fI.progress\fR. This option was added in MySQL 4.1.23, 5.0.30, and 5.1.12.
-.TP 3n
-\(bu
+\fItest_file\fR\&.progress\&. This option was added in MySQL 4\&.1\&.23, 5\&.0\&.30, and 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: max-connect-retries option
+.\" max-connect-retries option: mysqltest
 \fB\-\-max\-connect\-retries=\fR\fB\fInum\fR\fR
 .sp
-The maximum number of connection attempts when connecting to server. This option was added in MySQL 4.1.23, 5.0.23, and 5.1.11.
-.TP 3n
-\(bu
+The maximum number of connection attempts when connecting to server\&. This option was added in MySQL 4\&.1\&.23, 5\&.0\&.23, and 5\&.1\&.11\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: no-defaults option
+.\" no-defaults option: mysqltest
 \fB\-\-no\-defaults\fR
 .sp
-Do not read default options from any option files.
-.TP 3n
-\(bu
+Do not read default options from any option files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: password option
+.\" password option: mysqltest
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server. If you use the short option form (\fB\-p\fR), you
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
 \fIcannot\fR
-have a space between the option and the password. If you omit the
+have a space between the option and the password\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
-.TP 3n
-\(bu
+option on the command line, you are prompted for one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: port option
+.\" port option: mysqltest
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection.
-.TP 3n
-\(bu
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: ps-protocol option
+.\" ps-protocol option: mysqltest
 \fB\-\-ps\-protocol\fR
 .sp
-Use the prepared\-statement protocol for communication.
-.TP 3n
-\(bu
+Use the prepared\-statement protocol for communication\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: quiet option
+.\" quiet option: mysqltest
 \fB\-\-quiet\fR
 .sp
-Suppress all normal output. This is a synonym for
-\fB\-\-silent\fR.
-.TP 3n
-\(bu
+Suppress all normal output\&. This is a synonym for
+.\" mysqltest: silent option
+.\" silent option: mysqltest
+\fB\-\-silent\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: record option
+.\" record option: mysqltest
 \fB\-\-record\fR,
 \fB\-r\fR
 .sp
 Record the output that results from running the test file into the file named by the
 \fB\-\-result\-file\fR
-option, if that option is given.
-.TP 3n
-\(bu
+option, if that option is given\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: result-file option
+.\" result-file option: mysqltest
 \fB\-\-result\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-R \fR\fB\fIfile_name\fR\fR
 .sp
-This option specifies the file for test case expected results.
+This option specifies the file for test case expected results\&.
 \fB\-\-result\-file\fR, together with
 \fB\-\-record\fR, determines how
 \fBmysqltest\fR
 treats the test actual and expected results for a test case:
-.RS 3n
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 If the test produces no results,
 \fBmysqltest\fR
-exits with an error message to that effect.
-.TP 3n
-\(bu
+exits with an error message to that effect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 Otherwise, if
 \fB\-\-result\-file\fR
 is not given,
 \fBmysqltest\fR
-sends test results to the standard output.
-.TP 3n
-\(bu
+sends test results to the standard output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 With
 \fB\-\-result\-file\fR
 but not
 \fB\-\-record\fR,
 \fBmysqltest\fR
-reads the expected results from the given file and compares them with the actual results. If the results do not match,
+reads the expected results from the given file and compares them with the actual results\&. If the results do not match,
 \fBmysqltest\fR
 writes a
-\fI.reject\fR
-file in the same directory as the result file and exits with an error.
-.TP 3n
-\(bu
+\&.reject
+file in the same directory as the result file and exits with an error\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 With both
 \fB\-\-result\-file\fR
 and
 \fB\-\-record\fR,
 \fBmysqltest\fR
-updates the given file by writing the actual test results to it.
+updates the given file by writing the actual test results to it\&.
 .RE
-.TP 3n
-\(bu
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: server-arg option
+.\" server-arg option: mysqltest
 \fB\-\-server\-arg=\fR\fB\fIvalue\fR\fR,
 \fB\-A \fR\fB\fIvalue\fR\fR
 .sp
-Pass the argument as an argument to the embedded server. For example,
+Pass the argument as an argument to the embedded server\&. For example,
 \fB\-\-server\-arg=\-\-tmpdir=/tmp\fR
 or
-\fB\-\-server\-arg=\-\-core\fR. Up to 64 arguments can be given.
-.TP 3n
-\(bu
+\fB\-\-server\-arg=\-\-core\fR\&. Up to 64 arguments can be given\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: server-file option
+.\" server-file option: mysqltest
 \fB\-\-server\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-F \fR\fB\fIfile_name\fR\fR
 .sp
-Read arguments for the embedded server from the given file. The file should contain one argument per line.
-.TP 3n
-\(bu
+Read arguments for the embedded server from the given file\&. The file should contain one argument per line\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: silent option
+.\" silent option: mysqltest
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Suppress all normal output.
-.TP 3n
-\(bu
+Suppress all normal output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: skip-safemalloc option
+.\" skip-safemalloc option: mysqltest
 \fB\-\-skip\-safemalloc\fR
 .sp
-Do not use memory allocation checking.
-.TP 3n
-\(bu
+Do not use memory allocation checking\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: sleep option
+.\" sleep option: mysqltest
 \fB\-\-sleep=\fR\fB\fInum\fR\fR,
 \fB\-T \fR\fB\fInum\fR\fR
 .sp
@@ -301,83 +654,176 @@ Cause all
 sleep
 commands in the test case file to sleep
 \fInum\fR
-seconds. This option does not affect
+seconds\&. This option does not affect
 real_sleep
-commands.
+commands\&.
 .sp
-As of MySQL 5.0.23, an option value of 0 can be used, which effectively disables
+As of MySQL 5\&.0\&.23, an option value of 0 can be used, which effectively disables
 sleep
-commands in the test case.
-.TP 3n
-\(bu
+commands in the test case\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: socket option
+.\" socket option: mysqltest
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
 The socket file to use when connecting to
 localhost
-(which is the default host).
-.TP 3n
-\(bu
+(which is the default host)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: sp-protocol option
+.\" sp-protocol option: mysqltest
 \fB\-\-sp\-protocol\fR
 .sp
-Execute DML statements within a stored procedure. For every DML statement,
+Execute DML statements within a stored procedure\&. For every DML statement,
 \fBmysqltest\fR
-creates and invokes a stored procedure that executes the statement rather than executing the statement directly. This option was added in MySQL 5.0.19.
-.TP 3n
-\(bu
+creates and invokes a stored procedure that executes the statement rather than executing the statement directly\&. This option was added in MySQL 5\&.0\&.19\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: test-file option
+.\" test-file option: mysqltest
 \fB\-\-test\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-x \fR\fB\fIfile_name\fR\fR
 .sp
-Read test input from this file. The default is to read from the standard input.
-.TP 3n
-\(bu
+Read test input from this file\&. The default is to read from the standard input\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: timer-file option
+.\" timer-file option: mysqltest
 \fB\-\-timer\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-m \fR\fB\fIfile_name\fR\fR
 .sp
-The file where the timing in microseconds is written.
-.TP 3n
-\(bu
+The file where the timing in microseconds is written\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: tmpdir option
+.\" tmpdir option: mysqltest
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-t \fR\fB\fIdir_name\fR\fR
 .sp
-The temporary directory where socket files are put.
-.TP 3n
-\(bu
+The temporary directory where socket files are put\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: user option
+.\" user option: mysqltest
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server.
-.TP 3n
-\(bu
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: verbose option
+.\" verbose option: mysqltest
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print out more information what the program does.
-.TP 3n
-\(bu
+Verbose mode\&. Print out more information what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: version option
+.\" version option: mysqltest
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
-.TP 3n
-\(bu
+Display version information and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: view-protocol option
+.\" view-protocol option: mysqltest
 \fB\-\-view\-protocol\fR
 .sp
 Every
 SELECT
-statement is wrapped inside a view. This option was added in MySQL 5.0.19.
+statement is wrapped inside a view\&. This option was added in MySQL 5\&.0\&.19\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

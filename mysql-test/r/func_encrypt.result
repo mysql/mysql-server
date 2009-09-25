@@ -183,3 +183,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select des_decrypt(des_encrypt('hello',4),'password2') AS `des_decrypt(des_encrypt("hello",4),'password2')`,des_decrypt(des_encrypt('hello','hidden')) AS `des_decrypt(des_encrypt("hello","hidden"))`
+drop table if exists t1;
+create table t1 (f1 smallint(6) default null, f2  mediumtext character set utf8)
+engine=myisam default charset=latin1;
+insert into t1 values (null,'contraction\'s');
+insert into t1 values (-15818,'requirement\'s');
+select encrypt(f1,f2) as a from t1,(select encrypt(f1,f2) as b from t1) a;
+drop table t1;

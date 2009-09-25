@@ -543,3 +543,19 @@ CREATE TABLE t1(a TEXT);
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
 ERROR HY000: Incorrect arguments to AGAINST
 DROP TABLE t1;
+CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a));
+INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('+awrd bwrd* +cwrd*' IN BOOLEAN MODE);
+a
+awrd bwrd cwrd
+awrd bwrd cwrd
+awrd bwrd cwrd
+DROP TABLE t1;
+CREATE TABLE t1 (col text, FULLTEXT KEY full_text (col));
+PREPARE s FROM 
+"SELECT MATCH (col) AGAINST('findme') FROM t1 ORDER BY MATCH (col) AGAINST('findme')"
+  ;
+EXECUTE s;
+MATCH (col) AGAINST('findme')
+DEALLOCATE PREPARE s;
+DROP TABLE t1;

@@ -147,7 +147,7 @@ static int send_file(THD *thd)
   if (errmsg)
   {
     sql_print_error("Failed in send_file() %s", errmsg);
-    DBUG_PRINT("error", (errmsg));
+    DBUG_PRINT("error", ("%s", errmsg));
   }
   DBUG_RETURN(error);
 }
@@ -1026,7 +1026,10 @@ int reset_slave(THD *thd, Master_info* mi)
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
 			       &errmsg)))
+  {
+    sql_errno= ER_RELAY_LOG_FAIL;
     goto err;
+  }
 
   /*
     Clear master's log coordinates and reset host/user/etc to the values
@@ -1040,6 +1043,7 @@ int reset_slave(THD *thd, Master_info* mi)
      Reset errors (the idea is that we forget about the
      old master).
   */
+  mi->clear_error();
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
 
@@ -1098,7 +1102,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
       break;
     }
   }
@@ -1111,7 +1115,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       again. We just to do kill the thread ourselves.
     */
     tmp->awake(THD::KILL_QUERY);
-    pthread_mutex_unlock(&tmp->LOCK_delete);
+    pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
 }
 

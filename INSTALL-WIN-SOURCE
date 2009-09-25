@@ -191,7 +191,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        directory, you need to tell the server their path names. You
        can either do this on the command line with the --basedir and
        --datadir options, or by placing appropriate options in an
-       option file. (See Section 4.2.3.2, "Using Option Files.") If
+       option file. (See Section 4.2.3.3, "Using Option Files.") If
        you have an existing data directory elsewhere that you want to
        use, you can specify its path name instead.
        When the server is running in standalone fashion or as a
@@ -207,7 +207,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        option), and invoke mysql-test-run.pl. For example (using
        Cygwin and the bash shell):
 shell> cd mysql-test
-shell> export MTS_VS_CONFIG=debug
+shell> export MTR_VS_CONFIG=debug
 shell> ./mysql-test-run.pl --force --timer
 shell> ./mysql-test-run.pl --force --timer --ps-protocol
 

@@ -7,125 +7,126 @@
 # (Guilhem) have seen the test manage to provoke lock wait timeout
 # error but not deadlock error; that is ok as code deals with the two
 # errors in exactly the same way.
-# We don't 'show status like 'slave_retried_transactions'' because this
-# is not repeatable (depends on sleeps).
 
--- source include/master-slave.inc
+--source include/master-slave.inc
+
+# 0) Prepare tables and data
+--echo *** Prepare tables and data ***
 
 connection master;
 eval CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
-eval CREATE TABLE t2 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
-# requiring 'unique' for the timeout part of the test
-eval CREATE TABLE t3 (a INT  UNIQUE) ENGINE=$engine_type;
-eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
-show variables like 'slave_transaction_retries';
+eval CREATE TABLE t2 (a INT) ENGINE=$engine_type;
+eval CREATE TABLE t3 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
 sync_slave_with_master;
 
-show create table t1;
-show create table t2;
-show variables like 'slave_transaction_retries';
-stop slave;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW VARIABLES LIKE 'slave_transaction_retries';
+--source include/stop_slave.inc
+
+connection master;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# We make a long transaction here
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+save_master_pos;
+# Save BEGIN event into variable
+let $master_pos_begin= query_get_value(SHOW BINLOG EVENTS, Pos, 5);
+--echo
 
 # 1) Test deadlock
-
-connection master;
-begin;
-# Let's keep BEGIN and the locked statement in two different relay logs.
-insert into t2 values (0); # t2,t1 actors of deadlock in repl-ed ta
-#insert into t3 select * from t2 for update;
-let $1=10;
-disable_query_log;
-while ($1)
-{
- eval insert into t3 values( $1 );
- dec $1;
-}
-enable_query_log;
-insert into t1 values(1);
-commit;
-save_master_pos;
+# Block slave SQL thread, wait retries of transaction, unlock slave before lock timeout
+--echo *** Test deadlock ***
 
 connection slave;
-begin;
-# Let's make our transaction large so that it's repl-ed msta that's victim
-let $1=100;
-disable_query_log;
-while ($1)
-{
- eval insert into t4 values( $1 );
- dec $1;
-}
-enable_query_log;
-select * from t1 for update; # t1,t2 on local slave's
-start slave;
-
-# bad option, todo: replicate a non-transactional t_sync with the transaction
-# and use wait_until_rows_count macro below
---real_sleep 3 # hope that slave is blocked now
-#let $count=11;
-#let $table=t_sync;
-#--include wait_until_rows_count.inc
-
-select * from t2 for update /* dl */; # provoke deadlock, repl-ed should be victim
-commit;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+# Save variable 'Slave_retried_transactions' before deadlock
+let $slave_retried_transactions= query_get_value(SHOW GLOBAL STATUS LIKE 'Slave_retried_transactions', Value, 1);
+START SLAVE;
+# Wait until SQL thread blocked: variable 'Slave_retried_transactions' will incremented
+let $status_var= Slave_retried_transactions;
+let $status_var_value= $slave_retried_transactions;
+let $status_type= GLOBAL;
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
 sync_with_master;
-select * from t1; # check that repl-ed succeeded finally
-select * from t2 /* must be 1 */;
-# check that no error is reported
---replace_column 1 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---replace_result $MASTER_MYPORT MASTER_MYPORT
---vertical_results
-show slave status;
---horizontal_results
+
+# Check the data
+SELECT * FROM t1;
+SELECT * FROM t3;
+# Check that no error is reported
+--source include/show_slave_status2.inc
+--echo
 
 # 2) Test lock wait timeout
+# Block slave and wait lock timeout error
+--echo *** Test lock wait timeout ***
 
-stop slave;
-delete from t3;
-change master to master_log_pos=548; # the BEGIN log event
-begin;
-select * from t2 for update; # hold lock
-start slave;
---real_sleep 10 # repl-ed should have blocked, and be retrying
-select count(*) from t3  /* must be zero */; # replaying begins after rollback
-commit;
+connection slave;
+--source include/stop_slave.inc
+DELETE FROM t2;
+# Set slave position to the BEGIN log event
+--replace_result $master_pos_begin MASTER_POS_BEGIN
+eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin; 
+BEGIN;
+# Hold lock
+SELECT * FROM t1 FOR UPDATE;
+# Wait until slave stopped with error 'Lock wait timeout exceeded'
+START SLAVE;
+let $slave_sql_errno= 1205;
+--source include/wait_for_slave_sql_error.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
+--source include/start_slave.inc
 sync_with_master;
-select * from t1; # check that repl-ed succeeded finally
-select * from t2;
-# check that no error is reported
---replace_column 1 # 7 # 8 # 9 # 11 # 16 # 22 # 23 # 33 #
---replace_result $MASTER_MYPORT MASTER_MYPORT
---vertical_results
-show slave status;
---horizontal_results
+# Check data from tables
+SELECT * FROM t1;
+SELECT * FROM t3;
+# Check that no error is reported
+--source include/show_slave_status2.inc
+--echo
 
-# Now we repeat 2), but with BEGIN in the same relay log as
-# COMMIT (to see if seeking into hot log is ok).
-set @my_max_relay_log_size= @@global.max_relay_log_size;
-set global max_relay_log_size=0;
+# 3) Test lock wait timeout and purged relay log
+# Set max_relay_log_size=0, block slave and wait lock timeout error.
+# Restart slave and check that no erros appear
+--echo *** Test lock wait timeout and purged relay logs ***
 
-# This is really copy-paste of 2) of above
-stop slave;
-delete from t3;
-change master to master_log_pos=548;
-begin;
-select * from t2 for update;
-start slave;
---real_sleep 10
-select count(*) from t3  /* must be zero */; # replaying begins after rollback
-commit;
+connection slave;
+SET @my_max_relay_log_size= @@global.max_relay_log_size;
+SET global max_relay_log_size=0;
+--source include/stop_slave.inc
+DELETE FROM t2;
+# Set slave position to the BEGIN log event
+eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin; 
+BEGIN;
+# Hold lock
+SELECT * FROM t1 FOR UPDATE;
+# Wait until slave stopped with error 'Lock wait timeout exceeded'
+START SLAVE;
+let $slave_sql_errno= 1205;
+--source include/wait_for_slave_sql_error.inc
+SELECT COUNT(*) FROM t2;
+COMMIT;
+--source include/start_slave.inc
 sync_with_master;
-select * from t1;
-select * from t2;
---replace_column 1 # 7 # 8 # 9 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
---replace_result $MASTER_MYPORT MASTER_MYPORT
---vertical_results
-show slave status;
---horizontal_results
+# Check data from tables
+SELECT * FROM t1;
+SELECT * FROM t3;
+# Check that no error is reported
+--source include/show_slave_status2.inc
+--echo
 
+# Clean up
+--echo *** Clean up ***
 connection master;
-drop table t1,t2,t3,t4;
+DROP TABLE t1,t2,t3;
 sync_slave_with_master;
-set global max_relay_log_size= @my_max_relay_log_size;
+SET global max_relay_log_size= @my_max_relay_log_size;
 
 --echo End of 5.1 tests

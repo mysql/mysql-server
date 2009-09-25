@@ -1378,6 +1378,60 @@ a	b	c
 5	1	1
 4	1	1
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
+CREATE INDEX i1 on t1 (a(3));
+SELECT * FROM t1 WHERE a = 'abcde';
+a
+DROP TABLE t1;
+#
+# BUG #26288: savepoint are not deleted on comit, if the transaction 
+# was otherwise empty
+#
+BEGIN;
+SAVEPOINT s1;
+COMMIT;
+RELEASE SAVEPOINT s1;
+ERROR 42000: SAVEPOINT s1 does not exist
+BEGIN;
+SAVEPOINT s2;
+COMMIT;
+ROLLBACK TO SAVEPOINT s2;
+ERROR 42000: SAVEPOINT s2 does not exist
+BEGIN;
+SAVEPOINT s3;
+ROLLBACK;
+RELEASE SAVEPOINT s3;
+ERROR 42000: SAVEPOINT s3 does not exist
+BEGIN;
+SAVEPOINT s4;
+ROLLBACK;
+ROLLBACK TO SAVEPOINT s4;
+ERROR 42000: SAVEPOINT s4 does not exist
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NULL, f3 CHAR(10) DEFAULT 'My ID#', CONSTRAINT f2_ref FOREIGN KEY (f2) REFERENCES t1 (f1)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL COMMENT 'My ID#',
+  `f2` int(11) DEFAULT NULL,
+  `f3` char(10) DEFAULT 'My ID#',
+  PRIMARY KEY (`f1`),
+  KEY `f2_ref` (`f2`),
+  CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+#
+# Bug #36995: valgrind error in remove_const during subquery executions
+#
+create table t1 (a bit(1) not null,b int) engine=myisam;
+create table t2 (c int) engine=innodb;
+explain
+select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
@@ -1647,15 +1701,63 @@ INSERT INTO t1 VALUES
 (4,1,2,'c2',NULL),(5,1,2,'c1',NULL),(2,1,3,'c2',NULL),(3,1,3,'c2',NULL),
 (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
 (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
-EXPLAIN SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	vid	PRIMARY	12	NULL	16	Using where
-SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+1	SIMPLE	t1	index	NULL	PRIMARY	12	NULL	16	Using where
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 vid	tid	idx	name	type
 3	1	4	c_extra	NULL
 3	1	3	c2	NULL
 3	1	2	c1	NULL
 3	1	1	pk	NULL
+DROP TABLE t1;
+#
+# Bug #44290: explain crashes for subquery with distinct in
+#             SQL_SELECT::test_quick_select
+#             (reproduced only with InnoDB tables)
+#
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, KEY (c3), KEY (c2, c3))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+1
+1
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	index	c3,c2	c2	10	NULL	5	
+DROP TABLE t1;
+CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+1
+1
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	index	c3,c2	c2	18	NULL	5	
+DROP TABLE t1;
+CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
+KEY (c3), KEY (c2, c3))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+1
+1
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	index	c3,c2	c2	14	NULL	5	
 DROP TABLE t1;
 End of 5.1 tests
 drop table if exists t1, t2, t3;
@@ -1845,5 +1947,265 @@ SELECT * FROM t1;
 id
 TRUNCATE TABLE t2;
 DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#40127 Multiple table DELETE IGNORE hangs on foreign key constraint violation on 5.0
+#
+CREATE TABLE t1 (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+aid INT UNSIGNED NOT NULL,
+PRIMARY KEY (id),
+FOREIGN KEY (aid) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+CREATE TABLE t3 (
+bid INT UNSIGNED NOT NULL,
+FOREIGN KEY (bid) REFERENCES t2 (id)
+) ENGINE=InnoDB;
+CREATE TABLE t4 (
+a INT
+) ENGINE=InnoDB;
+CREATE TABLE t5 (
+a INT
+) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id, aid) VALUES (1, 1),(2,1),(3,1),(4,1);
+INSERT INTO t3 (bid) VALUES (1);
+INSERT INTO t4 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t5 VALUES (1);
+DELETE t5 FROM t4 LEFT JOIN t5 ON t4.a= t5.a;
+DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+DELETE IGNORE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLES t4,t5;
+# Bug#40127 Multiple table DELETE IGNORE hangs on foreign key constraint violation on 5.0
+# Testing for any side effects of IGNORE on AFTER DELETE triggers used with
+# transactional tables.
+#
+CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a VARCHAR(100)) ENGINE=InnoDB;
+CREATE TABLE t3 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT, 
+FOREIGN KEY (t1i) REFERENCES t1(i))
+ENGINE=InnoDB;
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+SET @b:='EXECUTED TRIGGER';
+INSERT INTO t2 VALUES (@b);
+SET @a:= error_happens_here;
+END||
+SET @b:="";
+SET @a:="";
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 SELECT * FROM t1;
+** An error in a trigger causes rollback of the statement.
+DELETE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+ERROR 42S22: Unknown column 'error_happens_here' in 'field list'
+SELECT @a,@b;
+@a	@b
+	EXECUTED TRIGGER
+SELECT * FROM t2;
+a
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+i	i
+1	1
+2	2
+3	3
+4	4
+** Same happens with the IGNORE option
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+ERROR 42S22: Unknown column 'error_happens_here' in 'field list'
+SELECT * FROM t2;
+a
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+i	i
+1	1
+2	2
+3	3
+4	4
+**
+** The following is an attempt to demonstrate
+** error handling inside a row iteration.
+**
+DROP TRIGGER trg;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 VALUES (1),(2),(3),(4);
+INSERT INTO t4 VALUES (3,3),(4,4);
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+SET @b:= CONCAT('EXECUTED TRIGGER FOR ROW ',CAST(OLD.i AS CHAR));
+INSERT INTO t2 VALUES (@b);
+END||
+** DELETE is prevented by foreign key constrains but errors are silenced.
+** The AFTER trigger isn't fired.
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+** Tables are modified by best effort:
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+i	i
+3	3
+4	4
+** The AFTER trigger was only executed on successful rows:
+SELECT * FROM t2;
+a
+EXECUTED TRIGGER FOR ROW 1
+EXECUTED TRIGGER FOR ROW 2
+DROP TRIGGER trg;
+**
+** Induce an error midway through an AFTER-trigger
+**
+TRUNCATE TABLE t4;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t3;
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t3 VALUES (1),(2),(3),(4);
+CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
+BEGIN
+SET @a:= @a+1;
+IF @a > 2 THEN
+INSERT INTO t4 VALUES (5,5);
+END IF;
+END||
+SET @a:=0;
+** Errors in the trigger causes the statement to abort.
+DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
+SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
+i	i
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t4;
+i	t1i
+DROP TRIGGER trg;
+DROP TABLE t4;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+CREATE TABLE t1 (a INT, b INT, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t2 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+CREATE TABLE t3 (a INT, b INT KEY, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t4 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+INSERT INTO t3 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105), (6, 106);
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+UPDATE t1, t2 SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b;
+SELECT * FROM t2;
+a	b
+1	1
+2	12
+3	13
+4	14
+5	5
+UPDATE t3, t4 SET t3.a = t3.a + 100, t4.b = t3.a + 10 
+WHERE t3.a BETWEEN 2 AND 4 AND t4.a = t3.b - 100;
+SELECT * FROM t4;
+a	b
+1	1
+2	12
+3	13
+4	14
+5	5
+DROP TABLE t1, t2, t3, t4;
+#
+# Bug#44886: SIGSEGV in test_if_skip_sort_order() -
+#            uninitialized variable used as subscript 
+#
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1,0);
+CREATE TABLE t2 (a INT, b INT, e INT, KEY (e)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,2);
+CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1, 1);
+SELECT * FROM t1, t2, t3
+WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
+GROUP BY t1.b;
+a	b	c	d	a	b	e	a	b
+1	1	1	0	1	1	2	1	1
+DROP TABLE t1, t2, t3;
+#
+# Bug #45828: Optimizer won't use partial primary key if another 
+# index can prevent filesort
+#
+CREATE TABLE `t1` (
+c1 int NOT NULL,
+c2 int NOT NULL,
+c3 int NOT NULL,
+PRIMARY KEY (c1,c2),
+KEY  (c3)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (5,2,1246276747);
+INSERT INTO t1 VALUES (2,1,1246281721);
+INSERT INTO t1 VALUES (7,3,1246281756);
+INSERT INTO t1 VALUES (4,2,1246282139);
+INSERT INTO t1 VALUES (3,1,1246282230);
+INSERT INTO t1 VALUES (1,0,1246282712);
+INSERT INTO t1 VALUES (8,3,1246282765);
+INSERT INTO t1 SELECT c1+10,c2+10,c3+10 FROM t1;
+INSERT INTO t1 SELECT c1+100,c2+100,c3+100 from t1;
+INSERT INTO t1 SELECT c1+1000,c2+1000,c3+1000 from t1;
+INSERT INTO t1 SELECT c1+10000,c2+10000,c3+10000 from t1;
+INSERT INTO t1 SELECT c1+100000,c2+100000,c3+100000 from t1;
+INSERT INTO t1 SELECT c1+1000000,c2+1000000,c3+1000000 from t1;
+SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+c1	c2	c3
+EXPLAIN SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY,c3	PRIMARY	4	const	1	Using where; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	1	Using where; Using filesort
+CREATE TABLE t2 (
+c1 int NOT NULL,
+c2 int NOT NULL,
+c3 int NOT NULL,
+KEY (c1,c2),
+KEY (c3)
+) ENGINE=InnoDB;
+explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	c1,c3	c1	4	const	1	Using where; Using filesort
+DROP TABLE t1,t2;
+#
+# 36259: Optimizing with ORDER BY
+#
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT,
+b INT NOT NULL,
+c INT NOT NULL,
+d VARCHAR(5),
+e INT NOT NULL,
+PRIMARY KEY (a), KEY i2 (b,c,d)
+) ENGINE=InnoDB;
+INSERT INTO t1 (b,c,d,e) VALUES (1,1,'a',1), (2,2,'b',2);
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i2	i2	8	const,const	1	Using where; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i2	i2	8	const,const	1	Using where; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	128	Using where
 DROP TABLE t1;
 End of 5.1 tests

@@ -1074,4 +1074,31 @@ SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 
 DROP TABLE t1, t2, t3, t4, t5, t6;
+
+#
+# Bug #43432: Union on floats does unnecessary rounding
+#
+
+CREATE TABLE t1 (f FLOAT(9,6));
+CREATE TABLE t2 AS SELECT f FROM t1 UNION SELECT f FROM t1;
+SHOW FIELDS FROM t2;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1(d DOUBLE(9,6));
+CREATE TABLE t2 AS SELECT d FROM t1 UNION SELECT d FROM t1;
+SHOW FIELDS FROM t2;
+DROP TABLE t1, t2;
+
+#
+# Bug#43612 crash with explain extended, union, order by
+#
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED
+SELECT a FROM t1
+UNION
+SELECT a FROM t1
+ORDER BY a;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests

@@ -342,6 +342,21 @@ EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 
+#
+# Bug #39101: client -i (--ignore-spaces) option does not seem to work
+#
+--exec $MYSQL -i -e "SELECT COUNT (*)"
+--exec $MYSQL --ignore-spaces -e "SELECT COUNT (*)"
+--exec $MYSQL -b -i -e "SELECT COUNT (*)"
+
+#
+# Bug#37268 'binary' character set makes CLI-internal commands case sensitive
+#
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL --default-character-set=binary test -e "CONNECT test invalid_hostname" 2>&1
+--exec $MYSQL --default-character-set=binary test -e "DELIMITER //" 2>&1
+
 --echo End of 5.0 tests
 
 #
@@ -367,4 +382,24 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 
 drop tables t1, t2;
 
+#
+# Bug #27884: mysql --html does not quote HTML special characters in output
+# 
+--exec $MYSQL --html test -e "select '< & >' as '<'"
+
+#
+# Bug #27884: mysql client + null byte
+# 
+create table t1 (a char(5));
+insert into t1 values ('\0b\0');
+--exec $MYSQL test -e "select a from t1"
+--exec $MYSQL -r test -e "select a from t1"
+--exec $MYSQL -s test -e "select a from t1"
+--exec $MYSQL --table test -e "select a from t1"
+--exec $MYSQL --vertical test -e "select a from t1"
+--exec $MYSQL --html test -e "select a from t1"
+--exec $MYSQL --xml test -e "select a from t1"
+drop table t1;
+
+--echo
 --echo End of tests

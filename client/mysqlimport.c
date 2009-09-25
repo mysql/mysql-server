@@ -221,6 +221,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			/* Don't require password */
     if (argument)
     {
       char *start=argument;
@@ -301,7 +303,8 @@ static int get_options(int *argc, char ***argv)
 static int write_to_table(char *filename, MYSQL *mysql)
 {
   char tablename[FN_REFLEN], hard_path[FN_REFLEN],
-       sql_statement[FN_REFLEN*16+256], *end;
+       escaped_name[FN_REFLEN * 2 + 1],
+       sql_statement[FN_REFLEN*16+256], *end, *pos;
   DBUG_ENTER("write_to_table");
   DBUG_PRINT("enter",("filename: %s",filename));
 
@@ -336,15 +339,25 @@ static int write_to_table(char *filename, MYSQL *mysql)
       fprintf(stdout, "Loading data from SERVER file: %s into %s\n",
 	      hard_path, tablename);
   }
+  mysql_real_escape_string(mysql, escaped_name, hard_path,
+                           (unsigned long) strlen(hard_path));
   sprintf(sql_statement, "LOAD DATA %s %s INFILE '%s'",
 	  opt_low_priority ? "LOW_PRIORITY" : "",
-	  opt_local_file ? "LOCAL" : "", hard_path);
+	  opt_local_file ? "LOCAL" : "", escaped_name);
   end= strend(sql_statement);
   if (replace)
     end= strmov(end, " REPLACE");
   if (ignore)
     end= strmov(end, " IGNORE");
-  end= strmov(strmov(end, " INTO TABLE "), tablename);
+  end= strmov(end, " INTO TABLE `");
+  /* Turn any ` into `` in table name. */
+  for (pos= tablename; *pos; pos++)
+  {
+    if (*pos == '`')
+      *end++= '`';
+    *end++= *pos;
+  }
+  end= strmov(end, "`");
 
   if (fields_terminated || enclosed || opt_enclosed || escaped)
       end= strmov(end, " FIELDS");

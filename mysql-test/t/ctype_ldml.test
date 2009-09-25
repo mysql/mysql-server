@@ -37,6 +37,15 @@ UPDATE t1 SET col2=col1;
 SELECT * FROM t1 WHERE col1=col2 ORDER BY col1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#43827 Server closes connections and restarts
+--echo #
+# Crash happened with a user-defined utf8 collation,
+# on attempt to insert a string longer than the column can store.
+CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
+INSERT INTO t1 SELECT REPEAT('a',11);
+DROP TABLE t1;
+
 #
 #  Vietnamese experimental collation
 #

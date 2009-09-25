@@ -108,7 +108,7 @@ my_bool my_hash_check(HASH *hash); /* Only in debug library */
 my_bool my_hash_iterate(HASH *hash, my_hash_walk_action action, void *argument);
 
 #define my_hash_clear(H) bzero((char*) (H), sizeof(*(H)))
-#define my_hash_inited(H) ((H)->array.buffer != 0)
+#define my_hash_inited(H) ((H)->blength != 0)
 #define my_hash_init_opt(A,B,C,D,E,F,G,H) \
           (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G, H CALLER_INFO))
 
