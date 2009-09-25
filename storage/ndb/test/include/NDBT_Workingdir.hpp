@@ -32,7 +32,13 @@ public:
 
   NDBT_Workingdir(const char* dirname)
   {
-    m_wd.assfmt("%s%s%s%d", m_temp.path(), DIR_SEPARATOR, dirname,
+    const char* tmp_path = m_temp.path();
+    char* ndbt_tmp = getenv("NDBT_TMP_DIR");
+    if (ndbt_tmp)
+      tmp_path = ndbt_tmp;
+    assert(ndbt_tmp);
+
+    m_wd.assfmt("%s%s%s%d", ndbt_tmp, DIR_SEPARATOR, dirname,
                 (int)NdbProcess::getpid());
     if (access(m_wd.c_str(), F_OK) == 0)
       NdbDir::remove_recursive(m_wd.c_str());
