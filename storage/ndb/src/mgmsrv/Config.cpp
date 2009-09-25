@@ -290,9 +290,11 @@ add_diff(const char* name, const char* key,
   Uint32 type;
   require(value->get("Type", &type));
 
-  // Add the value to the section if not already added
   require(value->put("Name", value_name));
-  if (!section->put("Value", value))
+
+  // Add the value to the section if not already added
+  // (a changed value will be detected twice)
+  if (!section->put(value_name, value))
     require(section->getPropertiesErrno() ==
             E_PROPERTIES_ELEMENT_ALREADY_EXISTS);
 
