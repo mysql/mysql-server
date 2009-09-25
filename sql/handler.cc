@@ -430,6 +430,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
   hton= (handlerton *)my_malloc(sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
+
+  if (hton == NULL)
+  {
+    sql_print_error("Unable to allocate memory for plugin '%s' handlerton.",
+                    plugin->name.str);
+    goto err_no_hton_memory;
+  }
+
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
@@ -540,6 +548,7 @@ err_deinit:
           
 err:
   my_free((uchar*) hton, MYF(0));
+err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
 }
