@@ -61,6 +61,20 @@ struct ConfigFactory
   }
 
   static bool
+  put(Properties& config, const char* section, Uint32 section_no,
+      const char* key, Uint32 value)
+  {
+    Properties* p;
+    if (!config.getCopy(section, section_no, &p))
+      return false;
+    if (!p->put(key, value))
+      return false;
+    if (!config.put(section, section_no, p, true))
+      return false;
+    return true;
+  }
+
+  static bool
   write_config_ini(Properties& config, const char* path)
   {
     FILE* config_file = fopen(path, "w");

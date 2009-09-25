@@ -111,13 +111,55 @@ public:
     return (m_proc != NULL);
   }
 
-  bool start_from_config_ini(const char* working_dir)
+  bool start_from_config_ini(const char* working_dir,
+                             const char* first_extra_arg = NULL, ...)
   {
     NdbProcess::Args args;
     args.add("--configdir=.");
     args.add("-f config.ini");
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
+    args.add("--log-name=", name());
+    args.add("--verbose");
+
+    if (first_extra_arg)
+    {
+      // Append any extra args
+      va_list extra_args;
+      const char* str = first_extra_arg;
+      va_start(extra_args, first_extra_arg);
+      do
+      {
+        args.add(str);
+      } while ((str = va_arg(extra_args, const char*)) != NULL);
+      va_end(extra_args);
+    }
+
+    return start(working_dir, args);
+  }
+
+  bool start(const char* working_dir,
+             const char* first_extra_arg = NULL, ...)
+  {
+    NdbProcess::Args args;
+    args.add("--configdir=.");
+    args.add("--ndb-nodeid=", m_nodeid);
+    args.add("--nodaemon");
+    args.add("--log-name=", name());
+    args.add("--verbose");
+
+    if (first_extra_arg)
+    {
+      // Append any extra args
+      va_list extra_args;
+      const char* str = first_extra_arg;
+      va_start(extra_args, first_extra_arg);
+      do
+      {
+        args.add(str);
+      } while ((str = va_arg(extra_args, const char*)) != NULL);
+      va_end(extra_args);
+    }
 
     return start(working_dir, args);
   }
@@ -126,14 +168,30 @@ public:
   {
     g_info << "Stopping " << name() << endl;
 
-    // Diconnect our "builtin" client
-    // ??MASV if (m_mgmd_client.is_connected())
-    m_mgmd_client.disconnect();
+    // Diconnect and close our "builtin" client
+    m_mgmd_client.close();
 
     assert(m_proc);
     if (!m_proc->stop())
     {
       fprintf(stderr, "Failed to stop process %s\n", name());
+    }
+    delete m_proc;
+    m_proc = 0;
+
+    return true;
+
+  }
+
+  bool wait(int& ret, int timeout = 30)
+  {
+    g_info << "Waiting for " << name() << endl;
+
+    assert(m_proc);
+    if (!m_proc->wait(ret, timeout))
+    {
+      fprintf(stderr, "Failed to wait for process %s\n", name());
+      return false;
     }
     delete m_proc;
     m_proc = 0;
@@ -316,6 +374,189 @@ int runTestBasic2Mgm(NDBT_Context* ctx, NDBT_Step* step)
 
 }
 
+int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create(2);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+  // Start ndb_mgmd(s)
+  MgmdProcessList mgmds;
+  for (int i = 1; i <= 2; i++)
+  {
+    Mgmd* mgmd = new Mgmd(i);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
+    mgmds.push_back(mgmd);
+  }
+
+  // Connect the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->connect(config));
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+  // Check binary config files created
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_2_config.bin.1",
+                         NULL).c_str()));
+
+  g_err << "** Restart one ndb_mgmd at a time --reload + --initial" << endl;
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "--reload", "--initial", NULL));
+    CHECK(mgmds[i]->connect(config));
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+    // check ndb_X_config.bin.1 still exists but not ndb_X_config.bin.2
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_1_config.bin.1",
+                           NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_2_config.bin.1",
+                           NULL).c_str()));
+
+    CHECK(!file_exists(path(wd.path(),
+                            "ndb_1_config.bin.2",
+                            NULL).c_str()));
+    CHECK(!file_exists(path(wd.path(),
+                            "ndb_2_config.bin.2",
+                            NULL).c_str()));
+  }
+
+  g_err << "** Restart one ndb_mgmd at a time --initial" << endl;
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "--initial", NULL));
+    CHECK(mgmds[i]->connect(config));
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+    // check ndb_X_config.bin.1 still exists but not ndb_X_config.bin.2
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_1_config.bin.1",
+                           NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_2_config.bin.1",
+                           NULL).c_str()));
+
+    CHECK(!file_exists(path(wd.path(),
+                            "ndb_1_config.bin.2",
+                            NULL).c_str()));
+    CHECK(!file_exists(path(wd.path(),
+                            "ndb_2_config.bin.2",
+                            NULL).c_str()));
+  }
+
+  g_err << "** Create config2.ini" << endl;
+  CHECK(ConfigFactory::put(config, "ndb_mgmd", 1, "ArbitrationDelay", 100));
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config2.ini",
+                                             NULL).c_str()));
+
+  g_err << "** Restart one ndb_mgmd at a time --initial should not work" << endl;
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+    // Start from config2.ini
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "-f config2.ini",
+                                          "--initial", NULL));
+
+    // Wait for mgmd to exit and check return status
+    int ret;
+    CHECK(mgmds[i]->wait(ret));
+    CHECK(ret == 1);
+
+    // check config files exist only for the still running mgmd(s)
+    for (unsigned j = 0; j < mgmds.size(); j++)
+    {
+      BaseString tmp;
+      tmp.assfmt("ndb_%d_config.bin.1", j+1);
+      CHECK(file_exists(path(wd.path(),
+                             tmp.c_str(),
+                             NULL).c_str()) == (j != i));
+    }
+
+    // Start from config.ini again
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "--initial",
+                                          "--reload",
+                                          NULL));
+    CHECK(mgmds[i]->connect(config));
+    CHECK(mgmds[i]->wait_confirmed_config());
+  }
+
+  g_err << "** Reload from config2.ini" << endl;
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+    // Start from config2.ini
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "-f config2.ini",
+                                          "--reload", NULL));
+    CHECK(mgmds[i]->connect(config));
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_1_config.bin.1",
+                           NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_2_config.bin.1",
+                           NULL).c_str()));
+
+    CHECK(file_exists(path(wd.path(),
+                            "ndb_1_config.bin.2",
+                            NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                            "ndb_2_config.bin.2",
+                            NULL).c_str()));
+  }
+
+  g_err << "** Reload mgmd initial(from generation=2)" << endl;
+  for (unsigned i = 0; i < mgmds.size(); i++)
+  {
+    CHECK(mgmds[i]->stop());
+    CHECK(mgmds[i]->start_from_config_ini(wd.path(),
+                                          "-f config2.ini",
+                                          "--reload", "--initial", NULL));
+    CHECK(mgmds[i]->connect(config));
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+     // check config files exist
+    for (unsigned j = 0; j < mgmds.size(); j++)
+    {
+      BaseString tmp;
+      tmp.assfmt("ndb_%d_config.bin.1", j+1);
+      CHECK(file_exists(path(wd.path(),
+                             tmp.c_str(),
+                             NULL).c_str()) == (i < j));
+
+      tmp.assfmt("ndb_%d_config.bin.2", j+1);
+      CHECK(file_exists(path(wd.path(),
+                             tmp.c_str(),
+                             NULL).c_str()));
+    }
+  }
+
+  return NDBT_OK;
+
+}
+
+
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -324,6 +565,13 @@ TESTCASE("Basic2Mgm",
 {
   INITIALIZER(runTestBasic2Mgm);
 }
+
+TESTCASE("Bug45495",
+         "Test that mgmd can be restarted in any order")
+{
+  INITIALIZER(runTestBug45495);
+}
+
 NDBT_TESTSUITE_END(testMgmd);
 
 int main(int argc, const char** argv)

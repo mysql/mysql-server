@@ -263,12 +263,14 @@ class ConfigCheckRef  {
 
 public:
   STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLengthWithConfig = 6 );
 private:
   Uint32 error;
   Uint32 generation;
   Uint32 expected_generation;
   Uint32 state;
   Uint32 expected_state;
+  Uint32 length; // Length of the config data in long signal
 };
 
 

@@ -1349,6 +1349,7 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
     break;
 
   case CS_CONFIRMED:
+
     if (other_state != CS_CONFIRMED)
     {
       g_eventLogger->warning("Refusing other node, it's in different "  \
@@ -1411,6 +1412,13 @@ ConfigManager::sendConfigCheckReq(SignalSender& ss, NodeBitmask to)
                                 ConfigCheckReq::SignalLength);
 }
 
+static bool
+send_config_in_check_ref(Uint32 x)
+{
+  if (x >= NDB_MAKE_VERSION(7,0,8))
+    return true;
+  return false;
+}
 
 void
 ConfigManager::sendConfigCheckRef(SignalSender& ss, BlockReference to,
@@ -1420,6 +1428,7 @@ ConfigManager::sendConfigCheckRef(SignalSender& ss, BlockReference to,
                                   ConfigState state,
                                   ConfigState other_state) const
 {
+  int result;
   NodeId nodeId = refToNode(to);
   SimpleSignal ssig;
   ConfigCheckRef* const ref =
@@ -1433,10 +1442,35 @@ ConfigManager::sendConfigCheckRef(SignalSender& ss, BlockReference to,
   g_eventLogger->debug("Send CONFIG_CHECK_REF with error: %d to node: %d",
                        error, nodeId);
 
-  ss.sendSignal(nodeId, ssig, MGM_CONFIG_MAN,
-                GSN_CONFIG_CHECK_REF, ConfigCheckRef::SignalLength);
-}
+  if (!send_config_in_check_ref(ss.getNodeInfo(nodeId).m_info.m_version))
+  {
+    result = ss.sendSignal(nodeId, ssig, MGM_CONFIG_MAN,
+                           GSN_CONFIG_CHECK_REF, ConfigCheckRef::SignalLength);
+  }
+  else
+  {
+    UtilBuffer buf;
+    m_config->pack(buf);
+    ssig.ptr[0].p = (Uint32*)buf.get_data();
+    ssig.ptr[0].sz = (buf.length() + 3) / 4;
+    ssig.header.m_noOfSections = 1;
 
+    ref->length = buf.length();
+
+    g_eventLogger->debug("Sending CONFIG_CHECK_REF with config");
+
+    result = ss.sendFragmentedSignal(nodeId, ssig, MGM_CONFIG_MAN,
+                                    GSN_CONFIG_CHECK_REF,
+                                    ConfigCheckRef::SignalLengthWithConfig);
+  }
+
+  if (result != 0)
+  {
+    g_eventLogger->warning("Failed to send CONFIG_CHECK_REF "
+                           "to node: %d, result: %d",
+                           nodeId, result);
+  }
+}
 
 void
 ConfigManager::sendConfigCheckConf(SignalSender& ss, BlockReference to) const
@@ -1479,29 +1513,97 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   const ConfigCheckRef* const ref =
     CAST_CONSTPTR(ConfigCheckRef, sig->getDataPtr());
 
-  g_eventLogger->info("Got CONFIG_CHECK_REF from node %d, "
-                      "error: %d, message: '%s'\n"
-                      "generation: %d, expected generation: %d\n"
+  if (!m_defragger.defragment(sig))
+    return; // More fragments to come
+
+  g_eventLogger->debug("Got CONFIG_CHECK_REF from node %d, "
+                      "error: %d, message: '%s', "
+                      "generation: %d, expected generation: %d, "
                       "state: %d, expected state: %d own-state: %u",
                       nodeId, ref->error,
                       ConfigCheckRef::errorMessage(ref->error),
                       ref->generation, ref->expected_generation,
                       ref->state, ref->expected_state,
                       m_config_state);
-  
-  if (m_config_state != CS_INITIAL &&
-      ref->expected_state == CS_INITIAL)
+
+  assert(ref->generation != ref->expected_generation ||
+         ref->state != ref->expected_state);
+  assert(ref->state == m_config_state);
+
+  Config other_config;
+  if (sig->header.theLength == ConfigCheckRef::SignalLengthWithConfig &&
+      ref->length)
+
+
+  switch(m_config_state)
   {
-    g_eventLogger->info("Waiting for peer");
-    return;
+  default:
+  case CS_UNINITIALIZED:
+    g_eventLogger->error("execCONFIG_CHECK_REQ: unhandled state");
+    abort();
+    break;
+
+  case CS_INITIAL:
+    if (ref->expected_state == CS_CONFIRMED)
+    {
+      if (sig->header.theLength != ConfigCheckRef::SignalLengthWithConfig)
+        break; // No config in the REF -> no action
+
+      // The other node has sent it's config in the signal, use it if equal
+      assert(sig->header.m_noOfSections == 1);
+
+      ConfigValuesFactory cf;
+      require(cf.unpack(sig->ptr[0].p, ref->length));
+
+      Config other_config(cf.getConfigValues());
+      assert(other_config.getGeneration() > 0);
+
+      unsigned exclude[]= {CFG_SECTION_SYSTEM, 0};
+      if (!other_config.equal(m_config, exclude))
+      {
+        BaseString buf;
+        g_eventLogger->error("This node was started --initial with "
+                             "a config which is _not_ equal to the one "
+                             "node %d is using. Refusing to start with "
+                             "different configurations, diff: \n%s",
+                             nodeId,
+                             other_config.diff2str(m_config, buf, exclude));
+        exit(1);
+      }
+
+      g_eventLogger->info("This node was started --inital with "
+                          "a config equal to the one node %d is using. "
+                          "Will use the config with generation %d "
+                          "from node %d!",
+                          nodeId, other_config.getGeneration(), nodeId);
+
+      if (! prepareConfigChange(&other_config))
+      {
+        abortConfigChange();
+        g_eventLogger->error("Failed to write the fetched config to disk");
+        exit(1);
+      }
+      commitConfigChange();
+      m_config_state = CS_CONFIRMED;
+      g_eventLogger->info("The fetched configuration has been saved!");
+      m_waiting_for.clear(nodeId);
+      m_checked.set(nodeId);
+      delete m_new_config;
+      m_new_config = NULL;
+      return;
+    }
+    break;
+
+  case CS_CONFIRMED:
+    if (ref->expected_state == CS_INITIAL)
+    {
+      // MASV for peer todo what? Some kind of upgrade fix...
+      g_eventLogger->info("Waiting for peer");
+      return;
+    }
+    break;
   }
 
-  if (m_config_state == CS_INITIAL)
-  {
-    g_eventLogger->info("Waiting");
-    return;
-  }
-  
   g_eventLogger->error("Terminating");
   exit(1);
 }
