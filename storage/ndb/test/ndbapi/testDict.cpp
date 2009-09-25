@@ -1254,7 +1254,7 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
 int
 runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
 
-  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~0, 256*256*256-2};
+  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~Uint32(0), 256*256*256-2};
 
   int ret = NDBT_OK;
 
@@ -1283,7 +1283,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
-    if (startvalue != ~(Uint32)0) // check that default value starts with 1
+    if (startvalue != ~Uint32(0)) // check that default value starts with 1
       myColumn.setAutoIncrementInitialValue(startvalue);
     myTable.addColumn(myColumn);
 
@@ -1294,7 +1294,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 
 
-    if (startvalue == ~(Uint32)0) // check that default value starts with 1
+    if (startvalue == ~Uint32(0)) // check that default value starts with 1
       startvalue = 1;
 
     for (int i = 0; i < 16; i++) {
@@ -1755,8 +1755,8 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   per *= 1000;
   per /= times;
   
-  ndbout_c("%d random getColumn(name) in %Ld ms -> %d us/get",
-	   times, stop, (Uint32)per);
+  ndbout_c("%d random getColumn(name) in %Ld ms -> %u us/get",
+	   times, stop, Uint32(per));
 
   return NDBT_OK;
 }
@@ -1901,7 +1901,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
-  for (int i = 0; i<tab.getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab.getNoOfColumns(); i++)
   {
     if (tab.getColumn(i)->getStorageType() == 
         NdbDictionary::Column::StorageTypeDisk)
@@ -2604,7 +2604,6 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 {
   int lgError = 15000;
   int tsError = 16000;
-  //int res;
   char lgname[256];
   char ufname[256];
   char tsname[256];
@@ -3085,7 +3084,7 @@ runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
   if (res.init(ctx, step))
     return NDBT_FAILED;
   
-  for (Uint32 i = 0; i<(Uint32)loops; i++)
+  for (int i = 0; i<loops; i++)
   {
     for (Uint32 j = 0; j<10; j++)
       if (dict.schema_op(pNdb))
@@ -3324,7 +3323,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
                 6017, 
 #endif
                 0 };
-  for (Uint32 i = 0; i<err[i] != 0; i++)
+  for (Uint32 i = 0; err[i] != 0; i++)
   {
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
 

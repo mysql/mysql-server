@@ -33,7 +33,7 @@ int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
   int _wait = 20;
-  char * _database = "BANK";
+  const char * _database = "BANK";
   
   struct getargs args[] = {
     { "wait", 'w', arg_integer, &_wait, "Time to wait between transactions", "ms" },

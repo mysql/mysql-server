@@ -49,8 +49,6 @@
 
 extern int localDbPrepare(UserHandle *uh);
 
-//static int dbCreate(UserHandle *uh);
-
 /***************************************************************
 * L O C A L   D A T A                                          *
 ***************************************************************/
