@@ -168,7 +168,7 @@ main(void){
 	  max_val = metaid;
 	}
 	Q[Q_sz++] = F[i];
-	require(Q_sz >= 0 && Q_sz <= cnt);
+	require(Q_sz <= cnt);
       }
       if(F_sz == 0 && Q_sz > 0){
 	match_val = max_val;
