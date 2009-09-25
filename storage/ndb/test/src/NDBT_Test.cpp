@@ -39,7 +39,7 @@ NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   records = 1;
   loops = 1;
   stopped = false;
-  remote_mgm ="";
+  remote_mgm = 0;
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
 }

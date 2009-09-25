@@ -367,7 +367,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
      ****************************************************************/
     resetThreads(pThreadsData);
     
-    for (i = 0; i < tNoOfThreads; i++){  
+    for (i = 0; i < (int)tNoOfThreads; i++){  
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
@@ -543,7 +543,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
     waitForThreads(pThreadsData);
 
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(i = 0; i<(int)tNoOfThreads; i++){
       NdbThread_WaitFor(pThreadsData[i].threadLife, &tmp);
       NdbThread_Destroy(&pThreadsData[i].threadLife);
     }
@@ -552,7 +552,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
   if (useLongKeys == true) {
     // Only free these areas if they have been allocated
     // Otherwise cores will happen
-    for (i = 0; i < tNoOfLongPK; i++)
+    for (i = 0; i < (int)tNoOfLongPK; i++)
       free(longKeyAttrName[i]);
     free(longKeyAttrName);
   } // if
@@ -595,7 +595,6 @@ static void* flexBenchThread(void* pArg)
                     pOps = NULL ;
   StartType         tType ;
   StartType         tSaveType ;
-  NdbRecAttr*       tTmp = NULL ;
   int*              attrValue = NULL ;
   int*              attrRefValue = NULL ;
   int               check = 0 ;
@@ -648,7 +647,7 @@ static void* flexBenchThread(void* pArg)
   
   /* Set up NdbRecord's for the tables. */
   dict= pNdb->getDictionary();
-  for (int tab= 0; tab<tNoOfTables; tab++)
+  for (int tab= 0; tab<(int)tNoOfTables; tab++)
   {
     const NdbDictionary::Table *table= dict->getTable(tableName[tab]);
     int numPKs= (useLongKeys ? tNoOfLongPK : 1);
@@ -774,7 +773,7 @@ static void* flexBenchThread(void* pArg)
     // Calculate offset value before going into the next loop
     nRefOpOffset = tAttributeSize*tNoOfAttributes*(ops-1) ; 
     for(Uint32 a = 0 ; a < tNoOfAttributes ; a++)
-      for(Uint32 b= 0; b<tAttributeSize; b++)
+      for(Uint32 b= 0; b<(Uint32)tAttributeSize; b++)
         attrRefValue[nRefOpOffset + tAttributeSize*a + b] = 
           (int)(threadBase + ops + a) ;
   }
@@ -862,7 +861,6 @@ static void* flexBenchThread(void* pArg)
         const NdbRecord *pk_record= pRec[countTables];
         const NdbRecord *attr_record= pRec[countTables+tNoOfTables];
         const NdbRecord *all_record= pRec[countTables+2*tNoOfTables];
-        const char *tabName= tableName[countTables];
 
 	switch (tType) {
 	case stInsert:          // Insert case
@@ -1200,13 +1198,13 @@ static void sleepBeforeStartingTest(int seconds){
 static int
 createTables(Ndb* pMyNdb){
   int i;
-  for (i = 0; i < tNoOfAttributes; i++){
+  for (i = 0; i < (int)tNoOfAttributes; i++){
     BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
-  for (i = 0; i < tNoOfTables; i++){
+  for (i = 0; i < (int)tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
@@ -1215,7 +1213,7 @@ createTables(Ndb* pMyNdb){
     }
   }
   
-  for(i = 0; i < tNoOfTables; i++){
+  for(i = 0; i < (int)tNoOfTables; i++){
     ndbout << "Creating " << tableName[i] << "... ";
     
     NdbDictionary::Table tmpTable(tableName[i]);

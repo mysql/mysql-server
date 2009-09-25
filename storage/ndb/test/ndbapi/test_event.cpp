@@ -234,7 +234,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 
   const NdbDictionary::Table *_table = myDict->getTable(tab.getName());
 
-  for (int a = 0; a < noEventColumnName; a++) {
+  for (int a = 0; a < (int)noEventColumnName; a++) {
     recAttr[a]    = pOp->getValue(_table->getColumn(a)->getName());
     recAttrPre[a] = pOp->getPreValue(_table->getColumn(a)->getName());
   }
@@ -304,7 +304,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	  recEvent[pk].count++;
 	}
 
-	for (i = 1; i < noEventColumnName; i++) {
+	for (i = 1; i < (int)noEventColumnName; i++) {
 	  if (recAttr[i]->isNULL() >= 0) { // we have a value
 	    g_info << " post[" << i << "]=";
 	    if (recAttr[i]->isNULL() == 0) // we have a non-null value
@@ -345,8 +345,8 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
   if (stats.n_updates > 0) {
     stats.n_consecutive++;
   }
-  for (i = 0; i < (Uint32)records/3; i++) {
-    if (recInsertEvent[i].pk != i) {
+  for (i = 0; i < (int)records/3; i++) {
+    if (recInsertEvent[i].pk != Uint32(i)) {
       stats.n_consecutive ++;
       ndbout << "missing insert pk " << i << endl;
     } else if (recInsertEvent[i].count > 1) {
@@ -354,7 +354,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	     << " count " << recInsertEvent[i].count << endl;
       stats.n_duplicates += recInsertEvent[i].count-1;
     }
-    if (recUpdateEvent[i].pk != i) {
+    if (recUpdateEvent[i].pk != Uint32(i)) {
       stats.n_consecutive ++;
       ndbout << "missing update pk " << i << endl;
     } else if (recUpdateEvent[i].count > 1) {
@@ -362,7 +362,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	     << " count " << recUpdateEvent[i].count << endl;
       stats.n_duplicates += recUpdateEvent[i].count-1;
     }
-    if (recDeleteEvent[i].pk != i) {
+    if (recDeleteEvent[i].pk != Uint32(i)) {
       stats.n_consecutive ++;
       ndbout << "missing delete pk " << i << endl;
     } else if (recDeleteEvent[i].count > 1) {
@@ -1736,7 +1736,7 @@ static int restartAllNodes()
    * Restart all nodes using two restarts
    *   instead of one by one...as this takes to long
    */
-  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+  for (Uint32 i = 0; i<(Uint32)restarter.getNumDbNodes(); i++)
   {
     int nodeId = restarter.getDbNodeId(i);
     if (ng.get(restarter.getNodeGroup(nodeId)) == false)

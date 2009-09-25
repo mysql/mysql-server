@@ -49,8 +49,6 @@
 
 extern int localDbPrepare(UserHandle *uh);
 
-static int dbCreate(UserHandle *uh);
-
 /***************************************************************
 * L O C A L   D A T A                                          *
 ***************************************************************/
@@ -563,7 +561,7 @@ static int dbCreate(Ndb * pNdb)
 #endif
 
 UserHandle*
-userDbConnect(uint32 createDb, char *dbName)
+userDbConnect(uint32 createDb, const char *dbName)
 {
   Ndb_cluster_connection *con= new Ndb_cluster_connection();
   if(con->connect(12, 5, 1) != 0)

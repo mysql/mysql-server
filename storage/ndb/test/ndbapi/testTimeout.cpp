@@ -333,7 +333,7 @@ int runDeadlockTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(hugoOps.pkReadRecord(pNdb, stepNo) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 
-      int sleep = deadlock_timeout * 1.5 + myRandom48(do_sleep);
+      int sleep = int(deadlock_timeout * 1.5 + myRandom48(do_sleep));
       ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
       NdbSleep_MilliSleep(sleep);
 

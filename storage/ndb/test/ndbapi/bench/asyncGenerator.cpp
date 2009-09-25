@@ -77,7 +77,7 @@ static SequenceValues rollbackDefinition[] = {
    {0,  0}
 };
 
-static int maxsize = 0;
+static unsigned maxsize = 0;
 
 /***************************************************************
 * P U B L I C   D A T A                                        *
@@ -252,7 +252,7 @@ doTransaction_T1(Ndb * pNDB, ThreadData * td, int async)
   getRandomChangedBy(td->transactionData.changed_by);
   BaseString::snprintf(td->transactionData.changed_time,
 	   sizeof(td->transactionData.changed_time),
-	   "%ld - %d", td->changedTime++, myRandom48(65536*1024));
+                       "%ld - %u", td->changedTime++, (unsigned)myRandom48(65536*1024));
   //getRandomChangedTime(td->transactionData.changed_time);
   td->transactionData.location = td->transactionData.changed_by[0];
   

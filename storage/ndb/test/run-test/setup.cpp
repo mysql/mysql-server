@@ -6,7 +6,7 @@
 
 static atrt_host * find(const char * hostname, Vector<atrt_host*>&);
 static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type, 
-			 size_t idx, const char * hostname);
+			 unsigned idx, const char * hostname);
 static bool load_options(int argc, char** argv, int type, atrt_options&);
 
 enum {
@@ -198,13 +198,13 @@ static
 bool 
 load_process(atrt_config& config, atrt_cluster& cluster, 
 	     atrt_process::Type type, 
-	     size_t idx,
+	     unsigned idx,
 	     const char * hostname)
 {
   atrt_host * host_ptr = find(hostname, config.m_hosts);
   atrt_process *proc_ptr = new atrt_process;
 
-  const size_t proc_no = config.m_processes.size();
+  const unsigned proc_no = (unsigned)config.m_processes.size();
   config.m_processes.push_back(proc_ptr);
   host_ptr->m_processes.push_back(proc_ptr);
   cluster.m_processes.push_back(proc_ptr);
@@ -244,14 +244,14 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   switch(type){
   case atrt_process::AP_NDB_MGMD:
     groups[0] = "cluster_config";
-    buf[1].assfmt("cluster_config.ndb_mgmd.%d", idx);
+    buf[1].assfmt("cluster_config.ndb_mgmd.%u", idx);
     groups[1] = buf[1].c_str();
     buf[0].assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
     argv[argc++] = buf[0].c_str();
     break;
   case atrt_process::AP_NDBD: 
     groups[0] = "cluster_config";
-    buf[1].assfmt("cluster_config.ndbd.%d", idx);
+    buf[1].assfmt("cluster_config.ndbd.%u", idx);
     groups[1] = buf[1].c_str();
     buf[0].assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
     argv[argc++] = buf[0].c_str();
@@ -259,11 +259,11 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   case atrt_process::AP_MYSQLD:
     groups[0] = "mysqld";
     groups[1] = "mysql_cluster";
-    buf[0].assfmt("--defaults-group-suffix=.%d%s",idx,cluster.m_name.c_str());
+    buf[0].assfmt("--defaults-group-suffix=.%u%s",idx,cluster.m_name.c_str());
     argv[argc++] = buf[0].c_str();
     break;
   case atrt_process::AP_CLIENT:
-    buf[0].assfmt("client.%d%s", idx, cluster.m_name.c_str());
+    buf[0].assfmt("client.%u%s", idx, cluster.m_name.c_str());
     groups[0] = buf[0].c_str();
     break;
   case atrt_process::AP_NDB_API:
@@ -291,7 +291,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   switch(type){
   case atrt_process::AP_NDB_MGMD:
   {
-    proc.m_proc.m_name.assfmt("%d-%s", proc_no, "ndb_mgmd");
+    proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_mgmd");
     proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndb_mgmd");
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
@@ -300,14 +300,14 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.append(" --nodaemon --mycnf");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
-    proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;
   } 
   case atrt_process::AP_NDBD:
   {
-    proc.m_proc.m_name.assfmt("%d-%s", proc_no, "ndbd");
+    proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
     proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
@@ -316,14 +316,14 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.append(" --nodaemon --initial -n");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
-    proc.m_proc.m_cwd.assfmt("%sndbd.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;
   } 
   case atrt_process::AP_MYSQLD:
   {
-    proc.m_proc.m_name.assfmt("%d-%s", proc_no, "mysqld");
+    proc.m_proc.m_name.assfmt("%u-%s", proc_no, "mysqld");
     proc.m_proc.m_path.assign(g_prefix).append("/libexec/mysqld");
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
@@ -333,29 +333,29 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.append(" --core-file");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
-    proc.m_proc.m_cwd.appfmt("%smysqld.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_cwd.appfmt("%smysqld.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_shutdown_options = "SIGKILL"; // not nice
-    proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=.%d%s", 
+    proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=.%u%s", 
 			     proc.m_index,
 			     cluster.m_name.c_str());
     break;
   } 
   case atrt_process::AP_NDB_API:
   {
-    proc.m_proc.m_name.assfmt("%d-%s", proc_no, "ndb_api");
+    proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_api");
     proc.m_proc.m_path = "";
     proc.m_proc.m_args = "";
-    proc.m_proc.m_cwd.appfmt("%sndb_api.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_cwd.appfmt("%sndb_api.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;
   } 
   case atrt_process::AP_CLIENT:
   {
-    proc.m_proc.m_name.assfmt("%d-%s", proc_no, "mysql");
+    proc.m_proc.m_name.assfmt("%u-%s", proc_no, "mysql");
     proc.m_proc.m_path = "";
     proc.m_proc.m_args = "";
-    proc.m_proc.m_cwd.appfmt("%s/client.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_cwd.appfmt("%s/client.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=.%d%s", 
 			     proc.m_index,
 			     cluster.m_name.c_str());
@@ -474,7 +474,7 @@ configure(atrt_config& config, int setup)
       
       if (f_rules[i].type & atrt_process::AP_CLUSTER)
       {
-	g_logger.debug("applying rule %d to cluster %s", i, 
+	g_logger.debug("applying rule %u to cluster %s", (unsigned)i, 
 		       ctx.m_cluster->m_name.c_str());
 	if (! (* f_rules[i].func)(props, ctx, f_rules[i].extra))
 	  ok = false;
@@ -488,7 +488,7 @@ configure(atrt_config& config, int setup)
 	  ctx.m_process = cluster.m_processes[k];
 	  if (proc.m_type & f_rules[i].type)
 	  {
-	    g_logger.debug("applying rule %d to %s", i, 
+	    g_logger.debug("applying rule %u to %s", (unsigned)i, 
 			   proc.m_proc.m_cwd.c_str());
 	    if (! (* f_rules[i].func)(props, ctx, f_rules[i].extra))
 	      ok = false;

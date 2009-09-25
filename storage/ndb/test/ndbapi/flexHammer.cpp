@@ -107,7 +107,7 @@ static int setTableNames(void);
 static int readArguments(int, const char**);
 static int createTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
-static int checkThreadResults(ThreadNdb *threadArrayP, char* phase);
+static int checkThreadResults(ThreadNdb *threadArrayP, const char* phase);
 
 //enum OperationType {
 //  otInsert,
@@ -858,8 +858,8 @@ static int setTableNames()
 
   for (i = 0; i < MAXTABLES ; i++) {
     if (theStandardTableNameFlag == 0) {
-      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
-		 NdbTick_CurrentMillisecond()/1000);
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i, 
+                                    (Uint32)(NdbTick_CurrentMillisecond()/1000));
     } // if 
     else {
       retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
@@ -873,7 +873,7 @@ static int setTableNames()
   return(0);
 } // setTableNames
 
-static int checkThreadResults(ThreadNdb *threadArrayP, char* phase)
+static int checkThreadResults(ThreadNdb *threadArrayP, const char* phase)
 {
   int i = 0;
 
