@@ -3430,9 +3430,9 @@ restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
 
-  res.restartAll(NdbRestarter::NRRF_INITIAL |
-                 NdbRestarter::NRRF_NOSTART |
-                 NdbRestarter::NRRF_ABORT);
+  res.restartAll(Uint32(NdbRestarter::NRRF_INITIAL |
+                        NdbRestarter::NRRF_NOSTART |
+                        NdbRestarter::NRRF_ABORT));
   if (res.waitClusterNoStart())
     return NDBT_FAILED;
 

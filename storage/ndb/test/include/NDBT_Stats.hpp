@@ -34,6 +34,8 @@ public:
     if(min > t) min = t;
     if(max < t) max = t;
   }
+
+  void addObservation(Uint64 t) { addObservation(double(t)); } 
   
   double getMean() const { return sum/n;}
   double getStddev() const { return sqrt(getVariance()); }
