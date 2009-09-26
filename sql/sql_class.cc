@@ -278,6 +278,42 @@ const char *set_thd_proc_info(THD *thd, const char *info,
 }
 
 extern "C"
+const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
+                           pthread_mutex_t *mutex, const char *msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  const char* old_msg = thd->proc_info;
+  safe_mutex_assert_owner(mutex);
+  thd->mysys_var->current_mutex = mutex;
+  thd->mysys_var->current_cond = cond;
+  thd->proc_info = msg;
+  return old_msg;
+}
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  /*
+    Putting the mutex unlock in thd_exit_cond() ensures that
+    mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+    locked (if that would not be the case, you'll get a deadlock if someone
+    does a THD::awake() on you).
+  */
+  pthread_mutex_unlock(thd->mysys_var->current_mutex);
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex = 0;
+  thd->mysys_var->current_cond = 0;
+  thd->proc_info = old_msg;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  return;
+}
+
+extern "C"
 void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
