@@ -33,7 +33,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #else
 #include <my_pthread.h>
 #endif
-
+#define HEPP
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #include <stdarg.h>
 #include <typelib.h>
