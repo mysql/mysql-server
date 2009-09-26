@@ -1500,6 +1500,10 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--language=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
+  my $euid= $>;
+  if (!IS_WINDOWS and $euid == 0) {
+    mtr_add_arg($args, "--user=root");
+  }
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
 
