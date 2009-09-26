@@ -378,7 +378,21 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
-  bool flush_and_sync();
+
+  /**
+     Flush binlog cache and synchronize to disk.
+
+     This function flushes events in binlog cache to binary log file,
+     it will do synchronizing according to the setting of system
+     variable 'sync_binlog'. If file is synchronized, @c synced will
+     be set to 1, otherwise 0.
+
+     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+
+     @retval 0 Success
+     @retval other Failure
+  */
+  bool flush_and_sync(bool *synced);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
