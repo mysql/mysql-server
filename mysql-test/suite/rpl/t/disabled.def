@@ -10,4 +10,3 @@
 #
 ##############################################################################
 
-rpl_cross_version      : Bug#42311 2009-03-27 joro rpl_cross_version fails on macosx
