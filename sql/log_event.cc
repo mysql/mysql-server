@@ -8835,11 +8835,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0)
+  if (table->s->keys > 0 && table->s->keys_in_use.is_set(0))
   {
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
-    /* We have a key: search the table using the index */
+    /* The 0th key is active: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
