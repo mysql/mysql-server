@@ -40,9 +40,12 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
   // system info
+  Uint32 c_tableRecSize;
+  Uint8* c_tableRec;    // bool => table exists
 
   // GSN_NDB_STTOR
   virtual void callNDB_STTOR(Signal*);
+  virtual void callREAD_CONFIG_REQ(Signal*);
 
   // GSN_CREATE_TAB_REQ
   struct Ss_CREATE_TAB_REQ : SsParallel {
