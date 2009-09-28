@@ -30,7 +30,6 @@ DEFS=			@DEFS@
 
 noinst_HEADERS=		\
 			handler/ha_innodb.h	\
-			handler/handler0vars.h	\
 			handler/i_s.h		\
 			include/btr0btr.h	\
 			include/btr0btr.ic	\
@@ -77,6 +76,7 @@ noinst_HEADERS=		\
 			include/fil0fil.h	\
 			include/fsp0fsp.h	\
 			include/fsp0fsp.ic	\
+			include/fsp0types.h	\
 			include/fut0fut.h	\
 			include/fut0fut.ic	\
 			include/fut0lst.h	\

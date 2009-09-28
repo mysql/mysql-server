@@ -47,8 +47,10 @@ Created June 2005 by Marko Makela
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+#endif /* !UNIV_HOTBACKUP */
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -1144,7 +1146,9 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+#ifndef UNIV_HOTBACKUP
 	ullint		usec = ut_time_us(NULL);
+#endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*		logfile = NULL;
 #endif
@@ -1208,7 +1212,9 @@ page_zip_compress(
 		}
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
+#ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+#endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
@@ -1345,8 +1351,10 @@ err_exit:
 			fclose(logfile);
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
+#ifndef UNIV_HOTBACKUP
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= ut_time_us(NULL) - usec;
+#endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
 
@@ -1404,12 +1412,14 @@ err_exit:
 		fclose(logfile);
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
+#ifndef UNIV_HOTBACKUP
 	{
 		page_zip_stat_t*	zip_stat
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->compressed_ok++;
 		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
 }
@@ -2820,7 +2830,9 @@ page_zip_decompress(
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
 	ulint*		offsets;
+#ifndef UNIV_HOTBACKUP
 	ullint		usec = ut_time_us(NULL);
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
@@ -2976,12 +2988,14 @@ err_exit:
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
+#ifndef UNIV_HOTBACKUP
 	{
 		page_zip_stat_t*	zip_stat
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
