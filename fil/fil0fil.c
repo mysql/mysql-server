@@ -594,6 +594,11 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(chain, space->chain, node);
 
+	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
+
+		fil_system->max_assigned_id = id;
+	}
+
 	mutex_exit(&fil_system->mutex);
 }
 
@@ -2926,7 +2931,6 @@ fil_open_single_table_tablespace(
 	byte*		page;
 	ulint		space_id;
 	ulint		space_flags;
-	ibool		ret		= TRUE;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -3004,7 +3008,7 @@ fil_open_single_table_tablespace(
 			(ulong) space_id, (ulong) space_flags,
 			(ulong) id, (ulong) flags);
 
-		ret = FALSE;
+		success = FALSE;
 
 		goto func_exit;
 	}
@@ -3024,7 +3028,7 @@ func_exit:
 	os_file_close(file);
 	mem_free(filepath);
 
-	return(ret);
+	return(success);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3302,7 +3306,17 @@ fil_load_single_table_tablespace(
 
 	if (!success) {
 
-		goto func_exit;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though the tablespace creation"
+				" of this table failed.\n",
+				srv_force_recovery);
+			goto func_exit;
+		}
+
+		exit(1);
 	}
 
 	/* We do not use the size information we have about the file, because
