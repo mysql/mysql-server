@@ -17,38 +17,16 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /*****************************************************************************
-If this program compiles and returns 0, then pthread_t objects can be used as
-arguments to Solaris libc atomic functions.
+If this program compiles and can be run and returns 0, then the pause
+instruction is available.
 
-Created April 18, 2009 Vasil Dimov
+Created Jul 21, 2009 Vasil Dimov
 *****************************************************************************/
-
-#include <pthread.h>
-#include <string.h>
 
 int
 main(int argc, char** argv)
 {
-	pthread_t	x1;
-	pthread_t	x2;
-	pthread_t	x3;
-
-	memset(&x1, 0x0, sizeof(x1));
-	memset(&x2, 0x0, sizeof(x2));
-	memset(&x3, 0x0, sizeof(x3));
-
-	if (sizeof(pthread_t) == 4) {
-
-		atomic_cas_32(&x1, x2, x3);
-
-	} else if (sizeof(pthread_t) == 8) {
-
-		atomic_cas_64(&x1, x2, x3);
-
-	} else {
-
-		return(1);
-	}
+	__asm__ __volatile__ ("pause");
 
 	return(0);
 }
