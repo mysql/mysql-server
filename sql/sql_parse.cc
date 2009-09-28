@@ -2319,6 +2319,7 @@ mysql_execute_command(THD *thd)
     res = show_slave_hosts(thd);
     break;
   }
+  case SQLCOM_SHOW_RELAYLOG_EVENTS: /* fall through */
   case SQLCOM_SHOW_BINLOG_EVENTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
