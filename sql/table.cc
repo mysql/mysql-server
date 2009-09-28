@@ -3338,7 +3338,12 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 
 /**
-  Hide errors which show view underlying table information
+  Hide errors which show view underlying table information. 
+  There are currently two mechanisms at work that handle errors for views,
+  this one and a more general mechanism based on an Internal_error_handler,
+  see Show_create_error_handler. The latter handles errors encountered during
+  execution of SHOW CREATE VIEW, while the machanism using this method is
+  handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler
 
@@ -3347,6 +3352,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
+  if (thd->get_internal_handler())
+    return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
