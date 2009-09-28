@@ -881,6 +881,7 @@ int main(int argc, char* argv[]){
   const int port = atoi(argv[2]);
   const char* const connectString = argv[3];
 
+  NDB_INIT(argv[0]);
   MYSQL mysql;
   ASSERT_ALWAYS(mysql_init(&mysql));
   if(!mysql_real_connect(&mysql, host, "root", "", "",
@@ -890,7 +891,6 @@ int main(int argc, char* argv[]){
   }
   mySQLExec(mysql, "create database if not exists CK_DB");
   mySQLExec(mysql, "use CK_DB");
-  NDB_INIT(argv[0]);
   for(int testNo = 0; testNo<4; testNo++){
     Ndb_cluster_connection con(connectString);
     if(con.connect(12, 5, 1) != 0){
