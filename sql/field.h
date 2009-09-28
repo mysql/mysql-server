@@ -1934,9 +1934,12 @@ public:
   virtual bool str_needs_quotes() { return TRUE; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *a, const uchar *b)
-  { 
-    DBUG_ASSERT(ptr == a);
-    return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+  {
+    DBUG_ASSERT(ptr == a || ptr == b);
+    if (ptr == a)
+      return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+    else
+      return Field_bit::key_cmp(a, bytes_in_rec+test(bit_len)) * -1;
   }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
