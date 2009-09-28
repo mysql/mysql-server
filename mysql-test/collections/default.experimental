@@ -1,6 +1,71 @@
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+
+binlog.binlog_tmp_table*                 # Bug#45578:2009-07-10 alik Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
+
 funcs_1.charset_collation_1              # depends on compile-time decisions
-binlog.binlog_tmp_table                  # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
-main.ctype_gbk_binlog                    # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
-rpl.rpl_row_create_table                 # Bug#45576: rpl_row_create_table fails on PB2
+
+innodb.innodb_information_schema         # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
+
+main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
+main.innodb-autoinc                      # Bug#44030 2009-09-24 alik Marking innodb-autoinc experimental while waiting for the patch to be merged
+main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
+main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
+main.plugin_load                         # Bug#47146
+
+rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
+rpl.rpl_innodb_bug28430* @solaris        # Bug#46029
+rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
+rpl.rpl_plugin_load*  @solaris           # Bug#47146
+rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
+rpl.rpl_trigger*                         # Bug#46656 2009-09-25 alik InnoDB plugin: memory leaks (Valgrind)
+
 rpl_ndb.rpl_ndb_log                      # Bug#38998
-rpl.rpl_innodb_bug28430                  # Bug#46029
+
+# Declare all NDB-tests in other test suites experimental.
+
+stress.ddl_ndb
+
+sys_vars.ndb_log_update_as_write_basic
+sys_vars.have_ndbcluster_basic
+sys_vars.ndb_log_updated_only_basic
+
+funcs_1.ndb_storedproc_10
+funcs_1.ndb_bitdata
+funcs_1.ndb_trig_03
+funcs_1.ndb_trig_0102
+funcs_1.is_tables_ndb
+funcs_1.is_columns_ndb
+funcs_1.ndb_trig_0407
+funcs_1.ndb_trig_1011ext
+funcs_1.ndb_storedproc_06
+funcs_1.ndb_views
+funcs_1.is_cml_ndb
+funcs_1.ndb_storedproc_02
+funcs_1.ndb_storedproc_03
+funcs_1.ndb_trig_03e
+funcs_1.is_engines_ndb
+funcs_1.ndb_trig_08
+funcs_1.ndb_storedproc_07
+funcs_1.ndb_storedproc_08
+funcs_1.ndb_func_view
+funcs_1.ndb_trig_09
+funcs_1.ndb_cursors
+
+funcs_2.ndb_charset
+
+parts.partition_engine_ndb
+parts.ndb_dd_backuprestore
+parts.partition_value_ndb
+parts.partition_mgm_lc2_ndb
+parts.partition_alter1_2_ndb
+parts.partition_alter1_1_ndb
+parts.part_supported_sql_func_ndb
+parts.partition_int_ndb
+parts.partition_mgm_lc1_ndb
+parts.partition_auto_increment_ndb
+parts.partition_syntax_ndb
+parts.partition_alter1_1_2_ndb
+parts.partition_basic_ndb
+parts.partition_mgm_lc0_ndb

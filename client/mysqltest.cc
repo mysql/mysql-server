@@ -417,6 +417,7 @@ static struct st_expected_errors saved_expected_errors;
 struct st_command
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
+  DYNAMIC_STRING content;
   int first_word_len, query_len;
   my_bool abort_on_error;
   struct st_expected_errors expected_errors;
@@ -431,10 +432,12 @@ DYNAMIC_STRING ds_res;
 
 char builtin_echo[FN_REFLEN];
 
+static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
+
 void die(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
 void verbose_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void log_msg(const char *fmt, ...)
@@ -1138,6 +1141,8 @@ void free_used_memory()
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
+    if ((*q)->content.str)
+      dynstr_free(&(*q)->content);
     my_free((*q),MYF(0));
   }
   for (i= 0; i < 10; i++)
@@ -1163,6 +1168,7 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
+  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 
@@ -2485,7 +2491,7 @@ void do_source(struct st_command *command)
   }
 
   dynstr_free(&ds_filename);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3287,21 +3293,30 @@ void do_write_file_command(struct st_command *command, my_bool append)
                      sizeof(write_file_args)/sizeof(struct command_arg),
                      ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
-
   if (!append && access(ds_filename.str, F_OK) == 0)
   {
     /* The file should not be overwritten */
     die("File already exist: '%s'", ds_filename.str);
   }
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
-  dynstr_free(&ds_content);
+  ds_content= command->content;
+  /* If it hasn't been done already by a loop iteration, fill it in */
+  if (! ds_content.str)
+  {
+    /* If no delimiter was provided, use EOF */
+    if (ds_delimiter.length == 0)
+      dynstr_set(&ds_delimiter, "EOF");
+
+    init_dynamic_string(&ds_content, "", 1024, 1024);
+    read_until_delimiter(&ds_content, &ds_delimiter);
+    command->content= ds_content;
+  }
+  /* This function could be called even if "false", so check before printing */
+  if (cur_block->ok)
+  {
+    DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+    str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  }
   dynstr_free(&ds_filename);
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -3444,12 +3459,17 @@ void do_diff_files(struct st_command *command)
     die("command \"diff_files\" failed, file '%s' does not exist",
         ds_filename2.str);
 
-  if ((error= compare_files(ds_filename.str, ds_filename2.str)))
+  if ((error= compare_files(ds_filename.str, ds_filename2.str)) &&
+      match_expected_error(command, error, NULL) < 0)
   {
     /* Compare of the two files failed, append them to output
-       so the failure can be analyzed
+       so the failure can be analyzed, but only if it was not
+       expected to fail.
     */
     show_diff(&ds_res, ds_filename.str, ds_filename2.str);
+    log_file.write(&ds_res);
+    log_file.flush();
+    dynstr_set(&ds_res, 0);
   }
 
   dynstr_free(&ds_filename);
@@ -3705,10 +3725,9 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *res;
+    MYSQL_RES *UNINIT_VAR(res);
     MYSQL_ROW row;
     int done;
-    LINT_INIT(res);
 
     if (mysql_query(mysql,"show status like 'Slave_running'") ||
 	!(res=mysql_store_result(mysql)))
@@ -5240,13 +5259,12 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, last_quote;
+  char c, UNINIT_VAR(last_quote);
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
-  LINT_INIT(last_quote);
 
   start_lineno= cur_file->lineno;
   DBUG_PRINT("info", ("Starting to read at lineno: %d", start_lineno));
@@ -6478,8 +6496,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
     if (!disable_result_log)
     {
-      ulonglong affected_rows;    /* Ok to be undef if 'disable_info' is set */
-      LINT_INIT(affected_rows);
+      ulonglong UNINIT_VAR(affected_rows);    /* Ok to be undef if 'disable_info' is set */
 
       if (res)
       {
@@ -7165,6 +7182,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
+  dynstr_free(&ds_warnings);
+  if (command->type == Q_EVAL)
+    dynstr_free(&eval_query);
+
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
@@ -7195,11 +7216,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     check_require(ds, command->require_file);
   }
 
-  dynstr_free(&ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
-  if (command->type == Q_EVAL)
-    dynstr_free(&eval_query);
   DBUG_VOID_RETURN;
 }
 
@@ -7508,6 +7526,8 @@ static void init_signal_handling(void)
 #endif
   sigaction(SIGILL, &sa, NULL);
   sigaction(SIGFPE, &sa, NULL);
+
+  DBUG_VOID_RETURN;
 }
 
 #endif /* !__WIN__ */
@@ -7682,7 +7702,31 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    if (cur_block->ok)
+    my_bool ok_to_do= cur_block->ok;
+    /*
+      Some commands need to be "done" the first time if they may get
+      re-iterated over in a true context. This can only happen if there's 
+      a while loop at some level above the current block.
+    */
+    if (!ok_to_do)
+    {
+      if (command->type == Q_SOURCE ||
+          command->type == Q_WRITE_FILE ||
+          command->type == Q_APPEND_FILE ||
+	  command->type == Q_PERL)
+      {
+	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
+	{
+	  if (stb->cmd == cmd_while)
+	  {
+	    ok_to_do= 1;
+	    break;
+	  }
+	}
+      }
+    }
+
+    if (ok_to_do)
     {
       command->last_argument= command->first_argument;
       processed = 1;
@@ -7991,6 +8035,8 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
+  my_bool empty_result= FALSE;
+  
   /*
     The whole test has been executed _sucessfully_.
     Time to compare result or save it to record file.
@@ -8031,11 +8077,20 @@ int main(int argc, char **argv)
   }
   else
   {
-    die("The test didn't produce any output");
+    /* Empty output is an error *unless* we also have an empty result file */
+    if (! result_file_name || record ||
+        compare_files (log_file.file_name(), result_file_name))
+    {
+      die("The test didn't produce any output");
+    }
+    else 
+    {
+      empty_result= TRUE;  /* Meaning empty was expected */
+    }
   }
 
-  if (!command_executed && result_file_name)
-    die("No queries executed but result file found!");
+  if (!command_executed && result_file_name && !empty_result)
+    die("No queries executed but non-empty result file found!");
 
   verbose_msg("Test has succeeded!");
   timer_output();
@@ -8122,6 +8177,8 @@ void do_get_replace_column(struct st_command *command)
   }
   my_free(start, MYF(0));
   command->last_argument= command->end;
+
+  DBUG_VOID_RETURN;
 }
 
 

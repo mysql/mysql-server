@@ -1274,7 +1274,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     else
     {
       /* Clear the OK result of mysql_rm_table(). */
-      thd->main_da.reset_diagnostics_area();
+      thd->stmt_da->reset_diagnostics_area();
     }
   }
 
@@ -1297,7 +1297,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     goto err;                   // mysql_parse took care of the error send
 
   thd_proc_info(thd, "Opening master dump table");
-  thd->main_da.reset_diagnostics_area(); /* cleanup from CREATE_TABLE */
+  thd->stmt_da->reset_diagnostics_area(); /* cleanup from CREATE_TABLE */
   /*
     Note: If this function starts to fail for MERGE tables,
     change the next two lines to these:
@@ -2011,7 +2011,7 @@ static int has_temporary_error(THD *thd)
   DBUG_ENTER("has_temporary_error");
 
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->main_da.is_error())
+                  if (thd->stmt_da->is_error())
                   {
                     thd->clear_error();
                     my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -2030,20 +2030,21 @@ static int has_temporary_error(THD *thd)
     currently, InnoDB deadlock detected by InnoDB or lock
     wait timeout (innodb_lock_wait_timeout exceeded
   */
-  if (thd->main_da.sql_errno() == ER_LOCK_DEADLOCK ||
-      thd->main_da.sql_errno() == ER_LOCK_WAIT_TIMEOUT)
+  if (thd->stmt_da->sql_errno() == ER_LOCK_DEADLOCK ||
+      thd->stmt_da->sql_errno() == ER_LOCK_WAIT_TIMEOUT)
     DBUG_RETURN(1);
 
 #ifdef HAVE_NDB_BINLOG
   /*
     currently temporary error set in ndbcluster
   */
-  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
   MYSQL_ERROR *err;
   while ((err= it++))
   {
-    DBUG_PRINT("info", ("has warning %d %s", err->code, err->msg));
-    switch (err->code)
+    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
+                        err->get_message_text()));
+    switch (err->get_sql_errno())
     {
     case ER_GET_TEMPORARY_ERRMSG:
       DBUG_RETURN(1);
@@ -2977,9 +2978,9 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 
   if (check_temp_dir(rli->slave_patternload_file))
   {
-    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+    rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
-                slave_load_tmpdir, thd->main_da.message());
+                slave_load_tmpdir, thd->stmt_da->message());
     goto err;
   }
 
@@ -2989,7 +2990,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+      rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
                   "Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
@@ -3033,20 +3034,20 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 
         if (thd->is_error())
         {
-          char const *const errmsg= thd->main_da.message();
+          char const *const errmsg= thd->stmt_da->message();
 
           DBUG_PRINT("info",
-                     ("thd->main_da.sql_errno()=%d; rli->last_error.number=%d",
-                      thd->main_da.sql_errno(), last_errno));
+                     ("thd->stmt_da->sql_errno()=%d; rli->last_error.number=%d",
+                      thd->stmt_da->sql_errno(), last_errno));
           if (last_errno == 0)
           {
             /*
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), errmsg);
+            rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), errmsg);
           }
-          else if (last_errno != thd->main_da.sql_errno())
+          else if (last_errno != thd->stmt_da->sql_errno())
           {
             /*
              * An error was reported while executing exec_relay_log_event()
@@ -3055,12 +3056,12 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
              * what caused the problem.
              */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
-                            errmsg, thd->main_da.sql_errno());
+                            errmsg, thd->stmt_da->sql_errno());
           }
         }
 
         /* Print any warnings issued */
-        List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+        List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
         MYSQL_ERROR *err;
         /*
           Added controlled slave thread cancel for replication
@@ -3069,9 +3070,9 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
         bool udf_error = false;
         while ((err= it++))
         {
-          if (err->code == ER_CANT_OPEN_LIBRARY)
+          if (err->get_sql_errno() == ER_CANT_OPEN_LIBRARY)
             udf_error = true;
-          sql_print_warning("Slave: %s Error_code: %d",err->msg, err->code);
+          sql_print_warning("Slave: %s Error_code: %d", err->get_message_text(), err->get_sql_errno());
         }
         if (udf_error)
           sql_print_error("Error loading user-defined library, slave SQL "

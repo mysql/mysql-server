@@ -225,4 +225,11 @@ insert into t2 values(@q);
 
 drop table t1, t2;
 
+#
+# Bug#42364 SHOW ERRORS returns empty resultset after dropping non existent table
+#
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+SHOW ERRORS;
+
 --echo End of 5.0 tests

@@ -1116,7 +1116,7 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", tmp.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
     return 1;
   }
   /* Test if we have garbage at the end of the given string. */
@@ -1922,16 +1922,16 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *int_digits_tail_from;
+  const uchar *UNINIT_VAR(int_digits_tail_from);
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
-  uint int_digits_added_zeros;
+  uint UNINIT_VAR(int_digits_added_zeros);
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *frac_digits_head_end;
+  const uchar *UNINIT_VAR(frac_digits_head_end);
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
-  uint frac_digits_added_zeros;
+  uint UNINIT_VAR(frac_digits_added_zeros);
   uchar *pos,*tmp_left_pos,*tmp_right_pos;
   /* Pointers that are used as limits (begin and end of the field buffer) */
   uchar *left_wall,*right_wall;
@@ -1941,11 +1941,6 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     to do that only once
   */
   bool is_cuted_fields_incr=0;
-
-  LINT_INIT(int_digits_tail_from);
-  LINT_INIT(int_digits_added_zeros);
-  LINT_INIT(frac_digits_head_end);
-  LINT_INIT(frac_digits_added_zeros);
 
   /*
     There are three steps in this function :
@@ -2683,11 +2678,11 @@ int Field_new_decimal::store(const char *from, uint length,
     String from_as_str;
     from_as_str.copy(from, length, &my_charset_bin);
 
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", from_as_str.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
 
     DBUG_RETURN(err);
   }
@@ -2710,7 +2705,7 @@ int Field_new_decimal::store(const char *from, uint length,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                           "decimal", from_as_str.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
     my_decimal_set_zero(&decimal_value);
 
     break;
@@ -5363,7 +5358,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
                         ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
-                        thd->row_count);
+                        thd->warning_info->current_row_for_warning());
     return 1;
   }
   tmp=(long) sint3korr(ptr);
@@ -6357,21 +6352,20 @@ check_string_copy_error(Field_str *field,
 {
   const char *pos;
   char tmp[32];
-  
+  THD *thd= field->table->in_use;
+
   if (!(pos= well_formed_error_pos) &&
       !(pos= cannot_convert_error_pos))
     return FALSE;
 
   convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
 
-  push_warning_printf(field->table->in_use, 
-                      field->table->in_use->abort_on_warning ?
-                      MYSQL_ERROR::WARN_LEVEL_ERROR :
+  push_warning_printf(thd,
                       MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
+                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field->field_name,
-                      (ulong) field->table->in_use->row_count);
+                      thd->warning_info->current_row_for_warning());
   return TRUE;
 }
 
@@ -6405,7 +6399,7 @@ Field_longstr::report_if_important_data(const char *ptr, const char *end,
     if (test_if_important_data(field_charset, ptr, end))
     {
       if (table->in_use->abort_on_warning)
-        set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
       else
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       return 2;
@@ -9035,7 +9029,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
     set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
@@ -9446,7 +9440,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first uchar */
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
@@ -10002,10 +9996,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  TYPELIB *interval,
 		  const char *field_name)
 {
-  uchar *bit_ptr;
-  uchar bit_offset;
-  LINT_INIT(bit_ptr);
-  LINT_INIT(bit_offset);
+  uchar *UNINIT_VAR(bit_ptr);
+  uchar UNINIT_VAR(bit_offset);
   if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;
@@ -10321,7 +10313,7 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     thd->cuted_fields+= cuted_increment;
     push_warning_printf(thd, level, code, ER(code), field_name,
-                        thd->row_count);
+                        thd->warning_info->current_row_for_warning());
     return 0;
   }
   return level >= MYSQL_ERROR::WARN_LEVEL_WARN;
