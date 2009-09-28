@@ -930,6 +930,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  REDUNDANT_SYM
 %token  REFERENCES                    /* SQL-2003-R */
 %token  REGEXP
+%token  RELAYLOG_SYM
 %token  RELAY_LOG_FILE_SYM
 %token  RELAY_LOG_POS_SYM
 %token  RELAY_THREAD
@@ -9947,6 +9948,11 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
           } opt_limit_clause_init
+        | RELAYLOG_SYM EVENTS_SYM binlog_in binlog_from
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
+          } opt_limit_clause_init
         | keys_or_index from_or_in table_ident opt_db where_clause
           {
             LEX *lex= Lex;
@@ -11588,6 +11594,7 @@ keyword_sp:
         | REDO_BUFFER_SIZE_SYM     {}
         | REDOFILE_SYM             {}
         | REDUNDANT_SYM            {}
+        | RELAYLOG_SYM             {}
         | RELAY_LOG_FILE_SYM       {}
         | RELAY_LOG_POS_SYM        {}
         | RELAY_THREAD             {}

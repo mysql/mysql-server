@@ -1401,6 +1401,7 @@ bool mysql_show_binlog_events(THD* thd)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  MYSQL_BIN_LOG *binary_log= NULL;
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1411,14 +1412,30 @@ bool mysql_show_binlog_events(THD* thd)
   Format_description_log_event *description_event= new
     Format_description_log_event(3); /* MySQL 4.0 by default */
 
-  /*
-    Wait for handlers to insert any pending information
-    into the binlog.  For e.g. ndb which updates the binlog asynchronously
-    this is needed so that the uses sees all its own commands in the binlog
-  */
-  ha_binlog_wait(thd);
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
+              thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
-  if (mysql_bin_log.is_open())
+  /* select wich binary log to use: binlog or relay */
+  if ( thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS )
+  {
+    /*
+      Wait for handlers to insert any pending information
+      into the binlog.  For e.g. ndb which updates the binlog asynchronously
+      this is needed so that the uses sees all its own commands in the binlog
+    */
+    ha_binlog_wait(thd);
+
+    binary_log= &mysql_bin_log;
+  }
+  else  /* showing relay log contents */
+  {
+    if (!active_mi)
+      DBUG_RETURN(TRUE);
+
+    binary_log= &(active_mi->rli.relay_log);
+  }
+
+  if (binary_log->is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
     SELECT_LEX_UNIT *unit= &thd->lex->unit;
@@ -1426,7 +1443,7 @@ bool mysql_show_binlog_events(THD* thd)
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
+    pthread_mutex_t *log_lock = binary_log->get_log_lock();
     LOG_INFO linfo;
     Log_event* ev;
 
@@ -1436,13 +1453,13 @@ bool mysql_show_binlog_events(THD* thd)
 
     name= search_file_name;
     if (log_file_name)
-      mysql_bin_log.make_log_name(search_file_name, log_file_name);
+      binary_log->make_log_name(search_file_name, log_file_name);
     else
       name=0;					// Find first log
 
     linfo.index_file_offset = 0;
 
-    if (mysql_bin_log.find_log_pos(&linfo, name, 1))
+    if (binary_log->find_log_pos(&linfo, name, 1))
     {
       errmsg = "Could not find target log";
       goto err;
