@@ -102,6 +102,8 @@ static ulong tokudb_max_lock;
 static const char tokudb_hton_name[] = "TokuDB";
 static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
 static u_int32_t tokudb_checkpointing_period;
+u_int32_t tokudb_write_status_frequency;
+u_int32_t tokudb_read_status_frequency;
 my_bool tokudb_prelock_empty;
 #ifdef TOKUDB_VERSION
  char *tokudb_version = TOKUDB_VERSION;
@@ -883,6 +885,8 @@ static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Se
 
 static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 60, 0, ~0L, 0);
 static MYSQL_SYSVAR_BOOL(prelock_empty, tokudb_prelock_empty, 0, "Tokudb Shared Data", NULL, NULL, TRUE);
+static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
+static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -923,6 +927,8 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
     MYSQL_SYSVAR(prelock_empty),
+    MYSQL_SYSVAR(write_status_frequency),
+    MYSQL_SYSVAR(read_status_frequency),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),

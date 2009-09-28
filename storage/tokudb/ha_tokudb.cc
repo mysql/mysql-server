@@ -3965,10 +3965,10 @@ cleanup:
 void ha_tokudb::track_progress(THD* thd) {
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (trx) {
-        bool update_status = (trx->stmt_progress.queried % 10000) == 1 ||
-            (trx->stmt_progress.inserted% 1000) == 1 ||
-            (trx->stmt_progress.updated% 1000) == 1 ||
-            (trx->stmt_progress.deleted% 1000) == 1;
+        ulonglong num_written = trx->stmt_progress.inserted + trx->stmt_progress.inserted + trx->stmt_progress.inserted;
+        bool update_status = 
+            (tokudb_read_status_frequency && (trx->stmt_progress.queried % tokudb_read_status_frequency) == 1) ||
+            (tokudb_write_status_frequency && (num_written) % tokudb_write_status_frequency == 1);
         if (update_status) {
             sprintf(
                 write_status_msg, 
