@@ -1,5 +1,12 @@
 2009-09-28	The InnoDB Team
 
+	* handler/ha_innodb.cc:
+	When a secondary index exists in the MySQL .frm file but not in
+	the InnoDB data dictionary, return an error instead of letting an
+	assertion fail in index_read.
+
+2009-09-28	The InnoDB Team
+
 	* btr/btr0btr.c, buf/buf0buf.c,
 	include/page0page.h, include/page0zip.h,
 	page/page0cur.c, page/page0page.c, page/page0zip.c:
