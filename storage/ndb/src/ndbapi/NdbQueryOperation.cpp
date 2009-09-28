@@ -30,6 +30,7 @@
 #include "NdbRecAttr.hpp"
 #include "TransporterFacade.hpp"
 #include "NdbApiSignal.hpp"
+#include "NdbTransaction.hpp"
 
 /* Various error codes that are not specific to NdbQuery. */
 STATIC_CONST(Err_MemoryAlloc = 4000);
@@ -42,6 +43,92 @@ STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 STATIC_CONST( tupleNotFound = 0xffffffff);
+
+/** For scans, we receiver n parallel streams of data. There is a 
+  * NdbResultStream object for each such stream. (For lookups, there is a 
+  * single result stream.)
+  */
+class NdbResultStream {
+public:
+  /** A map from tuple correlation Id to tuple number.*/
+  class TupleIdMap {
+  public:
+    explicit TupleIdMap():m_vector(){}
+
+    void put(Uint16 id, Uint32 num);
+
+    Uint32 get(Uint16 id) const;
+
+  private:
+    struct Pair{
+      /** Tuple id, unique within this batch and stream.*/
+      Uint16 m_id;
+      /** Tuple number, among tuples received in this stream.*/
+      Uint16 m_num;
+    };
+    Vector<Pair> m_vector;
+
+    /** No copying.*/
+    TupleIdMap(const TupleIdMap&);
+    TupleIdMap& operator=(const TupleIdMap&);
+  }; // class TupleIdMap
+
+  explicit NdbResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo);
+
+  ~NdbResultStream();
+
+  /** Stream number within operation (0 - parallelism)*/
+  const Uint32 m_streamNo;
+  /** The receiver object that unpacks transid_AI messages.*/
+  NdbReceiver m_receiver;
+  /** The number of transid_AI messages received.*/
+  Uint32 m_transidAICount;
+  /** A map from tuple correlation Id to tuple number.*/
+  TupleIdMap m_correlToTupNumMap;
+  /** Number of pending TCKEYREF or TRANSID_AI messages for this stream.*/
+  int m_pendingResults;
+  /** True if there is a pending SCAN_TABCONF messages for this stream.*/
+  bool m_pendingScanTabConf;
+  /** Prepare for receiving results. */
+  int prepare();
+
+  Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const;
+  void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index);
+    
+  /** Get the correlation number of the parent of a given row. This number
+   * can be use.
+   */
+  Uint32 getParentTupleCorr(Uint32 rowNo) const { 
+    return m_parentTupleCorr[rowNo];
+  }
+
+  void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const;
+    
+  /** Check if batch is complete for this stream. */
+  bool isBatchComplete() const { 
+    return m_pendingResults==0 && !m_pendingScanTabConf;
+  }
+
+private:
+  /** Operation to which this resultStream belong.*/
+  NdbQueryOperationImpl& m_operation;
+
+  /** One-dimensional array. For each tuple, this array holds the correlation
+   * number of the corresponding parent tuple.
+   */
+  Uint32* m_parentTupleCorr;
+
+  /** Two dimenional array of indexes to child tuples 
+   * ([childOperationNo, ownTupleNo]) This is used for finding the child 
+   * tuple in the corresponding resultStream of 
+   * the child operation.
+   */
+  Uint32* m_childTupleIdx;
+
+  /** No copying.*/
+  NdbResultStream(const NdbResultStream&);
+  NdbResultStream& operator=(const NdbResultStream&);
+}; //class NdbResultStream
 
 NdbQuery::NdbQuery(NdbQueryImpl& impl):
   m_impl(impl)
@@ -566,7 +653,7 @@ NdbQueryImpl::closeSingletonScans()
   for(Uint32 i = 0; i<getNoOfOperations(); i++){
     NdbQueryOperationImpl& operation = getQueryOperation(i);
     for(Uint32 streamNo = 0; streamNo < getParallelism(); streamNo++){
-      QueryResultStream& resultStream = *operation.m_resultStreams[streamNo];
+      NdbResultStream& resultStream = *operation.m_resultStreams[streamNo];
       /** Now we have received all tuples for all operations. We can thus call
        *  execSCANOPCONF() with the right row count.
        */
@@ -990,7 +1077,7 @@ NdbQueryImpl::StreamStack::prepare(int size)
   assert(m_size==0);
   if (size > 0) 
   { m_size = size;
-    m_array = new QueryResultStream*[size];
+    m_array = new NdbResultStream*[size];
     if (unlikely(m_array==NULL))
       return Err_MemoryAlloc;
   }
@@ -998,7 +1085,7 @@ NdbQueryImpl::StreamStack::prepare(int size)
 }
 
 void
-NdbQueryImpl::StreamStack::push(QueryResultStream& stream){
+NdbQueryImpl::StreamStack::push(NdbResultStream& stream){
   m_current++;
   assert(m_current<m_size);
   m_array[m_current] = &stream; 
@@ -1006,17 +1093,17 @@ NdbQueryImpl::StreamStack::push(QueryResultStream& stream){
 
 
 ////////////////////////////////////////////////
-/////////  QueryResultStream methods ///////////
+/////////  NdbResultStream methods ///////////
 ////////////////////////////////////////////////
 
 void 
-QueryResultStream::TupleIdMap::put(Uint16 id, Uint32 num){
+NdbResultStream::TupleIdMap::put(Uint16 id, Uint32 num){
   const Pair p = {id, num};
   m_vector.push_back(p);
 }
 
 Uint32 
-QueryResultStream::TupleIdMap::get(Uint16 id) const {
+NdbResultStream::TupleIdMap::get(Uint16 id) const {
   for(Uint32 i=0; i<m_vector.size(); i++){
     if(m_vector[i].m_id == id){
       return m_vector[i].m_num;
@@ -1025,7 +1112,7 @@ QueryResultStream::TupleIdMap::get(Uint16 id) const {
   return tupleNotFound;
 }
 
-QueryResultStream::QueryResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo):
+NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo):
   m_streamNo(streamNo),
   m_receiver(operation.getQuery().getNdbTransaction()->getNdb(), &operation),  // FIXME? Use Ndb recycle lists
   m_transidAICount(0),
@@ -1037,13 +1124,13 @@ QueryResultStream::QueryResultStream(NdbQueryOperationImpl& operation, Uint32 st
   m_childTupleIdx(NULL)
 {};
 
-QueryResultStream::~QueryResultStream() { 
+NdbResultStream::~NdbResultStream() { 
   delete[] m_childTupleIdx; 
   delete[] m_parentTupleCorr; 
 }
 
 int  // Return 0 if ok, else errorcode
-QueryResultStream::prepare()
+NdbResultStream::prepare()
 {
   /* Parrent / child correlation is only relevant for scan type queries
    * Don't create m_parentTupleCorr[] and m_childTupleIdx[] for lookups!
@@ -1082,7 +1169,7 @@ QueryResultStream::prepare()
 }
 
 void 
-QueryResultStream::setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const {
+NdbResultStream::setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const {
   if (m_parentTupleCorr) {
     m_parentTupleCorr[rowNo] = correlationNum;
   } else {
@@ -1091,7 +1178,7 @@ QueryResultStream::setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const
 }
 
 void
-QueryResultStream::setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index)
+NdbResultStream::setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index)
 {
   assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
   unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
@@ -1099,7 +1186,7 @@ QueryResultStream::setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index
 }
 
 Uint32
-QueryResultStream::getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const
+NdbResultStream::getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const
 {
   assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
   unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
@@ -1348,7 +1435,7 @@ NdbQueryOperationImpl::updateChildResult(Uint32 streamNo, Uint32 rowNo){
      * for the descendant we must use the m_childTupleIdx index to pick the
      * tuple that corresponds to the current parent tuple.*/
     m_isRowNull = false;
-    QueryResultStream& resultStream = *m_resultStreams[streamNo];
+    NdbResultStream& resultStream = *m_resultStreams[streamNo];
     assert(rowNo < resultStream.m_receiver.m_result_rows);
     /* Use random rather than sequential access on receiver, since we
     * iterate over results using an indexed structure.*/
@@ -1539,7 +1626,7 @@ NdbQueryOperationImpl::prepareReceiver()
   // Construct receiver streams and prepare them for receiving scan result
   assert(m_resultStreams==NULL);
   assert(m_queryImpl.getParallelism() > 0);
-  m_resultStreams = new QueryResultStream*[m_queryImpl.getParallelism()];
+  m_resultStreams = new NdbResultStream*[m_queryImpl.getParallelism()];
   if (unlikely(m_resultStreams == NULL)) {
     return Err_MemoryAlloc;
   }
@@ -1547,7 +1634,7 @@ NdbQueryOperationImpl::prepareReceiver()
     m_resultStreams[i] = NULL;  // Init to legal contents for d'tor
   }
   for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++) {
-    m_resultStreams[i] = new QueryResultStream(*this, i);
+    m_resultStreams[i] = new NdbResultStream(*this, i);
     if (unlikely(m_resultStreams[i] == NULL)) {
       return Err_MemoryAlloc;
     }
@@ -1726,7 +1813,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
     assert(streamNo<getQuery().getParallelism());
 
     // Process result values.
-    QueryResultStream* const resultStream = m_resultStreams[streamNo];
+    NdbResultStream* const resultStream = m_resultStreams[streamNo];
     resultStream->m_receiver
       .execTRANSID_AI(ptr, len - correlationWordCount);
     resultStream->m_transidAICount++;
@@ -1843,7 +1930,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
 void 
 NdbQueryOperationImpl::buildChildTupleLinks(Uint32 streamNo)
 {
-  QueryResultStream& resultStream = *m_resultStreams[streamNo];
+  NdbResultStream& resultStream = *m_resultStreams[streamNo];
   /* Now we have received all tuples for all operations. We can thus call
    * execSCANOPCONF() with the right row count.
    */
@@ -1866,7 +1953,7 @@ NdbQueryOperationImpl::buildChildTupleLinks(Uint32 streamNo)
      * used by nextResult() to fetch the proper children when iterating
      * over the result of a scan with children.
      */
-    QueryResultStream& parentStream = *parent->m_resultStreams[streamNo];
+    NdbResultStream& parentStream = *parent->m_resultStreams[streamNo];
     for (Uint32 tupNo = 0; tupNo<resultStream.m_transidAICount; tupNo++) {
       /* Get the correlation number of the parent tuple. This number
        * uniquely identifies the parent tuple within this stream and batch.
@@ -1891,6 +1978,11 @@ NdbQueryOperationImpl::buildChildTupleLinks(Uint32 streamNo)
     }
   } 
 } //NdbQueryOperationImpl::buildChildTupleLinks
+
+Uint32 
+NdbQueryOperationImpl::getIdOfReceiver() const {
+  return m_resultStreams[0]->m_receiver.getId();
+}
 
 bool 
 NdbQueryOperationImpl::isBatchComplete() const { 
@@ -1923,8 +2015,8 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "  m_queryImpl: " << &op.m_queryImpl;
   out << "  m_operationDef: " << &op.m_operationDef;
   for(Uint32 i = 0; i<op.m_queryImpl.getParallelism(); i++){
-//  const NdbQueryOperationImpl::QueryResultStream& resultStream 
-    const QueryResultStream& resultStream 
+//  const NdbQueryOperationImpl::NdbResultStream& resultStream 
+    const NdbResultStream& resultStream 
       = *op.m_resultStreams[i];
     out << "  m_resultStream[" << i << "]{";
     out << " m_transidAICount: " << resultStream.m_transidAICount;
@@ -1939,4 +2031,4 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
  
 // Compiler settings require explicit instantiation.
 template class Vector<NdbQueryOperationImpl*>;
-template class Vector<QueryResultStream::TupleIdMap::Pair>;
+template class Vector<NdbResultStream::TupleIdMap::Pair>;

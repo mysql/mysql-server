@@ -19,7 +19,9 @@
 #ifndef NdbRecord_H
 #define NdbRecord_H
 
+#include <Bitmask.hpp>
 #include <NdbSqlUtil.hpp>
+#include <ndbapi_limits.h>
 
 class NdbRecord {
 public:
