@@ -17,36 +17,43 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /*****************************************************************************
-If this program compiles and returns 0, then pthread_t objects can be used as
-arguments to Solaris libc atomic functions.
+If this program compiles and returns 0, then GCC atomic funcions are available.
 
-Created April 18, 2009 Vasil Dimov
+Created September 12, 2009 Vasil Dimov
 *****************************************************************************/
-
-#include <pthread.h>
-#include <string.h>
 
 int
 main(int argc, char** argv)
 {
-	pthread_t	x1;
-	pthread_t	x2;
-	pthread_t	x3;
+	long	x;
+	long	y;
+	long	res;
+	char	c;
 
-	memset(&x1, 0x0, sizeof(x1));
-	memset(&x2, 0x0, sizeof(x2));
-	memset(&x3, 0x0, sizeof(x3));
+	x = 10;
+	y = 123;
+	res = __sync_bool_compare_and_swap(&x, x, y);
+	if (!res || x != y) {
+		return(1);
+	}
 
-	if (sizeof(pthread_t) == 4) {
+	x = 10;
+	y = 123;
+	res = __sync_bool_compare_and_swap(&x, x + 1, y);
+	if (res || x != 10) {
+		return(1);
+	}
 
-		atomic_cas_32(&x1, x2, x3);
+	x = 10;
+	y = 123;
+	res = __sync_add_and_fetch(&x, y);
+	if (res != 123 + 10 || x != 123 + 10) {
+		return(1);
+	}
 
-	} else if (sizeof(pthread_t) == 8) {
-
-		atomic_cas_64(&x1, x2, x3);
-
-	} else {
-
+	c = 10;
+	res = __sync_lock_test_and_set(&c, 123);
+	if (res != 10 || c != 123) {
 		return(1);
 	}
 

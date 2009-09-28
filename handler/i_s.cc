@@ -42,7 +42,6 @@ extern "C" {
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
 }
-#include "handler0vars.h"
 
 static const char plugin_author[] = "Innobase Oy";
 
@@ -70,14 +69,16 @@ do {									\
 #define STRUCT_FLD(name, value)	value
 #endif
 
-static const ST_FIELD_INFO END_OF_ST_FIELD_INFO =
-	{STRUCT_FLD(field_name,		NULL),
-	 STRUCT_FLD(field_length,	0),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)};
+/* Don't use a static const variable here, as some C++ compilers (notably
+HPUX aCC: HP ANSI C++ B3910B A.03.65) can't handle it. */
+#define END_OF_ST_FIELD_INFO \
+	{STRUCT_FLD(field_name,		NULL), \
+	 STRUCT_FLD(field_length,	0), \
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL), \
+	 STRUCT_FLD(value,		0), \
+	 STRUCT_FLD(field_flags,	0), \
+	 STRUCT_FLD(old_name,		""), \
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
 
 /*
 Use the following types mapping:

@@ -872,6 +872,11 @@ recv_parse_or_apply_log_rec_body(
 	}
 
 	switch (type) {
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+		/* The LSN is checked in recv_parse_log_rec(). */
+		break;
+#endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
 #ifdef UNIV_DEBUG
 		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
@@ -1346,6 +1351,7 @@ recv_recover_page_func(
 	buf_block_t*	block)	/*!< in/out: buffer block */
 {
 	page_t*		page;
+	page_zip_des_t*	page_zip;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1395,6 +1401,7 @@ recv_recover_page_func(
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	page = block->frame;
+	page_zip = buf_block_get_page_zip(block);
 
 #ifndef UNIV_HOTBACKUP
 	if (just_read_in) {
@@ -1455,12 +1462,18 @@ recv_recover_page_func(
 		if (recv->type == MLOG_INIT_FILE_PAGE) {
 			page_lsn = page_newest_lsn;
 
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM, 0);
-			mach_write_ull(page + FIL_PAGE_LSN, 0);
+			memset(FIL_PAGE_LSN + page, 0, 8);
+			memset(UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM
+			       + page, 0, 8);
+
+			if (page_zip) {
+				memset(FIL_PAGE_LSN + page_zip->data, 0, 8);
+			}
 		}
 
 		if (recv->start_lsn >= page_lsn) {
+
+			ib_uint64_t	end_lsn;
 
 			if (!modification_to_page) {
 
@@ -1483,11 +1496,17 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr);
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM,
-				       recv->start_lsn + recv->len);
-			mach_write_ull(page + FIL_PAGE_LSN,
-				       recv->start_lsn + recv->len);
+
+			end_lsn = recv->start_lsn + recv->len;
+			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
+			mach_write_ull(UNIV_PAGE_SIZE
+				       - FIL_PAGE_END_LSN_OLD_CHKSUM
+				       + page, end_lsn);
+
+			if (page_zip) {
+				mach_write_ull(FIL_PAGE_LSN
+					       + page_zip->data, end_lsn);
+			}
 		}
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {
@@ -1929,6 +1948,17 @@ recv_parse_log_rec(
 		return(0);
 	}
 
+#ifdef UNIV_LOG_LSN_DEBUG
+	if (*type == MLOG_LSN) {
+		ib_uint64_t	lsn = (ib_uint64_t) *space << 32 | *page_no;
+# ifdef UNIV_LOG_DEBUG
+		ut_a(lsn == log_sys->old_lsn);
+# else /* UNIV_LOG_DEBUG */
+		ut_a(lsn == recv_sys->recovered_lsn);
+# endif /* UNIV_LOG_DEBUG */
+	}
+#endif /* UNIV_LOG_LSN_DEBUG */
+
 	/* Check that page_no is sensible */
 
 	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
@@ -2186,6 +2216,12 @@ loop:
 #endif
 			/* In normal mysqld crash recovery we do not try to
 			replay file operations */
+#ifdef UNIV_LOG_LSN_DEBUG
+		} else if (type == MLOG_LSN) {
+			/* Do not add these records to the hash table.
+			The page number and space id fields are misused
+			for something else. */
+#endif /* UNIV_LOG_LSN_DEBUG */
 		} else {
 			recv_add_to_hash_table(type, space, page_no, body,
 					       ptr + len, old_lsn,
@@ -2217,11 +2253,11 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
-			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 #ifdef UNIV_LOG_DEBUG
+			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 				recv_check_incomplete_log_recs(ptr, len);
-#endif /* UNIV_LOG_DEBUG */
 			}
+#endif /* UNIV_LOG_DEBUG */
 
 #ifdef UNIV_DEBUG
 			if (log_debug_writes) {
@@ -2285,7 +2321,11 @@ loop:
 				break;
 			}
 
-			if (store_to_hash) {
+			if (store_to_hash
+#ifdef UNIV_LOG_LSN_DEBUG
+			    && type != MLOG_LSN
+#endif /* UNIV_LOG_LSN_DEBUG */
+			    ) {
 				recv_add_to_hash_table(type, space, page_no,
 						       body, ptr + len,
 						       old_lsn,
@@ -2434,8 +2474,7 @@ recv_scan_log_recs(
 	scanned_lsn = start_lsn;
 	more_data = FALSE;
 
-	while (log_block < buf + len && !finished) {
-
+	do {
 		no = log_block_get_hdr_no(log_block);
 		/*
 		fprintf(stderr, "Log block header no %lu\n", no);
@@ -2565,10 +2604,11 @@ recv_scan_log_recs(
 			/* Log data for this group ends here */
 
 			finished = TRUE;
+			break;
 		} else {
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
 		}
-	}
+	} while (log_block < buf + len && !finished);
 
 	*group_scanned_lsn = scanned_lsn;
 
@@ -3123,6 +3163,11 @@ recv_recovery_from_checkpoint_finish(void)
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
 #endif
+	/* Roll back any recovered data dictionary transactions, so
+	that the data dictionary tables will be free of any locks.
+	The data dictionary latch should guarantee that there is at
+	most one data dictionary transaction active at a time. */
+	trx_rollback_or_clean_recovered(FALSE);
 
 	/* Drop partially created indexes. */
 	row_merge_drop_temp_indexes();
