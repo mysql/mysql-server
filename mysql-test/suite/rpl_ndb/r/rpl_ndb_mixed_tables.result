@@ -111,21 +111,9 @@ INSERT INTO innodb_ndb VALUES (12);
 COMMIT;
 ---- ROLLBACK ----
 BEGIN;
-INSERT INTO myisam_innodb VALUES (13);
-INSERT INTO myisam_innodb VALUES (14);
-ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
-BEGIN;
 INSERT INTO innodb_myisam VALUES (15);
 INSERT INTO innodb_myisam VALUES (16);
 ROLLBACK;
-BEGIN;
-INSERT INTO myisam_ndb VALUES (17);
-INSERT INTO myisam_ndb VALUES (18);
-ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO ndb_myisam VALUES (19);
 INSERT INTO ndb_myisam VALUES (20);
@@ -167,21 +155,9 @@ INSERT INTO innodb_ndb VALUES (36);
 COMMIT;
 ---- ROLLBACK ----
 BEGIN;
-INSERT INTO myisam_innodb VALUES (37);
-INSERT INTO myisam_innodb VALUES (38);
-ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
-BEGIN;
 INSERT INTO innodb_myisam VALUES (39);
 INSERT INTO innodb_myisam VALUES (40);
 ROLLBACK;
-BEGIN;
-INSERT INTO myisam_ndb VALUES (41);
-INSERT INTO myisam_ndb VALUES (42);
-ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO ndb_myisam VALUES (43);
 INSERT INTO ndb_myisam VALUES (44);
@@ -209,25 +185,15 @@ INSERT INTO innodb_ndb VALUES (59);
 INSERT INTO innodb_ndb VALUES (60);
 ==== AUTOCOMMIT=0, single statements, myisam on master ====
 SET AUTOCOMMIT = 0;
-INSERT INTO myisam_innodb VALUES (61);
-INSERT INTO myisam_innodb VALUES (62);
-INSERT INTO myisam_ndb VALUES (63);
-INSERT INTO myisam_ndb VALUES (64);
 ==== Show results ====
 SELECT * FROM myisam_innodb ORDER BY a;
 a
 1
 2
-13
-14
 25
 26
-37
-38
 49
 50
-61
-62
 SELECT * FROM innodb_myisam ORDER BY a;
 a
 3
@@ -240,16 +206,10 @@ SELECT * FROM myisam_ndb    ORDER BY a;
 a
 5
 6
-17
-18
 29
 30
-41
-42
 53
 54
-63
-64
 SELECT * FROM ndb_myisam    ORDER BY a;
 a
 7
