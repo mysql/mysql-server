@@ -1949,7 +1949,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (thd->current_stmt_binlog_row_based && !dont_log_query)
+    if (!drop_temporary && thd->current_stmt_binlog_row_based && !dont_log_query)
     {
       non_temp_tables_count++;
       /*
