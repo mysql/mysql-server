@@ -1,3 +1,9 @@
+2009-09-25	The InnoDB Team
+
+	* include/os0file.h, os/os0file.c:
+	Fix Bug#47055 unconditional exit(1) on ERROR_WORKING_SET_QUOTA
+	1453 (0x5AD) for InnoDB backend
+
 2009-09-19	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-consistent-master.opt,
