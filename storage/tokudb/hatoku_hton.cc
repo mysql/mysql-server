@@ -458,9 +458,15 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     if (*txn == trx->sp_level)
         trx->sp_level = 0;
     *txn = 0;
-    } else
-        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+    } 
+    else {
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("abort0\n");
+        }
+    }
+    if (all) {
+        trx->iso_level = hatoku_iso_not_set;
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
