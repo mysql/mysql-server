@@ -694,3 +694,35 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN
 DROP TABLE t1, t2;
 
 --echo End of 5.0 tests
+
+#
+# Bug#36785: Wrong error message when group_concat() exceeds max length
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a VARCHAR(6), b INT);
+CREATE TABLE t2 (a VARCHAR(6), b INT);
+
+INSERT INTO t1 VALUES ('111111', 1);
+INSERT INTO t1 VALUES ('222222', 2);
+INSERT INTO t1 VALUES ('333333', 3);
+INSERT INTO t1 VALUES ('444444', 4);
+INSERT INTO t1 VALUES ('555555', 5);
+
+SET group_concat_max_len = 5;
+SET @old_sql_mode = @@sql_mode, @@sql_mode = 'traditional';
+
+SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b LIMIT 3;
+--error ER_CUT_VALUE_GROUP_CONCAT
+INSERT INTO t2 SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b;
+UPDATE t1 SET a = '11111' WHERE b = 1;
+UPDATE t1 SET a = '22222' WHERE b = 2;
+--error ER_CUT_VALUE_GROUP_CONCAT
+INSERT INTO t2 SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b;
+
+SET group_concat_max_len = DEFAULT;
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1, t2;

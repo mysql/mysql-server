@@ -796,7 +796,7 @@ err:
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->main_da.
+  @param net_report If true, saves the exit status into thd->stmt_da.
 
   @retval 0 success
   @retval 1 error
@@ -934,7 +934,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->main_da.
+  @param net_report If true, saves the exit status into thd->stmt_da.
 
   @retval 0 success
   @retval 1 error

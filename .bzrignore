@@ -3064,3 +3064,4 @@ sql/share/spanish
 sql/share/swedish
 sql/share/ukrainian
 libmysqld/examples/mysqltest.cc
+libmysqld/sql_signal.cc

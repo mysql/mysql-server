@@ -98,7 +98,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
                      ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/mf_qsort.c
-		     ../mysys/my_getsystime.c ../mysys/my_sync.c ${LIB_SOURCES})
+		     ../mysys/my_getsystime.c ../mysys/my_sync.c ../mysys/my_winerr.c ../mysys/my_winfile.c ${LIB_SOURCES})
 
 # Need to set USE_TLS for building the DLL, since __declspec(thread)
 # approach to thread local storage does not work properly in DLLs.

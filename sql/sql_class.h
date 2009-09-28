@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,6 +264,41 @@ public:
   uint rights;
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
 };
+
+/* SIGNAL / RESIGNAL / GET DIAGNOSTICS */
+
+/**
+  This enumeration list all the condition item names of a condition in the
+  SQL condition area.
+*/
+typedef enum enum_diag_condition_item_name
+{
+  /*
+    Conditions that can be set by the user (SIGNAL/RESIGNAL),
+    and by the server implementation.
+  */
+
+  DIAG_CLASS_ORIGIN= 0,
+  FIRST_DIAG_SET_PROPERTY= DIAG_CLASS_ORIGIN,
+  DIAG_SUBCLASS_ORIGIN= 1,
+  DIAG_CONSTRAINT_CATALOG= 2,
+  DIAG_CONSTRAINT_SCHEMA= 3,
+  DIAG_CONSTRAINT_NAME= 4,
+  DIAG_CATALOG_NAME= 5,
+  DIAG_SCHEMA_NAME= 6,
+  DIAG_TABLE_NAME= 7,
+  DIAG_COLUMN_NAME= 8,
+  DIAG_CURSOR_NAME= 9,
+  DIAG_MESSAGE_TEXT= 10,
+  DIAG_MYSQL_ERRNO= 11,
+  LAST_DIAG_SET_PROPERTY= DIAG_MYSQL_ERRNO
+} Diag_condition_item_name;
+
+/**
+  Name of each diagnostic condition item.
+  This array is indexed by Diag_condition_item_name.
+*/
+extern const LEX_STRING Diag_condition_item_names[];
 
 #include "sql_lex.h"				/* Must be here */
 
@@ -1038,12 +1073,12 @@ protected:
 
 public:
   /**
-    Handle an error condition.
+    Handle a sql condition.
     This method can be implemented by a subclass to achieve any of the
     following:
-    - mask an error internally, prevent exposing it to the user,
-    - mask an error and throw another one instead.
-    When this method returns true, the error condition is considered
+    - mask a warning/error internally, prevent exposing it to the user,
+    - mask a warning/error and throw another one instead.
+    When this method returns true, the sql condition is considered
     'handled', and will not be propagated to upper layers.
     It is the responsability of the code installing an internal handler
     to then check for trapped conditions, and implement logic to recover
@@ -1057,15 +1092,17 @@ public:
     before removing it from the exception stack with
     <code>THD::pop_internal_handler()</code>.
 
-    @param sql_errno the error number
-    @param level the error level
     @param thd the calling thread
-    @return true if the error is handled
+    @param cond the condition raised.
+    @return true if the condition is handled
   */
-  virtual bool handle_error(uint sql_errno,
-                            const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd) = 0;
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl) = 0;
+
 private:
   Internal_error_handler *m_prev_internal_handler;
   friend class THD;
@@ -1080,10 +1117,12 @@ private:
 class Dummy_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_error(uint sql_errno,
-                    const char *message,
-                    MYSQL_ERROR::enum_warning_level level,
-                    THD *thd)
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl)
   {
     /* Ignore error */
     return TRUE;
@@ -1092,119 +1131,29 @@ public:
 
 
 /**
-  Stores status of the currently executed statement.
-  Cleared at the beginning of the statement, and then
-  can hold either OK, ERROR, or EOF status.
-  Can not be assigned twice per statement.
+  This class is an internal error handler implementation for
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
 */
 
-class Diagnostics_area
+class Drop_table_error_handler : public Internal_error_handler
 {
 public:
-  enum enum_diagnostics_status
-  {
-    /** The area is cleared at start of a statement. */
-    DA_EMPTY= 0,
-    /** Set whenever one calls my_ok(). */
-    DA_OK,
-    /** Set whenever one calls my_eof(). */
-    DA_EOF,
-    /** Set whenever one calls my_error() or my_message(). */
-    DA_ERROR,
-    /** Set in case of a custom response, such as one from COM_STMT_PREPARE. */
-    DA_DISABLED
-  };
-  /** True if status information is sent to the client. */
-  bool is_sent;
-  /** Set to make set_error_status after set_{ok,eof}_status possible. */
-  bool can_overwrite_status;
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
 
-  void set_ok_status(THD *thd, ha_rows affected_rows_arg,
-                     ulonglong last_insert_id_arg,
-                     const char *message);
-  void set_eof_status(THD *thd);
-  void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg);
-
-  void disable_status();
-
-  void reset_diagnostics_area();
-
-  bool is_set() const { return m_status != DA_EMPTY; }
-  bool is_error() const { return m_status == DA_ERROR; }
-  bool is_eof() const { return m_status == DA_EOF; }
-  bool is_ok() const { return m_status == DA_OK; }
-  bool is_disabled() const { return m_status == DA_DISABLED; }
-  enum_diagnostics_status status() const { return m_status; }
-
-  const char *message() const
-  { DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK); return m_message; }
-
-  uint sql_errno() const
-  { DBUG_ASSERT(m_status == DA_ERROR); return m_sql_errno; }
-
-  uint server_status() const
-  {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_server_status;
-  }
-
-  ha_rows affected_rows() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
-
-  ulonglong last_insert_id() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
-
-  uint total_warn_count() const
-  {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_total_warn_count;
-  }
-
-  Diagnostics_area() { reset_diagnostics_area(); }
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
 
 private:
-  /** Message buffer. Can be used by OK or ERROR status. */
-  char m_message[MYSQL_ERRMSG_SIZE];
-  /**
-    SQL error number. One of ER_ codes from share/errmsg.txt.
-    Set by set_error_status.
-  */
-  uint m_sql_errno;
-
-  /**
-    Copied from thd->server_status when the diagnostics area is assigned.
-    We need this member as some places in the code use the following pattern:
-    thd->server_status|= ...
-    my_eof(thd);
-    thd->server_status&= ~...
-    Assigned by OK, EOF or ERROR.
-  */
-  uint m_server_status;
-  /**
-    The number of rows affected by the last statement. This is
-    semantically close to thd->row_count_func, but has a different
-    life cycle. thd->row_count_func stores the value returned by
-    function ROW_COUNT() and is cleared only by statements that
-    update its value, such as INSERT, UPDATE, DELETE and few others.
-    This member is cleared at the beginning of the next statement.
-
-    We could possibly merge the two, but life cycle of thd->row_count_func
-    can not be changed.
-  */
-  ha_rows    m_affected_rows;
-  /**
-    Similarly to the previous member, this is a replacement of
-    thd->first_successful_insert_id_in_prev_stmt, which is used
-    to implement LAST_INSERT_ID().
-  */
-  ulonglong   m_last_insert_id;
-  /** The total number of warnings. */
-  uint	     m_total_warn_count;
-  enum_diagnostics_status m_status;
-  /**
-    @todo: the following THD members belong here:
-    - warn_list, warn_count,
-  */
+  Internal_error_handler *m_err_handler;
 };
 
 
@@ -1234,6 +1183,7 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
+extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 /**
   @class THD
@@ -1276,7 +1226,6 @@ public:
   struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
-  MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
@@ -1692,16 +1641,8 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
-  /*
-    FIXME: this, and some other variables like 'count_cuted_fields'
-    maybe should be statement/cursor local, that is, moved to Statement
-    class. With current implementation warnings produced in each prepared
-    statement/cursor settle here.
-  */
-  List	     <MYSQL_ERROR> warn_list;
-  uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
-  uint	     total_warn_count;
-  Diagnostics_area main_da;
+  Warning_info *warning_info;
+  Diagnostics_area *stmt_da;
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   PROFILING  profiling;
 #endif
@@ -1714,7 +1655,7 @@ public:
     from table are necessary for this select, to check if it's necessary to
     update auto-updatable fields (like auto_increment and timestamp).
   */
-  query_id_t query_id, warn_id;
+  query_id_t query_id;
   ulong      col_access;
 
 #ifdef ERROR_INJECT_SUPPORT
@@ -1723,11 +1664,6 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  /*
-    Row counter, mainly for errors and warnings. Not increased in
-    create_sort_index(); may differ from examined_row_count.
-  */
-  ulong      row_count;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
   uint	     tmp_table, global_read_lock;
@@ -2031,8 +1967,8 @@ public:
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    if (main_da.is_error())
-      main_da.reset_diagnostics_area();
+    if (stmt_da->is_error())
+      stmt_da->reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -2064,7 +2000,7 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return main_da.is_error(); }
+  inline bool is_error() const { return stmt_da->is_error(); }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
@@ -2260,19 +2196,107 @@ public:
   void push_internal_handler(Internal_error_handler *handler);
 
   /**
-    Handle an error condition.
-    @param sql_errno the error number
-    @param level the error level
-    @return true if the error is handled
+    Handle a sql condition.
+    @param sql_errno the condition error number
+    @param sqlstate the condition sqlstate
+    @param level the condition level
+    @param msg the condition message text
+    @param[out] cond_hdl the sql condition raised, if any
+    @return true if the condition is handled
   */
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level);
+  virtual bool handle_condition(uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
 
   /**
     Remove the error handler last pushed.
   */
   void pop_internal_handler();
 
+  /**
+    Raise an exception condition.
+    @param code the MYSQL_ERRNO error code of the error
+  */
+  void raise_error(uint code);
+
+  /**
+    Raise an exception condition, with a formatted message.
+    @param code the MYSQL_ERRNO error code of the error
+  */
+  void raise_error_printf(uint code, ...);
+
+  /**
+    Raise a completion condition (warning).
+    @param code the MYSQL_ERRNO error code of the warning
+  */
+  void raise_warning(uint code);
+
+  /**
+    Raise a completion condition (warning), with a formatted message.
+    @param code the MYSQL_ERRNO error code of the warning
+  */
+  void raise_warning_printf(uint code, ...);
+
+  /**
+    Raise a completion condition (note), with a fixed message.
+    @param code the MYSQL_ERRNO error code of the note
+  */
+  void raise_note(uint code);
+
+  /**
+    Raise an completion condition (note), with a formatted message.
+    @param code the MYSQL_ERRNO error code of the note
+  */
+  void raise_note_printf(uint code, ...);
+
+private:
+  /*
+    Only the implementation of the SIGNAL and RESIGNAL statements
+    is permitted to raise SQL conditions in a generic way,
+    or to raise them by bypassing handlers (RESIGNAL).
+    To raise a SQL condition, the code should use the public
+    raise_error() or raise_warning() methods provided by class THD.
+  */
+  friend class Signal_common;
+  friend class Signal_statement;
+  friend class Resignal_statement;
+  friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
+  friend void my_message_sql(uint, const char *, myf);
+
+  /**
+    Raise a generic SQL condition.
+    @param sql_errno the condition error number
+    @param sqlstate the condition SQLSTATE
+    @param level the condition level
+    @param msg the condition message text
+    @return The condition raised, or NULL
+  */
+  MYSQL_ERROR*
+  raise_condition(uint sql_errno,
+                  const char* sqlstate,
+                  MYSQL_ERROR::enum_warning_level level,
+                  const char* msg);
+
+  /**
+    Raise a generic SQL condition, without activation any SQL condition
+    handlers.
+    This method is necessary to support the RESIGNAL statement,
+    which is allowed to bypass SQL exception handlers.
+    @param sql_errno the condition error number
+    @param sqlstate the condition SQLSTATE
+    @param level the condition level
+    @param msg the condition message text
+    @return The condition raised, or NULL
+  */
+  MYSQL_ERROR*
+  raise_condition_no_handler(uint sql_errno,
+                             const char* sqlstate,
+                             MYSQL_ERROR::enum_warning_level level,
+                             const char* msg);
+
+public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
 
@@ -2300,25 +2324,27 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
+  Warning_info main_warning_info;
+  Diagnostics_area main_da;
 };
 
 
-/** A short cut for thd->main_da.set_ok_status(). */
+/** A short cut for thd->stmt_da->set_ok_status(). */
 
 inline void
-my_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
+my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
-  thd->main_da.set_ok_status(thd, affected_rows, id, message);
+  thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
 }
 
 
-/** A short cut for thd->main_da.set_eof_status(). */
+/** A short cut for thd->stmt_da->set_eof_status(). */
 
 inline void
 my_eof(THD *thd)
 {
-  thd->main_da.set_eof_status(thd);
+  thd->stmt_da->set_eof_status(thd);
 }
 
 #define tmp_disable_binlog(A)       \
@@ -2986,11 +3012,11 @@ public:
 
 /* Bits in sql_command_flags */
 
-#define CF_CHANGES_DATA		1
-#define CF_HAS_ROW_COUNT	2
-#define CF_STATUS_COMMAND	4
-#define CF_SHOW_TABLE_COMMAND	8
-#define CF_WRITE_LOGS_COMMAND  16
+#define CF_CHANGES_DATA           (1U << 0)
+#define CF_HAS_ROW_COUNT          (1U << 1)
+#define CF_STATUS_COMMAND         (1U << 2)
+#define CF_SHOW_TABLE_COMMAND     (1U << 3)
+#define CF_WRITE_LOGS_COMMAND     (1U << 4)
 /**
   Must be set for SQL statements that may contain
   Item expressions and/or use joins and tables.
@@ -3004,7 +3030,17 @@ public:
   reprepare. Consequently, complex item expressions and
   joins are currently prohibited in these statements.
 */
-#define CF_REEXECUTION_FRAGILE 32
+#define CF_REEXECUTION_FRAGILE    (1U << 5)
+
+/**
+  Diagnostic statement.
+  Diagnostic statements:
+  - SHOW WARNING
+  - SHOW ERROR
+  - GET DIAGNOSTICS (WL#2111)
+  do not modify the diagnostics area during execution.
+*/
+#define CF_DIAGNOSTIC_STMT        (1U << 8)
 
 /* Functions in sql_class.cc */
 

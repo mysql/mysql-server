@@ -623,3 +623,195 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
 
+if (!$skip_negative_auto_inc)
+{
+--echo #############################################################################
+--echo # Bug #45823 - Assertion failure in file row/row0mysql.c line 1386
+--echo # Bug #43988 - AUTO_INCREMENT errors with partitioned InnoDB tables in 5.1.31
+--echo ##############################################################################
+
+--echo # Inserting negative autoincrement values into a partition table (partitions >= 4)
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t(c2) VALUES (40);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Reading from a partition table (partitions >= 2 ) after inserting a negative
+--echo # value into the auto increment column
+
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 2;
+
+INSERT INTO t VALUES (-2,-20);
+INSERT INTO t(c2) VALUES (30);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Inserting negative auto increment value into a partition table (partitions >= 2)
+--echo # auto increment value > 2.
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 2;
+
+INSERT INTO t VALUES (-4,-20);
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t(c2) VALUES (40);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Inserting -1 into autoincrement column of a partition table (partition >= 4)
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+INSERT INTO t(c2) VALUES (30);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Deleting from an auto increment table after inserting negative values
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4; 
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t VALUES (-3,-20);
+INSERT INTO t(c2) VALUES (40);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+if (!$skip_delete)
+{ 
+DELETE FROM t WHERE c1 > 1;
+}
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Inserting a positive value that exceeds maximum allowed value for an
+--echo # Auto Increment column (positive maximum)
+
+eval CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (126,30);
+INSERT INTO t VALUES (127,40);
+
+--error ER_DUP_ENTRY
+INSERT INTO t VALUES (128,50);
+--error ER_DUP_ENTRY 
+INSERT INTO t VALUES (129,60);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Inserting a negative value that goes below minimum allowed value for an
+--echo # Auto Increment column (negative minimum)
+
+eval CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-127,30);
+INSERT INTO t VALUES (-128,40);
+
+--error ER_DUP_ENTRY
+INSERT INTO t VALUES (-129,50);
+--error ER_DUP_ENTRY
+INSERT INTO t VALUES (-130,60);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Updating the partition table with a negative Auto Increment value
+
+eval CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+INSERT INTO t(c2) VALUES (30);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+if (!$skip_update)
+{ 
+UPDATE t SET c1 = -6 WHERE c1 = 2;
+}
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+INSERT INTO t(c2) VALUES (40);
+INSERT INTO t(c2) VALUES (50);
+
+if (!$skip_update)
+{ 
+UPDATE t SET c1 = -6 WHERE c1 = 2;
+}
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo # Updating the partition table with a value that crosses the upper limits
+--echo # on both the positive and the negative side.
+
+eval CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+  c2 INT) ENGINE=$engine PARTITION BY HASH(c1) PARTITIONS 4;
+
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (126,30);
+INSERT INTO t VALUES (127,40);
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+if (!$skip_update)
+{ 
+UPDATE t SET c1 = 130 where c1 = 127;
+}
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+if (!$skip_update)
+{ 
+UPDATE t SET c1 = -140 where c1 = 126;
+}
+
+SELECT * FROM t ORDER BY c1 ASC;
+
+DROP TABLE t;
+
+--echo ##############################################################################
+}
