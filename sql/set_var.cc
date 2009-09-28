@@ -1238,6 +1238,7 @@ void fix_slave_exec_mode(enum_var_type type)
   }
   if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3132,17 +3133,13 @@ static int check_pseudo_thread_id(THD *thd, set_var *var)
 
 static uchar *get_warning_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value=
-    (thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
-     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
-     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
+  thd->sys_var_tmp.long_value= thd->warning_info->warn_count();
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 
 static uchar *get_error_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value= 
-    thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
+  thd->sys_var_tmp.long_value= thd->warning_info->error_count();
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 

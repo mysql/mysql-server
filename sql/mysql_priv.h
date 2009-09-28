@@ -128,6 +128,10 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 
+/**
+  Character set of the buildin error messages loaded from errmsg.sys.
+*/
+extern CHARSET_INFO *error_message_charset_info;
 
 enum Derivation
 {
@@ -2279,7 +2283,8 @@ enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
   EXPLAIN_PARTITIONS_VERBOSE,
-  EXPLAIN_PARTITIONS_AS_COMMENT
+  EXPLAIN_PARTITIONS_AS_COMMENT,
+  EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING
 };
 uint explain_filename(const char *from, char *to, uint to_length,
                       enum_explain_filename_mode explain_mode);

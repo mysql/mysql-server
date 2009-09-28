@@ -44,9 +44,12 @@ public:
 
   virtual ~Prelock_error_handler() {}
 
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
 
   bool safely_trapped_errors();
 
@@ -57,11 +60,14 @@ private:
 
 
 bool
-Prelock_error_handler::handle_error(uint sql_errno,
-                                    const char * /* message */,
-                                    MYSQL_ERROR::enum_warning_level /* level */,
-                                    THD * /* thd */)
+Prelock_error_handler::handle_condition(THD *,
+                                        uint sql_errno,
+                                        const char*,
+                                        MYSQL_ERROR::enum_warning_level,
+                                        const char*,
+                                        MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE)
   {
     m_handled_errors++;
@@ -473,7 +479,7 @@ static TABLE_SHARE
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
 
     DBUG_RETURN(share);
 
@@ -520,7 +526,7 @@ static TABLE_SHARE
     DBUG_RETURN(0);
   }
   /* Table existed in engine. Let's open it */
-  mysql_reset_errors(thd, 1);                   // Clear warnings
+  thd->warning_info->clear_warning_info(thd->query_id);
   thd->clear_error();                           // Clear error message
   DBUG_RETURN(get_table_share(thd, table_list, key, key_length,
                               db_flags, error));
@@ -1281,9 +1287,9 @@ void close_thread_tables(THD *thd)
    */
   if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
-    thd->main_da.can_overwrite_status= TRUE;
+    thd->stmt_da->can_overwrite_status= TRUE;
     ha_autocommit_or_rollback(thd, thd->is_error());
-    thd->main_da.can_overwrite_status= FALSE;
+    thd->stmt_da->can_overwrite_status= FALSE;
 
     /*
       Reset transaction state, but only if we're not inside a
@@ -1515,21 +1521,23 @@ void close_temporary_tables(THD *thd)
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
-      /*
-        Loop forward through all tables within the sublist of
-        common pseudo_thread_id to create single DROP query.
+      String db;
+      db.append(table->s->db.str);
+      /* Loop forward through all tables that belong to a common database
+         within the sublist of common pseudo_thread_id to create single
+         DROP query 
       */
       for (s_query.length(stub_len);
            table && is_user_table(table) &&
-             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
+             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
+             table->s->db.length == db.length() &&
+             strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
         /*
-          We are going to add 4 ` around the db/table names and possible more
-          due to special characters in the names
+          We are going to add ` around the table names and possible more
+          due to special characters
         */
-        append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
         s_query.append(',');
@@ -1542,6 +1550,7 @@ void close_temporary_tables(THD *thd)
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
+      qinfo.db= db.ptr();
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
@@ -3943,7 +3952,7 @@ retry:
       release_table_share(share, RELEASE_WAIT_FOR_DROP);
       if (!thd->killed)
       {
-        mysql_reset_errors(thd, 1);         // Clear warnings
+        thd->warning_info->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         goto retry;
       }

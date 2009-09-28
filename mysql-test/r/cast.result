@@ -380,7 +380,7 @@ select cast(s1 as decimal(7,2)) from t1;
 cast(s1 as decimal(7,2))
 99999.99
 Warnings:
-Error	1264	Out of range value for column 'cast(s1 as decimal(7,2))' at row 1
+Warning	1264	Out of range value for column 'cast(s1 as decimal(7,2))' at row 1
 drop table t1;
 CREATE TABLE t1 (v varchar(10), tt tinytext, t text,
 mt mediumtext, lt longtext);

@@ -33,7 +33,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
   if (!(line_buff=(LINE_BUFFER*)
         my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
     return 0;
-  if (init_line_buffer(line_buff,fileno(file),IO_SIZE,max_size))
+  if (init_line_buffer(line_buff,my_fileno(file),IO_SIZE,max_size))
   {
     my_free(line_buff,MYF(0));
     return 0;

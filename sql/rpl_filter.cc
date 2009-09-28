@@ -350,6 +350,7 @@ Rpl_filter::add_do_db(const char* table_spec)
   DBUG_ENTER("Rpl_filter::add_do_db");
   i_string *db = new i_string(table_spec);
   do_db.push_back(db);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -359,6 +360,7 @@ Rpl_filter::add_ignore_db(const char* table_spec)
   DBUG_ENTER("Rpl_filter::add_ignore_db");
   i_string *db = new i_string(table_spec);
   ignore_db.push_back(db);
+  DBUG_VOID_RETURN;
 }
 
 extern "C" uchar *get_table_key(const uchar *, size_t *, my_bool);

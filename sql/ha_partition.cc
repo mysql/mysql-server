@@ -239,6 +239,7 @@ void ha_partition::init_handler_variables()
   m_curr_key_info[0]= NULL;
   m_curr_key_info[1]= NULL;
   is_clone= FALSE,
+  m_part_func_monotonicity_info= NON_MONOTONIC;
   auto_increment_lock= FALSE;
   auto_increment_safe_stmt_log_lock= FALSE;
   /*
@@ -705,6 +706,7 @@ int ha_partition::rename_partitions(const char *path)
       if (m_is_sub_partitioned)
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        j= 0;
         do
         {
           sub_elem= sub_it++;
@@ -2521,11 +2523,18 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     }
   }
 
+  /* Initialize the bitmap we use to minimize ha_start_bulk_insert calls */
+  if (bitmap_init(&m_bulk_insert_started, NULL, m_tot_parts + 1, FALSE))
+    DBUG_RETURN(1);
+  bitmap_clear_all(&m_bulk_insert_started);
   /* Initialize the bitmap we use to determine what partitions are used */
   if (!is_clone)
   {
     if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
+    {
+      bitmap_free(&m_bulk_insert_started);
       DBUG_RETURN(1);
+    }
     bitmap_set_all(&(m_part_info->used_partitions));
   }
 
@@ -2609,12 +2618,18 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     calling open on all individual handlers.
   */
   m_handler_status= handler_opened;
+  if (m_part_info->part_expr)
+    m_part_func_monotonicity_info=
+                            m_part_info->part_expr->get_monotonicity_info();
+  else if (m_part_info->list_of_part_fields)
+    m_part_func_monotonicity_info= MONOTONIC_STRICT_INCREASING;
   info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
   DBUG_RETURN(0);
 
 err_handler:
   while (file-- != m_file)
     (*file)->close();
+  bitmap_free(&m_bulk_insert_started);
   if (!is_clone)
     bitmap_free(&(m_part_info->used_partitions));
 
@@ -2662,6 +2677,7 @@ int ha_partition::close(void)
 
   DBUG_ASSERT(table->s == table_share);
   delete_queue(&m_queue);
+  bitmap_free(&m_bulk_insert_started);
   if (!is_clone)
     bitmap_free(&(m_part_info->used_partitions));
   file= m_file;
@@ -3078,10 +3094,12 @@ int ha_partition::write_row(uchar * buf)
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
+  start_part_bulk_insert(part_id);
+
   tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
   error= m_file[part_id]->ha_write_row(buf);
   if (have_auto_increment && !table->s->next_number_keypart)
-    set_auto_increment_if_higher(table->next_number_field->val_int());
+    set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
 exit:
   table->timestamp_field_type= orig_timestamp_type;
@@ -3140,6 +3158,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
 
   m_last_part= new_part_id;
+  start_part_bulk_insert(new_part_id);
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
@@ -3185,7 +3204,7 @@ exit:
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     if (!ha_data->auto_inc_initialized)
       info(HA_STATUS_AUTO);
-    set_auto_increment_if_higher(table->found_next_number_field->val_int());
+    set_auto_increment_if_higher(table->found_next_number_field);
   }
   table->timestamp_field_type= orig_timestamp_type;
   DBUG_RETURN(error);
@@ -3380,19 +3399,62 @@ int ha_partition::delete_all_rows()
   DESCRIPTION
     rows == 0 means we will probably insert many rows
 */
-
 void ha_partition::start_bulk_insert(ha_rows rows)
 {
-  handler **file;
   DBUG_ENTER("ha_partition::start_bulk_insert");
 
-  rows= rows ? rows/m_tot_parts + 1 : 0;
-  file= m_file;
-  do
-  {
-    (*file)->ha_start_bulk_insert(rows);
-  } while (*(++file));
+  m_bulk_inserted_rows= 0;
+  bitmap_clear_all(&m_bulk_insert_started);
+  /* use the last bit for marking if bulk_insert_started was called */
+  bitmap_set_bit(&m_bulk_insert_started, m_tot_parts);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check if start_bulk_insert has been called for this partition,
+  if not, call it and mark it called
+*/
+void ha_partition::start_part_bulk_insert(uint part_id)
+{
+  if (!bitmap_is_set(&m_bulk_insert_started, part_id) &&
+      bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
+  {
+    m_file[part_id]->ha_start_bulk_insert(guess_bulk_insert_rows());
+    bitmap_set_bit(&m_bulk_insert_started, part_id);
+  }
+  m_bulk_inserted_rows++;
+}
+
+
+/*
+  Try to predict the number of inserts into this partition.
+
+  If less than 10 rows (including 0 which means Unknown)
+    just give that as a guess
+  If monotonic partitioning function was used
+    guess that 50 % of the inserts goes to the first partition
+  For all other cases, guess on equal distribution between the partitions
+*/ 
+ha_rows ha_partition::guess_bulk_insert_rows()
+{
+  DBUG_ENTER("guess_bulk_insert_rows");
+
+  if (estimation_rows_to_insert < 10)
+    DBUG_RETURN(estimation_rows_to_insert);
+
+  /* If first insert/partition and monotonic partition function, guess 50%.  */
+  if (!m_bulk_inserted_rows && 
+      m_part_func_monotonicity_info != NON_MONOTONIC &&
+      m_tot_parts > 1)
+    DBUG_RETURN(estimation_rows_to_insert / 2);
+
+  /* Else guess on equal distribution (+1 is to avoid returning 0/Unknown) */
+  if (m_bulk_inserted_rows < estimation_rows_to_insert)
+    DBUG_RETURN(((estimation_rows_to_insert - m_bulk_inserted_rows)
+                / m_tot_parts) + 1);
+  /* The estimation was wrong, must say 'Unknown' */
+  DBUG_RETURN(0);
 }
 
 
@@ -3405,21 +3467,29 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   RETURN VALUE
     >0                      Error code
     0                       Success
+
+  Note: end_bulk_insert can be called without start_bulk_insert
+        being called, see bug¤44108.
+
 */
 
 int ha_partition::end_bulk_insert()
 {
   int error= 0;
-  handler **file;
+  uint i;
   DBUG_ENTER("ha_partition::end_bulk_insert");
 
-  file= m_file;
-  do
+  if (!bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
+    DBUG_RETURN(error);
+
+  for (i= 0; i < m_tot_parts; i++)
   {
     int tmp;
-    if ((tmp= (*file)->ha_end_bulk_insert()))
+    if (bitmap_is_set(&m_bulk_insert_started, i) &&
+        (tmp= m_file[i]->ha_end_bulk_insert()))
       error= tmp;
-  } while (*(++file));
+  }
+  bitmap_clear_all(&m_bulk_insert_started);
   DBUG_RETURN(error);
 }
 

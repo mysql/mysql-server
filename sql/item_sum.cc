@@ -3102,6 +3102,8 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
       result->append(*res);
   }
 
+  item->row_count++;
+
   /* stop if length of result more than max_length */
   if (result->length() > item->max_length)
   {
@@ -3120,8 +3122,11 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
                                           result->length(),
                                           &well_formed_error);
     result->length(old_length + add_length);
-    item->count_cut_values++;
     item->warning_for_row= TRUE;
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        item->row_count);
+
     return 1;
   }
   return 0;
@@ -3141,12 +3146,12 @@ Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
                        SQL_LIST *order_list, String *separator_arg)
-  :tmp_table_param(0), warning(0),
-   separator(separator_arg), tree(0), unique_filter(NULL), table(0),
+  :tmp_table_param(0), separator(separator_arg), tree(0),
+   unique_filter(NULL), table(0),
    order(0), context(context_arg),
    arg_count_order(order_list ? order_list->elements : 0),
    arg_count_field(select_list->elements),
-   count_cut_values(0),
+   row_count(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
    force_copy_fields(0), original(0)
@@ -3200,7 +3205,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
                                                Item_func_group_concat *item)
   :Item_sum(thd, item),
   tmp_table_param(item->tmp_table_param),
-  warning(item->warning),
   separator(item->separator),
   tree(item->tree),
   unique_filter(item->unique_filter),
@@ -3209,7 +3213,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
-  count_cut_values(item->count_cut_values),
+  row_count(item->row_count),
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
@@ -3226,15 +3230,6 @@ void Item_func_group_concat::cleanup()
 {
   DBUG_ENTER("Item_func_group_concat::cleanup");
   Item_sum::cleanup();
-
-  /* Adjust warning message to include total number of cut values */
-  if (warning)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
-    warning->set_msg(current_thd, warn_buff);
-    warning= 0;
-  }
 
   /*
     Free table and tree if they belong to this item (if item have not pointer
@@ -3259,15 +3254,8 @@ void Item_func_group_concat::cleanup()
         delete unique_filter;
         unique_filter= NULL;
       }
-      if (warning)
-      {
-        char warn_buff[MYSQL_ERRMSG_SIZE];
-        sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
-        warning->set_msg(thd, warn_buff);
-        warning= 0;
-      }
     }
-    DBUG_ASSERT(tree == 0 && warning == 0);
+    DBUG_ASSERT(tree == 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -3556,17 +3544,6 @@ String* Item_func_group_concat::val_str(String* str)
     /* Tree is used for sorting as in ORDER BY */
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);
-  if (count_cut_values && !warning)
-  {
-    /*
-      ER_CUT_VALUE_GROUP_CONCAT needs an argument, but this gets set in
-      Item_func_group_concat::cleanup().
-    */
-    DBUG_ASSERT(table);
-    warning= push_warning(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_CUT_VALUE_GROUP_CONCAT,
-                          ER(ER_CUT_VALUE_GROUP_CONCAT));
-  }
   return &result;
 }
 

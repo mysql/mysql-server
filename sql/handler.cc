@@ -1313,7 +1313,7 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->ha_list= 0;
     trans->no_2pc=0;
     if (is_real_trans && thd->transaction_rollback_request)
-      thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
+      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
   }
@@ -1886,11 +1886,41 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
+
+/**
+  @brief make canonical filename
+
+  @param[in]  file     table handler
+  @param[in]  path     original path
+  @param[out] tmp_path buffer for canonized path
+
+  @details Lower case db name and table name path parts for
+           non file based tables when lower_case_table_names
+           is 2 (store as is, compare in lower case).
+           Filesystem path prefix (mysql_data_home or tmpdir)
+           is left intact.
+
+  @note tmp_path may be left intact if no conversion was
+        performed.
+
+  @retval canonized path
+
+  @todo This may be done more efficiently when table path
+        gets built. Convert this function to something like
+        ASSERT_CANONICAL_FILENAME.
+*/
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path)
 {
+  uint i;
   if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
     return path;
+
+  for (i= 0; i <= mysql_tmpdir_list.max; i++)
+  {
+    if (is_prefix(path, mysql_tmpdir_list.list[i]))
+      return path;
+  }
 
   /* Ensure that table handler get path in lower case */
   if (tmp_path != path)
@@ -1914,23 +1944,28 @@ const char *get_canonical_filename(handler *file, const char *path,
 struct Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_error(uint sql_errno,
-                            const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
 };
 
 
 bool
 Ha_delete_table_error_handler::
-handle_error(uint sql_errno,
-             const char *message,
-             MYSQL_ERROR::enum_warning_level level,
-             THD *thd)
+handle_condition(THD *,
+                 uint,
+                 const char*,
+                 MYSQL_ERROR::enum_warning_level,
+                 const char* msg,
+                 MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   /* Grab the error message */
-  strmake(buff, message, sizeof(buff)-1);
+  strmake(buff, msg, sizeof(buff)-1);
   return TRUE;
 }
 
@@ -1989,7 +2024,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
