@@ -196,19 +196,6 @@ private:
     ulonglong deleted_rows;
 
 
-    //
-    // count on number of rows inserted by statement
-    // this is to help give user progress on what is happening
-    // the reason that the variables added_rows and deleted_rows
-    // are not used is that those variables are also used to help
-    // estimate the number of rows in the DB. There are tricky things that
-    // can happen with "lock tables", so I do not want to couple these
-    // two features together. There is a little duplicate work, but I think it is fine
-    //
-    ulonglong num_added_rows_in_stmt;
-    ulonglong num_deleted_rows_in_stmt;
-    ulonglong num_updated_rows_in_stmt;
-
     uint last_dup_key;
     //
     // if set to 0, then the primary key is not hidden
@@ -444,6 +431,8 @@ public:
     int prefix_cmp_dbts( uint keynr, const DBT* first_key, const DBT* second_key) {
         return tokudb_prefix_cmp_dbt_key(share->key_file[keynr], first_key, second_key);
     }
+
+    void track_progress(THD* thd);
 
     int heavi_ret_val;
 
