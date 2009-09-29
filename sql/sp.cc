@@ -70,9 +70,6 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
-/* Tells what SP_DEFAULT_ACCESS should be mapped to */
-#define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
-
 /*************************************************************************/
 
 /**

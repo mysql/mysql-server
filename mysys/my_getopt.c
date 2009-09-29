@@ -20,6 +20,7 @@
 #include <mysys_err.h>
 #include <my_getopt.h>
 #include <errno.h>
+#include <m_string.h>
 
 typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
                             longlong value);
@@ -115,7 +116,7 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
-  char **pos, **pos_end, *optend, *prev_found,
+  char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
   uchar* *value;
@@ -649,8 +650,18 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
-        return EXIT_ARGUMENT_INVALID;
+      if (((*(int*)result_pos)=
+             find_type(argument, opts->typelib, 2) - 1) < 0)
+      {
+        /*
+          Accept an integer representation of the enumerated item.
+        */
+        char *endptr;
+        unsigned int arg= (unsigned int) strtol(argument, &endptr, 10);
+        if (*endptr || arg >= opts->typelib->count)
+          return EXIT_ARGUMENT_INVALID;
+        *(int*)result_pos= arg;
+      }
       break;
     case GET_SET:
       *((ulonglong*)result_pos)= find_typeset(argument, opts->typelib, &err);

@@ -14,6 +14,7 @@ create table t2 select * from t1 procedure analyse();
 select * from t2;
 drop table t1,t2;
 
+--error ER_WRONG_USAGE
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
 
 #
@@ -101,5 +102,14 @@ select f1 from t1 procedure analyse(1, 1);
 select f2 from t1 procedure analyse(1, 1);
 select f3 from t1 procedure analyse(1, 1);
 drop table t1;
+
+#
+# Bug#46184 Crash, SELECT ... FROM derived table procedure analyze
+#
+CREATE TABLE t1(a INT,b INT,c INT,d INT,e INT,f INT,g INT,h INT,i INT,j INT,k INT);
+INSERT INTO t1 VALUES ();
+--error ER_WRONG_USAGE
+SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
+DROP TABLE t1;
 
 --echo End of 4.1 tests

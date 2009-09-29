@@ -1,0 +1,26 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+source suite/ibmdb2i/include/have_i61.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (c char(10), index(c)) collate ucs2_czech_ci engine=ibmdb2i;
+insert into t1 values ("ch"),("h"),("i");
+select * from t1 order by c;
+drop table t1;
+
+create table t1 (c char(10), index(c)) collate utf8_czech_ci engine=ibmdb2i;
+insert into t1 values ("ch"),("h"),("i");
+select * from t1 order by c;
+drop table t1;
+
+create table t1 (c char(10), index(c)) collate ucs2_danish_ci engine=ibmdb2i;           
+insert into t1 values("abc"),("abcd"),("aaaa"); 
+select c from t1 order by c;
+drop table t1;
+
+create table t1 (c char(10), index(c)) collate utf8_danish_ci engine=ibmdb2i;           
+insert into t1 values("abc"),("abcd"),("aaaa"); 
+select c from t1 order by c;
+drop table t1;

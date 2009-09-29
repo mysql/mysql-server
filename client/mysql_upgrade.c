@@ -54,6 +54,8 @@ static char **defaults_argv;
 
 static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
+static my_bool opt_write_binlog;
+
 #include <help_start.h>
 
 static struct my_option my_long_options[]=
@@ -124,6 +126,11 @@ static struct my_option my_long_options[]=
   {"verbose", 'v', "Display more output about the process",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"write-binlog", OPT_WRITE_BINLOG,
+   "All commands including mysqlcheck are binlogged. Enabled by default;"
+   "use --skip-write-binlog when commands should not be sent to replication slaves.",
+   (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -253,8 +260,12 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 
   case 'b': /* --basedir   */
-  case 'v': /* --verbose   */
   case 'd': /* --datadir   */
+    fprintf(stderr, "%s: the '--%s' option is always ignored\n",
+            my_progname, optid == 'b' ? "basedir" : "datadir");
+    /* FALLTHROUGH */
+
+  case 'v': /* --verbose   */
   case 'f': /* --force     */
     add_option= FALSE;
     break;
@@ -444,12 +455,30 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
   int ret;
   File fd;
   char query_file_path[FN_REFLEN];
+  const uchar sql_log_bin[]= "SET SQL_LOG_BIN=0;";
+
   DBUG_ENTER("run_query");
   DBUG_PRINT("enter", ("query: %s", query));
   if ((fd= create_temp_file(query_file_path, opt_tmpdir,
                             "sql", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");
+
+  /*
+    Master and slave should be upgraded separately. All statements executed
+    by mysql_upgrade will not be binlogged.
+    'SET SQL_LOG_BIN=0' is executed before any other statements.
+   */
+  if (!opt_write_binlog)
+  {
+    if (my_write(fd, sql_log_bin, sizeof(sql_log_bin)-1,
+                 MYF(MY_FNABP | MY_WME)))
+    {
+      my_close(fd, MYF(0));
+      my_delete(query_file_path, MYF(0));
+      die("Failed to write to '%s'", query_file_path);
+    }
+  }
 
   if (my_write(fd, (uchar*) query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
@@ -548,6 +577,7 @@ static int upgrade_already_done(void)
   FILE *in;
   char upgrade_info_file[FN_REFLEN]= {0};
   char buf[sizeof(MYSQL_SERVER_VERSION)+1];
+  char *res;
 
   if (get_upgrade_info_file_name(upgrade_info_file))
     return 0; /* Could not get filename => not sure */
@@ -560,7 +590,7 @@ static int upgrade_already_done(void)
     will be detected by the strncmp
   */
   bzero(buf, sizeof(buf));
-  fgets(buf, sizeof(buf), in);
+  res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));
 
@@ -643,6 +673,7 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 
@@ -657,6 +688,7 @@ static int run_mysqlcheck_fixnames(void)
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 

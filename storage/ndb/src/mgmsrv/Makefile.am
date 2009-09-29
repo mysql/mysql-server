@@ -48,7 +48,7 @@ LDADD_LOC = $(top_builddir)/storage/ndb/src/mgmclient/CommandInterpreter.lo \
 	    @TERMCAP_LIB@
 
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\""
 

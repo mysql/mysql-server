@@ -408,29 +408,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-/**
-  Execute commands from bootstrap_file.
-
-  Used when creating the initial grant tables.
-*/
-
-pthread_handler_t handle_bootstrap(void *arg)
+static void handle_bootstrap_impl(THD *thd)
 {
-  THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
   const char* found_semicolon= NULL;
 
-  /* The following must be called before DBUG_ENTER */
-  thd->thread_stack= (char*) &thd;
-  if (my_thread_init() || thd->store_globals())
-  {
-#ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-#endif
-    thd->fatal_error();
-    goto end;
-  }
   DBUG_ENTER("handle_bootstrap");
 
 #ifndef EMBEDDED_LIBRARY
@@ -457,6 +440,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
+    char *query, *res;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -473,7 +457,7 @@ pthread_handler_t handle_bootstrap(void *arg)
         break;
       }
       buff= (char*) thd->net.buff;
-      fgets(buff + length, thd->net.max_packet - length, file);
+      res= fgets(buff + length, thd->net.max_packet - length, file);
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }
@@ -489,11 +473,10 @@ pthread_handler_t handle_bootstrap(void *arg)
     if (strncmp(buff, STRING_WITH_LEN("delimiter")) == 0)
       continue;
 
-    thd->query_length=length;
-    thd->query= (char*) thd->memdup_w_gap(buff, length+1, 
-                                          thd->db_length+1+
-                                          QUERY_CACHE_FLAGS_SIZE);
-    thd->query[length] = '\0';
+    query= (char *) thd->memdup_w_gap(buff, length + 1,
+                                      thd->db_length + 1 +
+                                      QUERY_CACHE_FLAGS_SIZE);
+    thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.start_new_query();
@@ -525,6 +508,33 @@ pthread_handler_t handle_bootstrap(void *arg)
 #endif
   }
 
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute commands from bootstrap_file.
+
+  Used when creating the initial grant tables.
+*/
+
+pthread_handler_t handle_bootstrap(void *arg)
+{
+  THD *thd=(THD*) arg;
+
+  /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
+  if (my_thread_init() || thd->store_globals())
+  {
+#ifndef EMBEDDED_LIBRARY
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
+    thd->fatal_error();
+    goto end;
+  }
+
+  handle_bootstrap_impl(thd);
+
 end:
   net_end(&thd->net);
   thd->cleanup();
@@ -533,12 +543,14 @@ end:
 #ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  in_bootstrap= FALSE;
   (void) pthread_cond_broadcast(&COND_thread_count);
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 
@@ -658,8 +670,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
-  thd->query_length=(uint) strlen(tbl_name);
-  thd->query = tbl_name;
+  thd->set_query(tbl_name, (uint) strlen(tbl_name));
   if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
@@ -1165,12 +1176,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_EXECUTE:
   {
-    mysql_stmt_execute(thd, packet, packet_length);
+    mysqld_stmt_execute(thd, packet, packet_length);
     break;
   }
   case COM_STMT_FETCH:
   {
-    mysql_stmt_fetch(thd, packet, packet_length);
+    mysqld_stmt_fetch(thd, packet, packet_length);
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
@@ -1180,17 +1191,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length);
+    mysqld_stmt_prepare(thd, packet, packet_length);
     break;
   }
   case COM_STMT_CLOSE:
   {
-    mysql_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysql_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet);
     break;
   }
   case COM_QUERY:
@@ -1239,9 +1250,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
 
+      thd->set_query(beginning_of_next_stmt, length);
       VOID(pthread_mutex_lock(&LOCK_thread_count));
-      thd->query_length= length;
-      thd->query= beginning_of_next_stmt;
       /*
         Count each statement from the client.
       */
@@ -1294,9 +1304,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    thd->query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(thd->query=fields= (char*) thd->memdup(packet,thd->query_length+1)))
+    uint query_length= (uint) (packet_end - packet); // Don't count end \0
+    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
       break;
+    thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
@@ -1350,7 +1361,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
                        is_schema_db(db.str)))
 	break;
-      general_log_print(thd, command, packet);
+      general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
                       &create_info, 0);
@@ -1375,7 +1386,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_write(thd, command, db.str, db.length);
+      general_log_write(thd, command, "%.*s", db.length, db.str);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
@@ -1560,14 +1571,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->main_da.can_overwrite_status= TRUE;
-  ha_autocommit_or_rollback(thd, thd->is_error());
-  thd->main_da.can_overwrite_status= FALSE;
-
-  thd->transaction.stmt.reset();
-
-
   /* report error issued during command execution */
   if (thd->killed_errno())
   {
@@ -1580,6 +1583,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->mysys_var->abort= 0;
   }
 
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
+
+  thd->transaction.stmt.reset();
+
   net_end_statement(thd);
   query_cache_end_of_result(thd);
 
@@ -1590,13 +1600,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd_proc_info(thd, 0);
+  thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  thd->query=0;
-  thd->query_length=0;
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
@@ -1789,6 +1798,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
+  char *query;
   /* Remove garbage at start and end of query */
   while (packet_length > 0 && my_isspace(thd->charset(), packet[0]))
   {
@@ -1803,14 +1813,13 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     packet_length--;
   }
   /* We must allocate some extra memory for query cache */
-  thd->query_length= 0;                        // Extra safety: Avoid races
-  if (!(thd->query= (char*) thd->memdup_w_gap((uchar*) (packet),
-					      packet_length,
-					      thd->db_length+ 1 +
-					      QUERY_CACHE_FLAGS_SIZE)))
-    return TRUE;
-  thd->query[packet_length]=0;
-  thd->query_length= packet_length;
+  if (! (query= (char*) thd->memdup_w_gap(packet,
+                                          packet_length,
+                                          1 + thd->db_length +
+                                          QUERY_CACHE_FLAGS_SIZE)))
+      return TRUE;
+  query[packet_length]= '\0';
+  thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -5171,7 +5180,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+    if ((!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL)) ||
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
@@ -5205,7 +5214,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~sctx->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
-      ! db && dont_check_global_grants)
+      (! db && dont_check_global_grants))
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
@@ -5483,7 +5492,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
       if (!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !check_grant(thd, access, table, 0, 1, 1))
+           !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -5739,7 +5748,7 @@ mysql_new_select(LEX *lex, bool move_down)
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
-    mysql_stmt_prepare.
+    mysqld_stmt_prepare.
   */
   if (thd->stmt_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
@@ -6951,7 +6960,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       continue;
     if (tmp->thread_id == id)
     {
-      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
       break;
     }
   }
@@ -6984,7 +6993,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     }
     else
       error=ER_KILL_DENIED_ERROR;
-    pthread_mutex_unlock(&tmp->LOCK_delete);
+    pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);
@@ -7803,7 +7812,7 @@ bool parse_sql(THD *thd,
   /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              mysql_parse_status && thd->is_error());
+              (mysql_parse_status && thd->is_error()));
 
   /* Reset parser state. */
 

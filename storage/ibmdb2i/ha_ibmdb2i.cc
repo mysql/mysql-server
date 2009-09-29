@@ -2230,34 +2230,19 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
     } 
   }
   
-  bool primaryHasStringField = false;
-
+  String fieldDefinition(128);
+  
   if (table_arg->s->primary_key != MAX_KEY && !isTemporary)
   {
-    KEY& curKey = table_arg->key_info[table_arg->s->primary_key];
-    query.append(STRING_WITH_LEN(", PRIMARY KEY( "));
-    for (int j = 0; j < curKey.key_parts; ++j)
-    {
-      if (j != 0)
-      {
-        query.append( STRING_WITH_LEN(" , ") );
-      }
-      Field* field = curKey.key_part[j].field;
-      convertMySQLNameToDB2Name(field->field_name, colName, sizeof(colName));
-      query.append(colName);
-      enum_field_types type = field->real_type();
-      if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_BLOB ||
-          type == MYSQL_TYPE_STRING)
-      {
-        rc = updateAssociatedSortSequence(field->charset(),
-                                          &fileSortSequenceType,
-                                          fileSortSequence,
-                                          fileSortSequenceLibrary);
-        if (rc) DBUG_RETURN (rc);
-        primaryHasStringField = true;
-      }
-    }
-    query.append(STRING_WITH_LEN(" ) "));
+    query.append(STRING_WITH_LEN(", PRIMARY KEY "));
+    rc = buildIndexFieldList(fieldDefinition, 
+                             table_arg->key_info[table_arg->s->primary_key],
+                             true,
+                             &fileSortSequenceType,
+                             fileSortSequence,
+                             fileSortSequenceLibrary);
+    if (rc) DBUG_RETURN(rc);
+    query.append(fieldDefinition);
   }
 
   rc = buildDB2ConstraintString(thd->lex, 
@@ -2283,6 +2268,19 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   SqlStatementStream sqlStream(query.length());
   sqlStream.addStatement(query,fileSortSequence,fileSortSequenceLibrary);
   
+  if (table_arg->s->primary_key != MAX_KEY && 
+      !isTemporary &&
+      (THDVAR(thd, create_index_option)==1) &&
+      (fileSortSequenceType != 'B') &&
+      (fileSortSequenceType != ' '))
+  {
+    rc = generateShadowIndex(sqlStream, 
+                             table_arg->key_info[table_arg->s->primary_key], 
+                             libName, 
+                             fileName, 
+                             fieldDefinition);
+    if (rc) DBUG_RETURN(rc);
+  }
   for (uint i = 0; i < table_arg->s->keys; ++i)
   {
     if (i != table_arg->s->primary_key || isTemporary)
@@ -3012,52 +3010,27 @@ int32 ha_ibmdb2i::buildCreateIndexStatement(SqlStatementStream& sqlStream,
   }
   
   String fieldDefinition(128);
-  fieldDefinition.length(0);
-  fieldDefinition.append(STRING_WITH_LEN(" ( "));
-  for (int j = 0; j < key.key_parts; ++j)
-  {
-    char colName[MAX_DB2_COLNAME_LENGTH+1];
-    if (j != 0)
-    {
-      fieldDefinition.append(STRING_WITH_LEN(" , "));
-    }
-    Field* field = key.key_part[j].field;
-    convertMySQLNameToDB2Name(field->field_name, colName, sizeof(colName));
-    fieldDefinition.append(colName);
-    rc = updateAssociatedSortSequence(field->charset(),
-                                      &fileSortSequenceType,
-                                      fileSortSequence,
-                                      fileSortSequenceLibrary);
-    if (rc) DBUG_RETURN (rc);
-  }
-  fieldDefinition.append(STRING_WITH_LEN(" ) "));
+  rc = buildIndexFieldList(fieldDefinition,
+                           key,
+                           isPrimary,
+                           &fileSortSequenceType, 
+                           fileSortSequence,
+                           fileSortSequenceLibrary);
   
+  if (rc) DBUG_RETURN(rc);
+   
   query.append(fieldDefinition);
   
   if ((THDVAR(ha_thd(), create_index_option)==1) &&
-      (fileSortSequenceType != 'B'))
+      (fileSortSequenceType != 'B') &&
+      (fileSortSequenceType != ' '))
   {
-    String shadowQuery(256);
-    shadowQuery.length(0);
-    
-    shadowQuery.append(STRING_WITH_LEN("CREATE INDEX "));
-
-    shadowQuery.append(db2LibName);
-    shadowQuery.append('.');
-    if (db2i_table::appendQualifiedIndexFileName(key.name, db2FileName, shadowQuery, db2i_table::ASCII_SQL, typeHex))
-    {
-      getErrTxt(DB2I_ERR_INVALID_NAME,"index","*generated*");
-      DBUG_RETURN(DB2I_ERR_INVALID_NAME );
-    }
-
-    shadowQuery.append(STRING_WITH_LEN(" ON "));
-
-    shadowQuery.append(db2LibName);
-    shadowQuery.append('.');
-    shadowQuery.append(db2FileName);
-    shadowQuery.append(fieldDefinition);
-    DBUG_PRINT("ha_ibmdb2i::buildCreateIndexStatement", ("Sent to DB2: %s",shadowQuery.c_ptr_safe()));
-    sqlStream.addStatement(shadowQuery,"*HEX","QSYS");
+    rc = generateShadowIndex(sqlStream, 
+                             key, 
+                             db2LibName, 
+                             db2FileName, 
+                             fieldDefinition);
+    if (rc) DBUG_RETURN(rc);
   }
     
   DBUG_PRINT("ha_ibmdb2i::buildCreateIndexStatement", ("Sent to DB2: %s",query.c_ptr_safe()));
@@ -3066,7 +3039,97 @@ int32 ha_ibmdb2i::buildCreateIndexStatement(SqlStatementStream& sqlStream,
   DBUG_RETURN(0);
 }
 
+/**
+  Generate the SQL syntax for the list of fields to be assigned to the 
+  specified key. The corresponding sort sequence is also calculated.
+      
+  @param[out] appendHere  The string to receive the generated SQL
+  @param key  The key to evaluate
+  @param isPrimary  True if this is being generated on behalf of the primary key
+  @param[out] fileSortSequenceType  The type of the associated sort sequence
+  @param[out] fileSortSequence  The name of the associated sort sequence
+  @param[out] fileSortSequenceLibrary  The library of the associated sort sequence
+  
+  @return  0 if successful; error value otherwise
+*/
+int32 ha_ibmdb2i::buildIndexFieldList(String& appendHere,
+                                      const KEY& key,
+                                      bool isPrimary,
+                                      char* fileSortSequenceType, 
+                                      char* fileSortSequence, 
+                                      char* fileSortSequenceLibrary)
+{
+  DBUG_ENTER("ha_ibmdb2i::buildIndexFieldList");
+  appendHere.append(STRING_WITH_LEN(" ( "));
+  for (int j = 0; j < key.key_parts; ++j)
+  {
+    char colName[MAX_DB2_COLNAME_LENGTH+1];
+    if (j != 0)
+    {
+      appendHere.append(STRING_WITH_LEN(" , "));
+    }
+    
+    KEY_PART_INFO& kpi = key.key_part[j];
+    Field* field = kpi.field;
+    
+    convertMySQLNameToDB2Name(field->field_name, 
+                              colName, 
+                              sizeof(colName));
+    appendHere.append(colName);
+    
+    int32 rc;
+    rc = updateAssociatedSortSequence(field->charset(),
+                                      fileSortSequenceType,
+                                      fileSortSequence,
+                                      fileSortSequenceLibrary);
+    if (rc) DBUG_RETURN (rc);
+  }
+    
+  appendHere.append(STRING_WITH_LEN(" ) "));
+  
+  DBUG_RETURN(0);
+}
 
+
+/**
+  Generate an SQL statement that defines a *HEX sorted index to implement 
+  the ibmdb2i_create_index.
+      
+  @param[out] stream  The stream to append the generated statement to
+  @param key  The key to evaluate
+  @param[out] libName  The library containg the table
+  @param[out] fileName  The DB2-compatible name of the table 
+  @param[out] fieldDefinition  The list of the fields in the index, in SQL syntax
+  
+  @return  0 if successful; error value otherwise
+*/
+int32 ha_ibmdb2i::generateShadowIndex(SqlStatementStream& stream, 
+                                      const KEY& key,
+                                      const char* libName,
+                                      const char* fileName,
+                                      const String& fieldDefinition)
+{
+  String shadowQuery(256);
+  shadowQuery.length(0);
+  shadowQuery.append(STRING_WITH_LEN("CREATE INDEX "));
+  shadowQuery.append(libName);
+  shadowQuery.append('.');
+  if (db2i_table::appendQualifiedIndexFileName(key.name, fileName, shadowQuery, db2i_table::ASCII_SQL, typeHex))
+  {
+    getErrTxt(DB2I_ERR_INVALID_NAME,"index","*generated*");
+    return DB2I_ERR_INVALID_NAME;
+  }
+  shadowQuery.append(STRING_WITH_LEN(" ON "));
+  shadowQuery.append(libName);
+  shadowQuery.append('.');
+  shadowQuery.append(fileName);
+  shadowQuery.append(fieldDefinition);
+  DBUG_PRINT("ha_ibmdb2i::generateShadowIndex", ("Sent to DB2: %s",shadowQuery.c_ptr_safe()));
+  stream.addStatement(shadowQuery,"*HEX","QSYS");
+  return 0;
+}
+  
+  
 void ha_ibmdb2i::doInitialRead(char orientation,
                                 uint32 rowsToBuffer,
                                 ILEMemHandle key,

@@ -473,13 +473,14 @@ static TABLE_SHARE
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE)
+  if (share || (thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE))
 
     DBUG_RETURN(share);
 
   /* Table didn't exist. Check if some engine can provide it */
-  if ((tmp= ha_create_table_from_engine(thd, table_list->db,
-                                        table_list->table_name)) < 0)
+  tmp= ha_create_table_from_engine(thd, table_list->db,
+                                   table_list->table_name);
+  if (tmp < 0)
   {
     /*
       No such table in any engine.
@@ -1431,11 +1432,10 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table;
-  TABLE *next;
+  TABLE *next= NULL;
   TABLE *prev_table;
   /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
-  LINT_INIT(next);
 
   if (!thd->temporary_tables)
     return;
@@ -1515,21 +1515,23 @@ void close_temporary_tables(THD *thd)
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
-      /*
-        Loop forward through all tables within the sublist of
-        common pseudo_thread_id to create single DROP query.
+      String db;
+      db.append(table->s->db.str);
+      /* Loop forward through all tables that belong to a common database
+         within the sublist of common pseudo_thread_id to create single
+         DROP query 
       */
       for (s_query.length(stub_len);
            table && is_user_table(table) &&
-             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
+             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
+             table->s->db.length == db.length() &&
+             strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
         /*
-          We are going to add 4 ` around the db/table names and possible more
-          due to special characters in the names
+          We are going to add ` around the table names and possible more
+          due to special characters
         */
-        append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
         s_query.append(',');
@@ -1542,6 +1544,7 @@ void close_temporary_tables(THD *thd)
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
+      qinfo.db= db.ptr();
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
@@ -2432,7 +2435,7 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
 
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   int rc;
   DBUG_ENTER("check_if_table_exists");
 
@@ -2617,8 +2620,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
             distance >  0 - we have lock mode higher then we require
             distance == 0 - we have lock mode exactly which we need
           */
-          if (best_distance < 0 && distance > best_distance ||
-              distance >= 0 && distance < best_distance)
+          if ((best_distance < 0 && distance > best_distance) ||
+              (distance >= 0 && distance < best_distance))
           {
             best_distance= distance;
             best_table= table;
@@ -2649,7 +2652,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       real fix will be made after definition cache will be made)
     */
     {
-      char path[FN_REFLEN];
+      char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
                            table_list->db, table_list->table_name, reg_ext, 0);
@@ -2963,6 +2966,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
   table->auto_increment_field_not_null= FALSE;
@@ -6340,7 +6344,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2+1];
+    char buff[NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -6413,8 +6417,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     (and not an item that happens to have a name).
   */
   bool is_ref_by_name= 0;
-  uint unaliased_counter;
-  LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
+  uint unaliased_counter= 0;
 
   *resolution= NOT_RESOLVED;
 
@@ -7375,7 +7378,13 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
-    select_lex->item_list= fields;
+    /*   
+      The assignment below is translated to memcpy() call (at least on some
+      platforms). memcpy() expects that source and destination areas do not
+      overlap. That problem was detected by valgrind. 
+    */
+    if (&select_lex->item_list != &fields)
+      select_lex->item_list= fields;
 
     thd->restore_active_arena(arena, &backup);
   }
@@ -7439,7 +7448,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
-    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
 	(item= *(it.ref()))->check_cols(1))
     {
       thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -7753,8 +7762,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
     DBUG_ASSERT(tables->is_leaf_for_name_resolution());
 
-    if (table_name && my_strcasecmp(table_alias_charset, table_name,
-                                    tables->alias) ||
+    if ((table_name && my_strcasecmp(table_alias_charset, table_name,
+                                    tables->alias)) ||
         (db_name && strcmp(tables->db,db_name)))
       continue;
 
@@ -7785,8 +7794,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
        information_schema table, or a nested table reference. See the comment
        for TABLE_LIST.
     */
-    if (!(table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
-          tables->view && (tables->grant.privilege & SELECT_ACL)) &&
+    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL)) ||
+          (tables->view && (tables->grant.privilege & SELECT_ACL))) &&
         !any_privileges)
     {
       field_iterator.set(tables);
@@ -7840,7 +7849,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       */
       if (any_privileges)
       {
-        DBUG_ASSERT(tables->field_translation == NULL && table ||
+        DBUG_ASSERT((tables->field_translation == NULL && table) ||
                     tables->is_natural_join);
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
@@ -7979,7 +7988,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   if (*conds)
   {
     thd->where="where clause";
-    if (!(*conds)->fixed && (*conds)->fix_fields(thd, conds) ||
+    if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
@@ -7999,8 +8008,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       {
         /* Make a join an a expression */
         thd->where="on clause";
-        if (!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, &embedded->on_expr) ||
+        if ((!embedded->on_expr->fixed &&
+            embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
@@ -8155,8 +8164,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, fields, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 
@@ -8250,8 +8259,8 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, ptr, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 

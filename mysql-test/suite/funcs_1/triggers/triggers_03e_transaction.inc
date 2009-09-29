@@ -27,7 +27,6 @@ let $message= #########      Testcase for transactions:   ########;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 
-        let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 

@@ -67,6 +67,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
 #define MY_DONT_OVERWRITE_FILE 1024	/* my_copy: Don't overwrite file */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
+#define MY_SYNC       4096      /* my_copy(): sync dst file */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
@@ -221,8 +222,8 @@ extern uint    my_large_page_size;
 #endif
 
 /* charsets */
-extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *all_charsets[256];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -237,8 +238,8 @@ extern void (*my_sigtstp_cleanup)(void),
 	    (*my_sigtstp_restart)(void),
 	    (*my_abort_hook)(int);
 					/* Executed when comming from shell */
-extern int NEAR my_umask,		/* Default creation mask  */
-	   NEAR my_umask_dir,
+extern MYSQL_PLUGIN_IMPORT int NEAR my_umask;		/* Default creation mask  */
+extern int NEAR my_umask_dir,
 	   NEAR my_recived_signals,	/* Signals we have got */
 	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   NEAR my_dont_interrupt;	/* call remember_intr when set */
@@ -511,7 +512,7 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
  ((info)->write_pos + (Count) <=(info)->write_end ?\
   (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
    ((info)->write_pos+=(Count)),0) : \
-   (*(info)->write_function)((info),(Buffer),(Count)))
+   (*(info)->write_function)((info),(uchar *)(Buffer),(Count)))
 
 #define my_b_get(info) \
   ((info)->read_pos != (info)->read_end ?\

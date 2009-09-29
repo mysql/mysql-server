@@ -252,14 +252,37 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 
   /* for now HANDLER can be used only for real TABLES */
   tables->required_type= FRMTYPE_TABLE;
+  /*
+    We use open_tables() here, rather than, say,
+    open_ltable() or open_table() because we would like to be able
+    to open a temporary table.
+  */
   error= open_tables(thd, &tables, &counter, 0);
-  /* restore the state and merge the opened table into handler_tables list */
   if (thd->open_tables)
   {
-    thd->open_tables->next= thd->handler_tables;
-    thd->handler_tables= thd->open_tables;
+    if (thd->open_tables->next)
+    {
+      /*
+        We opened something that is more than a single table.
+        This happens with MERGE engine. Don't try to link
+        this mess into thd->handler_tables list, close it
+        and report an error. We must do it right away
+        because mysql_ha_close_table(), called down the road,
+        can close a single table only.
+      */
+      close_thread_tables(thd);
+      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
+      error= 1;
+    }
+    else
+    {
+      /* Merge the opened table into handler_tables list. */
+      thd->open_tables->next= thd->handler_tables;
+      thd->handler_tables= thd->open_tables;
+    }
   }
 
+  /* Restore the state. */
   thd->open_tables= backup_open_tables;
 
   if (error)
@@ -399,15 +422,12 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  uchar		*key;
-  uint		key_len;
+  uchar		*UNINIT_VAR(key);
+  uint		UNINIT_VAR(key_len);
   bool          need_reopen;
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
-
-  LINT_INIT(key);
-  LINT_INIT(key_len);
 
   thd->lex->select_lex.context.resolve_in_table_list_only(tables);
   list.push_front(new Item_field(&thd->lex->select_lex.context,

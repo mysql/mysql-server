@@ -137,7 +137,8 @@ UNDO_LIST *
 _rl_copy_undo_list (head)
      UNDO_LIST *head;
 {
-  UNDO_LIST *list, *new, *roving, *c;
+  UNDO_LIST *list, *new, *c;
+  UNDO_LIST *roving= NULL;
 
   list = head;
   new = 0;
@@ -231,7 +232,8 @@ rl_do_undo ()
 
 int
 _rl_fix_last_undo_of_type (type, start, end)
-     int type, start, end;
+     enum undo_code type;
+     int start, end;
 {
   UNDO_LIST *rl;
 
@@ -289,7 +291,7 @@ rl_modifying (start, end)
 /* Revert the current line to its previous state. */
 int
 rl_revert_line (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (!rl_undo_list)
     rl_ding ();
@@ -309,7 +311,7 @@ rl_revert_line (count, key)
 /* Do some undoing of things that were done. */
 int
 rl_undo_command (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   if (count < 0)
     return 0;	/* Nothing to do. */

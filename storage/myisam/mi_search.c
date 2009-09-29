@@ -28,9 +28,15 @@ int _mi_check_index(MI_INFO *info, int inx)
 {
   if (inx == -1)                        /* Use last index */
     inx=info->lastinx;
-  if (inx < 0 || ! mi_is_key_active(info->s->state.key_map, inx))
+  if (inx < 0)
   {
-    my_errno=HA_ERR_WRONG_INDEX;
+    my_errno= HA_ERR_WRONG_INDEX;
+    return -1;
+  }
+  if (!mi_is_key_active(info->s->state.key_map, inx))
+  {
+    my_errno= info->s->state.state.records ? HA_ERR_WRONG_INDEX :
+                                             HA_ERR_END_OF_FILE;
     return -1;
   }
   if (info->lastinx != inx)             /* Index changed */
@@ -240,12 +246,11 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
                    uchar *buff, my_bool *last_key)
 {
-  int flag;
-  uint nod_flag,length,not_used[2];
+  int UNINIT_VAR(flag);
+  uint nod_flag,UNINIT_VAR(length),not_used[2];
   uchar t_buff[MI_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
-  LINT_INIT(flag); LINT_INIT(length);
   end= page+mi_getint(page);
   nod_flag=mi_test_if_nod(page);
   page+=2+nod_flag;
@@ -297,7 +302,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  uchar *saved_from, *saved_to, *saved_vseg;
+  uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
+  uchar *UNINIT_VAR(saved_vseg);
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
@@ -305,9 +311,6 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   LINT_INIT(length);
   LINT_INIT(prefix_len);
   LINT_INIT(seg_len_pack);
-  LINT_INIT(saved_from);
-  LINT_INIT(saved_to);
-  LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   end= page+mi_getint(page);

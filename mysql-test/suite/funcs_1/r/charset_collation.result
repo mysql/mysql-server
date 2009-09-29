@@ -1,0 +1,40 @@
+DROP USER dbdict_test@localhost;
+CREATE USER dbdict_test@localhost;
+# Establish connection con (user=dbdict_test)
+
+SELECT *
+FROM information_schema.character_sets
+WHERE character_set_name IN ('utf8','latin1','binary')
+ORDER BY character_set_name;
+CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+binary	binary	Binary pseudo charset	1
+latin1	latin1_swedish_ci	cp1252 West European	1
+utf8	utf8_general_ci	UTF-8 Unicode	3
+
+SELECT *
+FROM information_schema.collations
+WHERE character_set_name IN ('utf8','latin1','binary')
+AND (collation_name LIKE CONCAT(character_set_name,'_general_ci')
+OR
+collation_name LIKE CONCAT(character_set_name,'_bin'))
+ORDER BY collation_name;
+COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
+latin1_bin	latin1	47		Yes	1
+latin1_general_ci	latin1	48		Yes	1
+utf8_bin	utf8	83		Yes	1
+utf8_general_ci	utf8	33	Yes	Yes	1
+
+SELECT *
+FROM information_schema.collation_character_set_applicability
+WHERE character_set_name IN ('utf8','latin1','binary')
+AND (collation_name LIKE CONCAT(character_set_name,'_general_ci')
+OR
+collation_name LIKE CONCAT(character_set_name,'_bin'))
+ORDER BY collation_name, character_set_name;
+COLLATION_NAME	CHARACTER_SET_NAME
+latin1_bin	latin1
+latin1_general_ci	latin1
+utf8_bin	utf8
+utf8_general_ci	utf8
+# Switch to connection default + disconnect con
+DROP USER dbdict_test@localhost;

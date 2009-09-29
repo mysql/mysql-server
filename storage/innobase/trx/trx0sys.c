@@ -13,7 +13,7 @@ Created 3/26/1996 Heikki Tuuri
 #endif
 
 #include "fsp0fsp.h"
-#include "mtr0mtr.h"
+#include "mtr0log.h"
 #include "trx0trx.h"
 #include "trx0rseg.h"
 #include "trx0undo.h"
@@ -25,6 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 /* The transaction system */
 trx_sys_t*		trx_sys		= NULL;
 trx_doublewrite_t*	trx_doublewrite = NULL;
+ibool			trx_doublewrite_buf_is_being_created = FALSE;
 
 /* The following is set to TRUE when we are upgrading from the old format data
 files to the new >= 4.1.x format multiple tablespaces format data files */
@@ -180,6 +181,7 @@ trx_sys_create_doublewrite_buf(void)
 
 start_again:
 	mtr_start(&mtr);
+	trx_doublewrite_buf_is_being_created = TRUE;
 
 	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -196,6 +198,7 @@ start_again:
 		trx_doublewrite_init(doublewrite);
 
 		mtr_commit(&mtr);
+		trx_doublewrite_buf_is_being_created = FALSE;
 	} else {
 		fprintf(stderr,
 			"InnoDB: Doublewrite buffer not found:"
@@ -274,14 +277,8 @@ start_again:
 			buf_page_dbg_add_level(new_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
-			/* Make a dummy change to the page to ensure it will
-			be written to disk in a flush */
-
-			mlog_write_ulint(new_page + FIL_PAGE_DATA,
-					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
-					 MLOG_4BYTES, &mtr);
-
 			if (i == FSP_EXTENT_SIZE / 2) {
+				ut_a(page_no == FSP_EXTENT_SIZE);
 				mlog_write_ulint(doublewrite
 						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
 						 page_no, MLOG_4BYTES, &mtr);
@@ -291,6 +288,7 @@ start_again:
 						 page_no, MLOG_4BYTES, &mtr);
 			} else if (i == FSP_EXTENT_SIZE / 2
 				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+				ut_a(page_no == 2 * FSP_EXTENT_SIZE);
 				mlog_write_ulint(doublewrite
 						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
 						 page_no, MLOG_4BYTES, &mtr);

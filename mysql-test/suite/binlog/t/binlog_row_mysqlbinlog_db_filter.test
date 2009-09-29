@@ -1,0 +1,143 @@
+# BUG#42941: --database parameter to mysqlbinlog fails with RBR
+#
+# WHAT
+# ====
+#
+#  This test aims at checking whether a rows log event is printed or
+#  not when --database parameter is used to filter events from one
+#  given database.
+#
+# HOW
+# ===
+#
+#  The test is implemented as follows: 
+#
+#    i) Some operations are done in two different databases:
+#       'test' and 'b42941';
+#   ii) mysqlbinlog is used to dump the contents of the binlog file
+#       filtering only events from 'b42941'. The result of the dump is
+#       stored in a temporary file. (This is done with and without
+#       --verbose/hexdump flag);
+#  iii) The contents of the dump are loaded into a session variable;
+#   iv) The variable contents are searched for 'test' and 'b42941';
+#    v) Should 'test' be found, an ERROR is reported. Should 'b42941' be
+#       absent, an ERROR is reported.
+
+-- source include/have_log_bin.inc
+-- source include/have_binlog_format_row.inc
+-- source include/have_innodb.inc
+
+RESET MASTER;
+-- let $MYSQLD_DATADIR= `select @@datadir`
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+CREATE TABLE t3 (txt TEXT);
+CREATE TABLE t4 (a int) ENGINE= InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t1 VALUES (3);
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/words.dat' INTO TABLE t3
+INSERT INTO t1 VALUES (4);
+
+CREATE DATABASE b42941;
+use b42941;
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+CREATE TABLE t3 (txt TEXT);
+CREATE TABLE t4 (a int) ENGINE= InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t1 VALUES (3);
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/words.dat' INTO TABLE t3
+INSERT INTO t1 VALUES (4);
+
+INSERT INTO test.t1 VALUES (5);
+
+FLUSH LOGS;
+
+UPDATE test.t1 t11, b42941.t1 t12 SET t11.id=10, t12.id=100;
+
+BEGIN;
+INSERT INTO test.t4 VALUES (1);
+INSERT INTO b42941.t4 VALUES (1);
+UPDATE test.t4 tn4, b42941.t4 tt4 SET tn4.a= 10, tt4.a= 100;
+COMMIT;
+
+FLUSH LOGS;
+
+-- let $log_file1= $MYSQLD_DATADIR/master-bin.000001
+-- let $log_file2= $MYSQLD_DATADIR/master-bin.000002
+-- let $outfile= $MYSQLTEST_VARDIR/tmp/b42941-mysqlbinlog
+-- let $cmd= $MYSQL_BINLOG
+
+let $i= 3;
+while($i)
+{
+  -- let $flags=--database=b42941
+
+  # construct CLI for mysqlbinlog
+  if(`SELECT $i=3`)
+  {
+    -- let $flags= $flags --verbose --hexdump
+  }
+
+  if(`SELECT $i=2`)
+  {
+    -- let $flags= $flags --verbose
+  }
+
+#  if(`SELECT $i=1`)
+#  {
+    # do nothing $flags is already set as it should be
+#  }
+
+  # execute mysqlbinlog on the two available master binlog files
+  -- exec $cmd $flags $log_file1 > $outfile.1
+  -- exec $cmd $flags $log_file2 > $outfile.2
+
+  # load outputs into a variable
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  -- eval SET @b42941_output.1= LOAD_FILE('$outfile.1')
+
+  -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  -- eval SET @b42941_output.2= LOAD_FILE('$outfile.2')
+
+  # remove unecessary files
+  -- remove_file $outfile.1
+  -- remove_file $outfile.2
+
+  # assertion: events for database test are filtered
+  if (`SELECT INSTR(@b42941_output.1, 'test')`)
+  {
+    -- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.1).
+  }
+
+  if (`SELECT INSTR(@b42941_output.2, 'test')`)
+  {
+    -- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.2).
+  }
+
+  # assertion: events for database b42941 are not filtered
+  if (!`SELECT INSTR(@b42941_output.1, 'b42941')`)
+  {
+    -- echo **** ERROR **** Database name 'b42941' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
+  }
+
+  if (!`SELECT INSTR(@b42941_output.2, 'b42941')`)
+  {
+    -- echo **** ERROR **** Database name 'b42941' NOT FOUND in mysqlbinlog output ($flags $outfile.2).
+  }
+
+  dec $i;
+}
+
+DROP DATABASE b42941;
+use test;
+DROP TABLE t1, t2, t3, t4;

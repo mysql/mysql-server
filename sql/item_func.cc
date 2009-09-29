@@ -435,8 +435,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 
 Field *Item_func::tmp_table_field(TABLE *table)
 {
-  Field *field;
-  LINT_INIT(field);
+  Field *field= NULL;
 
   switch (result_type()) {
   case INT_RESULT:
@@ -452,10 +451,7 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
-                                                                decimals,
-                                                                unsigned_flag),
-                                 maybe_null, name, decimals, unsigned_flag);
+    field= Field_new_decimal::new_decimal_field(this);
     break;
   case ROW_RESULT:
   default:
@@ -545,8 +541,8 @@ void Item_func::count_decimal_length()
     set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1141,16 +1137,15 @@ void Item_func_additive_op::result_precision()
   decimals= max(args[0]->decimals, args[1]->decimals);
   int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
   int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
-  int est_prec= max(arg1_int, arg2_int) + 1 + decimals;
-  int precision= min(est_prec, DECIMAL_MAX_PRECISION);
+  int precision= max(arg1_int, arg2_int) + 1 + decimals;
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1255,7 +1250,8 @@ void Item_func_mul::result_precision()
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
   uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1311,8 +1307,8 @@ void Item_func_div::result_precision()
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1999,8 +1995,9 @@ void Item_func_round::fix_length_and_dec()
 
     precision-= decimals_delta - length_increase;
     decimals= min(decimals_to_set, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     break;
   }
   default:
@@ -2243,8 +2240,9 @@ void Item_func_min_max::fix_length_and_dec()
     }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
-    max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
-                                            unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
+                                                             decimals, decimals,
+                                                             unsigned_flag);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -2269,9 +2267,8 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(ulonglong *value)
 {
-  longlong min_max;
+  longlong UNINIT_VAR(min_max);
   uint min_max_idx= 0;
-  LINT_INIT(min_max);
 
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2336,8 +2333,7 @@ String *Item_func_min_max::val_str(String *str)
   }
   case STRING_RESULT:
   {
-    String *res;
-    LINT_INIT(res);
+    String *UNINIT_VAR(res);
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2426,8 +2422,7 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res;
-  LINT_INIT(res);
+  my_decimal tmp_buf, *tmp, *UNINIT_VAR(res);
 
   if (compare_as_dates)
   {
@@ -4240,9 +4235,8 @@ void Item_func_set_user_var::save_item_result(Item *item)
 bool
 Item_func_set_user_var::update()
 {
-  bool res;
+  bool res= 0;
   DBUG_ENTER("Item_func_set_user_var::update");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4463,8 +4457,8 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
   update();
 
   if (result_type() == STRING_RESULT ||
-      result_type() == REAL_RESULT &&
-      field->result_type() == STRING_RESULT)
+      (result_type() == REAL_RESULT &&
+      field->result_type() == STRING_RESULT))
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;
@@ -4742,6 +4736,19 @@ void Item_func_get_user_var::fix_length_and_dec()
     thd->fatal_error();
 
   return;
+}
+
+
+uint Item_func_get_user_var::decimal_precision() const
+{
+  uint precision= max_length;
+  Item_result restype= result_type();
+
+  /* Default to maximum as the precision is unknown a priori. */
+  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
+    precision= DECIMAL_MAX_PRECISION;
+
+  return precision;
 }
 
 
@@ -5408,8 +5415,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  Item *item;
-  LINT_INIT(item);				// Safe as arg_count is > 1
+  Item *UNINIT_VAR(item);                        // Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;
@@ -5954,6 +5960,9 @@ Item_func_sp::execute_impl(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 #endif
+  enum enum_sp_data_access access=
+    (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+     SP_DEFAULT_ACCESS_MAPPING : m_sp->m_chistics->daccess;
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
@@ -5971,11 +5980,13 @@ Item_func_sp::execute_impl(THD *thd)
     Throw an error if a non-deterministic function is called while
     statement-based replication (SBR) is active.
   */
+
   if (!m_sp->m_chistics->detistic && !trust_function_creators &&
+      (access == SP_CONTAINS_SQL || access == SP_MODIFIES_SQL_DATA) &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT))
   {
-    my_error(ER_BINLOG_ROW_RBR_TO_SBR, MYF(0));
+    my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
 

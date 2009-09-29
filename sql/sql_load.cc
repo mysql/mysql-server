@@ -148,6 +148,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  /* Report problems with non-ascii separators */
+  if (!escaped->is_ascii() || !enclosed->is_ascii() ||
+      !field_term->is_ascii() ||
+      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
+                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+  } 
+
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
@@ -750,9 +761,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      if (!read_info.enclosed &&
+      if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
-           !memcmp(pos, STRING_WITH_LEN("NULL"))) ||
+           !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
 	  (length == 1 && read_info.found_null))
       {
 
@@ -1151,8 +1162,8 @@ int READ_INFO::read_field()
 	}
 	// End of enclosed field if followed by field_term or line_term
 	if (chr == my_b_EOF ||
-	    chr == line_term_char && terminator(line_term_ptr,
-						line_term_length))
+	    (chr == line_term_char && terminator(line_term_ptr,
+						line_term_length)))
 	{					// Maybe unexpected linefeed
 	  enclosed=1;
 	  found_end_of_line=1;

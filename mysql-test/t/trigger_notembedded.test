@@ -909,4 +909,27 @@ select * from t1;
 drop table t1;
 disconnect flush;
 
+#
+# Bug#45412 SHOW CREATE TRIGGER does not require privileges to disclose trigger data
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a char(30)) ENGINE=MEMORY;
+CREATE TRIGGER db1.trg AFTER INSERT ON db1.t1 FOR EACH ROW
+ INSERT INTO db1.t1 VALUES('Some very sensitive data goes here');
+
+CREATE USER 'no_rights'@'localhost';
+REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,no_rights,,);
+SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
+ WHERE trigger_schema = 'db1';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SHOW CREATE TRIGGER db1.trg;
+
+connection default;
+disconnect con1;
+DROP USER 'no_rights'@'localhost';
+DROP DATABASE db1;
+
 --echo End of 5.1 tests.

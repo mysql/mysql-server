@@ -246,7 +246,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       }
       DBUG_RETURN(0);
     }
-    for (str++; *(end - 1) == '0'; end--);  // jump over zeros at the end
+    for (str++; *(end - 1) == '0'; end--) ; // jump over zeros at the end
     if (str == end)		     // number was something like '123.000'
     {
       char *endpos= (char*) str;
