@@ -48,10 +48,12 @@ C_MODE_END
   digits * number of decimal digits in one our big digit - number of decimal
   digits in one our big digit decreased by 1 (because we always put decimal
   point on the border of our big digits))
+
+  This value is 65 due to historical reasons partly due to it being used
+  as the maximum allowed precision and not the actual maximum precision.
 */
 #define DECIMAL_MAX_PRECISION (DECIMAL_MAX_POSSIBLE_PRECISION - 8*2)
 #define DECIMAL_MAX_SCALE 30
-#define DECIMAL_NOT_SPECIFIED 31
 
 /**
   maximum length of string representation (number of maximum decimal
@@ -72,12 +74,6 @@ inline uint my_decimal_size(uint precision, uint scale)
     where it want
   */
   return decimal_size(precision, scale) + 1;
-}
-
-
-inline int my_decimal_int_part(uint precision, uint decimals)
-{
-  return precision - ((decimals == DECIMAL_NOT_SPECIFIED) ? 0 : decimals);
 }
 
 
@@ -183,7 +179,20 @@ inline uint my_decimal_length_to_precision(uint length, uint scale,
                  (unsigned_flag || !length ? 0:1));
 }
 
-inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
+inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
+                                                           uint scale,
+                                                           bool unsigned_flag)
+{
+  /*
+    When precision is 0 it means that original length was also 0. Thus
+    unsigned_flag is ignored in this case.
+  */
+  DBUG_ASSERT(precision || !scale);
+  return (uint32)(precision + (scale > 0 ? 1 : 0) +
+                  (unsigned_flag || !precision ? 0 : 1));
+}
+
+inline uint32 my_decimal_precision_to_length(uint precision, uint scale,
                                              bool unsigned_flag)
 {
   /*
@@ -192,8 +201,8 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
   */
   DBUG_ASSERT(precision || !scale);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  return (uint32)(precision + (scale>0 ? 1:0) +
-                  (unsigned_flag || !precision ? 0:1));
+  return my_decimal_precision_to_length_no_truncation(precision, scale,
+                                                      unsigned_flag);
 }
 
 inline

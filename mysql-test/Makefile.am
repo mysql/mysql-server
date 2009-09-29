@@ -17,7 +17,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-testdir =	$(prefix)/mysql-test
+testroot =	$(prefix)
+testdir =	$(testroot)/mysql-test
 
 test_SCRIPTS =	mtr \
 		mysql-test-run \
@@ -25,6 +26,7 @@ test_SCRIPTS =	mtr \
 		mysql-stress-test.pl
 
 nobase_test_DATA = \
+	valgrind.supp \
 	lib/v1/mysql-test-run.pl \
 	lib/v1/mtr_cases.pl \
 	lib/v1/mtr_io.pl \
@@ -41,7 +43,6 @@ nobase_test_DATA = \
 	lib/v1/mtr_im.pl \
 	lib/v1/mtr_process.pl \
 	lib/v1/mtr_unique.pl \
-\
 	lib/mtr_cases.pm \
 	lib/mtr_gcov.pl \
 	lib/mtr_gprof.pl \
@@ -69,9 +70,8 @@ nobase_test_DATA = \
 SUBDIRS =	lib/My/SafeProcess
 
 EXTRA_DIST =	README \
-		valgrind.supp \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA) 
+		$(nobase_test_DATA)
 
 # List of directories containing test + result files and the
 # related test data files that should be copied
@@ -93,12 +93,13 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/jp suite/jp/t suite/jp/r suite/jp/std_data suite/jp/include \
 	suite/manual/t suite/manual/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
-	suite/rpl suite/rpl/data suite/rpl/include suite/rpl/r \
+	suite/rpl suite/rpl/include suite/rpl/r \
 	suite/rpl/t \
 	suite/stress/include suite/stress/t suite/stress/r \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
-	suite/parts suite/parts/t suite/parts/r suite/parts/inc
+	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
+	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory

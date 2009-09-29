@@ -423,6 +423,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   stats *sptr;
   conclusions conclusion;
   unsigned long long client_limit;
+  int sysret;
 
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
@@ -463,7 +464,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
     if (pre_system)
-      system(pre_system);
+      if ((sysret= system(pre_system)) != 0)
+        fprintf(stderr, "Warning: Execution of pre_system option returned %d.\n", 
+                sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -478,7 +481,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_statements(mysql, post_statements);
 
     if (post_system)
-      system(post_system);
+      if ((sysret= system(post_system)) != 0)
+        fprintf(stderr, "Warning: Execution of post_system option returned %d.\n", 
+                sysret);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -565,8 +570,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
-    (uchar**) &opt_csv_str, (uchar**) &opt_csv_str, 0, GET_STR, 
-    OPT_ARG, 0, 0, 0, 0, 0, 0},
+    NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -739,6 +743,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     debug_check_flag= 1;
+    break;
+  case OPT_SLAP_CSV:
+    if (!argument)
+      argument= (char *)"-"; /* use stdout */
+    opt_csv_str= argument;
     break;
 #include <sslopt-case.h>
   case 'V':

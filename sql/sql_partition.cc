@@ -918,6 +918,9 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     Set-up the TABLE_LIST object to be a list with a single table
     Set the object to zero to create NULL pointers and set alias
     and real name to table name and get database name from file name.
+    TODO: Consider generalizing or refactoring Lex::add_table_to_list() so
+    it can be used in all places where we create TABLE_LIST objects.
+    Also consider creating appropriate constructors for TABLE_LIST.
   */
 
   bzero((void*)&tables, sizeof(TABLE_LIST));
@@ -925,6 +928,13 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   tables.table= table;
   tables.next_local= 0;
   tables.next_name_resolution_table= 0;
+  /*
+    Cache the table in Item_fields. All the tables can be cached except
+    the trigger pseudo table.
+  */
+  tables.cacheable_table= TRUE;
+  context= thd->lex->current_context();
+  tables.select_lex= context->select_lex;
   strmov(db_name_string, table->s->normalized_path.str);
   dir_length= dirname_length(db_name_string);
   db_name_string[dir_length - 1]= 0;
@@ -932,7 +942,6 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  context= thd->lex->current_context();
   table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   save_table_list= context->table_list;
@@ -964,8 +973,9 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
+  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
   
-  error= func_expr->fix_fields(thd, (Item**)0);
+  error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 
@@ -2756,8 +2766,24 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 
   if (part_info->part_expr->null_value)
   {
-    DBUG_RETURN(0);
+    /*
+      Special handling for MONOTONIC functions that can return NULL for
+      values that are comparable. I.e.
+      '2000-00-00' can be compared to '2000-01-01' but TO_DAYS('2000-00-00')
+      returns NULL which cannot be compared used <, >, <=, >= etc.
+
+      Otherwise, just return the the first index (lowest value).
+    */
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic != MONOTONIC_INCREASING_NOT_NULL && 
+        monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* F(col) can not return NULL, return index with lowest value */
+      DBUG_RETURN(0);
+    }
   }
+
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   DBUG_ASSERT(part_info->no_list_values);
@@ -2906,11 +2932,29 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 
   if (part_info->part_expr->null_value)
   {
-    uint32 ret_part_id= 0;
-    if (!left_endpoint && include_endpoint)
-      ret_part_id= 1;
-    DBUG_RETURN(ret_part_id);
+    /*
+      Special handling for MONOTONIC functions that can return NULL for
+      values that are comparable. I.e.
+      '2000-00-00' can be compared to '2000-01-01' but TO_DAYS('2000-00-00')
+      returns NULL which cannot be compared used <, >, <=, >= etc.
+
+      Otherwise, just return the first partition
+      (may be included if not left endpoint)
+    */
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic != MONOTONIC_INCREASING_NOT_NULL &&
+        monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* F(col) can not return NULL, return partition with lowest value */
+      if (!left_endpoint && include_endpoint)
+        DBUG_RETURN(1);
+      DBUG_RETURN(0);               
+
+    }
   }
+
+
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   if (left_endpoint && !include_endpoint)
@@ -3814,8 +3858,13 @@ bool mysql_unpack_partition(THD *thd,
     Item_field objects.
     This is not a nice solution since if the parser uses current_select
     for anything else it will corrupt the current LEX object.
+    Also, we need to make sure there even is a select -- if the statement
+    was a "USE ...", current_select will be NULL, but we may still end up
+    here if we try to log to a partitioned table. This is currently
+    unsupported, but should still fail rather than crash!
   */
-  thd->lex->current_select= old_lex->current_select; 
+  if (!(thd->lex->current_select= old_lex->current_select))
+    goto end;
   /*
     All Items created is put into a free list on the THD object. This list
     is used to free all Item objects after completing a query. We don't
@@ -5090,7 +5139,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   handler *file= lpt->table->file;
   DBUG_ENTER("mysql_change_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
+  build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
   if ((error= file->ha_change_partitions(lpt->create_info, path, &lpt->copied,
                                          &lpt->deleted, lpt->pack_frm_data,
                                          lpt->pack_frm_len)))
@@ -5130,7 +5179,7 @@ static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   DBUG_ENTER("mysql_rename_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
+  build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
   if ((error= lpt->table->file->ha_rename_partitions(path)))
   {
     if (error != 1)
@@ -5171,7 +5220,7 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   DBUG_ENTER("mysql_drop_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
+  build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
   if ((error= lpt->table->file->ha_drop_partitions(path)))
   {
     lpt->table->file->print_error(error, MYF(0));
@@ -5516,10 +5565,10 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  char shadow_path[FN_REFLEN];
+  char shadow_path[FN_REFLEN + 1];
   DBUG_ENTER("write_log_drop_shadow_frm");
 
-  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
@@ -5559,15 +5608,15 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char path[FN_REFLEN];
-  char shadow_path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
+  char shadow_path[FN_REFLEN + 1];
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_rename_frm");
 
   part_info->first_log_entry= NULL;
-  build_table_filename(path, sizeof(path), lpt->db,
+  build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
@@ -5610,16 +5659,16 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char tmp_path[FN_REFLEN];
-  char path[FN_REFLEN];
+  char tmp_path[FN_REFLEN + 1];
+  char path[FN_REFLEN + 1];
   uint next_entry= 0;
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_drop_partition");
 
   part_info->first_log_entry= NULL;
-  build_table_filename(path, sizeof(path), lpt->db,
+  build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+  build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
                        lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
@@ -5669,14 +5718,14 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  char tmp_path[FN_REFLEN];
-  char path[FN_REFLEN];
+  char tmp_path[FN_REFLEN + 1];
+  char path[FN_REFLEN + 1];
   uint next_entry= 0;
   DBUG_ENTER("write_log_add_change_partition");
 
-  build_table_filename(path, sizeof(path), lpt->db,
+  build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+  build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
                        lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
@@ -5723,16 +5772,16 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char path[FN_REFLEN];
-  char shadow_path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
+  char shadow_path[FN_REFLEN + 1];
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   uint next_entry= 0;
   DBUG_ENTER("write_log_final_change_partition");
 
   part_info->first_log_entry= NULL;
-  build_table_filename(path, sizeof(path), lpt->db,
+  build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                       lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
@@ -6061,6 +6110,9 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->pack_frm_data= NULL;
   lpt->pack_frm_len= 0;
   thd->work_part_info= part_info;
+
+  /* Never update timestamp columns when alter */
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if (fast_alter_partition & HA_PARTITION_ONE_PHASE)
   {
@@ -6678,6 +6730,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   Field *field= part_info->part_field_array[0];
   uint32             max_endpoint_val;
   get_endpoint_func  get_endpoint;
+  bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
@@ -6715,6 +6768,23 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   }
   else
     assert(0);
+  
+  can_match_multiple_values= (flags || !min_value || !max_value ||
+                              memcmp(min_value, max_value, field_len));
+  if (can_match_multiple_values &&
+      (part_info->part_type == RANGE_PARTITION ||
+       part_info->has_null_value))
+  {
+    /* Range scan on RANGE or LIST partitioned table */
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic == MONOTONIC_INCREASING_NOT_NULL ||
+        monotonic == MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* col is NOT NULL, but F(col) can return NULL, add NULL partition */
+      part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+    }
+  }
 
   /* 
     Find minimum: Do special handling if the interval has left bound in form
@@ -6747,6 +6817,14 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       store_key_image_to_rec(field, min_value, field_len);
       bool include_endp= !test(flags & NEAR_MIN);
       part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
+      if (!can_match_multiple_values && part_info->part_expr->null_value)
+      {
+        /* col = x and F(x) = NULL -> only search NULL partition */
+        part_iter->part_nums.cur= part_iter->part_nums.start= 0;
+        part_iter->part_nums.end= 0;
+        part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+        return 1;
+      }
       part_iter->part_nums.cur= part_iter->part_nums.start;
       if (part_iter->part_nums.start == max_endpoint_val)
         return 0; /* No partitions */
@@ -6831,6 +6909,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   Field *field;
   uint total_parts;
   partition_iter_func get_next_func;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   if (is_subpart)
   {
     field= part_info->subpart_field_array[0];
@@ -6941,7 +7020,13 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
   if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
+    if (part_iter->ret_null_part)
+    {
+      part_iter->ret_null_part= FALSE;
+      return 0;                    /* NULL always in first range partition */
+    }
     part_iter->part_nums.cur= part_iter->part_nums.start;
+    part_iter->ret_null_part= part_iter->ret_null_part_orig;
     return NOT_A_PARTITION_ID;
   }
   else
@@ -6969,7 +7054,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
-  if (part_iter->part_nums.cur == part_iter->part_nums.end)
+  if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
     if (part_iter->ret_null_part)
     {
@@ -7013,9 +7098,9 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
     longlong dummy;
     field->store(part_iter->field_vals.cur++,
                  ((Field_num*)field)->unsigned_flag);
-    if (part_iter->part_info->is_sub_partitioned() &&
+    if ((part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
-                                                     &part_id, &dummy) ||
+                                                     &part_id, &dummy)) ||
         !part_iter->part_info->get_partition_id(part_iter->part_info,
                                                 &part_id, &dummy))
       return part_id;

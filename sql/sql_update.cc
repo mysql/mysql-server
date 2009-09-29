@@ -292,7 +292,7 @@ int mysql_update(THD *thd,
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   if (conds)
   {
@@ -332,7 +332,14 @@ int mysql_update(THD *thd,
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
-    if (error)
+    /*
+      There was an error or the error was already sent by
+      the quick select evaluation.
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (error || thd->is_error())
     {
       DBUG_RETURN(1);				// Error in where
     }
@@ -723,6 +730,7 @@ int mysql_update(THD *thd,
       break;
     }
   }
+  table->auto_increment_field_not_null= FALSE;
   dup_key_found= 0;
   /*
     Caching the killed status to pass as the arg to query event constuctor;
@@ -803,8 +811,7 @@ int mysql_update(THD *thd,
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_table, FALSE, errcode) &&
-          transactional_table)
+                            transactional_table, FALSE, errcode))
       {
         error=1;				// Rollback update
       }
@@ -1814,7 +1821,7 @@ void multi_update::abort()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !updated)
+      (!thd->transaction.stmt.modified_non_trans_table && !updated))
     return;
 
   /* Something already updated so we have to invalidate cache */
@@ -2087,8 +2094,7 @@ bool multi_update::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, errcode) &&
-          trans_safe)
+                            transactional_tables, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update
       }

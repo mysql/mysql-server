@@ -187,6 +187,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     delete select;
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
+    /* 
+      Error was already created by quick select evaluation (check_quick()).
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (thd->is_error())
+      DBUG_RETURN(TRUE);
     my_ok(thd, (ha_rows) thd->row_count_func);
     /*
       We don't need to call reset_auto_increment in this case, because
@@ -408,7 +416,7 @@ cleanup:
                                         thd->query, thd->query_length,
                                         is_trans, FALSE, errcode);
 
-      if (log_result && transactional_table)
+      if (log_result)
       {
 	error=1;
       }
@@ -490,7 +498,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
@@ -806,7 +814,7 @@ void multi_delete::abort()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !deleted)
+      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
@@ -852,22 +860,19 @@ void multi_delete::abort()
 
 
 
-/*
+/**
   Do delete from other tables.
-  Returns values:
-	0 ok
-	1 error
+
+  @retval 0 ok
+  @retval 1 error
+
+  @todo Is there any reason not use the normal nested-loops join? If not, and
+  there is no documentation supporting it, this method and callee should be
+  removed and there should be hooks within normal execution.
 */
 
 int multi_delete::do_deletes()
 {
-  int local_error= 0, counter= 0, tmp_error;
-  bool will_batch;
-  /*
-    If the IGNORE option is used all non fatal errors will be translated
-    to warnings and we should not break the row-by-row iteration
-  */
-  bool ignore= thd->lex->current_select->no_error;
   DBUG_ENTER("do_deletes");
   DBUG_ASSERT(do_delete);
 
@@ -878,78 +883,107 @@ int multi_delete::do_deletes()
   table_being_deleted= (delete_while_scanning ? delete_tables->next_local :
                         delete_tables);
  
-  for (; table_being_deleted;
+  for (uint counter= 0; table_being_deleted;
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
-    ha_rows last_deleted= deleted;
     TABLE *table = table_being_deleted->table;
     if (tempfiles[counter]->get(table))
+      DBUG_RETURN(1);
+
+    int local_error= 
+      do_table_deletes(table, thd->lex->current_select->no_error);
+
+    if (thd->killed && !local_error)
+      DBUG_RETURN(1);
+
+    if (local_error == -1)				// End of file
+      local_error = 0;
+
+    if (local_error)
+      DBUG_RETURN(local_error);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
+   Implements the inner loop of nested-loops join within multi-DELETE
+   execution.
+
+   @param table The table from which to delete.
+
+   @param ignore If used, all non fatal errors will be translated
+   to warnings and we should not break the row-by-row iteration.
+
+   @return Status code
+
+   @retval  0 All ok.
+   @retval  1 Triggers or handler reported error.
+   @retval -1 End of file from handler.
+*/
+int multi_delete::do_table_deletes(TABLE *table, bool ignore)
+{
+  int local_error= 0;
+  READ_RECORD info;
+  ha_rows last_deleted= deleted;
+  DBUG_ENTER("do_deletes_for_table");
+  init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
+  /*
+    Ignore any rows not found in reference tables as they may already have
+    been deleted by foreign key handling
+  */
+  info.ignore_not_found_rows= 1;
+  bool will_batch= !table->file->start_bulk_delete();
+  while (!(local_error= info.read_record(&info)) && !thd->killed)
+  {
+    if (table->triggers &&
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_BEFORE, FALSE))
     {
-      local_error=1;
+      local_error= 1;
       break;
     }
-
-    READ_RECORD	info;
-    init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
-    /*
-      Ignore any rows not found in reference tables as they may already have
-      been deleted by foreign key handling
-    */
-    info.ignore_not_found_rows= 1;
-    will_batch= !table->file->start_bulk_delete();
-    while (!(local_error=info.read_record(&info)) && !thd->killed)
+      
+    local_error= table->file->ha_delete_row(table->record[0]);
+    if (local_error && !ignore)
     {
+      table->file->print_error(local_error, MYF(0));
+      break;
+    }
+      
+    /*
+      Increase the reported number of deleted rows only if no error occurred
+      during ha_delete_row.
+      Also, don't execute the AFTER trigger if the row operation failed.
+    */
+    if (!local_error)
+    {
+      deleted++;
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, FALSE))
+                                            TRG_ACTION_AFTER, FALSE))
       {
         local_error= 1;
         break;
       }
-
-      local_error= table->file->ha_delete_row(table->record[0]);
-      if (local_error && !ignore)
-      {
-        table->file->print_error(local_error,MYF(0));
-        break;
-      }
-
-      /*
-        Increase the reported number of deleted rows only if no error occurred
-        during ha_delete_row.
-        Also, don't execute the AFTER trigger if the row operation failed.
-      */
-      if (!local_error)
-      {
-        deleted++;
-        if (table->triggers &&
-            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                              TRG_ACTION_AFTER, FALSE))
-        {
-          local_error= 1;
-          break;
-        }
-      }
     }
-    if (will_batch && (tmp_error= table->file->end_bulk_delete()))
-    {
-      if (!local_error)
-      {
-        local_error= tmp_error;
-        table->file->print_error(local_error,MYF(0));
-      }
-    }
-    if (last_deleted != deleted && !table->file->has_transactions())
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
-    end_read_record(&info);
-    if (thd->killed && !local_error)
-      local_error= 1;
-    if (local_error == -1)				// End of file
-      local_error = 0;
   }
+  if (will_batch)
+  {
+    int tmp_error= table->file->end_bulk_delete();
+    if (tmp_error && !local_error)
+    {
+      local_error= tmp_error;
+      table->file->print_error(local_error, MYF(0));
+    }
+  }
+  if (last_deleted != deleted && !table->file->has_transactions())
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+
+  end_read_record(&info);
+
   DBUG_RETURN(local_error);
 }
-
 
 /*
   Send ok to the client
@@ -1051,13 +1085,17 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   TABLE *table;
   bool error;
   uint path_length;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
+
+  /* Remove tables from the HANDLER's hash. */
+  mysql_ha_rm_tables(thd, table_list, FALSE);
+
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
@@ -1088,7 +1126,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     goto end;
   }
 
-  path_length= build_table_filename(path, sizeof(path), table_list->db,
+  path_length= build_table_filename(path, sizeof(path) - 1, table_list->db,
                                     table_list->table_name, reg_ext, 0);
 
   if (!dont_send_ok)

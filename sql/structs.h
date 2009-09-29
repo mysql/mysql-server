@@ -107,6 +107,10 @@ typedef struct st_reginfo {		/* Extra info about reg */
   struct st_join_table *join_tab;	/* Used by SELECT() */
   enum thr_lock_type lock_type;		/* How database is used */
   bool not_exists_optimize;
+  /*
+    TRUE <=> range optimizer found that there is no rows satisfying
+    table conditions.
+  */
   bool impossible_range;
 } REGINFO;
 

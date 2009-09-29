@@ -131,7 +131,7 @@ extern "C" {
 #define DEFAULT_BASEDIR       "sys:/"
 #define SHAREDIR              "share/"
 #define DEFAULT_CHARSET_HOME  "sys:/mysql/"
-#define DATADIR               "data/"
+#define MYSQL_DATADIR         "data/"
 
 /* 64-bit file system calls */
 #define SIZEOF_OFF_T          8

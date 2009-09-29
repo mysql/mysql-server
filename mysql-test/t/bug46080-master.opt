@@ -1,0 +1,1 @@
+--skip-grant-tables --skip-name-resolve --safemalloc-mem-limit=4000000

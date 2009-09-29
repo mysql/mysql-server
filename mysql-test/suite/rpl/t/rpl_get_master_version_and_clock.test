@@ -1,0 +1,62 @@
+#
+# BUG#45214 
+# This test verifies if the slave I/O tread tries to reconnect to
+# master when it tries to get the values of the UNIX_TIMESTAMP, SERVER_ID,
+# COLLATION_SERVER and TIME_ZONE from master under network disconnection.
+# The COLLATION_SERVER and TIME_ZONE are got only on master server version 4.
+# So they can't be verified by test case here.
+# Finish the following tests by calling its common test script:  
+# extra/rpl_tests/rpl_get_master_version_and_clock.test. 
+# And meanwhile this test checks that the slave I/O thread refuses to start if slave
+# and master have the same server id (because this is a useless setup,
+# and otherwise SHOW SLAVE STATUS shows progress but all queries are
+# ignored, which has caught our customers), unless
+# --replicate-same-server-id.
+#
+
+source include/master-slave.inc;
+source include/have_debug.inc;
+call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again");
+#Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
+connection slave;
+let $debug_saved= `select @@global.debug`;
+
+let $debug_lock= "debug_lock.before_get_UNIX_TIMESTAMP";
+eval SELECT IS_FREE_LOCK($debug_lock);
+eval SELECT GET_LOCK($debug_lock, 1000);
+
+set global debug= 'd,debug_lock.before_get_UNIX_TIMESTAMP';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test; 
+
+#Test case 2: Try to get the value of the SERVER_ID from master under network disconnection
+connection slave;
+let $debug_lock= "debug_lock.before_get_SERVER_ID";
+eval SELECT IS_FREE_LOCK($debug_lock);
+eval SELECT GET_LOCK($debug_lock, 1000);
+
+set global debug= 'd,debug_lock.before_get_SERVER_ID';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+
+eval set global debug= '$debug_saved';
+
+#Test case 3: This test checks that the slave I/O thread refuses to start
+#if slave and master have the same server id.
+connection slave;
+reset master;
+# replicate ourselves
+source include/stop_slave.inc;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval change master to master_port=$SLAVE_MYPORT;
+start slave;
+
+let $slave_param= Last_IO_Errno;
+let $slave_param_value= 1593;
+source include/wait_for_slave_param.inc;
+--echo *** must be having the replicate-same-server-id IO thread error ***
+let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
+let $last_io_error= query_get_value("show slave status", Last_IO_Error, 1);
+echo Slave_IO_Errno= $last_io_errno;
+echo Slave_IO_Error= $last_io_error;
+
+# End of tests

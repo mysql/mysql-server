@@ -11,6 +11,3 @@
 ##############################################################################
 
 ndb_trig_1011ext:  Bug#32656 NDB: Duplicate key error aborts transaction in handler. Doesn't talk back to SQL
-charset_collation_1: Bug#38346, Bug#40209, Bug#40545, Bug#40618
-charset_collation_2: Bug#38346, Bug#40209, Bug#40545, Bug#40618
-charset_collation_3: Bug#38346, Bug#40209, Bug#40545, Bug#40618

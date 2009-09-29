@@ -33,10 +33,10 @@ Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
 #if HAVE_purify
    is_fake(FALSE),
 #endif
-   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0),
@@ -300,7 +300,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   DBUG_RETURN(error);
 
 err:
-  sql_print_error(msg);
+  sql_print_error("%s", msg);
   end_io_cache(&rli->info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));
@@ -947,6 +947,7 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
   if (count_relay_log_space(rli))
   {
     *errmsg= "Error counting relay log space";
+    error=1;
     goto err;
   }
   if (!just_reset)

@@ -397,13 +397,20 @@ public:
   from INT_RESULT, may be NULL, or are unsigned.
   It will be possible to address this issue once the related partitioning bugs
   (BUG#16002, BUG#15447, BUG#13436) are fixed.
+
+  The NOT_NULL enums are used in TO_DAYS, since TO_DAYS('2001-00-00') returns
+  NULL which puts those rows into the NULL partition, but
+  '2000-12-31' < '2001-00-00' < '2001-01-01'. So special handling is needed
+  for this (see Bug#20577).
 */
 
 typedef enum monotonicity_info 
 {
    NON_MONOTONIC,              /* none of the below holds */
    MONOTONIC_INCREASING,       /* F() is unary and (x < y) => (F(x) <= F(y)) */
-   MONOTONIC_STRICT_INCREASING /* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_INCREASING_NOT_NULL,  /* But only for valid/real x and y */
+   MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
 
 /*************************************************************************/
@@ -576,8 +583,8 @@ public:
         left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
                    TRUE   <=> The interval is "x > const" or "x >= const"
 
-        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
-                        FALSE <=> the comparison is '<=' or '>='
+        incl_endp  IN   FALSE <=> the comparison is '<' or '>'
+                        TRUE  <=> the comparison is '<=' or '>='
                    OUT  The same but for the "F(x) $CMP$ F(const)" comparison
 
     DESCRIPTION
@@ -755,9 +762,10 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  /** Returns the uncapped decimal precision of this item. */
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
-  { return my_decimal_int_part(decimal_precision(), decimals); }
+  { return decimal_precision() - decimals; }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -3117,4 +3125,4 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
-extern bool field_is_equal_to_item(Field *field,Item *item);
+extern int stored_field_cmp_to_item(Field *field, Item *item);

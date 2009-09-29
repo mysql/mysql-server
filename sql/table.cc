@@ -464,34 +464,35 @@ inline bool is_system_table_name(const char *name, uint length)
   CHARSET_INFO *ci= system_charset_info;
 
   return (
-          /* mysql.proc table */
-          length == 4 &&
-          my_tolower(ci, name[0]) == 'p' && 
-          my_tolower(ci, name[1]) == 'r' &&
-          my_tolower(ci, name[2]) == 'o' &&
-          my_tolower(ci, name[3]) == 'c' ||
+           /* mysql.proc table */
+           (length == 4 &&
+             my_tolower(ci, name[0]) == 'p' && 
+             my_tolower(ci, name[1]) == 'r' &&
+             my_tolower(ci, name[2]) == 'o' &&
+             my_tolower(ci, name[3]) == 'c') ||
 
-          length > 4 &&
-          (
-           /* one of mysql.help* tables */
-           my_tolower(ci, name[0]) == 'h' &&
-           my_tolower(ci, name[1]) == 'e' &&
-           my_tolower(ci, name[2]) == 'l' &&
-           my_tolower(ci, name[3]) == 'p' ||
+           (length > 4 &&
+             (
+               /* one of mysql.help* tables */
+               (my_tolower(ci, name[0]) == 'h' &&
+                 my_tolower(ci, name[1]) == 'e' &&
+                 my_tolower(ci, name[2]) == 'l' &&
+                 my_tolower(ci, name[3]) == 'p') ||
 
-           /* one of mysql.time_zone* tables */
-           my_tolower(ci, name[0]) == 't' &&
-           my_tolower(ci, name[1]) == 'i' &&
-           my_tolower(ci, name[2]) == 'm' &&
-           my_tolower(ci, name[3]) == 'e' ||
+               /* one of mysql.time_zone* tables */
+               (my_tolower(ci, name[0]) == 't' &&
+                 my_tolower(ci, name[1]) == 'i' &&
+                 my_tolower(ci, name[2]) == 'm' &&
+                 my_tolower(ci, name[3]) == 'e') ||
 
-           /* mysql.event table */
-           my_tolower(ci, name[0]) == 'e' &&
-           my_tolower(ci, name[1]) == 'v' &&
-           my_tolower(ci, name[2]) == 'e' &&
-           my_tolower(ci, name[3]) == 'n' &&
-           my_tolower(ci, name[4]) == 't'
-          )
+               /* mysql.event table */
+               (my_tolower(ci, name[0]) == 'e' &&
+                 my_tolower(ci, name[1]) == 'v' &&
+                 my_tolower(ci, name[2]) == 'e' &&
+                 my_tolower(ci, name[3]) == 'n' &&
+                 my_tolower(ci, name[4]) == 't')
+             )
+           )
          );
 }
 
@@ -723,8 +724,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share->transactional= (ha_choice) (head[39] & 3);
-    share->page_checksum= (ha_choice) ((head[39] >> 2) & 3);
     share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
@@ -914,6 +913,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           we unlock the old value of share->db_plugin before
           replacing it with a globally locked version of tmp_plugin
         */
+        /* Check if the partitioning engine is ready */
+        if (!plugin_is_ready(&name, MYSQL_STORAGE_ENGINE_PLUGIN))
+        {
+          error= 8;
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                   "--skip-partition");
+          my_free(buff, MYF(0));
+          goto err;
+        }
         plugin_unlock(NULL, share->db_plugin);
         share->db_plugin= ha_lock_engine(NULL, partition_hton);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
@@ -2491,8 +2499,11 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
-    fileinfo[39]= (uchar) ((uint) create_info->transactional |
-                           ((uint) create_info->page_checksum << 2));
+    /*
+      In future versions, we will store in fileinfo[39] the values of the
+      TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
+    */
+    fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
     fileinfo[41]= 0;
@@ -3314,8 +3325,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
   {
     const char *save_where= thd->where;
     thd->where= "check option";
-    if (!check_option->fixed &&
-        check_option->fix_fields(thd, &check_option) ||
+    if ((!check_option->fixed &&
+        check_option->fix_fields(thd, &check_option)) ||
         check_option->check_cols(1))
     {
       DBUG_RETURN(TRUE);
@@ -4031,7 +4042,7 @@ void Field_iterator_table_ref::set_field_iterator()
     /* Necesary, but insufficient conditions. */
     DBUG_ASSERT(table_ref->is_natural_join ||
                 table_ref->nested_join ||
-                table_ref->join_columns &&
+                (table_ref->join_columns &&
                 /* This is a merge view. */
                 ((table_ref->field_translation &&
                   table_ref->join_columns->elements ==
@@ -4040,7 +4051,7 @@ void Field_iterator_table_ref::set_field_iterator()
                  /* This is stored table or a tmptable view. */
                  (!table_ref->field_translation &&
                   table_ref->join_columns->elements ==
-                  table_ref->table->s->fields)));
+                  table_ref->table->s->fields))));
     field_it= &natural_join_it;
     DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
                        table_ref->alias));

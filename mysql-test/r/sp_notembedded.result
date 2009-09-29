@@ -233,4 +233,41 @@ rl_acquirer	old
 drop procedure p1;
 drop table t1;
 set session low_priority_updates=default;
+INSERT INTO mysql.user (Host, User, Password, Select_priv, Insert_priv, Update_priv,
+Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv,
+Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv,
+Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv,
+Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv,
+Create_user_priv, ssl_type, ssl_cipher, x509_issuer, x509_subject, max_questions,
+max_updates, max_connections, max_user_connections) 
+VALUES('%', 'mysqltest_1', password(''), 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
+'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
+'', '', '', '0', '0', '0', '0');
+FLUSH PRIVILEGES;
+CREATE PROCEDURE p1(i INT) BEGIN END;
+DROP PROCEDURE p1;
+DELETE FROM mysql.user WHERE User='mysqltest_1';
+FLUSH PRIVILEGES;
 set @@global.concurrent_insert= @old_concurrent_insert;
+#
+# Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
+#
+SELECT GET_LOCK('Bug44521', 0);
+GET_LOCK('Bug44521', 0)
+1
+** Connection con1
+CREATE PROCEDURE p()
+BEGIN
+SELECT 1;
+SELECT GET_LOCK('Bug44521', 100);
+SELECT 2;
+END$
+CALL p();;
+** Default connection
+SELECT RELEASE_LOCK('Bug44521');
+RELEASE_LOCK('Bug44521')
+1
+DROP PROCEDURE p;
+# ------------------------------------------------------------------
+# -- End of 5.1 tests
+# ------------------------------------------------------------------

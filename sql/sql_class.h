@@ -91,7 +91,7 @@ enum enum_mark_columns
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
-extern const char **errmesg;
+extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
@@ -631,22 +631,16 @@ public:
     we need to declare it char * because all table handlers are written
     in C and need to point to it.
 
-    Note that (A) if we set query = NULL, we must at the same time set
-    query_length = 0, and protect the whole operation with the
-    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
-    non-NULL value if its previous value is NULL. We do not need to protect
-    operation (B) with any mutex. To avoid crashes in races, if we do not
-    know that thd->query cannot change at the moment, one should print
+    Note that if we set query = NULL, we must at the same time set
+    query_length = 0, and protect the whole operation with
+    LOCK_thd_data mutex. To avoid crashes in races, if we do not
+    know that thd->query cannot change at the moment, we should print
     thd->query like this:
-      (1) reserve the LOCK_thread_count mutex;
-      (2) check if thd->query is NULL;
-      (3) if not NULL, then print at most thd->query_length characters from
-      it. We will see the query_length field as either 0, or the right value
-      for it.
-    Assuming that the write and read of an n-bit memory field in an n-bit
-    computer is atomic, we can avoid races in the above way. 
-    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
-    STATUS.
+      (1) reserve the LOCK_thd_data mutex;
+      (2) print or copy the value of query and query_length
+      (3) release LOCK_thd_data mutex.
+    This printing is needed at least in SHOW PROCESSLIST and SHOW
+    ENGINE INNODB STATUS.
   */
   char *query;
   uint32 query_length;                          // current query length
@@ -678,7 +672,7 @@ public:
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
-  void set_statement(Statement *stmt);
+  virtual void set_statement(Statement *stmt);
   void set_n_backup_statement(Statement *stmt, Statement *backup);
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
@@ -1098,6 +1092,31 @@ public:
 
 
 /**
+  This class is an internal error handler implementation for 
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
+*/
+
+class Drop_table_error_handler : public Internal_error_handler
+{
+public:
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd);
+
+private:
+  Internal_error_handler *m_err_handler;
+};
+
+
+/**
   Stores status of the currently executed statement.
   Cleared at the beginning of the statement, and then
   can hold either OK, ERROR, or EOF status.
@@ -1298,7 +1317,15 @@ public:
   THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
   THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
                                         // the lock_id of a cursor.
-  pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
+  /**
+    Protects THD data accessed from other threads:
+    - thd->query and thd->query_length (used by SHOW ENGINE
+      INNODB STATUS and SHOW PROCESSLIST
+    - thd->mysys_var (used by KILL statement and shutdown).
+    Is locked when THD is deleted.
+  */
+  pthread_mutex_t LOCK_thd_data;
+
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
   /*
@@ -1335,6 +1362,10 @@ public:
 
     Set it using the  thd_proc_info(THD *thread, const char *message)
     macro/function.
+
+    This member is accessed and assigned without any synchronization.
+    Therefore, it may point only to constant (statically
+    allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
 
@@ -1370,7 +1401,8 @@ public:
   /* remote (peer) port */
   uint16 peer_port;
   time_t     start_time, user_time;
-  ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
+  // track down slow pthread_create
+  ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
   
   thr_lock_type update_lock_default;
@@ -1464,6 +1496,14 @@ public:
     {
       changed_tables= 0;
       savepoints= 0;
+      /*
+        If rm_error is raised, it means that this piece of a distributed
+        transaction has failed and must be rolled back. But the user must
+        rollback it explicitly, so don't start a new distributed XA until
+        then.
+      */
+      if (!xid_state.rm_error)
+        xid_state.xid.null();
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
@@ -1877,15 +1917,15 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
-    pthread_mutex_lock(&LOCK_delete);
+    pthread_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
-    pthread_mutex_unlock(&LOCK_delete);
+    pthread_mutex_unlock(&LOCK_thd_data);
   }
   inline void clear_active_vio()
   {
-    pthread_mutex_lock(&LOCK_delete);
+    pthread_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
-    pthread_mutex_unlock(&LOCK_delete);
+    pthread_mutex_unlock(&LOCK_thd_data);
   }
   void close_active_vio();
 #endif
@@ -2258,6 +2298,14 @@ public:
   */
   void pop_internal_handler();
 
+  /** Overloaded to guard query/query_length fields */
+  virtual void set_statement(Statement *stmt);
+
+  /**
+    Assign a new value to thd->query.
+    Protected with LOCK_thd_data mutex.
+  */
+  void set_query(char *query_arg, uint32 query_length_arg);
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2470,6 +2518,7 @@ class select_export :public select_to_file {
   */
   bool is_unsafe_field_sep;
   bool fixed_row_size;
+  CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
   /**
@@ -2858,7 +2907,8 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes();
+  int do_deletes();
+  int do_table_deletes(TABLE *table, bool ignore);
   bool send_eof();
   virtual void abort();
 };

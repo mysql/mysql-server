@@ -766,15 +766,11 @@ call p_verify_status_increment(2, 2, 2, 2);
 SUCCESS
 
 savepoint a;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 insert t1 set a=4;
-# Binlog does not register itself this time for other than the 1st
-# statement of the transaction with MIXED/STATEMENT binlog_format.
-# It needs registering with the ROW format. Therefore 1,0,2,2 are 
-# the correct arguments to this test after bug#40221 fixed.
-call p_verify_status_increment(1, 0, 2, 2);
+call p_verify_status_increment(2, 2, 2, 2);
 SUCCESS
 
 release savepoint a;
@@ -845,17 +841,17 @@ call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 2, 2);
 SUCCESS
 
 rename table t4 to t3;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 2, 2);
 SUCCESS
 
 truncate table t3;
 call p_verify_status_increment(4, 4, 4, 4);
-ERROR
-Expected commit increment: 4 actual: 2
+SUCCESS
+
 create view v1 as select * from t2;
 call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS

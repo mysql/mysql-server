@@ -342,6 +342,33 @@ common_1_lev_code:
 
 
 /**
+  Create a new query string for removing executable comments 
+  for avoiding leak and keeping consistency of the execution 
+  on master and slave.
+  
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_query_string(THD *thd, String *buf)
+{
+  /* Append the "CREATE" part of the query */
+  if (buf->append(STRING_WITH_LEN("CREATE ")))
+    return 1;
+  /* Append definer */
+  append_definer(thd, buf, &(thd->lex->definer->user), &(thd->lex->definer->host));
+  /* Append the left part of thd->query after "DEFINER" part */
+  if (buf->append(thd->lex->stmt_definition_begin))
+    return 1;
+ 
+  return 0;
+}
+
+/**
   Create a new event.
 
   @param[in,out]  thd            THD
@@ -439,7 +466,16 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     {
       /* Binlog the create event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      String log_query;
+      if (create_query_string(thd, &log_query))
+      {
+        sql_print_error("Event Error: An error occurred while creating query string, "
+                        "before writing it into binary log.");
+        DBUG_RETURN(TRUE);
+      }
+      /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
+         will be written into the binary log as the definer for the SQL thread. */
+      write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -852,33 +888,29 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 }
 
 
-/*
-  Inits the scheduler's structures.
+/**
+  Initializes the scheduler's structures.
 
-  SYNOPSIS
-    Events::init()
+  @param  opt_noacl_or_bootstrap
+                     TRUE if there is --skip-grant-tables or --bootstrap
+                     option. In that case we disable the event scheduler.
 
-  NOTES
-    This function is not synchronized.
+  @note   This function is not synchronized.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error in case the scheduler can't start
+  @retval  FALSE   Perhaps there was an error, and the event scheduler
+                   is disabled. But the error is not fatal and the 
+                   server start up can continue.
+  @retval  TRUE    Fatal error. Startup must terminate (call unireg_abort()).
 */
 
 bool
-Events::init(my_bool opt_noacl)
+Events::init(my_bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
   bool res= FALSE;
 
   DBUG_ENTER("Events::init");
-
-  /* Disable the scheduler if running with --skip-grant-tables */
-  if (opt_noacl)
-    opt_event_scheduler= EVENTS_DISABLED;
-
 
   /* We need a temporary THD during boot */
   if (!(thd= new THD()))
@@ -908,23 +940,30 @@ Events::init(my_bool opt_noacl)
   /*
     Since we allow event DDL even if the scheduler is disabled,
     check the system tables, as we might need them.
+
+    If run with --skip-grant-tables or --bootstrap, don't try to do the
+    check of system tables and don't complain: in these modes the tables
+    are most likely not there and we're going to disable the event
+    scheduler anyway.
   */
-  if (Event_db_repository::check_system_tables(thd))
+  if (opt_noacl_or_bootstrap || Event_db_repository::check_system_tables(thd))
   {
-    sql_print_error("Event Scheduler: An error occurred when initializing "
-                    "system tables.%s",
-                    opt_event_scheduler == EVENTS_DISABLED ?
-                    "" : " Disabling the Event Scheduler.");
+    if (! opt_noacl_or_bootstrap)
+    {
+      sql_print_error("Event Scheduler: An error occurred when initializing "
+                      "system tables. Disabling the Event Scheduler.");
+      check_system_tables_error= TRUE;
+    }
 
     /* Disable the scheduler since the system tables are not up to date */
     opt_event_scheduler= EVENTS_DISABLED;
-    check_system_tables_error= TRUE;
     goto end;
   }
 
   /*
     Was disabled explicitly from the command line, or because we're running
-    with --skip-grant-tables, or because we have no system tables.
+    with --skip-grant-tables, or --bootstrap, or because we have no system
+    tables.
   */
   if (opt_event_scheduler == Events::EVENTS_DISABLED)
     goto end;
@@ -941,7 +980,7 @@ Events::init(my_bool opt_noacl)
   }
 
   if (event_queue->init_queue(thd) || load_events_from_db(thd) ||
-      opt_event_scheduler == EVENTS_ON && scheduler->start())
+      (opt_event_scheduler == EVENTS_ON && scheduler->start()))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");
     res= TRUE; /* fatal error: request unireg_abort */

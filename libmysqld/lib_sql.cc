@@ -806,11 +806,11 @@ MYSQL_DATA *THD::alloc_new_dataset()
 */
 
 static
-void
+bool
 write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
 {
   if (!thd->mysql)            // bootstrap file handling
-    return;
+    return FALSE;
   /*
     The following test should never be true, but it's better to do it
     because if 'is_fatal_error' is set the server is not going to execute
@@ -825,6 +825,7 @@ write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
   */
   thd->cur_data->embedded_info->warning_count=
     (thd->spcont ? 0 : min(total_warn_count, 65535));
+  return FALSE;
 }
 
 
@@ -1035,31 +1036,34 @@ bool Protocol_binary::write()
   @sa Server implementation of net_send_ok in protocol.cc for
   description of the arguments.
 
-  @return The function does not return errors.
+  @return
+    @retval TRUE An error occurred
+    @retval FALSE Success
 */
 
-void
+bool
 net_send_ok(THD *thd,
             uint server_status, uint total_warn_count,
             ha_rows affected_rows, ulonglong id, const char *message)
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;
+  bool error;
   MYSQL *mysql= thd->mysql;
 
   if (!mysql)            // bootstrap file handling
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(FALSE);
   if (!(data= thd->alloc_new_dataset()))
-    return;
+    return TRUE;
   data->embedded_info->affected_rows= affected_rows;
   data->embedded_info->insert_id= id;
   if (message)
     strmake(data->embedded_info->info, message,
             sizeof(data->embedded_info->info)-1);
 
-  write_eof_packet(thd, server_status, total_warn_count);
+  error= write_eof_packet(thd, server_status, total_warn_count);
   thd->cur_data= 0;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 
@@ -1068,27 +1072,41 @@ net_send_ok(THD *thd,
 
   @sa net_send_ok
 
-  @return This function does not return errors.
+  @return
+    @retval TRUE  An error occurred
+    @retval FALSE Success
 */
 
-void
+bool
 net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 {
-  write_eof_packet(thd, server_status, total_warn_count);
+  bool error= write_eof_packet(thd, server_status, total_warn_count);
   thd->cur_data= 0;
+  return error;
 }
 
 
-void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
-  MYSQL_DATA *data= thd->cur_data ? thd->cur_data : thd->alloc_new_dataset();
-  struct embedded_query_result *ei= data->embedded_info;
+  MYSQL_DATA *data= thd->cur_data;
+  struct embedded_query_result *ei;
 
+  if (!thd->mysql)            // bootstrap file handling
+  {
+    fprintf(stderr, "ERROR: %d  %s\n", sql_errno, err);
+    return TRUE;
+  }
+
+  if (!data)
+    data= thd->alloc_new_dataset();
+
+  ei= data->embedded_info;
   ei->last_errno= sql_errno;
   strmake(ei->info, err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
   ei->server_status= thd->server_status;
   thd->cur_data= 0;
+  return FALSE;
 }
 
 

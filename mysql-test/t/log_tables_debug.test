@@ -1,0 +1,94 @@
+### t/log_tables_debug.test
+#
+# Log-related tests requiring a debug-build server.
+#
+
+# extra clean-up required due to Bug#38124, set to 1 when behavior has
+# changed (see explanation in log_state.test)
+let $fixed_bug38124 = 0;
+
+--source include/have_debug.inc
+
+# Several subtests modify global variables. Save the initial values only here,
+# but reset to the initial values per subtest.
+SET @old_general_log= @@global.general_log;
+SET @old_general_log_file= @@global.general_log_file;
+SET @old_slow_query_log= @@global.slow_query_log;
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
+
+
+--echo #
+--echo # Bug#45387 Information about statement id for prepared
+--echo #           statements missed from general log
+--echo #
+
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+
+# set logging to our specific bug log to control the entries added
+SET @@global.general_log = ON;
+SET @@global.general_log_file = 'bug45387_general.log';
+
+# turn on output of timestamps on all log file entries
+SET SESSION debug='+d,reset_log_last_time';
+
+let CONN_ID= `SELECT CONNECTION_ID()`;
+FLUSH LOGS;
+
+# reset log settings
+SET @@global.general_log = @old_general_log;
+SET @@global.general_log_file = @old_general_log_file;
+SET SESSION debug='-d';
+
+perl;
+  # get the relevant info from the surrounding perl invocation
+  $datadir= $ENV{'MYSQLD_DATADIR'};
+  $conn_id= $ENV{'CONN_ID'};
+
+  # loop through the log file looking for the stmt querying for conn id
+  open(FILE, "$datadir/bug45387_general.log") or
+    die("Unable to read log file $datadir/bug45387_general.log: $!\n");
+  while(<FILE>) {
+    if (/\d{6}\s+\d+:\d+:\d+[ \t]+(\d+)[ \t]+Query[ \t]+SELECT CONNECTION_ID/) {
+      $found= $1;
+      break;
+    }
+  }
+
+  # print the result
+  if ($found == $conn_id) {
+    print "Bug#45387: ID match.\n";
+  } else {
+    print "Bug#45387: Expected ID '$conn_id', found '$found' in log file.\n";
+    print "Contents of log file:\n";
+    seek(FILE, 0, 0);
+    while($line= <FILE>) {
+      print $line;
+    }
+  }
+
+  close(FILE);
+EOF
+
+--remove_file $MYSQLD_DATADIR/bug45387_general.log
+
+--echo End of 5.1 tests
+
+
+--echo #
+--echo # Cleanup
+--echo #
+
+# Reset global system variables to initial values if forgotten somewhere above.
+SET global general_log = @old_general_log;
+SET global general_log_file = @old_general_log_file;
+SET global slow_query_log = @old_slow_query_log;
+SET global slow_query_log_file = @old_slow_query_log_file;
+if(!$fixed_bug38124)
+{
+   --disable_query_log
+   let $my_var = `SELECT @old_general_log_file`;
+   eval SET @@global.general_log_file = '$my_var';
+   let $my_var = `SELECT @old_slow_query_log_file`;
+   eval SET @@global.slow_query_log_file = '$my_var';
+   --enable_query_log
+}

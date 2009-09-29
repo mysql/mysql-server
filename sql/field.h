@@ -472,6 +472,13 @@ public:
   /* maximum possible display length */
   virtual uint32 max_display_length()= 0;
 
+  /**
+    Whether a field being created is compatible with a existing one.
+
+    Used by the ALTER TABLE code to evaluate whether the new definition
+    of a table is compatible with the old definition so that it can
+    determine if data needs to be copied over (table data change).
+  */
   virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
@@ -608,6 +615,10 @@ protected:
 
 class Field_num :public Field {
 public:
+  /**
+     The scale of the Field's value, i.e. the number of digits to the right
+     of the decimal point.
+  */
   const uint8 dec;
   bool zerofill,unsigned_flag;	// Purify cannot handle bit fields
   Field_num(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
@@ -766,6 +777,11 @@ public:
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg, uint8 dec_arg,
                     bool unsigned_arg);
+  /*
+    Create a field to hold a decimal value from an item.
+    Truncates the precision and/or scale if necessary.
+  */
+  static Field_new_decimal *new_decimal_field(const Item *item);
   enum_field_types type() const { return MYSQL_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
@@ -1853,7 +1869,6 @@ public:
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
 private:
   int do_save_field_metadata(uchar *first_byte);
-  bool compare_enum_values(TYPELIB *values);
   uint is_equal(Create_field *new_field);
 };
 

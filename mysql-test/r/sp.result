@@ -1337,52 +1337,6 @@ drop procedure opp|
 drop procedure ip|
 show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-drop table if exists t3|
-create table t3 ( f bigint unsigned not null )|
-drop procedure if exists fib|
-create procedure fib(n int unsigned)
-begin
-if n > 1 then
-begin
-declare x, y bigint unsigned;
-declare c cursor for select f from t3 order by f desc limit 2;
-open c;
-fetch c into y;
-fetch c into x;
-close c;
-insert into t3 values (x+y);
-call fib(n-1);
-end;
-end if;
-end|
-set @@max_sp_recursion_depth= 20|
-insert into t3 values (0), (1)|
-call fib(3)|
-select * from t3 order by f asc|
-f
-0
-1
-1
-2
-truncate table t3|
-insert into t3 values (0), (1)|
-call fib(10)|
-select * from t3 order by f asc|
-f
-0
-1
-1
-2
-3
-5
-8
-13
-21
-34
-55
-drop table t3|
-drop procedure fib|
-set @@max_sp_recursion_depth= 0|
 drop procedure if exists bar|
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
@@ -7009,6 +6963,22 @@ CALL p1();
 CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
+#
+# Bug #46629: Item_in_subselect::val_int(): Assertion `0' 
+# on subquery inside a SP
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT, b INT PRIMARY KEY);
+CREATE PROCEDURE p1 () 
+BEGIN 
+SELECT a FROM t1 A WHERE A.b IN (SELECT b FROM t2 AS B);
+END|
+CALL p1;
+ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
+CALL p1;
+ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

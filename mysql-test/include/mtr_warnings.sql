@@ -132,16 +132,16 @@ INSERT INTO global_suppressions VALUES
 
  ("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49"),
 
- ("Statement is not safe to log in statement format"),
+ ("Statement may not be safe to log in statement format"),
 
  /* test case for Bug#bug29807 copies a stray frm into database */
  ("InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal"),
  ("Cannot find or open table test\/bug29807 from"),
 
  /* innodb foreign key tests that fail in ALTER or RENAME produce this */
- ("InnoDB: Error: in ALTER TABLE `test`.`t[12]`"),
+ ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
- ("InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal"),
+ ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
 
  /* Test case for Bug#14233 produces the following warnings: */
  ("Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc"),
@@ -162,6 +162,8 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
+ (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */
  ("Out of sort memory; increase server sort buffer size"),
@@ -171,6 +173,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
 
  ("THE_LAST_SUPPRESSION")||
 

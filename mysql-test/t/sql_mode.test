@@ -308,3 +308,39 @@ flush privileges;
 
 --connection default
 drop user mysqltest_32753@localhost;
+
+#
+# Bug#45100: Incomplete DROP USER in case of SQL_MODE = 'PAD_CHAR_TO_FULL_LENGTH'
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+# Generate some prerequisites
+CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
+CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';
+
+CREATE TABLE t1 (f1 BIGINT);
+CREATE TABLE t2 (f1 CHAR(3) NOT NULL, f2 CHAR(20));
+
+# Grant privilege on a TABLE
+GRANT ALL ON t1 TO 'user_PCTFL'@'localhost','user_no_PCTFL'@'localhost';
+# Grant privilege on some COLUMN of a table
+GRANT SELECT(f1) ON t2 TO 'user_PCTFL'@'localhost','user_no_PCTFL'@'localhost';
+
+SET @OLD_SQL_MODE = @@SESSION.SQL_MODE;
+SET SESSION SQL_MODE = 'PAD_CHAR_TO_FULL_LENGTH';
+DROP USER 'user_PCTFL'@'localhost';
+SET SESSION SQL_MODE = @OLD_SQL_MODE;
+DROP USER 'user_no_PCTFL'@'localhost';
+
+FLUSH PRIVILEGES;
+
+SELECT * FROM mysql.db WHERE Host = 'localhost' AND User LIKE 'user_%PCTFL';
+SELECT * FROM mysql.tables_priv WHERE Host = 'localhost' AND User LIKE 'user_%PCTFL';
+SELECT * FROM mysql.columns_priv WHERE Host = 'localhost' AND User LIKE 'user_%PCTFL';
+
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;

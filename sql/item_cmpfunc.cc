@@ -395,11 +395,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     ulong orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
-    ulonglong orig_field_val; /* original field value if valid */
+    ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
 
     LINT_INIT(old_maps[0]);
     LINT_INIT(old_maps[1]);
-    LINT_INIT(orig_field_val);
 
     if (table)
       dbug_tmp_use_all_columns(table, old_maps, 
@@ -1484,8 +1483,8 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
-  if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
-      !cache && !(cache= Item_cache::get_cache(args[0])))
+  if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
+      (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;
 
   cache->setup(args[0]);
@@ -2183,7 +2182,7 @@ uint Item_func_ifnull::decimal_precision() const
   int arg1_int_part= args[1]->decimal_int_part();
   int max_int_part= max(arg0_int_part, arg1_int_part);
   int precision= max_int_part + decimals;
-  return min(precision, DECIMAL_MAX_PRECISION);
+  return precision;
 }
 
 
@@ -2367,7 +2366,7 @@ uint Item_func_if::decimal_precision() const
   int arg1_prec= args[1]->decimal_int_part();
   int arg2_prec= args[2]->decimal_int_part();
   int precision=max(arg1_prec,arg2_prec) + decimals;
-  return min(precision, DECIMAL_MAX_PRECISION);
+  return precision;
 }
 
 
@@ -2760,8 +2759,9 @@ void Item_func_case::fix_length_and_dec()
       agg_num_lengths(args[i + 1]);
     if (else_expr_num != -1) 
       agg_num_lengths(args[else_expr_num]);
-    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(max_length +
+                                                             decimals, decimals,
+                                                             unsigned_flag);
   }
 }
 
@@ -2774,7 +2774,7 @@ uint Item_func_case::decimal_precision() const
 
   if (else_expr_num != -1) 
     set_if_bigger(max_int_part, args[else_expr_num]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+  return max_int_part + decimals;
 }
 
 
@@ -2996,8 +2996,8 @@ int cmp_longlong(void *cmp_arg,
       One of the args is unsigned and is too big to fit into the 
       positive signed range. Report no match.
     */  
-    if (a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX ||
-        b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX)
+    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX) ||
+        (b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX))
       return a->unsigned_flag ? 1 : -1;
     /*
       Although the signedness differs both args can fit into the signed 

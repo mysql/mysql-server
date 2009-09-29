@@ -99,7 +99,7 @@ static void do_field_to_null_str(Copy_field *copy)
 static void do_outer_field_to_null_str(Copy_field *copy)
 {
   if (*copy->null_row ||
-      copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     bzero(copy->to_ptr,copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
@@ -212,7 +212,7 @@ static void do_copy_null(Copy_field *copy)
 static void do_outer_field_null(Copy_field *copy)
 {
   if (*copy->null_row ||
-      copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     *copy->to_null_ptr|=copy->to_bit;
     copy->to_field->reset();
@@ -665,9 +665,9 @@ Copy_field::get_copy_func(Field *to,Field *from)
       */
       if (to->real_type() != from->real_type() ||
           !compatible_db_low_byte_first ||
-          ((to->table->in_use->variables.sql_mode &
+          (((to->table->in_use->variables.sql_mode &
             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           to->type() == MYSQL_TYPE_DATE ||
+           to->type() == MYSQL_TYPE_DATE) ||
            to->type() == MYSQL_TYPE_DATETIME))
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
@@ -770,8 +770,8 @@ int field_conv(Field *to,Field *from)
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
-         to->type() != MYSQL_TYPE_DATE &&
-         to->type() != MYSQL_TYPE_DATETIME) &&
+         (to->type() != MYSQL_TYPE_DATE &&
+          to->type() != MYSQL_TYPE_DATETIME)) &&
         (from->real_type() != MYSQL_TYPE_VARCHAR ||
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
