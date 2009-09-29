@@ -770,7 +770,6 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_RETURN(0);
 }
 
-
 /*
   skip_load_data_infile()
 
@@ -860,6 +859,37 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
+{
+  char buf[16];
+  DBUG_ENTER("init_floatvar_from_file");
+
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    if (sscanf(buf, "%f", var) != 1)
+      DBUG_RETURN(1);
+    else
+      DBUG_RETURN(0);
+  }
+  else if (default_val != 0.0)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
+{
+  if (io_slave_killed(thd, mi))
+  {
+    if (info && global_system_variables.log_warnings)
+      sql_print_information(info);
+    return TRUE;
+  }
+  return FALSE;
+}
 
 /*
   Check if the error is caused by network.
@@ -1188,6 +1218,32 @@ when it try to get the value of TIME_ZONE global variable from master.";
       master_res= NULL;
     }
   }
+
+  if (mi->heartbeat_period != 0.0)
+  {
+    char llbuf[22];
+    const char query_format[]= "SET @master_heartbeat_period= %s";
+    char query[sizeof(query_format) - 2 + sizeof(llbuf)];
+    /* 
+       the period is an ulonglong of nano-secs. 
+    */
+    llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
+    my_sprintf(query, (query, query_format, llbuf));
+
+    if (mysql_real_query(mysql, query, strlen(query))
+        && !check_io_slave_killed(mi->io_thd, mi, NULL))
+    {
+      errmsg= "The slave I/O thread stops because  querying master with '%s' "
+              "failed; error: '%s' ";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, "%s Error: %s", errmsg,
+              query, mysql_error(mysql));
+      mysql_free_result(mysql_store_result(mysql));
+      goto err;
+    }
+    mysql_free_result(mysql_store_result(mysql));
+  }
+ 
 
 err:
   if (errmsg)
@@ -2381,18 +2437,6 @@ on this slave.\
 }
 
 
-static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
-{
-  if (io_slave_killed(thd, mi))
-  {
-    if (info && global_system_variables.log_warnings)
-      sql_print_information(info);
-    return TRUE;
-  }
-  return FALSE;
-}
-
-
 /**
   @brief Try to reconnect slave IO thread.
 
@@ -3552,6 +3596,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
 static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
+  String error_msg;
   ulong inc_pos;
   Relay_log_info *rli= &mi->rli;
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
@@ -3586,7 +3631,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Rotate_log_event rev(buf,event_len,mi->rli.relay_log.description_event_for_queue);
     if (unlikely(process_io_rotate(mi,&rev)))
     {
-      error= 1;
+      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
     /*
@@ -3613,7 +3658,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
           Log_event::read_log_event(buf, event_len, &errmsg,
                                     mi->rli.relay_log.description_event_for_queue)))
     {
-      error= 2;
+      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
     delete mi->rli.relay_log.description_event_for_queue;
@@ -3632,6 +3677,56 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   }
   break;
+
+  case HEARTBEAT_LOG_EVENT:
+  {
+    /*
+      HB (heartbeat) cannot come before RL (Relay)
+    */
+    char  llbuf[22];
+    Heartbeat_log_event hb(buf, event_len, mi->rli.relay_log.description_event_for_queue);
+    if (!hb.is_valid())
+    {
+      error= ER_SLAVE_HEARTBEAT_FAILURE;
+      error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
+      error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
+      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(STRING_WITH_LEN(" log_pos "));
+      llstr(hb.log_pos, llbuf);
+      error_msg.append(llbuf, strlen(llbuf));
+      goto err;
+    }
+    mi->received_heartbeats++;
+    /* 
+       compare local and event's versions of log_file, log_pos.
+       
+       Heartbeat is sent only after an event corresponding to the corrdinates
+       the heartbeat carries.
+       Slave can not have a difference in coordinates except in the only
+       special case when mi->master_log_name, master_log_pos have never
+       been updated by Rotate event i.e when slave does not have any history
+       with the master (and thereafter mi->master_log_pos is NULL).
+
+       TODO: handling `when' for SHOW SLAVE STATUS' snds behind
+    */
+    if ((memcmp(mi->master_log_name, hb.get_log_ident(), hb.get_ident_len())
+         && mi->master_log_name != NULL)
+        || mi->master_log_pos != hb.log_pos)
+    {
+      /* missed events of heartbeat from the past */
+      error= ER_SLAVE_HEARTBEAT_FAILURE;
+      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
+      error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
+      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(STRING_WITH_LEN(" log_pos "));
+      llstr(hb.log_pos, llbuf);
+      error_msg.append(llbuf, strlen(llbuf));
+      goto err;
+    }
+    goto skip_relay_logging;
+  }
+  break;
+    
   default:
     inc_pos= event_len;
     break;
@@ -3692,15 +3787,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
-      error= 3;
+    {
+      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
+    }
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
   }
   pthread_mutex_unlock(log_lock);
 
-
+skip_relay_logging:
+  
 err:
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_PRINT("info", ("error: %d", error));
+  if (error)
+    mi->report(ERROR_LEVEL, error, ER(error), 
+               (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
+               "could not queue event from master" :
+               error_msg.ptr());
   DBUG_RETURN(error);
 }
 
@@ -4208,8 +4311,8 @@ static Log_event* next_event(Relay_log_info* rli)
         */
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
-        // Note that wait_for_update unlocks lock_log !
-        rli->relay_log.wait_for_update(rli->sql_thd, 1);
+        // Note that wait_for_update_relay_log unlocks lock_log !
+        rli->relay_log.wait_for_update_relay_log(rli->sql_thd);
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
         rli->last_master_timestamp= save_timestamp;

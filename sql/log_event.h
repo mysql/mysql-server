@@ -250,6 +250,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
+#define HEARTBEAT_HEADER_LEN   0
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -575,6 +576,12 @@ enum Log_event_type
   INCIDENT_EVENT= 26,
 
   /*
+    Heartbeat event to be send by master at its idle time 
+    to ensure master's online status to slave 
+  */
+  HEARTBEAT_LOG_EVENT= 27,
+  
+  /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
@@ -689,6 +696,20 @@ typedef struct st_print_event_info
 } PRINT_EVENT_INFO;
 #endif
 
+/**
+  the struct aggregates two paramenters that identify an event
+  uniquely in scope of communication of a particular master and slave couple.
+  I.e there can not be 2 events from the same staying connected master which
+  have the same coordinates.
+  @note
+  Such identifier is not yet unique generally as the event originating master
+  is resetable. Also the crashed master can be replaced with some other.
+*/
+struct event_coordinates
+{
+  char * file_name; // binlog file name (directories stripped)
+  my_off_t  pos;       // event's position in the binlog file
+};
 
 /**
   @class Log_event
@@ -3915,6 +3936,42 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     my_b_copy_to_file(cache, file) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
+
+#ifndef MYSQL_CLIENT
+/*****************************************************************************
+
+  Heartbeat Log Event class
+
+  Replication event to ensure to slave that master is alive.
+  The event is originated by master's dump thread and sent straight to
+  slave without being logged. Slave itself does not store it in relay log
+  but rather uses a data for immediate checks and throws away the event.
+
+  Two members of the class log_ident and Log_event::log_pos comprise 
+  @see the event_coordinates instance. The coordinates that a heartbeat
+  instance carries correspond to the last event master has sent from
+  its binlog.
+
+ ****************************************************************************/
+class Heartbeat_log_event: public Log_event
+{
+public:
+  Heartbeat_log_event(const char* buf, uint event_len,
+                      const Format_description_log_event* description_event);
+  Log_event_type get_type_code() { return HEARTBEAT_LOG_EVENT; }
+  bool is_valid() const
+    {
+      return (log_ident != NULL &&
+              log_pos >= BIN_LOG_HEADER_SIZE);
+    }
+  const char * get_log_ident() { return log_ident; }
+  uint get_ident_len() { return ident_len; }
+  
+private:
+  const char* log_ident;
+  uint ident_len;
+};
+#endif
 
 /**
   @} (end of group Replication)

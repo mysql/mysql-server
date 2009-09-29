@@ -22,14 +22,14 @@ CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93)|
 SELECT HEX(s1),HEX(s2),d FROM t4|
 DROP PROCEDURE bug18293|
 DROP TABLE t4|
-SHOW BINLOG EVENTS FROM 370|
+SHOW BINLOG EVENTS FROM 371|
 delimiter ;|
 
 --echo End of 5.0 tests
 
 #
 # #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
-# Note: 364 is a magic position (found experimentally, depends on 
+# Note: 365 is a magic position (found experimentally, depends on 
 # the log's contents) that caused the server crash.
 
 --error 1220
