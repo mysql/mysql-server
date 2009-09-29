@@ -60,7 +60,13 @@ typedef struct __toku_engine_status {
   int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
   u_int32_t        range_locks_max;         /* max total number of range locks */ 
   u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ 
-  u_int32_t        range_locks_curr;       /* total range locks currently in use */ 
+  u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
+  u_int64_t        inserts;                 /* ydb row insert operations            */ 
+  u_int64_t        deletes;                 /* ydb row delete operations            */ 
+  u_int64_t        commits;                 /* ydb txn commit operations            */ 
+  u_int64_t        aborts;                  /* ydb txn abort operations             */ 
+  u_int64_t        point_queries;           /* ydb point queries                    */ 
+  u_int64_t        sequential_queries;      /* ydb sequential queries               */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
