@@ -637,6 +637,21 @@ public:
 };
 #endif /* DBUG_OFF */
 
+#if defined(ENABLED_DEBUG_SYNC)
+/* Debug Sync Facility. Implemented in debug_sync.cc. */
+class sys_var_debug_sync :public sys_var_thd
+{
+public:
+  sys_var_debug_sync(sys_var_chain *chain, const char *name_arg)
+    :sys_var_thd(name_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type) { return type != STRING_RESULT; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 /* some variables that require special handling */
 
