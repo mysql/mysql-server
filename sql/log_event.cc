@@ -3643,6 +3643,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[UPDATE_ROWS_EVENT-1]=
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
+      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
 
       // Sanity-check that all post header lengths are initialized.
       IF_DBUG({
@@ -9425,5 +9426,18 @@ st_print_event_info::st_print_event_info()
   myf const flags = MYF(MY_WME | MY_NABP);
   open_cached_file(&head_cache, NULL, NULL, 0, flags);
   open_cached_file(&body_cache, NULL, NULL, 0, flags);
+}
+#endif
+
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
+                    const Format_description_log_event* description_event)
+  :Log_event(buf, description_event)
+{
+  uint8 header_size= description_event->common_header_len;
+  ident_len = event_len - header_size;
+  set_if_smaller(ident_len,FN_REFLEN-1);
+  log_ident= buf + header_size;
 }
 #endif

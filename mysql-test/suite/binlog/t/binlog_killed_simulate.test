@@ -24,7 +24,7 @@ update t1 set a=2 /* will be "killed" after work has been done */;
 #      for some constants like the offset of the first real event
 #      that is different between severs versions.
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=107 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -52,7 +52,7 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "kil
 
 source include/show_binlog_events.inc;
 
---exec $MYSQL_BINLOG --force-if-open --start-position=98 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=107 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
