@@ -129,6 +129,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
 static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
+static int init_recovery(Master_info* mi);
 static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
@@ -220,6 +221,7 @@ void unlock_slave_threads(Master_info* mi)
 int init_slave()
 {
   DBUG_ENTER("init_slave");
+  int error= 0;
 
   /*
     This is called when mysqld starts. Before client connections are
@@ -231,7 +233,7 @@ int init_slave()
     TODO: re-write this to interate through the list of files
     for multi-master
   */
-  active_mi= new Master_info;
+  active_mi= new Master_info(relay_log_recovery);
 
   /*
     If --slave-skip-errors=... was not used, the string value for the
@@ -250,6 +252,7 @@ int init_slave()
   if (!active_mi)
   {
     sql_print_error("Failed to allocate memory for the master info structure");
+    error= 1;
     goto err;
   }
 
@@ -257,6 +260,13 @@ int init_slave()
                        !master_host, (SLAVE_IO | SLAVE_SQL)))
   {
     sql_print_error("Failed to initialize the master info structure");
+    error= 1;
+    goto err;
+  }
+
+  if (active_mi->rli.is_relay_log_recovery && init_recovery(active_mi))
+  {
+    error= 1;
     goto err;
   }
 
@@ -275,18 +285,89 @@ int init_slave()
                             SLAVE_IO | SLAVE_SQL))
     {
       sql_print_error("Failed to create slave threads");
+      error= 1;
       goto err;
     }
   }
-  pthread_mutex_unlock(&LOCK_active_mi);
-  DBUG_RETURN(0);
 
 err:
+  active_mi->rli.is_relay_log_recovery= FALSE;
   pthread_mutex_unlock(&LOCK_active_mi);
-  DBUG_RETURN(1);
+  DBUG_RETURN(error);
 }
 
+/*
+  Updates the master info based on the information stored in the
+  relay info and ignores relay logs previously retrieved by the IO 
+  thread, which thus starts fetching again based on to the  
+  group_master_log_pos and group_master_log_name. Eventually, the old
+  relay logs will be purged by the normal purge mechanism.
 
+  In the feature, we should improve this routine in order to avoid throwing
+  away logs that are safely stored in the disk. Note also that this recovery 
+  routine relies on the correctness of the relay-log.info and only tolerates 
+  coordinate problems in master.info.
+  
+  In this function, there is no need for a mutex as the caller 
+  (i.e. init_slave) already has one acquired.
+  
+  Specifically, the following structures are updated:
+ 
+  1 - mi->master_log_pos  <-- rli->group_master_log_pos
+  2 - mi->master_log_name <-- rli->group_master_log_name
+  3 - It moves the relay log to the new relay log file, by
+      rli->group_relay_log_pos  <-- BIN_LOG_HEADER_SIZE;
+      rli->event_relay_log_pos  <-- BIN_LOG_HEADER_SIZE;
+      rli->group_relay_log_name <-- rli->relay_log.get_log_fname();
+      rli->event_relay_log_name <-- rli->relay_log.get_log_fname();
+  
+   If there is an error, it returns (1), otherwise returns (0).
+ */
+static int init_recovery(Master_info* mi)
+{
+  const char *errmsg= 0;
+  DBUG_ENTER("init_recovery");
+ 
+  Relay_log_info *rli= &mi->rli;
+  if (rli->group_master_log_name[0])
+  {
+    mi->master_log_pos= max(BIN_LOG_HEADER_SIZE,
+                             rli->group_master_log_pos);
+    strmake(mi->master_log_name, rli->group_master_log_name,
+            sizeof(mi->master_log_name)-1);
+ 
+    sql_print_warning("Recovery from master pos %ld and file %s.",
+                      (ulong) mi->master_log_pos, mi->master_log_name);
+ 
+    strmake(rli->group_relay_log_name, rli->relay_log.get_log_fname(),
+            sizeof(rli->group_relay_log_name)-1);
+    strmake(rli->event_relay_log_name, rli->relay_log.get_log_fname(),
+            sizeof(mi->rli.event_relay_log_name)-1);
+ 
+    rli->group_relay_log_pos= rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
+ 
+    if (init_relay_log_pos(rli,
+                           rli->group_relay_log_name,
+                           rli->group_relay_log_pos,
+                           0 /*no data lock*/,
+                            &errmsg, 0))
+      DBUG_RETURN(1);
+ 
+    if (flush_master_info(mi, 0))
+    {
+      sql_print_error("Failed to flush master info file");
+      DBUG_RETURN(1);
+    }
+    if (flush_relay_log_info(rli))
+    {
+       sql_print_error("Failed to flush relay info file");
+       DBUG_RETURN(1);
+    }
+  }
+ 
+  DBUG_RETURN(0);
+}
+ 
 /**
   Convert slave skip errors bitmap into a printable string.
 */
@@ -3959,7 +4040,14 @@ bool flush_relay_log_info(Relay_log_info* rli)
     error=1;
   if (flush_io_cache(file))
     error=1;
-
+  if (sync_relayloginfo_period &&
+      !error &&
+      ++(rli->sync_counter) >= sync_relayloginfo_period)
+  {
+    if (my_sync(rli->info_fd, MYF(MY_WME)))
+      error=1;
+    rli->sync_counter= 0;
+  }
   /* Flushing the relay log is done by the slave I/O thread */
   DBUG_RETURN(error);
 }
@@ -4365,6 +4453,8 @@ void rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
+
+  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", abort(););
 
   /* We don't lock rli->run_lock. This would lead to deadlocks. */
   pthread_mutex_lock(&mi->run_lock);

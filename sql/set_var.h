@@ -178,10 +178,10 @@ public:
 /**
    Unsigned int system variable class
  */
-class sys_var_int_ptr :public sys_var
+class sys_var_uint_ptr :public sys_var
 {
 public:
-  sys_var_int_ptr(sys_var_chain *chain, const char *name_arg, 
+  sys_var_uint_ptr(sys_var_chain *chain, const char *name_arg, 
                   uint *value_ptr_arg,
                   sys_after_update_func after_update_arg= NULL)
     :sys_var(name_arg, after_update_arg),

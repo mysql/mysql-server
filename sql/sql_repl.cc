@@ -1769,6 +1769,16 @@ static sys_var_const    sys_relay_log_info_file(&vars, "relay_log_info_file",
                                       (uchar*) &relay_log_info_file);
 static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
 					    &relay_log_purge);
+static sys_var_bool_ptr sys_relay_log_recovery(&vars, "relay_log_recovery",
+                                               &relay_log_recovery);
+static sys_var_uint_ptr sys_sync_binlog_period(&vars, "sync_binlog",
+                                              &sync_binlog_period);
+static sys_var_uint_ptr sys_sync_relaylog_period(&vars, "sync_relay_log",
+                                                &sync_relaylog_period);
+static sys_var_uint_ptr sys_sync_relayloginfo_period(&vars, "sync_relay_log_info",
+                                                    &sync_relayloginfo_period);
+static sys_var_uint_ptr sys_sync_masterinfo_period(&vars, "sync_master_info",
+                                                  &sync_masterinfo_period);
 static sys_var_const    sys_relay_log_space_limit(&vars,
                                                   "relay_log_space_limit",
                                                   OPT_GLOBAL, SHOW_LONGLONG,
@@ -1784,8 +1794,6 @@ static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
                                               (uchar*) slave_skip_error_names);
 static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
 						&slave_trans_retries);
-static sys_var_int_ptr sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
-static sys_var_int_ptr sys_sync_relaylog_period(&vars, "sync_relay_log", &sync_relaylog_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 
 
