@@ -47,10 +47,14 @@ static void cachetable_reader(WORKITEM);
 
 #define TOKU_DO_WAIT_TIME 0
 
+// these should be in the cachetable object, but we make them global so that gdb can get them easily
 static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
 static u_int64_t cachetable_wait_reading;  // how many times does get_and_pin() wait for a node to be read?
 static u_int64_t cachetable_wait_writing;  // how many times does get_and_pin() wait for a node to be written?
+static u_int64_t cachetable_puts;
+static u_int64_t cachetable_prefetches;
+static u_int64_t cachetable_maybe_get_and_pins, cachetable_maybe_get_and_pin_hits;
 #if TOKU_DO_WAIT_TIME
 static u_int64_t cachetable_miss_time;
 static u_int64_t cachetable_wait_time;
@@ -968,6 +972,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
         return r;
     }
     // flushing could change the table size, but wont' change the fullhash
+    cachetable_puts++;
     PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, extraargs, CACHETABLE_DIRTY, ZERO_LSN);
     assert(p);
     rwlock_read_lock(&p->rwlock, ct->mutex);
@@ -1166,6 +1171,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     int count = 0;
     int r = -1;
     cachetable_lock(ct);
+    cachetable_maybe_get_and_pins++;
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
@@ -1174,6 +1180,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
                 p->dirty &&
                 rwlock_try_prefer_read_lock(&p->rwlock, ct->mutex) == 0 //Grab read lock.  If any stall would be necessary that means it would be clean AFTER the stall, so don't even try to stall
             ) {
+                cachetable_maybe_get_and_pin_hits++;
                 *value = p->value;
                 lru_touch(ct,p);
                 r = 0;
@@ -1196,6 +1203,7 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
     int count = 0;
     int r = -1;
     cachetable_lock(ct);
+    cachetable_maybe_get_and_pins++;
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
@@ -1203,6 +1211,7 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
                 !p->checkpoint_pending &&  //If checkpoint pending, we would need to first write it, which would make it clean (if the pin would be used for writes.  If would be used for read-only we could return it, but that would increase complexity)
                 rwlock_try_prefer_read_lock(&p->rwlock, ct->mutex) == 0 //Grab read lock only if no stall required
             ) {
+                cachetable_maybe_get_and_pin_hits++;
                 *value = p->value;
                 lru_touch(ct,p);
                 r = 0;
@@ -1270,6 +1279,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
+        cachetable_prefetches++;
 	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN, ZERO_LSN);
         assert(p);
         rwlock_write_lock(&p->rwlock, ct->mutex);
