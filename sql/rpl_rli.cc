@@ -32,7 +32,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
-   info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+   info_fd(-1), cur_log_fd(-1), relay_log(&sync_relaylog_period),
+   save_temporary_tables(0),
 #if HAVE_purify
    is_fake(FALSE),
 #endif

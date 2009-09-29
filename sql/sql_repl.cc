@@ -1753,15 +1753,6 @@ public:
   */
 };
 
-class sys_var_sync_binlog_period :public sys_var_long_ptr
-{
-public:
-  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg, 
-                             ulong *value_ptr)
-    :sys_var_long_ptr(chain, name_arg,value_ptr) {}
-  bool update(THD *thd, set_var *var);
-};
-
 static sys_var_chain vars = { NULL, NULL };
 
 static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
@@ -1793,7 +1784,8 @@ static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
                                               (uchar*) slave_skip_error_names);
 static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
 						&slave_trans_retries);
-static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
+static sys_var_int_ptr sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
+static sys_var_int_ptr sys_sync_relaylog_period(&vars, "sync_relay_log", &sync_relaylog_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 
 
@@ -1834,12 +1826,6 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   return 0;
 }
 
-
-bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
-{
-  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
-  return 0;
-}
 
 int init_replication_sys_vars()
 {
