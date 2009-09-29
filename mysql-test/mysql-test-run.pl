@@ -1812,7 +1812,7 @@ sub environment_setup {
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
   }
 
   # ----------------------------------------------------
