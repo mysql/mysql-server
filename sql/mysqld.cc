@@ -3819,9 +3819,8 @@ with --log-bin instead.");
   }
   if (opt_log_slave_updates && !opt_bin_log)
   {
-    sql_print_error("You need to use --log-bin to make "
+    sql_print_warning("You need to use --log-bin to make "
                     "--log-slave-updates work.");
-    unireg_abort(1);
   }
   if (!opt_bin_log)
   {
@@ -3851,11 +3850,17 @@ with --log-bin instead.");
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
   {
-    sql_print_error("\
-using --replicate-same-server-id in conjunction with \
+    if (opt_bin_log)
+    {
+      sql_print_error("using --replicate-same-server-id in conjunction with \
 --log-slave-updates is impossible, it would lead to infinite loops in this \
 server.");
-    unireg_abort(1);
+      unireg_abort(1);
+    }
+    else
+      sql_print_warning("using --replicate-same-server-id in conjunction with \
+--log-slave-updates would lead to infinite loops in this server. However this \
+will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
