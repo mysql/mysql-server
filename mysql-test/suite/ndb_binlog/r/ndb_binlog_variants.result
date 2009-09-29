@@ -5,6 +5,8 @@ delete from ba where ks=2;
 flush logs;
 show variables like '%log_update%';
 Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	ON
 sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
@@ -17,10 +19,12 @@ INSERT INTO test.ba SET   @1=4   @3=40
 flush logs;
 show variables like '%log_update%';
 Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	OFF
 sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2
+DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
 INSERT INTO test.ba SET   @1=1   @2=1   @3=1
 INSERT INTO test.ba SET   @1=2   @2=2   @3=2
 INSERT INTO test.ba SET   @1=3   @2=3   @3=3
@@ -29,6 +33,8 @@ INSERT INTO test.ba SET   @1=4   @2=4   @3=40
 flush logs;
 show variables like '%log_update%';
 Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_updated_only	ON
 sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
@@ -41,10 +47,12 @@ UPDATE test.ba WHERE   @1=4   @3=4 SET   @1=4   @3=40
 flush logs;
 show variables like '%log_update%';
 Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_updated_only	OFF
 sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2
+DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
 INSERT INTO test.ba SET   @1=1   @2=1   @3=1
 INSERT INTO test.ba SET   @1=2   @2=2   @3=2
 INSERT INTO test.ba SET   @1=3   @2=3   @3=3
