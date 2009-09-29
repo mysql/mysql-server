@@ -1613,6 +1613,18 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
   return escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
+
+char * STDCALL
+mysql_odbc_escape_string(MYSQL *mysql,
+			 char *to, ulong to_length,
+			 const char *from, ulong from_length,
+			 void *param,
+			 char * (*extend_buffer)
+			 (void *, char *, ulong *))
+{
+  return NULL;
+}
+
 void STDCALL
 myodbc_remove_escape(MYSQL *mysql,char *name)
 {
