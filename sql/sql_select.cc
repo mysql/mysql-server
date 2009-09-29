@@ -1474,12 +1474,8 @@ JOIN::optimize()
       }
     }
 
-    /* 
-      If this join belongs to an uncacheable subquery save 
-      the original join 
-    */
-    if (select_lex->uncacheable && !is_top_level_join() &&
-        init_save_join_tab())
+    /* If this join belongs to an uncacheable query save the original join */
+    if (select_lex->uncacheable && init_save_join_tab())
       DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
@@ -3220,12 +3216,12 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
      @retval FALSE  it's something else
 */
 
-inline static bool
+static bool
 is_local_field (Item *field)
 {
-  field= field->real_item();
-  return field->type() == Item::FIELD_ITEM && 
-    !((Item_field *)field)->depended_from;
+  return field->real_item()->type() == Item::FIELD_ITEM
+    && !(field->used_tables() & OUTER_REF_TABLE_BIT)
+    && !((Item_field *)field->real_item())->depended_from;
 }
 
 
@@ -10484,9 +10480,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 {
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
-  JOIN_TAB *join_tab;
+  JOIN_TAB *UNINIT_VAR(join_tab);
   DBUG_ENTER("do_select");
-  LINT_INIT(join_tab);
 
   join->procedure=procedure;
   join->tmp_table= table;			/* Save for easy recursion */

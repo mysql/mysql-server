@@ -385,15 +385,12 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  byte		*key;
-  uint		key_len;
+  byte          *UNINIT_VAR(key);
+  uint          UNINIT_VAR(key_len);
   bool          need_reopen;
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
-
-  LINT_INIT(key);
-  LINT_INIT(key_len);
 
   thd->lex->select_lex.context.resolve_in_table_list_only(tables);
   list.push_front(new Item_field(&thd->lex->select_lex.context,

@@ -2741,8 +2741,13 @@ int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 {
   DBUG_ENTER("mysql_preload_keys");
+  /*
+    We cannot allow concurrent inserts. The storage engine reads
+    directly from the index file, bypassing the cache. It could read
+    outdated information if parallel inserts into cache blocks happen.
+  */
   DBUG_RETURN(mysql_admin_table(thd, tables, 0,
-				"preload_keys", TL_READ, 0, 0, 0, 0,
+				"preload_keys", TL_READ_NO_INSERT, 0, 0, 0, 0,
 				&handler::preload_keys, 0));
 }
 

@@ -196,12 +196,9 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   HP_SHARE *share = info->s;
   int flag;
   ulong halfbuff,hashnr,first_index;
-  byte *ptr_to_rec,*ptr_to_rec2;
-  HASH_INFO *empty,*gpos,*gpos2,*pos;
+  byte *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
+  HASH_INFO *empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
   DBUG_ENTER("hp_write_key");
-
-  LINT_INIT(gpos); LINT_INIT(gpos2);
-  LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
 
   flag=0;
   if (!(empty= hp_find_free_hash(share,&keyinfo->block,share->records)))

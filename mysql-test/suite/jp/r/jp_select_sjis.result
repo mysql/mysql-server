@@ -24,18 +24,6 @@ CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
 SELECT * FROM `‚s‚P`;
 ‚b‚P
  !"#$%&'()*+,-./
@@ -118,6 +106,7 @@ SELECT * FROM `‚s‚Q`;
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
 SELECT * FROM `‚s‚R`;
 ‚b‚P
+
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT * FROM `‚s‚S`;
 ‚b‚P
@@ -201,6 +190,7 @@ SELECT * FROM `‚s‚T`;
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
 SELECT * FROM `‚s‚U`;
 ‚b‚P
+
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT * FROM `‚s‚V`;
 ‚b‚P
@@ -285,6 +275,7 @@ SELECT * FROM `‚s‚W`;
 SELECT * FROM `‚s‚X`;
 ‚b‚P
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+
 SELECT * FROM `‚s‚P‚O`;
 ‚b‚P
  !"#$%&'()*+,-./
@@ -368,6 +359,7 @@ SELECT * FROM `‚s‚P‚P`;
 SELECT * FROM `‚s‚P‚Q`;
 ‚b‚P
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+
 drop table `‚s‚P`;
 drop table `‚s‚Q`;
 drop table `‚s‚R`;

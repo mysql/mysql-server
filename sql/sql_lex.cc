@@ -530,7 +530,7 @@ static inline uint int_token(const char *str,uint length)
 
 int MYSQLlex(void *arg, void *yythd)
 {
-  reg1	uchar c;
+  reg1	uchar UNINIT_VAR(c);
   bool comment_closed;
   int	tokval, result_state;
   uint length;
@@ -550,7 +550,6 @@ int MYSQLlex(void *arg, void *yythd)
   lip->tok_start=lip->tok_end=lip->ptr;
   state=lip->next_state;
   lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
-  LINT_INIT(c);
   for (;;)
   {
     switch (state) {
