@@ -298,7 +298,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # If requested, add a malloc library .so into pkglibdir for use
   # by mysqld_safe
   if [ -n "$MALLOC_LIB" ]; then
-    cp "$MALLOC_LIB" '@pkglibdir@'
+    cp "$MALLOC_LIB" "$DEST/lib/"
   fi
 
   # FIXME let this script be in "bin/", where it is in the RPMs?
