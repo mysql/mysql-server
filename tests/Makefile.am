@@ -56,7 +56,7 @@ bug25714_SOURCES=          bug25714.c
 bug25714_DEPENDENCIES=     $(LIBRARIES) $(pkglib_LTLIBRARIES)
 
 # Fix for mit-threads
-DEFS =			-DUNDEF_THREADS_HACK
+DEFS =			-DMYSQL_CLIENT_NO_THREADS
 
 thread_test.o:		thread_test.c
 			$(COMPILE) -c $(INCLUDES) $<

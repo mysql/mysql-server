@@ -62,7 +62,6 @@ let $message= Testcase 3.5.3.2/6:;
 	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-        let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK

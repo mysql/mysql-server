@@ -304,7 +304,7 @@ extern int rl_bind_keyseq_if_unbound PARAMS((const char *, rl_command_func_t *))
 extern int rl_bind_keyseq_if_unbound_in_map PARAMS((const char *, rl_command_func_t *, Keymap));
 extern int rl_generic_bind PARAMS((int, const char *, char *, Keymap));
 
-extern char *rl_variable_value PARAMS((const char *));
+extern const char *rl_variable_value PARAMS((const char *));
 extern int rl_variable_bind PARAMS((const char *, const char *));
 
 /* Backwards compatibility, use rl_bind_keyseq_in_map instead. */
@@ -343,7 +343,7 @@ extern void rl_set_keymap PARAMS((Keymap));
 extern Keymap rl_get_keymap PARAMS((void));
 /* Undocumented; used internally only. */
 extern void rl_set_keymap_from_edit_mode PARAMS((void));
-extern char *rl_get_keymap_name_from_edit_mode PARAMS((void));
+extern const char *rl_get_keymap_name_from_edit_mode PARAMS((void));
 
 /* Functions for manipulating the funmap, which maps command names to functions. */
 extern int rl_add_funmap_entry PARAMS((const char *, rl_command_func_t *));
@@ -406,7 +406,7 @@ extern void rl_set_screen_size PARAMS((int, int));
 extern void rl_get_screen_size PARAMS((int *, int *));
 extern void rl_reset_screen_size PARAMS((void));
 
-extern char *rl_get_termcap PARAMS((const char *));
+extern const char *rl_get_termcap PARAMS((const char *));
 
 /* Functions for character input. */
 extern int rl_stuff_char PARAMS((int));

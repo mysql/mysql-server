@@ -1,13 +1,15 @@
 set @old_concurrent_insert= @@global.concurrent_insert;
 set @@global.concurrent_insert= 0;
+SET @old_log_output = @@global.log_output;
+SET GLOBAL LOG_OUTPUT = 'FILE';
 flush status;
 show status like 'Table_lock%';
 Variable_name	Value
-Table_locks_immediate	1
+Table_locks_immediate	0
 Table_locks_waited	0
 select * from information_schema.session_status where variable_name like 'Table_lock%';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLE_LOCKS_IMMEDIATE	2
+TABLE_LOCKS_IMMEDIATE	0
 TABLE_LOCKS_WAITED	0
 # Switched to connection: con1
 set sql_log_bin=0;
@@ -154,7 +156,7 @@ Variable_name	Value
 Com_show_status	3
 show status like 'hand%write%';
 Variable_name	Value
-Handler_write	5
+Handler_write	0
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -162,7 +164,7 @@ Created_tmp_files	0
 Created_tmp_tables	0
 show status like 'hand%write%';
 Variable_name	Value
-Handler_write	7
+Handler_write	0
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -237,3 +239,4 @@ SELECT 9;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 set @@global.concurrent_insert= @old_concurrent_insert;
+SET GLOBAL log_output = @old_log_output;

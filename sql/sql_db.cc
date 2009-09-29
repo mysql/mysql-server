@@ -537,13 +537,13 @@ err1:
 bool load_db_opt_by_name(THD *thd, const char *db_name,
                          HA_CREATE_INFO *db_create_info)
 {
-  char db_opt_path[FN_REFLEN];
+  char db_opt_path[FN_REFLEN + 1];
 
   /*
     Pass an empty file name, and the database options file name as extension
     to avoid table name to file name encoding.
   */
-  (void) build_table_filename(db_opt_path, sizeof(db_opt_path),
+  (void) build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
                               db_name, "", MY_DB_OPT_FILE, 0);
 
   return load_db_opt(thd, db_opt_path, db_create_info);
@@ -645,7 +645,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path), db, "", "", 0);
+  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
@@ -658,10 +658,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     }
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
-    if (!silent)
-      my_ok(thd);
     error= 0;
-    goto exit;
+    goto not_silent;
   }
   else
   {
@@ -698,7 +696,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       happened.  (This is a very unlikely senario)
     */
   }
-  
+
+not_silent:
   if (!silent)
   {
     char *query;
@@ -791,7 +790,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
-  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE, 0);
+  build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
@@ -884,7 +883,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  length= build_table_filename(path, sizeof(path), db, "", "", 0);
+  length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -907,6 +906,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     pthread_mutex_lock(&LOCK_open);
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
+
+    Drop_table_error_handler err_handler(thd->get_internal_handler());
+    thd->push_internal_handler(&err_handler);
 
     error= -1;
     /*
@@ -940,6 +942,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error = 0;
       reenable_binlog(thd);
     }
+    thd->pop_internal_handler();
   }
   if (!silent && deleted>=0)
   {
@@ -1447,11 +1450,11 @@ cmp_db_names(const char *db1_name,
 {
   return
          /* db1 is NULL and db2 is NULL */
-         !db1_name && !db2_name ||
+         (!db1_name && !db2_name) ||
 
          /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
-         db1_name && db2_name &&
-         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0;
+         (db1_name && db2_name &&
+         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
 }
 
 
@@ -1841,7 +1844,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     for (uint idx=0 ; idx < nfiles && !thd->killed ; idx++)
     {
       FILEINFO *file= dirp->dir_entry + idx;
-      char *extension, tname[FN_REFLEN];
+      char *extension, tname[FN_REFLEN + 1];
       LEX_STRING table_str;
       DBUG_PRINT("info",("Examining: %s", file->name));
 
@@ -1930,7 +1933,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     for (uint idx=0 ; idx < nfiles ; idx++)
     {
       FILEINFO *file= dirp->dir_entry + idx;
-      char oldname[FN_REFLEN], newname[FN_REFLEN];
+      char oldname[FN_REFLEN + 1], newname[FN_REFLEN + 1];
       DBUG_PRINT("info",("Examining: %s", file->name));
 
       /* skiping . and .. and MY_DB_OPT_FILE */
@@ -2000,10 +2003,10 @@ exit:
 
 bool check_db_dir_existence(const char *db_name)
 {
-  char db_dir_path[FN_REFLEN];
+  char db_dir_path[FN_REFLEN + 1];
   uint db_dir_path_len;
 
-  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path),
+  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
                                         db_name, "", "", 0);
 
   if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)

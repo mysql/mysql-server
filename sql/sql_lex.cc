@@ -780,7 +780,7 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 
 int MYSQLlex(void *arg, void *yythd)
 {
-  reg1	uchar c;
+  reg1	uchar c= 0;
   bool comment_closed;
   int	tokval, result_state;
   uint length;
@@ -798,7 +798,6 @@ int MYSQLlex(void *arg, void *yythd)
   lip->start_token();
   state=lip->next_state;
   lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
-  LINT_INIT(c);
   for (;;)
   {
     switch (state) {
@@ -927,7 +926,7 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c);
+        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -939,7 +938,7 @@ int MYSQLlex(void *arg, void *yythd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet());
+        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet()) ;
       }
       if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
@@ -1012,7 +1011,7 @@ int MYSQLlex(void *arg, void *yythd)
         }
         else if (c == 'b')
         {
-          while ((c= lip->yyGet()) == '0' || c == '1');
+          while ((c= lip->yyGet()) == '0' || c == '1') ;
           if ((lip->yyLength() >= 3) && !ident_map[c])
           {
             /* Skip '0b' */
@@ -1071,7 +1070,7 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c);
+        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -1106,9 +1105,12 @@ int MYSQLlex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else if (var_length < 1)
-	  break;				// Error
-        lip->skip_binary(var_length-1);
+        else if (use_mb(cs))
+        {
+          if ((var_length= my_ismbchar(cs, lip->get_ptr() - 1,
+                                       lip->get_end_of_query())))
+            lip->skip_binary(var_length-1);
+        }
 #endif
       }
       if (double_quotes)
@@ -1171,7 +1173,7 @@ int MYSQLlex(void *arg, void *yythd)
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       lip->yySkip();                  // Accept opening '
-      while ((c= lip->yyGet()) == '0' || c == '1');
+      while ((c= lip->yyGet()) == '0' || c == '1') ;
       if (c != '\'')
         return(ABORT_SYM);            // Illegal hex constant
       lip->yySkip();                  // Accept closing '
@@ -1446,7 +1448,7 @@ int MYSQLlex(void *arg, void *yythd)
 	[(global | local | session) .]variable_name
       */
 
-      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c);
+      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c) ;
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
 

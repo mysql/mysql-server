@@ -4702,7 +4702,7 @@ ER_NOT_SUPPORTED_YET 42000
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
         nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d: '%-.128s' from master when reading data from binary log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.128s'"
         ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
         ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
         por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
@@ -6184,20 +6184,25 @@ ER_FUNC_INEXISTENT_NAME_COLLISION 42000
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
-  eng "Database `%s`"
-  swe "Databas `%s`"
+  eng "Database"
+  swe "Databas"
 ER_TABLE_NAME
-  eng "Table `%s`"
-  swe "Tabell `%s`"
+  eng "Table"
+  swe "Tabell"
 ER_PARTITION_NAME
-  eng "Partition `%s`"
-  swe "Partition `%s`"
+  eng "Partition"
+  swe "Partition"
 ER_SUBPARTITION_NAME
-  eng "Subpartition `%s`"
-  swe "Subpartition `%s`"
+  eng "Subpartition"
+  swe "Subpartition"
 ER_TEMPORARY_NAME
   eng "Temporary"
   swe "Temporär"
 ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
+ER_TOO_MANY_CONCURRENT_TRXS
+        eng  "Too many active concurrent transactions"
+
+WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
+  eng "Non-ASCII separator arguments are not fully supported"

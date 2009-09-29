@@ -70,15 +70,21 @@ static void wait_for_kill_signal(THD *thd)
 
 /**
   @brief Helper function for explain_filename
+  @param thd          Thread handle
+  @param to_p         Explained name in system_charset_info
+  @param end_p        End of the to_p buffer
+  @param name         Name to be converted
+  @param name_len     Length of the name, in bytes
 */
-static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, int errcode)
+static char* add_identifier(THD* thd, char *to_p, const char * end_p,
+                            const char* name, uint name_len)
 {
   uint res;
   uint errors;
   const char *conv_name;
   char tmp_name[FN_REFLEN];
   char conv_string[FN_REFLEN];
+  int quote;
 
   DBUG_ENTER("add_identifier");
   if (!name[name_len])
@@ -92,18 +98,50 @@ static char* add_identifier(char *to_p, const char * end_p,
   res= strconvert(&my_charset_filename, conv_name, system_charset_info,
                   conv_string, FN_REFLEN, &errors);
   if (!res || errors)
+  {
+    DBUG_PRINT("error", ("strconvert of '%s' failed with %u (errors: %u)", conv_name, res, errors));
     conv_name= name;
+  }
   else
   {
     DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
     conv_name= conv_string;
   }
 
-  if (errcode)
-    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+
+  if (quote != EOF && (end_p - to_p > 2))
+  {
+    *(to_p++)= (char) quote;
+    while (*conv_name && (end_p - to_p - 1) > 0)
+    {
+      uint length= my_mbcharlen(system_charset_info, *conv_name);
+      if (!length)
+        length= 1;
+      if (length == 1 && *conv_name == (char) quote)
+      { 
+        if ((end_p - to_p) < 3)
+          break;
+        *(to_p++)= (char) quote;
+        *(to_p++)= *(conv_name++);
+      }
+      else if (((long) length) < (end_p - to_p))
+      {
+        to_p= strnmov(to_p, conv_name, length);
+        conv_name+= length;
+      }
+      else
+        break;                               /* string already filled */
+    }
+    if (end_p > to_p) {
+      *(to_p++)= (char) quote;
+      if (end_p > to_p)
+	*to_p= 0; /* terminate by NUL, but do not include it in the count */
+    }
+  }
   else
-    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
-  return to_p;
+    to_p= strnmov(to_p, conv_name, end_p - to_p);
+  DBUG_RETURN(to_p);
 }
 
 
@@ -119,6 +157,7 @@ static char* add_identifier(char *to_p, const char * end_p,
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
 
+   @param      thd          Thread handle
    @param      from         Path name in my_charset_filename
                             Null terminated in my_charset_filename, normalized
                             to use '/' as directory separation character.
@@ -139,7 +178,8 @@ static char* add_identifier(char *to_p, const char * end_p,
    @retval     Length of returned string
 */
 
-uint explain_filename(const char *from,
+uint explain_filename(THD* thd,
+		      const char *from,
                       char *to,
                       uint to_length,
                       enum_explain_filename_mode explain_mode)
@@ -245,25 +285,31 @@ uint explain_filename(const char *from,
         part_name_len-= 5;
     }
   }
+  else
+    table_name_len= strlen(table_name);
   if (db_name)
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         ER_TABLE_NAME);
+  {
+    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
+  }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   if (part_name)
   {
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
@@ -280,13 +326,15 @@ uint explain_filename(const char *from,
         to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
-    to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         ER_PARTITION_NAME);
+    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
-      to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           ER_SUBPARTITION_NAME);
+      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p= strnmov(to_p, " */", end_p - to_p);
@@ -1515,7 +1563,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   /*
     Build shadow frm file name
   */
-  build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
+  build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
   strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
@@ -1590,7 +1638,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     /*
       Build frm file name
     */
-    build_table_filename(path, sizeof(path), lpt->db,
+    build_table_filename(path, sizeof(path) - 1, lpt->db,
                          lpt->table_name, "", 0);
     strxmov(frm_name, path, reg_ext, NullS);
     /*
@@ -1726,6 +1774,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error= FALSE, need_start_waiters= FALSE;
+  Drop_table_error_handler err_handler(thd->get_internal_handler());
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -1746,7 +1795,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
+  thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
+  thd->pop_internal_handler();
+
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1792,13 +1844,14 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN], *alias;
+  char path[FN_REFLEN + 1], *alias;
   uint path_length;
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   String built_query;
+  String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
 
   LINT_INIT(alias);
@@ -1847,9 +1900,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_RETURN(1);
   }
 
-  /* Don't give warnings for not found errors, as we already generate notes */
-  thd->no_warnings_for_error= 1;
-
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
@@ -1866,6 +1916,25 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     case  0:
       // removed temporary table
       tmp_table_deleted= 1;
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          thd->current_stmt_binlog_row_based)
+      {
+        if (built_tmp_query.is_empty()) 
+        {
+          built_tmp_query.set_charset(system_charset_info);
+          built_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
+        }
+
+        built_tmp_query.append("`");
+        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        {
+          built_tmp_query.append(db);
+          built_tmp_query.append("`.`");
+        }
+        built_tmp_query.append(table->table_name);
+        built_tmp_query.append("`,");
+      }
+
       continue;
     case -1:
       DBUG_ASSERT(thd->in_sub_stmt);
@@ -1882,7 +1951,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (thd->current_stmt_binlog_row_based && !dont_log_query)
+    if (!drop_temporary && thd->current_stmt_binlog_row_based && !dont_log_query)
     {
       non_temp_tables_count++;
       /*
@@ -1922,13 +1991,14 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
-      path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
+      path_length= build_table_filename(path, sizeof(path) - 1, db, alias,
+                                        reg_ext,
                                         table->internal_tmp_table ?
                                         FN_IS_TMP : 0);
     }
     if (drop_temporary ||
-        (table_type == NULL &&        
-         (access(path, F_OK) &&
+        ((table_type == NULL &&        
+         access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
           mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
@@ -2010,7 +2080,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (!dont_log_query)
     {
       if (!thd->current_stmt_binlog_row_based ||
-          non_temp_tables_count > 0 && !tmp_table_deleted)
+          (non_temp_tables_count > 0 && !tmp_table_deleted))
       {
         /*
           In this case, we are either using statement-based
@@ -2022,29 +2092,52 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         write_bin_log(thd, !error, thd->query, thd->query_length);
       }
       else if (thd->current_stmt_binlog_row_based &&
-               non_temp_tables_count > 0 &&
                tmp_table_deleted)
       {
-        /*
-          In this case we have deleted both temporary and
-          non-temporary tables, so:
-          - since we have deleted a non-temporary table we have to
-            binlog the statement, but
-          - since we have deleted a temporary table we cannot binlog
-            the statement (since the table has not been created on the
-            slave, this might cause the slave to stop).
+        if (non_temp_tables_count > 0)
+        {
+          /*
+            In this case we have deleted both temporary and
+            non-temporary tables, so:
+            - since we have deleted a non-temporary table we have to
+              binlog the statement, but
+            - since we have deleted a temporary table we cannot binlog
+              the statement (since the table may have not been created on the
+              slave - check "if" branch below, this might cause the slave to 
+              stop).
 
-          Instead, we write a built statement, only containing the
-          non-temporary tables, to the binary log
+            Instead, we write a built statement, only containing the
+            non-temporary tables, to the binary log
+          */
+          built_query.chop();                  // Chop of the last comma
+          built_query.append(" /* generated by server */");
+          write_bin_log(thd, !error, built_query.ptr(), built_query.length());
+        }
+
+        /*
+          One needs to always log any temporary table drop, if:
+            1. thread logging format is mixed mode; AND
+            2. current statement logging format is set to row.
         */
-        built_query.chop();                  // Chop of the last comma
-        built_query.append(" /* generated by server */");
-        write_bin_log(thd, !error, built_query.ptr(), built_query.length());
+        if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED)
+        {
+          /*
+            In this case we have deleted some temporary tables but we are using
+            row based logging for the statement. However, thread uses mixed mode
+            format, thence we need to log the dropping as we cannot tell for
+            sure whether the create was logged as statement previously or not, ie,
+            before switching to row mode.
+          */
+          built_tmp_query.chop();                  // Chop of the last comma
+          built_tmp_query.append(" /* generated by server */");
+          write_bin_log(thd, !error, built_tmp_query.ptr(), built_tmp_query.length());
+        }
       }
+
       /*
         The remaining cases are:
-        - no tables where deleted and
-        - only temporary tables where deleted and row-based
+        - no tables were deleted and
+        - only temporary tables were deleted and row-based
           replication is used.
         In both these cases, nothing should be written to the binary
         log.
@@ -2055,7 +2148,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   pthread_mutex_unlock(&LOCK_open);
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
@@ -2078,11 +2170,11 @@ err_with_placeholders:
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   bool error= 0;
   DBUG_ENTER("quick_rm_table");
 
-  uint path_length= build_table_filename(path, sizeof(path),
+  uint path_length= build_table_filename(path, sizeof(path) - 1,
                                          db, table_name, reg_ext, flags);
   if (my_delete(path,MYF(0)))
     error= 1; /* purecov: inspected */
@@ -2719,8 +2811,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -3189,7 +3281,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
 	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
@@ -3432,6 +3524,41 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 
 
 /*
+  Write CREATE TABLE binlog
+
+  SYNOPSIS
+    write_create_table_bin_log()
+    thd               Thread object
+    create_info       Create information
+    internal_tmp_table  Set to 1 if this is an internal temporary table
+
+  DESCRIPTION
+    This function only is called in mysql_create_table_no_lock and
+    mysql_create_table
+
+  RETURN VALUES
+    NONE
+ */
+static inline void write_create_table_bin_log(THD *thd,
+                                              const HA_CREATE_INFO *create_info,
+                                              bool internal_tmp_table)
+{
+  /*
+    Don't write statement if:
+    - It is an internal temporary table,
+    - Row-based logging is used and it we are creating a temporary table, or
+    - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
+   */
+  if (!internal_tmp_table &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3471,7 +3598,7 @@ bool mysql_create_table_no_lock(THD *thd,
                                 bool internal_tmp_table,
                                 uint select_field_count)
 {
-  char		path[FN_REFLEN];
+  char		path[FN_REFLEN + 1];
   uint          path_length;
   const char	*alias;
   uint		db_options, key_count;
@@ -3679,7 +3806,7 @@ bool mysql_create_table_no_lock(THD *thd,
   }
   else  
   {
-    path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
+    path_length= build_table_filename(path, sizeof(path) - 1, db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);
   }
 
@@ -3694,6 +3821,7 @@ bool mysql_create_table_no_lock(THD *thd,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
+      write_create_table_bin_log(thd, create_info, internal_tmp_table);
       goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -3814,18 +3942,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -3841,6 +3958,7 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   goto unlock_and_end;
 }
 
@@ -3892,6 +4010,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                             table_name);
         create_info->table_existed= 1;
         result= FALSE;
+        write_create_table_bin_log(thd, create_info, internal_tmp_table);
       }
       else
       {
@@ -3993,7 +4112,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
                    const char *new_name, uint flags)
 {
   THD *thd= current_thd;
-  char from[FN_REFLEN], to[FN_REFLEN], lc_from[FN_REFLEN], lc_to[FN_REFLEN];
+  char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
+    lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
   char *from_base= from, *to_base= to;
   char tmp_name[NAME_LEN+1];
   handler *file;
@@ -4005,9 +4125,9 @@ mysql_rename_table(handlerton *base, const char *old_db,
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
 
-  build_table_filename(from, sizeof(from), old_db, old_name, "",
+  build_table_filename(from, sizeof(from) - 1, old_db, old_name, "",
                        flags & FN_FROM_IS_TMP);
-  build_table_filename(to, sizeof(to), new_db, new_name, "",
+  build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
                        flags & FN_TO_IS_TMP);
 
   /*
@@ -4020,13 +4140,13 @@ mysql_rename_table(handlerton *base, const char *old_db,
   {
     strmov(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
-    build_table_filename(lc_from, sizeof(lc_from), old_db, tmp_name, "",
+    build_table_filename(lc_from, sizeof(lc_from) - 1, old_db, tmp_name, "",
                          flags & FN_FROM_IS_TMP);
     from_base= lc_from;
 
     strmov(tmp_name, new_name);
     my_casedn_str(files_charset_info, tmp_name);
-    build_table_filename(lc_to, sizeof(lc_to), new_db, tmp_name, "",
+    build_table_filename(lc_to, sizeof(lc_to) - 1, new_db, tmp_name, "",
                          flags & FN_TO_IS_TMP);
     to_base= lc_to;
   }
@@ -4157,16 +4277,16 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   else
   {
     char* backup_dir= thd->lex->backup_dir;
-    char src_path[FN_REFLEN], dst_path[FN_REFLEN], uname[FN_REFLEN];
+    char src_path[FN_REFLEN], dst_path[FN_REFLEN + 1], uname[FN_REFLEN];
     char* table_name= table->table_name;
     char* db= table->db;
 
-    VOID(tablename_to_filename(table->table_name, uname, sizeof(uname)));
+    VOID(tablename_to_filename(table->table_name, uname, sizeof(uname) - 1));
 
     if (fn_format_relative_to_data_home(src_path, uname, backup_dir, reg_ext))
       DBUG_RETURN(-1); // protect buffer overflow
 
-    build_table_filename(dst_path, sizeof(dst_path),
+    build_table_filename(dst_path, sizeof(dst_path) - 1,
                          db, table_name, reg_ext, 0);
 
     if (lock_and_wait_for_table_name(thd,table))
@@ -4778,7 +4898,7 @@ send_result_message:
           const char *err_msg= thd->main_da.message();
           if (!thd->vio_ok())
           {
-            sql_print_error(err_msg);
+            sql_print_error("%s", err_msg);
           }
           else
           {
@@ -5088,7 +5208,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
   TABLE *name_lock= 0;
-  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN + 1];
   uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
@@ -5098,7 +5218,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
-  char ts_name[FN_LEN];
+  char ts_name[FN_LEN + 1];
+  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
 
 
@@ -5147,7 +5268,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       goto err;
     if (!name_lock)
       goto table_exists;
-    dst_path_length= build_table_filename(dst_path, sizeof(dst_path),
+    dst_path_length= build_table_filename(dst_path, sizeof(dst_path) - 1,
                                           db, table_name, reg_ext, 0);
     if (!access(dst_path, F_OK))
       goto table_exists;
@@ -5155,8 +5276,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    flags|= MY_SYNC;
+
   /*
     Create a new table by copying from source table
+    and sync the new table if the flag MY_SYNC is set
 
     Altough exclusive name-lock on target table protects us from concurrent
     DML and DDL operations on it we still want to wrap .FRM creation and call
@@ -5177,7 +5302,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       goto err;
     }
   }
-  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  else if (my_copy(src_path, dst_path, flags))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
@@ -5231,6 +5356,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;	    /* purecov: inspected */
   }
 
+goto binlog;
+
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(warn_buff, sizeof(warn_buff),
+		ER(ER_TABLE_EXISTS_ERROR), table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_TABLE_EXISTS_ERROR,warn_buff);
+  }
+  else
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+    goto err;
+  }
+
+binlog:
   DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
@@ -5294,20 +5437,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
-  goto err;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= FALSE;
-  }
-  else
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   if (name_lock)
@@ -5589,8 +5718,8 @@ compare_tables(TABLE *table,
     /* Don't pack rows in old tables if the user has requested this. */
     if (create_info->row_type == ROW_TYPE_DYNAMIC ||
 	(tmp_new_field->flags & BLOB_FLAG) ||
-	tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED))
       create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
@@ -5883,12 +6012,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
-  if (!(used_fields & HA_CREATE_USED_TRANSACTIONAL))
-    create_info->transactional= table->s->transactional;
 
   if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
-    char *tablespace= static_cast<char *>(thd->alloc(FN_LEN));
+    char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
     /*
        Regular alter table of disk stored table (no tablespace/storage change)
        Copy tablespace name
@@ -6255,10 +6382,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 {
   TABLE *table, *new_table= 0, *name_lock= 0;
   int error= 0;
-  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
+  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
@@ -6271,20 +6398,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #endif
   bool need_lock_for_indexes= TRUE;
   KEY  *key_info_buffer;
-  uint index_drop_count;
-  uint *index_drop_buffer;
-  uint index_add_count;
-  uint *index_add_buffer;
-  uint candidate_key_count;
+  uint index_drop_count= 0;
+  uint *index_drop_buffer= NULL;
+  uint index_add_count= 0;
+  uint *index_add_buffer= NULL;
+  uint candidate_key_count= 0;
   bool committed= 0;
   bool no_pk;
   DBUG_ENTER("mysql_alter_table");
-
-  LINT_INIT(index_add_count);
-  LINT_INIT(index_drop_count);
-  LINT_INIT(index_add_buffer);
-  LINT_INIT(index_drop_buffer);
-  LINT_INIT(candidate_key_count);
 
   /*
     Check if we attempt to alter mysql.slow_log or
@@ -6339,8 +6460,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db=table_list->db;
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
-  build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext, 0);
-  build_table_filename(path, sizeof(path), db, table_name, "", 0);
+  build_table_filename(reg_path, sizeof(reg_path) - 1, db, table_name, reg_ext, 0);
+  build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
 
   mysql_ha_rm_tables(thd, table_list, FALSE);
 
@@ -6487,7 +6608,7 @@ view_err:
 	  DBUG_RETURN(TRUE);
         }
 
-        build_table_filename(new_name_buff, sizeof(new_name_buff),
+        build_table_filename(new_name_buff, sizeof(new_name_buff) - 1,
                              new_db, new_name_buff, reg_ext, 0);
         if (!access(new_name_buff, F_OK))
 	{
@@ -6537,9 +6658,19 @@ view_err:
     goto err;
   }
 
+  /*
+   If this is an ALTER TABLE and no explicit row type specified reuse
+   the table's row type.
+   Note : this is the same as if the row type was specified explicitly.
+  */
   if (create_info->row_type == ROW_TYPE_NOT_USED)
   {
+    /* ALTER TABLE without explicit row type */
     create_info->row_type= table->s->row_type;
+  }
+  else
+  {
+    /* ALTER TABLE with specific row type */
     create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
   }
 
@@ -6988,9 +7119,9 @@ view_err:
     }
     else
     {
-      char path[FN_REFLEN];
+      char path[FN_REFLEN + 1];
       /* table is a normal table: Create temporary table in same directory */
-      build_table_filename(path, sizeof(path), new_db, tmp_name, "",
+      build_table_filename(path, sizeof(path) - 1, new_db, tmp_name, "",
                            FN_IS_TMP);
       /* Open our intermediate table */
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
@@ -7220,12 +7351,12 @@ view_err:
   }
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
                               new_alias, FN_FROM_IS_TMP) ||
-           (new_name != table_name || new_db != db) && // we also do rename
+           ((new_name != table_name || new_db != db) && // we also do rename
            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
             mysql_rename_table(save_old_db_type, db, table_name, new_db,
                                new_alias, NO_FRM_RENAME)) &&
            Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias))
+                                                  new_db, new_alias)))
   {
     /* Try to get everything back. */
     error=1;
@@ -7318,7 +7449,7 @@ view_err:
     */
     char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path, sizeof(path), new_db, table_name, "", 0);
+    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
     t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
     if (t_table)
     {
@@ -7768,8 +7899,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-	      if ((f->type() == MYSQL_TYPE_BLOB) ||
-                  (f->type() == MYSQL_TYPE_VARCHAR))
+        enum_field_types field_type= f->type();
+        /*
+          BLOB and VARCHAR have pointers in their field, we must convert
+          to string; GEOMETRY is implemented on top of BLOB.
+        */
+        if ((field_type == MYSQL_TYPE_BLOB) ||
+            (field_type == MYSQL_TYPE_VARCHAR) ||
+            (field_type == MYSQL_TYPE_GEOMETRY))
 	      {
 		String tmp;
 		f->val_str(&tmp);

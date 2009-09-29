@@ -37,7 +37,6 @@ let $message= Testcase for db level:;
         show grants for test_noprivs@localhost;
 
 # no trigger privilege->create trigger must fail:
-        let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 let $message= no trigger privilege on db level for create:;

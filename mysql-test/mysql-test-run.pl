@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -209,6 +209,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
@@ -313,7 +314,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-  if ( not defined $opt_parallel ) {
+  if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
 
@@ -528,6 +529,8 @@ sub run_test_server ($$$) {
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
+	      push(@$completed, $result);
+	      mtr_report_stats($completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
@@ -659,6 +662,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
+      mtr_report_stats($completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
@@ -722,6 +726,8 @@ sub run_worker ($) {
       # reusing them from previous test
       delete($test->{'comment'});
       delete($test->{'logfile'});
+
+      $test->{worker} = $thread_num if $opt_parallel > 1;
 
       run_testcase($test);
       #$test->{result}= 'MTR_RES_PASSED';
@@ -790,7 +796,7 @@ sub command_line_setup {
              'vs-config'                => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
-	     'parallel=i'               => \$opt_parallel,
+	     'parallel=s'               => \$opt_parallel,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -979,6 +985,9 @@ sub command_line_setup {
 
   if ( $opt_experimental )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     # read the list of experimental test cases from the file specified on
     # the command line
     open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
@@ -989,6 +998,15 @@ sub command_line_setup {
       # remove comments (# foo) at the beginning of the line, or after a 
       # blank at the end of the line
       s/( +|^)#.*$//;
+      # If @ platform specifier given, use this entry only if it contains
+      # @<platform> or @!<xxx> where xxx != platform
+      if (/\@.*/)
+      {
+	next if (/\@!$plat/);
+	next unless (/\@$plat/ or /\@!/);
+	# Then remove @ and everything after it
+	s/\@.*$//;
+      }
       # remove whitespace
       s/^ +//;              
       s/ +$//;
@@ -1130,9 +1148,9 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check parallel value
   # --------------------------------------------------------------------------
-  if ($opt_parallel < 1)
+  if ($opt_parallel ne "auto" && $opt_parallel < 1)
   {
-    mtr_error("0 or negative parallel value makes no sense, use positive number");
+    mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -1236,13 +1254,28 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Set one week timeout (check-testcase timeout will be 1/10th)
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
+    # One day to shutdown
+    $opt_shutdown_timeout= 24 * 60;
+    # One day for PID file creation (this is given in seconds not minutes)
+    $opt_start_timeout= 24 * 60 * 60;
+  }
+
+  # --------------------------------------------------------------------------
+  # Modified behavior with --start options
+  # --------------------------------------------------------------------------
+  if ($opt_start or $opt_start_dirty) {
+    collect_option ('quick-collect', 1);
+    $start_only= 1;
   }
 
   # --------------------------------------------------------------------------
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
-  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  if ($opt_wait_all && ! $start_only)
   {
     mtr_error("--wait-all can only be used with --start or --start-dirty");
   }
@@ -1501,6 +1534,10 @@ sub collect_mysqld_features_from_running_server ()
     }
   }
 
+  # "Convert" innodb flag
+  $mysqld_variables{'innodb'}= "ON"
+    if ($mysqld_variables{'have_innodb'} eq "YES");
+
   # Parse version
   my $version_str= $mysqld_variables{'version'};
   if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)/ )
@@ -1755,15 +1792,27 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100) {
+  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+    my $plugin_filename;
+    if (IS_WINDOWS)
+    {
+       $plugin_filename = "ha_example.dll";
+    }
+    else 
+    {
+       $plugin_filename = "ha_example.so";
+    }
     my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
-		      "$basedir/storage/example/.libs/ha_example.so",);
+      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
+    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
   }
 
   # ----------------------------------------------------
@@ -2795,7 +2844,7 @@ sub run_testcase_check_skip_test($)
 
   if ( $tinfo->{'skip'} )
   {
-    mtr_report_test_skipped($tinfo);
+    mtr_report_test_skipped($tinfo) unless $start_only;
     return 1;
   }
 
@@ -3282,9 +3331,16 @@ sub run_testcase ($) {
   # server exits
   # ----------------------------------------------------------------------
 
-  if ( $opt_start or $opt_start_dirty )
+  if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Port and socket path for server(s):");
+    foreach my $mysqld ( mysqlds() )
+    {
+      mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
+	      "  " . $mysqld->value('socket'));
+    }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
       My::SafeProcess->wait_all();
@@ -3526,8 +3582,8 @@ sub run_testcase ($) {
 # error log and write all lines that look
 # suspicious into $error_log.warnings
 #
-sub extract_warning_lines ($) {
-  my ($error_log) = @_;
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
   # belonging to current tets into @lines
@@ -3535,14 +3591,27 @@ sub extract_warning_lines ($) {
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
   my @lines;
+  my $found_test= 0;		# Set once we've found the log of this test
   while ( my $line = <$Ferr> )
   {
-    if ( $line =~ /^CURRENT_TEST:/ )
+    if ($found_test)
     {
-      # Throw away lines from previous tests
-      @lines = ();
+      # If test wasn't last after all, discard what we found, test again.
+      if ( $line =~ /^CURRENT_TEST:/)
+      {
+	@lines= ();
+	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+      }
+      else
+      {
+	push(@lines, $line);
+      }
     }
-    push(@lines, $line);
+    else
+    {
+      # Search for beginning of test, until found
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+    }
   }
   $Ferr = undef; # Close error log file
 
@@ -3579,10 +3648,8 @@ sub extract_warning_lines ($) {
      # and correcting them shows a few additional harmless warnings.
      # Thus those patterns are temporarily removed from the list
      # of patterns. For more info see BUG#42408
-     # qr/^Warning:|mysqld: Warning|\[Warning\]/,
-     # qr/^Error:|\[ERROR\]/,
-     qr/^Warning:|mysqld: Warning/,
-     qr/^Error:/,
+     qr/^Warning:|mysqld: Warning|\[Warning\]/,
+     qr/^Error:|\[ERROR\]/,
      qr/^==.* at 0x/,
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
@@ -3622,7 +3689,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error);
+  extract_warning_lines($log_error, $tinfo->{name});
 
   my $args;
   mtr_init_args(\$args);
@@ -4062,8 +4129,8 @@ sub mysqld_arguments ($$$) {
 
   if ( $mysql_version_id >= 50106 )
   {
-    # Turn on logging to both tables and file
-    mtr_add_arg($args, "--log-output=table,file");
+    # Turn on logging to file
+    mtr_add_arg($args, "--log-output=file");
   }
 
   # Check if "extra_opt" contains skip-log-bin
@@ -5107,7 +5174,7 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
   enable-disabled       Run also tests marked as disabled
-  print_testcases       Don't run the tests but print details about all the
+  print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
 
 Options that specify ports
@@ -5197,6 +5264,7 @@ Misc options
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   parallel=N            Run tests in N parallel threads (default=1)
+                        Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure

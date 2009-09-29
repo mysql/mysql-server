@@ -1192,12 +1192,12 @@ static void acl_update_user(const char *user, const char *host,
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
-      if (!acl_user->host.hostname && !host[0] ||
-	  acl_user->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
+      if ((!acl_user->host.hostname && !host[0]) ||
+	  (acl_user->host.hostname &&
+	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname)))
       {
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
@@ -1275,16 +1275,16 @@ static void acl_update_db(const char *user, const char *host, const char *db,
   for (uint i=0 ; i < acl_dbs.elements ; i++)
   {
     ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
-    if (!acl_db->user && !user[0] ||
-	acl_db->user &&
-	!strcmp(user,acl_db->user))
+    if ((!acl_db->user && !user[0]) ||
+	(acl_db->user &&
+	!strcmp(user,acl_db->user)))
     {
-      if (!acl_db->host.hostname && !host[0] ||
-	  acl_db->host.hostname &&
-          !strcmp(host, acl_db->host.hostname))
+      if ((!acl_db->host.hostname && !host[0]) ||
+	  (acl_db->host.hostname &&
+          !strcmp(host, acl_db->host.hostname)))
       {
-	if (!acl_db->db && !db[0] ||
-	    acl_db->db && !strcmp(db,acl_db->db))
+	if ((!acl_db->db && !db[0]) ||
+	    (acl_db->db && !strcmp(db,acl_db->db)))
 	{
 	  if (privileges)
 	    acl_db->access=privileges;
@@ -1493,8 +1493,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if (host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host)) ||
-      ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip)))
+  if ((host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
+      (ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -1711,8 +1711,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
                        host,
                        acl_user->host.hostname ? acl_user->host.hostname :
                        ""));
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
       if (exact ? !my_strcasecmp(system_charset_info, host,
                                  acl_user->host.hostname ?
@@ -2995,8 +2995,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (!(rights & CREATE_ACL))
       {
-        char buf[FN_REFLEN];
-        build_table_filename(buf, sizeof(buf), table_list->db,
+        char buf[FN_REFLEN + 1];
+        build_table_filename(buf, sizeof(buf) - 1, table_list->db,
                              table_list->table_name, reg_ext, 0);
         fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
                                     MY_RETURN_REAL_PATH | MY_APPEND_EXT);
@@ -5319,16 +5319,13 @@ static int handle_grant_struct(uint struct_no, bool drop,
   uint elements;
   const char *user;
   const char *host;
-  ACL_USER *acl_user;
-  ACL_DB *acl_db;
-  GRANT_NAME *grant_name;
+  ACL_USER *acl_user= NULL;
+  ACL_DB *acl_db= NULL;
+  GRANT_NAME *grant_name= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
-  LINT_INIT(acl_user);
-  LINT_INIT(acl_db);
-  LINT_INIT(grant_name);
   LINT_INIT(user);
   LINT_INIT(host);
 
@@ -5696,6 +5693,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_deleted= FALSE;
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -5708,6 +5706,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -5741,6 +5741,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(result);
 }
 
@@ -6242,6 +6243,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     DBUG_RETURN(TRUE);
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
   /*

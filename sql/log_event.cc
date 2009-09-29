@@ -369,6 +369,34 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
   return (actual_error);
 }
 
+inline bool concurrency_error_code(int error)
+{
+  switch (error)
+  {
+  case ER_LOCK_WAIT_TIMEOUT:
+  case ER_LOCK_DEADLOCK:
+  case ER_XA_RBDEADLOCK:
+    return TRUE;
+  default: 
+    return (FALSE);
+  }
+}
+
+inline bool unexpected_error_code(int unexpected_error)
+{
+  switch (unexpected_error) 
+  {
+  case ER_NET_READ_ERROR:
+  case ER_NET_ERROR_ON_WRITE:
+  case ER_QUERY_INTERRUPTED:
+  case ER_SERVER_SHUTDOWN:
+  case ER_NEW_ABORTING_CONNECTION:
+    return(TRUE);
+  default:
+    return(FALSE);
+  }
+}
+
 /*
   pretty_print_str()
 */
@@ -791,8 +819,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id ||
-      rli->slave_skip_counter == 1 && rli->is_in_group())
+  if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
+      (rli->slave_skip_counter == 1 && rli->is_in_group()))
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -2733,7 +2761,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)))
+    different_db= memcmp(print_event_info->db, db, db_len + 1);
+    if (different_db)
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
@@ -2920,6 +2949,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 {
   LEX_STRING new_db;
   int expected_error,actual_error= 0;
+  HA_CREATE_INFO db_options;
+
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
     lead to bugs as here thd->catalog is a part of an alloced block,
@@ -2931,6 +2962,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);       /* allocates a copy of 'db' */
+
+  /*
+    Setting the character set and collation of the current database thd->db.
+   */
+  load_db_opt_by_name(thd, thd->db, &db_options);
+  if (db_options.default_table_charset)
+    thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -2996,8 +3034,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->query_length= q_len_arg;
-    thd->query= (char*)query_arg;
+    thd->set_query((char*)query_arg, q_len_arg);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -3005,7 +3042,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     DBUG_PRINT("query",("%s",thd->query));
 
     if (ignored_error_code((expected_error= error_code)) ||
-	!check_expected_error(thd,rli,expected_error))
+	!unexpected_error_code(expected_error))
     {
       if (flags2_inited)
         /*
@@ -3132,13 +3169,13 @@ compare_errors:
 
      /*
       If we expected a non-zero error code, and we don't get the same error
-      code, and none of them should be ignored.
+      code, and it should be ignored or is related to a concurrency issue.
     */
     actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
  		       expected_error, actual_error));
-    if ((expected_error != actual_error) &&
- 	expected_error &&
+    if ((expected_error && expected_error != actual_error &&
+         !concurrency_error_code(expected_error)) &&
  	!ignored_error_code(actual_error) &&
  	!ignored_error_code(expected_error))
     {
@@ -3155,15 +3192,34 @@ Default database: '%s'. Query: '%s'",
       thd->is_slave_error= 1;
     }
     /*
-      If we get the same error code as expected, or they should be ignored. 
+      If we get the same error code as expected and it is not a concurrency
+      issue, or should be ignored.
     */
-    else if (expected_error == actual_error ||
+    else if ((expected_error == actual_error && 
+              !concurrency_error_code(expected_error)) ||
  	     ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
+      /*
+        When an error is expected and matches the actual error the
+        slave does not report any error and by consequence changes
+        on transactional tables are not rolled back in the function
+        close_thread_tables(). For that reason, we explicitly roll
+        them back here.
+      */
+      if (expected_error && expected_error == actual_error)
+        ha_autocommit_or_rollback(thd, TRUE);
     }
+    /*
+      If we expected a non-zero error code and get nothing and, it is a concurrency
+      issue or should be ignored.
+    */
+    else if (expected_error && !actual_error && 
+             (concurrency_error_code(expected_error) ||
+              ignored_error_code(expected_error)))
+      ha_autocommit_or_rollback(thd, TRUE);
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -3201,7 +3257,6 @@ Default database: '%s'. Query: '%s'",
   } /* End of if (db_ok(... */
 
 end:
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -3214,10 +3269,8 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
+  thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  thd->query= 0;			// just to be sure
-  thd->query_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   /*
     As a disk space optimization, future masters will not log an event for
@@ -3329,8 +3382,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache," at startup");
     my_b_printf(&cache, "\n");
     if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-      my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
-                  "Most probably mysqld crashed writing it.\n");
+      my_b_printf(&cache, "# Warning: this binlog is either in use or was not "
+                  "closed properly.\n");
   }
   if (!is_artificial_event() && created)
   {
@@ -4351,7 +4404,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
 	my_b_printf(&cache, ",");
-      my_b_printf(&cache, field);
+      my_b_printf(&cache, "%s", field);
 	  
       field += field_lens[i]  + 1;
     }
@@ -4527,8 +4580,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
                   (char **)&thd->lex->fname_end);
       *end= 0;
-      thd->query_length= end - load_data_query;
-      thd->query= load_data_query;
+      thd->set_query(load_data_query, (uint) (end - load_data_query));
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
       {
@@ -4634,12 +4686,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 error:
   thd->net.vio = 0; 
   const char *remember_db= thd->db;
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
-  thd->query= 0;
-  thd->query_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->set_query(NULL, 0);
   close_thread_tables(thd);
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
@@ -6679,7 +6728,7 @@ void Execute_load_query_log_event::print(FILE* file,
   {
     my_b_write(&cache, (uchar*) query, fn_pos_start);
     my_b_printf(&cache, " LOCAL INFILE \'");
-    my_b_printf(&cache, local_fname);
+    my_b_printf(&cache, "%s", local_fname);
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
@@ -6897,8 +6946,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -7090,7 +7139,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
@@ -8263,6 +8312,16 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
   
   /* Honor next number column if present */
   m_table->next_number_field= m_table->found_next_number_field;
+  /*
+   * Fixed Bug#45999, In RBR, Store engine of Slave auto-generates new
+   * sequence numbers for auto_increment fields if the values of them are 0.
+   * If generateing a sequence number is decided by the values of
+   * table->auto_increment_field_not_null and SQL_MODE(if includes
+   * MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
+   * SQL_MODE of slave sql thread is always consistency with master's.
+   * In RBR, auto_increment fields never are NULL.
+   */
+  m_table->auto_increment_field_not_null= TRUE;
   return error;
 }
 
@@ -8272,6 +8331,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
 {
   int local_error= 0;
   m_table->next_number_field=0;
+  m_table->auto_increment_field_not_null= FALSE;
   if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
@@ -8775,11 +8835,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0)
+  if (table->s->keys > 0 && table->s->keys_in_use.is_set(0))
   {
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
-    /* We have a key: search the table using the index */
+    /* The 0th key is active: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));

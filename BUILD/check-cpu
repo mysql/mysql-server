@@ -47,8 +47,13 @@ check_cpu () {
         model_name=`sysctl -n hw.model`
         ;;
       Darwin)
-        cpu_family=`uname -p`
-        model_name=`machine`
+        cpu_family=`sysctl -n machdep.cpu.vendor`
+        model_name=`sysctl -n machdep.cpu.brand_string`
+        if [ -z "$cpu_family" -o -z "$model_name" ]
+        then  
+          cpu_family=`uname -p`
+          model_name=`machine`
+        fi  
         ;;
       *)
         cpu_family=`uname -m`;
@@ -64,6 +69,11 @@ check_cpu () {
     # DEC Alpha
     Alpha*EV6*)
       cpu_arg="ev6";
+      ;;
+    #Core 2 Duo  
+    *Intel*Core\(TM\)2*)
+      cpu_arg="nocona"
+      core2="yes"
       ;;
     # Intel ia32
     *Intel*Core*|*X[eE][oO][nN]*)
@@ -128,10 +138,6 @@ check_cpu () {
       ;;
     *i386*)
       cpu_arg="i386"
-      ;;
-    #Core 2 Duo  
-    *Intel*Core\(TM\)2*)
-      cpu_arg="nocona"
       ;;
     # Intel ia64
     *Itanium*)

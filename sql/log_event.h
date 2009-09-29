@@ -676,6 +676,7 @@ typedef struct st_print_event_info
 #ifdef MYSQL_CLIENT
   uint verbose;
   table_mapping m_table_map;
+  table_mapping m_table_map_ignored;
 #endif
 
   /*

@@ -2115,6 +2115,52 @@ insert into m1 (col1) values (1);
 insert into m1 (col1) values (1);
 ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
 drop table m1, t1;
+#
+# Bug#45800 crash when replacing into a merge table and there is a duplicate
+#
+# Replace duplicate value in child table when merge table doesn't have key
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+c1
+666
+# insert the duplicate value into the merge table
+REPLACE INTO m1 VALUES (666);
+SELECT * FROM m1;
+c1
+666
+DROP TABLE m1, t1;
+# Insert... on duplicate key update (with duplicate values in the table)
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+c1
+666
+# insert the duplicate value into the merge table
+INSERT INTO m1 VALUES (666) ON DUPLICATE KEY UPDATE c1=c1+1;
+SELECT * FROM m1;
+c1
+667
+DROP TABLE m1, t1;
+# Insert duplicate value on MERGE table, where, MERGE has a key but MyISAM has more keys
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1), UNIQUE (c2));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c1)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1 VALUES (1,2);
+# insert the duplicate value into the merge table
+INSERT INTO m1 VALUES (3,2);
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+DROP TABLE m1,t1;
+# Try to define MERGE and MyISAM with keys on different columns
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c2)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+# Try accessing the merge table for inserts (error occurs)
+INSERT INTO m1 VALUES (1,2);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+INSERT INTO m1 VALUES (1,4);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE m1,t1;
 CREATE TABLE t1 (
 col1 INT(10)
 ) ENGINE=MyISAM  DEFAULT CHARSET=latin1;
@@ -2127,4 +2173,50 @@ SELECT * FROM m1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP VIEW v1;
 DROP TABLE m1, t1;
+#
+# Bug #45796: invalid memory reads and writes when altering merge and 
+#             base tables
+#
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE m1(c1 INT) ENGINE=MERGE UNION=(t1);
+ALTER TABLE m1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+c1
+DROP TABLE m1;
+DROP TABLE t1;
+#
+# Bug45781 infinite hang/crash in "opening tables" after handler tries to
+#          open merge table
+#
+DROP TABLE IF EXISTS m1,t1;
+CREATE TABLE t1(a int)engine=myisam;
+CREATE TABLE t2(a int)engine=myisam;
+CREATE TABLE t3(a int)engine=myisam;
+CREATE TABLE t4(a int)engine=myisam;
+CREATE TABLE t5(a int)engine=myisam;
+CREATE TABLE t6(a int)engine=myisam;
+CREATE TABLE t7(a int)engine=myisam;
+CREATE TABLE m1(a int)engine=merge union=(t1,t2,t3,t4,t5,t6,t7);
+SELECT 1 FROM m1;
+1
+HANDLER m1 OPEN;
+ERROR HY000: Table storage engine for 'm1' doesn't have this option
+DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
+SELECT 1 FROM m1;
+ERROR 42S02: Table 'test.m1' doesn't exist
+#
+# Bug #46614: Assertion in show_create_trigger()
+#
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int) ENGINE = MERGE UNION(t1, t2);
+CREATE TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo();
+SHOW CREATE TRIGGER tr1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+tr1		CREATE DEFINER=`root`@`localhost` TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP TRIGGER tr1;
+DROP TABLE t1, t2, t3;
 End of 5.1 tests

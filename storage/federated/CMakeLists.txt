@@ -13,16 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 SET(FEDERATED_SOURCES  ha_federated.cc)
-
-IF(NOT SOURCE_SUBLIBS)
-  ADD_LIBRARY(federated ${FEDERATED_SOURCES})
-  ADD_DEPENDENCIES(federated GenError)
-ENDIF(NOT SOURCE_SUBLIBS)
+MYSQL_STORAGE_ENGINE(FEDERATED)

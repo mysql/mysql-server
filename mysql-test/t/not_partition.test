@@ -1,12 +1,35 @@
 --disable_abort_on_error
-# Run this tets only when mysqld don't has partitioning
+# Run this test only when mysqld don't has partitioning (not compiled with)
 # the statements are not expected to work, just check that we
 # can't crash the server
 -- require r/not_partition.require
 disable_query_log;
 show variables like "have_partitioning";
 enable_query_log;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
+#
+# Bug#39893: Crash if select on a partitioned table,
+#            when partitioning is disabled
+FLUSH TABLES;
+--copy_file $MYSQLTEST_VARDIR/std_data/parts/t1.frm $MYSQLD_DATADIR/test/t1.frm
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+ANALYZE TABLE t1;
+CHECK TABLE t1;
+OPTIMIZE TABLE t1;
+REPAIR TABLE t1;
+ALTER TABLE t1 REPAIR PARTITION ALL;
+ALTER TABLE t1 CHECK PARTITION ALL;
+ALTER TABLE t1 OPTIMIZE PARTITION ALL;
+ALTER TABLE t1 ANALYZE PARTITION ALL;
+ALTER TABLE t1 REBUILD PARTITION ALL;
+ALTER TABLE t1 ENGINE Memory;
+ALTER TABLE t1 ADD (new INT);
+DROP TABLE t1;
 
 --error ER_FEATURE_DISABLED
 CREATE TABLE t1 (

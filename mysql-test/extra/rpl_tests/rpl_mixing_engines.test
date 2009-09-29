@@ -1,0 +1,710 @@
+###################################################################################
+# This test checks if transactions that mixes transactional and non-transactional
+# tables are correctly handled in statement mode. In an nutshell, we have what 
+# follows:
+#
+# 1) "B T T C" generates in binlog the "B T T C" entries.
+#
+# 2) "B T T R"  generates in binlog an "empty" entry.
+#
+# 3) "B T N C" generates in binlog the "B T N C" entries.
+#
+# 4) "B T N R" generates in binlog the "B T N R" entries.
+#
+# 5) "T" generates in binlog the "B T C" entry.
+#
+# 6) "N" generates in binlog the "N" entry.
+#
+# 7) "M" generates in binglog the "B M C" entries.
+#
+# 8) "B N N T C" generates in binglog the "N N B T C" entries.
+#
+# 9) "B N N T R" generates in binlog the "N N B T R" entries.
+#
+# 10) "B N N C" generates in binglog the "N N" entries.
+#
+# 11) "B N N R" generates in binlog the "N N" entries.
+#
+# 12) "B M T C" generates in the binlog the "B M T C" entries.
+#
+# 13) "B M T R" generates in the binlog the "B M T R" entries.
+###################################################################################
+ 
+--echo ###################################################################################
+--echo #                                   CONFIGURATION
+--echo ###################################################################################
+connection master;
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE nt_1 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_2 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_3 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_4 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE tt_1 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_2 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_3 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_4 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+SET SQL_LOG_BIN=1;
+
+connection slave;
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE nt_1 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_2 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_3 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE nt_4 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
+CREATE TABLE tt_1 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_2 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_3 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+CREATE TABLE tt_4 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
+SET SQL_LOG_BIN=1;
+
+connection master;
+
+DELIMITER |;
+
+CREATE FUNCTION f1 () RETURNS VARCHAR(64)
+BEGIN
+  RETURN "Testing...";
+END|
+
+CREATE FUNCTION f2 () RETURNS VARCHAR(64)
+BEGIN
+  RETURN f1();
+END|
+
+CREATE PROCEDURE pc_i_tt_3 (IN x INT, IN y VARCHAR(64))
+BEGIN
+  INSERT INTO tt_3 VALUES (y,x,x);
+END|
+
+CREATE TRIGGER tr_i_tt_3_to_nt_3 BEFORE INSERT ON tt_3 FOR EACH ROW
+BEGIN
+  INSERT INTO nt_3 VALUES (NEW.a, NEW.b, NEW.c);
+END|
+
+CREATE TRIGGER tr_i_nt_4_to_tt_4 BEFORE INSERT ON nt_4 FOR EACH ROW
+BEGIN
+  INSERT INTO tt_4 VALUES (NEW.a, NEW.b, NEW.c);
+END|
+
+DELIMITER ;|
+
+--echo ###################################################################################
+--echo #                 MIXING TRANSACTIONAL and NON-TRANSACTIONAL TABLES
+--echo ###################################################################################
+connection master;
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #1) "B T T C" generates in binlog the "B T T C" entries.
+--echo #
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 4", 4, "new text 4");
+INSERT INTO tt_2 VALUES ("new text 4", 4, "new text 4");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #1.e) "B T T C" with error in T generates in binlog the "B T T C" entries.
+--echo #
+INSERT INTO tt_1 VALUES ("new text -2", -2, "new text -2");
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1"), ("new text -2", -2, "new text -2");
+INSERT INTO tt_2 VALUES ("new text -3", -3, "new text -3");
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_2 VALUES ("new text -5", -5, "new text -5");
+--error ER_DUP_ENTRY
+INSERT INTO tt_2 VALUES ("new text -4", -4, "new text -4"), ("new text -5", -5, "new text -5");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #2) "B T T R"  generates in binlog an "empty" entry.
+--echo #
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 5", 5, "new text 5");
+INSERT INTO tt_2 VALUES ("new text 5", 5, "new text 5");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #2.e) "B T T R"  with error in T generates in binlog an "empty" entry.
+--echo #
+INSERT INTO tt_1 VALUES ("new text -7", -7, "new text -7");
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -6", -6, "new text -6"), ("new text -7", -7, "new text -7");
+INSERT INTO tt_2 VALUES ("new text -8", -8, "new text -8");
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tt_2 VALUES ("new text -10", -10, "new text -10");
+--error ER_DUP_ENTRY
+INSERT INTO tt_2 VALUES ("new text -9", -9, "new text -9"), ("new text -10", -10, "new text -10");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #3) "B T N C" generates in binlog the "B T N C" entries.
+--echo #
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 6", 6, "new text 6");
+INSERT INTO nt_1 VALUES ("new text 6", 6, "new text 6");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #3.e) "B T N C" with error in either T or N generates in binlog the "B T N C" entries.
+--echo #
+INSERT INTO tt_1 VALUES ("new text -12", -12, "new text -12");
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -11", -11, "new text -11"), ("new text -12", -12, "new text -12");
+INSERT INTO nt_1 VALUES ("new text -13", -13, "new text -13");
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text -14", -14, "new text -14");
+INSERT INTO nt_1 VALUES ("new text -16", -16, "new text -16");
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES ("new text -15", -15, "new text -15"), ("new text -16", -16, "new text -16");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #4) "B T N R" generates in binlog the "B T N R" entries.
+--echo #
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 7", 7, "new text 7");
+INSERT INTO nt_1 VALUES ("new text 7", 7, "new text 7");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #4.e) "B T N R" with error in either T or N generates in binlog the "B T N R" entries.
+--echo #
+INSERT INTO tt_1 VALUES ("new text -17", -17, "new text -17");
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -16", -16, "new text -16"), ("new text -17", -17, "new text -17");
+INSERT INTO nt_1 VALUES ("new text -18", -18, "new text -18");
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text -19", -19, "new text -19");
+INSERT INTO nt_1 VALUES ("new text -21", -21, "new text -21");
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES ("new text -20", -20, "new text -20"), ("new text -21", -21, "new text -21");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #5) "T" generates in binlog the "B T C" entry.
+--echo #
+INSERT INTO tt_1 VALUES ("new text 8", 8, "new text 8");
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #5.e) "T" with error in T generates in binlog an "empty" entry.
+--echo #
+INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1");
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1"), ("new text -22", -22, "new text -22");
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES ("new text -23", -23, "new text -23"), ("new text -1", -1, "new text -1");
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #6) "N" generates in binlog the "N" entry.
+--echo #
+INSERT INTO nt_1 VALUES ("new text 9", 9, "new text 9");
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #6.e) "N" with error in N generates in binlog an empty entry if the error
+--echo # happens in the first tuple. Otherwise, generates the "N" entry and
+--echo # the error is appended.
+--echo #
+INSERT INTO nt_1 VALUES ("new text -1", -1, "new text -1");
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES ("new text -1", -1, "new text -1");
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES ("new text -24", -24, "new text -24"), ("new text -1", -1, "new text -1");
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #7) "M" generates in binglog the "B M C" entries.
+--echo #
+
+DELETE FROM nt_1;
+
+INSERT INTO nt_1 SELECT * FROM tt_1;
+
+DELETE FROM tt_1;
+
+INSERT INTO tt_1 SELECT * FROM nt_1; 
+
+INSERT INTO tt_3 VALUES ("new text 000", 000, '');
+
+INSERT INTO tt_3 VALUES("new text 100", 100, f1());
+
+INSERT INTO nt_4 VALUES("new text 100", 100, f1());
+
+INSERT INTO tt_3 VALUES("new text 200", 200, f2());
+
+INSERT INTO nt_4 VALUES ("new text 300", 300, '');
+
+INSERT INTO nt_4 VALUES ("new text 400", 400, f1());
+
+INSERT INTO nt_4 VALUES ("new text 500", 500, f2());
+
+CALL pc_i_tt_3(600, "Testing...");
+
+UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 1", nt_4.a= "new text 1", tt_3.a= "new text 1", tt_4.a= "new text 1" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+
+UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 2", tt_4.a= "new text 2", nt_3.a= "new text 2", nt_4.a = "new text 2" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 3", nt_3.a= "new text 3", nt_4.a= "new text 3", tt_4.a = "new text 3" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 4", nt_3.a= "new text 4", nt_4.a= "new text 4", tt_4.a = "new text 4" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #7.e) "M" with error in M generates in binglog the "B M R" entries.
+--echo #
+
+INSERT INTO nt_3 VALUES ("new text -26", -26, '');
+SELECT * FROM tt_3;
+--error ER_DUP_ENTRY
+INSERT INTO tt_3 VALUES ("new text -25", -25, ''), ("new text -26", -26, '');
+SELECT * FROM tt_3;
+
+INSERT INTO tt_4 VALUES ("new text -26", -26, '');
+SELECT * FROM nt_4;
+--error ER_DUP_ENTRY
+INSERT INTO nt_4 VALUES ("new text -25", -25, ''), ("new text -26", -26, '');
+SELECT * FROM nt_4;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #8) "B N N T C" generates in binglog the "N N B T C" entries.
+--echo #
+BEGIN;
+INSERT INTO nt_1 VALUES ("new text 10", 10, "new text 10");
+INSERT INTO nt_2 VALUES ("new text 10", 10, "new text 10");
+INSERT INTO tt_1 VALUES ("new text 10", 10, "new text 10");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #8.e) "B N N T R" See 6.e and 9.e.
+--echo #
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #9) "B N N T R" generates in binlog the "N N B T R" entries.
+--echo #
+BEGIN;
+INSERT INTO nt_1 VALUES ("new text 11", 11, "new text 11");
+INSERT INTO nt_2 VALUES ("new text 11", 11, "new text 11");
+INSERT INTO tt_1 VALUES ("new text 11", 11, "new text 11");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #9.e) "B N N T R" with error in N generates in binlog the "N N B T R" entries.
+--echo #
+BEGIN;
+INSERT INTO nt_1 VALUES ("new text -25", -25, "new text -25");
+INSERT INTO nt_2 VALUES ("new text -25", -25, "new text -25");
+--error ER_DUP_ENTRY
+INSERT INTO nt_2 VALUES ("new text -26", -26, "new text -26"), ("new text -25", -25, "new text -25");
+INSERT INTO tt_1 VALUES ("new text -27", -27, "new text -27");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #10) "B N N C" generates in binglog the "N N" entries.
+--echo #
+BEGIN;
+INSERT INTO nt_1 VALUES ("new text 12", 12, "new text 12");
+INSERT INTO nt_2 VALUES ("new text 12", 12, "new text 12");
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #10.e) "B N N C" See 6.e and 9.e.
+--echo #
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #11) "B N N R" generates in binlog the "N N" entries.
+--echo #
+BEGIN;
+INSERT INTO nt_1 VALUES ("new text 13", 13, "new text 13");
+INSERT INTO nt_2 VALUES ("new text 13", 13, "new text 13");
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #11.e) "B N N R" See 6.e and 9.e.
+--echo #
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #12) "B M T C" generates in the binlog the "B M T C" entries.
+--echo #
+DELETE FROM nt_1;
+BEGIN;
+INSERT INTO nt_1 SELECT * FROM tt_1;
+INSERT INTO tt_2 VALUES ("new text 14", 14, "new text 14");
+COMMIT;
+
+DELETE FROM tt_1;
+BEGIN;
+INSERT INTO tt_1 SELECT * FROM nt_1;
+INSERT INTO tt_2 VALUES ("new text 15", 15, "new text 15");
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_3 VALUES ("new text 700", 700, '');
+INSERT INTO tt_1 VALUES ("new text 800", 800, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_3 VALUES("new text 900", 900, f1());
+INSERT INTO tt_1 VALUES ("new text 1000", 1000, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_3 VALUES(1100, 1100, f2());
+INSERT INTO tt_1 VALUES ("new text 1200", 1200, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO nt_4 VALUES ("new text 1300", 1300, '');
+INSERT INTO tt_1 VALUES ("new text 1400", 1400, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO nt_4 VALUES("new text 1500", 1500, f1());
+INSERT INTO tt_1 VALUES ("new text 1600", 1600, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO nt_4 VALUES("new text 1700", 1700, f2());
+INSERT INTO tt_1 VALUES ("new text 1800", 1800, '');
+COMMIT;
+
+BEGIN;
+CALL pc_i_tt_3(1900, "Testing...");
+INSERT INTO tt_1 VALUES ("new text 2000", 2000, '');
+COMMIT;
+
+BEGIN;
+UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 5", nt_4.a= "new text 5", tt_3.a= "new text 5", tt_4.a= "new text 5" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 2100", 2100, '');
+COMMIT;
+
+BEGIN;
+UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 6", tt_4.a= "new text 6", nt_3.a= "new text 6", nt_4.a = "new text 6" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 2200", 2200, '');
+COMMIT;
+
+BEGIN;
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 7", nt_3.a= "new text 7", nt_4.a= "new text 7", tt_4.a = "new text 7" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 2300", 2300, '');
+COMMIT;
+
+BEGIN;
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 8", nt_3.a= "new text 8", nt_4.a= "new text 8", tt_4.a = "new text 8" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 2400", 2400, '');
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #12.e) "B M T C" with error in M generates in the binlog the "B M T C" entries.
+--echo #  
+
+--echo # There is a bug in the slave that needs to be fixed before enabling
+--echo # this part of the test. A bug report will be filed referencing this
+--echo # test case.
+
+BEGIN;
+INSERT INTO nt_3 VALUES ("new text -28", -28, '');
+--error ER_DUP_ENTRY
+INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+INSERT INTO tt_1 VALUES ("new text -27", -27, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_4 VALUES ("new text -28", -28, '');
+--error ER_DUP_ENTRY
+INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+INSERT INTO tt_1 VALUES ("new text -28", -28, '');
+COMMIT;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #13) "B M T R" generates in the binlog the "B M T R" entries
+--echo #
+
+DELETE FROM nt_1;
+BEGIN;
+INSERT INTO nt_1 SELECT * FROM tt_1;
+INSERT INTO tt_2 VALUES ("new text 17", 17, "new text 17");
+ROLLBACK;
+
+DELETE FROM tt_1;
+BEGIN;
+INSERT INTO tt_1 SELECT * FROM nt_1;
+INSERT INTO tt_2 VALUES ("new text 18", 18, "new text 18");
+ROLLBACK;
+INSERT INTO tt_1 SELECT * FROM nt_1;
+
+BEGIN;
+INSERT INTO tt_3 VALUES ("new text 2500", 2500, '');
+INSERT INTO tt_1 VALUES ("new text 2600", 2600, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tt_3 VALUES("new text 2700", 2700, f1());
+INSERT INTO tt_1 VALUES ("new text 2800", 2800, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tt_3 VALUES(2900, 2900, f2());
+INSERT INTO tt_1 VALUES ("new text 3000", 3000, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO nt_4 VALUES ("new text 3100", 3100, '');
+INSERT INTO tt_1 VALUES ("new text 3200", 3200, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO nt_4 VALUES("new text 3300", 3300, f1());
+INSERT INTO tt_1 VALUES ("new text 3400", 3400, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO nt_4 VALUES("new text 3500", 3500, f2());
+INSERT INTO tt_1 VALUES ("new text 3600", 3600, '');
+ROLLBACK;
+
+BEGIN;
+CALL pc_i_tt_3(3700, "Testing...");
+INSERT INTO tt_1 VALUES ("new text 3700", 3700, '');
+ROLLBACK;
+
+BEGIN;
+UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 9", nt_4.a= "new text 9", tt_3.a= "new text 9", tt_4.a= "new text 9" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 3800", 3800, '');
+ROLLBACK;
+
+BEGIN;
+UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 10", tt_4.a= "new text 10", nt_3.a= "new text 10", nt_4.a = "new text 10" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 3900", 3900, '');
+ROLLBACK;
+
+BEGIN;
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 11", nt_3.a= "new text 11", nt_4.a= "new text 11", tt_4.a = "new text 11" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 4000", 4000, '');
+ROLLBACK;
+
+BEGIN;
+UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 12", nt_3.a= "new text 12", nt_4.a= "new text 12", tt_4.a = "new text 12" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
+INSERT INTO tt_1 VALUES ("new text 4100", 4100, '');
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo #
+--echo #13.e) "B M T R" with error in M generates in the binlog the "B M T R" entries.
+--echo #
+
+BEGIN;
+INSERT INTO nt_3 VALUES ("new text -30", -30, '');
+--error ER_DUP_ENTRY
+INSERT INTO tt_3 VALUES ("new text -29", -29, ''), ("new text -30", -30, '');
+INSERT INTO tt_1 VALUES ("new text -30", -30, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tt_4 VALUES ("new text -30", -30, '');
+--error ER_DUP_ENTRY
+INSERT INTO nt_4 VALUES ("new text -29", -29, ''), ("new text -30", -30, '');
+INSERT INTO tt_1 VALUES ("new text -31", -31, '');
+ROLLBACK;
+
+--source include/show_binlog_events.inc
+
+connection master;
+sync_slave_with_master;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/test-master.sql $MYSQLTEST_VARDIR/tmp/test-slave.sql
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+
+connection master;
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE tt_3;
+DROP TABLE tt_4;
+DROP TABLE nt_1;
+DROP TABLE nt_2;
+DROP TABLE nt_3;
+DROP TABLE nt_4;
+DROP PROCEDURE pc_i_tt_3;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+
+sync_slave_with_master;

@@ -71,6 +71,8 @@ sub _mtr_report_test_name ($) {
 
   print _name(), _timestamp();
   printf "%-40s ", $tname;
+  my $worker = $tinfo->{worker};
+  printf "w$worker " if $worker;
 
   return $tname;
 }
@@ -132,8 +134,8 @@ sub mtr_report_test ($) {
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
           if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
-            $exp = substr($exp, 0, length($exp) - 1);
-            if ( substr($test_name, 0, length($exp)) ne $exp ) {
+            my $nexp = substr($exp, 0, length($exp) - 1);
+            if ( substr($test_name, 0, length($nexp)) ne $nexp ) {
               # no match, try next entry
               next;
             }
@@ -219,8 +221,8 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($) {
-  my $tests= shift;
+sub mtr_report_stats ($;$) {
+  my ($tests, $dont_error)= @_;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -372,7 +374,7 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases");
+    mtr_error("there were failing test cases") unless $dont_error;
   }
 }
 
