@@ -14,13 +14,13 @@ end|
 reset master|
 insert into t2 values (bug23333(),1)|
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show binlog events from 106 /* with fixes for #23333 will show there is the query */|
+show binlog events from <binlog_start>|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	#
-master-bin.000001	#	Table_map	1	#	#
-master-bin.000001	#	Table_map	1	#	#
-master-bin.000001	#	Write_rows	1	#	#
-master-bin.000001	#	Query	1	#	#
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*),@a from t1 /* must be 1,1 */|
 count(*)	@a
 1	1

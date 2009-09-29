@@ -7068,6 +7068,40 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
+
+static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_LONGLONG;
+    var->value= buff;
+    pthread_mutex_lock(&active_mi->rli.data_lock);
+    *((longlong *)buff)= active_mi->received_heartbeats;
+    pthread_mutex_unlock(&active_mi->rli.data_lock);
+  }
+  else
+    var->type= SHOW_UNDEF;
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_CHAR;
+    var->value= buff;
+    my_sprintf(buff, (buff, "%.3f",active_mi->heartbeat_period));
+  }
+  else
+    var->type= SHOW_UNDEF;
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+
 #endif /* HAVE_REPLICATION */
 
 static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
@@ -7432,6 +7466,8 @@ SHOW_VAR status_vars[]= {
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
 #ifdef HAVE_REPLICATION
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
+  {"Slave_heartbeat_period",   (char*) &show_heartbeat_period, SHOW_FUNC},
+  {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
