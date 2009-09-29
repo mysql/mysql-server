@@ -1534,6 +1534,23 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
 }
 
 
+bool sys_var_int_ptr::check(THD *thd, set_var *var)
+{
+  var->save_result.ulong_value= (ulong) var->value->val_int();
+  return 0;
+}
+
+bool sys_var_int_ptr::update(THD *thd, set_var *var)
+{
+  *value= (uint) var->save_result.ulong_value;
+  return 0;
+}
+
+void sys_var_int_ptr::set_default(THD *thd, enum_var_type type)
+{
+  *value= (uint) option_limits->def_value;
+}
+
 sys_var_long_ptr::
 sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
