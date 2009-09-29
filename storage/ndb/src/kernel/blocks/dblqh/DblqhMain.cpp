@@ -3254,7 +3254,7 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_connected == false);
+    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
     len = 4;
   }
 
