@@ -825,12 +825,8 @@ int tokudb_checkpoint_lock(THD * thd, stat_print_fn * stat_print) {
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
-        trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
-        if (!trx) {
-            error = ENOMEM;
-            goto cleanup;
-        }
-        trx->iso_level = hatoku_iso_not_set;
+        error = create_tokudb_trx_data_instance(&trx);
+        if (error) { goto cleanup; }
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
     
