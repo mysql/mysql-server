@@ -556,7 +556,7 @@ parse_package()
       package="pro"
       ;;
     extended )
-      package=""
+      package="extended"
       ;;
     cge )
       package="cge"

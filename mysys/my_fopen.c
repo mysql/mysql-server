@@ -41,24 +41,14 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
   DBUG_ENTER("my_fopen");
   DBUG_PRINT("my",("Name: '%s'  flags: %d  MyFlags: %d",
 		   filename, flags, MyFlags));
-  /* 
-    if we are not creating, then we need to use my_access to make sure  
-    the file exists since Windows doesn't handle files like "com1.sym" 
-    very  well 
-  */
-#ifdef __WIN__
-  if (check_if_legal_filename(filename))
-  {
-    errno= EACCES;
-    fd= 0;
-  }
-  else
+
+  make_ftype(type,flags);
+
+#ifdef _WIN32
+  fd= my_win_fopen(filename, type);
+#else
+  fd= fopen(filename, type);
 #endif
-  {
-    make_ftype(type,flags);
-    fd = fopen(filename, type);
-  }
-  
   if (fd != 0)
   {
     /*
@@ -66,18 +56,20 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       on some OS (SUNOS). Actually the filename save isn't that important
       so we can ignore if this doesn't work.
     */
-    if ((uint) fileno(fd) >= my_file_limit)
+
+    int filedesc= my_fileno(fd);
+    if ((uint)filedesc >= my_file_limit)
     {
       thread_safe_increment(my_stream_opened,&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
     }
     pthread_mutex_lock(&THR_LOCK_open);
-    if ((my_file_info[fileno(fd)].name = (char*)
+    if ((my_file_info[filedesc].name= (char*)
 	 my_strdup(filename,MyFlags)))
     {
       my_stream_opened++;
       my_file_total_opened++;
-      my_file_info[fileno(fd)].type = STREAM_BY_FOPEN;
+      my_file_info[filedesc].type= STREAM_BY_FOPEN;
       pthread_mutex_unlock(&THR_LOCK_open);
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
       DBUG_RETURN(fd);
@@ -99,6 +91,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 
 	/* Close a stream */
 
+/* Close a stream */
 int my_fclose(FILE *fd, myf MyFlags)
 {
   int err,file;
@@ -106,8 +99,13 @@ int my_fclose(FILE *fd, myf MyFlags)
   DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d", (long) fd, MyFlags));
 
   pthread_mutex_lock(&THR_LOCK_open);
-  file=fileno(fd);
-  if ((err = fclose(fd)) < 0)
+  file= my_fileno(fd);
+#ifndef _WIN32
+  err= fclose(fd);
+#else
+  err= my_win_fclose(fd);
+#endif
+  if(err < 0)
   {
     my_errno=errno;
     if (MyFlags & (MY_FAE | MY_WME))
@@ -138,7 +136,12 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
 		   Filedes, Flags, MyFlags));
 
   make_ftype(type,Flags);
-  if ((fd = fdopen(Filedes, type)) == 0)
+#ifdef _WIN32
+  fd= my_win_fdopen(Filedes, type);
+#else
+  fd= fdopen(Filedes, type);
+#endif
+  if (!fd)
   {
     my_errno=errno;
     if (MyFlags & (MY_FAE | MY_WME))
