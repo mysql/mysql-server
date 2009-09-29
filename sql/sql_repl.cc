@@ -1150,6 +1150,19 @@ bool change_master(THD* thd, Master_info* mi)
 
   thd_proc_info(thd, "Changing master");
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+  /* 
+    We need to check if there is an empty master_host. Otherwise
+    change master succeeds, a master.info file is created containing 
+    empty master_host string and when issuing: start slave; an error
+    is thrown stating that the server is not configured as slave.
+    (See BUG#28796).
+  */
+  if(lex_mi->host && !*lex_mi->host) 
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+  }
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
 		       thread_mask))
