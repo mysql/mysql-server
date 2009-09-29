@@ -10,6 +10,7 @@ relay_log	MYSQLD_DATADIR/relay-log
 relay_log_index	
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
+relay_log_recovery	OFF
 relay_log_space_limit	0
 stop slave;
 change master to master_host='127.0.0.1',master_user='root',
