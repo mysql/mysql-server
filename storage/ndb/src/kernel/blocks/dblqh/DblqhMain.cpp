@@ -7782,6 +7782,12 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
 void Dblqh::execLQH_TRANSREQ(Signal* signal) 
 {
   jamEntry();
+
+  if (!checkNodeFailSequence(signal))
+  {
+    jam();
+    return;
+  }
   Uint32 newTcPtr = signal->theData[0];
   BlockReference newTcBlockref = signal->theData[1];
   Uint32 oldNodeId = signal->theData[2];
