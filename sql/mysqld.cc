@@ -3827,9 +3827,10 @@ with --log-bin instead.");
   {
     if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
     {
-      sql_print_error("You need to use --log-bin to make "
-                      "--binlog-format work.");
-      unireg_abort(1);
+      sql_print_warning("You need to use --log-bin to make "
+                        "--binlog-format work.");
+
+      global_system_variables.binlog_format= opt_binlog_format_id;
     }
     else
     {
