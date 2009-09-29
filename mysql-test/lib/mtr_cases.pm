@@ -41,6 +41,7 @@ our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
 our $reorder= 1;
+our $quick_collect;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -67,6 +68,9 @@ require "mtr_misc.pl";
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
 my $skip_test_reg;
+
+# If "Quick collect", set to 1 once a test to run has been found.
+my $some_test_found;
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -102,6 +106,7 @@ sub collect_test_cases ($$) {
   foreach my $suite (split(",", $suites))
   {
     push(@$cases, collect_one_suite($suite, $opt_cases));
+    last if $some_test_found;
   }
 
   if ( @$opt_cases )
@@ -139,7 +144,7 @@ sub collect_test_cases ($$) {
     }
   }
 
-  if ( $reorder )
+  if ( $reorder && !$quick_collect)
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -386,7 +391,7 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $skip_combinations )
+  if ( ! $skip_combinations && ! $quick_collect )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
@@ -643,6 +648,12 @@ sub optimize_cases {
 	$tinfo->{'innodb_test'}= 1
 	  if ( $default_engine =~ /^innodb/i );
       }
+    }
+
+    if ($quick_collect && ! $tinfo->{'skip'})
+    {
+      $some_test_found= 1;
+      return;
     }
   }
 }
@@ -908,14 +919,14 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need 'big-test' option";
+    $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need debug binaries";
+    $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
 
@@ -951,14 +962,14 @@ sub collect_one_test_case {
 
   if ($tinfo->{'federated_test'})
   {
-    # This is a test that need federated, enable it
+    # This is a test that needs federated, enable it
     push(@{$tinfo->{'master_opt'}}, "--loose-federated");
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
 
   if ( $tinfo->{'innodb_test'} )
   {
-    # This is a test that need innodb
+    # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
          ! exists $::mysqld_variables{'innodb'} )
     {
@@ -979,7 +990,7 @@ sub collect_one_test_case {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test need binlog";
+      $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
   }

@@ -2515,12 +2515,28 @@ ha_innobase::innobase_initialize_autoinc()
 
 		dict_table_autoinc_initialize(innodb_table, auto_inc);
 
-	} else {
+	} else if (error == DB_RECORD_NOT_FOUND) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
-			"the MAX(%s) autoinc value from the "
-			"index (%s).\n", error, col_name, index->name);
-	}
+		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+			"dictionaries are out of sync.\n"
+			"InnoDB: Unable to find the AUTOINC column %s in the "
+			"InnoDB table %s.\n"
+			"InnoDB: We set the next AUTOINC column value to the "
+			"maximum possible value,\n"
+			"InnoDB: in effect disabling the AUTOINC next value "
+			"generation.\n"
+			"InnoDB: You can either set the next AUTOINC value "
+			"explicitly using ALTER TABLE\n"
+			"InnoDB: or fix the data dictionary by recreating "
+			"the table.\n",
+			col_name, index->table->name);
+
+		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+
+		dict_table_autoinc_initialize(innodb_table, auto_inc);
+
+		error = DB_SUCCESS;
+	} /* else other errors are still fatal */
 
 	return(ulong(error));
 }
@@ -2731,7 +2747,6 @@ retry:
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
 			error = innobase_initialize_autoinc();
-			/* Should always succeed! */
 			ut_a(error == DB_SUCCESS);
 		}
 

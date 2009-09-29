@@ -134,8 +134,8 @@ sub mtr_report_test ($) {
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
           if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
-            $exp = substr($exp, 0, length($exp) - 1);
-            if ( substr($test_name, 0, length($exp)) ne $exp ) {
+            my $nexp = substr($exp, 0, length($exp) - 1);
+            if ( substr($test_name, 0, length($nexp)) ne $nexp ) {
               # no match, try next entry
               next;
             }
