@@ -1,0 +1,103 @@
+########################################################
+# Test binlog variants produced by Ndb
+#
+#  1) Updates logged as write_row events
+#     Only primary key and updated columns included in the 
+#     event
+#  2) Updates logged as write_row_events
+#     All columns included in the event
+#  3) Updates logged as update_row events
+#     Only primary key and updated columns included in the
+#     event
+#  4) Updates logged as update_row events
+#     All columns included in the event
+#
+#  Format variant (1) is the Ndb default.
+#
+#  We use mysqlbinlog --verbose to check that the
+#  generated binlog contents are as expected.
+#
+########################################################
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+
+# Setup connections
+connect(mysqld1,127.0.0.1,root,,test,$MASTER_MYPORT);
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connect(mysqld3,127.0.0.1,root,,test,$MASTER_MYPORT2);
+connect(mysqld4,127.0.0.1,root,,test,$MASTER_MYPORT3);
+
+connection mysqld1;
+
+# Create the table we're going to use
+create table ba(ks int primary key, st int, lp int) engine = ndb;
+
+# Wait for each mysqld to startup binlogging
+--let $source_server=mysqld1
+--let $dest_server=mysqld2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=mysqld1
+--let $dest_server=mysqld3
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=mysqld1
+--let $dest_server=mysqld4
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--disable_query_log
+connection mysqld1;
+reset master;
+connection mysqld2;
+reset master;
+connection mysqld3;
+reset master;
+connection mysqld4;
+reset master;
+--enable_query_log
+
+connection mysqld1;
+
+# Now make the inserts and update
+insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
+update ba set lp=40 where ks=4; # Update does not affect all columns
+delete from ba where ks=2;      # Also a delete for fun
+
+--disable_query_log
+# Add an event-stream marker
+create table stream_marker(a int) engine=ndb;
+drop table stream_marker;
+--let $wait_binlog_event=stream_marker
+--enable_query_log
+
+# Now let's have a look at what's in the Binlog on each server
+
+--source include/wait_for_binlog_event.inc
+flush logs;
+show variables like '%log_update%';
+--source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+connection mysqld2;
+
+--source include/wait_for_binlog_event.inc 
+flush logs;
+show variables like '%log_update%';
+--source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+connection mysqld3;
+
+--source include/wait_for_binlog_event.inc 
+flush logs;
+show variables like '%log_update%';
+--source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+connection mysqld4;
+
+--source include/wait_for_binlog_event.inc 
+flush logs;
+show variables like '%log_update%';
+--source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+
+drop table ba;
+
