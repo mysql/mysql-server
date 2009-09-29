@@ -71,31 +71,31 @@ SELECT * FROM `Ｔ１a` INNER JOIN `Ｔ１b`;
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ１a` JOIN `Ｔ１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ１a` INNER JOIN `Ｔ１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ１a` CROSS JOIN `Ｔ１b`;
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ１a` LEFT JOIN `Ｔ１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-ｶ	NULL
-ｻ	NULL
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ１a` LEFT JOIN `Ｔ１b` ON (`Ｔ１a`.`Ｃ１` = `Ｔ１b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	NULL
 ｻ	NULL
 SELECT * FROM `Ｔ１b` RIGHT JOIN `Ｔ１a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-NULL	ｶ
-NULL	ｻ
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ１b` RIGHT JOIN `Ｔ１a` ON (`Ｔ１a`.`Ｃ１` = `Ｔ１b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
@@ -112,31 +112,31 @@ SELECT * FROM `Ｔ２a` INNER JOIN `Ｔ２b`;
 か	あ
 さ	あ
 SELECT * FROM `Ｔ２a` JOIN `Ｔ２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ２a` INNER JOIN `Ｔ２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ２a` CROSS JOIN `Ｔ２b`;
 Ｃ１	Ｃ１
 あ	あ
 か	あ
 さ	あ
 SELECT * FROM `Ｔ２a` LEFT JOIN `Ｔ２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-か	NULL
-さ	NULL
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ２a` LEFT JOIN `Ｔ２b` ON (`Ｔ２a`.`Ｃ１` = `Ｔ２b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
 か	NULL
 さ	NULL
 SELECT * FROM `Ｔ２b` RIGHT JOIN `Ｔ２a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-NULL	か
-NULL	さ
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ２b` RIGHT JOIN `Ｔ２a` ON (`Ｔ２a`.`Ｃ１` = `Ｔ２b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
@@ -153,31 +153,31 @@ SELECT * FROM `Ｔ３a` INNER JOIN `Ｔ３b`;
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ３a` JOIN `Ｔ３b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ３a` INNER JOIN `Ｔ３b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ３a` CROSS JOIN `Ｔ３b`;
 Ｃ１	Ｃ１
 龔	龔
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ３a` LEFT JOIN `Ｔ３b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-龖	NULL
-龗	NULL
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ３a` LEFT JOIN `Ｔ３b` ON (`Ｔ３a`.`Ｃ１` = `Ｔ３b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
 龖	NULL
 龗	NULL
 SELECT * FROM `Ｔ３b` RIGHT JOIN `Ｔ３a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-NULL	龖
-NULL	龗
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ３b` RIGHT JOIN `Ｔ３a` ON (`Ｔ３a`.`Ｃ１` = `Ｔ３b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
@@ -194,31 +194,31 @@ SELECT * FROM `Ｔ４a` INNER JOIN `Ｔ４b`;
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ４a` JOIN `Ｔ４b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ４a` INNER JOIN `Ｔ４b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ４a` CROSS JOIN `Ｔ４b`;
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ４a` LEFT JOIN `Ｔ４b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-ｶ	NULL
-ｻ	NULL
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ４a` LEFT JOIN `Ｔ４b` ON (`Ｔ４a`.`Ｃ１` = `Ｔ４b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	NULL
 ｻ	NULL
 SELECT * FROM `Ｔ４b` RIGHT JOIN `Ｔ４a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-NULL	ｶ
-NULL	ｻ
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ４b` RIGHT JOIN `Ｔ４a` ON (`Ｔ４a`.`Ｃ１` = `Ｔ４b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
@@ -235,31 +235,31 @@ SELECT * FROM `Ｔ５a` INNER JOIN `Ｔ５b`;
 か	あ
 さ	あ
 SELECT * FROM `Ｔ５a` JOIN `Ｔ５b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ５a` INNER JOIN `Ｔ５b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ５a` CROSS JOIN `Ｔ５b`;
 Ｃ１	Ｃ１
 あ	あ
 か	あ
 さ	あ
 SELECT * FROM `Ｔ５a` LEFT JOIN `Ｔ５b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-か	NULL
-さ	NULL
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ５a` LEFT JOIN `Ｔ５b` ON (`Ｔ５a`.`Ｃ１` = `Ｔ５b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
 か	NULL
 さ	NULL
 SELECT * FROM `Ｔ５b` RIGHT JOIN `Ｔ５a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-NULL	か
-NULL	さ
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ５b` RIGHT JOIN `Ｔ５a` ON (`Ｔ５a`.`Ｃ１` = `Ｔ５b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
@@ -276,31 +276,31 @@ SELECT * FROM `Ｔ６a` INNER JOIN `Ｔ６b`;
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ６a` JOIN `Ｔ６b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ６a` INNER JOIN `Ｔ６b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ６a` CROSS JOIN `Ｔ６b`;
 Ｃ１	Ｃ１
 龔	龔
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ６a` LEFT JOIN `Ｔ６b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-龖	NULL
-龗	NULL
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ６a` LEFT JOIN `Ｔ６b` ON (`Ｔ６a`.`Ｃ１` = `Ｔ６b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
 龖	NULL
 龗	NULL
 SELECT * FROM `Ｔ６b` RIGHT JOIN `Ｔ６a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-NULL	龖
-NULL	龗
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ６b` RIGHT JOIN `Ｔ６a` ON (`Ｔ６a`.`Ｃ１` = `Ｔ６b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
@@ -317,31 +317,31 @@ SELECT * FROM `Ｔ７a` INNER JOIN `Ｔ７b`;
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ７a` JOIN `Ｔ７b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ７a` INNER JOIN `Ｔ７b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ７a` CROSS JOIN `Ｔ７b`;
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ７a` LEFT JOIN `Ｔ７b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-ｶ	NULL
-ｻ	NULL
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ７a` LEFT JOIN `Ｔ７b` ON (`Ｔ７a`.`Ｃ１` = `Ｔ７b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	NULL
 ｻ	NULL
 SELECT * FROM `Ｔ７b` RIGHT JOIN `Ｔ７a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-NULL	ｶ
-NULL	ｻ
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ７b` RIGHT JOIN `Ｔ７a` ON (`Ｔ７a`.`Ｃ１` = `Ｔ７b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
@@ -358,31 +358,31 @@ SELECT * FROM `Ｔ８a` INNER JOIN `Ｔ８b`;
 か	あ
 さ	あ
 SELECT * FROM `Ｔ８a` JOIN `Ｔ８b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ８a` INNER JOIN `Ｔ８b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ８a` CROSS JOIN `Ｔ８b`;
 Ｃ１	Ｃ１
 あ	あ
 か	あ
 さ	あ
 SELECT * FROM `Ｔ８a` LEFT JOIN `Ｔ８b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-か	NULL
-さ	NULL
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ８a` LEFT JOIN `Ｔ８b` ON (`Ｔ８a`.`Ｃ１` = `Ｔ８b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
 か	NULL
 さ	NULL
 SELECT * FROM `Ｔ８b` RIGHT JOIN `Ｔ８a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-NULL	か
-NULL	さ
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ８b` RIGHT JOIN `Ｔ８a` ON (`Ｔ８a`.`Ｃ１` = `Ｔ８b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
@@ -399,31 +399,31 @@ SELECT * FROM `Ｔ９a` INNER JOIN `Ｔ９b`;
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ９a` JOIN `Ｔ９b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ９a` INNER JOIN `Ｔ９b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ９a` CROSS JOIN `Ｔ９b`;
 Ｃ１	Ｃ１
 龔	龔
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ９a` LEFT JOIN `Ｔ９b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-龖	NULL
-龗	NULL
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ９a` LEFT JOIN `Ｔ９b` ON (`Ｔ９a`.`Ｃ１` = `Ｔ９b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
 龖	NULL
 龗	NULL
 SELECT * FROM `Ｔ９b` RIGHT JOIN `Ｔ９a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-NULL	龖
-NULL	龗
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ９b` RIGHT JOIN `Ｔ９a` ON (`Ｔ９a`.`Ｃ１` = `Ｔ９b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
@@ -440,31 +440,31 @@ SELECT * FROM `Ｔ１０a` INNER JOIN `Ｔ１０b`;
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ１０a` JOIN `Ｔ１０b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ１０a` INNER JOIN `Ｔ１０b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
+Ｃ１
+ｱ
 SELECT * FROM `Ｔ１０a` CROSS JOIN `Ｔ１０b`;
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	ｱ
 ｻ	ｱ
 SELECT * FROM `Ｔ１０a` LEFT JOIN `Ｔ１０b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-ｶ	NULL
-ｻ	NULL
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ１０a` LEFT JOIN `Ｔ１０b` ON (`Ｔ１０a`.`Ｃ１` = `Ｔ１０b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
 ｶ	NULL
 ｻ	NULL
 SELECT * FROM `Ｔ１０b` RIGHT JOIN `Ｔ１０a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-ｱ	ｱ
-NULL	ｶ
-NULL	ｻ
+Ｃ１
+ｱ
+ｶ
+ｻ
 SELECT * FROM `Ｔ１０b` RIGHT JOIN `Ｔ１０a` ON (`Ｔ１０a`.`Ｃ１` = `Ｔ１０b`.`Ｃ１`);
 Ｃ１	Ｃ１
 ｱ	ｱ
@@ -481,31 +481,31 @@ SELECT * FROM `Ｔ１１a` INNER JOIN `Ｔ１１b`;
 か	あ
 さ	あ
 SELECT * FROM `Ｔ１１a` JOIN `Ｔ１１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ１１a` INNER JOIN `Ｔ１１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
+Ｃ１
+あ
 SELECT * FROM `Ｔ１１a` CROSS JOIN `Ｔ１１b`;
 Ｃ１	Ｃ１
 あ	あ
 か	あ
 さ	あ
 SELECT * FROM `Ｔ１１a` LEFT JOIN `Ｔ１１b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-か	NULL
-さ	NULL
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ１１a` LEFT JOIN `Ｔ１１b` ON (`Ｔ１１a`.`Ｃ１` = `Ｔ１１b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
 か	NULL
 さ	NULL
 SELECT * FROM `Ｔ１１b` RIGHT JOIN `Ｔ１１a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-あ	あ
-NULL	か
-NULL	さ
+Ｃ１
+あ
+か
+さ
 SELECT * FROM `Ｔ１１b` RIGHT JOIN `Ｔ１１a` ON (`Ｔ１１a`.`Ｃ１` = `Ｔ１１b`.`Ｃ１`);
 Ｃ１	Ｃ１
 あ	あ
@@ -522,31 +522,31 @@ SELECT * FROM `Ｔ１２a` INNER JOIN `Ｔ１２b`;
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ１２a` JOIN `Ｔ１２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ１２a` INNER JOIN `Ｔ１２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
+Ｃ１
+龔
 SELECT * FROM `Ｔ１２a` CROSS JOIN `Ｔ１２b`;
 Ｃ１	Ｃ１
 龔	龔
 龖	龔
 龗	龔
 SELECT * FROM `Ｔ１２a` LEFT JOIN `Ｔ１２b` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-龖	NULL
-龗	NULL
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ１２a` LEFT JOIN `Ｔ１２b` ON (`Ｔ１２a`.`Ｃ１` = `Ｔ１２b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔
 龖	NULL
 龗	NULL
 SELECT * FROM `Ｔ１２b` RIGHT JOIN `Ｔ１２a` USING (`Ｃ１`);
-Ｃ１	Ｃ１
-龔	龔
-NULL	龖
-NULL	龗
+Ｃ１
+龔
+龖
+龗
 SELECT * FROM `Ｔ１２b` RIGHT JOIN `Ｔ１２a` ON (`Ｔ１２a`.`Ｃ１` = `Ｔ１２b`.`Ｃ１`);
 Ｃ１	Ｃ１
 龔	龔

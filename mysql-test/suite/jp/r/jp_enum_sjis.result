@@ -137,19 +137,19 @@ Table	Create Table
 ‚s‚V	CREATE TABLE `‚s‚V` (
   `‚b‚P` enum('±','²','³') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚W`;
 Table	Create Table
 ‚s‚W	CREATE TABLE `‚s‚W` (
   `‚b‚P` enum('‚ ','‚¢','‚¤') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚X`;
 Table	Create Table
 ‚s‚X	CREATE TABLE `‚s‚X` (
   `‚b‚P` enum('ƒ\','\','•\') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚P‚O`;
 Table	Create Table
 ‚s‚P‚O	CREATE TABLE `‚s‚P‚O` (
@@ -219,134 +219,134 @@ ALTER TABLE `‚s‚P‚Q` ADD `‚b‚Q` CHAR(1) NOT NULL FIRST;
 SHOW CREATE TABLE `‚s‚P`;
 Table	Create Table
 ‚s‚P	CREATE TABLE `‚s‚P` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('±','²','³') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=InnoDB DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚Q`;
 Table	Create Table
 ‚s‚Q	CREATE TABLE `‚s‚Q` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('‚ ','‚¢','‚¤') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=InnoDB DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚R`;
 Table	Create Table
 ‚s‚R	CREATE TABLE `‚s‚R` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('ƒ\','\','•\') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=InnoDB DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚S`;
 Table	Create Table
 ‚s‚S	CREATE TABLE `‚s‚S` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('±','²','³') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=MyISAM DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚T`;
 Table	Create Table
 ‚s‚T	CREATE TABLE `‚s‚T` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('‚ ','‚¢','‚¤') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=MyISAM DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚U`;
 Table	Create Table
 ‚s‚U	CREATE TABLE `‚s‚U` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('ƒ\','\','•\') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=MyISAM DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚V`;
 Table	Create Table
 ‚s‚V	CREATE TABLE `‚s‚V` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('±','²','³') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚W`;
 Table	Create Table
 ‚s‚W	CREATE TABLE `‚s‚W` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('‚ ','‚¢','‚¤') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚X`;
 Table	Create Table
 ‚s‚X	CREATE TABLE `‚s‚X` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('ƒ\','\','•\') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚P‚O`;
 Table	Create Table
 ‚s‚P‚O	CREATE TABLE `‚s‚P‚O` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('±','²','³') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚P‚P`;
 Table	Create Table
 ‚s‚P‚P	CREATE TABLE `‚s‚P‚P` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('‚ ','‚¢','‚¤') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `‚s‚P‚Q`;
 Table	Create Table
 ‚s‚P‚Q	CREATE TABLE `‚s‚P‚Q` (
-  `‚b‚Q` char(1) NOT NULL default '',
+  `‚b‚Q` char(1) NOT NULL,
   `‚b‚P` enum('ƒ\','\','•\') default NULL,
   KEY `‚b‚P` (`‚b‚P`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
 DESC `‚s‚P`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('±','²','³')	YES	MUL	NULL	
 DESC `‚s‚Q`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('‚ ','‚¢','‚¤')	YES	MUL	NULL	
 DESC `‚s‚R`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('ƒ\','\','•\')	YES	MUL	NULL	
 DESC `‚s‚S`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('±','²','³')	YES	MUL	NULL	
 DESC `‚s‚T`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('‚ ','‚¢','‚¤')	YES	MUL	NULL	
 DESC `‚s‚U`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('ƒ\','\','•\')	YES	MUL	NULL	
 DESC `‚s‚V`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('±','²','³')	YES	MUL	NULL	
 DESC `‚s‚W`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('‚ ','‚¢','‚¤')	YES	MUL	NULL	
 DESC `‚s‚X`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('ƒ\','\','•\')	YES	MUL	NULL	
 DESC `‚s‚P‚O`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('±','²','³')	YES	MUL	NULL	
 DESC `‚s‚P‚P`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('‚ ','‚¢','‚¤')	YES	MUL	NULL	
 DESC `‚s‚P‚Q`;
 Field	Type	Null	Key	Default	Extra
-‚b‚Q	char(1)				
+‚b‚Q	char(1)	NO		NULL	
 ‚b‚P	enum('ƒ\','\','•\')	YES	MUL	NULL	
 DROP TABLE `‚s‚P`;
 DROP TABLE `‚s‚Q`;
