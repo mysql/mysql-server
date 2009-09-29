@@ -1,0 +1,16 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+STOP SLAVE;
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+CHANGE MASTER TO MASTER_HOST="";
+ERROR HY000: Incorrect arguments to MASTER_HOST
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+CHANGE MASTER TO MASTER_HOST="foo";
+Master_Host = 'foo' (expected 'foo')
+CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+Master_Host = '127.0.0.1' (expected '127.0.0.1')
+START SLAVE;
