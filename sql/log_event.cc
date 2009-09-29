@@ -8444,16 +8444,17 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
-
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   if ((error= prepare_record(table, m_width,
                              table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
-                             (rli->sql_thd->variables.sql_mode &
-                               (MODE_STRICT_TRANS_TABLES |
-                                MODE_STRICT_ALL_TABLES)))))
+                             abort_on_warnings, m_curr_row == m_rows_buf)))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
-  error= unpack_current_row(rli); // TODO: how to handle errors?
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    DBUG_RETURN(error);
+
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
@@ -9250,8 +9251,12 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
-  error= unpack_current_row(rli); // this also updates m_curr_row_end
+  /* this also updates m_curr_row_end */
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    return error;
 
   /*
     Now we have the right row to update.  The old row (the one we're
