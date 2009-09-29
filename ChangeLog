@@ -131,6 +131,10 @@
 	Fix Bug#46657 InnoDB plugin: invalid read in index_merge_innodb test
 	(Valgrind)
 
+2008-08-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.4 released
+
 2009-07-20	The InnoDB Team
 
 	* buf/buf0rea.c, handler/ha_innodb.cc, include/srv0srv.h,
