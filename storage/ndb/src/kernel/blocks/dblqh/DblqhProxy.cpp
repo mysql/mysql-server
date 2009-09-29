@@ -1332,6 +1332,13 @@ DblqhProxy::sendSTART_RECCONF_2(Signal* signal, Uint32 ssId)
 void
 DblqhProxy::execLQH_TRANSREQ(Signal* signal)
 {
+  jamEntry();
+  
+  if (!checkNodeFailSequence(signal))
+  {
+    jam();
+    return;
+  }
   const LqhTransReq* req = (const LqhTransReq*)signal->getDataPtr();
   Ss_LQH_TRANSREQ& ss = ssSeize<Ss_LQH_TRANSREQ>();
   ss.m_req = *req;
