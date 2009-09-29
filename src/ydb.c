@@ -969,6 +969,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->cachetable_miss         = ctstat.miss;
 	    engstat->cachetable_wait_reading = ctstat.wait_reading;
 	    engstat->cachetable_wait_writing = ctstat.wait_writing;
+	    engstat->puts                    = ctstat.puts;
+	    engstat->prefetches              = ctstat.prefetches;
+	    engstat->maybe_get_and_pins      = ctstat.maybe_get_and_pins;
+	    engstat->maybe_get_and_pin_hits  = ctstat.maybe_get_and_pin_hits;
 	    engstat->cachetable_size_current = ctstat.size_current;
 	    engstat->cachetable_size_limit   = ctstat.size_limit;
 	    engstat->cachetable_size_writing = ctstat.size_writing;

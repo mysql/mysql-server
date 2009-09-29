@@ -248,9 +248,13 @@ typedef struct cachetable_status {
     u_int64_t miss;
     u_int64_t wait_reading;
     u_int64_t wait_writing;
-    int64_t   size_current;            // the sum of the sizes of the pairs in the cachetable
-    int64_t   size_limit;              // the limit to the sum of the pair sizes
-    int64_t   size_writing;            // the sum of the sizes of the pairs being written
+    u_int64_t puts;          // how many times has a newly created node been put into the cachetable?
+    u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
+    u_int64_t maybe_get_and_pins;      // how many times has get_and_pin been called?
+    u_int64_t maybe_get_and_pin_hits;  // how many times has get_and_pin() returned with a node?
+    int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
+    int64_t   size_limit;              // the limit to the sum of the node sizes
+    int64_t   size_writing;            // the sum of the sizes of the nodes being written
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
