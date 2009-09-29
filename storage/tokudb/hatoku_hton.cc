@@ -87,7 +87,7 @@ static u_int32_t tokudb_init_flags =
     DB_INIT_TXN | 
     0 | // disabled for 1.0.2 DB_INIT_LOG |
     DB_RECOVER;
-static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
+static u_int32_t tokudb_env_flags = 0;
 // static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
@@ -369,8 +369,14 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
 }
 
 static int tokudb_close_connection(handlerton * hton, THD * thd) {
-    my_free(thd_data_get(thd, hton->slot), MYF(0));
-    return 0;
+    int error = 0;
+    tokudb_trx_data* trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (trx && trx->checkpoint_lock_taken) {
+        error = db_env->checkpointing_resume(db_env);
+    }
+    my_free(trx, MYF(0));
+    return error;
 }
 
 bool tokudb_flush_logs(handlerton * hton) {
@@ -809,6 +815,61 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+
+int tokudb_checkpoint_lock(THD * thd) {
+    int error;
+    tokudb_trx_data* trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (!trx) {
+        trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
+        if (!trx) {
+            error = ENOMEM;
+            goto cleanup;
+        }
+        trx->iso_level = hatoku_iso_not_set;
+        thd_data_set(thd, tokudb_hton->slot, trx);
+    }
+    
+    if (trx->checkpoint_lock_taken) {
+        error = 0;
+        goto cleanup;
+    }
+    error = db_env->checkpointing_postpone(db_env);
+    if (error) { goto cleanup; }
+
+    trx->checkpoint_lock_taken = true;
+    error = 0;
+    
+cleanup:
+    if (error) { my_errno = error; }
+    return error;
+}
+
+int tokudb_checkpoint_unlock(THD * thd) {
+    int error;
+    tokudb_trx_data* trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (!trx) {
+        error = 0;
+        goto  cleanup;
+    }
+    if (!trx->checkpoint_lock_taken) {
+        error = 0;
+        goto  cleanup;
+    }
+    //
+    // at this point, we know the checkpoint lock has been taken
+    //
+    error = db_env->checkpointing_resume(db_env);
+    if (error) {goto cleanup;}
+
+    trx->checkpoint_lock_taken = false;
+    
+cleanup:
+    if (error) { my_errno = error; }
+    return error;
+}
+
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
     case HA_ENGINE_DATA_AMOUNT:
@@ -822,6 +883,12 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
         break;
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
+        break;
+    case HA_ENGINE_CHECKPOINT_LOCK:
+        return tokudb_checkpoint_lock(thd);
+        break;
+    case HA_ENGINE_CHECKPOINT_UNLOCK:
+        return tokudb_checkpoint_unlock(thd);
         break;
     default:
         break;
