@@ -1107,13 +1107,13 @@ void kill_mysql(void)
 
 #if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
+#define RETURN_FROM_KILL_SERVER return 0
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #endif
 {
   DBUG_ENTER("kill_server");
@@ -1121,7 +1121,10 @@ static void __cdecl kill_server(int sig_ptr)
   int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
+  {
+    DBUG_LEAVE;
     RETURN_FROM_KILL_SERVER;
+  }
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
   if (sig != 0) // 0 is not a valid signal number
@@ -1156,12 +1159,19 @@ static void __cdecl kill_server(int sig_ptr)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
   /* purecov: end */
 
-#endif /* EMBEDDED_LIBRARY */
+  RETURN_FROM_KILL_SERVER;                      // Avoid compiler warnings
+
+#else /* EMBEDDED_LIBRARY*/
+
+  DBUG_LEAVE;
   RETURN_FROM_KILL_SERVER;
+
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1935,8 +1945,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Impossible
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -2119,15 +2130,14 @@ static void init_signals(void)
   win_install_sigabrt_handler();
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
-  else
-  {
+
     /* Avoid MessageBox()es*/
-   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 
    /*
      Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
@@ -2136,8 +2146,8 @@ static void init_signals(void)
      exception filter is not guaranteed to work in all situation
      (like heap corruption or stack overflow)
    */
-   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
-  }
+  SetErrorMode(SetErrorMode(0) | SEM_FAILCRITICALERRORS
+                               | SEM_NOOPENFILEERRORBOX);
   SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
@@ -2757,7 +2767,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
+      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);				// Safety
+      return 0;                                 // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
@@ -3707,6 +3719,7 @@ static void end_ssl()
 
 static int init_server_components()
 {
+  FILE* reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3749,7 +3762,7 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        freopen(log_error_file, "a+", stderr);
+        reopen= freopen(log_error_file, "a+", stderr);
         setbuf(stderr, NULL);
       }
     }
@@ -4604,7 +4617,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;

@@ -1,3 +1,4 @@
+call mtr.add_suppression("The table 't1' is full");
 drop table if exists t1;
 set global myisam_data_pointer_size=2;
 CREATE TABLE t1 (a int auto_increment primary key not null, b longtext) ENGINE=MyISAM;
