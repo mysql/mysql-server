@@ -678,6 +678,7 @@ cleanup:
         sql_print_error("got an error %d in show_data_size\n", error);
     }
     pthread_mutex_unlock(&tokudb_meta_mutex);
+    if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -721,6 +722,7 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
         free(free_logs);
     free_root(&show_logs_root, MYF(0));
     *root_ptr = old_mem_root;
+    if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -791,6 +793,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
       
     }
+    if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
 
