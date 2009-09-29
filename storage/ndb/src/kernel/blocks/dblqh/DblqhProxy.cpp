@@ -745,6 +745,8 @@ DblqhProxy::execEMPTY_LCP_REQ(Signal* signal)
 {
   jam();
 
+  CRASH_INSERTION(5008);
+
   EmptyLcpReq * const req = (EmptyLcpReq*)&signal->theData[0];
   Uint32 nodeId = refToNode(req->senderRef);
   c_lcpRecord.m_empty_lcp_req.set(nodeId);
