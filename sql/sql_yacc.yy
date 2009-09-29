@@ -7810,7 +7810,7 @@ update:
 	  LEX *lex= Lex;
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
-	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
+            lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
 	  lex->duplicates= DUP_ERROR; 
         }
         opt_low_priority opt_ignore join_table_list
