@@ -730,7 +730,7 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
-    char buf[4096] = {'\0'};
+    char buf[1024] = {'\0'};
 
     ENGINE_STATUS engstat;
 
@@ -791,7 +791,19 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       sprintf(buf, "%" PRIu32, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
 
+      sprintf(buf, "%" PRIu64, engstat.inserts);
+      STATPRINT("dictionary inserts", buf);
+      sprintf(buf, "%" PRIu64, engstat.deletes);
+      STATPRINT("dictionary deletes", buf);
+      sprintf(buf, "%" PRIu64, engstat.point_queries);
+      STATPRINT("dictionary point queries", buf);
+      sprintf(buf, "%" PRIu64, engstat.sequential_queries);
+      STATPRINT("dictionary sequential queries", buf);
       
+      sprintf(buf, "%" PRIu64, engstat.commits);
+      STATPRINT("txn commits", buf);
+      sprintf(buf, "%" PRIu64, engstat.aborts);
+      STATPRINT("txn aborts", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
