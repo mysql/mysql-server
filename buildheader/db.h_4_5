@@ -45,6 +45,7 @@ typedef struct __toku_db_btree_stat64 {
 typedef struct __toku_engine_status {
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
+  u_int32_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ 
   u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
   u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
   char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 

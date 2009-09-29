@@ -349,6 +349,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef struct __toku_engine_status {\n");
     printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
     printf("  u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
+    printf("  u_int32_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ \n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
     printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");
