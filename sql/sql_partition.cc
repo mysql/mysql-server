@@ -40,6 +40,10 @@
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
+
+#define ERROR_INJECT_CRASH(code) \
+  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
+
 /*
   Partition related functions declarations and some static constants;
 */
