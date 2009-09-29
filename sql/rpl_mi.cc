@@ -27,11 +27,11 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
 
-Master_info::Master_info()
+Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
-   abort_slave(0),slave_running(0),
-   slave_run_id(0)
+   rli(is_slave_recovery), abort_slave(0), slave_running(0),
+   slave_run_id(0), sync_counter(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -364,11 +364,6 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
     IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
     if (flush_io_cache(log_file))
       DBUG_RETURN(2);
-
-    /* Sync to disk if --sync-relay-log is set */
-    if (sync_relaylog_period &&
-        my_sync(log_file->file, MY_WME))
-      DBUG_RETURN(2);
   }
 
   /*
@@ -398,8 +393,12 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert);
   err= flush_io_cache(file);
-  if (sync_relaylog_period && !err)
+  if (sync_masterinfo_period && !err && 
+      ++(mi->sync_counter) >= sync_masterinfo_period)
+  {
     err= my_sync(mi->fd, MYF(MY_WME));
+    mi->sync_counter= 0;
+  }
   DBUG_RETURN(-err);
 }
 
