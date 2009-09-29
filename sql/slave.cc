@@ -1233,11 +1233,10 @@ when it try to get the value of TIME_ZONE global variable from master.";
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
     {
-      errmsg= "The slave I/O thread stops because  querying master with '%s' "
-              "failed; error: '%s' ";
+      errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
+        "on master failed.";
       err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, "%s Error: %s", errmsg,
-              query, mysql_error(mysql));
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       mysql_free_result(mysql_store_result(mysql));
       goto err;
     }
