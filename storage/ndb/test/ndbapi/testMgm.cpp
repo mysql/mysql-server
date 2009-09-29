@@ -2399,6 +2399,59 @@ int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  Vector<NdbMgmd*> mgmds;
+
+  while(true)
+  {
+    NdbMgmd* mgmd = new NdbMgmd();
+
+    // Set quite short timeout
+    if (!mgmd->set_timeout(1000))
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (mgmd->connect())
+    {
+      mgmds.push_back(mgmd);
+      g_info << "connections: " << mgmds.size() << endl;
+      continue;
+    }
+
+    g_err << "Failed to make another connection, connections: "
+          << mgmds.size() << endl;
+
+
+    // Disconnect some connections
+    int to_disconnect = 10;
+    while(mgmds.size() && to_disconnect--)
+    {
+      g_info << "disconnnect, connections: " << mgmds.size() << endl;
+      NdbMgmd* mgmd = mgmds[0];
+      mgmds.erase(0);
+      delete mgmd;
+    }
+
+    if (loops-- == 0)
+      break;
+  }
+
+  while(mgmds.size())
+  {
+    NdbMgmd* mgmd = mgmds[0];
+    mgmds.erase(0);
+    delete mgmd;
+  }
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2526,6 +2579,10 @@ TESTCASE("Stress2",
 //  STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
+TESTCASE("Bug45497",
+         "Connect to ndb_mgmd until it can't handle more connections"){
+  STEP(runTestBug45497);
+}
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
@@ -2536,3 +2593,4 @@ int main(int argc, const char** argv){
   return testMgm.execute(argc, argv);
 }
 
+template class Vector<NdbMgmd*>;
