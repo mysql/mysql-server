@@ -1886,7 +1886,8 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   my $lib_udf_example=
     mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-		    "$basedir/sql/.libs/udf_example.so",);
+		    "$basedir/sql/.libs/udf_example.so",
+                    "$basedir/lib/mysql/plugin/udf_example.so",);
 
   if ( $lib_udf_example )
   {
@@ -1913,7 +1914,8 @@ sub environment_setup {
     }
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename);
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
@@ -1928,7 +1930,8 @@ sub environment_setup {
   # ----------------------------------------------------
   my $lib_simple_parser=
     mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
-		    "$basedir/plugin/fulltext/.libs/mypluglib.so",);
+		    "$basedir/plugin/fulltext/.libs/mypluglib.so",
+                    "$basedir/lib/mysql/plugin/mypluglib.so",);
 
   $ENV{'SIMPLE_PARSER'}=
     ($lib_simple_parser ? basename($lib_simple_parser) : "");
