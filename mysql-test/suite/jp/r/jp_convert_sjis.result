@@ -24,18 +24,6 @@ CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚P`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -278,12 +266,15 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚Q`;
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE	êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚R`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚R`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚R`;
 ‚b‚P	CONVERT(`‚b‚P` using ujis)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚S`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
@@ -527,12 +518,15 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚T`;
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE	êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚U`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚U`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚U`;
 ‚b‚P	CONVERT(`‚b‚P` using ujis)
+	
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚V`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
@@ -777,12 +771,15 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚W`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚X`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚X`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚X`;
 ‚b‚P	CONVERT(`‚b‚P` using ujis)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚P‚O`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -1026,12 +1023,15 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚P‚P`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚P‚Q`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚P‚Q`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚P‚Q`;
 ‚b‚P	CONVERT(`‚b‚P` using ujis)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+	
 drop table `‚s‚P`;
 drop table `‚s‚Q`;
 drop table `‚s‚R`;

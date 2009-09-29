@@ -271,20 +271,15 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   int  strict_week_number_year= -1;
   int frac_part;
   bool usa_time= 0;
-  bool sunday_first_n_first_week_non_iso;
-  bool strict_week_number;
-  bool strict_week_number_year_type;
+  bool UNINIT_VAR(sunday_first_n_first_week_non_iso);
+  bool UNINIT_VAR(strict_week_number);
+  bool UNINIT_VAR(strict_week_number_year_type);
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr + format->format.length;
   CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
-
-  LINT_INIT(strict_week_number);
-  /* Remove valgrind varnings when using gcc 3.3 and -O1 */
-  PURIFY_OR_LINT_INIT(strict_week_number_year_type);
-  PURIFY_OR_LINT_INIT(sunday_first_n_first_week_non_iso);
 
   if (!sub_pattern_end)
     bzero((char*) l_time, sizeof(*l_time));

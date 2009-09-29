@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --disable_warnings
 drop table if exists `Ｔ１`;
 drop table if exists `Ｔ２`;
@@ -38,18 +40,20 @@ CREATE TABLE `Ｔ１２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = 
 # jisx0208 data
 # jisx0212 supplemental character data
 
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ２`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ３`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ４`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ５`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ６`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ７`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ８`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ９`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１０`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ１１`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ１２`;
+--disable_query_log
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ２`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ３`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ４`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ５`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ６`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ７`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ８`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ９`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１０`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ１１`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ１２`;
+--enable_query_log
 
 #InnoDB
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ１`;

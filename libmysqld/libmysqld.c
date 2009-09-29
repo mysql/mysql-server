@@ -164,6 +164,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   port=0;
   unix_socket=0;
 
+  client_flag|=mysql->options.client_flag;
   /* Send client information for access check */
   client_flag|=CLIENT_CAPABILITIES;
   if (client_flag & CLIENT_MULTI_STATEMENTS)
