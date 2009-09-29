@@ -65,7 +65,6 @@
 #endif
 
 /* File and lock constants */
-#define O_SHARE		0x1000		/* Open file in sharing mode */
 #ifdef __BORLANDC__
 #define F_RDLCK		LK_NBLCK	/* read lock */
 #define F_WRLCK		LK_NBRLCK	/* write lock */
@@ -336,7 +335,7 @@ inline ulonglong double2ulonglong(double d)
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
-#define OS_FILE_LIMIT	2048
+#define OS_FILE_LIMIT	UINT_MAX /* No limit*/
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
