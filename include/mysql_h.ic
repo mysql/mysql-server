@@ -40,7 +40,7 @@ typedef struct st_list LIST;
 typedef struct st_mem_root MEM_ROOT;
 # 255 "mysql.h"
 typedef struct st_mysql MYSQL;
-# 647 "mysql.h"
+# 657 "mysql.h"
 typedef struct st_mysql_bind MYSQL_BIND;
 # 97 "mysql.h"
 typedef struct st_mysql_field MYSQL_FIELD;
@@ -56,7 +56,7 @@ typedef struct st_mysql_res MYSQL_RES;
 typedef char * * MYSQL_ROW;
 # 144 "mysql.h"
 typedef MYSQL_ROWS * MYSQL_ROW_OFFSET;
-# 675 "mysql.h"
+# 685 "mysql.h"
 typedef struct st_mysql_stmt MYSQL_STMT;
 # 240 "mysql.h"
 typedef struct character_set MY_CHARSET_INFO;
@@ -80,7 +80,7 @@ typedef unsigned long long int my_ulonglong;
 typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 # 149 "mysql.h"
 typedef struct st_mysql_data MYSQL_DATA;
-# 744 "mysql.h"
+# 754 "mysql.h"
 typedef struct st_mysql_methods MYSQL_METHODS;
 # 47 "mysql_time.h"
 typedef struct st_mysql_time MYSQL_TIME;
@@ -173,7 +173,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     void * thd;
     my_bool * unbuffered_fetch_owner;
   };
-# 647 "mysql.h"
+# 657 "mysql.h"
 struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned long int)))) st_mysql_bind
   {
     unsigned long int * length;
@@ -246,7 +246,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     int net_buf_size;
     char last_error[256];
   };
-# 744 "mysql.h"
+# 754 "mysql.h"
 struct __attribute__((aligned(__alignof__(void *)))) st_mysql_methods
   {
     my_bool (* read_query_result)(MYSQL * mysql);
@@ -340,7 +340,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     MYSQL_ROW data;
     unsigned long int length;
   };
-# 675 "mysql.h"
+# 685 "mysql.h"
 struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned long long int)))) st_mysql_stmt
   {
     MEM_ROOT mem_root;
@@ -508,7 +508,7 @@ enum enum_mysql_set_option
     MYSQL_OPTION_MULTI_STATEMENTS_ON = 0,
     MYSQL_OPTION_MULTI_STATEMENTS_OFF = 1,
   };
-# 577 "mysql.h"
+# 587 "mysql.h"
 enum enum_mysql_stmt_state
   {
     MYSQL_STMT_INIT_DONE = 1,
@@ -559,7 +559,7 @@ enum enum_server_command
     COM_STMT_FETCH = 28,
     COM_END = 29,
   };
-# 721 "mysql.h"
+# 731 "mysql.h"
 enum enum_stmt_attr_type
   {
     STMT_ATTR_UPDATE_MAX_LENGTH = 0,
@@ -627,25 +627,25 @@ enum mysql_status
     MYSQL_STATUS_GET_RESULT = 1,
     MYSQL_STATUS_USE_RESULT = 2,
   };
-# 427 "mysql_com.h"
+# 431 "mysql_com.h"
 extern my_bool check_scramble(char const * reply, char const * message, unsigned char const * hash_stage2);
-# 420 "mysql_com.h"
+# 424 "mysql_com.h"
 extern my_bool check_scramble_323(char const *, char const * message, unsigned long int * salt);
 # 32 "typelib.h"
 extern TYPELIB * copy_typelib(MEM_ROOT * root, TYPELIB * from);
-# 415 "mysql_com.h"
+# 419 "mysql_com.h"
 extern void create_random_string(char * to, unsigned int, struct rand_struct * rand_st);
 # 29 "typelib.h"
 extern int find_type(char * x, TYPELIB * typelib, unsigned int);
-# 429 "mysql_com.h"
+# 433 "mysql_com.h"
 extern void get_salt_from_password(unsigned char * res, char const * password);
-# 422 "mysql_com.h"
+# 426 "mysql_com.h"
 extern void get_salt_from_password_323(unsigned long int * res, char const * password);
-# 435 "mysql_com.h"
+# 439 "mysql_com.h"
 extern char * get_tty_password(char * opt_message);
 # 31 "typelib.h"
 extern char const * get_type(TYPELIB * typelib, unsigned int);
-# 417 "mysql_com.h"
+# 421 "mysql_com.h"
 extern void hash_password(unsigned long int * to, char const * password, unsigned int);
 # 30 "my_list.h"
 extern LIST * list_add(LIST * root, LIST * element);
@@ -661,23 +661,23 @@ extern unsigned int list_length(LIST *);
 extern LIST * list_reverse(LIST * root);
 # 36 "my_list.h"
 extern int list_walk(LIST *, list_walk_action, gptr);
-# 444 "mysql_com.h"
+# 448 "mysql_com.h"
 extern int load_defaults(char const * conf_file, char const * * groups, int * argc, char * * * argv);
-# 430 "mysql_com.h"
+# 434 "mysql_com.h"
 extern void make_password_from_salt(char * to, unsigned char const * hash_stage2);
-# 423 "mysql_com.h"
+# 427 "mysql_com.h"
 extern void make_password_from_salt_323(char * to, unsigned long int const * salt);
-# 425 "mysql_com.h"
+# 429 "mysql_com.h"
 extern void make_scrambled_password(char * to, char const * password);
-# 418 "mysql_com.h"
+# 422 "mysql_com.h"
 extern void make_scrambled_password_323(char * to, char const * password);
 # 30 "typelib.h"
 extern void make_type(char * to, unsigned int, TYPELIB * typelib);
-# 441 "mysql_com.h"
+# 445 "mysql_com.h"
 extern int modify_defaults_file(char const * file_location, char const * option, char const * option_value, char const * section_name, int);
 # 358 "mysql_com.h"
 extern int my_connect(my_socket, struct sockaddr const * name, unsigned int, unsigned int);
-# 440 "mysql_com.h"
+# 444 "mysql_com.h"
 extern my_bool my_init(void);
 # 335 "mysql_com.h"
 extern my_bool my_net_init(NET * net, Vio * vio);
@@ -687,27 +687,27 @@ extern void my_net_local_init(NET * net);
 extern unsigned long int my_net_read(NET * net);
 # 341 "mysql_com.h"
 extern my_bool my_net_write(NET * net, char const * packet, unsigned long int);
-# 414 "mysql_com.h"
+# 418 "mysql_com.h"
 extern double my_rnd(struct rand_struct *);
-# 447 "mysql_com.h"
+# 451 "mysql_com.h"
 extern void my_thread_end(void);
-# 446 "mysql_com.h"
+# 450 "mysql_com.h"
 extern my_bool my_thread_init(void);
-# 553 "mysql.h"
+# 563 "mysql.h"
 extern void myodbc_remove_escape(MYSQL * mysql, char * name);
 # 505 "mysql.h"
 extern int mysql_add_slave(MYSQL * mysql, char const * host, unsigned int, char const * user, char const * passwd);
 # 414 "mysql.h"
 extern my_ulonglong mysql_affected_rows(MYSQL * mysql);
-# 817 "mysql.h"
+# 827 "mysql.h"
 extern my_bool mysql_autocommit(MYSQL * mysql, my_bool);
 # 430 "mysql.h"
 extern my_bool mysql_change_user(MYSQL * mysql, char const * user, char const * passwd, char const * db);
 # 422 "mysql.h"
 extern char const * mysql_character_set_name(MYSQL * mysql);
-# 820 "mysql.h"
+# 830 "mysql.h"
 extern void mysql_close(MYSQL * sock);
-# 815 "mysql.h"
+# 825 "mysql.h"
 extern my_bool mysql_commit(MYSQL * mysql);
 # 534 "mysql.h"
 extern void mysql_data_seek(MYSQL_RES * result, my_ulonglong);
@@ -719,7 +719,7 @@ extern void mysql_disable_reads_from_master(MYSQL * mysql);
 extern void mysql_disable_rpl_parse(MYSQL * mysql);
 # 513 "mysql.h"
 extern int mysql_dump_debug_info(MYSQL * mysql);
-# 555 "mysql.h"
+# 565 "mysql.h"
 extern my_bool mysql_embedded(void);
 # 490 "mysql.h"
 extern void mysql_enable_reads_from_master(MYSQL * mysql);
@@ -729,7 +729,7 @@ extern void mysql_enable_rpl_parse(MYSQL * mysql);
 extern my_bool mysql_eof(MYSQL_RES * res);
 # 416 "mysql.h"
 extern unsigned int mysql_errno(MYSQL * mysql);
-# 436 "mysql_com.h"
+# 440 "mysql_com.h"
 extern char const * mysql_errno_to_sqlstate(unsigned int);
 # 417 "mysql.h"
 extern char const * mysql_error(MYSQL * mysql);
@@ -789,28 +789,30 @@ extern MYSQL_RES * mysql_list_fields(MYSQL * mysql, char const * table, char con
 extern MYSQL_RES * mysql_list_processes(MYSQL * mysql);
 # 529 "mysql.h"
 extern MYSQL_RES * mysql_list_tables(MYSQL * mysql, char const * wild);
-# 562 "mysql.h"
+# 572 "mysql.h"
 extern void mysql_manager_close(MYSQL_MANAGER * con);
-# 563 "mysql.h"
+# 573 "mysql.h"
 extern int mysql_manager_command(MYSQL_MANAGER * con, char const * cmd, int);
-# 557 "mysql.h"
+# 567 "mysql.h"
 extern MYSQL_MANAGER * mysql_manager_connect(MYSQL_MANAGER * con, char const * host, char const * user, char const * passwd, unsigned int);
-# 565 "mysql.h"
+# 575 "mysql.h"
 extern int mysql_manager_fetch_line(MYSQL_MANAGER * con, char * res_buf, int);
-# 556 "mysql.h"
+# 566 "mysql.h"
 extern MYSQL_MANAGER * mysql_manager_init(MYSQL_MANAGER * con);
 # 449 "mysql.h"
 extern my_bool mysql_master_query(MYSQL * mysql, char const * q, unsigned long int);
 # 451 "mysql.h"
 extern my_bool mysql_master_send_query(MYSQL * mysql, char const * q, unsigned long int);
-# 818 "mysql.h"
+# 828 "mysql.h"
 extern my_bool mysql_more_results(MYSQL * mysql);
-# 819 "mysql.h"
+# 829 "mysql.h"
 extern int mysql_next_result(MYSQL * mysql);
 # 405 "mysql.h"
 extern unsigned int mysql_num_fields(MYSQL_RES * res);
 # 404 "mysql.h"
 extern my_ulonglong mysql_num_rows(MYSQL_RES * res);
+# 553 "mysql.h"
+extern char * mysql_odbc_escape_string(MYSQL * mysql, char * to, unsigned long int, char const * from, unsigned long int, void * param, char * (* extend_buffer)(void *, char * to, unsigned long int * length));
 # 531 "mysql.h"
 extern int mysql_options(MYSQL * mysql, enum mysql_option, char const * arg);
 # 520 "mysql.h"
@@ -819,7 +821,7 @@ extern int mysql_ping(MYSQL * mysql);
 extern unsigned int mysql_port;
 # 440 "mysql.h"
 extern int mysql_query(MYSQL * mysql, char const * q);
-# 568 "mysql.h"
+# 578 "mysql.h"
 extern my_bool mysql_read_query_result(MYSQL * mysql);
 # 493 "mysql.h"
 extern my_bool mysql_reads_from_master_enabled(MYSQL * mysql);
@@ -831,7 +833,7 @@ extern unsigned long int mysql_real_escape_string(MYSQL * mysql, char * to, char
 extern int mysql_real_query(MYSQL * mysql, char const * q, unsigned long int);
 # 514 "mysql.h"
 extern int mysql_refresh(MYSQL * mysql, unsigned int);
-# 816 "mysql.h"
+# 826 "mysql.h"
 extern my_bool mysql_rollback(MYSQL * mysql);
 # 536 "mysql.h"
 extern MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES * result, MYSQL_ROW_OFFSET);
@@ -873,59 +875,59 @@ extern char const * mysql_sqlstate(MYSQL * mysql);
 extern my_bool mysql_ssl_set(MYSQL * mysql, char const * key, char const * cert, char const * ca, char const * capath, char const * cipher);
 # 521 "mysql.h"
 extern char const * mysql_stat(MYSQL * mysql);
-# 811 "mysql.h"
+# 821 "mysql.h"
 extern my_ulonglong mysql_stmt_affected_rows(MYSQL_STMT * stmt);
-# 789 "mysql.h"
+# 799 "mysql.h"
 extern my_bool mysql_stmt_attr_get(MYSQL_STMT * stmt, enum enum_stmt_attr_type, void * attr);
-# 786 "mysql.h"
-extern my_bool mysql_stmt_attr_set(MYSQL_STMT * stmt, enum enum_stmt_attr_type, void const * attr);
-# 792 "mysql.h"
-extern my_bool mysql_stmt_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
-# 793 "mysql.h"
-extern my_bool mysql_stmt_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
-# 794 "mysql.h"
-extern my_bool mysql_stmt_close(MYSQL_STMT * stmt);
-# 809 "mysql.h"
-extern void mysql_stmt_data_seek(MYSQL_STMT * stmt, my_ulonglong);
-# 803 "mysql.h"
-extern unsigned int mysql_stmt_errno(MYSQL_STMT * stmt);
-# 804 "mysql.h"
-extern char const * mysql_stmt_error(MYSQL_STMT * stmt);
-# 779 "mysql.h"
-extern int mysql_stmt_execute(MYSQL_STMT * stmt);
-# 780 "mysql.h"
-extern int mysql_stmt_fetch(MYSQL_STMT * stmt);
-# 781 "mysql.h"
-extern int mysql_stmt_fetch_column(MYSQL_STMT * stmt, MYSQL_BIND * bind_arg, unsigned int, unsigned long int);
-# 813 "mysql.h"
-extern unsigned int mysql_stmt_field_count(MYSQL_STMT * stmt);
 # 796 "mysql.h"
-extern my_bool mysql_stmt_free_result(MYSQL_STMT * stmt);
-# 776 "mysql.h"
-extern MYSQL_STMT * mysql_stmt_init(MYSQL * mysql);
-# 812 "mysql.h"
-extern my_ulonglong mysql_stmt_insert_id(MYSQL_STMT * stmt);
-# 810 "mysql.h"
-extern my_ulonglong mysql_stmt_num_rows(MYSQL_STMT * stmt);
-# 785 "mysql.h"
-extern unsigned long int mysql_stmt_param_count(MYSQL_STMT * stmt);
+extern my_bool mysql_stmt_attr_set(MYSQL_STMT * stmt, enum enum_stmt_attr_type, void const * attr);
 # 802 "mysql.h"
-extern MYSQL_RES * mysql_stmt_param_metadata(MYSQL_STMT * stmt);
-# 777 "mysql.h"
-extern int mysql_stmt_prepare(MYSQL_STMT * stmt, char const * query, unsigned long int);
-# 795 "mysql.h"
-extern my_bool mysql_stmt_reset(MYSQL_STMT * stmt);
-# 801 "mysql.h"
-extern MYSQL_RES * mysql_stmt_result_metadata(MYSQL_STMT * stmt);
+extern my_bool mysql_stmt_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+# 803 "mysql.h"
+extern my_bool mysql_stmt_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+# 804 "mysql.h"
+extern my_bool mysql_stmt_close(MYSQL_STMT * stmt);
+# 819 "mysql.h"
+extern void mysql_stmt_data_seek(MYSQL_STMT * stmt, my_ulonglong);
+# 813 "mysql.h"
+extern unsigned int mysql_stmt_errno(MYSQL_STMT * stmt);
+# 814 "mysql.h"
+extern char const * mysql_stmt_error(MYSQL_STMT * stmt);
+# 789 "mysql.h"
+extern int mysql_stmt_execute(MYSQL_STMT * stmt);
+# 790 "mysql.h"
+extern int mysql_stmt_fetch(MYSQL_STMT * stmt);
+# 791 "mysql.h"
+extern int mysql_stmt_fetch_column(MYSQL_STMT * stmt, MYSQL_BIND * bind_arg, unsigned int, unsigned long int);
+# 823 "mysql.h"
+extern unsigned int mysql_stmt_field_count(MYSQL_STMT * stmt);
 # 806 "mysql.h"
-extern MYSQL_ROW_OFFSET mysql_stmt_row_seek(MYSQL_STMT * stmt, MYSQL_ROW_OFFSET);
-# 808 "mysql.h"
-extern MYSQL_ROW_OFFSET mysql_stmt_row_tell(MYSQL_STMT * stmt);
-# 797 "mysql.h"
-extern my_bool mysql_stmt_send_long_data(MYSQL_STMT * stmt, unsigned int, char const * data, unsigned long int);
+extern my_bool mysql_stmt_free_result(MYSQL_STMT * stmt);
+# 786 "mysql.h"
+extern MYSQL_STMT * mysql_stmt_init(MYSQL * mysql);
+# 822 "mysql.h"
+extern my_ulonglong mysql_stmt_insert_id(MYSQL_STMT * stmt);
+# 820 "mysql.h"
+extern my_ulonglong mysql_stmt_num_rows(MYSQL_STMT * stmt);
+# 795 "mysql.h"
+extern unsigned long int mysql_stmt_param_count(MYSQL_STMT * stmt);
+# 812 "mysql.h"
+extern MYSQL_RES * mysql_stmt_param_metadata(MYSQL_STMT * stmt);
+# 787 "mysql.h"
+extern int mysql_stmt_prepare(MYSQL_STMT * stmt, char const * query, unsigned long int);
 # 805 "mysql.h"
+extern my_bool mysql_stmt_reset(MYSQL_STMT * stmt);
+# 811 "mysql.h"
+extern MYSQL_RES * mysql_stmt_result_metadata(MYSQL_STMT * stmt);
+# 816 "mysql.h"
+extern MYSQL_ROW_OFFSET mysql_stmt_row_seek(MYSQL_STMT * stmt, MYSQL_ROW_OFFSET);
+# 818 "mysql.h"
+extern MYSQL_ROW_OFFSET mysql_stmt_row_tell(MYSQL_STMT * stmt);
+# 807 "mysql.h"
+extern my_bool mysql_stmt_send_long_data(MYSQL_STMT * stmt, unsigned int, char const * data, unsigned long int);
+# 815 "mysql.h"
 extern char const * mysql_stmt_sqlstate(MYSQL_STMT * stmt);
-# 784 "mysql.h"
+# 794 "mysql.h"
 extern int mysql_stmt_store_result(MYSQL_STMT * stmt);
 # 445 "mysql.h"
 extern MYSQL_RES * mysql_store_result(MYSQL * mysql);
@@ -935,7 +937,7 @@ extern void mysql_thread_end(void);
 extern unsigned long int mysql_thread_id(MYSQL * mysql);
 # 396 "mysql.h"
 extern my_bool mysql_thread_init(void);
-# 554 "mysql.h"
+# 564 "mysql.h"
 extern unsigned int mysql_thread_safe(void);
 # 79 "mysql.h"
 extern char * mysql_unix_port;
@@ -955,13 +957,13 @@ extern int net_real_write(NET * net, char const * packet, unsigned long int);
 extern my_bool net_realloc(NET * net, unsigned long int);
 # 342 "mysql_com.h"
 extern my_bool net_write_command(NET * net, unsigned char, char const * header, unsigned long int, char const * packet, unsigned long int);
-# 431 "mysql_com.h"
+# 435 "mysql_com.h"
 extern char * octet2hex(char * to, char const * str, unsigned int);
-# 412 "mysql_com.h"
+# 416 "mysql_com.h"
 extern void randominit(struct rand_struct *, unsigned long int, unsigned long int);
-# 426 "mysql_com.h"
+# 430 "mysql_com.h"
 extern void scramble(char * to, char const * message, char const * password);
-# 419 "mysql_com.h"
+# 423 "mysql_com.h"
 extern void scramble_323(char * to, char const * message, char const * password);
 # 34 "typelib.h"
 extern TYPELIB sql_protocol_typelib;
