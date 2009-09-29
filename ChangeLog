@@ -7,9 +7,9 @@
 
 2009-09-28	The InnoDB Team
 
-	* btr/btr0btr.c, buf/buf0buf.c,
-	include/page0page.h, include/page0zip.h,
-	page/page0cur.c, page/page0page.c, page/page0zip.c:
+	* btr/btr0btr.c, buf/buf0buf.c, include/page0page.h,
+	include/page0zip.h, page/page0cur.c, page/page0page.c,
+	page/page0zip.c:
 	Do not write to PAGE_INDEX_ID when restoring an uncompressed page
 	after a compression failure.  The field should only be written
 	when creating a B-tree page.  This fix addresses a race condition
