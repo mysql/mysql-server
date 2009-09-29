@@ -305,13 +305,17 @@ unpack_row(Relay_log_info const *rli,
   @param table  Table whose record[0] buffer is prepared. 
   @param skip   Number of columns for which default/nullable check 
                 should be skipped.
-  @param check  Indicates if errors should be raised when checking 
-                default/nullable field properties.
+  @param check  Specifies if lack of default error needs checking.
+  @param abort_on_warning
+                Controls how to react on lack of a field's default.
+                The parameter mimics the master side one for
+                @c check_that_all_fields_are_given_values.
                 
   @returns 0 on success or a handler level error code
  */ 
 int prepare_record(TABLE *const table, 
-                   const uint skip, const bool check)
+                   const uint skip, const bool check,
+                   const bool abort_on_warning)
 {
   DBUG_ENTER("prepare_record");
 
@@ -326,17 +330,27 @@ int prepare_record(TABLE *const table,
   if (skip >= table->s->fields || !check)
     DBUG_RETURN(0);
 
-  /* Checking if exists default/nullable fields in the default values. */
-
-  for (Field **field_ptr= table->field+skip ; *field_ptr ; ++field_ptr)
+  /*
+    For fields the extra fields on the slave, we check if they have a default.
+    The check follows the same rules as the INSERT query without specifying an
+    explicit value for a field not having the explicit default 
+    (@c check_that_all_fields_are_given_values()).
+  */
+  for (Field **field_ptr= table->field+skip; *field_ptr; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
-
-    if (((f->flags & mask) == mask))
+    if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
+        (f->real_type() != MYSQL_TYPE_ENUM))
     {
-      my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), f->field_name);
-      error = HA_ERR_ROWS_EVENT_APPLY;
+      push_warning_printf(current_thd, abort_on_warning?
+                          MYSQL_ERROR::WARN_LEVEL_ERROR :
+                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_NO_DEFAULT_FOR_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_FIELD),
+                          f->field_name);
+      if (abort_on_warning)
+        error = HA_ERR_ROWS_EVENT_APPLY;
     }
   }
 
