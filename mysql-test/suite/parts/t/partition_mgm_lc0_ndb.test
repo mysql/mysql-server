@@ -41,6 +41,8 @@ let $can_only_key= 1;
 # Allow hash/list/range partitioning with ndb
 #SET new=on;
 let $engine= 'NDBCluster';
+# NDB does not yet support TRUNCATE PARTITION
+let $no_truncate= 1;
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines

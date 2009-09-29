@@ -849,9 +849,12 @@ int ha_partition::rename_partitions(const char *path)
 #define ANALYZE_PARTS 2
 #define CHECK_PARTS   3
 #define REPAIR_PARTS 4
+#define ASSIGN_KEYCACHE_PARTS 5
+#define PRELOAD_KEYS_PARTS 6
 
 static const char *opt_op_name[]= {NULL,
-                                   "optimize", "analyze", "check", "repair" };
+                                   "optimize", "analyze", "check", "repair",
+                                   "assign_to_keycache", "preload_keys"};
 
 /*
   Optimize table
@@ -936,7 +939,44 @@ int ha_partition::repair(THD *thd, HA_CHECK_OPT *check_opt)
   DBUG_RETURN(handle_opt_partitions(thd, check_opt, REPAIR_PARTS));
 }
 
+/**
+  Assign to keycache
 
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::assign_to_keycache");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, ASSIGN_KEYCACHE_PARTS));
+}
+
+
+/**
+  Preload to keycache
+
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::preload_keys(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::preload_keys");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, PRELOAD_KEYS_PARTS));
+}
+
+ 
 /*
   Handle optimize/analyze/check/repair of one partition
 
@@ -967,6 +1007,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
     error= file->ha_check(thd, check_opt);
   else if (flag == REPAIR_PARTS)
     error= file->ha_repair(thd, check_opt);
+  else if (flag == ASSIGN_KEYCACHE_PARTS)
+    error= file->assign_to_keycache(thd, check_opt);
+  else if (flag == PRELOAD_KEYS_PARTS)
+    error= file->preload_keys(thd, check_opt);
   else
   {
     DBUG_ASSERT(FALSE);
@@ -1064,7 +1108,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       it should only do named partitions, otherwise all partitions
     */
     if (!(thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION) ||
-        part_elem->part_state == PART_CHANGED)
+        part_elem->part_state == PART_ADMIN)
     {
       if (m_is_sub_partitioned)
       {
@@ -1096,6 +1140,12 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
             }
+            /* reset part_state for the remaining partitions */
+            do
+            {
+              if (part_elem->part_state == PART_ADMIN)
+                part_elem->part_state= PART_NORMAL;
+            } while (part_elem= part_it++);
             DBUG_RETURN(error);
           }
         } while (++j < no_subparts);
@@ -1122,9 +1172,16 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
+          /* reset part_state for the remaining partitions */
+          do
+          {
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+          } while (part_elem= part_it++);
           DBUG_RETURN(error);
         }
       }
+      part_elem->part_state= PART_NORMAL;
     }
   } while (++i < no_parts);
   DBUG_RETURN(FALSE);
@@ -3221,6 +3278,9 @@ int ha_partition::delete_row(const uchar *buf)
     Called from sql_delete.cc by mysql_delete().
     Called from sql_select.cc by JOIN::reinit().
     Called from sql_union.cc by st_select_lex_unit::exec().
+ 
+     Also used for handle ALTER TABLE t TRUNCATE PARTITION ...
+     NOTE: auto increment value will be truncated in that partition as well!
 */
 
 int ha_partition::delete_all_rows()
@@ -3233,11 +3293,84 @@ int ha_partition::delete_all_rows()
 
   if (thd->lex->sql_command == SQLCOM_TRUNCATE)
   {
+    Alter_info *alter_info= &thd->lex->alter_info;
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    /* TRUNCATE also means resetting auto_increment */
     lock_auto_increment();
     ha_data->next_auto_inc_val= 0;
     ha_data->auto_inc_initialized= FALSE;
     unlock_auto_increment();
+    if (alter_info->flags & ALTER_ADMIN_PARTITION)
+    {
+      /* ALTER TABLE t TRUNCATE PARTITION ... */
+      List_iterator<partition_element> part_it(m_part_info->partitions);
+      int saved_error= 0;
+      uint no_parts= m_part_info->no_parts;
+      uint no_subparts= m_part_info->no_subparts;
+      uint i= 0;
+      uint no_parts_set= alter_info->partition_names.elements;
+      uint no_parts_found= set_part_state(alter_info, m_part_info,
+                                          PART_ADMIN);
+      if (no_parts_set != no_parts_found &&
+          (!(alter_info->flags & ALTER_ALL_PARTITION)))
+        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+      /*
+        Cannot return HA_ERR_WRONG_COMMAND here without correct pruning
+        since that whould delete the whole table row by row in sql_delete.cc
+      */
+      bitmap_clear_all(&m_part_info->used_partitions);
+      do
+      {
+        partition_element *part_elem= part_it++;
+        if (part_elem->part_state == PART_ADMIN)
+        {
+          if (m_is_sub_partitioned)
+          {
+            List_iterator<partition_element>
+                                        subpart_it(part_elem->subpartitions);
+            partition_element *sub_elem;
+            uint j= 0, part;
+            do
+            {
+              sub_elem= subpart_it++;
+              part= i * no_subparts + j;
+              bitmap_set_bit(&m_part_info->used_partitions, part);
+              if (!saved_error)
+              {
+                DBUG_PRINT("info", ("truncate subpartition %u (%s)",
+                                    part, sub_elem->partition_name));
+                if ((error= m_file[part]->ha_delete_all_rows()))
+                  saved_error= error;
+                /* If not reset_auto_increment is supported, just accept it */
+                if (!saved_error &&
+                    (error= m_file[part]->ha_reset_auto_increment(0)) &&
+                    error != HA_ERR_WRONG_COMMAND)
+                  saved_error= error;
+              }
+            } while (++j < no_subparts);
+          }
+          else
+          {
+            DBUG_PRINT("info", ("truncate partition %u (%s)", i,
+                                part_elem->partition_name));
+            bitmap_set_bit(&m_part_info->used_partitions, i);
+            if (!saved_error)
+            {
+              if ((error= m_file[i]->ha_delete_all_rows()) && !saved_error)
+                saved_error= error;
+              /* If not reset_auto_increment is supported, just accept it */
+              if (!saved_error &&
+                  (error= m_file[i]->ha_reset_auto_increment(0)) &&
+                  error != HA_ERR_WRONG_COMMAND)
+                saved_error= error;
+            }
+          }
+          part_elem->part_state= PART_NORMAL;
+        }
+      } while (++i < no_parts);
+      DBUG_RETURN(saved_error);
+    }
     truncate= TRUE;
   }
   file= m_file;
@@ -5912,12 +6045,14 @@ enum row_type ha_partition::get_row_type() const
 
 void ha_partition::print_error(int error, myf errflag)
 {
+  THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::print_error");
 
   /* Should probably look for my own errors first */
   DBUG_PRINT("enter", ("error: %d", error));
 
-  if (error == HA_ERR_NO_PARTITION_FOUND)
+  if (error == HA_ERR_NO_PARTITION_FOUND &&
+      thd->lex->sql_command != SQLCOM_TRUNCATE)
     m_part_info->print_no_partition_found(table);
   else
     m_file[m_last_part]->print_error(error, errflag);
