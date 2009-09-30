@@ -355,7 +355,13 @@ int ha_example::close(void)
 int ha_example::write_row(uchar *buf)
 {
   DBUG_ENTER("ha_example::write_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  /*
+    Example of a successful write_row. We don't store the data
+    anywhere; they are thrown away. A real implementation will
+    probably need to do something with 'buf'. We report a success
+    here, to pretend that the insert was successful.
+  */
+  DBUG_RETURN(0);
 }
 
 

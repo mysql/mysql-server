@@ -1,11 +1,9 @@
 ##################################################################
 # Author: Giuseppe                                               #
 # Date: 2006-12-20                                               #
-# Purpose: To test that event effects are replicated             #
-# in both row based and statement based format                   #
+# Purpose: To test that event effects are replicated.            #
 ##################################################################
 
---source include/not_embedded.inc
 --source include/master-slave.inc
 
 SET @old_event_scheduler = @@global.event_scheduler;
@@ -13,14 +11,6 @@ set global event_scheduler=1;
 
 let $engine_type= MyISAM;
 
-set binlog_format=row;
-
-# Embedded server doesn't support binlogging
---source include/rpl_events.inc
-
-set binlog_format=statement;
-
-# Embedded server doesn't support binlogging
 --source include/rpl_events.inc
 
 #

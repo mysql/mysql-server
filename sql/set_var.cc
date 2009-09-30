@@ -1292,7 +1292,12 @@ bool sys_var_thd_binlog_format::is_readonly() const
 
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
-  thd->reset_current_stmt_binlog_row_based();
+  /*
+    @todo This function should be eliminated.  We should not set the
+    current binlog format anywhere else than in decide_logging_format.
+    /Sven
+  */
+  thd->reset_current_stmt_binlog_format_row();
 }
 
 

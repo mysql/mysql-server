@@ -529,7 +529,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       version for the binary log to mark that table maps are invalid
       after this point.
      */
-    if (thd->current_stmt_binlog_row_based)
+    if (thd->is_current_stmt_binlog_format_row())
       thd->binlog_flush_pending_rows_event(true);
     else
     {

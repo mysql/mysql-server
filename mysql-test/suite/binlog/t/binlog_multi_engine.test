@@ -60,7 +60,7 @@ let $wait_binlog_event= COMMIT;
 source include/wait_for_binlog_event.inc;
 
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
-error ER_BINLOG_LOGGING_IMPOSSIBLE;
+error ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE;
 UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 # Not possible to test this since NDB writes its own binlog, which
@@ -84,7 +84,7 @@ INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 
-error ER_BINLOG_LOGGING_IMPOSSIBLE;
+error ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE;
 UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 # Not possible to test this since NDB writes its own binlog, which
@@ -93,7 +93,7 @@ UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
 #UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
 
-error ER_BINLOG_LOGGING_IMPOSSIBLE;
+error ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE;
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 
 source include/show_binlog_events.inc;

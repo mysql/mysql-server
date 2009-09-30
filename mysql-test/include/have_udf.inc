@@ -1,16 +1,20 @@
 #
-# Check if server has support for loading udf's
-# i.e it will support dlopen
+# Check if server has support for loading plugins
 #
---require r/have_dynamic_loading.require
-disable_query_log;
-show variables like 'have_dynamic_loading';
-enable_query_log;
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip UDF requires dynamic loading
+}
 
 #
 # Check if the variable UDF_EXAMPLE_LIB is set
 #
---require r/have_udf_example.require
-disable_query_log;
-eval select LENGTH('$UDF_EXAMPLE_LIB') > 0 as 'have_udf_example_lib';
-enable_query_log;
+if (`SELECT LENGTH('$UDF_EXAMPLE_LIB') = 0`) {
+  --skip UDF requires the environment variable \$UDF_EXAMPLE_LIB to be set (normally done by mtr)
+}
+
+#
+# Check if --plugin-dir was setup for udf
+#
+if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$UDF_EXAMPLE_LIB_OPT'`) {
+  --skip UDF requires that --plugin-dir is set to the udf plugin dir (either the .opt file does not contain \$UDF_EXAMPLE_LIB_OPT or another plugin is in use)
+}

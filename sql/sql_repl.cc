@@ -1685,7 +1685,7 @@ int log_loaded_block(IO_CACHE* file)
   uchar* buffer= (uchar*) my_b_get_buffer_start(file);
   uint max_event_size= current_thd->variables.max_allowed_packet;
   lf_info= (LOAD_FILE_INFO*) file->arg;
-  if (lf_info->thd->current_stmt_binlog_row_based)
+  if (lf_info->thd->is_current_stmt_binlog_format_row())
     DBUG_RETURN(0);
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))

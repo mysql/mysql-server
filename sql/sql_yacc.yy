@@ -7225,7 +7225,7 @@ function_call_keyword:
             $$= new (YYTHD->mem_root) Item_func_current_user(Lex->current_context());
             if ($$ == NULL)
               MYSQL_YYABORT;
-            Lex->set_stmt_unsafe();
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
             Lex->safe_to_cache_query= 0;
           }
         | DATE_SYM '(' expr ')'
@@ -7380,7 +7380,7 @@ function_call_keyword:
             $$= new (YYTHD->mem_root) Item_func_user();
             if ($$ == NULL)
               MYSQL_YYABORT;
-            Lex->set_stmt_unsafe();
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
             Lex->safe_to_cache_query=0;
           }
         | YEAR_SYM '(' expr ')'
@@ -8110,7 +8110,7 @@ variable_aux:
             if (!($$= get_system_var(YYTHD, $2, $3, $4)))
               MYSQL_YYABORT;
             if (!((Item_func_get_system_var*) $$)->is_written_to_binlog())
-              Lex->set_stmt_unsafe();
+              Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
           }
         ;
 
@@ -8956,7 +8956,10 @@ opt_limit_clause:
         ;
 
 limit_clause:
-          LIMIT limit_options {}
+          LIMIT limit_options
+          {
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+          }
         ;
 
 limit_options:
@@ -9018,6 +9021,7 @@ delete_limit_clause:
           {
             SELECT_LEX *sel= Select;
             sel->select_limit= $2;
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
             sel->explicit_limit= 1;
           }
         ;
@@ -9469,13 +9473,21 @@ insert_lock_option:
 #endif
           }
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
-        | DELAYED_SYM   { $$= TL_WRITE_DELAYED; }
+        | DELAYED_SYM
+        {
+          $$= TL_WRITE_DELAYED;
+          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
+        }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
 
 replace_lock_option:
           opt_low_priority { $$= $1; }
-        | DELAYED_SYM { $$= TL_WRITE_DELAYED; }
+        | DELAYED_SYM
+        {
+          $$= TL_WRITE_DELAYED;
+          Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
+        }
         ;
 
 insert2:
