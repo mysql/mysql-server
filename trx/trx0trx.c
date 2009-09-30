@@ -803,7 +803,7 @@ trx_commit_off_kernel(
 		in exactly the same order as commit lsn's, if the transactions
 		have different rollback segments. To get exactly the same
 		order we should hold the kernel mutex up to this point,
-		adding to to the contention of the kernel mutex. However, if
+		adding to the contention of the kernel mutex. However, if
 		a transaction T2 is able to see modifications made by
 		a transaction T1, T2 will always get a bigger transaction
 		number and a bigger commit lsn than T1. */
