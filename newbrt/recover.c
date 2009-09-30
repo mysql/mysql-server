@@ -303,6 +303,8 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
 
     r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, renv->ct, NULL, NULL);
     if (r != 0) {
+        //Note:  If brt_open fails, then close_brt will NOT write a header to disk.
+        //No need to provide lsn
         int rr = toku_close_brt(brt, NULL, NULL); assert(rr == 0);
         toku_free(fixedfname);
         return r;
@@ -323,10 +325,10 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
         struct file_map_tuple *tuple = NULL;
         int r = file_map_find(&renv->fmap, l->filenum, &tuple);
         if (r == 0) {
-            //Must not write header to disk.  If not dirty, it will not be written.
-            //Since we're not writing to disk, we do not need to provide an LSN.
-            assert(!tuple->brt->h->dirty);
-            r = toku_close_brt(tuple->brt, 0, 0);
+            //Must keep existing lsn.
+            //The only way this should be dirty, is if its doing a file-format upgrade.
+            //If not dirty, header will not be written.
+            r = toku_close_brt_lsn(tuple->brt, 0, 0, TRUE, tuple->brt->h->checkpoint_lsn);
             assert(r == 0);
             file_map_remove(&renv->fmap, l->filenum);
         }
