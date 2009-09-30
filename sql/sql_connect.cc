@@ -949,7 +949,7 @@ static bool login_connection(THD *thd)
 
   if (error)
   {						// Wrong permissions
-#ifdef __NT__
+#ifdef _WIN32
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);				/* must wait after eof() */
 #endif

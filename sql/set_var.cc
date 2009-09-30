@@ -434,7 +434,7 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
-#ifdef __NT__
+#ifdef _WIN32
 /* purecov: begin inspected */
 static sys_var_const            sys_named_pipe(&vars, "named_pipe",
                                                OPT_GLOBAL, SHOW_MY_BOOL,
