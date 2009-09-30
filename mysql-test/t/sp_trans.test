@@ -527,7 +527,9 @@ begin
     select count(*)*255 from t3 into table_size;
   until table_size > max_table_size*2 end repeat;
 end|
+--disable_warnings
 call bug14210_fill_table()|
+--enable_warnings
 drop procedure bug14210_fill_table|
 create table t4 like t3|
 
