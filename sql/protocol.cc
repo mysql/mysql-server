@@ -58,6 +58,64 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 }
 
 
+
+
+/*
+  net_store_data() - extended version with character set conversion.
+  
+  It is optimized for short strings whose length after
+  conversion is garanteed to be less than 251, which accupies
+  exactly one byte to store length. It allows not to use
+  the "convert" member as a temporary buffer, conversion
+  is done directly to the "packet" member.
+  The limit 251 is good enough to optimize send_result_set_metadata()
+  because column, table, database names fit into this limit.
+*/
+
+#ifndef EMBEDDED_LIBRARY
+bool Protocol::net_store_data(const uchar *from, size_t length,
+                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  uint dummy_errors;
+  /* Calculate maxumum possible result length */
+  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  if (conv_length > 250)
+  {
+    /*
+      For strings with conv_length greater than 250 bytes
+      we don't know how many bytes we will need to store length: one or two,
+      because we don't know result length until conversion is done.
+      For example, when converting from utf8 (mbmaxlen=3) to latin1,
+      conv_length=300 means that the result length can vary between 100 to 300.
+      length=100 needs one byte, length=300 needs to bytes.
+      
+      Thus conversion directly to "packet" is not worthy.
+      Let's use "convert" as a temporary buffer.
+    */
+    return (convert->copy((const char*) from, length, from_cs,
+                          to_cs, &dummy_errors) ||
+            net_store_data((const uchar*) convert->ptr(), convert->length()));
+  }
+
+  ulong packet_length= packet->length();
+  ulong new_length= packet_length + conv_length + 1;
+
+  if (new_length > packet->alloced_length() && packet->realloc(new_length))
+    return 1;
+
+  char *length_pos= (char*) packet->ptr() + packet_length;
+  char *to= length_pos + 1;
+
+  to+= copy_and_convert(to, conv_length, to_cs,
+                        (const char*) from, length, from_cs, &dummy_errors);
+
+  net_store_length((uchar*) length_pos, to - length_pos - 1);
+  packet->length((uint) (to - packet->ptr()));
+  return 0;
+}
+#endif
+
+
 /**
   Send a error string to client.
 
@@ -827,10 +885,10 @@ bool Protocol::store_string_aux(const char *from, size_t length,
       fromcs != &my_charset_bin &&
       tocs != &my_charset_bin)
   {
-    uint dummy_errors;
-    return (convert->copy(from, length, fromcs, tocs, &dummy_errors) ||
-            net_store_data((uchar*) convert->ptr(), convert->length()));
+    /* Store with conversion */
+    return net_store_data((uchar*) from, length, fromcs, tocs);
   }
+  /* Store without conversion */
   return net_store_data((uchar*) from, length);
 }
 
