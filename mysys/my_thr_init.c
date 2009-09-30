@@ -267,6 +267,11 @@ my_bool my_thread_init(void)
 #endif    
     goto end;
   }
+
+#ifdef _MSC_VER
+  install_sigabrt_handler();
+#endif
+
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
   {
     error= 1;

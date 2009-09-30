@@ -62,9 +62,6 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-medium.cnf.sh
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-small.cnf.sh
                ${CMAKE_SOURCE_DIR}/support-files/my-small.ini @ONLY)
 
-
-ADD_DEFINITIONS(-D__NT__)
-
 IF(CYBOZU)
   ADD_DEFINITIONS(-DCYBOZU)
 ENDIF(CYBOZU)

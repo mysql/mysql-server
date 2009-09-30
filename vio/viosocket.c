@@ -264,7 +264,7 @@ int vio_close(Vio * vio)
 #ifdef __WIN__
   if (vio->type == VIO_TYPE_NAMEDPIPE)
   {
-#if defined(__NT__) && defined(MYSQL_SERVER)
+#if defined(MYSQL_SERVER)
     CancelIo(vio->hPipe);
     DisconnectNamedPipe(vio->hPipe);
 #endif
@@ -450,7 +450,7 @@ int vio_close_pipe(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close_pipe");
-#if defined(__NT__) && defined(MYSQL_SERVER)
+#if defined(MYSQL_SERVER)
   CancelIo(vio->hPipe);
   DisconnectNamedPipe(vio->hPipe);
 #endif

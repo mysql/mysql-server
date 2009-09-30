@@ -732,7 +732,7 @@ static	 NTService  Service;	      ///< Service object for WinNT
 #endif /* EMBEDDED_LIBRARY */
 #endif /* __WIN__ */
 
-#ifdef __NT__
+#ifdef _WIN32
 static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
@@ -812,7 +812,7 @@ pthread_handler_t handle_connections_sockets_thread(void *arg);
 pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
 static bool read_init_file(char *file_name);
-#ifdef __NT__
+#ifdef _WIN32
 pthread_handler_t handle_connections_namedpipes(void *arg);
 #endif
 #ifdef HAVE_SMEM
@@ -898,7 +898,7 @@ static void close_connections(void)
       ip_sock= INVALID_SOCKET;
     }
   }
-#ifdef __NT__
+#ifdef _WIN32
   if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
   {
     HANDLE temp;
@@ -1690,7 +1690,7 @@ static void network_init(void)
     }
   }
 
-#ifdef __NT__
+#ifdef _WIN32
   /* create named pipe */
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
@@ -4124,12 +4124,11 @@ static void create_shutdown_thread()
 #endif /* EMBEDDED_LIBRARY */
 
 
-#if (defined(__NT__) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
   DBUG_ENTER("handle_connections_methods");
-#ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE &&
       (!have_tcpip || opt_disable_networking) &&
       !opt_enable_shared_memory)
@@ -4137,12 +4136,10 @@ static void handle_connections_methods()
     sql_print_error("TCP/IP, --shared-memory, or --named-pipe should be configured on NT OS");
     unireg_abort(1);				// Will not return
   }
-#endif
 
   pthread_mutex_lock(&LOCK_thread_count);
   (void) pthread_cond_init(&COND_handler_count,NULL);
   handler_count=0;
-#ifdef __NT__
   if (hPipe != INVALID_HANDLE_VALUE)
   {
     handler_count++;
@@ -4153,7 +4150,6 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif /* __NT__ */
   if (have_tcpip && !opt_disable_networking)
   {
     handler_count++;
@@ -4193,7 +4189,7 @@ void decrement_handler_count()
 }
 #else
 #define decrement_handler_count()
-#endif /* defined(__NT__) || defined(HAVE_SMEM) */
+#endif /* defined(_WIN32) || defined(HAVE_SMEM) */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -5261,7 +5257,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
   decrement_handler_count();
   DBUG_RETURN(0);
 }
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 #ifdef HAVE_SMEM
@@ -5837,7 +5833,7 @@ struct my_option my_long_options[] =
    "Deprecated option, use --external-locking instead.",
    (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NT__
+#ifdef _WIN32
   {"enable-named-pipe", OPT_HAVE_NAMED_PIPE, "Enable the named pipe (NT).",
    (uchar**) &opt_enable_named_pipe, (uchar**) &opt_enable_named_pipe, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
