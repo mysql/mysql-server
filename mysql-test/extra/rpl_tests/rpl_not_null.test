@@ -81,13 +81,13 @@ source include/diff_tables.inc;
 
 --echo TABLES t2 and t3 must be different.
 connection master;
-SELECT * FROM t3;
+SELECT * FROM t3 ORDER BY a;
 connection slave;
-SELECT * FROM t3;
+SELECT * FROM t3 ORDER BY a;
 connection master;
-SELECT * FROM t4;
+SELECT * FROM t4 ORDER BY a;
 connection slave;
-SELECT * FROM t4;
+SELECT * FROM t4 ORDER BY a;
 
 --echo ************* EXECUTION WITH UPDATES and REPLACES *************
 connection master;
@@ -139,9 +139,9 @@ INSERT INTO t1(a) VALUES (5);
 --echo TABLES t1 and t2 must be different.
 sync_slave_with_master;
 connection master;
-SELECT a,b+0,c+0 FROM t1;
+SELECT a,b+0,c+0 FROM t1 ORDER BY a;
 connection slave;
-SELECT a,b+0,c+0 FROM t1;
+SELECT a,b+0,c+0 FROM t1 ORDER BY a;
 
 --echo ************* EXECUTION WITH UPDATES and REPLACES *************
 connection master;
@@ -262,17 +262,17 @@ sync_slave_with_master;
 #  connection slave;
 #  --source include/wait_for_slave_sql_to_stop.inc
 #  connection master;
-#  SELECT * FROM t1;
+#  SELECT * FROM t1 ORDER BY a;
 #  connection slave;
-#  SELECT * FROM t1;
+#  SELECT * FROM t1 ORDER BY a;
 #  connection master;
-#  SELECT * FROM t2;
+#  SELECT * FROM t2 ORDER BY a;
 #  connection slave;
-#  SELECT * FROM t2;
+#  SELECT * FROM t2 ORDER BY a;
 #  connection master;
-#  SELECT * FROM t3;
+#  SELECT * FROM t3 ORDER BY a;
 #  connection slave;
-#  SELECT * FROM t3;
+#  SELECT * FROM t3 ORDER BY a;
 #  --source include/reset_master_and_slave.inc
 #  
 #  connection master;
@@ -343,17 +343,17 @@ connection master;
 sync_slave_with_master;
 
 connection master;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 connection slave;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 connection master;
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 connection slave;
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY a;
 connection master;
-SELECT * FROM t3;
+SELECT * FROM t3 ORDER BY a;
 connection slave;
-SELECT * FROM t3;
+SELECT * FROM t3 ORDER BY a;
 
 connection master;
 
