@@ -42,7 +42,9 @@ pthread_mutexattr_t my_fast_mutexattr;
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
-
+#ifdef _MSC_VER
+static void install_sigabrt_handler();
+#endif
 #ifdef TARGET_OS_LINUX
 
 /*
@@ -145,15 +147,18 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_time,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&THR_COND_threads, NULL);
-#if defined( __WIN__) || defined(OS2)
-  win_pthread_init();
-#endif
+
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
   pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
 #endif
+
+#ifdef _MSC_VER
+  install_sigabrt_handler();
+#endif
+
   if (my_thread_init())
   {
     my_thread_global_end();			/* Clean up */
@@ -268,11 +273,7 @@ my_bool my_thread_init(void)
     goto end;
   }
   pthread_setspecific(THR_KEY_mysys,tmp);
-#if defined(__WIN__) && defined(EMBEDDED_LIBRARY)
-  tmp->pthread_self= (pthread_t) getpid();
-#else
   tmp->pthread_self= pthread_self();
-#endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
   tmp->init= 1;
@@ -397,5 +398,31 @@ static uint get_thread_lib(void)
 #endif
   return THD_LIB_OTHER;
 }
+
+#ifdef _WIN32
+/*
+  In Visual Studio 2005 and later, default SIGABRT handler will overwrite
+  any unhandled exception filter set by the application  and will try to
+  call JIT debugger. This is not what we want, this we calling __debugbreak
+  to stop in debugger, if process is being debugged or to generate 
+  EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
+*/
+
+#if (_MSC_VER >= 1400)
+static void my_sigabrt_handler(int sig)
+{
+  __debugbreak();
+}
+#endif /*_MSC_VER >=1400 */
+
+static void install_sigabrt_handler(void)
+{
+#if (_MSC_VER >=1400)
+  /*abort() should not override our exception filter*/
+  _set_abort_behavior(0,_CALL_REPORTFAULT);
+  signal(SIGABRT,my_sigabrt_handler);
+#endif /* _MSC_VER >=1400 */
+}
+#endif
 
 #endif /* THREAD */
