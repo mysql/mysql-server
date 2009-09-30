@@ -1310,9 +1310,10 @@ Dbspj::lookup_send(Signal* signal,
   }
   treeNodePtr.p->m_lookup_data.m_outstanding += add;
 
-  Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
+  const Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
   (this->*(root.p->m_info->m_count_descendant_signal))(NULL,
                                                        requestPtr,
+                                                       treeNodePtr,
                                                        root,
                                                        GSN_LQHKEYREQ);
 }
@@ -1343,6 +1344,12 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding);
   treeNodePtr.p->m_lookup_data.m_outstanding --;
 
+  const Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
+  (this->*(root.p->m_info->m_count_descendant_signal))(signal,
+                                                       requestPtr,
+                                                       treeNodePtr,
+                                                       root,
+                                                       GSN_TRANSID_AI);
   if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
   {
     jam();
@@ -1392,9 +1399,10 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding >= cnt);
   treeNodePtr.p->m_lookup_data.m_outstanding -= cnt;
 
-  Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
+  const Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
   (this->*(root.p->m_info->m_count_descendant_signal))(signal,
                                                        requestPtr,
+                                                       treeNodePtr,
                                                        root,
                                                        GSN_LQHKEYREF);
   if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
@@ -1412,9 +1420,10 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding);
   treeNodePtr.p->m_lookup_data.m_outstanding --;
 
-  Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
+  const Ptr<TreeNode> root = getRoot(requestPtr.p->m_nodes);
   (this->*(root.p->m_info->m_count_descendant_signal))(signal,
                                                        requestPtr,
+                                                       treeNodePtr,
                                                        root,
                                                        GSN_LQHKEYCONF);
   if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
@@ -1480,13 +1489,20 @@ Dbspj::lookup_start_child(Signal* signal,
      * TODO merge better with lookup_start (refactor)
      */
     {
-      /* Increment lower half-word by one. This is done to ensure that each
-      * instance of this operation gets a different correlation value. 
-      * (If the root operation is a scan, there may be many instances of a 
-      * lookup). Otherwise, instances of children of this operation would all 
-      * see the same correlation value.*/
-      treeNodePtr.p->m_send.m_correlation = (corrVal << 16) + 
-        (treeNodePtr.p->m_send.m_correlation & 0xffff) + 1; 
+      /* We set the upper half word of m_correlation to the tuple ID
+       * of the parent, such that the API can match this tuple with its 
+       * parent.
+       * Then we re-use the tuple ID of the parent as the 
+       * tuple ID for this tuple also. Since the tuple ID
+       * is unique within this batch and SPJ block for the parent operation,
+       * it must also be unique for this operation. 
+       * This ensures that lookup operations with no user projection will 
+       * work, since such operations will have the same tuple ID as their 
+       * parents. The API will then be able to match a tuple with its 
+       * grandparent, even if it gets no tuple for the parent operation.*/
+      treeNodePtr.p->m_send.m_correlation = 
+        (corrVal << 16) + (corrVal & 0xffff);
+
       treeNodePtr.p->m_send.m_ref = tmp.receiverRef;
       LqhKeyReq * dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
       dst->hashValue = tmp.hashInfo[0];
@@ -1944,8 +1960,10 @@ Dbspj::scanFrag_send(Signal* signal,
   treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = 0;
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyconfs_received = 0;
+  treeNodePtr.p->m_scanfrag_data.m_descendant_silent_keyconfs_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyrefs_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyreqs_sent = 0;
+  treeNodePtr.p->m_scanfrag_data.m_missing_descendant_rows = 0;
 }
 
 /** Return true if scan batch is complete. This happens when all scan 
@@ -1956,8 +1974,11 @@ static bool isScanComplete(const Dbspj::ScanFragData& scanFragData)
     // All rows for root scan received.
     scanFragData.m_rows_received == scanFragData.m_rows_expecting &&
     // All rows for descendant lookups received.
+    scanFragData.m_missing_descendant_rows == 0 &&
+    // All descendant lookup operations are complete.
     scanFragData.m_descendant_keyreqs_sent == 
     scanFragData.m_descendant_keyconfs_received + 
+    scanFragData.m_descendant_silent_keyconfs_received + 
     scanFragData.m_descendant_keyrefs_received;
 }
 
@@ -2060,6 +2081,7 @@ Dbspj::scanFrag_batch_complete(Signal* signal,
                                Ptr<Request> requestPtr,
                                Ptr<TreeNode> treeNodePtr)
 {
+  DEBUG("scanFrag_batch_complete()");
   ndbrequire(treeNodePtr.p->m_scanfrag_data.m_scan_state ==
              ScanFragData::SF_RUNNING);
 
@@ -2120,20 +2142,61 @@ Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
 void
 Dbspj::scanFrag_count_descendant_signal(Signal* signal,
                                         Ptr<Request> requestPtr,
+                                        Ptr<TreeNode> treeNodePtr,
                                         Ptr<TreeNode> rootPtr,
                                         Uint32 globalSignalNo)
 {
   const bool trace = false;
 
   switch(globalSignalNo){
-  case GSN_LQHKEYCONF:
-    jam();
-    rootPtr.p->m_scanfrag_data.m_descendant_keyconfs_received++;
+  case GSN_TRANSID_AI:
+    rootPtr.p->m_scanfrag_data.m_missing_descendant_rows--;
     if(trace)
     {
-      ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
-        "m_scanfrag_data.m_descendant_keyconfs_received to "<< 
-        rootPtr.p->m_scanfrag_data.m_descendant_keyconfs_received << endl;
+      ndbout << "Dbspj::scanFrag_count_descendant_signal() decremented "
+        "m_scanfrag_data.m_missing_descendant_rows to "<< 
+        rootPtr.p->m_scanfrag_data.m_missing_descendant_rows << endl;
+    }
+    break;
+  case GSN_LQHKEYCONF:
+    jam();
+    if(treeNodePtr.p->m_bits & TreeNode::T_USER_PROJECTION)
+    {
+      rootPtr.p->m_scanfrag_data.m_descendant_keyconfs_received++;
+      if(trace)
+      {
+        ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
+          "m_scanfrag_data.m_descendant_keyconfs_received to "<< 
+          rootPtr.p->m_scanfrag_data.m_descendant_keyconfs_received << endl;
+      }
+    }
+    else
+    {
+      /* There is no user projection. Typically, this will be the operation
+       * that retrieves an index tuple as part of an index lookup operation.
+       * (Only the base table tuple will then be sent to the API.)*/
+      rootPtr.p->m_scanfrag_data.m_descendant_silent_keyconfs_received++;
+      if(trace)
+      {
+        ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
+          "m_scanfrag_data.m_descendant_silent_keyconfs_received to "
+               << rootPtr.p->m_scanfrag_data.
+          m_descendant_silent_keyconfs_received 
+               << endl;
+      }
+    }
+    // Check if this is a non-leaf.
+    if(treeNodePtr.p->m_dependent_nodes.firstItem!=RNIL)
+    {
+      /* Since this is a non-leaf, the SPJ block should also receive
+       * a TRANSID_AI message for this operation.*/
+      rootPtr.p->m_scanfrag_data.m_missing_descendant_rows++;
+      if(trace)
+      {
+        ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
+          "m_scanfrag_data.m_missing_descendant_rows to "<< 
+          rootPtr.p->m_scanfrag_data.m_missing_descendant_rows << endl;
+      }
     }
     break;
   case GSN_LQHKEYREF:
@@ -2942,6 +3005,7 @@ Dbspj::parseDA(Build_context& ctx,
         Uint32 len = * param.ptr++;
         DEBUG("PI_ATTR_LIST");
 
+        treeNodePtr.p->m_bits |= TreeNode::T_USER_PROJECTION;
         err = DbspjErr::OutOfSectionMemory;
         if (!appendToSection(attrInfoPtrI, param.ptr, len))
         {
