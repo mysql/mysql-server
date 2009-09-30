@@ -1248,6 +1248,7 @@ public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
 
+  void reset_for_next_command();
   /*
     Constant for THD::where initialization in the beginning of every query.
 
@@ -1427,23 +1428,85 @@ public:
   int binlog_flush_pending_rows_event(bool stmt_end);
   int binlog_remove_pending_rows_event(bool clear_maps);
 
+  /**
+    Determine the binlog format of the current statement.
+
+    @retval 0 if the current statement will be logged in statement
+    format.
+    @retval nonzero if the current statement will be logged in row
+    format.
+   */
+  int is_current_stmt_binlog_format_row() const {
+    DBUG_ASSERT(current_stmt_binlog_format == BINLOG_FORMAT_STMT ||
+                current_stmt_binlog_format == BINLOG_FORMAT_ROW);
+    return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
+  }
+
 private:
+  /**
+    Indicates the format in which the current statement will be
+    logged.  This can only be set from @c decide_logging_format().
+  */
+  enum_binlog_format current_stmt_binlog_format;
+
+  /**
+    Enumeration listing binlog-related warnings that a statement can
+    cause.
+  */
+  enum enum_binlog_stmt_warning {
+
+    /* ER_BINLOG_UNSAFE_AND_STMT_ENGINE affects current stmt */
+    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE= 0,
+
+    /* ER_BINLOG_UNSAFE_STATEMENT affects current stmt */
+    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE,
+
+    /** The last element of this enumeration type. */
+    BINLOG_STMT_WARNING_COUNT
+  };
+
+  /**
+    Bit field for the state of binlog warnings.
+
+    There are three groups of bits:
+
+    - The low BINLOG_STMT_WARNING_COUNT bits indicate the type of
+      warning that the current (top-level) statement will issue.  At
+      most one of these bits should be set (this is ensured by the
+      logic in decide_logging_format).
+
+    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
+      of unsafeness that the current statement has.
+
+    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
+      of unsafeness that the current statement has issued warnings
+      for.
+
+    Hence, this variable must be big enough to hold
+    BINLOG_STMT_WARNING_COUNT + 2 * Lex::BINLOG_STMT_UNSAFE_COUNT
+    bits.  This is asserted in @c issue_unsafe_warnings().
+
+    The first and second groups of bits are set by @c
+    decide_logging_format() when it detects that a warning should be
+    issued.  The third group of bits is set from @c binlog_query()
+    when a warning is issued.  All bits are cleared at the end of the
+    top-level statement.
+
+    This must be a member of THD and not of LEX, because warnings are
+    detected and issued in different places (@c
+    decide_logging_format() and @c binlog_query(), respectively).
+    Between these calls, the THD->lex object may change; e.g., if a
+    stored routine is invoked.  Only THD persists between the calls.
+  */
+  uint32 binlog_unsafe_warning_flags;
+
+  void issue_unsafe_warnings();
+
   /*
     Number of outstanding table maps, i.e., table maps in the
     transaction cache.
   */
   uint binlog_table_maps;
-
-  enum enum_binlog_flag {
-    BINLOG_FLAG_UNSAFE_STMT_PRINTED,
-    BINLOG_FLAG_COUNT
-  };
-
-  /**
-     Flags with per-thread information regarding the status of the
-     binary log.
-   */
-  uint32 binlog_flags;
 public:
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
@@ -1755,8 +1818,6 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
-  /* tells if current statement should binlog row-based(1) or stmt-based(0) */
-  bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
@@ -1908,21 +1969,12 @@ public:
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
-    /*
-      The query can be logged row-based or statement-based
-    */
+    /* The query can be logged in row format or in statement format. */
     ROW_QUERY_TYPE,
     
-    /*
-      The query has to be logged statement-based
-    */
+    /* The query has to be logged in statement format. */
     STMT_QUERY_TYPE,
     
-    /*
-      The query represents a change to a table in the "mysql"
-      database and is currently mapped to ROW_QUERY_TYPE.
-    */
-    MYSQL_QUERY_TYPE,
     QUERY_TYPE_COUNT
   };
   
@@ -2126,31 +2178,51 @@ public:
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
 
-  inline void set_current_stmt_binlog_row_based_if_mixed()
+  /*
+    @todo Make these methods private or remove them completely.  Only
+    decide_logging_format should call them. /Sven
+  */
+  inline void set_current_stmt_binlog_format_row_if_mixed()
   {
+    DBUG_ENTER("set_current_stmt_binlog_format_row_if_mixed");
+    /*
+      This should only be called from decide_logging_format.
+
+      @todo Once we have ensured this, uncomment the following
+      statement, remove the big comment below that, and remove the
+      in_sub_stmt==0 condition from the following 'if'.
+    */
+    /* DBUG_ASSERT(in_sub_stmt == 0); */
     /*
       If in a stored/function trigger, the caller should already have done the
       change. We test in_sub_stmt to prevent introducing bugs where people
       wouldn't ensure that, and would switch to row-based mode in the middle
       of executing a stored function/trigger (which is too late, see also
-      reset_current_stmt_binlog_row_based()); this condition will make their
+      reset_current_stmt_binlog_format_row()); this condition will make their
       tests fail and so force them to propagate the
       lex->binlog_row_based_if_mixed upwards to the caller.
     */
     if ((variables.binlog_format == BINLOG_FORMAT_MIXED) &&
         (in_sub_stmt == 0))
-      current_stmt_binlog_row_based= TRUE;
+      set_current_stmt_binlog_format_row();
+
+    DBUG_VOID_RETURN;
   }
-  inline void set_current_stmt_binlog_row_based()
+  inline void set_current_stmt_binlog_format_row()
   {
-    current_stmt_binlog_row_based= TRUE;
+    DBUG_ENTER("set_current_stmt_binlog_format_row");
+    current_stmt_binlog_format= BINLOG_FORMAT_ROW;
+    DBUG_VOID_RETURN;
   }
-  inline void clear_current_stmt_binlog_row_based()
+  inline void clear_current_stmt_binlog_format_row()
   {
-    current_stmt_binlog_row_based= FALSE;
+    DBUG_ENTER("clear_current_stmt_binlog_format_row");
+    current_stmt_binlog_format= BINLOG_FORMAT_STMT;
+    DBUG_VOID_RETURN;
   }
-  inline void reset_current_stmt_binlog_row_based()
+  inline void reset_current_stmt_binlog_format_row()
   {
+    DBUG_ENTER("reset_current_stmt_binlog_format_row");
     /*
       If there are temporary tables, don't reset back to
       statement-based. Indeed it could be that:
@@ -2165,19 +2237,19 @@ public:
       or trigger is decided when it starts executing, depending for example on
       the caller (for a stored function: if caller is SELECT or
       INSERT/UPDATE/DELETE...).
-
-      Don't reset binlog format for NDB binlog injector thread.
     */
     DBUG_PRINT("debug",
                ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
                 YESNO(temporary_tables), YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
-    if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
-        (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
+    if ((temporary_tables == NULL) && (in_sub_stmt == 0))
     {
-      current_stmt_binlog_row_based= 
-        test(variables.binlog_format == BINLOG_FORMAT_ROW);
+      if (variables.binlog_format == BINLOG_FORMAT_ROW)
+        set_current_stmt_binlog_format_row();
+      else
+        clear_current_stmt_binlog_format_row();
     }
+    DBUG_VOID_RETURN;
   }
 
   /**
@@ -2281,7 +2353,11 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+
+  int decide_logging_format(TABLE_LIST *tables);
+
 private:
+
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
   /**

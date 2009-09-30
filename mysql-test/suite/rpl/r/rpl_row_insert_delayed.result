@@ -4,8 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-set @old_global_binlog_format = @@global.binlog_format;
-set @@global.binlog_format = row;
 CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 select @@global.binlog_format;
@@ -59,4 +57,3 @@ a
 1
 drop table t1;
 End of 5.0 tests
-set @@global.binlog_format = @old_global_binlog_format;

@@ -1654,7 +1654,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
+    thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
                       FALSE, FALSE, 0);
   }
 end:
@@ -3040,7 +3040,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3257,7 +3257,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3395,7 +3395,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5621,7 +5621,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
@@ -5701,7 +5701,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
@@ -5775,7 +5775,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* RENAME USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
@@ -5857,7 +5857,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
@@ -6110,7 +6110,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* Remove procedure access */
   do

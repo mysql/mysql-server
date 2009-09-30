@@ -1,16 +1,21 @@
 #
-# Check if server has support for loading udf's
-# i.e it will support dlopen
+# Check if server has support for loading plugins
 #
---require r/have_dynamic_loading.require
-disable_query_log;
-show variables like 'have_dynamic_loading';
-enable_query_log;
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Example plugin requires dynamic loading
+}
 
 #
 # Check if the variable EXAMPLE_PLUGIN is set
 #
---require r/have_example_plugin.require
-disable_query_log;
-eval select LENGTH('$EXAMPLE_PLUGIN') > 0 as 'have_example_plugin';
+if (`SELECT LENGTH('$EXAMPLE_PLUGIN') = 0`) {
+  --skip Example plugin requires the environment variable \$EXAMPLE_PLUGIN to be set (normally done by mtr)
+}
+
+#
+# Check if --plugin-dir was setup for exampledb
+#
+if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$EXAMPLE_PLUGIN_OPT'`) {
+  --skip Example plugin requires that --plugin-dir is set to the example plugin dir (either the .opt file does not contain \$EXAMPLE_PLUGIN_OPT or another plugin is in use)
+}
 enable_query_log;

@@ -28,7 +28,6 @@
 #include <io.h>
 #endif
 
-#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
 
 /**
   This internal handler is used to trap internally
@@ -1441,7 +1440,7 @@ void close_temporary_tables(THD *thd)
     return;
 
   if (!mysql_bin_log.is_open() || 
-      (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+      (thd->is_current_stmt_binlog_format_row() && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
@@ -4835,7 +4834,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
 
     There may be more differences between open_n_lock_single_table() and
     open_ltable(). One known difference is that open_ltable() does
-    neither call decide_logging_format() nor handle some other logging
+    neither call thd->decide_logging_format() nor handle some other logging
     and locking issues because it does not call lock_tables().
 */
 
@@ -5055,156 +5054,6 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 }
 
 
-/**
-   Decide on logging format to use for the statement.
-
-   Compute the capabilities vector for the involved storage engines
-   and mask out the flags for the binary log. Right now, the binlog
-   flags only include the capabilities of the storage engines, so this
-   is safe.
-
-   We now have three alternatives that prevent the statement from
-   being loggable:
-
-   1. If there are no capabilities left (all flags are clear) it is
-      not possible to log the statement at all, so we roll back the
-      statement and report an error.
-
-   2. Statement mode is set, but the capabilities indicate that
-      statement format is not possible.
-
-   3. Row mode is set, but the capabilities indicate that row
-      format is not possible.
-
-   4. Statement is unsafe, but the capabilities indicate that row
-      format is not possible.
-
-   If we are in MIXED mode, we then decide what logging format to use:
-
-   1. If the statement is unsafe, row-based logging is used.
-
-   2. If statement-based logging is not possible, row-based logging is
-      used.
-
-   3. Otherwise, statement-based logging is used.
-
-   @param thd    Client thread
-   @param tables Tables involved in the query
- */
-
-int decide_logging_format(THD *thd, TABLE_LIST *tables)
-{
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
-  {
-    /*
-      Compute the starting vectors for the computations by creating a
-      set with all the capabilities bits set and one with no
-      capabilities bits set.
-     */
-    handler::Table_flags flags_some_set= 0;
-    handler::Table_flags flags_all_set=
-      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
-
-    my_bool multi_engine= FALSE;
-    void* prev_ht= NULL;
-    for (TABLE_LIST *table= tables; table; table= table->next_global)
-    {
-      if (table->placeholder())
-        continue;
-      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
-        thd->lex->set_stmt_unsafe();
-      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
-      {
-        ulonglong const flags= table->table->file->ha_table_flags();
-        DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
-                            table->table_name,
-                            FLAGSTR(flags, HA_BINLOG_STMT_CAPABLE),
-                            FLAGSTR(flags, HA_BINLOG_ROW_CAPABLE)));
-        if (prev_ht && prev_ht != table->table->file->ht)
-          multi_engine= TRUE;
-        prev_ht= table->table->file->ht;
-        flags_all_set &= flags;
-        flags_some_set |= flags;
-      }
-    }
-
-    DBUG_PRINT("info", ("flags_all_set: %s%s",
-                        FLAGSTR(flags_all_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_all_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("flags_some_set: %s%s",
-                        FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
-                        thd->variables.binlog_format));
-    DBUG_PRINT("info", ("multi_engine: %s",
-                        multi_engine ? "TRUE" : "FALSE"));
-
-    int error= 0;
-    if (flags_all_set == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-               "Statement cannot be logged to the binary log in"
-               " row-based nor statement-based format");
-    }
-    else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-             (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-                "Statement-based format required for this statement,"
-                " but not allowed by this combination of engines");
-    }
-    else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
-              thd->lex->is_stmt_unsafe()) &&
-             (flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-                "Row-based format required for this statement,"
-                " but not allowed by this combination of engines");
-    }
-
-    /*
-      If more than one engine is involved in the statement and at
-      least one is doing it's own logging (is *self-logging*), the
-      statement cannot be logged atomically, so we generate an error
-      rather than allowing the binlog to become corrupt.
-     */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
-    {
-      error= ER_BINLOG_LOGGING_IMPOSSIBLE;
-      my_error(error, MYF(0),
-               "Statement cannot be written atomically since more"
-               " than one engine involved and at least one engine"
-               " is self-logging");
-    }
-
-    DBUG_PRINT("info", ("error: %d", error));
-
-    if (error)
-      return -1;
-
-    /*
-      We switch to row-based format if we are in mixed mode and one of
-      the following are true:
-
-      1. If the statement is unsafe
-      2. If statement format cannot be used
-
-      Observe that point to cannot be decided before the tables
-      involved in a statement has been checked, i.e., we cannot put
-      this code in reset_current_stmt_binlog_row_based(), it has to be
-      here.
-    */
-    if (thd->lex->is_stmt_unsafe() ||
-        (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
-    {
-      thd->set_current_stmt_binlog_row_based_if_mixed();
-    }
-  }
-
-  return 0;
-}
-
 /*
   Lock all tables in list
 
@@ -5246,7 +5095,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   *need_reopen= FALSE;
 
   if (!tables && !thd->lex->requires_prelocking())
-    DBUG_RETURN(decide_logging_format(thd, tables));
+    DBUG_RETURN(thd->decide_logging_format(tables));
 
   /*
     We need this extra check for thd->prelocked_mode because we want to avoid
@@ -5284,8 +5133,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
           has_two_write_locked_tables_with_auto_increment(tables))
       {
-        thd->lex->set_stmt_unsafe();
-        thd->set_current_stmt_binlog_row_based_if_mixed();
+        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_TWO_AUTOINC_COLUMNS);
+        thd->set_current_stmt_binlog_format_row_if_mixed();
       }
     }
 
@@ -5406,7 +5255,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     }
   }
 
-  DBUG_RETURN(decide_logging_format(thd, tables));
+  DBUG_RETURN(thd->decide_logging_format(tables));
 }
 
 

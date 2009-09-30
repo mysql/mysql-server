@@ -59,22 +59,19 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
       We also call the mysql_reset_thd_for_next_command(), since this
       is the logical start of the next "statement". Note that this
-      call might reset the value of current_stmt_binlog_row_based, so
+      call might reset the value of current_stmt_binlog_format, so
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
-    {
-      thd->set_current_stmt_binlog_row_based();
-    }
+    thd->lex->set_stmt_row_injection();
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
@@ -263,7 +260,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1781,7 +1778,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1881,7 +1878,7 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       event flushed.
     */
 
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     rli->cleanup_context(thd, 0);
     if (error == 0)
     {

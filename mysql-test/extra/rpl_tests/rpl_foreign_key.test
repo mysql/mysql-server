@@ -47,7 +47,6 @@ insert into t1 set b=1;
 insert into t2 set a=1, b=1;
 
 set foreign_key_checks=0;
-set @@session.binlog_format=row;
 delete from t1;
 
 --echo must sync w/o a problem (could not with the buggy code)

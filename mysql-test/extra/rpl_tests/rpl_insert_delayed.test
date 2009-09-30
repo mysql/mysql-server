@@ -38,14 +38,14 @@ connection master;
 truncate table t1;
 # first scenario: duplicate on first row
 insert delayed into t1 values(10, "my name");
-if ($binlog_format_statement)
+if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   # statement below will be converted to non-delayed INSERT and so
   # will stop at first error, guaranteeing replication.
   --error ER_DUP_ENTRY
   insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 }
-if (!$binlog_format_statement)
+if  (`SELECT @@global.binlog_format != 'STATEMENT'`)
 {
   insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 }
@@ -59,7 +59,7 @@ select * from t1;
 # second scenario: duplicate on second row
 connection master;
 delete from t1 where id!=10;
-if ($binlog_format_statement)
+if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   # statement below will be converted to non-delayed INSERT and so
   # will be binlogged with its ER_DUP_ENTRY error code, guaranteeing
@@ -67,7 +67,7 @@ if ($binlog_format_statement)
   --error ER_DUP_ENTRY
   insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
 }
-if (!$binlog_format_statement)
+if  (`SELECT @@global.binlog_format != 'STATEMENT'`)
 {
   insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
 }
@@ -108,6 +108,7 @@ if  (`SELECT @@global.binlog_format != 'ROW'`)
 {
   #must show two INSERT DELAYED
   --replace_column 1 x 2 x 3 x 4 x 5 x
+  --replace_regex /table_id: [0-9]+/table_id: #/
   show binlog events in 'master-bin.000002' LIMIT 2,2;
 }
 select * from t1;
@@ -118,6 +119,7 @@ if  (`SELECT @@global.binlog_format != 'ROW'`)
 {
   #must show two INSERT DELAYED
   --replace_column 1 x 2 x 3 x 4 x 5 x
+  --replace_regex /table_id: [0-9]+/table_id: #/
   show binlog events in 'slave-bin.000002' LIMIT 2,2;
 }
 select * from t1;

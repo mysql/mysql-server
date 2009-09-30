@@ -131,7 +131,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       (!thd->current_stmt_binlog_row_based &&
+       (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers()))))
   {
     /* Update the table->file->stats.records number */
@@ -460,19 +460,6 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
-  /*
-    Statement-based replication of DELETE ... LIMIT is not safe as order of
-    rows is not defined, so in mixed mode we go to row-based.
-
-    Note that we may consider a statement as safe if ORDER BY primary_key
-    is present. However it may confuse users to see very similiar statements
-    replicated differently.
-  */
-  if (thd->lex->current_select->select_limit)
-  {
-    thd->lex->set_stmt_unsafe();
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-  }
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
@@ -1031,15 +1018,16 @@ bool multi_delete::send_eof()
 
 static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 {
-  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  bool error, save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
   mysql_init_select(thd->lex);
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
   ha_autocommit_or_rollback(thd, error);
   end_trans(thd, error ? ROLLBACK : COMMIT);
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
 
@@ -1138,7 +1126,7 @@ end:
     {
       /*
         TRUNCATE must always be statement-based binlogged (not row-based) so
-        we don't test current_stmt_binlog_row_based.
+        we don't test current_stmt_binlog_format.
       */
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
       my_ok(thd);		// This should return record count
