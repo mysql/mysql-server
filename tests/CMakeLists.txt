@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS("-DMYSQL_CLIENT")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
