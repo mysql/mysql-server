@@ -4452,4 +4452,32 @@ WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 DELETE FROM v3;
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+#
+# Bug #46749: Segfault in add_key_fields() with outer subquery level 
+#   field references
+#
+CREATE TABLE t1 (
+a int,
+b int,
+UNIQUE (a), KEY (b)
+);
+INSERT INTO t1 VALUES (1,1), (2,1);
+CREATE TABLE st1 like t1;
+INSERT INTO st1 VALUES (1,1), (2,1);
+CREATE TABLE st2 like t1;
+INSERT INTO st2 VALUES (1,1), (2,1);
+EXPLAIN
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	st1	index	NULL	a	5	NULL	2	Using index
+2	DEPENDENT SUBQUERY	st2	index	b	b	5	NULL	2	Using where; Using index
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+NULL	0
+DROP TABLE t1, st1, st2;
 End of 5.0 tests.
