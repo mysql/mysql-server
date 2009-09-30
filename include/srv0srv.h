@@ -134,6 +134,8 @@ extern ibool	srv_extra_undoslots;
 
 extern ibool	srv_fast_recovery;
 
+extern ibool	srv_use_purge_thread;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;
@@ -217,6 +219,7 @@ extern ulint	srv_stats_method;
 #define SRV_STATS_METHOD_NULLS_NOT_EQUAL 1
 #define SRV_STATS_METHOD_IGNORE_NULLS    2
 extern ulint	srv_stats_auto_update;
+extern ulint	srv_stats_update_need_lock;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -424,6 +427,7 @@ enum srv_thread_type {
 	SRV_RECOVERY,	/**< threads finishing a recovery */
 	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
 #endif
+	SRV_PURGE,	/* thread purging undo records */
 	SRV_MASTER	/**< the master thread, (whose type number must
 			be biggest) */
 };
@@ -496,6 +500,14 @@ os_thread_ret_t
 srv_master_thread(
 /*==============*/
 	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/*************************************************************************
+The undo purge thread. */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database

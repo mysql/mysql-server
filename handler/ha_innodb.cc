@@ -206,6 +206,7 @@ static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_extra_undoslots		= FALSE;
 static my_bool	innobase_fast_recovery			= FALSE;
+static my_bool	innobase_use_purge_thread		= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_overwrite_relay_log_info	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
@@ -2292,6 +2293,8 @@ innobase_change_buffering_inited_ok:
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_fast_recovery = (ibool) innobase_fast_recovery;
+
+	srv_use_purge_thread = (ibool) innobase_use_purge_thread;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -7268,7 +7271,7 @@ ha_innobase::info(
 		We do not update delete_length if no locking is requested
 		so the "old" value can remain. delete_length is initialized
 		to 0 in the ha_statistics' constructor. */
-		if (!(flag & HA_STATUS_NO_LOCK)) {
+		if (!(flag & HA_STATUS_NO_LOCK) && srv_stats_update_need_lock) {
 
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
@@ -9934,6 +9937,11 @@ static MYSQL_SYSVAR_BOOL(fast_recovery, innobase_fast_recovery,
   "Enable to use speed hack of recovery avoiding flush list sorting.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(use_purge_thread, innobase_use_purge_thread,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable to use purge devoted thread.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "During InnoDB crash recovery on slave overwrite relay-log.info "
@@ -10079,6 +10087,12 @@ static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's auto update statistics of indexes. "
   "(except for ANALYZE TABLE command) 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(stats_update_need_lock, srv_stats_update_need_lock,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable InnoDB's update statistics which needs to lock dictionary. "
+  "e.g. Data_free.",
   NULL, NULL, 1, 0, 1, 0);
 
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
@@ -10325,7 +10339,7 @@ static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
 static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of extra user rollback segments when create new database.",
-  NULL, NULL, 0, 0, 127, 0);
+  NULL, NULL, 0, 0, 126, 0);
 
 static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
   PLUGIN_VAR_RQCMDARG,
@@ -10374,6 +10388,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(stats_auto_update),
+  MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
@@ -10404,6 +10419,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(use_purge_thread),
   NULL
 };
 

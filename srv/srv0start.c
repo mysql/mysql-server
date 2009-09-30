@@ -1544,6 +1544,12 @@ innobase_start_or_create_for_mysql(void)
 		dict_create();
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
+		if (trx_doublewrite == NULL) {
+			/* Create the doublewrite buffer here to avoid assertion error
+			   about page_no of doublewrite_buf */
+			trx_sys_create_doublewrite_buf();
+		}
+
 		if (srv_extra_rsegments)
 			trx_sys_create_extra_rseg(srv_extra_rsegments);
 #ifdef UNIV_LOG_ARCHIVE
@@ -1731,6 +1737,11 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	if (srv_use_purge_thread) {
+		os_thread_create(&srv_purge_thread, NULL, thread_ids
+				 + (4 + SRV_MAX_N_IO_THREADS));
+	}
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */

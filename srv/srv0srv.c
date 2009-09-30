@@ -162,6 +162,8 @@ UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
 UNIV_INTERN ibool	srv_fast_recovery = FALSE;
 
+UNIV_INTERN ibool	srv_use_purge_thread = FALSE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -381,6 +383,7 @@ this many index pages */
 UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulint	srv_stats_method = 0;
 UNIV_INTERN ulint	srv_stats_auto_update = 1;
+UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -2736,7 +2739,7 @@ loop:
 					lsn_old = log_sys->lsn;
 					mutex_exit(&(log_sys->mutex));
 				} else if ((log_sys->lsn - oldest_lsn)
-					   > (log_sys->max_checkpoint_age)/2 ) {
+					   > (log_sys->max_checkpoint_age)/4 ) {
 
 					/* defence line (max_checkpoint_age * 1/2) */
 					ib_uint64_t	lsn = log_sys->lsn;
@@ -2772,7 +2775,7 @@ loop:
 
 					if (!srv_use_doublewrite_buf) {
 						/* flush is faster than when doublewrite */
-						bpl = (bpl * 3) / 4;
+						bpl = (bpl * 7) / 8;
 					}
 
 					if (bpl) {
@@ -2856,6 +2859,7 @@ retry_flush_batch:
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
+	if (!srv_use_purge_thread) {
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
 	do {
@@ -2872,6 +2876,7 @@ retry_flush_batch:
 		srv_sync_log_buffer_in_background();
 
 	} while (n_pages_purged);
+	}
 
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
@@ -2940,6 +2945,7 @@ background_loop:
 		os_thread_sleep(100000);
 	}
 
+	if (!srv_use_purge_thread) {
 	srv_main_thread_op_info = "purging";
 
 	/* Run a full purge */
@@ -2956,6 +2962,7 @@ background_loop:
 		srv_sync_log_buffer_in_background();
 
 	} while (n_pages_purged);
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3107,4 +3114,68 @@ suspend_thread:
 	goto loop;
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+}
+
+/*************************************************************************
+A thread which is devoted to purge, for take over the master thread's
+purging */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by os_thread_create */
+{
+	ulint	n_pages_purged;
+	ulint	n_pages_purged_sum = 1; /* dummy */
+	ulint	history_len;
+	ulint	sleep_ms= 10000; /* initial: 10 sec. */
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Purge thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+	srv_table_reserve_slot(SRV_PURGE);
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE]++;
+	mutex_exit(&kernel_mutex);
+
+loop:
+	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+		goto exit_func;
+	}
+
+	os_thread_sleep( sleep_ms * 1000 );
+
+	history_len = trx_sys->rseg_history_len;
+	if (history_len > 1000)
+		sleep_ms /= 10;
+	if (sleep_ms < 10)
+		sleep_ms = 10;
+
+	n_pages_purged_sum = 0;
+
+	do {
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+			goto exit_func;
+		}
+		n_pages_purged = trx_purge();
+		n_pages_purged_sum += n_pages_purged;
+	} while (n_pages_purged);
+
+	if (n_pages_purged_sum == 0)
+		sleep_ms *= 10;
+	if (sleep_ms > 10000)
+		sleep_ms = 10000;
+
+	goto loop;
+
+exit_func:
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
 }
