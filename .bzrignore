@@ -3083,3 +3083,4 @@ sql/share/slovak
 sql/share/spanish
 sql/share/swedish
 sql/share/ukrainian
+libmysqld/examples/mysqltest.cc

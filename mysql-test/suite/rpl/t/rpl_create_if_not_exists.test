@@ -1,0 +1,70 @@
+# BUG#45574:
+# SP: CREATE DATABASE|TABLE IF NOT EXISTS not binlogged if routine exists.
+#
+#   There is an inconsistency with DROP DATABASE|TABLE|EVENT IF EXISTS and
+#   CREATE DATABASE|TABLE|EVENT IF NOT EXISTS. DROP IF EXISTS statements are
+#   binlogged even if either the DB, TABLE or EVENT does not exist. In
+#   contrast, Only the CREATE EVENT IF NOT EXISTS is binlogged when the EVENT
+#   exists.  
+#
+#   This problem caused some of the tests to fail randomly on PB or PB2.
+#
+# Description: 
+#   Fixed this bug by adding calls to write_bin_log in: 
+#   mysql_create_db 
+#   mysql_create_table_no_lock 
+#   mysql_create_like_table 
+#   create_table_from_items 
+#
+#   Test is implemented as follows: 
+#   i) test each "CREATE IF NOT EXISTS" (DDL), found in MySQL 5.1 manual
+#   exclude CREATE TEMPORARY TABLE, on existent objects; 
+#
+#  Note: 
+#  rpl_create_tmp_table_if_not_exists.test tests CREATE TEMPORARY TABLE cases.
+#
+#  References:
+#  http://dev.mysql.com/doc/refman/5.1/en/sql-syntax-data-definition.html
+#
+
+source include/master-slave.inc;
+disable_warnings;
+DROP DATABASE IF EXISTS mysqltest;
+
+CREATE DATABASE IF NOT EXISTS mysqltest;
+USE mysqltest;
+CREATE TABLE IF NOT EXISTS t(c1 int);
+CREATE TABLE IF NOT EXISTS t1 LIKE t;
+CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
+CREATE EVENT IF NOT EXISTS e 
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT now();
+sync_slave_with_master;
+
+connection slave;
+#DROP database from slave.
+#The database and all tables can be recreated in slave 
+#if binlog of the second CREATE command is recorded and sent from master to slave.
+DROP DATABASE mysqltest;
+
+connection master;
+CREATE DATABASE IF NOT EXISTS mysqltest;
+USE mysqltest;
+CREATE TABLE IF NOT EXISTS t(c1 int);
+CREATE TABLE IF NOT EXISTS t1 LIKE t;
+CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
+CREATE EVENT IF NOT EXISTS e 
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT now(); 
+sync_slave_with_master;
+
+connection slave;
+SHOW TABLES in mysqltest;
+#Execution time changes in each run. So we disregard it by calling replace_column.
+replace_column 6 #;
+SHOW EVENTS in mysqltest;
+
+
+connection master;
+DROP DATABASE IF EXISTS mysqltest;
+source include/master-slave-end.inc;

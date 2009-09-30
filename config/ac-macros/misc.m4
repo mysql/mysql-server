@@ -456,6 +456,10 @@ fi
 AC_DEFUN([MYSQL_STACK_DIRECTION],
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([#include <stdlib.h>
+ /* Prevent compiler optimization by HP's compiler, see bug#42213 */
+#if defined(__HP_cc) || defined (__HP_aCC) || defined (__hpux)
+#pragma noinline
+#endif
  int find_stack_direction ()
  {
    static char *addr = 0;

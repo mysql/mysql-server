@@ -1,0 +1,63 @@
+#
+# BUG#45214
+# The common part of the "rpl_get_master_version_and_clock" test. 
+# Restart slave under network disconnection between slave and master
+# following the steps:
+#    1 - Got DBUG_SYNC_POINT lock
+#    2 - Set DBUG_SYNC_POINT before call mysql_real_query(...) function in get_master_version_and_clock(...) function and hang here
+#    3 - shutdown master server for simulating network disconnection
+#    4 - Release DBUG_SYNC_POINT lock
+#    5 - Check if the slave I/O thread tries to reconnect to master. 
+#
+# Note: Please make sure initialize the $debug_lock when call the test script.
+#
+connection slave;
+if (`SELECT '$debug_lock' = ''`)
+{
+    --die Cannot continue. Please set value for $debug_lock.
+}
+
+# Restart slave
+--disable_warnings
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+start slave;
+source include/wait_for_slave_to_start.inc;
+connection master;
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+
+# Send shutdown to the connected server and give
+# it 10 seconds to die before zapping it
+shutdown_server 10;
+
+connection slave;
+eval SELECT RELEASE_LOCK($debug_lock);
+
+# Show slave last IO errno
+connection slave;
+source include/wait_for_slave_io_error.inc;
+let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
+echo Slave_IO_Errno= $last_io_errno;
+
+# Write file to make mysql-test-run.pl start up the server again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+
+connection master;
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+connection slave;
+source include/wait_for_slave_to_start.inc;
+

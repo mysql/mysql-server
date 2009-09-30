@@ -1396,6 +1396,7 @@ public:
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
+  uint decimal_precision() const;
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
@@ -1522,6 +1523,7 @@ public:
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
     concat_ws= 0;
+    table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }

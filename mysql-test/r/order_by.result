@@ -1500,3 +1500,60 @@ id1
 15
 16
 DROP TABLE t1;
+CREATE TABLE t1 (
+a INT,
+b INT NOT NULL,
+c char(100),
+KEY (b, c),
+KEY (b, a, c)
+)
+DEFAULT CHARSET = utf8;
+INSERT INTO t1 VALUES 
+(1,  1, 1),
+(2,  2, 2),
+(3,  3, 3),
+(4,  4, 4),
+(5,  5, 5),
+(6,  6, 6),
+(7,  7, 7),
+(8,  8, 8),
+(9,  9, 9);
+INSERT INTO t1 SELECT a + 10,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 20,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 40,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 80,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 160, b, c FROM t1;
+INSERT INTO t1 SELECT a + 320, b, c FROM t1;
+INSERT INTO t1 SELECT a + 640, b, c FROM t1;
+INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
+EXPLAIN
+SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b,b_2	b	4	NULL	226	Using where
+SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
+a
+2071
+2061
+2051
+2041
+2031
+2021
+2011
+2001
+1991
+EXPLAIN
+SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b,b_2	b	4	NULL	226	Using where; Using temporary
+SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
+a
+2071
+2061
+2051
+2041
+2031
+2021
+2011
+2001
+1991
+DROP TABLE t1;
