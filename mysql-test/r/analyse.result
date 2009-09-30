@@ -28,9 +28,7 @@ test.t1.bool	N	Y	1	1	0	0	1.0000	NULL	ENUM('N','Y') NOT NULL
 test.t1.d	2002-03-03	2002-03-05	10	10	0	0	10.0000	NULL	ENUM('2002-03-03','2002-03-04','2002-03-05') NOT NULL
 drop table t1,t2;
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 create table t1 (a int not null);
 create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
@@ -153,4 +151,9 @@ select f3 from t1 procedure analyse(1, 1);
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.f3	5.99999	9.55555	7	7	0	0	7.77777	1.77778	FLOAT(6,5) NOT NULL
 drop table t1;
+CREATE TABLE t1(a INT,b INT,c INT,d INT,e INT,f INT,g INT,h INT,i INT,j INT,k INT);
+INSERT INTO t1 VALUES ();
+SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+DROP TABLE t1;
 End of 4.1 tests
