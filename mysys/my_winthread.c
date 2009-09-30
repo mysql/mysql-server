@@ -129,12 +129,5 @@ void pthread_exit(void *a)
   _endthread();
 }
 
-/* This is neaded to get the macro pthread_setspecific to work */
-
-int win_pthread_setspecific(void *a,void *b,uint length)
-{
-  memcpy(a,b,length);
-  return 0;
-}
 
 #endif

@@ -100,29 +100,13 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/mf_qsort.c
 		     ../mysys/my_getsystime.c ../mysys/my_sync.c ../mysys/my_winerr.c ../mysys/my_winfile.c ${LIB_SOURCES})
 
-# Need to set USE_TLS for building the DLL, since __declspec(thread)
-# approach to thread local storage does not work properly in DLLs.
-#
-# The static library might be used to form another DLL, as is the case
-# with the ODBC driver, so it has to be compiled with USE_TLS as well.
-#
-# We create a third library without USE_TLS for internal use. We can't
-# be sure that some client application part of this build doesn't go
-# beond the documented API, and try access the Thread Local Storage.
-# The "_notls" means no Tls*() functions used, i.e. "static" TLS.
+
 
 ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(mysqlclient GenError)
 TARGET_LINK_LIBRARIES(mysqlclient)
 
-ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
-ADD_DEPENDENCIES(mysqlclient_notls GenError)
-TARGET_LINK_LIBRARIES(mysqlclient_notls)
-
 ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
-IF(WIN32)
-  SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
-ENDIF(WIN32)
 ADD_DEPENDENCIES(libmysql GenError)
 TARGET_LINK_LIBRARIES(libmysql wsock32)
 
