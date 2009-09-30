@@ -1991,8 +1991,11 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
     close_impl(tp, forceSend, &poll_guard);
   }
 
+  // Keep in local variables, as "this" might be destructed below
   NdbConnection* tCon = theNdbCon;
   NdbConnection* tTransCon = m_transConnection;
+  Ndb* tNdb = theNdb;
+
   theNdbCon = NULL;
   m_transConnection = NULL;
 
@@ -2020,8 +2023,8 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   }
   
   tCon->theScanningOp = 0;
-  theNdb->closeTransaction(tCon);
-  theNdb->theRemainingStartTransactions--;
+  tNdb->closeTransaction(tCon);
+  tNdb->theRemainingStartTransactions--;
   DBUG_VOID_RETURN;
 }
 
