@@ -42,6 +42,13 @@ ADD_DEFINITIONS(-DSHAREDIR="share")
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
+# Do not use SAFEMALLOC for Windows builds, as Debug CRT has the same functionality
+# Neither SAFE_MUTEX works on Windows and it has been explicitely undefined in 
+# my_pthread.h
+IF(NOT WIN32)
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+ENDIF(NOT WIN32)
 
 SET(localstatedir "C:\\mysql\\data")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
