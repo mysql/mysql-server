@@ -30,27 +30,27 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/strings)
 
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c)
-TARGET_LINK_LIBRARIES(mysql mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysql mysqlclient)
 
 ADD_EXECUTABLE(mysqltest mysqltest.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex wsock32 dbug)
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex dbug)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient)
 
 ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c ../mysys/mf_getdate.c)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
 ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
 ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
 ADD_EXECUTABLE(mysqlshow mysqlshow.c)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
 ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/mf_tempdir.c
@@ -59,14 +59,14 @@ ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/my_bitmap.c
 			   ../mysys/my_vle.c
 			   ../mysys/base64.c)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
 
 ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
+TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib dbug)
 
 ADD_EXECUTABLE(echo echo.c)
 

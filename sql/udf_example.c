@@ -139,6 +139,11 @@ typedef long long longlong;
 #include <mysql.h>
 #include <ctype.h>
 
+#ifdef _WIN32
+/* inet_aton needs winsock library */
+#pragma comment(lib, "ws2_32")
+#endif
+
 static pthread_mutex_t LOCK_hostname;
 
 #ifdef HAVE_DLOPEN
