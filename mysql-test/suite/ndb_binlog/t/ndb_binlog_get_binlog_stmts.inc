@@ -28,8 +28,10 @@ create table binlog_stmt_parts_unassoc (txt varchar(1000), line_count int, stmt_
 set @line_count=0;
 set @stmt_boundary=0;
 
+# Use replace() here to get rid of any unwanted Windows
+# CRs
 insert into binlog_stmt_parts_unassoc
-  select txt,
+  select replace(txt, '\r', ''),
          @line_count:= @line_count + 1,  # So we can preserve order later
          (txt like '%INSERT%' or         # Identify statement boundaries
           txt like '%UPDATE%' or
