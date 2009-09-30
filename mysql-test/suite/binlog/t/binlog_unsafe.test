@@ -1,34 +1,61 @@
+# ==== Background ====
+#
+# Some statements may execute differently on master and slave when
+# logged in statement format.  Such statements are called unsafe.
+# Unsafe statements include:
+#
+#  - statements using @@variables (with a small number of exceptions;
+#    see below);
+#  - statements using certain functions, e.g., UUID();
+#  - statements using LIMIT;
+#  - INSERT DELAYED;
+#  - insert into two autoinc columns;
+#  - statements using UDF's.
+#  - statements reading from log tables in the mysql database.
+#
+# Note that statements that use stored functions, stored procedures,
+# triggers, views, or prepared statements that invoke unsafe
+# statements shall also be unsafe.
+#
+# Unsafeness of a statement shall have the following consequences:
+#
+# 1. If the binlogging is on and the unsafe statement is logged:
+#    - If binlog_format=STATEMENT, the statement shall give a warning.
+#    - If binlog_format=MIXED or binlog_format=ROW, the statement shall
+#      be logged in row format.
+#
+# 2. If binlogging is off or the statement is not logged (e.g. SELECT
+#    UUID()), no warning shall be issued and the statement shall not
+#    be logged.
+#
+# Moreover, when a sub-statement of a recursive construct (i.e.,
+# stored function, stored procedure, trigger, view, or prepared
+# statement) is unsafe and binlog_format=STATEMENT, then a warning
+# shall be issued for every recursive construct.  In effect, this
+# creates a stack trace from the top-level statement to the unsafe
+# statement.
+#
+#
 # ==== Purpose ====
 #
-# Some statements can not be written to the binlog in a safe manner
-# with statement-based replication, either because they rely on
-# features that are local to the server they are replicated from
-# (e.g., @@variables), or because they include nondeterministic
-# queries (e.g., LIMIT), or because the time at which the query is
-# executed cannot be determined (e.g., INSERT DELAYED).  Such
-# statements should be marked unsafe.  All unsafe statements should
-# give a warning.
-# Yet the warning/error message isn't issued when SQL_LOG_BIN is turned off.
+# This test verifies that a warning is generated when it should,
+# according to the rules above.
 #
-# This test verifies that a warning is generated for statements that
-# should be unsafe, when they are executed under statement mode
-# logging.
-#
-# All variables should be unsafe, with some exceptions.  Therefore,
-# this test also verifies that the exceptions do *not* generare a
+# All @@variables should be unsafe, with some exceptions.  Therefore,
+# this test also verifies that the exceptions do *not* generate a
 # warning.
 #
 #
 # ==== Method ====
 #
-# We try an INSERT DELAYED statement and verify that a warning is
-# issued.
+# 1. Each type of statements listed above is executed.
 #
-# We try to insert unsafe variables into a table in several ways:
-# directly with an INSERT statement, from a stored procedure, from a
-# stored function, from a trigger, from a prepared statement, and from
-# a complicated nesting of triggers, functions, procedures, and
-# prepared statements.  In all cases, a warning should be issued.
+# 2. Each unsafe statement is wrapped in each type of recursive
+#    construct (stored function, stored procedure, trigger, view, or
+#    prepared statement).
+#
+# 3. Each unsafe statement is wrapped in two levels of recursive
+#    constructs (function invoking trigger invoking UUID(), etc).
 #
 # We try to insert the variables that should not be unsafe into a
 # table, and verify that *no* warning is issued.
@@ -38,7 +65,8 @@
 # Execute a unsafe statement calling a trigger or stored function
 # or neither when @@SQL_LOG_BIN is turned OFF,
 # no warning/error is issued
-
+#
+#
 # ==== Related bugs and worklogs ====
 #
 # WL#3339: Issue warnings when statement-based replication may fail
@@ -47,6 +75,9 @@
 # BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
 # BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
 # BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+# BUG#45825: INSERT DELAYED is not unsafe: logged in statement format
+# BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
+#
 #
 # ==== Related test cases ====
 #
@@ -57,192 +88,311 @@
 # rpl.rpl_variables_stm tests the small subset of variables that
 # actually can be replicated safely in statement mode.
 #
-#
-# ==== Todo ====
-#
-# There are several other ways to create unsafe statements: see, e.g.,
-# WL#3339, BUG#34768.
+# rpl_ndb.rpl_ndb_binlog_format_errors tests all errors and warnings
+# related to logging format (not just 'Unsafe statement binlogged in
+# statement mode since BINLOG_FORMAT = STATEMENT').
 
-source include/have_log_bin.inc;
-source include/have_binlog_format_statement.inc;
+--source include/have_udf.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_statement.inc
 
---echo ==== Setup tables ====
+--echo #### Setup tables ####
 
-CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
-CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE trigger_table (a CHAR(7));
-CREATE TABLE trigger_table2 (a INT);
+CREATE TABLE t0 (a CHAR(100));
+CREATE TABLE t1 (a CHAR(100));
+CREATE TABLE t2 (a CHAR(100));
+CREATE TABLE t3 (a CHAR(100));
+CREATE TABLE ta0 (a CHAR(100));
+CREATE TABLE ta1 (a CHAR(100));
+CREATE TABLE ta2 (a CHAR(100));
+CREATE TABLE ta3 (a CHAR(100));
+CREATE TABLE autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE data_table (a CHAR(100));
+INSERT INTO data_table VALUES ('foo');
+CREATE TABLE trigger_table_1 (a INT);
+CREATE TABLE trigger_table_2 (a INT);
+CREATE TABLE trigger_table_3 (a INT);
+CREATE TABLE double_autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
 
-
---echo ==== Non-deterministic statements ====
-
-INSERT DELAYED INTO t1 VALUES (5);
-
-
---echo ==== Some variables that *should* be unsafe ====
-
---echo ---- Insert directly ----
-
-INSERT INTO t1 VALUES (@@global.sync_binlog);
-INSERT INTO t1 VALUES (@@session.insert_id);
-INSERT INTO t1 VALUES (@@global.auto_increment_increment);
-INSERT INTO t2 SELECT UUID();
-INSERT INTO t2 VALUES (@@session.sql_mode);
-INSERT INTO t2 VALUES (@@global.init_slave);
-INSERT INTO t2 VALUES (@@hostname);
-
---echo ---- Insert from stored procedure ----
-
-DELIMITER |;
-CREATE PROCEDURE proc()
+--DELIMITER |
+CREATE TRIGGER double_autoinc_trig
+BEFORE INSERT ON double_autoinc_table FOR EACH ROW
 BEGIN
-  INSERT INTO t1 VALUES (@@global.sync_binlog);
-  INSERT INTO t1 VALUES (@@session.insert_id);
-  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
-  INSERT INTO t2 SELECT UUID();
-  INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
-  INSERT INTO t2 VALUES (@@hostname);
-END|
-DELIMITER ;|
-
-CALL proc();
-
---echo ---- Insert from stored function ----
-
-DELIMITER |;
-CREATE FUNCTION func()
-RETURNS INT
-BEGIN
-  INSERT INTO t1 VALUES (@@global.sync_binlog);
-  INSERT INTO t1 VALUES (@@session.insert_id);
-  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
-  INSERT INTO t2 SELECT UUID();
-  INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
-  INSERT INTO t2 VALUES (@@hostname);
-  RETURN 0;
-END|
-DELIMITER ;|
-
-SELECT func();
-
---echo ---- Insert from trigger ----
-
-DELIMITER |;
-CREATE TRIGGER trig
-BEFORE INSERT ON trigger_table
-FOR EACH ROW
-BEGIN
-  INSERT INTO t1 VALUES (@@global.sync_binlog);
-  INSERT INTO t1 VALUES (@@session.insert_id);
-  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
-  INSERT INTO t2 SELECT UUID();
-  INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
-  INSERT INTO t2 VALUES (@@hostname);
-END|
-DELIMITER ;|
-
-INSERT INTO trigger_table VALUES ('bye.');
-
---echo ---- Insert from prepared statement ----
-
-PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
-PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
-PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
-PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
-PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
-PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
-PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
-
-EXECUTE p1; EXECUTE p2; EXECUTE p3; EXECUTE p4; EXECUTE p5;
-EXECUTE p6; EXECUTE p7;
-
---echo ---- Insert from nested call of triggers / functions / procedures ----
-
-DELIMITER |;
-
-# proc1: cause trigger 'trig' above to be triggered.
-CREATE PROCEDURE proc1()
-  INSERT INTO trigger_table VALUES ('ha!')|
-
-# func2: call proc1 above.
-CREATE FUNCTION func2()
-RETURNS INT
-BEGIN
-  CALL proc1();
-  RETURN 0;
+  INSERT INTO autoinc_table VALUES (NULL);
 END|
 
-# trig3: call func2 above
-CREATE TRIGGER trig3
-BEFORE INSERT ON trigger_table2
-FOR EACH ROW
+CREATE FUNCTION multi_unsafe_func() RETURNS INT
 BEGIN
-  DECLARE tmp INT;
-  SELECT func2() INTO tmp;
+  INSERT INTO t0 VALUES(CONCAT(@@hostname, @@hostname));
+  INSERT INTO t0 VALUES(0);
+  INSERT INTO t0 VALUES(CONCAT(UUID(), @@hostname));
+  RETURN 1;
 END|
+--DELIMITER ;
 
-# proc4: cause trig3 above to be triggered.
-CREATE PROCEDURE proc4()
-  INSERT INTO trigger_table2 VALUES (1)|
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB"
 
-# func5: call proc4 above.
-CREATE FUNCTION func5()
-RETURNS INT
-BEGIN
-  CALL proc4;
-  RETURN 0;
-END|
+# In each iteration of this loop, we select one method to make the
+# statement unsafe.
+--let $unsafe_type= 0
+while (`SELECT $unsafe_type < 9`) {
 
-# prep6: call func5() above.
-PREPARE prep6 FROM 'SELECT func5()'|
+  --echo
 
-DELIMITER ;|
+  if (`SELECT $unsafe_type = 0`) {
+    --echo ==== Testing UUID() unsafeness ====
+    --let $desc_0= unsafe UUID() function
+    --let $stmt_sidef_0= INSERT INTO t0 VALUES (UUID())
+    --let $value_0= UUID()
+    --let $sel_sidef_0=
+    --let $sel_retval_0= SELECT UUID()
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
 
-# try a complicated call path to trigger 'trig'.
-EXECUTE prep6;
+  if (`SELECT $unsafe_type = 1`) {
+    --echo ==== Testing @@hostname unsafeness ====
+    --let $desc_0= unsafe @@hostname variable
+    --let $stmt_sidef_0= INSERT INTO t0 VALUES (@@hostname)
+    --let $value_0= @@hostname
+    --let $sel_sidef_0=
+    # $sel_retval is going to be used in views.  Views cannot execute
+    # statements that refer to @@variables.  Hence, we set $set_retval
+    # to empty instead of SELECT @@hostname.
+    --let $sel_retval_0=
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
+
+  if (`SELECT $unsafe_type = 2`) {
+    --echo ==== Testing SELECT...LIMIT unsafeness ====
+    --let $desc_0= unsafe SELECT...LIMIT statement
+    --let $stmt_sidef_0= INSERT INTO t0 SELECT * FROM data_table LIMIT 1
+    --let $value_0=
+    --let $sel_sidef_0=
+    --let $sel_retval_0= SELECT * FROM data_table LIMIT 1
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
+
+  if (`SELECT $unsafe_type = 3`) {
+    --echo ==== Testing INSERT DELAYED unsafeness ====
+    --let $desc_0= unsafe INSERT DELAYED statement
+    --let $stmt_sidef_0= INSERT DELAYED INTO t0 VALUES (1), (2)
+    --let $value_0=
+    --let $sel_sidef_0=
+    --let $sel_retval_0=
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
+
+  if (`SELECT $unsafe_type = 4`) {
+    --echo ==== Testing unsafeness of insert of two autoinc values ====
+    --let $desc_0= unsafe update of two autoinc columns
+    --let $stmt_sidef_0= INSERT INTO double_autoinc_table VALUES (NULL)
+    --let $value_0=
+    --let $sel_sidef_0=
+    --let $sel_retval_0=
+    # Note: we will expect 1 warning when BUG#45827 is fixed.
+    --let $CRC_ARG_expected_number_of_warnings= 0
+  }
+
+  if (`SELECT $unsafe_type = 5`) {
+    --echo ==== Testing unsafeness of UDF's ====
+    --let $desc_0= unsafe UDF
+    --let $stmt_sidef_0= INSERT INTO t0 VALUES (myfunc_int(10))
+    --let $value_0= myfunc_int(10)
+    --let $sel_sidef_0= SELECT myfunc_int(10)
+    --let $sel_retval_0=
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
+
+  if (`SELECT $unsafe_type = 6`) {
+    --echo ==== Testing unsafeness of access to mysql.general_log ====
+    --let $desc_0= unsafe use of mysql.general_log
+    --let $stmt_sidef_0= INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log
+    --let $value_0=
+    --let $sel_sidef_0=
+    --let $sel_retval_0= SELECT COUNT(*) FROM mysql.general_log
+    --let $CRC_ARG_expected_number_of_warnings= 1
+  }
+
+  if (`SELECT $unsafe_type = 7`) {
+    --echo ==== Testing a statement that is unsafe in many ways ====
+    --let $desc_0= statement that is unsafe in many ways
+    # Concatenate three unsafe values, and then concatenate NULL to
+    # that so that the result is NULL and we instead use autoinc.
+    --let $stmt_sidef_0= INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1
+    --let $value_0=
+    --let $sel_sidef_0=
+    --let $sel_retval_0=
+    # Note: we will expect 7 warnings when BUG#45827 is fixed.
+    --let $CRC_ARG_expected_number_of_warnings= 6
+  }
+
+  if (`SELECT $unsafe_type = 8`) {
+    --echo ==== Testing a statement that is unsafe several times ====
+    --let $desc_0= statement that is unsafe several times
+    --let $stmt_sidef_0= INSERT INTO ta0 VALUES (multi_unsafe_func())
+    --let $value_0=
+    --let $sel_sidef_0= SELECT multi_unsafe_func()
+    --let $sel_retval_0=
+    --let $CRC_ARG_expected_number_of_warnings= 2
+  }
+
+  # In each iteration of the following loop, we select one way to
+  # enclose the unsafe statement as a sub-statement of a recursive
+  # construct (i.e., a function, procedure, trigger, view, or prepared
+  # statement).
+  #
+  # In the last iteration, $call_type_1=7, we don't create a recursive
+  # construct. Instead, we just invoke the unsafe statement directly.
+
+  --let $call_type_1= 0
+  while (`SELECT $call_type_1 < 8`) {
+    #--echo debug: level 1, types $call_type_1 -> $unsafe_type
+    --let $CRC_ARG_level= 1
+    --let $CRC_ARG_type= $call_type_1
+    --let $CRC_ARG_stmt_sidef= $stmt_sidef_0
+    --let $CRC_ARG_value= $value_0
+    --let $CRC_ARG_sel_sidef= $sel_sidef_0
+    --let $CRC_ARG_sel_retval= $sel_retval_0
+    --let $CRC_ARG_desc= $desc_0
+    --source extra/rpl_tests/create_recursive_construct.inc
+    --let $stmt_sidef_1= $CRC_RET_stmt_sidef
+    --let $value_1= $CRC_RET_value
+    --let $sel_sidef_1= $CRC_RET_sel_sidef
+    --let $sel_retval_1= $CRC_RET_sel_retval
+    --let $is_toplevel_1= $CRC_RET_is_toplevel
+    --let $drop_1= $CRC_RET_drop
+    --let $desc_1= $CRC_RET_desc
+
+    # Some statements must be top-level statements, i.e., cannot be
+    # called as a sub-statement of any recursive construct.  (One
+    # example is 'EXECUTE prepared_stmt').  When
+    # create_recursive_construct.inc creates a top-level statement, it
+    # sets $CRC_RET_is_toplevel=1.
+
+    if (!$is_toplevel_1) {
+
+      # In each iteration of this loop, we select one way to enclose
+      # the previous recursive construct in another recursive
+      # construct.
+
+      --let $call_type_2= 0
+      while (`SELECT $call_type_2 < 7`) {
+        #--echo debug: level 2, types $call_type_2 -> $call_type_1 -> $unsafe_type
+        --let $CRC_ARG_level= 2
+        --let $CRC_ARG_type= $call_type_2
+        --let $CRC_ARG_stmt_sidef= $stmt_sidef_1
+        --let $CRC_ARG_value= $value_1
+        --let $CRC_ARG_sel_sidef= $sel_sidef_1
+        --let $CRC_ARG_sel_retval= $sel_retval_1
+        --let $CRC_ARG_desc= $desc_1
+        --source extra/rpl_tests/create_recursive_construct.inc
+        --let $stmt_sidef_2= $CRC_RET_stmt_sidef
+        --let $value_2= $CRC_RET_value
+        --let $sel_sidef_2= $CRC_RET_sel_sidef
+        --let $sel_retval_2= $CRC_RET_sel_retval
+        --let $is_toplevel_2= $CRC_RET_is_toplevel
+        --let $drop_2= $CRC_RET_drop
+        --let $desc_2= $CRC_RET_desc
+
+        if (!$is_toplevel_2) {
+
+         # Conditioned out since it makes result file really big.
+
+         if (0) {
+
+          # In each iteration of this loop, we select one way to enclose
+          # the previous recursive construct in another recursive
+          # construct.
+
+          --let $call_type_3= 0
+          while (`SELECT $call_type_3 < 7`) {
+            #--echo debug: level 3, types $call_type_2 -> $call_type_2 -> $call_type_1 -> $unsafe_type
+            --let $CRC_ARG_level= 3
+            --let $CRC_ARG_type= $call_type_3
+            --let $CRC_ARG_stmt_sidef= $stmt_sidef_2
+            --let $CRC_ARG_value= $value_2
+            --let $CRC_ARG_sel_sidef= $sel_sidef_2
+            --let $CRC_ARG_sel_retval= $sel_retval_2
+            --let $CRC_ARG_desc= $desc_2
+            --source extra/rpl_tests/create_recursive_construct.inc
+
+            # Drop created object.
+            if (`SELECT '$drop_3' != ''`) {
+              --eval $drop_3
+            }
+            --inc $call_type_3
+          } # while (call_type_3)
+         } # if (0)
+        } # if (!is_toplevel_2)
+
+        # Drop created object.
+        if (`SELECT '$drop_2' != ''`) {
+          --eval $drop_2
+        }
+        --inc $call_type_2
+      } # while (call_type_2)
+    } # if (!is_toplevel_1)
+
+    # Drop created object.
+    if (`SELECT '$drop_1' != ''`) {
+      --eval $drop_1
+    }
+    --inc $call_type_1
+  } # while (call_type_1)
+
+  --inc $unsafe_type
+} # while (unsafe_type)
+
+DROP TRIGGER double_autoinc_trig;
+DROP TABLE t0, t1, t2, t3, ta0, ta1, ta2, ta3,
+  autoinc_table, double_autoinc_table,
+  data_table,
+  trigger_table_1, trigger_table_2, trigger_table_3;
+DROP FUNCTION myfunc_int;
+DROP FUNCTION multi_unsafe_func;
 
 
---echo ==== Variables that should *not* be unsafe ====
+--echo ==== Special system variables that should *not* be unsafe ====
 
-INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
-INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
-INSERT INTO t1 VALUES (@@session.foreign_key_checks);
-INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
-INSERT INTO t1 VALUES (@@session.unique_checks);
+CREATE TABLE t1 (a VARCHAR(1000));
+CREATE TABLE autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
+
 INSERT INTO t1 VALUES (@@session.auto_increment_increment);
 INSERT INTO t1 VALUES (@@session.auto_increment_offset);
-INSERT INTO t2 VALUES (@@session.character_set_client);
-INSERT INTO t2 VALUES (@@session.collation_connection);
-INSERT INTO t2 VALUES (@@session.collation_server);
-INSERT INTO t2 VALUES (@@session.time_zone);
-INSERT INTO t2 VALUES (@@session.lc_time_names);
-INSERT INTO t2 VALUES (@@session.collation_database);
-INSERT INTO t2 VALUES (@@session.timestamp);
-INSERT INTO t2 VALUES (@@session.last_insert_id);
+INSERT INTO t1 VALUES (@@session.character_set_client);
+INSERT INTO t1 VALUES (@@session.character_set_connection);
+INSERT INTO t1 VALUES (@@session.character_set_database);
+INSERT INTO t1 VALUES (@@session.character_set_server);
+INSERT INTO t1 VALUES (@@session.collation_connection);
+INSERT INTO t1 VALUES (@@session.collation_database);
+INSERT INTO t1 VALUES (@@session.collation_server);
+INSERT INTO t1 VALUES (@@session.foreign_key_checks);
+INSERT INTO t1 VALUES (@@session.identity);
+INSERT INTO t1 VALUES (@@session.last_insert_id);
+INSERT INTO t1 VALUES (@@session.lc_time_names);
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
+INSERT INTO t1 VALUES (@@session.timestamp);
+INSERT INTO t1 VALUES (@@session.time_zone);
+INSERT INTO t1 VALUES (@@session.unique_checks);
+
 SET @my_var= 4711;
 INSERT INTO t1 VALUES (@my_var);
 
 # using insert_id implicitly should be ok.
-SET insert_id=12;
-INSERT INTO t3 VALUES (NULL);
+SET insert_id= 12;
+INSERT INTO autoinc_table VALUES (NULL);
+
+# See set_var.cc for explanation.
+--echo The following variables *should* give a warning, despite they are replicated.
+INSERT INTO t1 VALUES (@@session.sql_mode);
+INSERT INTO t1 VALUES (@@session.insert_id);
 
 
---echo ==== Clean up ====
+DROP TABLE t1, autoinc_table;
 
-DROP PROCEDURE proc;
-DROP FUNCTION  func;
-DROP TRIGGER   trig;
-DROP PROCEDURE proc1;
-DROP FUNCTION  func2;
-DROP TRIGGER   trig3;
-DROP PROCEDURE proc4;
-DROP FUNCTION  func5;
-DROP PREPARE   prep6;
-DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
+
 #
 # BUG#34768 - nondeterministic INSERT using LIMIT logged in stmt mode if
 #             binlog_format=mixed
@@ -388,4 +538,41 @@ DELETE FROM t1 LIMIT 1;
 
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+
+#
+# BUG#45825: INSERT DELAYED is not unsafe: logged in statement format
+# BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
+#
+SET @old_binlog_format = @@session.binlog_format;
+SET binlog_format = MIXED;
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1), (2);
+
+--DELIMITER |
+CREATE PROCEDURE proc_insert_delayed ()
+BEGIN
+  INSERT DELAYED INTO t1 VALUES (1), (2);
+END|
+
+CREATE FUNCTION func_limit ()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+  RETURN 1;
+END|
+--DELIMITER ;
+
+RESET MASTER;
+CALL proc_insert_delayed();
+SELECT func_limit();
+source include/show_binlog_events.inc;
+
+SET @@session.binlog_format = @old_binlog_format;
+DROP TABLE t1, t2;
+DROP PROCEDURE proc_insert_delayed;
+DROP FUNCTION func_limit;
+
+
 --echo "End of tests"

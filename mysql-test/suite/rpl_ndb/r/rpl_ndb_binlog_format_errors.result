@@ -1,0 +1,130 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+==== Initialize ====
+[on slave]
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+[on master]
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+CREATE TABLE t (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_self_logging (a VARCHAR(100)) ENGINE = NDB;
+CREATE TABLE t_row (a VARCHAR(100)) ENGINE = INNODB;
+CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
+CREATE TABLE t_slave_stmt (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE DATABASE other;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+[on slave]
+DROP TABLE t_slave_stmt;
+CREATE TABLE t_slave_stmt (a INT) ENGINE = EXAMPLE;
+[on master]
+BINLOG '
+1gRVSg8BAAAAZgAAAGoAAAABAAQANS4xLjM2LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+';
+==== Test ====
+---- binlog_format=row ----
+* Modify tables of more than one engine, one of which is self-logging
+CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END;
+INSERT INTO t_self_logging VALUES (1);
+ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
+DROP trigger trig_1;
+* Modify both row-only and stmt-only table
+CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
+INSERT INTO t_stmt VALUES (1);
+ERROR HY000: Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved.
+DROP TRIGGER trig_2;
+* Stmt-only table and binlog_format=row
+INSERT INTO t_stmt VALUES (1);
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
+* Row injection and stmt-only table: in slave sql thread
+INSERT INTO t_slave_stmt VALUES (1);
+[on slave]
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging.' on opening tables
+set global sql_slave_skip_counter=1;
+include/start_slave.inc
+* Row injection and stmt-only table: use BINLOG statement
+BINLOG '
+1gRVShMBAAAALwAAAEABAAAAABcAAAAAAAAABHRlc3QABnRfc3RtdAABDwJkAAE=
+1gRVShcBAAAAIAAAAGABAAAQABcAAAAAAAEAAf/+ATE=
+';
+ERROR HY000: Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging.
+---- binlog_format=mixed ----
+[on slave]
+include/stop_slave.inc
+SET @@global.binlog_format = MIXED;
+include/start_slave.inc
+[on master]
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+* Unsafe statement and stmt-only engine
+INSERT INTO t_stmt VALUES (UUID());
+Warnings:
+Note	1641	Unsafe statement binlogged as statement since storage engine is limited to statement-logging. Reason: Statement uses a system function whose value may differ on slave.
+---- binlog_format=statement ----
+[on slave]
+include/stop_slave.inc
+SET @@global.binlog_format = STATEMENT;
+include/start_slave.inc
+[on master]
+SET @@global.binlog_format = STATEMENT;
+SET @@session.binlog_format = STATEMENT;
+* Row-only engine and binlog_format=statement: innodb-specific message
+INSERT INTO t_row VALUES (1);
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+* Row-only engine and binlog_format=statement: generic message
+SET @@session.debug= '+d,no_innodb_binlog_errors';
+INSERT INTO t_row VALUES (1);
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.
+* Same statement, but db filtered out - no error
+USE other;
+INSERT INTO test.t_row VALUES (1);
+USE test;
+SET @@session.debug= '';
+* Row injection and binlog_format=statement: BINLOG statement
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+ERROR HY000: Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT.
+* Same statement, but db filtered out - no error
+USE other;
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+USE test;
+* Unsafe statement and binlog_format=statement
+INSERT INTO t VALUES (UUID());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a system function whose value may differ on slave.
+* Same statement, but db filtered out - no message
+USE other;
+INSERT INTO test.t VALUES (UUID());
+USE test;
+---- master: binlog_format=mixed, slave: binlog_format=statement ----
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+* Row injection and binlog_format=statement: in slave sql thread
+INSERT INTO t VALUES (UUID());
+[on slave]
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT.' on opening tables
+set global sql_slave_skip_counter=1;
+include/start_slave.inc
+[on master]
+==== Clean up ====
+DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt;
+DROP DATABASE other;
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+UNINSTALL PLUGIN example;
+[on slave]
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+UNINSTALL PLUGIN example;

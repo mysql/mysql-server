@@ -878,19 +878,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
 
-  /*
-    Statement-based replication of UPDATE ... LIMIT is not safe as order of
-    rows is not defined, so in mixed mode we go to row-based.
-
-    Note that we may consider a statement as safe if ORDER BY primary_key
-    is present. However it may confuse users to see very similiar statements
-    replicated differently.
-  */
-  if (thd->lex->current_select->select_limit)
-  {
-    thd->lex->set_stmt_unsafe();
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= 
     (SELECT_ACL & ~table->grant.privilege);

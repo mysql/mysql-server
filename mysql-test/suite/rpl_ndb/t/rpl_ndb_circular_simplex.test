@@ -1,4 +1,7 @@
 --source include/have_ndb.inc
+# Since the master generates row-based events, the slave must be in
+# ROW or MIXED mode to accept the events.
+--source include/have_binlog_format_mixed_or_row.inc
 --source include/ndb_master-slave.inc
 
 connection master;
@@ -78,3 +81,7 @@ SELECT * FROM t1 ORDER BY a;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;

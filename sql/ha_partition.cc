@@ -6195,7 +6195,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     if (!auto_increment_safe_stmt_log_lock &&
         thd->lex->sql_command != SQLCOM_INSERT &&
         mysql_bin_log.is_open() &&
-        !thd->current_stmt_binlog_row_based &&
+        !thd->is_current_stmt_binlog_format_row() &&
         (thd->options & OPTION_BIN_LOG))
     {
       DBUG_PRINT("info", ("locking auto_increment_safe_stmt_log_lock"));

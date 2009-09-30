@@ -1,15 +1,9 @@
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_mixed.inc
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 
-# Test that the slave temporarily switches to ROW when seeing binrow
-# events when it is in STATEMENT or MIXED mode
-
-SET @old_binlog_format= @@global.binlog_format;
-
-SET BINLOG_FORMAT=MIXED;
-SET GLOBAL BINLOG_FORMAT=MIXED;
-SELECT @@GLOBAL.BINLOG_FORMAT, @@SESSION.BINLOG_FORMAT;
+# Test that the slave temporarily switches to ROW when seeing row
+# events when it is in MIXED mode
 
 --echo **** On Master ****
 CREATE TABLE t1 (a INT, b LONG);
@@ -35,7 +29,6 @@ SHOW BINLOG EVENTS;
 
 connection master;
 DROP TABLE IF EXISTS t1;
-SET @@global.binlog_format= @old_binlog_format;
 
 # Let's compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

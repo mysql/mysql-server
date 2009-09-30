@@ -42,7 +42,7 @@ INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
 UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
-ERROR HY000: Binary logging not possible. Message: Statement cannot be written atomically since more than one engine involved and at least one engine is self-logging
+ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
 TRUNCATE t1m;
 TRUNCATE t1b;
 TRUNCATE t1n;
@@ -68,9 +68,9 @@ INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f;
-ERROR HY000: Binary logging not possible. Message: Statement cannot be written atomically since more than one engine involved and at least one engine is self-logging
+ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
 UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
-ERROR HY000: Binary logging not possible. Message: Statement cannot be written atomically since more than one engine involved and at least one engine is self-logging
+ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	#	#	BEGIN

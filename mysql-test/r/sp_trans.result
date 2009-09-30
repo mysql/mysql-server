@@ -506,6 +506,8 @@ select count(*)*255 from t3 into table_size;
 until table_size > max_table_size*2 end repeat;
 end|
 call bug14210_fill_table()|
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a system variable whose value may differ on slave.
 drop procedure bug14210_fill_table|
 create table t4 like t3|
 create procedure bug14210()

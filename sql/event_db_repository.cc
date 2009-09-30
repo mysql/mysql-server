@@ -1034,8 +1034,8 @@ update_timing_fields_for_event(THD *thd,
     Turn off row binlogging of event timing updates. These are not used
     for RBR of events replicated to the slave.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  if (thd->is_current_stmt_binlog_format_row())
+    thd->clear_current_stmt_binlog_format_row();
 
   DBUG_ASSERT(thd->security_ctx->master_access & SUPER_ACL);
 

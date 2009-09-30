@@ -11,7 +11,7 @@ prepare s from "insert into t1 select 100 limit ?";
 set @a=100;
 execute s using @a;
 Warnings:
-Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)

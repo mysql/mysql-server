@@ -3837,7 +3837,7 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
                        table->s->table_map_id));
 
   /* Pre-conditions */
-  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
   Table_map_log_event::flag_set const
@@ -4114,7 +4114,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     */
     if (thd)
     {
-      if (!thd->current_stmt_binlog_row_based)
+      if (!thd->is_current_stmt_binlog_format_row())
       {
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
