@@ -27,6 +27,8 @@
 #ifdef _MSC_VER
 #include <locale.h>
 #include <crtdbg.h>
+/* WSAStartup needs winsock library*/
+#pragma comment(lib, "ws2_32")
 #endif
 my_bool have_tcpip=0;
 static void my_win_init(void);
