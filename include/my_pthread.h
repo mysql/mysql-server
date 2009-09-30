@@ -100,7 +100,6 @@ struct timespec {
 }
 
 void win_pthread_init(void);
-int win_pthread_setspecific(void *A,void *B,uint length);
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
@@ -126,33 +125,16 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
-/*
-  Windows has two ways to use thread local storage. The most efficient
-  is using __declspec(thread), but that does not work properly when
-  used in a .dll that is loaded at runtime, after program load. So for
-  libmysql.dll and libmysqld.dll we define USE_TLS in order to use the
-  TlsXxx() API instead, which works in all cases.
-*/
-#ifdef USE_TLS					/* For LIBMYSQL.DLL */
+
 #undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_key_delete(A) TlsFree(A)
+#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
+#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
 #define pthread_getspecific(A) (TlsGetValue(A))
 #define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
 #define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
-#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
-#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
-#else
-#define pthread_key(T,V) __declspec(thread) T V
-#define pthread_key_create(A,B) pthread_dummy(0)
-#define pthread_key_delete(A) pthread_dummy(0)
-#define pthread_getspecific(A) (&(A))
-#define my_pthread_getspecific(T,A) (&(A))
-#define my_pthread_getspecific_ptr(T,V) (V)
-#define my_pthread_setspecific_ptr(T,V) ((T)=(V),0)
-#define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
-#endif /* USE_TLS */
 
 #define pthread_equal(A,B) ((A) == (B))
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
