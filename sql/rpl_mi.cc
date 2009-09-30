@@ -310,6 +310,7 @@ file '%s')", fname);
     goto err;
 
   mi->inited = 1;
+  mi->rli.is_relay_log_recovery= FALSE;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
   if ((error=test(flush_master_info(mi, 1))))

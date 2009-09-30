@@ -134,6 +134,7 @@ extern ulonglong relay_log_space_limit;
 #define SLAVE_FORCE_ALL 4
 
 int init_slave();
+int init_recovery(Master_info* mi, const char** errmsg);
 void init_slave_skip_errors(const char* arg);
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);

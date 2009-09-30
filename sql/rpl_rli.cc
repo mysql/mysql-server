@@ -259,8 +259,10 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
     rli->group_master_log_pos= master_log_pos;
 
-    if (!rli->is_relay_log_recovery &&
-        init_relay_log_pos(rli,
+    if (rli->is_relay_log_recovery && init_recovery(rli->mi, &msg))
+      goto err;
+
+    if (init_relay_log_pos(rli,
                            rli->group_relay_log_name,
                            rli->group_relay_log_pos,
                            0 /* no data lock*/,
@@ -275,7 +277,6 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   }
 
 #ifndef DBUG_OFF
-  if (!rli->is_relay_log_recovery)
   {
     char llbuf1[22], llbuf2[22];
     DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
@@ -292,7 +293,10 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
   if ((error= flush_relay_log_info(rli)))
-    sql_print_error("Failed to flush relay log info file");
+  {
+    msg= "Failed to flush relay log info file";
+    goto err;
+  }
   if (count_relay_log_space(rli))
   {
     msg="Error counting relay log space";
