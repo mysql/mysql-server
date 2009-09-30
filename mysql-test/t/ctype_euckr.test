@@ -56,3 +56,54 @@ select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+
+--echo Start of 5.4 tests
+
+--echo #
+--echo # WL#3997 New euckr characters
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (a varchar(10) character set euckr);
+INSERT INTO t1 VALUES (0xA2E6), (0xA2E7);
+SELECT hex(a), hex(@utf8:=convert(a using utf8)), hex(convert(@utf8 using euckr)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#3332 Korean Enhancements
+--echo # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
+--echo #
+
+CREATE TABLE t1 (a binary(1), key(a));
+--disable_query_log
+let $1=255;
+while($1)
+{
+  eval INSERT INTO t1 VALUES (unhex(hex($1)));
+  dec $1;
+}
+--enable_query_log
+
+CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);
+--disable_warnings
+INSERT INTO t2
+SELECT hex(concat(t11.a, t12.a)), concat(t11.a, t12.a)
+FROM t1 t11, t1 t12
+WHERE t11.a >= 0x81 AND t11.a <= 0xFE
+AND   t12.a >= 0x41 AND t12.a <= 0xFE
+ORDER BY t11.a, t12.a;
+--enable_warnings
+SELECT s as bad_code FROM t2 WHERE a='' ORDER BY s;
+DELETE FROM t2 WHERE a='';
+ALTER TABLE t2 ADD u VARCHAR(1) CHARACTER SET utf8, ADD a2 VARCHAR(1) CHARACTER SET euckr;
+--disable_warnings
+UPDATE t2 SET u=a, a2=u;
+--enable_warnings
+SELECT s as unassigned_code FROM t2 WHERE u='?';
+DELETE FROM t2 WHERE u='?';
+# Make sure there are no euckr->utf8->euckr roundtrip problems
+SELECT count(*) as roundtrip_problem_chars FROM t2 WHERE hex(a) <> hex(a2);
+SELECT s, hex(a), hex(u), hex(a2) FROM t2 ORDER BY s;
+DROP TABLE t1, t2;
+
+--echo End of 5.4 tests
