@@ -3316,7 +3316,7 @@ static void dump_table(char *table, char *db)
           {
             if (length)
             {
-              if (!IS_NUM_FIELD(field))
+              if (!(field->flags & NUM_FLAG))
               {
                 /*
                   "length * 2 + 2" is OK for both HEX and non-HEX modes:
@@ -3384,7 +3384,7 @@ static void dump_table(char *table, char *db)
           }
           if (row[i])
           {
-            if (!IS_NUM_FIELD(field))
+            if (!(field->flags & NUM_FLAG))
             {
               if (opt_xml)
               {
