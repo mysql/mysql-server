@@ -78,6 +78,11 @@ UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
 UNIV_INTERN ibool	recv_needed_recovery = FALSE;
+# ifdef UNIV_DEBUG
+/** TRUE if writing to the redo log (mtr_commit) is forbidden.
+Protected by log_sys->mutex. */
+UNIV_INTERN ibool	recv_no_log_write = FALSE;
+# endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
@@ -1705,6 +1710,7 @@ loop:
 		/* Flush all the file pages to disk and invalidate them in
 		the buffer pool */
 
+		ut_d(recv_no_log_write = TRUE);
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
@@ -1718,6 +1724,7 @@ loop:
 
 		mutex_enter(&(log_sys->mutex));
 		mutex_enter(&(recv_sys->mutex));
+		ut_d(recv_no_log_write = FALSE);
 
 		recv_no_ibuf_operations = FALSE;
 	}

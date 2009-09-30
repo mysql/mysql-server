@@ -241,6 +241,7 @@ log_reserve_and_open(
 	ut_a(len < log->buf_size / 2);
 loop:
 	mutex_enter(&(log->mutex));
+	ut_ad(!recv_no_log_write);
 
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
@@ -309,6 +310,7 @@ log_write_low(
 
 	ut_ad(mutex_own(&(log->mutex)));
 part_loop:
+	ut_ad(!recv_no_log_write);
 	/* Calculate a part length */
 
 	data_len = (log->buf_free % OS_FILE_LOG_BLOCK_SIZE) + str_len;
@@ -377,6 +379,7 @@ log_close(void)
 	ib_uint64_t	checkpoint_age;
 
 	ut_ad(mutex_own(&(log->mutex)));
+	ut_ad(!recv_no_log_write);
 
 	lsn = log->lsn;
 
@@ -667,8 +670,6 @@ log_calc_max_ages(void)
 	ulint		smallest_capacity;
 	ulint		archive_margin;
 	ulint		smallest_archive_margin;
-
-	ut_ad(!mutex_own(&(log_sys->mutex)));
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -1117,6 +1118,7 @@ log_io_complete(
 	}
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	ut_a(group->n_pending_writes > 0);
 	ut_a(log_sys->n_pending_writes > 0);
@@ -1148,6 +1150,7 @@ log_group_file_header_flush(
 	ulint	dest_offset;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(!recv_no_log_write);
 	ut_a(nth_file < group->n_files);
 
 	buf = *(group->file_header_bufs + nth_file);
@@ -1219,6 +1222,7 @@ log_group_write_buf(
 	ulint	i;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(!recv_no_log_write);
 	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a(((ulint) start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
@@ -1361,6 +1365,7 @@ loop:
 #endif
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (flush_to_disk
 	    && log_sys->flushed_to_disk_lsn >= lsn) {
@@ -1974,6 +1979,7 @@ log_checkpoint(
 
 	mutex_enter(&(log_sys->mutex));
 
+	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
 	mutex_exit(&(log_sys->mutex));
@@ -2086,6 +2092,7 @@ loop:
 	do_checkpoint = FALSE;
 
 	mutex_enter(&(log->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (log->check_flush_or_checkpoint == FALSE) {
 		mutex_exit(&(log->mutex));
@@ -3035,6 +3042,7 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (log_sys->check_flush_or_checkpoint) {
 
