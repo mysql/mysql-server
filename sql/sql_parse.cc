@@ -1429,24 +1429,25 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     general_log_print(thd, command, NullS);
 #ifndef DBUG_OFF
-    DBUG_EXECUTE_IF("simulate_detached_thread_refresh",
-                    {
-                      /*
-                        Simulate a reload without a attached thread session.
-                        Provides a environment similar to that of when the
-                        server receives a SIGHUP signal and reloads caches
-                        and flushes tables.
-                      */
-                      bool res;
-                      my_pthread_setspecific_ptr(THR_THD, NULL);
-                      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
-                                                NULL, &not_used);
-                      my_pthread_setspecific_ptr(THR_THD, thd);
-                      if (!res)
-                        my_ok(thd);
-                      goto end;
-                    }
-                    );
+    bool debug_simulate= FALSE;
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
+    if (debug_simulate)
+    {
+      /*
+        Simulate a reload without a attached thread session.
+        Provides a environment similar to that of when the
+        server receives a SIGHUP signal and reloads caches
+        and flushes tables.
+      */
+      bool res;
+      my_pthread_setspecific_ptr(THR_THD, NULL);
+      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
+                                NULL, &not_used);
+      my_pthread_setspecific_ptr(THR_THD, thd);
+      if (!res)
+        my_ok(thd);
+      break;
+    }
 #endif
     if (!reload_acl_and_cache(thd, options, NULL, &not_used))
       my_ok(thd);
@@ -1590,11 +1591,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
-
-  /* Break the switch for DBUG wrapped code. */
-#ifndef DBUG_OFF
-end:
-#endif
 
   /* report error issued during command execution */
   if (thd->killed_errno())
