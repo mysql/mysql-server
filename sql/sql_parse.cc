@@ -1428,7 +1428,27 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
-    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+#ifndef DBUG_OFF
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh",
+                    {
+                      /*
+                        Simulate a reload without a attached thread session.
+                        Provides a environment similar to that of when the
+                        server receives a SIGHUP signal and reloads caches
+                        and flushes tables.
+                      */
+                      bool res;
+                      my_pthread_setspecific_ptr(THR_THD, NULL);
+                      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
+                                                NULL, &not_used);
+                      my_pthread_setspecific_ptr(THR_THD, thd);
+                      if (!res)
+                        my_ok(thd);
+                      goto end;
+                    }
+                    );
+#endif
+    if (!reload_acl_and_cache(thd, options, NULL, &not_used))
       my_ok(thd);
     break;
   }
@@ -1570,6 +1590,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+  /* Break the switch for DBUG wrapped code. */
+#ifndef DBUG_OFF
+end:
+#endif
 
   /* report error issued during command execution */
   if (thd->killed_errno())
