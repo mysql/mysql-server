@@ -1,6 +1,6 @@
 Verbose statements from : write-partial-row.binlog
-select txt from raw_binlog_rows where txt like '###%';
-txt
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+stmt
 ### INSERT INTO mysql.ndb_apply_status
 ### SET
 ###   @1=1
@@ -37,8 +37,8 @@ txt
 ###   @1=2
 drop table raw_binlog_rows;
 Verbose statements from : write-full-row.binlog
-select txt from raw_binlog_rows where txt like '###%';
-txt
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+stmt
 ### INSERT INTO mysql.ndb_apply_status
 ### SET
 ###   @1=2
@@ -76,8 +76,8 @@ txt
 ###   @1=2
 drop table raw_binlog_rows;
 Verbose statements from : update-partial-row.binlog
-select txt from raw_binlog_rows where txt like '###%';
-txt
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+stmt
 ### INSERT INTO mysql.ndb_apply_status
 ### SET
 ###   @1=3
@@ -117,8 +117,8 @@ txt
 ###   @1=2
 drop table raw_binlog_rows;
 Verbose statements from : update-full-row.binlog
-select txt from raw_binlog_rows where txt like '###%';
-txt
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+stmt
 ### INSERT INTO mysql.ndb_apply_status
 ### SET
 ###   @1=4
