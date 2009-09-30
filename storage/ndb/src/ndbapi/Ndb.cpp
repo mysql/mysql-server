@@ -192,13 +192,13 @@ Ndb::NDB_connect(Uint32 tNode)
     tNdbCon->theNext = tPrevFirst;
     DBUG_RETURN(1);
   } else {
-    releaseNdbCon(tNdbCon);
 //****************************************************************************
 // Unsuccessful connect is indicated by 3.
 //****************************************************************************
     DBUG_PRINT("info",
 	       ("unsuccessful connect tReturnCode %d, tNdbCon->Status() %d",
 		tReturnCode, tNdbCon->Status()));
+    releaseNdbCon(tNdbCon);
     if (theError.code == 299 || // single user mode
         theError.code == 281 )  // cluster shutdown in progress
     {

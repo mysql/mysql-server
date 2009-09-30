@@ -3825,7 +3825,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       ndb->closeTransaction(trans);
       break;
     }
-    ndb->closeTransaction(trans);
     for (i= 0; i < 2; i++)
     {
       if (op[i]->getNdbError().code)
@@ -3874,9 +3873,11 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       {
         error_str= tmp_buf;
         error= 1;
+        ndb->closeTransaction(trans);
         goto err;
       }
     }
+    ndb->closeTransaction(trans);
 
     DBUG_RETURN(0);
   }
