@@ -1980,7 +1980,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                     tmp->mysys_var->current_cond ?
                     "Waiting on cond" : NullS);
 #else
-      val= (char *) "Writing to net";
+      val= (char *) (tmp->proc_info ? tmp->proc_info : NullS);
 #endif
       if (val)
       {
