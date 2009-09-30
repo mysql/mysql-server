@@ -60,8 +60,8 @@ def	test	t9	t9	c7	c7	4	12	1	Y	32768	31	63
 def	test	t9	t9	c8	c8	5	22	1	Y	32768	31	63
 def	test	t9	t9	c9	c9	5	22	1	Y	32768	31	63
 def	test	t9	t9	c10	c10	5	22	1	Y	32768	31	63
-def	test	t9	t9	c11	c11	246	9	6	Y	0	4	63
-def	test	t9	t9	c12	c12	246	10	6	Y	0	4	63
+def	test	t9	t9	c11	c11	246	9	6	Y	32768	4	63
+def	test	t9	t9	c12	c12	246	10	6	Y	32768	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
 def	test	t9	t9	c15	c15	7	19	19	N	9441	0	63
@@ -1791,8 +1791,8 @@ select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
 def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
-def	test	t5	t5	const02	const02	246	4	3	N	1	1	63
-def	test	t5	t5	param02	param02	246	67	32	Y	0	30	63
+def	test	t5	t5	const02	const02	246	4	3	N	32769	1	63
+def	test	t5	t5	param02	param02	246	67	32	Y	32768	30	63
 def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
 def	test	t5	t5	param03	param03	5	23	1	Y	32768	31	63
 def	test	t5	t5	const04	const04	253	3	3	N	1	0	8
@@ -1813,7 +1813,7 @@ def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
-def	test	t5	t5	param13	param13	246	67	0	Y	0	30	63
+def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
 def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	8
 def	test	t5	t5	param15	param15	252	4294967295	0	Y	144	0	63
 const01	8
@@ -1911,8 +1911,8 @@ def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	128	30	63
-def					@arg12	246	83	6	Y	128	30	63
+def					@arg11	246	83	6	Y	32896	30	63
+def					@arg12	246	83	6	Y	32896	30	63
 def					@arg13	251	16777216	10	Y	128	31	63
 def					@arg14	251	16777216	19	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -1958,8 +1958,8 @@ def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	128	30	63
-def					@arg12	246	83	0	Y	128	30	63
+def					@arg11	246	83	0	Y	32896	30	63
+def					@arg12	246	83	0	Y	32896	30	63
 def					@arg13	251	16777216	0	Y	128	31	63
 def					@arg14	251	16777216	0	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2008,8 +2008,8 @@ def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	128	30	63
-def					@arg12	246	83	6	Y	128	30	63
+def					@arg11	246	83	6	Y	32896	30	63
+def					@arg12	246	83	6	Y	32896	30	63
 def					@arg13	251	16777216	10	Y	128	31	63
 def					@arg14	251	16777216	19	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2048,8 +2048,8 @@ def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	128	30	63
-def					@arg12	246	83	0	Y	128	30	63
+def					@arg11	246	83	0	Y	32896	30	63
+def					@arg12	246	83	0	Y	32896	30	63
 def					@arg13	251	16777216	0	Y	128	31	63
 def					@arg14	251	16777216	0	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2096,8 +2096,8 @@ def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	128	30	63
-def					@arg12	246	83	6	Y	128	30	63
+def					@arg11	246	83	6	Y	32896	30	63
+def					@arg12	246	83	6	Y	32896	30	63
 def					@arg13	251	16777216	10	Y	128	31	63
 def					@arg14	251	16777216	19	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2140,8 +2140,8 @@ def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	128	30	63
-def					@arg12	246	83	0	Y	128	30	63
+def					@arg11	246	83	0	Y	32896	30	63
+def					@arg12	246	83	0	Y	32896	30	63
 def					@arg13	251	16777216	0	Y	128	31	63
 def					@arg14	251	16777216	0	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2186,8 +2186,8 @@ def					@arg07	5	23	1	Y	32896	31	63
 def					@arg08	5	23	1	Y	32896	31	63
 def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
-def					@arg11	246	83	6	Y	128	30	63
-def					@arg12	246	83	6	Y	128	30	63
+def					@arg11	246	83	6	Y	32896	30	63
+def					@arg12	246	83	6	Y	32896	30	63
 def					@arg13	251	16777216	10	Y	128	31	63
 def					@arg14	251	16777216	19	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
@@ -2224,8 +2224,8 @@ def					@arg07	5	23	0	Y	32896	31	63
 def					@arg08	5	23	0	Y	32896	31	63
 def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
-def					@arg11	246	83	0	Y	128	30	63
-def					@arg12	246	83	0	Y	128	30	63
+def					@arg11	246	83	0	Y	32896	30	63
+def					@arg12	246	83	0	Y	32896	30	63
 def					@arg13	251	16777216	0	Y	128	31	63
 def					@arg14	251	16777216	0	Y	128	31	63
 def					@arg15	251	16777216	19	Y	128	31	63
