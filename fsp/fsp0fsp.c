@@ -1848,6 +1848,8 @@ fsp_seg_inode_page_find_used(
 		if (!ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID))) {
 			/* This is used */
 
+			ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N)
+			      == FSEG_MAGIC_N_VALUE);
 			return(i);
 		}
 	}
@@ -1879,6 +1881,9 @@ fsp_seg_inode_page_find_free(
 
 			return(i);
 		}
+
+		ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N)
+		      == FSEG_MAGIC_N_VALUE);
 	}
 
 	return(ULINT_UNDEFINED);
@@ -1997,6 +2002,8 @@ fsp_alloc_seg_inode(
 			      page + FSEG_INODE_PAGE_NODE, mtr);
 	}
 
+	ut_ad(ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID))
+	      || mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 	return(inode);
 }
 
@@ -2089,6 +2096,7 @@ fseg_get_nth_frag_page_no(
 	ut_ad(inode && mtr);
 	ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
 	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 	return(mach_read_from_4(inode + FSEG_FRAG_ARR
 				+ n * FSEG_FRAG_SLOT_SIZE));
 }
@@ -2107,6 +2115,7 @@ fseg_set_nth_frag_page_no(
 	ut_ad(inode && mtr);
 	ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
 	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
 	mlog_write_ulint(inode + FSEG_FRAG_ARR + n * FSEG_FRAG_SLOT_SIZE,
 			 page_no, MLOG_4BYTES, mtr);
@@ -2467,6 +2476,8 @@ fseg_fill_free_list(
 		xdes_set_state(descr, XDES_FSEG, mtr);
 
 		seg_id = mtr_read_dulint(inode + FSEG_ID, mtr);
+		ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N)
+		      == FSEG_MAGIC_N_VALUE);
 		mlog_write_dulint(descr + XDES_ID, seg_id, mtr);
 
 		flst_add_last(inode + FSEG_FREE, descr + XDES_FLST_NODE, mtr);
@@ -2495,6 +2506,7 @@ fseg_alloc_free_extent(
 	fil_addr_t	first;
 
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
 	if (flst_get_len(inode + FSEG_FREE, mtr) > 0) {
 		/* Segment free list is not empty, allocate from it */
@@ -3152,6 +3164,8 @@ fseg_mark_page_used(
 
 	ut_ad(seg_inode && mtr);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
+	      == FSEG_MAGIC_N_VALUE);
 
 	descr = xdes_get_descriptor(space, zip_size, page, mtr);
 
@@ -3389,6 +3403,8 @@ fseg_free_extent(
 	ut_a(xdes_get_state(descr, mtr) == XDES_FSEG);
 	ut_a(0 == ut_dulint_cmp(mtr_read_dulint(descr + XDES_ID, mtr),
 				mtr_read_dulint(seg_inode + FSEG_ID, mtr)));
+	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
+	      == FSEG_MAGIC_N_VALUE);
 
 	first_page_in_extent = page - (page % FSP_EXTENT_SIZE);
 
@@ -3603,6 +3619,7 @@ fseg_get_first_extent(
 	ut_ad(inode && mtr);
 
 	ut_ad(space == page_get_space_id(page_align(inode)));
+	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
 	first = fil_addr_null;
 
@@ -3817,6 +3834,7 @@ fseg_print_low(
 		(ulong) reserved, (ulong) used, (ulong) n_full,
 		(ulong) n_frag, (ulong) n_free, (ulong) n_not_full,
 		(ulong) n_used);
+	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 }
 
 #ifdef UNIV_BTR_PRINT
