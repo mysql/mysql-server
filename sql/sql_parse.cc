@@ -2177,7 +2177,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       my_pthread_setspecific_ptr(THR_THD, thd);
                       if (!res)
                         send_ok(thd);
-                      break;
+                      goto end;
                     }
                     );
 #endif
@@ -2318,6 +2318,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+  /* Break the switch for DBUG wrapped code. */
+#ifndef DBUG_OFF
+end:
+#endif
+
   if (thd->lock || thd->open_tables || thd->derived_tables ||
       thd->prelocked_mode)
   {
