@@ -88,11 +88,11 @@ int get_user_var_str(const char *name, char *value,
 
 int delegates_init()
 {
-  static unsigned char trans_mem[sizeof(Trans_delegate)];
-  static unsigned char storage_mem[sizeof(Binlog_storage_delegate)];
+  static unsigned long trans_mem[sizeof(Trans_delegate) / sizeof(unsigned long) + 1];
+  static unsigned long storage_mem[sizeof(Binlog_storage_delegate) / sizeof(unsigned long) + 1];
 #ifdef HAVE_REPLICATION
-  static unsigned char transmit_mem[sizeof(Binlog_transmit_delegate)];
-  static unsigned char relay_io_mem[sizeof(Binlog_relay_IO_delegate)];
+  static unsigned long transmit_mem[sizeof(Binlog_transmit_delegate) / sizeof(unsigned long) + 1];
+  static unsigned long relay_io_mem[sizeof(Binlog_relay_IO_delegate)/ sizeof(unsigned long) + 1];
 #endif
   
   if (!(transaction_delegate= new (trans_mem) Trans_delegate)
