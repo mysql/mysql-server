@@ -436,7 +436,7 @@ void TERMINATE(FILE *file, uint flag)
 /*
   Report where a piece of memory was allocated
 
-  This is usefull to call from withing a debugger
+  This is useful to call from withing a debugger
 */
 
 void sf_malloc_report_allocated(void *memory)

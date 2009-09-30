@@ -6631,7 +6631,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
 
   {"test-ignore-wrong-options", OPT_TEST_IGNORE_WRONG_OPTIONS,
-   "Ignore wrong enums values in command line arguments. Usefull only for test scripts",
+   "Ignore wrong enums values in command line arguments. Useful only for test scripts",
    (uchar**) &opt_ignore_wrong_options, (uchar**) &opt_ignore_wrong_options,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
