@@ -1350,7 +1350,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->flags=	uint2korr(pos+7);
       field->decimals=  (uint) pos[9];
 
-      if (INTERNAL_NUM_FIELD(field))
+      if (IS_NUM(field->type))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[7])
       {
@@ -1391,7 +1391,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags=   (uint) (uchar) row->data[4][0];
         field->decimals=(uint) (uchar) row->data[4][1];
       }
-      if (INTERNAL_NUM_FIELD(field))
+      if (IS_NUM(field->type))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[5])
       {
