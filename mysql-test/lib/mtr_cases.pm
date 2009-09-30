@@ -493,6 +493,7 @@ sub collect_one_suite($)
       $lib_innodb_plugin)
   {
     my @new_cases;
+    my $sep= (IS_WINDOWS) ? ';' : ':';
 
     foreach my $test (@cases)
     {
@@ -520,12 +521,13 @@ sub collect_one_suite($)
         }
       }
       my $plugin_filename= basename($lib_innodb_plugin);
+      my $plugin_list= "innodb=$plugin_filename" . $sep . "innodb_locks=$plugin_filename";
       push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{master_opt}}, "--plugin_load=$plugin_list");
       push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
       if ($new_test->{combination})
       {
         $new_test->{combination}.= ' + InnoDB plugin';
