@@ -16,8 +16,6 @@ int fsync(int fildes);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
-char * ctime_r(const time_t *timep, char *buf);
-
 long long int strtoll(const char *nptr, char **endptr, int base);
 
 
