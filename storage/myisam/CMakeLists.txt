@@ -34,16 +34,16 @@ MYSQL_STORAGE_ENGINE(MYISAM)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-  TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys dbug strings zlib)
 
   ADD_EXECUTABLE(myisamchk myisamchk.c)
-  TARGET_LINK_LIBRARIES(myisamchk myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisamchk myisam mysys dbug strings zlib)
 
   ADD_EXECUTABLE(myisamlog myisamlog.c)
-  TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisamlog myisam mysys dbug strings zlib)
 
   ADD_EXECUTABLE(myisampack myisampack.c)
-  TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisampack myisam mysys dbug strings zlib)
 
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 

@@ -24,7 +24,7 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/scripts/mysql_fix_privilege_tabl
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 ADD_EXECUTABLE(comp_sql comp_sql.c)
-TARGET_LINK_LIBRARIES(comp_sql debug dbug mysys strings)
+TARGET_LINK_LIBRARIES(comp_sql dbug mysys strings)
 
 # Use comp_sql to build mysql_fix_privilege_tables_sql.c
 GET_TARGET_PROPERTY(COMP_SQL_EXE comp_sql LOCATION)

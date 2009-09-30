@@ -96,7 +96,6 @@ SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 
 SET (MYSQLD_CORE_LIBS mysys zlib dbug strings yassl taocrypt vio regex sql)
 TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_CORE_LIBS} ${MYSQLD_STATIC_ENGINE_LIBS})
-TARGET_LINK_LIBRARIES(mysqld ws2_32.lib)
 
 
 IF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
@@ -129,7 +128,7 @@ ADD_CUSTOM_COMMAND(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash debug dbug mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient)
 GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
 ADD_CUSTOM_COMMAND(
         OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h
@@ -152,4 +151,4 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings GenError)
-TARGET_LINK_LIBRARIES(udf_example strings wsock32)
+TARGET_LINK_LIBRARIES(udf_example strings)
