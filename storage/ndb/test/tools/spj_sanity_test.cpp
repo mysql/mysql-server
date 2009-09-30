@@ -698,8 +698,7 @@ namespace SPJSanityTest{
     ASSERT_ALWAYS(upper>=lower);
     IndexScanOperation<Row, Key> root(query, "PRIMARY", lower, upper);
     LookupOperation<Row, Key> child(query, &root);
-    // FIXME: Un-commenting the line below causes test to hang.
-    //IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
+    IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
     LookupOperation<Row, Key> child3(query, &child);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
@@ -724,8 +723,34 @@ namespace SPJSanityTest{
     Query<Row> query(ndb);
     TableScanOperation<Row> root(query);
     LookupOperation<Row, Key> child(query, &root);
-    LookupOperation<Row, Key> child2(query, &root);
-    LookupOperation<Row, Key> child3(query, &child2);
+    NdbQueryBuilder builder(ndb);
+    NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
+    const NdbDictionary::Table* const tab = dict->getTable("tt");    
+    ASSERT_ALWAYS(tab!=NULL);
+    query.build(*tab, tableSize);
+    NdbTransaction* trans = ndb.startTransaction();
+    ASSERT_ALWAYS(trans!=NULL);
+    query.submit(*trans);
+    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
+    for(int i = 0; i<tableSize; i++){
+      ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_gotRow);
+      query.verifyRow();
+    }
+    ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_scanComplete);
+    ndb.closeTransaction(trans);
+  }
+
+  template <typename Row, typename Key>
+  void testComplexTableScanWithLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
+    makeTable<Row, Key>(mysql, "tt", tableSize);
+    Query<Row> query(ndb);
+    TableScanOperation<Row> root(query);
+    //LookupOperation<Row, Key> child(query, &root);
+    IndexLookupOperation<Row, Key> child1(query, "UIX", &root);
+    LookupOperation<Row, Key> child2(query, &child1);
+    IndexLookupOperation<Row, Key> child3(query, "UIX", &child2);
+    LookupOperation<Row, Key> child1_2(query, &root);
+    LookupOperation<Row, Key> child2_2(query, &child1_2);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable("tt");    
@@ -891,7 +916,7 @@ int main(int argc, char* argv[]){
   }
   mySQLExec(mysql, "create database if not exists CK_DB");
   mySQLExec(mysql, "use CK_DB");
-  for(int testNo = 0; testNo<4; testNo++){
+  for(int testNo = 0; testNo<5; testNo++){
     Ndb_cluster_connection con(connectString);
     if(con.connect(12, 5, 1) != 0){
         ndbout << "Unable to connect to management server." << endl;
@@ -922,6 +947,9 @@ int main(int argc, char* argv[]){
     case 3:
       testIndexScanWithLookup<RowInt, KeyInt>(mysql, ndb, 5);
       break;
+    case 4:
+      testComplexTableScanWithLookup<RowInt, KeyInt>(mysql, ndb, 10);
+      break;
     }
   }
   ndb_end(0);
@@ -948,6 +976,9 @@ template void testIndexLookup<RowInt, KeyInt>(MYSQL& mysql,
 template void testTableScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
                                                       Ndb& ndb, 
                                                       int tableSize);
+template void testComplexTableScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
+                                                             Ndb& ndb, 
+                                                             int tableSize);
 template void testIndexScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
                                                       Ndb& ndb, 
                                                       int tableSize);

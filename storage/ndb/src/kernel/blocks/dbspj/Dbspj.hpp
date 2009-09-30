@@ -217,6 +217,7 @@ public:
      * descendant operation*/
     void (Dbspj::*m_count_descendant_signal)(Signal* signal,
                                              Ptr<Request> requestPtr,
+                                             Ptr<TreeNode> treeNodePtr,
                                              Ptr<TreeNode> rootPtr,
                                              Uint32 globalSignalNo);
   };
@@ -257,13 +258,21 @@ public:
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // ScanFragConf
     /** Number of receiced LQHKEYCONF messages from descendant lookup 
-     * operations.*/
+     * operations which has user projections.*/
     Uint32 m_descendant_keyconfs_received;
+    /** Number of receiced LQHKEYCONF messages from descendant lookup 
+     * operations which has no user projections.*/
+    Uint32 m_descendant_silent_keyconfs_received;
     /** Number of received LQHKEYREF messages from descendant lookup 
      * operations.*/
     Uint32 m_descendant_keyrefs_received;
     /** Number of LQHKEYREQ messages sent for descendant lookup operations.*/
     Uint32 m_descendant_keyreqs_sent;
+    /** Number of missing transid AI messages for descendant lookup operations.
+     * This is decremented when we receive TRANSID_AI, and incremented when
+     * we receive LQHKEYCONF for a non-leaf operation. (For leaf operations,
+     * no TRANSID_AI is sent to the SPJ block.)*/
+    int m_missing_descendant_rows;
     Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
   };
 
@@ -357,6 +366,13 @@ public:
        */
       T_LEAF = 0x10,
 
+      /**
+       * Does this node have a user projection. (The index access part of
+       * an index lookup operation has no user projection, since only the
+       * base table tuple is sent to the API.)
+       */
+      T_USER_PROJECTION = 0x20,
+
       // End marker...
       T_END = 0
     };
@@ -377,7 +393,11 @@ public:
 
     struct {
       Uint32 m_ref;              // dst for signal
-      Uint32 m_correlation;      // correlation value
+      /** Each tuple has a 16-bit id that is unique within that operation, 
+       * batch and SPJ block instance. The upper half word of m_correlation 
+       * is the id of the parent tuple, and the lower half word is the 
+       * id of the current tuple.*/
+      Uint32 m_correlation;
       Uint32 m_keyInfoPtrI;      // keyInfoSection
       Uint32 m_attrInfoPtrI;     // attrInfoSection
       Uint32 m_attrInfoParamPtrI;// attrInfoParamSection
@@ -527,6 +547,7 @@ private:
   void lookup_cleanup(Ptr<Request>, Ptr<TreeNode>);
   void lookup_count_descendant_signal(Signal* signal,
                                       Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr,
                                       Ptr<TreeNode> rootPtr,
                                       Uint32 globalSignalNo){};
 
@@ -555,6 +576,7 @@ private:
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_count_descendant_signal(Signal* signal,
                                         Ptr<Request> requestPtr,
+                                        Ptr<TreeNode> treeNodePtr,
                                         Ptr<TreeNode> rootPtr,
                                         Uint32 globalSignalNo);
 
