@@ -3829,9 +3829,10 @@ with --log-bin instead.");
   {
     if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
     {
-      sql_print_error("You need to use --log-bin to make "
-                      "--binlog-format work.");
-      unireg_abort(1);
+      sql_print_warning("You need to use --log-bin to make "
+                        "--binlog-format work.");
+
+      global_system_variables.binlog_format= opt_binlog_format_id;
     }
     else
     {
@@ -7077,7 +7078,8 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_MY_BOOL;
   pthread_mutex_lock(&LOCK_active_mi);
   var->value= buff;
-  *((my_bool *)buff)= (my_bool) (active_mi && active_mi->slave_running &&
+  *((my_bool *)buff)= (my_bool) (active_mi && 
+                                 active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli.slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
