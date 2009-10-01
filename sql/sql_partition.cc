@@ -1030,8 +1030,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
     goto end;
   result= set_up_field_array(table, is_sub_part);
-  if (!is_sub_part)
-    part_info->fixed= TRUE;
 end:
   table->get_fields_in_item_tree= FALSE;
   table->map= 0; //Restore old value
@@ -1667,6 +1665,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       }
       part_info->part_result_type= INT_RESULT;
     }
+    part_info->fixed= TRUE;
   }
   else
   {
@@ -1683,6 +1682,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
                                         table, FALSE)))
         goto end;
     }
+    part_info->fixed= TRUE;
     if (part_info->part_type == RANGE_PARTITION)
     {
       error_str= partition_keywords[PKW_RANGE].str; 
