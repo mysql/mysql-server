@@ -112,7 +112,7 @@ private:
 
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
-  uint m_no_locks;                       // For engines like ha_blackhole, which needs no locks
+  uint m_num_locks;                       // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write,read
   int m_lock_type;                       // Remembers type of last
                                          // external_lock
@@ -239,10 +239,10 @@ public:
                                 size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
   virtual int rename_partitions(const char *path);
-  bool get_no_parts(const char *name, uint *no_parts)
+  bool get_no_parts(const char *name, uint *num_parts)
   {
     DBUG_ENTER("ha_partition::get_no_parts");
-    *no_parts= m_tot_parts;
+    *num_parts= m_tot_parts;
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);

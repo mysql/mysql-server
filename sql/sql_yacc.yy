@@ -3810,7 +3810,7 @@ partition_entry:
         ;
 
 partition:
-          BY part_type_def opt_no_parts opt_sub_part part_defs
+          BY part_type_def opt_num_parts opt_sub_part part_defs
         ;
 
 part_type_def:
@@ -3895,20 +3895,20 @@ sub_part_func:
         ;
 
 
-opt_no_parts:
+opt_num_parts:
           /* empty */ {}
         | PARTITIONS_SYM real_ulong_num
           { 
-            uint no_parts= $2;
+            uint num_parts= $2;
             partition_info *part_info= Lex->part_info;
-            if (no_parts == 0)
+            if (num_parts == 0)
             {
               my_error(ER_NO_PARTS_ERROR, MYF(0), "partitions");
               MYSQL_YYABORT;
             }
 
-            part_info->no_parts= no_parts;
-            part_info->use_default_no_partitions= FALSE;
+            part_info->num_parts= num_parts;
+            part_info->use_default_num_partitions= FALSE;
           }
         ;
 
@@ -3916,7 +3916,7 @@ opt_sub_part:
           /* empty */ {}
         | SUBPARTITION_SYM BY opt_linear HASH_SYM sub_part_func
           { Lex->part_info->subpart_type= HASH_PARTITION; }
-          opt_no_subparts {}
+          opt_num_subparts {}
         | SUBPARTITION_SYM BY opt_linear KEY_SYM
           '(' sub_part_field_list ')'
           {
@@ -3924,7 +3924,7 @@ opt_sub_part:
             part_info->subpart_type= HASH_PARTITION;
             part_info->list_of_subpart_fields= TRUE;
           }
-          opt_no_subparts {}
+          opt_num_subparts {}
         ;
 
 sub_part_field_list:
@@ -3966,19 +3966,19 @@ part_func_expr:
           }
         ;
 
-opt_no_subparts:
+opt_num_subparts:
           /* empty */ {}
         | SUBPARTITIONS_SYM real_ulong_num
           {
-            uint no_parts= $2;
+            uint num_parts= $2;
             LEX *lex= Lex;
-            if (no_parts == 0)
+            if (num_parts == 0)
             {
               my_error(ER_NO_PARTS_ERROR, MYF(0), "subpartitions");
               MYSQL_YYABORT;
             }
-            lex->part_info->no_subparts= no_parts;
-            lex->part_info->use_default_no_subpartitions= FALSE;
+            lex->part_info->num_subparts= num_parts;
+            lex->part_info->use_default_num_subpartitions= FALSE;
           }
         ;
 
@@ -3989,9 +3989,9 @@ part_defs:
           {
             partition_info *part_info= Lex->part_info;
             uint count_curr_parts= part_info->partitions.elements;
-            if (part_info->no_parts != 0)
+            if (part_info->num_parts != 0)
             {
-              if (part_info->no_parts !=
+              if (part_info->num_parts !=
                   count_curr_parts)
               {
                 my_parse_error(ER(ER_PARTITION_WRONG_NO_PART_ERROR));
@@ -4000,7 +4000,7 @@ part_defs:
             }
             else if (count_curr_parts > 0)
             {
-              part_info->no_parts= count_curr_parts;
+              part_info->num_parts= count_curr_parts;
             }
             part_info->count_curr_subparts= 0;
           }
@@ -4026,7 +4026,7 @@ part_definition:
             part_info->curr_part_elem= p_elem;
             part_info->current_partition= p_elem;
             part_info->use_default_partitions= FALSE;
-            part_info->use_default_no_partitions= FALSE;
+            part_info->use_default_num_partitions= FALSE;
           }
           part_name
           opt_part_values
@@ -4338,7 +4338,7 @@ opt_sub_partition:
           /* empty */
           {
             partition_info *part_info= Lex->part_info;
-            if (part_info->no_subparts != 0 &&
+            if (part_info->num_subparts != 0 &&
                 !part_info->use_default_subpartitions)
             {
               /*
@@ -4352,9 +4352,9 @@ opt_sub_partition:
         | '(' sub_part_list ')'
           {
             partition_info *part_info= Lex->part_info;
-            if (part_info->no_subparts != 0)
+            if (part_info->num_subparts != 0)
             {
-              if (part_info->no_subparts !=
+              if (part_info->num_subparts !=
                   part_info->count_curr_subparts)
               {
                 my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
@@ -4368,7 +4368,7 @@ opt_sub_partition:
                 my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
                 MYSQL_YYABORT;
               }
-              part_info->no_subparts= part_info->count_curr_subparts;
+              part_info->num_subparts= part_info->count_curr_subparts;
             }
             part_info->count_curr_subparts= 0;
           }
@@ -4410,7 +4410,7 @@ sub_part_definition:
             }
             part_info->curr_part_elem= sub_p_elem;
             part_info->use_default_subpartitions= FALSE;
-            part_info->use_default_no_subpartitions= FALSE;
+            part_info->use_default_num_subpartitions= FALSE;
             part_info->count_curr_subparts++;
           }
           sub_name opt_part_options {}
@@ -5850,7 +5850,7 @@ alter_commands:
             LEX *lex= Lex;
             lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
             lex->no_write_to_binlog= $3;
-            lex->alter_info.no_parts= $4;
+            lex->alter_info.num_parts= $4;
           }
         | reorg_partition_rule
         ;
@@ -5892,12 +5892,11 @@ add_part_extra:
         | '(' part_def_list ')'
           {
             LEX *lex= Lex;
-            lex->part_info->no_parts= lex->part_info->partitions.elements;
+            lex->part_info->num_parts= lex->part_info->partitions.elements;
           }
         | PARTITIONS_SYM real_ulong_num
           {
-            LEX *lex= Lex;
-            lex->part_info->no_parts= $2;
+            Lex->part_info->num_parts= $2;
           }
         ;
 
@@ -5928,7 +5927,7 @@ reorg_parts_rule:
           INTO '(' part_def_list ')'
           {
             partition_info *part_info= Lex->part_info;
-            part_info->no_parts= part_info->partitions.elements;
+            part_info->num_parts= part_info->partitions.elements;
           }
         ;
 

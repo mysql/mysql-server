@@ -3700,9 +3700,9 @@ bool mysql_create_table_no_lock(THD *thd,
         creates a proper .par file. The current part_info object is
         only used to create the frm-file and .par-file.
       */
-      if (part_info->use_default_no_partitions &&
-          part_info->no_parts &&
-          (int)part_info->no_parts !=
+      if (part_info->use_default_num_partitions &&
+          part_info->num_parts &&
+          (int)part_info->num_parts !=
           file->get_default_no_partitions(create_info))
       {
         uint i;
@@ -3713,13 +3713,13 @@ bool mysql_create_table_no_lock(THD *thd,
           (part_it++)->part_state= PART_TO_BE_DROPPED;
       }
       else if (part_info->is_sub_partitioned() &&
-               part_info->use_default_no_subpartitions &&
-               part_info->no_subparts &&
-               (int)part_info->no_subparts !=
+               part_info->use_default_num_subpartitions &&
+               part_info->num_subparts &&
+               (int)part_info->num_subparts !=
                  file->get_default_no_partitions(create_info))
       {
         DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        part_info->no_subparts= file->get_default_no_partitions(create_info);
+        part_info->num_subparts= file->get_default_no_partitions(create_info);
       }
     }
     else if (create_info->db_type != engine_type)
@@ -4531,11 +4531,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
             DBUG_RETURN(TRUE);
           }
-          uint no_parts_found;
-          uint no_parts_opt= alter_info->partition_names.elements;
-          no_parts_found= set_part_state(alter_info, table->table->part_info,
+          uint num_parts_found;
+          uint num_parts_opt= alter_info->partition_names.elements;
+          num_parts_found= set_part_state(alter_info, table->table->part_info,
                                          PART_CHANGED);
-          if (no_parts_found != no_parts_opt &&
+          if (num_parts_found != num_parts_opt &&
               (!(alter_info->flags & ALTER_ALL_PARTITION)))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
