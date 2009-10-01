@@ -49,11 +49,10 @@
 
 LOGGER logger;
 
-MYSQL_BIN_LOG mysql_bin_log;
-ulong sync_binlog_counter= 0;
+MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static bool test_if_number(const char *str,
-			   long *res, bool allow_wildcards);
+			   ulong *res, bool allow_wildcards);
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
@@ -961,6 +960,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   uint user_host_len= 0;
   ulonglong query_utime, lock_utime;
 
+  DBUG_ASSERT(thd->enable_slow_log);
   /*
     Print the message to the buffer if we have slow log enabled
   */
@@ -1834,22 +1834,27 @@ static void setup_windows_event_source()
 /**
   Find a unique filename for 'filename.#'.
 
-  Set '#' to a number as low as possible.
+  Set '#' to the number next to the maximum found in the most
+  recent log file extension.
+
+  This function will return nonzero if: (i) the generated name
+  exceeds FN_REFLEN; (ii) if the number of extensions is exhausted;
+  or (iii) some other error happened while examining the filesystem.
 
   @return
-    nonzero if not possible to get unique filename
+    nonzero if not possible to get unique filename.
 */
 
 static int find_uniq_filename(char *name)
 {
-  long                  number;
   uint                  i;
-  char                  buff[FN_REFLEN];
+  char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
   struct st_my_dir     *dir_info;
   reg1 struct fileinfo *file_info;
-  ulong                 max_found=0;
+  ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
   char			*start, *end;
+  int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
 
   length= dirname_part(buff, name, &buf_length);
@@ -1857,15 +1862,15 @@ static int find_uniq_filename(char *name)
   end=    strend(start);
 
   *end='.';
-  length= (size_t) (end-start+1);
+  length= (size_t) (end - start + 1);
 
-  if (!(dir_info = my_dir(buff,MYF(MY_DONT_SORT))))
+  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
   file_info= dir_info->dir_entry;
-  for (i=dir_info->number_off_files ; i-- ; file_info++)
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
     if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
@@ -1875,9 +1880,44 @@ static int find_uniq_filename(char *name)
   }
   my_dirend(dir_info);
 
+  /* check if reached the maximum possible extension number */
+  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
+  {
+    sql_print_error("Log filename extension number exhausted: %06lu. \
+Please fix this by archiving old logs and \
+updating the index files.", max_found);
+    error= 1;
+    goto end;
+  }
+
+  next= max_found + 1;
+  sprintf(ext_buf, "%06lu", next);
   *end++='.';
-  sprintf(end,"%06ld",max_found+1);
-  DBUG_RETURN(0);
+
+  /* 
+    Check if the generated extension size + the file name exceeds the
+    buffer size used. If one did not check this, then the filename might be
+    truncated, resulting in error.
+   */
+  if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
+  {
+    sql_print_error("Log filename too large: %s%s (%d). \
+Please fix this by archiving old logs and updating the \
+index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
+    error= 1;
+    goto end;
+  }
+
+  sprintf(end, "%06lu", next);
+
+  /* print warning if reaching the end of available extensions. */
+  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
+    sql_print_warning("Next log extension: %lu. \
+Remaining log filename extensions: %lu. \
+Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
+
+end:
+  DBUG_RETURN(error);
 }
 
 
@@ -2076,6 +2116,13 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
+        /* 
+          This should be treated as error once propagation of error further
+          up in the stack gets proper handling.
+        */
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                            log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -2410,9 +2457,10 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 
 
-MYSQL_BIN_LOG::MYSQL_BIN_LOG()
+MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
+   sync_period_ptr(sync_period),
    is_relay_log(0), signal_cnt(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
@@ -3643,6 +3691,8 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
   }
   bytes_written+= ev->data_written;
   DBUG_PRINT("info",("max_size: %lu",max_size));
+  if (flush_and_sync(0))
+    goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
@@ -3673,6 +3723,8 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
     bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
+  if (flush_and_sync(0))
+    goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
@@ -3682,17 +3734,21 @@ err:
   DBUG_RETURN(error);
 }
 
-
-bool MYSQL_BIN_LOG::flush_and_sync()
+bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
 {
   int err=0, fd=log_file.file;
+  if (synced)
+    *synced= 0;
   safe_mutex_assert_owner(&LOCK_log);
   if (flush_io_cache(&log_file))
     return 1;
-  if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
+  uint sync_period= get_sync_period();
+  if (sync_period && ++sync_counter >= sync_period)
   {
-    sync_binlog_counter= 0;
+    sync_counter= 0;
     err=my_sync(fd, MYF(MY_WME));
+    if (synced)
+      *synced= 1;
   }
   return err;
 }
@@ -3983,7 +4039,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
     if (file == &log_file)
     {
-      error= flush_and_sync();
+      error= flush_and_sync(0);
       if (!error)
       {
         signal_update();
@@ -4169,7 +4225,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_and_sync())
+      bool synced;
+      if (flush_and_sync(&synced))
 	goto err;
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4425,7 +4482,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   DBUG_ASSERT(carry == 0);
 
   if (sync_log)
-    flush_and_sync();
+    return flush_and_sync(0);
 
   return 0;                                     // All OK
 }
@@ -4472,7 +4529,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   ev.write(&log_file);
   if (lock)
   {
-    if (!error && !(error= flush_and_sync()))
+    bool synced;
+    if (!error && !(error= flush_and_sync(&synced)))
     {
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4560,7 +4618,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if (incident && write_incident(thd, FALSE))
         goto err;
 
-      if (flush_and_sync())
+      bool synced;
+      if (flush_and_sync(&synced))
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
       if (cache->error)				// Error on read
@@ -4766,11 +4825,11 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   @retval
     1	String is a number
   @retval
-    0	Error
+    0	String is not a number
 */
 
 static bool test_if_number(register const char *str,
-			   long *res, bool allow_wildcards)
+			   ulong *res, bool allow_wildcards)
 {
   reg2 int flag;
   const char *start;

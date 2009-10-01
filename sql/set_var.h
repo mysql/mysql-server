@@ -175,6 +175,27 @@ public:
   { return (uchar*) value; }
 };
 
+/**
+   Unsigned int system variable class
+ */
+class sys_var_uint_ptr :public sys_var
+{
+public:
+  sys_var_uint_ptr(sys_var_chain *chain, const char *name_arg, 
+                  uint *value_ptr_arg,
+                  sys_after_update_func after_update_arg= NULL)
+    :sys_var(name_arg, after_update_arg),
+     value(value_ptr_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE show_type() { return SHOW_INT; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return (uchar*) value; }
+private:
+  uint *value;
+};
 
 /*
   A global ulong variable that is protected by LOCK_global_system_variables

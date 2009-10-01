@@ -58,7 +58,7 @@ void mysql_client_binlog_statement(THD* thd)
   my_bool have_fd_event= TRUE;
   if (!thd->rli_fake)
   {
-    thd->rli_fake= new Relay_log_info;
+    thd->rli_fake= new Relay_log_info(FALSE);
 #ifdef HAVE_purify
     thd->rli_fake->is_fake= TRUE;
 #endif

@@ -96,6 +96,19 @@ public:
   LOG_INFO linfo;
   IO_CACHE cache_buf,*cur_log;
 
+  /*
+    Keeps track of the number of transactions that commits
+    before fsyncing. The option --sync-relay-log-info determines 
+    how many transactions should commit before fsyncing.
+  */ 
+  uint sync_counter;
+
+  /*
+    Identifies when the recovery process is going on.
+    See sql/slave.cc:init_recovery for further details.
+  */ 
+  bool is_relay_log_recovery;
+
   /* The following variables are safe to read any time */
 
   /* IO_CACHE of the info file - set only during init or end */
@@ -267,7 +280,7 @@ public:
   char slave_patternload_file[FN_REFLEN]; 
   size_t slave_patternload_file_size;  
 
-  Relay_log_info();
+  Relay_log_info(bool is_slave_recovery);
   ~Relay_log_info();
 
   /*
