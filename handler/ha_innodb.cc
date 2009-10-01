@@ -3159,7 +3159,7 @@ retry:
 
 		if (is_part) {
 			sql_print_error("Failed to open table %s after "
-					"%lu attemtps.\n", norm_name,
+					"%lu attempts.\n", norm_name,
 					retries);
 		}
 
