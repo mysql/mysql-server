@@ -248,13 +248,17 @@ public:
 
   // NdbQueryOperand builders:
   // ::constValue constructors variants, considder to added/removed variants
+  // If the attribute is of a fixed size datatype, its value must include all bytes.
+  // A fixed-Char value must be native-blank padded
   // Partly based on value types currently supported through NdbOperation::equal()
-  NdbConstOperand* constValue(const char* value);
-  NdbConstOperand* constValue(const void* value, size_t length);
   NdbConstOperand* constValue(Int32  value); 
   NdbConstOperand* constValue(Uint32 value); 
   NdbConstOperand* constValue(Int64  value); 
   NdbConstOperand* constValue(Uint64 value); 
+  NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar
+
+  // Raw data with specified length - no typesafety is provieded at all 
+  NdbConstOperand* constValue(const void* value, size_t length); 
 
   // ::paramValue()
   NdbParamOperand* paramValue(const char* name = 0);  // Parameterized

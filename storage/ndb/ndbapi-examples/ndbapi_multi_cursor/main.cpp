@@ -32,8 +32,6 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryOperation.hpp"
 
-#include "NdbQueryOperationImpl.hpp"
-
 //#define USE_RECATTR
 
 /**
@@ -57,13 +55,12 @@
  */
   #define NDB_CONNECT_STRING "127.0.0.1:2360"
 
-
 /*****************************************************
 ** Defines record structure for the rows in our tables
 ******************************************************/
 struct ManagerRow
 {
-  char   dept_no[4];
+  char   dept_no[8];
   Uint32 emp_no;
   Int32  from_date;
   Int32  to_date;
@@ -73,7 +70,7 @@ struct ManagerRow
 struct ManagerPKRow
 {
   Uint32 emp_no;
-  char   dept_no[4+1];
+  char   dept_no[8+1];
 };
 
 struct EmployeeRow
@@ -98,7 +95,7 @@ struct SalaryRow
 const char* employeeDef = 
 "CREATE TABLE employees ("
 "    emp_no      INT             NOT NULL,"
-"    dept_no     CHAR(4)         NOT NULL,"   // Temporary added OJA
+"    dept_no     VARCHAR(4)         NOT NULL,"   // Temporary added OJA
 "    birth_date  DATE            NOT NULL,"
 "    first_name  VARCHAR(14)     NOT NULL,"
 "    last_name   VARCHAR(16)     NOT NULL,"
@@ -109,7 +106,7 @@ const char* employeeDef =
 
 const char* departmentsDef = 
 "CREATE TABLE departments ("
-"    dept_no     CHAR(4)         NOT NULL,"
+"    dept_no     VARCHAR(4)         NOT NULL,"
 "    dept_name   VARCHAR(40)     NOT NULL,"
 "    PRIMARY KEY (dept_no),"
 "    UNIQUE  KEY (dept_name))"
@@ -117,7 +114,7 @@ const char* departmentsDef =
 
 const char* dept_managerDef = 
 "CREATE TABLE dept_manager ("
-"   dept_no      CHAR(4)         NOT NULL,"
+"   dept_no      VARCHAR(4)         NOT NULL,"
 "   emp_no       INT             NOT NULL,"
 "   from_date    DATE            NOT NULL,"
 "   to_date      DATE            NOT NULL,"
@@ -135,7 +132,7 @@ const char* dept_managerDef =
 const char* dept_empDef = 
 "CREATE TABLE dept_emp ("
 "    emp_no      INT             NOT NULL,"
-"    dept_no     CHAR(4)         NOT NULL,"
+"    dept_no     VARCHAR(4)         NOT NULL,"
 "    from_date   DATE            NOT NULL,"
 "    to_date     DATE            NOT NULL,"
 "    KEY         (emp_no),"
@@ -553,8 +550,9 @@ int testQueryBuilder(Ndb &myNdb)
 
     const NdbQueryOperand* joinManagerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {
+      qb->paramValue(),
       //qb->constValue(1005),   // dept_no = "d005"
-      qb->linkedValue(readEmployee,"dept_no"),
+      //qb->linkedValue(readEmployee,"dept_no"),
       qb->linkedValue(readEmployee,"emp_no"),   // emp_no  = 110567
       //qb->constValue(110567),
       //qb->paramValue(),
@@ -575,7 +573,8 @@ int testQueryBuilder(Ndb &myNdb)
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
 
-  void* paramList_q4[] = {&emp_no};
+  void* paramList_q4[] = {&emp_no, dept_no};
+//void* paramList_q4[] = {dept_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
