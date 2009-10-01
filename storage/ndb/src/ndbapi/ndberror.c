@@ -186,7 +186,7 @@ ErrorBundle ErrorCodes[] = {
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
-  { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (increase FragmentLogFileSize)" },
+  { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
   { 1222, DMEC, TR, "Out of transaction markers in LQH" },
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
@@ -229,10 +229,10 @@ ErrorBundle ErrorCodes[] = {
    */
   { 701,  DMEC, OL, "System busy with other schema operation" },
   { 711,  DMEC, OL, "System busy with node restart, schema operations not allowed" },
-  { 410,  DMEC, OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
+  { 410,  DMEC, OL, "REDO log files overloaded (decrease TimeBetweenLocalCheckpoints or increase NoOfFragmentLogFiles)" },
   { 677,  DMEC, OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  DMEC, OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
-  { 1221, DMEC, OL, "REDO buffers overloaded, consult online manual (increase RedoBuffer)" },
+  { 1221, DMEC, OL, "REDO buffers overloaded (increase RedoBuffer)" },
   { 4006, DMEC, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
