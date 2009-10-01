@@ -218,6 +218,11 @@ typedef struct st_join_table {
             (select->quick->get_type() ==
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
   }
+  bool is_using_agg_loose_index_scan ()
+  {
+    return (is_using_loose_index_scan() &&
+            ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
+  }
 } JOIN_TAB;
 
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
@@ -564,6 +569,8 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item, uint convert_blob_length);
                                                                       
+bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
+
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
