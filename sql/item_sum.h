@@ -256,6 +256,7 @@ protected:
   Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
+  static ulonglong ram_limitation(THD *thd);
 
 public:  
 
