@@ -1,0 +1,344 @@
+-- source include/have_innodb.inc
+-- source suite/innodb/include/have_innodb_plugin.inc
+
+let $per_table=`select @@innodb_file_per_table`;
+let $format=`select @@innodb_file_format`;
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+set global innodb_file_per_table=off;
+set global innodb_file_format=`0`;
+
+create table t0(a int primary key) engine=innodb row_format=compressed;
+create table t00(a int primary key) engine=innodb
+key_block_size=4 row_format=compressed;
+create table t1(a int primary key) engine=innodb row_format=dynamic;
+create table t2(a int primary key) engine=innodb row_format=redundant;
+create table t3(a int primary key) engine=innodb row_format=compact;
+create table t4(a int primary key) engine=innodb key_block_size=9;
+create table t5(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+
+set global innodb_file_per_table=on;
+create table t6(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+set global innodb_file_format=`1`;
+create table t7(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+create table t8(a int primary key) engine=innodb
+key_block_size=1 row_format=fixed;
+create table t9(a int primary key) engine=innodb
+key_block_size=1 row_format=compact;
+create table t10(a int primary key) engine=innodb
+key_block_size=1 row_format=dynamic;
+create table t11(a int primary key) engine=innodb
+key_block_size=1 row_format=compressed;
+create table t12(a int primary key) engine=innodb
+key_block_size=1;
+create table t13(a int primary key) engine=innodb
+row_format=compressed;
+create table t14(a int primary key) engine=innodb key_block_size=9;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+
+drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
+alter table t1 key_block_size=0;
+alter table t1 row_format=dynamic;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+alter table t1 row_format=compact;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+alter table t1 row_format=redundant;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t1;
+
+create table t1(a int not null, b text, index(b(10))) engine=innodb
+key_block_size=1;
+
+create table t2(b text)engine=innodb;
+insert into t2 values(concat('1abcdefghijklmnopqrstuvwxyz', repeat('A',5000)));
+
+insert into t1 select 1, b from t2;
+commit;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+begin;
+update t1 set b=repeat('B',100);
+
+connection b;
+select a,left(b,40) from t1 natural join t2;
+
+connection a;
+rollback;
+
+connection b;
+select a,left(b,40) from t1 natural join t2;
+
+connection default;
+disconnect a;
+disconnect b;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t1,t2;
+
+# The following should fail even in non-strict mode.
+SET SESSION innodb_strict_mode = off;
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1(
+	c TEXT NOT NULL, d TEXT NOT NULL,
+	PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1(
+	c TEXT NOT NULL, d TEXT NOT NULL,
+	PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
+CREATE TABLE t1(
+	c TEXT NOT NULL, d TEXT NOT NULL,
+	PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
+drop table t1;
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
+DROP TABLE t1;
+
+#
+# Test blob column inheritance (mantis issue#36)
+#
+
+create table t1( c1 int not null, c2 blob, c3 blob, c4 blob,
+		primary key(c1, c2(22), c3(22)))
+		engine = innodb row_format = dynamic;
+begin;
+insert into t1 values(1, repeat('A', 20000), repeat('B', 20000),
+			repeat('C', 20000));
+
+update t1 set c3 = repeat('D', 20000) where c1 = 1;
+commit;
+
+# one blob column which is unchanged in update and part of PK
+# one blob column which is changed and part of of PK
+# one blob column which is not part of PK and is unchanged
+select count(*) from t1 where c2 = repeat('A', 20000);
+select count(*) from t1 where c3 = repeat('D', 20000);
+select count(*) from t1 where c4 = repeat('C', 20000);
+
+update t1 set c3 = repeat('E', 20000) where c1 = 1;
+drop table t1;
+
+#
+#
+# Test innodb_file_format
+#
+set global innodb_file_format=`0`;
+select @@innodb_file_format;
+set global innodb_file_format=`1`;
+select @@innodb_file_format;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=`2`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=`-1`;
+set global innodb_file_format=`Antelope`;
+set global innodb_file_format=`Barracuda`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=`Cheetah`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=`abc`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=`1a`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format=``;
+
+#test strict mode.
+# this does not work anymore, has been removed from mysqltest
+# -- enable_errors
+set global innodb_file_per_table = on;
+set global innodb_file_format = `1`;
+
+set innodb_strict_mode = off;
+create table t1 (id int primary key) engine = innodb key_block_size = 0;
+drop table t1;
+
+#set strict_mode
+set innodb_strict_mode = on;
+
+#Test different values of KEY_BLOCK_SIZE
+
+--error ER_CANT_CREATE_TABLE
+create table t1 (id int primary key) engine = innodb key_block_size = 0;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb key_block_size = 9;
+show errors;
+
+
+create table t3 (id int primary key) engine = innodb key_block_size = 1;
+create table t4 (id int primary key) engine = innodb key_block_size = 2;
+create table t5 (id int primary key) engine = innodb key_block_size = 4;
+create table t6 (id int primary key) engine = innodb key_block_size = 8;
+create table t7 (id int primary key) engine = innodb key_block_size = 16;
+
+#check various ROW_FORMAT values.
+create table t8 (id int primary key) engine = innodb row_format = compressed;
+create table t9 (id int primary key) engine = innodb row_format = dynamic;
+create table t10(id int primary key) engine = innodb row_format = compact;
+create table t11(id int primary key) engine = innodb row_format = redundant;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t3, t4, t5, t6, t7, t8, t9, t10, t11;
+
+#test different values of ROW_FORMAT with KEY_BLOCK_SIZE
+create table t1 (id int primary key) engine = innodb
+key_block_size = 8 row_format = compressed;
+
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb
+key_block_size = 8 row_format = redundant;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t3 (id int primary key) engine = innodb
+key_block_size = 8 row_format = compact;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t4 (id int primary key) engine = innodb
+key_block_size = 8 row_format = dynamic;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t5 (id int primary key) engine = innodb
+key_block_size = 8 row_format = default;
+show errors;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t1;
+
+#test multiple errors
+--error ER_CANT_CREATE_TABLE
+create table t1 (id int primary key) engine = innodb
+key_block_size = 9 row_format = redundant;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb
+key_block_size = 9 row_format = compact;
+show errors;
+
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb
+key_block_size = 9 row_format = dynamic;
+show errors;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+
+#test valid values with innodb_file_per_table unset
+set global innodb_file_per_table = off;
+
+--error ER_CANT_CREATE_TABLE
+create table t1 (id int primary key) engine = innodb key_block_size = 1;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb key_block_size = 2;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t3 (id int primary key) engine = innodb key_block_size = 4;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t4 (id int primary key) engine = innodb key_block_size = 8;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t5 (id int primary key) engine = innodb key_block_size = 16;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t6 (id int primary key) engine = innodb row_format = compressed;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t7 (id int primary key) engine = innodb row_format = dynamic;
+show errors;
+create table t8 (id int primary key) engine = innodb row_format = compact;
+create table t9 (id int primary key) engine = innodb row_format = redundant;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t8, t9;
+
+#test valid values with innodb_file_format unset
+set global innodb_file_per_table = on;
+set global innodb_file_format = `0`; 
+
+--error ER_CANT_CREATE_TABLE
+create table t1 (id int primary key) engine = innodb key_block_size = 1;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t2 (id int primary key) engine = innodb key_block_size = 2;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t3 (id int primary key) engine = innodb key_block_size = 4;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t4 (id int primary key) engine = innodb key_block_size = 8;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t5 (id int primary key) engine = innodb key_block_size = 16;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t6 (id int primary key) engine = innodb row_format = compressed;
+show errors;
+--error ER_CANT_CREATE_TABLE
+create table t7 (id int primary key) engine = innodb row_format = dynamic;
+show errors;
+create table t8 (id int primary key) engine = innodb row_format = compact;
+create table t9 (id int primary key) engine = innodb row_format = redundant;
+
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+drop table t8, t9;
+
+eval set global innodb_file_per_table=$per_table;
+eval set global innodb_file_format=$format;
+#
+# Testing of tablespace tagging
+#
+-- disable_info
+set global innodb_file_per_table=on;
+set global innodb_file_format=`Barracuda`;
+set global innodb_file_format_check=`Antelope`;
+create table normal_table (
+  c1 int
+) engine = innodb;
+select @@innodb_file_format_check;
+create table zip_table (
+  c1 int
+) engine = innodb key_block_size = 8;
+select @@innodb_file_format_check;
+set global innodb_file_format_check=`Antelope`;
+select @@innodb_file_format_check;
+-- disable_result_log
+show table status;
+-- enable_result_log
+select @@innodb_file_format_check;
+drop table normal_table, zip_table;
+-- disable_result_log
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval set global innodb_file_format=$format;
+eval set global innodb_file_per_table=$per_table;
+eval set global innodb_file_format_check=$innodb_file_format_check_orig;
