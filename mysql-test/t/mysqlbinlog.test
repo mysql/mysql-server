@@ -119,7 +119,7 @@ select "--- reading stdin --" as "";
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --position=80 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--exec $MYSQL_BINLOG --short-form --position=79 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 drop table t1,t2;
 
 #

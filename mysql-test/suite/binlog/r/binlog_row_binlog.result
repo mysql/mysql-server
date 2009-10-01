@@ -247,25 +247,8 @@ commit;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
-master-bin.000001	205	Query	1	273	BEGIN
-master-bin.000001	273	Table_map	1	314	table_id: # (test.t1)
-master-bin.000001	314	Write_rows	1	348	table_id: # flags: STMT_END_F
-master-bin.000001	348	Table_map	1	389	table_id: # (test.t1)
-master-bin.000001	389	Write_rows	1	423	table_id: # flags: STMT_END_F
-master-bin.000001	423	Table_map	1	464	table_id: # (test.t1)
-master-bin.000001	464	Write_rows	1	498	table_id: # flags: STMT_END_F
-master-bin.000001	498	Xid	1	525	COMMIT /* XID */
-master-bin.000001	525	Query	1	601	use `test`; drop table t1
-set @bcs = @@binlog_cache_size;
-set global binlog_cache_size=4096;
-reset master;
-create table t1 (a int) engine=innodb;
-show binlog events from 0;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	206	use `test`; create table t1 (a int) engine=innodb
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	206	use `test`; create table t1(n int) engine=innodb
 master-bin.000001	206	Query	1	274	BEGIN
 master-bin.000001	274	Table_map	1	315	table_id: # (test.t1)
 master-bin.000001	315	Write_rows	1	349	table_id: # flags: STMT_END_F
@@ -283,7 +266,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
 master-bin.000001	107	Query	1	207	use `test`; create table t1 (a int) engine=innodb
-master-bin.000001	207	Query	1	275	use `test`; BEGIN
+master-bin.000001	207	Query	1	275	BEGIN
 master-bin.000001	275	Table_map	1	316	table_id: # (test.t1)
 master-bin.000001	316	Write_rows	1	350	table_id: # flags: STMT_END_F
 master-bin.000001	350	Table_map	1	391	table_id: # (test.t1)
@@ -1100,13 +1083,13 @@ deallocate prepare stmt;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	227	Query	1	295	BEGIN
-master-bin.000001	295	Table_map	1	337	table_id: # (test.t1)
-master-bin.000001	337	Write_rows	1	383	table_id: # flags: STMT_END_F
-master-bin.000001	383	Query	1	452	COMMIT
-master-bin.000001	452	Query	1	528	use `test`; drop table t1
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	228	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
+master-bin.000001	228	Query	1	296	BEGIN
+master-bin.000001	296	Table_map	1	338	table_id: # (test.t1)
+master-bin.000001	338	Write_rows	1	384	table_id: # flags: STMT_END_F
+master-bin.000001	384	Query	1	453	COMMIT
+master-bin.000001	453	Query	1	529	use `test`; drop table t1
 reset master;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 USE bug39182;

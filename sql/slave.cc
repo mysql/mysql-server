@@ -880,6 +880,95 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
   DBUG_RETURN(1);
 }
 
+
+/**
+   A master info read method
+
+   This function is called from @c init_master_info() along with
+   relatives to restore some of @c active_mi members.
+   Particularly, this function is responsible for restoring
+   IGNORE_SERVER_IDS list of servers whose events the slave is
+   going to ignore (to not log them in the relay log).
+   Items being read are supposed to be decimal output of values of a
+   type shorter or equal of @c long and separated by the single space.
+
+   @param arr         @c DYNAMIC_ARRAY pointer to storage for servers id
+   @param f           @c IO_CACHE pointer to the source file
+
+   @retval 0         All OK
+   @retval non-zero  An error
+*/
+
+int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
+{
+  int ret= 0;
+  char buf[16 * (sizeof(long)*4 + 1)]; // static buffer to use most of times
+  char *buf_act= buf; // actual buffer can be dynamic if static is short
+  char *token, *last;
+  uint num_items;     // number of items of `arr'
+  size_t read_size;
+  DBUG_ENTER("init_dynarray_intvar_from_file");
+
+  if ((read_size= my_b_gets(f, buf_act, sizeof(buf))) == 0)
+  {
+    return 0; // no line in master.info
+  }
+  if (read_size + 1 == sizeof(buf) && buf[sizeof(buf) - 2] != '\n')
+  {
+    /*
+      short read happend; allocate sufficient memory and make the 2nd read
+    */
+    char buf_work[(sizeof(long)*3 + 1)*16];
+    memcpy(buf_work, buf, sizeof(buf_work));
+    num_items= atoi(strtok_r(buf_work, " ", &last));
+    size_t snd_size;
+    /*
+      max size lower bound approximate estimation bases on the formula:
+      (the items number + items themselves) * 
+          (decimal size + space) - 1 + `\n' + '\0'
+    */
+    size_t max_size= (1 + num_items) * (sizeof(long)*3 + 1) + 1;
+    buf_act= (char*) my_malloc(max_size, MYF(MY_WME));
+    memcpy(buf_act, buf, read_size);
+    snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
+    if (snd_size == 0 ||
+        (snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n')
+    {
+      /*
+        failure to make the 2nd read or short read again
+      */
+      ret= 1;
+      goto err;
+    }
+  }
+  token= strtok_r(buf_act, " ", &last);
+  if (token == NULL)
+  {
+    ret= 1;
+    goto err;
+  }
+  num_items= atoi(token);
+  for (uint i=0; i < num_items; i++)
+  {
+    token= strtok_r(NULL, " ", &last);
+    if (token == NULL)
+    {
+      ret= 1;
+      goto err;
+    }
+    else
+    {
+      ulong val= atol(token);
+      insert_dynamic(arr, (uchar *) &val);
+    }
+  }
+err:
+  if (buf_act != buf)
+    my_free(buf_act, MYF(0));
+  DBUG_RETURN(ret);
+}
+
+
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
 {
   if (io_slave_killed(thd, mi))
@@ -1058,7 +1147,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
-    if ((::server_id == strtoul(master_row[1], 0, 10)) &&
+    if ((::server_id == (mi->master_id= strtoul(master_row[1], 0, 10))) &&
         !mi->rli.replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal \
@@ -1095,6 +1184,13 @@ maybe it is a *VERY OLD MASTER*.");
   {
     mysql_free_result(master_res);
     master_res= NULL;
+  }
+  if (mi->master_id == 0 && mi->ignore_server_ids.elements > 0)
+  {
+    errmsg= "Slave configured with server id filtering could not detect the master server id.";
+    err_code= ER_SLAVE_FATAL_ERROR;
+    sprintf(err_buff, ER(err_code), errmsg);
+    goto err;
   }
 
   /*
@@ -1659,6 +1755,10 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Last_IO_Error", 20));
   field_list.push_back(new Item_return_int("Last_SQL_Errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_SQL_Error", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_Server_Ids",
+                                             FN_REFLEN));
+  field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1780,6 +1880,32 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
+    // Replicate_Ignore_Server_Ids
+    {
+      char buff[FN_REFLEN];
+      ulong i, cur_len;
+      for (i= 0, buff[0]= 0, cur_len= 0;
+           i < mi->ignore_server_ids.elements; i++)
+      {
+        ulong s_id, slen;
+        char sbuff[FN_REFLEN];
+        get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
+        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        if (cur_len + slen + 4 > FN_REFLEN)
+        {
+          /*
+            break the loop whenever remained space could not fit
+            ellipses on the next cycle
+          */
+          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          break;
+        }
+        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+      }
+      protocol->store(buff, &my_charset_bin);
+    }
+    // Master_Server_id
+    protocol->store((uint32) mi->master_id);
 
     pthread_mutex_unlock(&mi->rli.err_lock);
     pthread_mutex_unlock(&mi->err_lock);
@@ -3599,6 +3725,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   ulong inc_pos;
   Relay_log_info *rli= &mi->rli;
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
+  ulong s_id;
   DBUG_ENTER("queue_event");
 
   LINT_INIT(inc_pos);
@@ -3745,9 +3872,20 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   */
 
   pthread_mutex_lock(log_lock);
-
-  if ((uint4korr(buf + SERVER_ID_OFFSET) == ::server_id) &&
-      !mi->rli.replicate_same_server_id)
+  s_id= uint4korr(buf + SERVER_ID_OFFSET);
+  if ((s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
+      /*
+        the following conjunction deals with IGNORE_SERVER_IDS, if set
+        If the master is on the ignore list, execution of
+        format description log events and rotate events is necessary.
+      */
+      (mi->ignore_server_ids.elements > 0 &&
+       mi->shall_ignore_server_id(s_id) &&
+       /* everything is filtered out from non-master */
+       (s_id != mi->master_id ||
+        /* for the master meta information is necessary */
+        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT)))
   {
     /*
       Do not write it to the relay log.
@@ -3762,10 +3900,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       But events which were generated by this slave and which do not exist in
       the master's binlog (i.e. Format_desc, Rotate & Stop) should not increment
       mi->master_log_pos.
+      If the event is originated remotely and is being filtered out by
+      IGNORE_SERVER_IDS it increments mi->master_log_pos
+      as well as rli->group_relay_log_pos.
     */
-    if (buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
-        buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
-        buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
+    if (!(s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
+        buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+        buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
+        buf[EVENT_TYPE_OFFSET] != STOP_EVENT)
     {
       mi->master_log_pos+= inc_pos;
       memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);
@@ -3773,8 +3915,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    DBUG_PRINT("info", ("master_log_pos: %lu, event originating from the same server, ignored",
-                        (ulong) mi->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
+                        (ulong) mi->master_log_pos, uint4korr(buf + SERVER_ID_OFFSET)));
   }
   else
   {
