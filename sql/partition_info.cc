@@ -75,7 +75,7 @@ partition_info *partition_info::get_clone()
   SYNOPSIS
     create_default_partition_names()
     part_no                         Partition number for subparts
-    no_parts                        Number of partitions
+    num_parts                       Number of partitions
     start_no                        Starting partition number
     subpart                         Is it subpartitions
 
@@ -91,10 +91,10 @@ partition_info *partition_info::get_clone()
 #define MAX_PART_NAME_SIZE 8
 
 char *partition_info::create_default_partition_names(uint part_no,
-                                                     uint no_parts_arg,
+                                                     uint num_parts_arg,
                                                      uint start_no)
 {
-  char *ptr= (char*) sql_calloc(no_parts_arg*MAX_PART_NAME_SIZE);
+  char *ptr= (char*) sql_calloc(num_parts_arg*MAX_PART_NAME_SIZE);
   char *move_ptr= ptr;
   uint i= 0;
   DBUG_ENTER("create_default_partition_names");
@@ -105,11 +105,11 @@ char *partition_info::create_default_partition_names(uint part_no,
     {
       my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
       move_ptr+=MAX_PART_NAME_SIZE;
-    } while (++i < no_parts_arg);
+    } while (++i < num_parts_arg);
   }
   else
   {
-    mem_alloc_error(no_parts_arg*MAX_PART_NAME_SIZE);
+    mem_alloc_error(num_parts_arg*MAX_PART_NAME_SIZE);
   }
   DBUG_RETURN(ptr);
 }
@@ -189,19 +189,19 @@ bool partition_info::set_up_default_partitions(handler *file,
     goto end;
   }
 
-  if ((no_parts == 0) &&
-      ((no_parts= file->get_default_no_partitions(info)) == 0))
+  if ((num_parts == 0) &&
+      ((num_parts= file->get_default_no_partitions(info)) == 0))
   {
     my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
     goto end;
   }
 
-  if (unlikely(no_parts > MAX_PARTITIONS))
+  if (unlikely(num_parts > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
-  if (unlikely((!(default_name= create_default_partition_names(0, no_parts,
+  if (unlikely((!(default_name= create_default_partition_names(0, num_parts,
                                                                start_no)))))
     goto end;
   i= 0;
@@ -220,7 +220,7 @@ bool partition_info::set_up_default_partitions(handler *file,
       mem_alloc_error(sizeof(partition_element));
       goto end;
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   result= FALSE;
 end:
   DBUG_RETURN(result);
@@ -259,9 +259,9 @@ bool partition_info::set_up_default_subpartitions(handler *file,
   List_iterator<partition_element> part_it(partitions);
   DBUG_ENTER("partition_info::set_up_default_subpartitions");
 
-  if (no_subparts == 0)
-    no_subparts= file->get_default_no_partitions(info);
-  if (unlikely((no_parts * no_subparts) > MAX_PARTITIONS))
+  if (num_subparts == 0)
+    num_subparts= file->get_default_no_partitions(info);
+  if (unlikely((num_parts * num_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
@@ -288,8 +288,8 @@ bool partition_info::set_up_default_subpartitions(handler *file,
         mem_alloc_error(sizeof(partition_element));
         goto end;
       }
-    } while (++j < no_subparts);
-  } while (++i < no_parts);
+    } while (++j < num_subparts);
+  } while (++i < num_parts);
   result= FALSE;
 end:
   DBUG_RETURN(result);
@@ -520,12 +520,12 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
 {
   handlerton *old_engine_type= engine_type;
   bool first= TRUE;
-  uint no_parts= partitions.elements;
+  uint num_parts= partitions.elements;
   DBUG_ENTER("partition_info::check_engine_mix");
   DBUG_PRINT("info", ("in: engine_type = %s, table_engine_set = %u",
                        ha_resolve_storage_engine_name(engine_type),
                        table_engine_set));
-  if (no_parts)
+  if (num_parts)
   {
     List_iterator<partition_element> part_it(partitions);
     uint i= 0;
@@ -538,7 +538,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       if (is_sub_partitioned() &&
           part_elem->subpartitions.elements)
       {
-        uint no_subparts= part_elem->subpartitions.elements;
+        uint num_subparts= part_elem->subpartitions.elements;
         uint j= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         do
@@ -550,7 +550,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
           if (check_engine_condition(sub_elem, table_engine_set,
                                      &engine_type, &first))
             goto error;
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
         /* ensure that the partition also has correct engine */
         if (check_engine_condition(part_elem, table_engine_set,
                                    &engine_type, &first))
@@ -559,7 +559,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       else if (check_engine_condition(part_elem, table_engine_set,
                                       &engine_type, &first))
         goto error;
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   DBUG_PRINT("info", ("engine_type = %s",
                        ha_resolve_storage_engine_name(engine_type)));
@@ -612,21 +612,21 @@ bool partition_info::check_range_constants(THD *thd)
   List_iterator<partition_element> it(partitions);
   int result= TRUE;
   DBUG_ENTER("partition_info::check_range_constants");
-  DBUG_PRINT("enter", ("RANGE with %d parts, column_list = %u", no_parts,
+  DBUG_PRINT("enter", ("RANGE with %d parts, column_list = %u", num_parts,
                                                          column_list));
 
   if (column_list)
   {
     part_column_list_val* loc_range_col_array;
     part_column_list_val *current_largest_col_val;
-    uint no_column_values= part_field_list.elements;
-    uint size_entries= sizeof(part_column_list_val) * no_column_values;
-    range_col_array= (part_column_list_val*)sql_calloc(no_parts *
+    uint num_column_values= part_field_list.elements;
+    uint size_entries= sizeof(part_column_list_val) * num_column_values;
+    range_col_array= (part_column_list_val*)sql_calloc(num_parts *
                                                        size_entries);
     LINT_INIT(current_largest_col_val);
     if (unlikely(range_col_array == NULL))
     {
-      mem_alloc_error(no_parts * sizeof(longlong));
+      mem_alloc_error(num_parts * sizeof(longlong));
       goto end;
     }
     loc_range_col_array= range_col_array;
@@ -642,7 +642,7 @@ bool partition_info::check_range_constants(THD *thd)
         if (fix_column_value_functions(thd, col_val, i))
           goto end;
         memcpy(loc_range_col_array, (const void*)col_val, size_entries);
-        loc_range_col_array+= no_column_values;
+        loc_range_col_array+= num_column_values;
         if (!first)
         {
           if (compare_column_values((const void*)current_largest_col_val,
@@ -652,7 +652,7 @@ bool partition_info::check_range_constants(THD *thd)
         current_largest_col_val= col_val;
       }
       first= FALSE;
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   else
   {
@@ -663,17 +663,17 @@ bool partition_info::check_range_constants(THD *thd)
     LINT_INIT(current_largest);
 
     part_result_type= INT_RESULT;
-    range_int_array= (longlong*)sql_alloc(no_parts * sizeof(longlong));
+    range_int_array= (longlong*)sql_alloc(num_parts * sizeof(longlong));
     if (unlikely(range_int_array == NULL))
     {
-      mem_alloc_error(no_parts * sizeof(longlong));
+      mem_alloc_error(num_parts * sizeof(longlong));
       goto end;
     }
     i= 0;
     do
     {
       part_def= it++;
-      if ((i != (no_parts - 1)) || !defined_max_value)
+      if ((i != (num_parts - 1)) || !defined_max_value)
       {
         part_range_value= part_def->range_value;
         if (!signed_flag)
@@ -687,14 +687,14 @@ bool partition_info::check_range_constants(THD *thd)
         if (unlikely(current_largest > part_range_value) ||
             (unlikely(current_largest == part_range_value) &&
             (part_range_value < LONGLONG_MAX ||
-             i != (no_parts - 1) ||
+             i != (num_parts - 1) ||
              !defined_max_value)))
           goto range_not_increasing_error;
       }
       range_int_array[i]= part_range_value;
       current_largest= part_range_value;
       first= FALSE;
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   result= FALSE;
 end:
@@ -801,7 +801,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
                                                 part_column_list_val *col_val,
                                                 uint part_id)
 {
-  uint no_columns= part_field_list.elements;
+  uint num_columns= part_field_list.elements;
   Name_resolution_context *context= &thd->lex->current_select->context;
   TABLE_LIST *save_list= context->table_list;
   bool result= FALSE;
@@ -814,7 +814,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
   }
   context->table_list= 0;
   thd->where= "partition function";
-  for (i= 0; i < no_columns; col_val++, i++)
+  for (i= 0; i < num_columns; col_val++, i++)
   {
     Item *column_item= col_val->item_expression;
     Field *field= part_field_array[i];
@@ -885,7 +885,7 @@ end:
 
 bool partition_info::check_list_constants(THD *thd)
 {
-  uint i, size_entries, no_column_values;
+  uint i, size_entries, num_column_values;
   uint list_index= 0;
   part_elem_value *list_value;
   bool result= TRUE;
@@ -899,7 +899,7 @@ bool partition_info::check_list_constants(THD *thd)
   DBUG_ENTER("partition_info::check_list_constants");
 
   part_result_type= INT_RESULT;
-  no_list_values= 0;
+  num_list_values= 0;
   /*
     We begin by calculating the number of list values that have been
     defined in the first step.
@@ -932,17 +932,17 @@ bool partition_info::check_list_constants(THD *thd)
     }
     List_iterator<part_elem_value> list_val_it1(part_def->list_val_list);
     while (list_val_it1++)
-      no_list_values++;
-  } while (++i < no_parts);
+      num_list_values++;
+  } while (++i < num_parts);
   list_func_it.rewind();
-  no_column_values= part_field_list.elements;
+  num_column_values= part_field_list.elements;
   size_entries= column_list ?
-        (no_column_values * sizeof(part_column_list_val)) :
+        (num_column_values * sizeof(part_column_list_val)) :
         sizeof(LIST_PART_ENTRY);
-  ptr= sql_calloc((no_list_values+1) * size_entries);
+  ptr= sql_calloc((num_list_values+1) * size_entries);
   if (unlikely(ptr == NULL))
   {
-    mem_alloc_error(no_list_values * size_entries);
+    mem_alloc_error(num_list_values * size_entries);
     goto end;
   }
   if (column_list)
@@ -952,10 +952,6 @@ bool partition_info::check_list_constants(THD *thd)
     list_col_array= (part_column_list_val*)ptr;
     compare_func= compare_column_values;
     i= 0;
-    /*
-      Fix to be able to reuse signed sort functions also for unsigned
-      partition functions.
-    */
     do
     {
       part_def= list_func_it++;
@@ -968,9 +964,9 @@ bool partition_info::check_list_constants(THD *thd)
           DBUG_RETURN(TRUE);
         }
         memcpy(loc_list_col_array, (const void*)col_val, size_entries);
-        loc_list_col_array+= no_column_values;
+        loc_list_col_array+= num_column_values;
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   else
   {
@@ -995,24 +991,24 @@ bool partition_info::check_list_constants(THD *thd)
         list_array[list_index].list_value= calc_value;
         list_array[list_index++].partition_id= i;
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
-  if (fixed && no_list_values)
+  if (fixed && num_list_values)
   {
     bool first= TRUE;
     /*
       list_array and list_col_array are unions, so this works for both
       variants of LIST partitioning.
     */
-    my_qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+    my_qsort((void*)list_array, num_list_values, sizeof(LIST_PART_ENTRY),
              &list_part_cmp);
 
     i= 0;
     LINT_INIT(prev_value);
     do
     {
-      DBUG_ASSERT(i < no_list_values);
-      curr_value= column_list ? (void*)&list_col_array[no_column_values * i] :
+      DBUG_ASSERT(i < num_list_values);
+      curr_value= column_list ? (void*)&list_col_array[num_column_values * i] :
                                 (void*)&list_array[i];
       if (likely(first || compare_func(curr_value, prev_value)))
       {
@@ -1024,7 +1020,7 @@ bool partition_info::check_list_constants(THD *thd)
         my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
         goto end;
       }
-    } while (++i < no_list_values);
+    } while (++i < num_list_values);
   }
   result= FALSE;
 end:
@@ -1088,7 +1084,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     }
   }
   if (unlikely(!is_sub_partitioned() && 
-               !(use_default_subpartitions && use_default_no_subpartitions)))
+               !(use_default_subpartitions && use_default_num_subpartitions)))
   {
     my_error(ER_SUBPARTITION_ERROR, MYF(0));
     goto end;
@@ -1154,8 +1150,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   i= 0;
   {
     List_iterator<partition_element> part_it(partitions);
-    uint no_parts_not_set= 0;
-    uint prev_no_subparts_not_set= no_subparts + 1;
+    uint num_parts_not_set= 0;
+    uint prev_num_subparts_not_set= num_subparts + 1;
     do
     {
       partition_element *part_elem= part_it++;
@@ -1177,7 +1173,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       {
         if (part_elem->engine_type == NULL)
         {
-          no_parts_not_set++;
+          num_parts_not_set++;
           part_elem->engine_type= default_engine_type;
         }
         if (check_table_name(part_elem->partition_name,
@@ -1192,7 +1188,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       else
       {
         uint j= 0;
-        uint no_subparts_not_set= 0;
+        uint num_subparts_not_set= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         partition_element *sub_elem;
         do
@@ -1211,44 +1207,45 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
             else
             {
               sub_elem->engine_type= default_engine_type;
-              no_subparts_not_set++;
+              num_subparts_not_set++;
             }
           }
           DBUG_PRINT("info", ("part = %d sub = %d engine = %s", i, j,
                      ha_resolve_storage_engine_name(sub_elem->engine_type)));
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
 
-        if (prev_no_subparts_not_set == (no_subparts + 1) &&
-            (no_subparts_not_set == 0 || no_subparts_not_set == no_subparts))
-          prev_no_subparts_not_set= no_subparts_not_set;
+        if (prev_num_subparts_not_set == (num_subparts + 1) &&
+            (num_subparts_not_set == 0 ||
+             num_subparts_not_set == num_subparts))
+          prev_num_subparts_not_set= num_subparts_not_set;
 
         if (!table_engine_set &&
-            prev_no_subparts_not_set != no_subparts_not_set)
+            prev_num_subparts_not_set != num_subparts_not_set)
         {
-          DBUG_PRINT("info", ("no_subparts_not_set = %u no_subparts = %u",
-                     no_subparts_not_set, no_subparts));
+          DBUG_PRINT("info", ("num_subparts_not_set = %u num_subparts = %u",
+                     num_subparts_not_set, num_subparts));
           my_error(ER_MIX_HANDLER_ERROR, MYF(0));
           goto end;
         }
 
         if (part_elem->engine_type == NULL)
         {
-          if (no_subparts_not_set == 0)
+          if (num_subparts_not_set == 0)
             part_elem->engine_type= sub_elem->engine_type;
           else
           {
-            no_parts_not_set++;
+            num_parts_not_set++;
             part_elem->engine_type= default_engine_type;
           }
         }
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
     if (!table_engine_set &&
-        no_parts_not_set != 0 &&
-        no_parts_not_set != no_parts)
+        num_parts_not_set != 0 &&
+        num_parts_not_set != num_parts)
     {
-      DBUG_PRINT("info", ("no_parts_not_set = %u no_parts = %u",
-                 no_parts_not_set, no_subparts));
+      DBUG_PRINT("info", ("num_parts_not_set = %u num_parts = %u",
+                 num_parts_not_set, num_subparts));
       my_error(ER_MIX_HANDLER_ERROR, MYF(0));
       goto end;
     }

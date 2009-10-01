@@ -2638,7 +2638,7 @@ typedef struct st_part_prune_param
   /* Iterator to be used to obtain the "current" set of used partitions */
   PARTITION_ITERATOR part_iter;
 
-  /* Initialized bitmap of no_subparts size */
+  /* Initialized bitmap of num_subparts size */
   MY_BITMAP subparts_bitmap;
 
   uchar *cur_min_key;
@@ -2904,8 +2904,8 @@ static void mark_full_partition_used_no_parts(partition_info* part_info,
 static void mark_full_partition_used_with_parts(partition_info *part_info,
                                                 uint32 part_id)
 {
-  uint32 start= part_id * part_info->no_subparts;
-  uint32 end=   start + part_info->no_subparts; 
+  uint32 start= part_id * part_info->num_subparts;
+  uint32 end=   start + part_info->num_subparts; 
   DBUG_ENTER("mark_full_partition_used_with_parts");
 
   for (; start != end; start++)
@@ -3328,10 +3328,10 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) !=
               NOT_A_PARTITION_ID)
       {
-        for (uint i= 0; i < ppar->part_info->no_subparts; i++)
+        for (uint i= 0; i < ppar->part_info->num_subparts; i++)
           if (bitmap_is_set(&ppar->subparts_bitmap, i))
             bitmap_set_bit(&ppar->part_info->used_partitions,
-                           part_id * ppar->part_info->no_subparts + i);
+                           part_id * ppar->part_info->num_subparts + i);
       }
       goto pop_and_go_right;
     }
@@ -3393,7 +3393,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                 NOT_A_PARTITION_ID)
         {
           bitmap_set_bit(&part_info->used_partitions,
-                         part_id * part_info->no_subparts + subpart_id);
+                         part_id * part_info->num_subparts + subpart_id);
         }
         res= 1; /* Some partitions were marked as used */
         goto pop_and_go_right;
@@ -3541,10 +3541,10 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   uint used_part_fields, used_subpart_fields;
 
   used_part_fields= fields_ok_for_partition_index(part_info->part_field_array) ?
-                      part_info->no_part_fields : 0;
+                      part_info->num_part_fields : 0;
   used_subpart_fields= 
     fields_ok_for_partition_index(part_info->subpart_field_array)? 
-      part_info->no_subpart_fields : 0;
+      part_info->num_subpart_fields : 0;
   
   uint total_parts= used_part_fields + used_subpart_fields;
 
@@ -3583,10 +3583,10 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   if (ppar->subpart_fields)
   {
     my_bitmap_map *buf;
-    uint32 bufsize= bitmap_buffer_size(ppar->part_info->no_subparts);
+    uint32 bufsize= bitmap_buffer_size(ppar->part_info->num_subparts);
     if (!(buf= (my_bitmap_map*) alloc_root(alloc, bufsize)))
       return TRUE;
-    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->no_subparts,
+    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->num_subparts,
                 FALSE);
   }
   range_par->key_parts= key_part;

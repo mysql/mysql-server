@@ -1,4 +1,33 @@
 drop table if exists t1;
+create table t1 (a int)
+partition by list (a)
+( partition p0 values in (1),
+partition p1 values in (1));
+ERROR HY000: Multiple definition of same constant in list partitioning
+create table t1 (a int)
+partition by list (a)
+( partition p0 values in (2, 1),
+partition p1 values in (4, NULL, 3));
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+insert into t1 values (4);
+insert into t1 values (NULL);
+insert into t1 values (5);
+ERROR HY000: Table has no partition for value 5
+drop table t1;
+create table t1 (a int)
+partition by list column_list(a)
+( partition p0 values in (column_list(2), column_list(1)),
+partition p1 values in (column_list(4), column_list(NULL), column_list(3)));
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+insert into t1 values (4);
+insert into t1 values (NULL);
+insert into t1 values (5);
+ERROR HY000: Table has no partition for value from column_list
+drop table t1;
 create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range column_list(a,b,c,d)
 subpartition by hash (to_seconds(d))

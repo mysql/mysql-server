@@ -176,17 +176,17 @@ public:
   uint part_func_len;
   uint subpart_func_len;
 
-  uint no_parts;
-  uint no_subparts;
+  uint num_parts;
+  uint num_subparts;
   uint count_curr_subparts;
 
   uint part_error_code;
 
-  uint no_list_values;
+  uint num_list_values;
 
-  uint no_part_fields;
-  uint no_subpart_fields;
-  uint no_full_part_fields;
+  uint num_part_fields;
+  uint num_subpart_fields;
+  uint num_full_part_fields;
 
   uint has_null_part_id;
   /*
@@ -197,9 +197,9 @@ public:
   uint16 linear_hash_mask;
 
   bool use_default_partitions;
-  bool use_default_no_partitions;
+  bool use_default_num_partitions;
   bool use_default_subpartitions;
-  bool use_default_no_subpartitions;
+  bool use_default_num_subpartitions;
   bool default_partitions_setup;
   bool defined_max_value;
   bool list_of_part_fields;
@@ -233,12 +233,12 @@ public:
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
     part_info_len(0), part_state_len(0),
     part_func_len(0), subpart_func_len(0),
-    no_parts(0), no_subparts(0),
+    num_parts(0), num_subparts(0),
     count_curr_subparts(0), part_error_code(0),
-    no_list_values(0), no_part_fields(0), no_subpart_fields(0),
-    no_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
-    use_default_partitions(TRUE), use_default_no_partitions(TRUE),
-    use_default_subpartitions(TRUE), use_default_no_subpartitions(TRUE),
+    num_list_values(0), num_part_fields(0), num_subpart_fields(0),
+    num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
+    use_default_partitions(TRUE), use_default_num_partitions(TRUE),
+    use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
     default_partitions_setup(FALSE), defined_max_value(FALSE),
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
@@ -266,7 +266,7 @@ public:
   /* Returns the total number of partitions on the leaf level */
   uint get_tot_partitions()
   {
-    return no_parts * (is_sub_partitioned() ? no_subparts : 1);
+    return num_parts * (is_sub_partitioned() ? num_subparts : 1);
   }
 
   bool set_up_defaults_for_partitioning(handler *file, HA_CREATE_INFO *info,
@@ -289,7 +289,7 @@ private:
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
-  char *create_default_partition_names(uint part_no, uint no_parts,
+  char *create_default_partition_names(uint part_no, uint num_parts,
                                        uint start_no);
   char *create_subpartition_name(uint subpart_no, const char *part_name);
   bool has_unique_name(partition_element *element);
@@ -317,6 +317,6 @@ void init_all_partitions_iterator(partition_info *part_info,
                                   PARTITION_ITERATOR *part_iter)
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= 0;
-  part_iter->part_nums.end= part_info->no_parts;
+  part_iter->part_nums.end= part_info->num_parts;
   part_iter->get_next= get_next_partition_id_range;
 }
