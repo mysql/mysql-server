@@ -893,7 +893,7 @@ public:
   enum enum_enable_or_disable   keys_onoff;
   enum tablespace_op_type       tablespace_op;
   List<char>                    partition_names;
-  uint                          no_parts;
+  uint                          num_parts;
   enum_alter_table_change_level change_level;
   Create_field                 *datetime_field;
   bool                          error_if_not_empty;
@@ -903,7 +903,7 @@ public:
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     tablespace_op(NO_TABLESPACE_OP),
-    no_parts(0),
+    num_parts(0),
     change_level(ALTER_TABLE_METADATA_ONLY),
     datetime_field(NULL),
     error_if_not_empty(FALSE)
@@ -918,7 +918,7 @@ public:
     flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;
-    no_parts= 0;
+    num_parts= 0;
     partition_names.empty();
     change_level= ALTER_TABLE_METADATA_ONLY;
     datetime_field= 0;
