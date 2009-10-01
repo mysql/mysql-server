@@ -63,6 +63,8 @@ Last_IO_Errno	#
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
