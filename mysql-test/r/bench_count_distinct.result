@@ -5,7 +5,7 @@ count(distinct n)
 100
 explain extended select count(distinct n) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	index	NULL	n	4	NULL	200	100.00	Using index
+1	SIMPLE	t1	range	NULL	n	4	NULL	10	100.00	Using index for group-by
 Warnings:
 Note	1003	select count(distinct `test`.`t1`.`n`) AS `count(distinct n)` from `test`.`t1`
 drop table t1;
