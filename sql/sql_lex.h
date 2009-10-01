@@ -1192,7 +1192,7 @@ public:
     Get a character, and advance in the stream.
     @return the next character to parse.
   */
-  char yyGet()
+  unsigned char yyGet()
   {
     char c= *m_ptr++;
     if (m_echo)
@@ -1204,7 +1204,7 @@ public:
     Get the last character accepted.
     @return the last character accepted.
   */
-  char yyGetLast()
+  unsigned char yyGetLast()
   {
     return m_ptr[-1];
   }
@@ -1212,7 +1212,7 @@ public:
   /**
     Look at the next character to parse, but do not accept it.
   */
-  char yyPeek()
+  unsigned char yyPeek()
   {
     return m_ptr[0];
   }
@@ -1221,7 +1221,7 @@ public:
     Look ahead at some character to parse.
     @param n offset of the character to look up
   */
-  char yyPeekn(int n)
+  unsigned char yyPeekn(int n)
   {
     return m_ptr[n];
   }
