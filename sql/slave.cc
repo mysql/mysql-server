@@ -1054,7 +1054,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     if ((::server_id == (master_server_id= strtoul(master_row[1], 0, 10))) &&
         !mi->rli.replicate_same_server_id)
     {
-      err_msg.append("Fatal error: The slave I/O thread stops because master and slave have equal \
+      err_msg.append("The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).");
