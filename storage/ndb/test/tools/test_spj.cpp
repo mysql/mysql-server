@@ -231,7 +231,7 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
  * SQL:
  drop table if exists T;
  create table T (a int, b int, a0 int not null, b0 int not null,
- c0 int unsigned not null, c1 int unsigned not null, primary key(a,b))
+ c0 int unsigned , c1 int unsigned , primary key(a,b))
  engine = ndb;
 
  insert into T values (1,1,3,11,1,1);
@@ -240,6 +240,8 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
  insert into T values (5,255,1,1,1,1);
 
 */
+
+
 int spjTest(int argc, char** argv){
   NDB_INIT(argv[0]);
 
@@ -386,6 +388,8 @@ int spjTest(int argc, char** argv){
 
        sh> test_spj -s T
     */
+
+    
     NdbTransaction* pTrans = MyNdb.startTransaction();
     NdbScanOperation* pOp = pTrans->scanTable(pTab->getDefaultRecord(),
                                               NdbOperation::LM_Dirty);
@@ -634,7 +638,22 @@ int testSerialize(bool scan, int argc, char** argv){
   NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
   if(scan){
-    const NdbRecord* resultRec = tab->getDefaultRecord();
+    struct ResRec{
+      char nullMap;
+      Uint32 values[6];
+    };
+
+    NdbDictionary::RecordSpecification spec[6];
+    for(int i = 0; i<6; i++){
+      spec[i].column= tab->getColumn(i);
+      spec[i].offset= offsetof(ResRec, values) + sizeof(Uint32)*i;
+      spec[i].nullbit_byte_offset= offsetof(ResRec, nullMap);
+      spec[i].nullbit_bit_in_byte= i;
+    }
+    const NdbRecord *resultRec =
+      myDict->createRecord(tab, spec, 6, sizeof(spec[0]));
+
+    //const NdbRecord* resultRec = tab->getDefaultRecord();
     assert(resultRec!=NULL);
     const NdbQueryScanOperationDef* scanOpDef = qb->scanTable(tab);
     const NdbQueryOperand* linkKey[] = 
@@ -656,11 +675,13 @@ int testSerialize(bool scan, int argc, char** argv){
                         reinterpret_cast<const char*&>(scanResultPtr),
                         NULL);*/
     Uint32 scanResultPtr[6] = {0};
+    const NdbRecAttr* recAttrs[6] = {NULL};
     for(Uint32 i = 0; i<6; i++){
-      assert(scanOp->getValue(i, reinterpret_cast<char*>(scanResultPtr+i))
-             !=NULL);
+      recAttrs[i] 
+        = scanOp->getValue(i, reinterpret_cast<char*>(scanResultPtr+i));
+      assert(recAttrs[i]!=NULL);
     }
-    const Uint32* lookupResultPtr;
+    const ResRec* lookupResultPtr;
     NdbQueryOperation* const lookupOp = query->getQueryOperation(1);
     lookupOp->setResultRowRef(resultRec, 
                               reinterpret_cast<const char*&>(lookupResultPtr),
@@ -693,7 +714,11 @@ int testSerialize(bool scan, int argc, char** argv){
       if(!done){
         ndbout << "Scan row: " << rowNo << endl;
         for(int i = 0; i<6; i++){
-          ndbout << scanResultPtr[i] << " ";
+          if(recAttrs[i]->isNULL()){
+            ndbout << "NULL ";
+          }else{
+            ndbout << scanResultPtr[i] << " ";
+          }
         }
         ndbout << endl;
         ndbout << "Loopkup row: " << rowNo << endl;
@@ -701,7 +726,11 @@ int testSerialize(bool scan, int argc, char** argv){
           ndbout << "NULL" << endl;
         }else{
           for(int i = 0; i<6; i++){
-            ndbout << lookupResultPtr[i] << " ";
+            if((lookupResultPtr->nullMap>>i) == 1){
+              ndbout << "NULL ";
+            }else{
+              ndbout << lookupResultPtr->values[i] << " ";
+            }
           }
           ndbout << endl;
         }

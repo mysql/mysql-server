@@ -643,129 +643,92 @@ namespace SPJSanityTest{
     }
   };
 
-  /*****************
-   * Testcases.
-   */
+
+  /* Execute a test for a give operation graph.*/
   template <typename Row, typename Key>
-  void testNestedLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
-    makeTable<Row, Key>(mysql, "tt", tableSize);
-    Query<Row> query(ndb);
-    LookupOperation<Row, Key> root(query);
-    LookupOperation<Row, Key> child(query, &root);
-    LookupOperation<Row, Key> child2(query, &root);
+  void runCase(MYSQL& mysql, 
+               Ndb& ndb, 
+               Query<Row>& query,
+               const char* tabName, 
+               int tabSize,
+               int rowCount){
+    // Populate test table.
+    makeTable<Row, Key>(mysql, tabName, tabSize);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable("tt");    
+    const NdbDictionary::Table* const tab = dict->getTable(tabName);    
     ASSERT_ALWAYS(tab!=NULL);
-    query.build(*tab, tableSize);
+    // Build generic query definition.
+    query.build(*tab, tabSize);
     NdbTransaction* trans = ndb.startTransaction();
     ASSERT_ALWAYS(trans!=NULL);
+    // instantiate query within transaction.
     query.submit(*trans);
     ASSERT_ALWAYS(trans->execute(NoCommit)==0);
-    ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_gotRow);
-    query.verifyRow();
+    // Verify each row and total number of rows.
+    for(int i = 0; i<rowCount; i++){
+      ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_gotRow);
+      query.verifyRow();
+    }
     ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_scanComplete);
     ndb.closeTransaction(trans);
   }
 
+  /** Run a set of test cases.*/
   template <typename Row, typename Key>
-  void testIndexLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
-    makeTable<Row, Key>(mysql, "tt", tableSize);
-    Query<Row> query(ndb);
-    IndexLookupOperation<Row, Key> root(query, "UIX");
-    IndexLookupOperation<Row, Key> child(query, "UIX", &root);
-    NdbQueryBuilder builder(ndb);
-    NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable("tt");    
-    ASSERT_ALWAYS(tab!=NULL);
-    query.build(*tab, tableSize);
-    NdbTransaction* trans = ndb.startTransaction();
-    ASSERT_ALWAYS(trans!=NULL);
-    query.submit(*trans);
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
-    ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_gotRow);
-    query.verifyRow();
-    ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_scanComplete);
-    ndb.closeTransaction(trans);
-  }
+  void runTestSuite(MYSQL& mysql, Ndb& ndb){
+    for(int caseNo = 0; caseNo<5; caseNo++){
+      ndbout << "Running test case " << caseNo << endl;
 
-  template <typename Row, typename Key>
-  void testIndexScanWithLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
-    makeTable<Row, Key>(mysql, "tt", tableSize);
-    Query<Row> query(ndb);
-    const int lower = 1;
-    const int upper = tableSize/2;
-    ASSERT_ALWAYS(upper>=lower);
-    IndexScanOperation<Row, Key> root(query, "PRIMARY", lower, upper);
-    LookupOperation<Row, Key> child(query, &root);
-    IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
-    LookupOperation<Row, Key> child3(query, &child);
-    NdbQueryBuilder builder(ndb);
-    NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable("tt");    
-    ASSERT_ALWAYS(tab!=NULL);
-    query.build(*tab, tableSize);
-    NdbTransaction* trans = ndb.startTransaction();
-    ASSERT_ALWAYS(trans!=NULL);
-    query.submit(*trans);
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
-    for(int i = 0; i <= upper - lower; i++){
-      ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_gotRow);
-      query.verifyRow();
+      char tabName[20];
+      sprintf(tabName, "t%d", caseNo);
+      Query<Row> query(ndb);
+      
+      switch(caseNo){
+      case 0:
+        {
+          LookupOperation<Row, Key> root(query);
+          LookupOperation<Row, Key> child(query, &root);
+          LookupOperation<Row, Key> child2(query, &root);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 1, 1);
+        }
+        break;
+      case 1:
+        {
+          IndexLookupOperation<Row, Key> root(query, "UIX");
+          IndexLookupOperation<Row, Key> child(query, "UIX", &root);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 1);
+        }
+        break;
+      case 2:
+        {
+          IndexScanOperation<Row, Key> root(query, "PRIMARY", 2, 4);
+          LookupOperation<Row, Key> child(query, &root);
+          IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
+          LookupOperation<Row, Key> child3(query, &child);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 3);
+        }
+        break;
+      case 3:
+        {
+          TableScanOperation<Row> root(query);
+          LookupOperation<Row, Key> child(query, &root);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 5, 5);
+        }
+        break;
+      case 4:
+        {
+          TableScanOperation<Row> root(query);
+          IndexLookupOperation<Row, Key> child1(query, "UIX", &root);
+          LookupOperation<Row, Key> child2(query, &child1);
+          IndexLookupOperation<Row, Key> child3(query, "UIX", &child2);
+          LookupOperation<Row, Key> child1_2(query, &root);
+          LookupOperation<Row, Key> child2_2(query, &child1_2);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
+        }
+        break;
+      }
     }
-    ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_scanComplete);
-    ndb.closeTransaction(trans);
-  }
-
-  template <typename Row, typename Key>
-  void testTableScanWithLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
-    makeTable<Row, Key>(mysql, "tt", tableSize);
-    Query<Row> query(ndb);
-    TableScanOperation<Row> root(query);
-    LookupOperation<Row, Key> child(query, &root);
-    NdbQueryBuilder builder(ndb);
-    NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable("tt");    
-    ASSERT_ALWAYS(tab!=NULL);
-    query.build(*tab, tableSize);
-    NdbTransaction* trans = ndb.startTransaction();
-    ASSERT_ALWAYS(trans!=NULL);
-    query.submit(*trans);
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
-    for(int i = 0; i<tableSize; i++){
-      ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_gotRow);
-      query.verifyRow();
-    }
-    ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_scanComplete);
-    ndb.closeTransaction(trans);
-  }
-
-  template <typename Row, typename Key>
-  void testComplexTableScanWithLookup(MYSQL& mysql, Ndb& ndb, int tableSize){
-    makeTable<Row, Key>(mysql, "tt", tableSize);
-    Query<Row> query(ndb);
-    TableScanOperation<Row> root(query);
-    //LookupOperation<Row, Key> child(query, &root);
-    IndexLookupOperation<Row, Key> child1(query, "UIX", &root);
-    LookupOperation<Row, Key> child2(query, &child1);
-    IndexLookupOperation<Row, Key> child3(query, "UIX", &child2);
-    LookupOperation<Row, Key> child1_2(query, &root);
-    LookupOperation<Row, Key> child2_2(query, &child1_2);
-    NdbQueryBuilder builder(ndb);
-    NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable("tt");    
-    ASSERT_ALWAYS(tab!=NULL);
-    query.build(*tab, tableSize);
-    NdbTransaction* trans = ndb.startTransaction();
-    ASSERT_ALWAYS(trans!=NULL);
-    query.submit(*trans);
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
-    for(int i = 0; i<tableSize; i++){
-      ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_gotRow);
-      query.verifyRow();
-    }
-    ASSERT_ALWAYS(query.nextResult()==NdbQuery::NextResult_scanComplete);
-    ndb.closeTransaction(trans);
   }
 
   /* Concrete Key class.*/
@@ -916,11 +879,11 @@ int main(int argc, char* argv[]){
   }
   mySQLExec(mysql, "create database if not exists CK_DB");
   mySQLExec(mysql, "use CK_DB");
-  for(int testNo = 0; testNo<5; testNo++){
+  {
     Ndb_cluster_connection con(connectString);
     if(con.connect(12, 5, 1) != 0){
-        ndbout << "Unable to connect to management server." << endl;
-        return NDBT_ProgramExit(NDBT_FAILED);
+      ndbout << "Unable to connect to management server." << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
     }
     
     int res = con.wait_until_ready(30,30);
@@ -933,25 +896,8 @@ int main(int argc, char* argv[]){
       ERR(ndb.getNdbError());
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    ndbout << "Running test case " << testNo << endl;
-    switch(testNo){
-    case 0:
-      testNestedLookup<RowInt, KeyInt>(mysql, ndb, 1);
-      break;
-    case 1:
-      testIndexLookup<RowInt, KeyInt>(mysql, ndb, 5);
-      break;
-    case 2:
-      testTableScanWithLookup<RowInt, KeyInt>(mysql, ndb, 5);
-      break;
-    case 3:
-      testIndexScanWithLookup<RowInt, KeyInt>(mysql, ndb, 5);
-      break;
-    case 4:
-      testComplexTableScanWithLookup<RowInt, KeyInt>(mysql, ndb, 10);
-      break;
-    }
-  }
+    runTestSuite<RowInt, KeyInt>(mysql, ndb);
+  } // Must call ~Ndb_cluster_connection() before ndb_end().
   ndb_end(0);
   return 0;
 }
@@ -967,18 +913,10 @@ template class Query<RowInt>;
 template void makeTable<RowInt, KeyInt>(MYSQL& mysql, 
                                         const char* name, 
                                         int rowCount);
-template void testNestedLookup<RowInt, KeyInt>(MYSQL& mysql, 
-                                               Ndb& ndb, 
-                                               int tableSize);
-template void testIndexLookup<RowInt, KeyInt>(MYSQL& mysql, 
-                                              Ndb& ndb, 
-                                              int tableSize);
-template void testTableScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
-                                                      Ndb& ndb, 
-                                                      int tableSize);
-template void testComplexTableScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
-                                                             Ndb& ndb, 
-                                                             int tableSize);
-template void testIndexScanWithLookup<RowInt, KeyInt>(MYSQL& mysql, 
-                                                      Ndb& ndb, 
-                                                      int tableSize);
+template void runTestSuite<RowInt, KeyInt>(MYSQL& mysql, Ndb& ndb);
+template void runCase<RowInt, KeyInt>(MYSQL& mysql, 
+                                      Ndb& ndb, 
+                                      Query<RowInt>& query,
+                                      const char* tabName, 
+                                      int tabSize,
+                                      int rowCount);
