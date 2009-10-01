@@ -1,3 +1,12 @@
+2009-10-01	The InnoDB Team
+
+	* fsp/fsp0fsp.c, row/row0merge.c:
+	Clean up after a crash during DROP INDEX.  When InnoDB crashes
+	while dropping an index, ensure that the index will be completely
+	dropped during crash recovery.  The MySQL .frm file may still
+	contain the dropped index, but there is little that we can do
+	about it.
+
 2009-09-28	The InnoDB Team
 
 	* handler/ha_innodb.cc:

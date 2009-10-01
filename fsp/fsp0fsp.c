@@ -2041,7 +2041,7 @@ fsp_free_seg_inode(
 	}
 
 	mlog_write_dulint(inode + FSEG_ID, ut_dulint_zero, mtr);
-	mlog_write_ulint(inode + FSEG_MAGIC_N, 0, MLOG_4BYTES, mtr);
+	mlog_write_ulint(inode + FSEG_MAGIC_N, 0xfa051ce3, MLOG_4BYTES, mtr);
 
 	if (ULINT_UNDEFINED
 	    == fsp_seg_inode_page_find_used(page, zip_size, mtr)) {
@@ -2057,11 +2057,11 @@ fsp_free_seg_inode(
 
 /**********************************************************************//**
 Returns the file segment inode, page x-latched.
-@return	segment inode, page x-latched */
+@return	segment inode, page x-latched; NULL if the inode is free */
 static
 fseg_inode_t*
-fseg_inode_get(
-/*===========*/
+fseg_inode_try_get(
+/*===============*/
 	fseg_header_t*	header,	/*!< in: segment header */
 	ulint		space,	/*!< in: space id */
 	ulint		zip_size,/*!< in: compressed page size in bytes
@@ -2077,8 +2077,34 @@ fseg_inode_get(
 
 	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
 
-	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+	if (UNIV_UNLIKELY
+	    (ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID)))) {
 
+		inode = NULL;
+	} else {
+		ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N)
+		      == FSEG_MAGIC_N_VALUE);
+	}
+
+	return(inode);
+}
+
+/**********************************************************************//**
+Returns the file segment inode, page x-latched.
+@return	segment inode, page x-latched */
+static
+fseg_inode_t*
+fseg_inode_get(
+/*===========*/
+	fseg_header_t*	header,	/*!< in: segment header */
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	mtr_t*		mtr)	/*!< in: mtr handle */
+{
+	fseg_inode_t*	inode
+		= fseg_inode_try_get(header, space, zip_size, mtr);
+	ut_a(inode);
 	return(inode);
 }
 
@@ -3495,7 +3521,13 @@ fseg_free_step(
 	ut_a(descr);
 	ut_a(xdes_get_bit(descr, XDES_FREE_BIT,
 			  header_page % FSP_EXTENT_SIZE, mtr) == FALSE);
-	inode = fseg_inode_get(header, space, zip_size, mtr);
+	inode = fseg_inode_try_get(header, space, zip_size, mtr);
+
+	if (UNIV_UNLIKELY(inode == NULL)) {
+		fprintf(stderr, "double free of inode from %u:%u\n",
+			(unsigned) space, (unsigned) header_page);
+		return(TRUE);
+	}
 
 	descr = fseg_get_first_extent(inode, space, zip_size, mtr);
 
