@@ -1407,7 +1407,6 @@ NdbQueryOperationImpl::fetchRecAttrResults(Uint32 streamNo){
     const int retVal1 = m_resultStreams[streamNo]->m_receiver
       .getScanAttrData(attrData, attrSize, posInRow);
     assert(retVal1==0);
-    assert(attrSize!=0);
     assert(attrData!=NULL);
     const bool retVal2 = recAttr
       ->receive_data(reinterpret_cast<const Uint32*>(attrData), attrSize);
