@@ -244,6 +244,7 @@ static SYMBOL symbols[] = {
   { "IDENTIFIED",	SYM(IDENTIFIED_SYM)},
   { "IF",		SYM(IF)},
   { "IGNORE",		SYM(IGNORE_SYM)},
+  { "IGNORE_SERVER_IDS", SYM(IGNORE_SERVER_IDS_SYM)},
   { "IMPORT",		SYM(IMPORT)},
   { "IN",		SYM(IN_SYM)},
   { "INDEX",		SYM(INDEX_SYM)},
