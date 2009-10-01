@@ -1,4 +1,36 @@
 drop table if exists t1;
+create table t1 (a int, b int)
+partition by list column_list(a,b)
+( partition p0 values in (column_list(1, NULL), column_list(2, NULL),
+column_list(NULL, NULL)),
+partition p1 values in (column_list(1,1), column_list(2,2)),
+partition p2 values in (column_list(3, NULL), column_list(NULL, 1)));
+insert into t1 values (3, NULL);
+insert into t1 values (NULL, 1);
+insert into t1 values (NULL, NULL);
+insert into t1 values (1, NULL);
+insert into t1 values (2, NULL);
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+select * from t1 where a = 1;
+a	b
+1	NULL
+1	1
+select * from t1 where a = 2;
+a	b
+2	NULL
+2	2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST  COLUMN_LIST(a,b)
+(PARTITION p0 VALUES IN ( COLUMN_LIST(1,NULL), COLUMN_LIST(2,NULL), COLUMN_LIST(NULL,NULL)) ENGINE = MyISAM,
+ PARTITION p1 VALUES IN ( COLUMN_LIST(1,1), COLUMN_LIST(2,2)) ENGINE = MyISAM,
+ PARTITION p2 VALUES IN ( COLUMN_LIST(3,NULL), COLUMN_LIST(NULL,1)) ENGINE = MyISAM) */
+drop table t1;
 create table t1 (a int)
 partition by list (a)
 ( partition p0 values in (1),
@@ -27,6 +59,14 @@ insert into t1 values (4);
 insert into t1 values (NULL);
 insert into t1 values (5);
 ERROR HY000: Table has no partition for value from column_list
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST  COLUMN_LIST(a)
+(PARTITION p0 VALUES IN ( COLUMN_LIST(2), COLUMN_LIST(1)) ENGINE = MyISAM,
+ PARTITION p1 VALUES IN ( COLUMN_LIST(4), COLUMN_LIST(NULL), COLUMN_LIST(3)) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range column_list(a,b,c,d)
