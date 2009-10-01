@@ -25,15 +25,17 @@
 #define QRY_TOO_FEW_KEY_VALUES 4801
 #define QRY_TOO_MANY_KEY_VALUES 4802
 #define QRY_OPERAND_HAS_WRONG_TYPE 4803
-#define QRY_UNKONWN_PARENT 4804
-#define QRY_UNKNOWN_COLUMN 4805
-#define QRY_UNRELATED_INDEX 4806
-#define QRY_WRONG_INDEX_TYPE 4807
-#define QRY_OPERAND_ALREADY_BOUND 4808
-#define QRY_DEFINITION_TOO_LARGE 4809
-#define QRY_DUPLICATE_COLUMN_IN_PROJ 4810
-#define QRY_NEED_PARAMETER 4811
-#define QRY_RESULT_ROW_ALREADY_DEFINED 4812
+#define QRY_CHAR_OPERAND_TRUNCATED 4804
+#define QRY_NUM_OPERAND_RANGE 4805
+#define QRY_UNKONWN_PARENT 4806
+#define QRY_UNKNOWN_COLUMN 4807
+#define QRY_UNRELATED_INDEX 4808
+#define QRY_WRONG_INDEX_TYPE 4809
+#define QRY_OPERAND_ALREADY_BOUND 4810
+#define QRY_DEFINITION_TOO_LARGE 4811
+#define QRY_DUPLICATE_COLUMN_IN_PROJ 4812
+#define QRY_NEED_PARAMETER 4813
+#define QRY_RESULT_ROW_ALREADY_DEFINED 4814
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -310,9 +312,14 @@ public:
    * Returns: 0 if OK, or possible an errorcode.
    */
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[],
+                             const constVoidPtr actualParam[]) const = 0;
+
+  virtual int checkPrunable(const Uint32Buffer& keyInfo,
                              bool&   isPruned,
-                             Uint32& hashValue) const = 0;
+                             Uint32& hashValue) const {
+    isPruned = false;
+    return 0;
+  }
 
   virtual ~NdbQueryOperationDefImpl() = 0;
 
@@ -482,7 +489,7 @@ protected:
       m_kind(kind)
   {}
 
-private:
+protected:
   const NdbColumnImpl* m_column;       // Initial NULL, assigned w/ bindOperand()
   /** This is used to tell the type of an NdbQueryOperand. This allow safe
    * downcasting to a subclass.
@@ -496,9 +503,6 @@ class NdbLinkedOperandImpl : public NdbQueryOperandImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
-
   const NdbQueryOperationDefImpl& getParentOperation() const
   { return m_parentOperation; }
 
@@ -512,6 +516,9 @@ public:
 
   virtual const NdbLinkedOperand& getInterface() const
   { return m_interface; }
+
+  virtual int bindOperand(const NdbColumnImpl& column,
+                          NdbQueryOperationDefImpl& operation);
 
 private:
   virtual ~NdbLinkedOperandImpl() {}
@@ -535,17 +542,19 @@ class NdbParamOperandImpl : public NdbQueryOperandImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
-
   const char* getName() const
   { return m_name; }
 
   Uint32 getParamIx() const
   { return m_paramIx; }
 
+  size_t getSizeInBytes(const constVoidPtr paramValue) const;
+
   virtual const NdbParamOperand& getInterface() const
   { return m_interface; }
+
+  virtual int bindOperand(const NdbColumnImpl& column,
+                          NdbQueryOperationDefImpl& operation);
 
 private:
   virtual ~NdbParamOperandImpl() {}
@@ -566,23 +575,87 @@ class NdbConstOperandImpl : public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 public:
-  virtual size_t getLength() const = 0;
-  virtual const void* getAddr() const = 0;
-
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation);
-
-  virtual NdbDictionary::Column::Type getType() const = 0;
+  size_t getSizeInBytes()    const
+  { return m_converted.len; }
+  const void* getAddr() const
+  { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
 
   virtual const NdbConstOperand& getInterface() const
   { return m_interface; }
+
+  virtual int bindOperand(const NdbColumnImpl& column,
+                          NdbQueryOperationDefImpl& operation);
 
 protected:
   virtual ~NdbConstOperandImpl() {}
   NdbConstOperandImpl ()
     : NdbQueryOperandImpl(Const),
+      m_converted(),
       m_interface(*this)
   {}
+
+  #define UNDEFINED_CONVERSION	\
+  { return QRY_OPERAND_HAS_WRONG_TYPE; }
+
+  virtual int convertUint8()  UNDEFINED_CONVERSION;
+  virtual int convertInt8()   UNDEFINED_CONVERSION;
+  virtual int convertUint16() UNDEFINED_CONVERSION;
+  virtual int convertInt16()  UNDEFINED_CONVERSION;
+  virtual int convertUint24() UNDEFINED_CONVERSION;
+  virtual int convertInt24()  UNDEFINED_CONVERSION;
+  virtual int convertUint32() UNDEFINED_CONVERSION;
+  virtual int convertInt32()  UNDEFINED_CONVERSION;
+  virtual int convertUint64() UNDEFINED_CONVERSION;
+  virtual int convertInt64()  UNDEFINED_CONVERSION;
+  virtual int convertFloat()  UNDEFINED_CONVERSION;
+  virtual int convertDouble() UNDEFINED_CONVERSION
+
+  virtual int convertUDec()   UNDEFINED_CONVERSION;
+  virtual int convertDec()    UNDEFINED_CONVERSION;
+
+  virtual int convertBit()    UNDEFINED_CONVERSION;
+  virtual int convertChar()   UNDEFINED_CONVERSION;
+  virtual int convertVChar()  UNDEFINED_CONVERSION;
+  virtual int convertLVChar() UNDEFINED_CONVERSION;
+  virtual int convertBin()    UNDEFINED_CONVERSION;
+  virtual int convertVBin()   UNDEFINED_CONVERSION;
+  virtual int convertLVBin()  UNDEFINED_CONVERSION;
+
+  virtual int convertDate()   UNDEFINED_CONVERSION;
+  virtual int convertDatetime() UNDEFINED_CONVERSION;
+  virtual int convertTime()   UNDEFINED_CONVERSION;
+  virtual int convertYear()   UNDEFINED_CONVERSION;
+  virtual int convertTimestamp() UNDEFINED_CONVERSION;
+
+
+  virtual int convert2ColumnType();
+
+
+  STATIC_CONST(maxShortChar = 32);
+
+  /** Values converted to datatype format as expected by bound column 
+    * (available through ::getColumn())
+    */
+  class ConvertedValue {
+  public:
+    ConvertedValue()  : len(0), buffer(NULL) {};
+    ~ConvertedValue() {
+      if (buffer) delete[] ((char*)buffer);
+    };
+
+    union
+    {
+      Uint32    uint32;
+      Int32     int32;
+      Uint64    uint64;
+      Int64     int64;
+
+      char      shortChar[maxShortChar];
+    } val;
+
+    size_t len;
+    void*  buffer;  // Optional; storage for converted value
+  } m_converted;
 
 private:
   NdbConstOperand m_interface;

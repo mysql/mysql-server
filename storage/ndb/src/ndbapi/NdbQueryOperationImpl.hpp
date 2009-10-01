@@ -223,10 +223,6 @@ private:
    */
   StreamStack m_fullStreams;
 
-  /** Prunable property, and optional hashValue, valid for scans, */
-  bool m_isPruned;
-  Uint32 m_hashValue;
-
   /**
    * Signal building section:
    */

@@ -316,8 +316,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_maxBatchRows(0),
   m_applStreams(),
   m_fullStreams(),
-  m_isPruned(false),
-  m_hashValue(0),
   m_signal(0),
   m_attrInfo(),
   m_keyInfo()
@@ -382,8 +380,7 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
    * Also calculate prunable property, and possibly its hashValue.
    */
   // Build explicit key/filter/bounds for root operation, possibly refering paramValues
-  const int error = getRoot().getQueryOperationDef()
-      .prepareKeyInfo(m_keyInfo, paramValues, m_isPruned, m_hashValue);
+  const int error = getRoot().getQueryOperationDef().prepareKeyInfo(m_keyInfo, paramValues);
   if (unlikely(error != 0))
     return error;
 
@@ -861,6 +858,12 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
     bool rangeScan= false;
 
+    bool   isPruned;
+    Uint32 hashValue;
+    const int error = rootDef.checkPrunable(m_keyInfo, isPruned, hashValue);
+    if (unlikely(error != 0))
+      return error;
+
     /* Handle IndexScan specifics */
     if ( (int) rootTable->m_indexType ==
          (int) NdbDictionary::Index::OrderedIndex )
@@ -914,11 +917,11 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 //  m_keyInfo = (scan_flags & NdbScanOperation::SF_KeyInfo) ? 1 : 0;
 
     // If scan is pruned, use optional 'distributionKey' to hold hashvalue
-    if (m_isPruned)
+    if (isPruned)
     {
-//    printf("Build pruned SCANREQ, w/ hashValue:%d\n", m_hashValue);
+//    printf("Build pruned SCANREQ, w/ hashValue:%d\n", hashValue);
       ScanTabReq::setDistributionKeyFlag(reqInfo, 1);
-      scanTabReq->distributionKey= m_hashValue;
+      scanTabReq->distributionKey= hashValue;
       m_signal->setLength(ScanTabReq::StaticLength + 1);
     } else {
       m_signal->setLength(ScanTabReq::StaticLength);
@@ -1562,7 +1565,7 @@ NdbQueryOperationImpl::UserProjection::serialize(Uint32Buffer& buffer,
 
 int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
 {
-  if (paramValues == NULL)
+  if (unlikely(paramValues == NULL))
   {
     return QRY_NEED_PARAMETER;
   }
@@ -1572,7 +1575,7 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
   {
     const NdbParamOperandImpl& paramDef = def.getParameter(i);
     const constVoidPtr paramValue = paramValues[paramDef.getParamIx()];
-    if (paramValue == NULL)  // FIXME: May also indicate a NULL value....
+    if (unlikely(paramValue == NULL))  // FIXME: May also indicate a NULL value....
     {
       return QRY_NEED_PARAMETER;
     }
@@ -1583,7 +1586,7 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
      *  the actuall value. Allocation is in Uint32 units with unused bytes
      *  zero padded.
      **/
-    Uint32 len = paramDef.getColumn()->getSizeInBytes();
+    Uint32 len = paramDef.getSizeInBytes(paramValue);
     m_params.append(len);          // paramValue length in #bytes
     m_params.append(paramValue,len);
 
