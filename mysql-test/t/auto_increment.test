@@ -324,3 +324,21 @@ insert into t1 values(null,0,0,0,null);
 replace into t1 values(null,1,0,2,null);
 select last_insert_id();
 drop table t1;
+
+--echo #
+--echo # Bug#46616: Assertion `!table->auto_increment_field_not_null' on view   
+--echo # manipulations
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (1);
+
+CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY );
+--error ER_DUP_ENTRY
+CREATE TABLE IF NOT EXISTS t2 AS SELECT a FROM t1;
+
+UPDATE t2 SET a = 2;
+
+SELECT a FROM t2;
+
+DROP TABLE t1, t2;
+

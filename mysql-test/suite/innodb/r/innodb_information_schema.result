@@ -1,0 +1,23 @@
+lock_mode	lock_type	lock_table	lock_index	lock_rec	lock_data
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	2	'1', 'abc', '''abc', 'abc''', 'a''bc', 'a''bc''', '''abc'''''
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	2	'1', 'abc', '''abc', 'abc''', 'a''bc', 'a''bc''', '''abc'''''
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	3	'2', 'abc', '"abc', 'abc"', 'a"bc', 'a"bc"', '"abc""'
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	3	'2', 'abc', '"abc', 'abc"', 'a"bc', 'a"bc"', '"abc""'
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	4	'3', 'abc', '\\abc', 'abc\\', 'a\\bc', 'a\\bc\\', '\\abc\\\\'
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	4	'3', 'abc', '\\abc', 'abc\\', 'a\\bc', 'a\\bc\\', '\\abc\\\\'
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	5	'4', 'abc', '\0abc', 'abc\0', 'a\0bc', 'a\0bc\0', 'a\0bc\0\0'
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	5	'4', 'abc', '\0abc', 'abc\0', 'a\0bc', 'a\0bc\0', 'a\0bc\0\0'
+X	RECORD	`test`.`t_min`	`PRIMARY`	2	-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0
+X	RECORD	`test`.`t_min`	`PRIMARY`	2	-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0
+X	RECORD	`test`.`t_max`	`PRIMARY`	2	127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615
+X	RECORD	`test`.`t_max`	`PRIMARY`	2	127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	1	supremum pseudo-record
+X	RECORD	`test`.```t'\"_str`	`PRIMARY`	1	supremum pseudo-record
+lock_table	COUNT(*)
+`test`.`t_max`	2
+`test`.`t_min`	2
+`test`.```t'\"_str`	10
+lock_table	COUNT(*)
+"test"."t_max"	2
+"test"."t_min"	2
+"test"."`t'\""_str"	10
