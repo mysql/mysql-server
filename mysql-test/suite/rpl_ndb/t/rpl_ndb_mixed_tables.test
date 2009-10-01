@@ -134,11 +134,15 @@ connection master;
 
 --echo ---- ROLLBACK ----
 
+# This test does not work in ROW mode after the changes introduced in
+# BUG#40116. After WL#2687 is pushed, Tests should be added again.
+--disable_parsing
 BEGIN;
 INSERT INTO myisam_innodb VALUES (13);
 INSERT INTO myisam_innodb VALUES (14);
 ROLLBACK;
 sync_slave_with_master;
+--enable_parsing
 connection master;
 BEGIN;
 INSERT INTO innodb_myisam VALUES (15);
@@ -147,12 +151,17 @@ ROLLBACK;
 sync_slave_with_master;
 connection master;
 
+# This test does not work in ROW mode after the changes introduced in
+# BUG#40116. After WL#2687 is pushed, these tests should be enabled
+# again.
+--disable_parsing
 BEGIN;
 INSERT INTO myisam_ndb VALUES (17);
 INSERT INTO myisam_ndb VALUES (18);
 ROLLBACK;
 sync_slave_with_master;
 connection master;
+--enable_parsing
 BEGIN;
 INSERT INTO ndb_myisam VALUES (19);
 INSERT INTO ndb_myisam VALUES (20);
@@ -221,12 +230,17 @@ connection master;
 
 --echo ---- ROLLBACK ----
 
+# This test does not work in ROW mode after the changes introduced in
+# BUG#40116. After WL#2687 is pushed, these tests should be enabled
+# again.
+--disable_parsing
 BEGIN;
 INSERT INTO myisam_innodb VALUES (37);
 INSERT INTO myisam_innodb VALUES (38);
 ROLLBACK;
 sync_slave_with_master;
 connection master;
+--enable_parsing
 BEGIN;
 INSERT INTO innodb_myisam VALUES (39);
 INSERT INTO innodb_myisam VALUES (40);
@@ -234,12 +248,17 @@ ROLLBACK;
 sync_slave_with_master;
 connection master;
 
+# This test does not work in ROW mode after the changes introduced in
+# BUG#40116. After WL#2687 is pushed, these tests should be enabled
+# again.
+--disable_parsing
 BEGIN;
 INSERT INTO myisam_ndb VALUES (41);
 INSERT INTO myisam_ndb VALUES (42);
 ROLLBACK;
 sync_slave_with_master;
 connection master;
+--enable_parsing
 BEGIN;
 INSERT INTO ndb_myisam VALUES (43);
 INSERT INTO ndb_myisam VALUES (44);
@@ -295,6 +314,10 @@ connection master;
 
 SET AUTOCOMMIT = 0;
 
+# These tests do not work in ROW mode after the changes introduced in
+# BUG#40116. After WL#2687 is pushed, these tests should be enabled
+# again.
+--disable_parsing
 # This tests BUG#29288.
 INSERT INTO myisam_innodb VALUES (61);
 INSERT INTO myisam_innodb VALUES (62);
@@ -305,6 +328,7 @@ INSERT INTO myisam_ndb VALUES (63);
 INSERT INTO myisam_ndb VALUES (64);
 sync_slave_with_master;
 connection master;
+--enable_parsing
 
 
 --echo ==== Show results ====

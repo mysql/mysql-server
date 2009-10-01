@@ -1280,6 +1280,19 @@ bool change_master(THD* thd, Master_info* mi)
   }
 
   thd_proc_info(thd, "Changing master");
+  /* 
+    We need to check if there is an empty master_host. Otherwise
+    change master succeeds, a master.info file is created containing 
+    empty master_host string and when issuing: start slave; an error
+    is thrown stating that the server is not configured as slave.
+    (See BUG#28796).
+  */
+  if(lex_mi->host && !*lex_mi->host) 
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+  }
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
 		       thread_mask))
@@ -1567,6 +1580,7 @@ bool mysql_show_binlog_events(THD* thd)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  MYSQL_BIN_LOG *binary_log= NULL;
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1577,14 +1591,30 @@ bool mysql_show_binlog_events(THD* thd)
   Format_description_log_event *description_event= new
     Format_description_log_event(3); /* MySQL 4.0 by default */
 
-  /*
-    Wait for handlers to insert any pending information
-    into the binlog.  For e.g. ndb which updates the binlog asynchronously
-    this is needed so that the uses sees all its own commands in the binlog
-  */
-  ha_binlog_wait(thd);
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
+              thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
-  if (mysql_bin_log.is_open())
+  /* select wich binary log to use: binlog or relay */
+  if ( thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS )
+  {
+    /*
+      Wait for handlers to insert any pending information
+      into the binlog.  For e.g. ndb which updates the binlog asynchronously
+      this is needed so that the uses sees all its own commands in the binlog
+    */
+    ha_binlog_wait(thd);
+
+    binary_log= &mysql_bin_log;
+  }
+  else  /* showing relay log contents */
+  {
+    if (!active_mi)
+      DBUG_RETURN(TRUE);
+
+    binary_log= &(active_mi->rli.relay_log);
+  }
+
+  if (binary_log->is_open())
   {
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
     SELECT_LEX_UNIT *unit= &thd->lex->unit;
@@ -1592,7 +1622,7 @@ bool mysql_show_binlog_events(THD* thd)
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
+    pthread_mutex_t *log_lock = binary_log->get_log_lock();
     LOG_INFO linfo;
     Log_event* ev;
 
@@ -1602,13 +1632,13 @@ bool mysql_show_binlog_events(THD* thd)
 
     name= search_file_name;
     if (log_file_name)
-      mysql_bin_log.make_log_name(search_file_name, log_file_name);
+      binary_log->make_log_name(search_file_name, log_file_name);
     else
       name=0;					// Find first log
 
     linfo.index_file_offset = 0;
 
-    if (mysql_bin_log.find_log_pos(&linfo, name, 1))
+    if (binary_log->find_log_pos(&linfo, name, 1))
     {
       errmsg = "Could not find target log";
       goto err;
@@ -1947,6 +1977,16 @@ static sys_var_const    sys_relay_log_info_file(&vars, "relay_log_info_file",
                                       (uchar*) &relay_log_info_file);
 static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
 					    &relay_log_purge);
+static sys_var_bool_ptr sys_relay_log_recovery(&vars, "relay_log_recovery",
+                                               &relay_log_recovery);
+static sys_var_uint_ptr sys_sync_binlog_period(&vars, "sync_binlog",
+                                              &sync_binlog_period);
+static sys_var_uint_ptr sys_sync_relaylog_period(&vars, "sync_relay_log",
+                                                &sync_relaylog_period);
+static sys_var_uint_ptr sys_sync_relayloginfo_period(&vars, "sync_relay_log_info",
+                                                    &sync_relayloginfo_period);
+static sys_var_uint_ptr sys_sync_masterinfo_period(&vars, "sync_master_info",
+                                                  &sync_masterinfo_period);
 static sys_var_const    sys_relay_log_space_limit(&vars,
                                                   "relay_log_space_limit",
                                                   OPT_GLOBAL, SHOW_LONGLONG,
@@ -1963,7 +2003,6 @@ static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
                                               (uchar*) slave_skip_error_names);
 static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
 						&slave_trans_retries);
-static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 
 
@@ -2004,12 +2043,6 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   return 0;
 }
 
-
-bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
-{
-  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
-  return 0;
-}
 
 int init_replication_sys_vars()
 {

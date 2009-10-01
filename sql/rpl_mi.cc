@@ -29,10 +29,11 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
-Master_info::Master_info()
+Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
-   abort_slave(0),slave_running(0), slave_run_id(0),
+   rli(is_slave_recovery), abort_slave(0), slave_running(0),
+   slave_run_id(0), sync_counter(0),
    heartbeat_period(0), received_heartbeats(0), master_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
@@ -383,6 +384,7 @@ file '%s')", fname);
     goto err;
 
   mi->inited = 1;
+  mi->rli.is_relay_log_recovery= FALSE;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
   if ((error=test(flush_master_info(mi, 1))))
@@ -415,6 +417,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
+  int err= 0;
 
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
@@ -431,9 +434,12 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
     When we come to this place in code, relay log may or not be initialized;
     the caller is responsible for setting 'flush_relay_log_cache' accordingly.
   */
-  if (flush_relay_log_cache &&
-      flush_io_cache(mi->rli.relay_log.get_log_file()))
-    DBUG_RETURN(2);
+  if (flush_relay_log_cache)
+  {
+    IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
+    if (flush_io_cache(log_file))
+      DBUG_RETURN(2);
+  }
   
   /*
     produce a line listing the total number and all the ignored server_id:s
@@ -457,6 +463,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
                             " %lu", s_id));
     }
   }
+
   /*
     We flushed the relay log BEFORE the master.info file, because if we crash
     now, we will get a duplicate event in the relay log at restart. If we
@@ -485,9 +492,15 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
               heartbeat_buf, ignore_server_ids_buf);
-
   my_free(ignore_server_ids_buf, MYF(0));
-  DBUG_RETURN(-flush_io_cache(file));
+  err= flush_io_cache(file);
+  if (sync_masterinfo_period && !err && 
+      ++(mi->sync_counter) >= sync_masterinfo_period)
+  {
+    err= my_sync(mi->fd, MYF(MY_WME));
+    mi->sync_counter= 0;
+  }
+  DBUG_RETURN(-err);
 }
 
 
