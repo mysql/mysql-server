@@ -938,100 +938,6 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-/*
-  Error injector Macros to enable easy testing of recovery after failures
-  in various error cases.
-*/
-#ifndef ERROR_INJECT_SUPPORT
-
-#define ERROR_INJECT(x) 0
-#define ERROR_INJECT_ACTION(x,action) 0
-#define ERROR_INJECT_CRASH(x) 0
-#define ERROR_INJECT_VALUE(x) 0
-#define ERROR_INJECT_VALUE_ACTION(x,action) 0
-#define ERROR_INJECT_VALUE_CRASH(x) 0
-#define SET_ERROR_INJECT_VALUE(x)
-
-#else
-
-inline bool check_and_unset_keyword(const char *dbug_str)
-{
-  const char *extra_str= "-d,";
-  char total_str[200];
-  if (_db_strict_keyword_ (dbug_str))
-  {
-    strxmov(total_str, extra_str, dbug_str, NullS);
-    DBUG_SET(total_str);
-    return 1;
-  }
-  return 0;
-}
-
-
-inline bool
-check_and_unset_inject_value(int value)
-{
-  THD *thd= current_thd;
-  if (thd->error_inject_value == (uint)value)
-  {
-    thd->error_inject_value= 0;
-    return 1;
-  }
-  return 0;
-}
-
-/*
-  ERROR INJECT MODULE:
-  --------------------
-  These macros are used to insert macros from the application code.
-  The event that activates those error injections can be activated
-  from SQL by using:
-  SET SESSION dbug=+d,code;
-
-  After the error has been injected, the macros will automatically
-  remove the debug code, thus similar to using:
-  SET SESSION dbug=-d,code
-  from SQL.
-
-  ERROR_INJECT_CRASH will inject a crash of the MySQL Server if code
-  is set when macro is called. ERROR_INJECT_CRASH can be used in
-  if-statements, it will always return FALSE unless of course it
-  crashes in which case it doesn't return at all.
-
-  ERROR_INJECT_ACTION will inject the action specified in the action
-  parameter of the macro, before performing the action the code will
-  be removed such that no more events occur. ERROR_INJECT_ACTION
-  can also be used in if-statements and always returns FALSE.
-  ERROR_INJECT can be used in a normal if-statement, where the action
-  part is performed in the if-block. The macro returns TRUE if the
-  error was activated and otherwise returns FALSE. If activated the
-  code is removed.
-
-  Sometimes it is necessary to perform error inject actions as a serie
-  of events. In this case one can use one variable on the THD object.
-  Thus one sets this value by using e.g. SET_ERROR_INJECT_VALUE(100).
-  Then one can later test for it by using ERROR_INJECT_CRASH_VALUE,
-  ERROR_INJECT_ACTION_VALUE and ERROR_INJECT_VALUE. This have the same
-  behaviour as the above described macros except that they use the
-  error inject value instead of a code used by DBUG macros.
-*/
-#define SET_ERROR_INJECT_VALUE(x) \
-  current_thd->error_inject_value= (x)
-#define ERROR_INJECT_CRASH(code) \
-  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
-#define ERROR_INJECT_ACTION(code, action) \
-  (check_and_unset_keyword(code) ? ((action), 0) : 0)
-#define ERROR_INJECT(code) \
-  check_and_unset_keyword(code)
-#define ERROR_INJECT_VALUE(value) \
-  check_and_unset_inject_value(value)
-#define ERROR_INJECT_VALUE_ACTION(value,action) \
-  (check_and_unset_inject_value(value) ? (action) : 0)
-#define ERROR_INJECT_VALUE_CRASH(value) \
-  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
-
-#endif
-
 void write_bin_log(THD *thd, bool clear_error,
                    char const *query, ulong query_length);
 
@@ -1962,10 +1868,13 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
-extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong expire_logs_days;
+extern uint sync_binlog_period, sync_relaylog_period, 
+            sync_relayloginfo_period, sync_masterinfo_period;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
+extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options;

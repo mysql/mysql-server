@@ -121,6 +121,19 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
+/* 
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows 
+        overflow/truncate.
+ */
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
+
+/* 
+   Number of warnings that will be printed to error log
+   before extension number is exhausted.
+*/
+#define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
+
 class Relay_log_info;
 
 typedef struct st_log_info
@@ -269,6 +282,18 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 
   ulonglong m_table_map_version;
 
+  /* pointer to the sync period variable, for binlog this will be
+     sync_binlog_period, for relay log this will be
+     sync_relay_log_period
+  */
+  uint *sync_period_ptr;
+  uint sync_counter;
+
+  inline uint get_sync_period()
+  {
+    return *sync_period_ptr;
+  }
+
   int write_to_file(IO_CACHE *cache);
   /*
     This is used to start writing to a new log file. The difference from
@@ -296,7 +321,7 @@ public:
   Format_description_log_event *description_event_for_exec,
     *description_event_for_queue;
 
-  MYSQL_BIN_LOG();
+  MYSQL_BIN_LOG(uint *sync_period);
   /*
     note that there's no destructor ~MYSQL_BIN_LOG() !
     The reason is that we don't want it to be automatically called
@@ -379,7 +404,20 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
-  bool flush_and_sync();
+  /**
+     Flush binlog cache and synchronize to disk.
+
+     This function flushes events in binlog cache to binary log file,
+     it will do synchronizing according to the setting of system
+     variable 'sync_binlog'. If file is synchronized, @c synced will
+     be set to 1, otherwise 0.
+
+     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+
+     @retval 0 Success
+     @retval other Failure
+  */
+  bool flush_and_sync(bool *synced);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);

@@ -59,7 +59,7 @@
 class Master_info : public Slave_reporting_capability
 {
  public:
-  Master_info();
+  Master_info(bool is_slave_recovery);
   ~Master_info();
   bool shall_ignore_server_id(ulong s_id);
 
@@ -102,6 +102,12 @@ class Master_info : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+  /*
+    Keeps track of the number of events before fsyncing.
+    The option --sync-master-info determines how many
+    events should happen before fsyncing.
+  */
+  uint sync_counter;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
   DYNAMIC_ARRAY ignore_server_ids;

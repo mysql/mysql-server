@@ -586,9 +586,6 @@ THD::THD()
   limit_found_rows= 0;
   row_count_func= -1;
   statement_id_counter= 0UL;
-#ifdef ERROR_INJECT_SUPPORT
-  error_inject_value= 0UL;
-#endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
