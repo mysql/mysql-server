@@ -9781,7 +9781,7 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
 {
   NDBTAB *tab= (NDBTAB*)tab_ref;
-  int32 *range_data= (int32*)my_malloc(part_info->no_parts*sizeof(int32),
+  int32 *range_data= (int32*)my_malloc(part_info->num_parts*sizeof(int32),
                                        MYF(0));
   uint i;
   int error= 0;
@@ -9790,17 +9790,17 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
 
   if (!range_data)
   {
-    mem_alloc_error(part_info->no_parts*sizeof(int32));
+    mem_alloc_error(part_info->num_parts*sizeof(int32));
     DBUG_RETURN(1);
   }
-  for (i= 0; i < part_info->no_parts; i++)
+  for (i= 0; i < part_info->num_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
     if (unsigned_flag)
       range_val-= 0x8000000000000000ULL;
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
-      if ((i != part_info->no_parts - 1) ||
+      if ((i != part_info->num_parts - 1) ||
           (range_val != LONGLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
@@ -9811,7 +9811,7 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
     }
     range_data[i]= (int32)range_val;
   }
-  tab->setRangeListData(range_data, sizeof(int32)*part_info->no_parts);
+  tab->setRangeListData(range_data, sizeof(int32)*part_info->num_parts);
 error:
   my_free((char*)range_data, MYF(0));
   DBUG_RETURN(error);
@@ -9820,7 +9820,7 @@ error:
 int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
 {
   NDBTAB *tab= (NDBTAB*)tab_ref;
-  int32 *list_data= (int32*)my_malloc(part_info->no_list_values * 2
+  int32 *list_data= (int32*)my_malloc(part_info->num_list_values * 2
                                       * sizeof(int32), MYF(0));
   uint32 *part_id, i;
   int error= 0;
@@ -9829,10 +9829,10 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
 
   if (!list_data)
   {
-    mem_alloc_error(part_info->no_list_values*2*sizeof(int32));
+    mem_alloc_error(part_info->num_list_values*2*sizeof(int32));
     DBUG_RETURN(1);
   }
-  for (i= 0; i < part_info->no_list_values; i++)
+  for (i= 0; i < part_info->num_list_values; i++)
   {
     LIST_PART_ENTRY *list_entry= &part_info->list_array[i];
     longlong list_val= list_entry->list_value;
@@ -9848,7 +9848,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
     part_id= (uint32*)&list_data[2*i+1];
     *part_id= list_entry->partition_id;
   }
-  tab->setRangeListData(list_data, 2*sizeof(int32)*part_info->no_list_values);
+  tab->setRangeListData(list_data, 2*sizeof(int32)*part_info->num_list_values);
 error:
   my_free((char*)list_data, MYF(0));
   DBUG_RETURN(error);
@@ -9970,11 +9970,11 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
           ng= 0;
         ts_names[fd_index]= part_elem->tablespace_name;
         frag_data[fd_index++]= ng;
-      } while (++j < part_info->no_subparts);
+      } while (++j < part_info->num_subparts);
     }
     first= FALSE;
-  } while (++i < part_info->no_parts);
-  tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
+  } while (++i < part_info->num_parts);
+  tab->setDefaultNoPartitionsFlag(part_info->use_default_num_partitions);
   tab->setLinearFlag(part_info->linear_hash_ind);
   {
     ha_rows max_rows= table_share->max_rows;
@@ -10368,7 +10368,7 @@ ndberror2:
 }
 
 
-bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
+bool ha_ndbcluster::get_no_parts(const char *name, uint *num_parts)
 {
   Ndb *ndb;
   NDBDICT *dict;
@@ -10390,7 +10390,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *no_parts= ndbtab_g.get_table()->getFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getFragmentCount();
     DBUG_RETURN(FALSE);
   }
 
