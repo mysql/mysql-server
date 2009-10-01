@@ -993,15 +993,16 @@ bool partition_info::check_list_constants(THD *thd)
       }
     } while (++i < num_parts);
   }
-  if (fixed && num_list_values)
+  DBUG_ASSERT(fixed);
+  if (num_list_values)
   {
     bool first= TRUE;
     /*
       list_array and list_col_array are unions, so this works for both
       variants of LIST partitioning.
     */
-    my_qsort((void*)list_array, num_list_values, sizeof(LIST_PART_ENTRY),
-             &list_part_cmp);
+    my_qsort((void*)list_array, num_list_values, size_entries,
+             compare_func);
 
     i= 0;
     LINT_INIT(prev_value);
