@@ -17,6 +17,7 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
+#include "debug_sync.h"
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -950,6 +951,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
     close_old_data_files(thd,thd->open_tables,1,1);
     mysql_ha_flush(thd);
+    DEBUG_SYNC(thd, "after_flush_unlock");
 
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
@@ -5288,6 +5290,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         thd->set_current_stmt_binlog_row_based_if_mixed();
       }
     }
+
+    DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
                                         lock_flag, need_reopen)))
