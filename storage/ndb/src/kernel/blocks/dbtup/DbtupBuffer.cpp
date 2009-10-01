@@ -144,7 +144,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   bool connectedToNode= getNodeInfo(nodeId).m_connected;
   const Uint32 type= getNodeInfo(nodeId).m_type;
   bool is_api= (type >= NodeInfo::API && type <= NodeInfo::MGM);
-  bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
+  bool old_dest= (getNodeInfo(nodeId).m_version < MAKE_VERSION(6,4,0));
   Uint32 TpacketLen= hostBuffer[nodeId].packetLenTA;
   Uint32 TpacketTA= hostBuffer[nodeId].noOfPacketsTA;
 
@@ -173,7 +173,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       /**
        * Send long sig
        */
-      if (ToutBufIndex >= 22 && is_api && !old_dest) {
+      if (ToutBufIndex >= 22 && is_api) {
 	jam();
 	/**
 	 * Flush buffer so that order is maintained
