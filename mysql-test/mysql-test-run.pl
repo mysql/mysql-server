@@ -1819,9 +1819,13 @@ sub environment_setup {
   # Add the path where mysqld will find semisync plugins
   # --------------------------------------------------------------------------
   my $lib_semisync_master_plugin=
-      mtr_file_exists("$basedir/plugin/semisync/.libs/libsemisync_master.so");
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_master.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_master.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_master.so");
   my $lib_semisync_slave_plugin=
-      mtr_file_exists("$basedir/plugin/semisync/.libs/libsemisync_slave.so");
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_slave.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_slave.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_slave.so");
   if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
   {
     $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
