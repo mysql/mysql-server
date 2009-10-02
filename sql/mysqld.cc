@@ -4020,9 +4020,6 @@ server.");
     plugins_are_initialized= TRUE;  /* Don't separate from init function */
   }
 
-  if (opt_help)
-    unireg_abort(0);
-
   /* we do want to exit if there are any other unknown options */
   if (defaults_argc > 1)
   {
@@ -4047,12 +4044,14 @@ server.");
 
     if (defaults_argc)
     {
-      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n"
-              "Use --verbose --help to get a list of available options\n",
+      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n",
               my_progname, *tmp_argv);
       unireg_abort(1);
     }
   }
+
+  if (opt_help)
+    unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!errmesg[0][0])
