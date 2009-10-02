@@ -84,7 +84,8 @@ public:
   /** Close query*/
   void close(bool forceSend, bool release);
 
-  NdbTransaction* getNdbTransaction() const;
+  NdbTransaction& getNdbTransaction() const
+  { return m_transaction; }
 
   const NdbError& getNdbError() const;
 
@@ -109,10 +110,15 @@ public:
    */
   int prepareSend();
 
-  /** Send prepared signals from this NdbQuery
-   *  @return possible error code.
+  /** Send prepared signals from this NdbQuery to start execution
+   *  @return #signals sent, -1 if error.
    */
   int doSend(int aNodeId, bool lastFlag);
+
+  /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
+   *  @return #signals sent, -1 if error.
+   */
+  int sendFetchMore(int nodeId, bool lastFlag);
 
   NdbQuery& getInterface()
   { return m_interface; }
