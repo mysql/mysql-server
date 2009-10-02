@@ -375,7 +375,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       "no reverse address mapping.",
                       (const char *) ip_key);
 
-    bool err_status= add_hostname(ip_key, NULL);
+    err_status= add_hostname(ip_key, NULL);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -430,7 +430,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) hostname_buffer);
 
-    bool err_status= add_hostname(ip_key, NULL);
+    err_status= add_hostname(ip_key, NULL);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -461,7 +461,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       that attempted to connect during the outage) unable to connect
       indefinitely.
     */
-    bool err_status= add_hostname(ip_key, NULL);
+    err_status= add_hostname(ip_key, NULL);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -485,8 +485,9 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   {
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-    vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
-                                 ip_buffer, sizeof(ip_buffer));
+    err_status=
+      vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
+                                   ip_buffer, sizeof(ip_buffer));
     DBUG_ASSERT(!err_status);
 
     DBUG_PRINT("info", (" - '%s'", (const char*) ip_buffer));
@@ -525,9 +526,10 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-      vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
-                                   ip_buffer, sizeof(ip_buffer));
-      DBUG_ASSERT(err_status);
+      err_status=
+        vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
+                                     ip_buffer, sizeof(ip_buffer));
+      DBUG_ASSERT(!err_status);
 
       sql_print_information(" - %s\n", (const char *) ip_buffer);
     }
