@@ -31,6 +31,8 @@ source include/have_binlog_format_mixed_or_statement.inc;
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
+reset master;
+
 create table foo (a int);
 
 flush logs;
