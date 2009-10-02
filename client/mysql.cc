@@ -43,7 +43,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.15";
+const char *VER= "14.16";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1076,7 +1076,7 @@ int main(int argc,char *argv[])
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
-			     "mysql> ",MYF(MY_WME));
+			     "\\N [\\d]> ",MYF(MY_WME));
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
   prompt_counter=0;
 
@@ -1156,10 +1156,11 @@ int main(int argc,char *argv[])
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
-  put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
+  put_info("Welcome to the MariaDB monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %lu\nServer version: %s\n",
+	  "Your %s connection id is %lu\nServer version: %s\n",
+          mysql_get_server_name(&mysql),
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
@@ -4369,6 +4370,7 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
   tee_fprintf(stdout, "Using delimiter:\t%s\n", delimiter);
+  tee_fprintf(stdout, "Server:\t\t\t%s\n", mysql_get_server_name(&mysql));
   tee_fprintf(stdout, "Server version:\t\t%s\n", server_version_string(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
@@ -4700,7 +4702,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-static const char* construct_prompt()
+static const char *construct_prompt()
 {
   processed_prompt.free();			// Erase the old prompt
   time_t  lclock = time(NULL);			// Get the date struct
@@ -4729,6 +4731,12 @@ static const char* construct_prompt()
       case 'd':
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
+      case 'N':
+        if (connected)
+          processed_prompt.append(mysql_get_server_name(&mysql));
+        else
+          processed_prompt.append("unknown");
+        break;
       case 'h':
       {
 	const char *prompt;

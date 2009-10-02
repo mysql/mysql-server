@@ -46,5 +46,14 @@ mkdir $MYSQLTEST_VARDIR/tmp/mysqld_option_err;
 --error 7
 --exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables $EXAMPLE_PLUGIN_OPT --plugin-load=EXAMPLE=ha_example.so --plugin-example-enum-var=noexist >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
+#
+# Test that an wrong option with --help --verbose gives an error
+#
+
+--echo Test that --help --verbose works
+--exec $MYSQLD --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--echo Test that --not-known-option --help --verbose gives error
+--error 2
+--exec $MYSQLD --not-known-option --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 --echo Done.
