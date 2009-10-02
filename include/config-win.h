@@ -27,6 +27,9 @@
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
+#include <sys/stat.h>
+#include <process.h>     /* getpid()*/
+
 
 #define HAVE_SMEM 1
 
@@ -174,7 +177,7 @@ typedef uint rf_SetTimer;
 #define SIZEOF_CHARP		4
 #endif
 #define HAVE_BROKEN_NETINET_INCLUDES
-#ifdef __NT__
+#ifdef _WIN32
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
@@ -287,11 +290,6 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifndef __NT__
-#undef FILE_SHARE_DELETE
-#define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
-#endif
-
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf
@@ -341,7 +339,7 @@ inline ulonglong double2ulonglong(double d)
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
 /* The following is only used for statistics, so it should be good enough */
-#ifdef __NT__  /* This should also work on Win98 but .. */
+#ifdef _WIN32
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #endif

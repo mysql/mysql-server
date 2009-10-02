@@ -4185,13 +4185,15 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       /*
         Mark the partition.
         I.e mark the partition as a partition to be "changed" by
-        analyzing/optimizing/rebuilding/checking/repairing
+        analyzing/optimizing/rebuilding/checking/repairing/...
       */
       no_parts_found++;
       part_elem->part_state= part_state;
       DBUG_PRINT("info", ("Setting part_state to %u for partition %s",
                           part_state, part_elem->partition_name));
     }
+    else
+      part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->no_parts);
   return no_parts_found;
 }

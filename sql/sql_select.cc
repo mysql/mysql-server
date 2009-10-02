@@ -222,6 +222,7 @@ static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
 static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
+static bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
@@ -1232,7 +1233,11 @@ JOIN::optimize()
 
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
+  {
     order=0;
+    if (is_indexed_agg_distinct(this, NULL))
+      sort_and_group= 0;
+  }
 
   // Can't use sort on head table if using row cache
   if (full_join)
@@ -1410,8 +1415,16 @@ JOIN::optimize()
     single table queries, thus it is sufficient to test only the first
     join_tab element of the plan for its access method.
   */
+  bool need_distinct= TRUE;
   if (join_tab->is_using_loose_index_scan())
+  {
     tmp_table_param.precomputed_group_by= TRUE;
+    if (join_tab->is_using_agg_loose_index_scan())
+    {
+      need_distinct= FALSE;
+      tmp_table_param.precomputed_group_by= FALSE;
+    }
+  }
 
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
@@ -1472,6 +1485,7 @@ JOIN::optimize()
 			    HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
 	  alloc_group_fields(this, group_list) ||
           make_sum_func_list(all_fields, fields_list, 1) ||
+          prepare_sum_aggregators(sum_funcs, need_distinct) ||
           setup_sum_funcs(thd, sum_funcs))
       {
         DBUG_RETURN(1);
@@ -1481,6 +1495,7 @@ JOIN::optimize()
     else
     {
       if (make_sum_func_list(all_fields, fields_list, 0) ||
+          prepare_sum_aggregators(sum_funcs, need_distinct) ||
           setup_sum_funcs(thd, sum_funcs))
       {
         DBUG_RETURN(1);
@@ -1953,7 +1968,9 @@ JOIN::exec()
 	}
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-					1, TRUE))
+					1, TRUE) ||
+        prepare_sum_aggregators(curr_join->sum_funcs,
+          !curr_join->join_tab->is_using_agg_loose_index_scan()))
         DBUG_VOID_RETURN;
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
@@ -2056,6 +2073,8 @@ JOIN::exec()
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 				      1, TRUE) || 
+        prepare_sum_aggregators (curr_join->sum_funcs, !curr_join->join_tab ||
+                                !curr_join->join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
         thd->is_fatal_error)
       DBUG_VOID_RETURN;
@@ -3938,6 +3957,82 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 
 
 /**
+  Check for the presence of AGGFN(DISTINCT a) queries that may be subject
+  to loose index scan.
+
+
+  Check if the query is a subject to AGGFN(DISTINCT) using loose index scan 
+  (QUICK_GROUP_MIN_MAX_SELECT).
+  Optionally (if out_args is supplied) will push the arguments of 
+  AGGFN(DISTINCT) to the list
+
+  @param      join       the join to check
+  @param[out] out_args   list of aggregate function arguments
+  @return                does the query qualify for indexed AGGFN(DISTINCT)
+    @retval   true       it does
+    @retval   false      AGGFN(DISTINCT) must apply distinct in it.
+*/
+
+bool
+is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
+{
+  Item_sum **sum_item_ptr;
+  bool result= false;
+
+  if (join->tables != 1 ||                    /* reference more than 1 table */
+      join->select_distinct ||                /* or a DISTINCT */
+      join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
+    return false;
+
+  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
+    return false;
+
+  for (sum_item_ptr= join->sum_funcs; *sum_item_ptr; sum_item_ptr++)
+  {
+    Item_sum *sum_item= *sum_item_ptr;
+    Item *expr;
+    /* aggregate is not AGGFN(DISTINCT) or more than 1 argument to it */
+    switch (sum_item->sum_func())
+    {
+      case Item_sum::MIN_FUNC:
+      case Item_sum::MAX_FUNC:
+        continue;
+      case Item_sum::COUNT_DISTINCT_FUNC: 
+        break;
+      case Item_sum::AVG_DISTINCT_FUNC:
+      case Item_sum::SUM_DISTINCT_FUNC:
+        if (sum_item->get_arg_count() == 1) 
+          break;
+        /* fall through */
+      default: return false;
+    }
+    /*
+      We arrive here for every COUNT(DISTINCT),AVG(DISTINCT) or SUM(DISTINCT).
+      Collect the arguments of the aggregate functions to a list.
+      We don't worry about duplicates as these will be sorted out later in 
+      get_best_group_min_max 
+    */
+    for (uint i= 0; i < sum_item->get_arg_count(); i++)
+    {
+      expr= sum_item->get_arg(i);
+      /* The AGGFN(DISTINCT) arg is not an attribute? */
+      if (expr->real_item()->type() != Item::FIELD_ITEM)
+        return false;
+
+      /* 
+        If we came to this point the AGGFN(DISTINCT) loose index scan
+        optimization is applicable 
+      */
+      if (out_args)
+        out_args->push_back((Item_field *) expr);
+      result= true;
+    }
+  }
+  return result;
+}
+
+
+/**
   Discover the indexes that can be used for GROUP BY or DISTINCT queries.
 
   If the query has a GROUP BY clause, find all indexes that contain all
@@ -3978,6 +4073,10 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     while ((item= select_items_it++))
       item->walk(&Item::collect_item_field_processor, 0,
                  (uchar*) &indexed_fields);
+  }
+  else if (is_indexed_agg_distinct(join, &indexed_fields))
+  {
+    join->sort_and_group= 1;
   }
   else
     return;
@@ -10377,6 +10476,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   bzero(share, sizeof(*share));
   table->field= field;
   table->s= share;
+  table->temp_pool_slot= MY_BIT_NONE;
   share->blob_field= blob_field;
   share->fields= field_count;
   share->blob_ptr_size= portable_sizeof_char_ptr;
@@ -14532,7 +14632,7 @@ setup_new_fields(THD *thd, List<Item> &fields,
   optimize away 'order by'.
 */
 
-static ORDER *
+ORDER *
 create_distinct_group(THD *thd, Item **ref_pointer_array,
                       ORDER *order_list, List<Item> &fields,
                       List<Item> &all_fields,
@@ -15334,7 +15434,22 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
   DBUG_ENTER("setup_sum_funcs");
   while ((func= *(func_ptr++)))
   {
-    if (func->setup(thd))
+    if (func->aggregator_setup(thd))
+      DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+static bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
+{
+  Item_sum *func;
+  DBUG_ENTER("setup_sum_funcs");
+  while ((func= *(func_ptr++)))
+  {
+    if (func->set_aggregator(need_distinct && func->with_distinct ?
+                             Aggregator::DISTINCT_AGGREGATOR :
+                             Aggregator::SIMPLE_AGGREGATOR))
       DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -15384,7 +15499,7 @@ init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr)
   /* If rollup, calculate the upper sum levels */
   for ( ; *func_ptr ; func_ptr++)
   {
-    if ((*func_ptr)->add())
+    if ((*func_ptr)->aggregator_add())
       return 1;
   }
   return 0;
@@ -15396,7 +15511,7 @@ update_sum_func(Item_sum **func_ptr)
 {
   Item_sum *func;
   for (; (func= (Item_sum*) *func_ptr) ; func_ptr++)
-    if (func->add())
+    if (func->aggregator_add())
       return 1;
   return 0;
 }
@@ -16313,7 +16428,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	if (key_read)
         {
           if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
+          {
+            QUICK_GROUP_MIN_MAX_SELECT *qgs= 
+              (QUICK_GROUP_MIN_MAX_SELECT *) tab->select->quick;
             extra.append(STRING_WITH_LEN("; Using index for group-by"));
+            qgs->append_loose_scan_type(&extra);
+          }
           else
             extra.append(STRING_WITH_LEN("; Using index"));
         }
