@@ -60,6 +60,11 @@ dist-hook:
 		--srcdir=$(top_srcdir)
 	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
 
+# Simple target to allow scripts etc. to get the name of the source
+# tarball easily.
+show-dist-name:
+	@echo "$(PACKAGE)-$(VERSION)"
+
 all-local:		@ABI_CHECK@	
 
 tags:
