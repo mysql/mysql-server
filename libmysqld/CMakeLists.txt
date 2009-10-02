@@ -1,21 +1,26 @@
 # Copyright (C) 2006 MySQL AB
-#  All rights reserved. Use is subject to license terms.
-#
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+
+# Need to set USE_TLS, since __declspec(thread) approach to thread local
+# storage does not work properly in DLLs.
+IF(WIN32)
+  ADD_DEFINITIONS(-DUSE_TLS)
+ENDIF(WIN32)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DHAVE_DLOPEN)
 
@@ -45,6 +50,12 @@ FOREACH(rpath ${ZLIB_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
 ENDFOREACH(rpath)
 
+# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
+# not set during configure time.
+INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
+FOREACH(rpath ${DBUG_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
+ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
 FOREACH(rpath ${TAOCRYPT_SOURCES})
@@ -56,9 +67,19 @@ FOREACH(rpath ${YASSL_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
 ENDFOREACH(rpath)
 
+INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
+FOREACH(rpath ${STRINGS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
+ENDFOREACH(rpath)
+
 INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
 FOREACH(rpath ${REGEX_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
+FOREACH(rpath ${MYSYS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
 ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
@@ -76,12 +97,6 @@ FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
   ENDFOREACH(rpath)
 ENDFOREACH(ENGINE_LIB)
 
-
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  FOREACH(rpath ${NDB_HANDLER_SRC})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../sql/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
@@ -139,15 +154,6 @@ ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver)
 
-ADD_DEPENDENCIES(mysqlserver mysys)
-TARGET_LINK_LIBRARIES(mysqlserver mysys)
-
 ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
-
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(libmysqld ndbclient)
-  TARGET_LINK_LIBRARIES(libmysqld ndbclient)
-  INCLUDE_DIRECTORIES(${NDB_CLIENT_INCLUDES})
-ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
