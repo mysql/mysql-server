@@ -69,7 +69,21 @@ let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 # Create relay log file.
 copy_file $fake_relay_log $_fake_relay_log;
 # Create relay log index.
---exec echo ./$_fake_filename-fake.000001 > $_fake_relay_index
+
+# After patch for BUG#12190, the filename used in CHANGE MASTER
+# RELAY_LOG_FILE will be automatically added the directory of the
+# relay log before comparison, thus we need to added the directory
+# part (./ on unix .\ on windows) when faking the relay-log-bin.index.
+
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  eval select './$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
+}
+
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
+{
+  eval select '.\\\\$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
+}
 
 # Setup replication from existing relay log.
 eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;
