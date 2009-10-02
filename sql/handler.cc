@@ -2777,6 +2777,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLE_NEEDS_UPGRADE:
     textno=ER_TABLE_NEEDS_UPGRADE;
     break;
+  case HA_ERR_NO_PARTITION_FOUND:
+    textno=ER_WRONG_PARTITION_NAME;
+    break;
   case HA_ERR_TABLE_READONLY:
     textno= ER_OPEN_AS_READONLY;
     break;
