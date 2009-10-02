@@ -506,6 +506,7 @@ class ScanNextReq {
    * Sender(s)
    */
   friend class NdbOperation; 
+  friend class NdbQueryImpl; 
 
   /**
    * For printing
