@@ -1901,7 +1901,7 @@ updating the index files.", max_found);
    */
   if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
   {
-    sql_print_error("Log filename too large: %s%s (%d). \
+    sql_print_error("Log filename too large: %s%s (%lu). \
 Please fix this by archiving old logs and updating the \
 index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     error= 1;

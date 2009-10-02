@@ -25,9 +25,22 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 copy_file $MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001 $MYSQLD_DATADIR/slave-relay-bin.000001;
 
-write_file $MYSQLD_DATADIR/slave-relay-bin.index;
-./slave-relay-bin.000001
-EOF
+
+# After patch for BUG#12190, the filename used in CHANGE MASTER
+# RELAY_LOG_FILE will be automatically added the directory of the
+# relay log before comparison, thus we need to added the directory
+# part (./ on unix .\ on windows) when faking the relay-log-bin.index.
+disable_query_log;
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  eval select './slave-relay-bin.000001\n' into dumpfile '$MYSQLD_DATADIR/slave-relay-bin.index';
+}
+
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
+{
+  eval select '.\\\\slave-relay-bin.000001\n' into dumpfile '$MYSQLD_DATADIR/slave-relay-bin.index';
+}
+enable_query_log;
 
 change master to
   MASTER_HOST='dummy.localdomain',
