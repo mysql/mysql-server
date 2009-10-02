@@ -23,11 +23,13 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
 SET(CMAKE_C_FLAGS   "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
 
-ADD_SUBDIRECTORY(include)
-ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(tools)
-ADD_SUBDIRECTORY(test)
-ADD_SUBDIRECTORY(docs)
+IF(NOT SOURCE_SUBLIBS)
+  ADD_SUBDIRECTORY(include)
+  ADD_SUBDIRECTORY(src)
+  ADD_SUBDIRECTORY(tools)
+  ADD_SUBDIRECTORY(test)
+  ADD_SUBDIRECTORY(docs)
+ENDIF()
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
@@ -36,10 +38,10 @@ ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 SET(NDBCLUSTER_SOURCES
-	${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster.cc
-	${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_cond.cc
-	${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_connection.cc
-	${CMAKE_SOURCE_DIR}/sql/ha_ndbcluster_binlog.cc)
+	../../sql/ha_ndbcluster.cc
+	../../sql/ha_ndbcluster_cond.cc
+	../../sql/ha_ndbcluster_connection.cc
+	../../sql/ha_ndbcluster_binlog.cc)
 SET(NDBCLUSTER_LIBS ndbclient)
 ADD_DEFINITIONS(-DWITH_NDB_BINLOG)
 MYSQL_STORAGE_ENGINE(NDBCLUSTER)
