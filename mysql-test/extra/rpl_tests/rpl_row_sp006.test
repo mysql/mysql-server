@@ -11,7 +11,8 @@
 # Begin clean up test section
 connection master;
 --disable_warnings
-create database if not exists mysqltest1;
+drop database if exists mysqltest1;
+create database mysqltest1;
 DROP PROCEDURE IF EXISTS mysqltest1.p1;
 DROP PROCEDURE IF EXISTS mysqltest1.p2;
 DROP TABLE IF EXISTS mysqltest1.t2;
