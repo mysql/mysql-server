@@ -14,6 +14,9 @@ partition by list column_list(a,b)
                           column_list(NULL, NULL)),
   partition p1 values in (column_list(1,1), column_list(2,2)),
   partition p2 values in (column_list(3, NULL), column_list(NULL, 1)));
+#
+# BUG#47754 Crash when selecting using NOT BETWEEN for column list partitioning
+#
 insert into t1 values (3, NULL);
 insert into t1 values (NULL, 1);
 insert into t1 values (NULL, NULL);
@@ -23,6 +26,8 @@ insert into t1 values (1,1);
 insert into t1 values (2,2);
 select * from t1 where a = 1;
 select * from t1 where a = 2;
+select * from t1 where a > 8;
+select * from t1 where a not between 8 and 8;
 show create table t1;
 drop table t1;
 
