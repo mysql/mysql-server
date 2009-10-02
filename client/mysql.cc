@@ -4735,7 +4735,7 @@ static const char *construct_prompt()
         if (connected)
           processed_prompt.append(mysql_get_server_name(&mysql));
         else
-          processed_prompt.append("unkown");
+          processed_prompt.append("unknown");
         break;
       case 'h':
       {
