@@ -54,6 +54,7 @@
 class Reprepare_observer
 {
 public:
+  Reprepare_observer() {}
   /**
     Check if a change of metadata is OK. In future
     the signature of this method may be extended to accept the old

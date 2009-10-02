@@ -32,7 +32,8 @@ enum partition_state {
   PART_REORGED_DROPPED= 5,
   PART_CHANGED= 6,
   PART_IS_CHANGED= 7,
-  PART_IS_ADDED= 8
+  PART_IS_ADDED= 8,
+  PART_ADMIN= 9
 };
 
 /*
