@@ -217,6 +217,13 @@
 #define MAX_HA 15
 
 /*
+  Use this instead of 0 as the initial value for the slot number of
+  handlerton, so that we can distinguish uninitialized slot number
+  from slot 0.
+*/
+#define HA_SLOT_UNDEF ((uint)-1)
+
+/*
   Parameters for open() (in register form->filestat)
   HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED
 */
