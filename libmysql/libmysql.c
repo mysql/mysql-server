@@ -1430,6 +1430,18 @@ mysql_get_server_info(MYSQL *mysql)
 }
 
 
+my_bool STDCALL mariadb_connection(MYSQL *mysql)
+{
+  return strinstr(mysql->server_version, "MariaDB") != 0;
+}
+
+const char * STDCALL
+mysql_get_server_name(MYSQL *mysql)
+{
+  return mariadb_connection(mysql) ? "MariaDB" : "MySQL";
+}
+
+
 const char * STDCALL
 mysql_get_host_info(MYSQL *mysql)
 {

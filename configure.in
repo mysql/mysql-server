@@ -13,7 +13,7 @@ AC_CANONICAL_SYSTEM
 #
 # When merging new MySQL releases, update the version number to match the
 # MySQL version number, but reset the maria subrelease (-beta1).
-AM_INIT_AUTOMAKE(mysql, 5.1.38-maria-beta1)
+AM_INIT_AUTOMAKE(mysql, 5.1.38-MariaDB-beta1)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10

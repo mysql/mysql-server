@@ -487,6 +487,7 @@ int mysql_set_server_option(MYSQL *mysql,
 int mysql_ping(MYSQL *mysql);
 const char * mysql_stat(MYSQL *mysql);
 const char * mysql_get_server_info(MYSQL *mysql);
+const char * mysql_get_server_name(MYSQL *mysql);
 const char * mysql_get_client_info(void);
 unsigned long mysql_get_client_version(void);
 const char * mysql_get_host_info(MYSQL *mysql);
@@ -520,6 +521,7 @@ void mysql_debug(const char *debug);
 void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
+my_bool mariadb_connection(MYSQL *mysql);
 MYSQL_MANAGER* mysql_manager_init(MYSQL_MANAGER* con);
 MYSQL_MANAGER* mysql_manager_connect(MYSQL_MANAGER* con,
            const char* host,
