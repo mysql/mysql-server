@@ -6962,7 +6962,15 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                        nparts);
   }
   if (flags & NO_MAX_RANGE)
-    part_iter->part_nums.end= part_info->num_parts;
+  {
+    if (part_info->part_type == RANGE_PARTITION)
+      part_iter->part_nums.end= part_info->num_parts;
+    else /* LIST_PARTITION */
+    {
+      DBUG_ASSERT(part_info->part_type == LIST_PARTITION);
+      part_iter->part_nums.end= part_info->num_list_values;
+    }
+  }
   else
   {
     // Copy from max_value to record

@@ -20,6 +20,15 @@ select * from t1 where a = 2;
 a	b
 2	NULL
 2	2
+select * from t1 where a > 8;
+a	b
+select * from t1 where a not between 8 and 8;
+a	b
+2	NULL
+2	2
+3	NULL
+1	NULL
+1	1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
