@@ -573,6 +573,7 @@ private:
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_start_child(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowRef &);
+  void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_count_descendant_signal(Signal* signal,
                                         Ptr<Request> requestPtr,

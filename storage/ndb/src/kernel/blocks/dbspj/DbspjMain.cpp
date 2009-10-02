@@ -1687,7 +1687,7 @@ Dbspj::g_ScanFragOpInfo =
   &Dbspj::scanFrag_execSCAN_FRAGREF,
   &Dbspj::scanFrag_execSCAN_FRAGCONF,
   &Dbspj::scanFrag_start_child,
-  0, // Dbspj::scanFrag_execSCAN_NEXTREQ
+  &Dbspj::scanFrag_execSCAN_NEXTREQ,
   0, // Dbspj::scanFrag_complete
   0, // Dbspj::scanFrag_abort
   &Dbspj::scanFrag_cleanup,
@@ -2131,6 +2131,33 @@ Dbspj::scanFrag_start_child(Signal* signal,
   jam();
   ndbrequire(false);
 }
+
+void
+Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal, 
+                                 Ptr<Request> requestPtr,
+                                 Ptr<TreeNode> treeNodePtr)
+{
+  jamEntry();
+
+  sendSignal(treeNodePtr.p->m_send.m_ref, 
+             GSN_SCAN_NEXTREQ, 
+             signal, 
+             ScanFragNextReq::SignalLength, 
+             JBB);
+
+  treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_RUNNING;
+  treeNodePtr.p->m_scanfrag_data.m_scan_status = 0;
+  treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = false;
+  treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;
+  treeNodePtr.p->m_scanfrag_data.m_rows_expecting = 0;
+  treeNodePtr.p->m_scanfrag_data.m_descendant_keyconfs_received = 0;
+  treeNodePtr.p->m_scanfrag_data.m_descendant_silent_keyconfs_received = 0;
+  treeNodePtr.p->m_scanfrag_data.m_descendant_keyrefs_received = 0;
+  treeNodePtr.p->m_scanfrag_data.m_descendant_keyreqs_sent = 0;
+  treeNodePtr.p->m_scanfrag_data.m_missing_descendant_rows = 0;
+}//Dbspj::scanFrag_execSCAN_NEXTREQ()
+
+
 
 void
 Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
