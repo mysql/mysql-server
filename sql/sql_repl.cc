@@ -1400,9 +1400,11 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->relay_log_name)
   {
     need_relay_log_purge= 0;
-    strmake(mi->rli.group_relay_log_name,lex_mi->relay_log_name,
+    char relay_log_name[FN_REFLEN];
+    mi->rli.relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
+    strmake(mi->rli.group_relay_log_name, relay_log_name,
 	    sizeof(mi->rli.group_relay_log_name)-1);
-    strmake(mi->rli.event_relay_log_name,lex_mi->relay_log_name,
+    strmake(mi->rli.event_relay_log_name, relay_log_name,
 	    sizeof(mi->rli.event_relay_log_name)-1);
   }
 
