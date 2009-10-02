@@ -1,0 +1,304 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+*** Preparing ***
+include/stop_slave.inc
+RESET SLAVE;
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+RESET MASTER;
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_event_scheduler=@@global.event_scheduler;
+
+*** Default value ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+slave_net_timeout/slave_heartbeat_timeout=2.0000
+RESET SLAVE;
+
+*** Reset slave affect ***
+SET @@global.slave_net_timeout=30;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
+RESET SLAVE;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	15.000
+
+*** Default value if slave_net_timeout changed ***
+SET @@global.slave_net_timeout=50;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	25.000
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+
+*** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
+SET @@global.slave_net_timeout=FLOOR(SLAVE_HEARTBEAT_TIMEOUT)-1;
+Warnings:
+Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+
+*** Warning if updated slave_heartbeat_timeout > slave_net_timeout ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=SLAVE_NET_TIMEOUT;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+RESET SLAVE;
+
+*** CHANGE MASTER statement only updates slave_heartbeat_period ***
+SET @@global.slave_net_timeout=20;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
+SHOW VARIABLES LIKE 'slave_net_timeout';
+Variable_name	Value
+slave_net_timeout	20
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	5.000
+SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
+SHOW VARIABLES LIKE 'slave_net_timeout';
+Variable_name	Value
+slave_net_timeout	40
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	5.000
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+
+*** Update slave_net_timeout on master ***
+SET @@global.slave_net_timeout=500;
+SET @@global.slave_net_timeout=200;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+include/start_slave.inc
+SHOW VARIABLES LIKE 'slave_net_timeout';
+Variable_name	Value
+slave_net_timeout	200
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	100.000
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+include/stop_slave.inc
+RESET SLAVE;
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+
+*** Start/stop slave ***
+SET @@global.slave_net_timeout=100;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=20;
+include/start_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	20.000
+include/stop_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	20.000
+
+*** Reload slave ***
+SET @@global.slave_net_timeout=50;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=30;
+Reload slave
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	30.000
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+
+*** Disable heartbeat ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	0.000
+SHOW STATUS LIKE 'slave_received_heartbeats';
+Variable_name	Value
+Slave_received_heartbeats	0
+include/start_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	0.000
+SHOW STATUS LIKE 'slave_received_heartbeats';
+Variable_name	Value
+Slave_received_heartbeats	0
+include/stop_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	0.000
+SHOW STATUS LIKE 'slave_received_heartbeats';
+Variable_name	Value
+Slave_received_heartbeats	0
+RESET SLAVE;
+SELECT SLAVE_HEARTBEAT_TIMEOUT = 0 AS Result;
+Result
+0
+
+*** Min slave_heartbeat_timeout ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.001;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	0.001
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.0009;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  is less than 1 msec.  The period is reset to zero which means no heartbeats will be sending
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	0.000
+RESET SLAVE;
+
+*** Max slave_heartbeat_timeout ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294967;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+Variable_name	Value
+Slave_heartbeat_period	4294967.000
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294968;
+ERROR HY000: The requested value for the heartbeat period  is negative or exceeds the maximum  4294967 seconds
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=8589935;
+ERROR HY000: The requested value for the heartbeat period  is negative or exceeds the maximum  4294967 seconds
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294967296;
+ERROR HY000: The requested value for the heartbeat period  is negative or exceeds the maximum  4294967 seconds
+RESET SLAVE;
+
+*** Misc incorrect values ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='-1';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''-1'' at line 1
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='123abc';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''123abc'' at line 1
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 1
+RESET SLAVE;
+
+*** Running slave ***
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
+Heartbeat event received
+
+*** Stopped slave ***
+include/stop_slave.inc
+Number of received heartbeat events while slave stopped: 0
+
+*** Started slave ***
+include/start_slave.inc
+Heartbeat event received
+
+*** Stopped IO thread ***
+STOP SLAVE IO_THREAD;
+Number of received heartbeat events while io thread stopped: 0
+
+*** Started IO thread ***
+START SLAVE IO_THREAD;
+Heartbeat event received
+
+*** Stopped SQL thread ***
+STOP SLAVE SQL_THREAD;
+Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
+
+*** Started SQL thread ***
+START SLAVE SQL_THREAD;
+Heartbeat event received
+
+*** Stopped SQL thread by error ***
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
+INSERT INTO t1 VALUES (1, 'on slave', NULL);
+INSERT INTO t1 VALUES (1, 'on master', NULL);
+Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
+include/stop_slave.inc
+DROP TABLE t1;
+
+*** Master send to slave ***
+CREATE EVENT e1 
+ON SCHEDULE EVERY 1 SECOND
+DO
+BEGIN
+UPDATE test.t1 SET a = a + 1 WHERE a < 10;
+END|
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1.5;
+include/start_slave.inc
+SET @@global.event_scheduler=1;
+SHOW STATUS LIKE 'slave_received_heartbeats';
+Variable_name	Value
+Slave_received_heartbeats	0
+SHOW STATUS LIKE 'slave_received_heartbeats';
+Variable_name	Value
+Slave_received_heartbeats	0
+DELETE FROM t1;
+DROP EVENT e1;
+
+*** Flush logs on slave ***
+STOP SLAVE;
+RESET SLAVE;
+DROP TABLE t1;
+DROP TABLE t1;
+RESET MASTER;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.5;
+include/start_slave.inc
+Heartbeat events are received while rotation of relay logs (1 means 'yes'): 1
+
+*** Compressed protocol ***
+SET @@global.slave_compressed_protocol=1;
+include/stop_slave.inc
+RESET SLAVE;
+SET @@global.slave_compressed_protocol=1;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
+Heartbeat event received
+SET @@global.slave_compressed_protocol=0;
+SET @@global.slave_compressed_protocol=0;
+
+*** Reset master ***
+STOP SLAVE;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
+RESET MASTER;
+Heartbeat events are received after reset of master (1 means 'yes'): 1
+
+*** Reload master ***
+STOP SLAVE;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
+Heartbeat event received
+Reload master
+Heartbeat event received
+
+*** Circular replication ***
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
+include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1, MASTER_LOG_FILE='MASTER_BINLOG';
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='SLAVE_BINLOG';
+include/start_slave.inc
+INSERT INTO t1 VALUES(1, 'on master');
+include/start_slave.inc
+INSERT INTO t1 VALUES(2, 'on slave');
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	on master
+2	on slave
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	on master
+2	on slave
+Heartbeat event received on master
+Heartbeat event received on slave
+Slave has received more events than master (1 means 'yes'): 1
+
+*** Clean up ***
+include/stop_slave.inc
+DROP TABLE t1;
+include/stop_slave.inc
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+
+End of 6.0 test
