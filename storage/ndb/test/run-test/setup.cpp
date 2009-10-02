@@ -105,6 +105,8 @@ setup_config(atrt_config& config)
      */
     for (j = 0; j<(size_t)argc; j++)
     {
+      if (tmp[j] == args_separator)             /* skip arguments separator */
+        continue;
       for (k = 0; proc_args[k].name; k++)
       {
 	if (!strncmp(tmp[j], proc_args[k].name, strlen(proc_args[k].name)))
@@ -369,6 +371,12 @@ load_options(int argc, char** argv, int type, atrt_options& opts)
 {
   for (size_t i = 0; i<(size_t)argc; i++)
   {
+    /**
+     *  Skip the separator for arguments from config file and command
+     *  line
+     */
+    if (argv[i] == args_separator)
+      continue;
     for (size_t j = 0; f_options[j].name; j++)
     {
       const char * name = f_options[j].name;
