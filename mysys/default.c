@@ -478,7 +478,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     res= (char**) (ptr+sizeof(alloc));
     res[0]= **argv;				/* Copy program name */
     /* set arguments separator */
-    res[1]= args_separator;
+    res[1]= (char *)args_separator;
     for (i=2 ; i < (uint) *argc ; i++)
       res[i]=argv[0][i];
     res[i]=0;					/* End pointer */
@@ -534,7 +534,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   /* set arguments separator for arguments from config file and
      command line */
-  res[args.elements+1]= args_separator;
+  res[args.elements+1]= (char *)args_separator;
 
   if (*argc)
     memcpy((uchar*) (res+1+args.elements+1), (char*) ((*argv)+1),
