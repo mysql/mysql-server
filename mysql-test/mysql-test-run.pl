@@ -1836,7 +1836,7 @@ sub environment_setup {
   {
     $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
     $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
-    $ENV{'SEMISYNC_PLUGIN_OPT'}="";
+    $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
   }
 
   # ----------------------------------------------------
