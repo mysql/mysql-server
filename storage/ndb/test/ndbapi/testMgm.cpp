@@ -113,7 +113,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   }
   return NDBT_OK;
 }
-// Small test
+
 
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
