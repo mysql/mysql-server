@@ -413,7 +413,13 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     reuse an array slot. Otherwise the number of uninstall/install
     cycles would be limited.
   */
-  hton2plugin[hton->slot]= NULL;
+  if (hton->slot != HA_SLOT_UNDEF)
+  {
+    /* Make sure we are not unpluging another plugin */
+    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < MAX_HA);
+    hton2plugin[hton->slot]= NULL;
+  }
 
   my_free((uchar*)hton, MYF(0));
 
@@ -438,6 +444,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     goto err_no_hton_memory;
   }
 
+  hton->slot= HA_SLOT_UNDEF;
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
