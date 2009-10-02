@@ -26,7 +26,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 copy_file $MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001 $MYSQLD_DATADIR/slave-relay-bin.000001;
 
 write_file $MYSQLD_DATADIR/slave-relay-bin.index;
-slave-relay-bin.000001
+./slave-relay-bin.000001
 EOF
 
 change master to
