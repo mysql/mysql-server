@@ -30,8 +30,8 @@
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
-#include <NdbApi.hpp>
-#include <ndbapi_limits.h>
+#include <ndbapi/NdbApi.hpp>
+#include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
