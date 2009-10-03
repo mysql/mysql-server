@@ -17,7 +17,7 @@
 #include "semisync_slave.h"
 
 char rpl_semi_sync_slave_enabled;
-unsigned long rpl_semi_sync_slave_status= 0;
+char rpl_semi_sync_slave_status= 0;
 unsigned long rpl_semi_sync_slave_trace_level;
 
 int ReplSemiSyncSlave::initObject()

@@ -25,7 +25,7 @@
 char rpl_semi_sync_master_enabled;
 unsigned long rpl_semi_sync_master_timeout;
 unsigned long rpl_semi_sync_master_trace_level;
-unsigned long rpl_semi_sync_master_status           = 0;
+char rpl_semi_sync_master_status                    = 0;
 unsigned long rpl_semi_sync_master_yes_transactions = 0;
 unsigned long rpl_semi_sync_master_no_transactions  = 0;
 unsigned long rpl_semi_sync_master_off_times        = 0;

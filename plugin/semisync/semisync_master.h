@@ -347,7 +347,7 @@ class ReplSemiSyncMaster
 extern char rpl_semi_sync_master_enabled;
 extern unsigned long rpl_semi_sync_master_timeout;
 extern unsigned long rpl_semi_sync_master_trace_level;
-extern unsigned long rpl_semi_sync_master_status;
+extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_yes_transactions;
 extern unsigned long rpl_semi_sync_master_no_transactions;
 extern unsigned long rpl_semi_sync_master_off_times;
