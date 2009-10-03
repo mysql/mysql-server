@@ -94,6 +94,6 @@ private:
 /* System and status variables for the slave component */
 extern char rpl_semi_sync_slave_enabled;
 extern unsigned long rpl_semi_sync_slave_trace_level;
-extern unsigned long rpl_semi_sync_slave_status;
+extern char rpl_semi_sync_slave_status;
 
 #endif /* SEMISYNC_SLAVE_H */
