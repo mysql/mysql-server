@@ -1,3 +1,5 @@
+#include <stdlib.h>
+typedef struct st_mysql MYSQL;
 struct st_mysql_lex_string
 {
   char *str;
@@ -105,6 +107,9 @@ struct st_mysql_information_schema
 {
   int interface_version;
 };
+struct Mysql_replication {
+  int interface_version;
+};
 struct st_mysql_value
 {
   int (*value_type)(struct st_mysql_value *);
@@ -137,3 +142,10 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
+int get_user_var_int(const char *name,
+                     long long int *value, int *null_value);
+int get_user_var_real(const char *name,
+                      double *value, int *null_value);
+int get_user_var_str(const char *name,
+                     char *value, unsigned long len,
+                     unsigned int precision, int *null_value);
