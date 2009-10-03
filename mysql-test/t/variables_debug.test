@@ -10,31 +10,3 @@ set debug= '+P';
 select @@debug;
 set debug= '-P';
 select @@debug;
-
-#
-# Checks that assigning variable 'debug' in one session has no influence on
-# other session. (BUG#45632 of bugs.mysql.com)
-#
-connect(con1,localhost,root,,test,,);
-connect(con2,localhost,root,,test,,);
-
-# makes output independant of current debug status
-connection con1;
-set session debug="t";
-show session variables like 'debug';
-connection con2;
-set session debug="t";
-show session variables like 'debug';
-
-# checks influence one session debug variable on another
-connection con1;
-set session debug="d:t";
-show session variables like 'debug';
-connection con2;
-show session variables like 'debug';
-
-disconnect con1;
-disconnect con2;
-
-connection default;
-
