@@ -1815,6 +1815,30 @@ sub environment_setup {
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
   }
 
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find semisync plugins
+  # --------------------------------------------------------------------------
+  my $lib_semisync_master_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_master.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_master.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_master.so");
+  my $lib_semisync_slave_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_slave.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_slave.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_slave.so");
+  if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
+  {
+    $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
+    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
+    $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
+  }
+  else
+  {
+    $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
+    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
+    $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
+  }
+
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
   # ----------------------------------------------------
