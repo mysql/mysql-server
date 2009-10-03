@@ -5448,7 +5448,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
       Store total blob length to make buffer allocation easier during UNDO
      */
     log_parts->str=  info->length_buff;
-    log_parts->length= (uint) (ma_store_length((uchar *) log_parts->str,
+    log_parts->length= (uint) (ma_store_length(info->length_buff,
                                                  info->cur_row.blob_length) -
                                  (uchar*) log_parts->str);
     row_length+=          log_parts->length;
@@ -5592,7 +5592,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
   MARIA_SHARE *share= info->s;
   MARIA_COLUMNDEF *column, *end_column;
   MARIA_ROW *old_row= &info->cur_row, *new_row= &info->new_row;
-  uchar *field_data, *start_field_data;
+  uchar *field_data, *start_field_data, *length_str;
   uchar *old_field_lengths= old_row->field_lengths;
   uchar *new_field_lengths= new_row->field_lengths;
   size_t row_length= 0;
@@ -5749,9 +5749,9 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
 
   /* Store length of field length data before the field/field_lengths */
   field_lengths= (uint) (field_data - start_field_data);
-  start_log_parts->str=  ((start_field_data -
-                           ma_calc_length_for_store_length(field_lengths)));
-  ma_store_length((uchar*)start_log_parts->str, field_lengths);
+  length_str= start_field_data - ma_calc_length_for_store_length(field_lengths);
+  start_log_parts->str= length_str;
+  ma_store_length(length_str, field_lengths);
   start_log_parts->length= (size_t) (field_data - start_log_parts->str);
   row_length+= start_log_parts->length;
   DBUG_RETURN(row_length);
