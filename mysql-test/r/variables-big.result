@@ -1,20 +1,20 @@
-set session transaction_prealloc_size=1024*1024*1024*1;
-select @pid_temp = (select ID from information_schema.processlist) as 'TRUE';
-TRUE
-1
-set session transaction_prealloc_size=1024*1024*1024*2;
-select @pid_temp = (select ID from information_schema.processlist) as 'TRUE';
-TRUE
-1
-set session transaction_prealloc_size=1024*1024*1024*3;
-select @pid_temp = (select ID from information_schema.processlist) as 'TRUE';
-TRUE
-1
-set session transaction_prealloc_size=1024*1024*1024*4;
-select @pid_temp = (select ID from information_schema.processlist) as 'TRUE';
-TRUE
-1
-set session transaction_prealloc_size=1024*1024*1024*5;
-select @pid_temp = (select ID from information_schema.processlist) as 'TRUE';
-TRUE
-1
+SET SESSION transaction_prealloc_size=1024*1024*1024*1;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	localhost	test	Query	<Time>	NULL	SHOW PROCESSLIST
+SET SESSION transaction_prealloc_size=1024*1024*1024*2;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	localhost	test	Query	<Time>	NULL	SHOW PROCESSLIST
+SET SESSION transaction_prealloc_size=1024*1024*1024*3;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	localhost	test	Query	<Time>	NULL	SHOW PROCESSLIST
+SET SESSION transaction_prealloc_size=1024*1024*1024*4;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	localhost	test	Query	<Time>	NULL	SHOW PROCESSLIST
+SET SESSION transaction_prealloc_size=1024*1024*1024*5;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	localhost	test	Query	<Time>	NULL	SHOW PROCESSLIST
