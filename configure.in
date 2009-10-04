@@ -1648,13 +1648,14 @@ then
   DEBUG_OPTIMIZE_CXX="-O"
   OPTIMIZE_CXXFLAGS="$MAX_CXX_OPTIMIZE"
 else
-  DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
   case $SYSTEM_TYPE in
     *solaris*)
+      DEBUG_CXXFLAGS="-g0"
       OPTIMIZE_CXXFLAGS="-O1"
       ;;
     *)
+      DEBUG_CXXFLAGS="-g"
       OPTIMIZE_CXXFLAGS="-O"
       ;;
   esac
@@ -2768,7 +2769,7 @@ server_scripts=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings regex mysys libmysql"
+sql_client_dirs="strings regex mysys dbug libmysql"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2796,15 +2797,20 @@ fi
 AC_SUBST(netware_dir)
 AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
-if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
+if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
+fi
+AM_CONDITIONAL(NEED_THREAD, test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no")
+
+if test "$with_server" != "no"
+then
   server_scripts="mysqld_safe mysql_install_db"
-  sql_server_dirs="strings mysys dbug extra regex"
+  sql_server_dirs="strings mysys dbug extra regex storage plugin"
 
   sql_server="vio sql"
 fi
