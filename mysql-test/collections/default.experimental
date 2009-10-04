@@ -6,3 +6,4 @@ rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails
 rpl_ndb.rpl_ndb_log                      # Bug#38998
 rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
 rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
+innodb-autoinc                           # Bug#47809 2009-10-04 joro innodb-autoinc.test fails with valgrind errors with the innodb plugin
