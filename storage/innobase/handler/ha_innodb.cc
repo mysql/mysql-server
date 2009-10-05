@@ -5166,6 +5166,28 @@ create_table_def(
 			}
 		}
 
+		/* First check whether the column to be added has a
+		system reserved name. */
+		if (dict_col_name_is_reserved(field->field_name)){
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column name '%s'. '%s' is a "
+				"reserved name. Please try to "
+				"re-create the table with a "
+				"different column name.",
+				table->name, (char*) field->field_name,
+				(char*) field->field_name);
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			error = DB_ERROR;
+			goto error_ret;
+		}
+
 		dict_mem_table_add_col(table, table->heap,
 			(char*) field->field_name,
 			col_type,
@@ -5181,6 +5203,7 @@ create_table_def(
 
 	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
+error_ret:
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);

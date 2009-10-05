@@ -1788,7 +1788,6 @@ row_create_table_for_mysql(
 	const char*	table_name;
 	ulint		table_name_len;
 	ulint		err;
-	ulint		i;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -1825,18 +1824,6 @@ row_create_table_for_mysql(
 		trx_commit_for_mysql(trx);
 
 		return(DB_ERROR);
-	}
-
-	/* Check that no reserved column names are used. */
-	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-		if (dict_col_name_is_reserved(
-			    dict_table_get_col_name(table, i))) {
-
-			dict_mem_table_free(table);
-			trx_commit_for_mysql(trx);
-
-			return(DB_ERROR);
-		}
 	}
 
 	trx_start_if_not_started(trx);
