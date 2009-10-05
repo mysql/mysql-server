@@ -559,7 +559,7 @@ select @@lc_time_names;
 --echo *** LC_TIME_NAMES: testing with string expressions
 set lc_time_names=concat('de','_','DE');
 select @@lc_time_names;
---error ER_UNKNOWN_ERROR
+--error ER_UNKNOWN_LOCALE
 set lc_time_names=concat('de','+','DE');
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing with numeric expressions
@@ -572,14 +572,14 @@ set lc_time_names=en_US;
 --echo LC_TIME_NAMES: testing NULL and a negative number:
 --error ER_WRONG_VALUE_FOR_VAR
 set lc_time_names=NULL;
---error ER_UNKNOWN_ERROR
+--error ER_UNKNOWN_LOCALE
 set lc_time_names=-1;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing locale with the last ID:
 set lc_time_names=108;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing a number beyond the valid ID range:
---error ER_UNKNOWN_ERROR
+--error ER_UNKNOWN_LOCALE
 set lc_time_names=109;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing that 0 is en_US:
