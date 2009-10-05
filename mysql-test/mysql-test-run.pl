@@ -2003,6 +2003,15 @@ sub environment_setup {
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
 
+  #
+  # Some stupid^H^H^H^H^H^Hignorant network providers set up "wildcard DNS"
+  # servers that return some given web server address for any lookup of a
+  # non-existent host name. This confuses test cases that want to test the
+  # behaviour when connecting to a non-existing host, so we need to be able
+  # to disable those tests when DNS is broken.
+  #
+  $ENV{HAVE_BROKEN_DNS}= defined(gethostbyname('invalid_hostname'));
+
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
