@@ -42,6 +42,42 @@ Vector< Vector<NdbRecAttr*> > event_values;
 Vector< Vector<NdbRecAttr*> > event_pre_values;
 Vector<struct Table_info> table_infos;
 
+static char* event_name(uint etype, char * buf)
+{
+  switch(etype){
+  case NdbDictionary::Event::TE_INSERT:
+    strcpy(buf, "TE_INSERT");
+    break;
+  case NdbDictionary::Event::TE_DELETE:
+    strcpy(buf, "TE_DELETE");
+    break;
+  case NdbDictionary::Event::TE_UPDATE:
+    strcpy(buf, "TE_UPDATE");
+    break;
+  case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+    strcpy(buf, "TE_CLUSTER_FAILURE");
+    break;
+  case NdbDictionary::Event::TE_ALTER:
+    strcpy(buf, "TE_ALTER");
+    break;
+  case NdbDictionary::Event::TE_DROP:
+    strcpy(buf, "TE_DROP");
+    break;
+  case NdbDictionary::Event::TE_NODE_FAILURE:
+    strcpy(buf, "TE_NODE_FAILURE");
+    break;
+  case NdbDictionary::Event::TE_SUBSCRIBE:
+    strcpy(buf, "TE_SUBSCRIBE");
+    break;
+  case NdbDictionary::Event::TE_UNSUBSCRIBE:
+    strcpy(buf, "TE_UNSUBSCRIBE");
+    break;
+  default:
+    strcpy(buf, "unknown");
+  }
+  return buf;
+}
+
 static void do_begin(Ndb *ndb, struct Trans_arg &trans_arg)
 {
   trans_arg.ndb =  ndb;
@@ -306,6 +342,8 @@ main(int argc, const char** argv){
   }
 
   struct Trans_arg trans_arg;
+  char buf[64];
+
   while(true)
   {
     while(MyNdb.pollEvents(100) == 0);
@@ -319,6 +357,7 @@ main(int argc, const char** argv){
         do_begin(ndb2, trans_arg);
       do
       {
+        ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	switch(pOp->getEventType())
 	{
 	case NdbDictionary::Event::TE_INSERT:
