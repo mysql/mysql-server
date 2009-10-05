@@ -6228,3 +6228,5 @@ WARN_COND_ITEM_TRUNCATED
 ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
+ER_UNKNOWN_LOCALE                                                                                                                                                                    
+        eng "Unknown locale: '%-.64s'"

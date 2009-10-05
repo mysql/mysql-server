@@ -2916,7 +2916,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     {
       char buf[20];
       int10_to_str((int) var->value->val_int(), buf, -10);
-      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), buf);
       return 1;
     }
   }
@@ -2932,8 +2932,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     const char *locale_str= res->c_ptr();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Unknown locale: '%s'", MYF(0), locale_str);
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), locale_str);
       return 1;
     }
   }
