@@ -471,6 +471,10 @@ args: -n ScanReadError5030 T1 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n ScanReadError8081 T1 D1 D2
+
+max-time: 500
+cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
 
 max-time: 500
