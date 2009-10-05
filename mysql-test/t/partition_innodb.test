@@ -6,6 +6,36 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# BUG#47776, Failed to update for MEMORY engine, crash for InnoDB and success for MyISAM
+#
+create table t1 (a varchar(5))
+engine=memory
+partition by range column_list(a)
+( partition p0 values less than (column_list('m')),
+  partition p1 values less than (column_list('za')));
+insert into t1 values  ('j');
+update t1 set a = 'z' where (a >= 'j');
+drop table t1;
+
+create table t1 (a varchar(5))
+engine=myisam
+partition by range column_list(a)
+( partition p0 values less than (column_list('m')),
+  partition p1 values less than (column_list('za')));
+insert into t1 values  ('j');
+update t1 set a = 'z' where (a >= 'j');
+drop table t1;
+
+create table t1 (a varchar(5))
+engine=innodb
+partition by range column_list(a)
+( partition p0 values less than (column_list('m')),
+  partition p1 values less than (column_list('za')));
+insert into t1 values  ('j');
+update t1 set a = 'z' where (a >= 'j');
+drop table t1;
+
+#
 # Bug#40595: Non-matching rows not released with READ-COMMITTED on tables
 #            with partitions
 CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
