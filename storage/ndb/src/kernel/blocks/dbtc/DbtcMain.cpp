@@ -7097,10 +7097,11 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
        * The node has died
        */
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(ptr);
       ptr.p->stopFragTimer();
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(ptr);
+      }
     }
     
     scanError(signal, scanptr, ZSCAN_FRAG_LQH_ERROR);
@@ -9803,12 +9804,24 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     tabPtr.i = scanptr.p->scanTableref;
     ptrAss(tabPtr, tableRecord);
     Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
-    if(tabPtr.p->checkTable(schemaVersion) == false){
+    if (ERROR_INSERTED(8081) || tabPtr.p->checkTable(schemaVersion) == false)
+    {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
-      scanError(signal, scanptr, tabPtr.p->getErrorCode(schemaVersion));
+      Uint32 err;
+      if (ERROR_INSERTED(8081))
+      {
+        err = ZTIME_OUT_ERROR;
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      else
+      {
+        err = tabPtr.p->getErrorCode(schemaVersion);
+      }
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
+      scanError(signal, scanptr, err);
       return;
     }
   }
@@ -9825,7 +9838,6 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     updateBuddyTimer(apiConnectptr);
     {
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
       run.release(scanFragptr);
     }
     close_scan_req_send_conf(signal, scanptr);
@@ -9882,9 +9894,10 @@ void Dbtc::execDIGETPRIMREF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
-  ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-  
-  run.release(scanFragptr);
+  {
+    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    run.release(scanFragptr);
+  }
 
   scanError(signal, scanptr, errCode);
 }//Dbtc::execDIGETPRIMREF()
@@ -9926,12 +9939,11 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
    * close of the other fragment scans
    */
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
+  scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+  scanFragptr.p->stopFragTimer();
   {
-    scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    
     run.release(scanFragptr);
-    scanFragptr.p->stopFragTimer();
   }    
   scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
@@ -10027,11 +10039,12 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
       return;
     } else {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
       scanFragptr.p->stopFragTimer();
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
     }
     close_scan_req_send_conf(signal, scanptr);
     return;
