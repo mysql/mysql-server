@@ -462,7 +462,9 @@ drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 # Test BUG#10287
 #
 
---exec $NDB_SELECT_ALL --no-defaults -d sys -D , SYSTAB_0 | grep 520093696, | sed "s/,$the_backup_id/,<the_backup_id>/"
+--disable_query_log
+source include/ndb_backup_id.inc;
+--enable_query_log
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
 
