@@ -1717,6 +1717,13 @@ TESTCASE("ScanReadError5025",
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanReadError8081",
+	 "Scan and insert error 8081"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8081);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
 TESTCASE("ScanReadError5030", 
 	 "Scan and insert error 5030."\
 	 "Drop all SCAN_NEXTREQ signals in LQH until the node is "\
