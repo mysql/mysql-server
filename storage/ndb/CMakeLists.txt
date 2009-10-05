@@ -43,5 +43,4 @@ SET(NDBCLUSTER_SOURCES
 	../../sql/ha_ndbcluster_connection.cc
 	../../sql/ha_ndbcluster_binlog.cc)
 SET(NDBCLUSTER_LIBS ndbclient)
-ADD_DEFINITIONS(-DWITH_NDB_BINLOG)
 MYSQL_STORAGE_ENGINE(NDBCLUSTER)

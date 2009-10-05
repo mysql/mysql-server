@@ -269,6 +269,12 @@ ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
 
 ADD_DEFINITIONS(${STORAGE_ENGINE_DEFS}) 
 
+# Special handling for WITH_NDB_BINLOG which currently
+# need to be turned on globally
+IF(WITH_NDB_BINLOG)
+  ADD_DEFINITIONS(-DWITH_NDB_BINLOG)
+ENDIF()
+
 # Now write out our mysql_plugin_defs struct
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
                ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
