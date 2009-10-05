@@ -886,6 +886,10 @@ fi
 
 - Update variable used for mysql-test suite location to match source.
 
+* Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
+
+- Update variable used for mysql-test suite location to match source.
+
 * Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Correct yesterday's fix, so that it also works for the last flag,
