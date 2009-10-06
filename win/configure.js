@@ -41,7 +41,6 @@ try
         {
             case "WITH_COMMUNITY_FEATURES":
             case "WITH_ARCHIVE_STORAGE_ENGINE":
-            case "WITH_BERKELEY_STORAGE_ENGINE":
             case "WITH_BLACKHOLE_STORAGE_ENGINE":
             case "WITH_EXAMPLE_STORAGE_ENGINE":
             case "WITH_FEDERATED_STORAGE_ENGINE":
@@ -51,6 +50,21 @@ try
             case "EMBED_MANIFESTS":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
+            // BDB includes auto-generated files which are not handled by
+            // cmake, so only allow this option if building from a source
+            // distribution
+            case "WITH_BERKELEY_STORAGE_ENGINE":
+                if (!fso.FileExists("bdb\\btree\\btree_auto.c"))
+                {
+                    BDBSourceError = new Error("BDB cannot be built directly" +
+                      " from a bzr tree, see comment in bdb\\CMakeLists.txt");
+                    throw BDBSourceError;
+                }
+                else
+                {
+                    configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
+                    break;
+                }
             case "MYSQL_SERVER_SUFFIX":
             case "MYSQLD_EXE_SUFFIX":
                     configfile.WriteLine("SET (" + parts[0] + " \""
