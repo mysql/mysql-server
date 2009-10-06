@@ -9,6 +9,17 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# BUG#47837, Crash when two same fields in column list processing
+#
+--error ER_SAME_NAME_PARTITION_FIELD
+create table t1 (a int, b int)
+partition by key (a,a);
+--error ER_SAME_NAME_PARTITION_FIELD
+create table t1 (a int, b int)
+partition by list column_list(a,a)
+( partition p values in (column_list(1,1)));
+
+#
 # BUG#47838, List partitioning have problems with <= and >=
 #
 create table t1 (a int signed)
