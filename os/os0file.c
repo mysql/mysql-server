@@ -612,6 +612,60 @@ os_file_create_tmpfile(void)
 
 	return(file);
 }
+#else
+/***********************************************************************//**
+Check if two paths refer to the same file or directory. On Unix-like systems
+the files are considered equal if they have the same inode (as returned by
+stat(2) system call).
+@return 1 if files are the same, 0 if they are not the same, and -1 on error
+(error number can be retrieved with os_file_get_last_error) */
+UNIV_INTERN
+int
+os_file_is_same(
+/*============*/
+	const char*	pathname1,	/*!< in: pathname of a file
+					  or directory */
+	const char*	pathname2)	/*!< in: pathname of a file
+					  or directory */
+{
+#ifdef __WIN__
+	/* NOTE This Windows implementation is incomplete; we need to
+	   check inodes of the files as we do on Unix-like systems.
+	*/
+	if (0 == strcmp(pathname1, pathname2)) {
+		/* paths are the same */
+		return (1);
+	} else {
+		/* path are different */
+		return (0);
+	}
+#else
+	struct stat fileinfo1, fileinfo2;
+	int rcode;
+	
+	if (0 == strcmp(pathname1, pathname2)) {
+		/* paths are the same */
+		return (1);
+	}
+
+	/* get inodes with stat(2)*/
+	rcode = stat(pathname1, &fileinfo1);
+	if (rcode < 0) {
+		/* failure */
+		os_file_handle_error_no_exit(pathname1, "os_file_is_same");
+		return (-1);
+	}
+	rcode = stat(pathname2, &fileinfo2);
+	if (rcode < 0) {
+		/* failure */
+		os_file_handle_error_no_exit(pathname2, "os_file_is_same");
+		return (-1);
+	}
+
+	return (fileinfo1.st_ino == fileinfo2.st_ino);
+#endif	
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
