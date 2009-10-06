@@ -318,6 +318,13 @@ void _ma_update_status(void* param)
     DBUG_ASSERT(!info->s->base.born_transactional);
     share->state.state= *info->state;
     info->state= &share->state.state;
+#ifdef HAVE_QUERY_CACHE
+    DBUG_PRINT("info", ("invalidator... '%s' (status update)",
+                        info->s->data_file_name.str));
+    DBUG_ASSERT(info->s->chst_invalidator != NULL);
+    (*info->s->chst_invalidator)((const char *)info->s->data_file_name.str);
+#endif
+
   }
   info->append_insert_at_end= 0;
 }
@@ -468,6 +475,8 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
           history->state.checksum+= (tables->state_current.checksum -
                                      tables->state_start.checksum);
           history->trid= trn->commit_trid;
+
+          share->state.last_change_trn= trn->commit_trid;
 
           if (history->next)
           {
