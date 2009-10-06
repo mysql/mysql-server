@@ -120,13 +120,12 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   LeaveCriticalSection(&cond->lock_waiting);
 
   LeaveCriticalSection(mutex);
-
   result= WaitForMultipleObjects(2, cond->events, FALSE, timeout);
   
   EnterCriticalSection(&cond->lock_waiting);
   cond->waiting--;
   
-  if (cond->waiting == 0 && result == (WAIT_OBJECT_0+BROADCAST))
+  if (cond->waiting == 0)
   {
     /*
       We're the last waiter to be notified or to stop waiting, so

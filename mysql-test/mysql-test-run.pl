@@ -226,6 +226,7 @@ my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $opt_callgrind;
+my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
 our $opt_warnings= 1;
 
@@ -867,6 +868,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
@@ -4170,6 +4172,11 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s", "--core-file");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout);
+
   return $args;
 }
 
@@ -5280,6 +5287,8 @@ Misc options
                         to turn off.
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
+                        actions. Disable facility with NUM=0.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
   experimental=<file>   Refer to list of tests considered experimental;
