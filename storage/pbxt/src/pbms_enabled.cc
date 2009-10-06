@@ -29,6 +29,12 @@
  *
  */
 
+/*
+  The following two lines backported by psergey. Remove them when we merge from PBXT again.
+*/
+#include "xt_config.h"
+#ifdef PBMS_ENABLED
+
 #define PBMS_API	pbms_enabled_api
 
 #include "pbms_enabled.h"
@@ -236,3 +242,4 @@ void pbms_completed(TABLE *table, bool ok)
 	 return ;
 }
 
+#endif

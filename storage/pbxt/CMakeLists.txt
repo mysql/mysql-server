@@ -32,22 +32,72 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
-SET(PBXT_SOURCES ha_pbxt.cc bsearch_xt.cc index_xt.cc strutil_xt.cc cache_xt.cc linklist_xt.cc
-                 ccutils_xt.cc lock_xt.cc table_xt.cc database_xt.cc thread_xt.cc
-                 datadic_xt.cc memory_xt.cc trace_xt.cc datalog_xt.cc myxt_xt.cc util_xt.cc
-                 filesys_xt.cc pthread_xt.cc xaction_xt.cc restart_xt.cc xactlog_xt.cc
-                 hashtab_xt.cc sortedlist_xt.cc heap_xt.cc streaming_xt.cc tabcache_xt.cc
-				 systab_xt.cc ha_xtsys.cc discover_xt.cc
-                 bsearch_xt.h linklist_xt.h tabcache_xt.h cache_xt.h lock_xt.h table_xt.h
-                 ccutils_xt.h thread_xt.h database_xt.h memory_xt.h trace_xt.h
-                 datadic_xt.h pbms.h util_xt.h datalog_xt.h myxt_xt.h xaction_xt.h
-                 filesys_xt.h pthread_xt.h xactlog_xt.h ha_pbxt.h restart_xt.h xt_config.h
-                 hashtab_xt.h sortedlist_xt.h xt_defs.h heap_xt.h streaming_xt.h xt_errno.h
-				 systab_xt.h ha_xtsys.h discover_xt.h
-                 index_xt.h strutil_xt.h)
+SET(PBXT_SOURCES
+src/bsearch_xt.cc
+src/bsearch_xt.h
+src/cache_xt.cc
+src/cache_xt.h
+src/ccutils_xt.cc
+src/ccutils_xt.h
+src/database_xt.cc
+src/database_xt.h
+src/datadic_xt.cc
+src/datadic_xt.h
+src/datalog_xt.cc
+src/datalog_xt.h
+src/discover_xt.cc
+src/discover_xt.h
+src/filesys_xt.cc
+src/filesys_xt.h
+src/hashtab_xt.cc
+src/hashtab_xt.h
+src/ha_pbxt.cc
+src/ha_pbxt.h
+src/ha_xtsys.cc
+src/ha_xtsys.h
+src/heap_xt.cc
+src/heap_xt.h
+src/index_xt.cc
+src/index_xt.h
+src/linklist_xt.cc
+src/linklist_xt.h
+src/locklist_xt.cc
+src/locklist_xt.h
+src/lock_xt.cc
+src/lock_xt.h
+src/memory_xt.cc
+src/memory_xt.h
+src/myxt_xt.cc
+src/myxt_xt.h
+src/pbms.h
+src/pbms_enabled.cc
+src/pbms_enabled.h
+src/pthread_xt.cc
+src/pthread_xt.h
+src/restart_xt.cc
+src/restart_xt.h
+src/sortedlist_xt.cc
+src/sortedlist_xt.h
+src/strutil_xt.cc
+src/strutil_xt.h
+src/systab_xt.cc
+src/systab_xt.h
+src/tabcache_xt.cc
+src/tabcache_xt.h
+src/table_xt.cc
+src/table_xt.h
+src/thread_xt.cc
+src/thread_xt.h
+src/trace_xt.cc
+src/trace_xt.h
+src/util_xt.cc
+src/util_xt.h
+src/xaction_xt.cc
+src/xaction_xt.h
+src/xactlog_xt.cc
+src/xactlog_xt.h
+src/xt_config.h
+src/xt_defs.h
+src/xt_errno.h)
 
-IF(NOT SOURCE_SUBLIBS)
-  ADD_LIBRARY(pbxt ${PBXT_SOURCES})
-  ADD_DEPENDENCIES(pbxt GenError)
-ENDIF(NOT SOURCE_SUBLIBS)
-
+MYSQL_STORAGE_ENGINE(PBXT)
