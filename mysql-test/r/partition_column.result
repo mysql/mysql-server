@@ -1,4 +1,16 @@
 drop table if exists t1;
+create table t1 (a int signed)
+partition by list column_list(a)
+( partition p0 values in (column_list(1), column_list(3), column_list(5),
+column_list(7), column_list(9), column_list(NULL)),
+partition p1 values in (column_list(2), column_list(4), column_list(6),
+column_list(8), column_list(0)));
+insert into t1 values (NULL),(0),(1),(2),(2),(4),(4),(4),(8),(8);
+select * from t1 where a <= 1;
+a
+1
+0
+drop table t1;
 create table t1 (a int, b int)
 partition by list column_list(a,b)
 ( partition p0 values in (column_list(1, NULL), column_list(2, NULL),
