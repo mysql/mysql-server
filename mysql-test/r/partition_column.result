@@ -1,4 +1,11 @@
 drop table if exists t1;
+create table t1 (a int, b int)
+partition by key (a,a);
+ERROR HY000: Duplicate partition field name a
+create table t1 (a int, b int)
+partition by list column_list(a,a)
+( partition p values in (column_list(1,1)));
+ERROR HY000: Duplicate partition field name a
 create table t1 (a int signed)
 partition by list (a)
 ( partition p0 values in (1, 3, 5, 7, 9, NULL),

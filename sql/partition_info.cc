@@ -334,6 +334,49 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
 
 
 /*
+  Support routine for check_partition_info
+
+  SYNOPSIS
+    has_unique_fields
+    no parameters
+
+  RETURN VALUE
+    Erroneus field name  Error, there are two fields with same name
+    NULL                 Ok, no field defined twice
+
+  DESCRIPTION
+    Check that the user haven't defined the same field twice in
+    key or column list partitioning.
+*/
+char* partition_info::has_unique_fields()
+{
+  char *field_name_outer, *field_name_inner;
+  List_iterator<char> it_outer(part_field_list);
+  uint num_fields= part_field_list.elements;
+  uint i,j;
+  DBUG_ENTER("partition_info::has_unique_fields");
+
+  for (i= 0; i < num_fields; i++)
+  {
+    field_name_outer= it_outer++;
+    List_iterator<char> it_inner(part_field_list);
+    for (j= 0; j < num_fields; j++)
+    {
+      field_name_inner= it_inner++;
+      if (i == j)
+        continue;
+      if (!(my_strcasecmp(system_charset_info,
+                          field_name_outer,
+                          field_name_inner)))
+      {
+        DBUG_RETURN(field_name_outer);
+      }
+    }
+  }
+  DBUG_RETURN(NULL);
+}
+
+/*
   A support function to check if a partition element's name is unique
   
   SYNOPSIS
@@ -1143,6 +1186,12 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     }
   }
 
+  if (part_field_list.elements > 0 &&
+      (same_name= has_unique_fields()))
+  {
+    my_error(ER_SAME_NAME_PARTITION_FIELD, MYF(0), same_name);
+    goto end;
+  }
   if ((same_name= has_unique_names()))
   {
     my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);

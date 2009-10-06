@@ -5822,6 +5822,8 @@ ER_SAME_NAME_PARTITION
         eng "Duplicate partition name %-.192s"
         ger "Doppelter Partitionsname: %-.192s"
         swe "Duplicerat partitionsnamn %-.192s"
+ER_SAME_NAME_PARTITION_FIELD
+        eng "Duplicate partition field name %-.192s"
 ER_NO_BINLOG_ERROR
         eng "It is not allowed to shut off binlog on this command"
         ger "Es es nicht erlaubt, bei diesem Befehl binlog abzuschalten"
