@@ -260,6 +260,21 @@ library of Netware does not expose the delete-on-close flag.
 FILE*
 os_file_create_tmpfile(void);
 /*========================*/
+#else
+/***********************************************************************//**
+Check if two paths refer to the same file or directory. On Unix-like systems
+the files are considered equal if they have the same inode (as returned by
+stat(2) system call).
+@return 1 if files are the same, 0 if they are not the same, and -1 on error
+(error number can be retrieved with os_file_get_last_error) */
+UNIV_INTERN
+int
+os_file_is_same(
+/*============*/
+	const char*	pathname1,	/*!< in: pathname of a file
+					  or directory */
+	const char*	pathname2);	/*!< in: pathname of a file
+					  or directory */
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 The os_file_opendir() function opens a directory stream corresponding to the
