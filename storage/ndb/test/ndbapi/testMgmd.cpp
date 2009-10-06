@@ -224,7 +224,7 @@ public:
   }
 
   bool connect(const Properties& config,
-               int num_retries = 30, int retry_delay_in_seconds = 1)
+               int num_retries = 60, int retry_delay_in_seconds = 1)
   {
     BaseString constr = connectstring(config);
     g_info << "Connecting to " << name() << " @ " << constr.c_str() << endl;
