@@ -98,8 +98,12 @@ static inline u_int32_t myrandom (void) {
 }
 
 static __attribute__((__unused__)) int
-int64_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
-    assert(db && a && b);
+int64_dbt_cmp (DB *db UU(), const DBT *a, const DBT *b) {
+//    assert(db && a && b);
+    assert(a);
+    assert(b);
+//    assert(db);
+
     assert(a->size == sizeof(int64_t));
     assert(b->size == sizeof(int64_t));
 
