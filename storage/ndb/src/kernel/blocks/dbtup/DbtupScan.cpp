@@ -583,7 +583,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
 
   if (bits & ScanOp::SCAN_NR)
   { 
-    if (scan.m_endPage == 0 && frag.m_max_page_no == 0)
+    if (scan.m_endPage == 0 && frag.noOfPages == 0)
     {
       jam();
       scan.m_state = ScanOp::Last;
