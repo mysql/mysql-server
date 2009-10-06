@@ -6761,10 +6761,9 @@ uint32 store_tuple_to_record(Field **pfield,
     if ((*pfield)->real_maybe_null())
     {
       if (*loc_value)
-      {
         (*pfield)->set_null();
-      }
-      (*pfield)->set_notnull();
+      else
+        (*pfield)->set_notnull();
       loc_value++;
     }
     uint len= (*pfield)->pack_length();
@@ -6950,12 +6949,16 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     get_col_endpoint= get_partition_id_cols_range_for_endpoint;
     part_iter->get_next= get_next_partition_id_range;
   }
-  else
+  else if (part_info->part_type == LIST_PARTITION)
   {
     get_col_endpoint= get_partition_id_cols_list_for_endpoint;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
+    DBUG_ASSERT(part_info->num_list_values);
   }
+  else
+    assert(0);
+
   if (flags & NO_MIN_RANGE)
     part_iter->part_nums.start= part_iter->part_nums.cur= 0;
   else
