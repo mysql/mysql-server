@@ -3009,6 +3009,77 @@ MY_LOCALE my_locale_zh_HK
 /***** LOCALE END zh_HK *****/
 
 
+/***** LOCALE BEGIN el_GR: Greek - Greece *****/
+static const char *my_locale_month_names_el_GR[13]= 
+{
+  "Ιανουάριος", "Φεβρουάριος", "Μάρτιος",
+  "Απρίλιος",   "Μάιος",       "Ιούνιος",
+  "Ιούλιος",    "Αύγουστος",   "Σεπτέμβριος",
+  "Οκτώβριος",  "Νοέμβριος",   "Δεκέμβριος", NullS
+};
+
+static const char *my_locale_ab_month_names_el_GR[13]=
+{
+  "Ιαν", "Φεβ", "Μάρ",
+  "Απρ", "Μάι", "Ιούν",
+  "Ιούλ","Αύγ", "Σεπ",
+  "Οκτ", "Νοέ", "Δεκ", NullS
+};
+
+static const char *my_locale_day_names_el_GR[8] = 
+{
+  "Δευτέρα",   "Τρίτη",   "Τετάρτη", "Πέμπτη",
+  "Παρασκευή", "Σάββατο", "Κυριακή", NullS
+};
+
+static const char *my_locale_ab_day_names_el_GR[8]= 
+{
+  "Δευ", "Τρί", "Τετ", "Πέμ",
+  "Παρ", "Σάβ", "Κυρ", NullS
+};
+ 
+static TYPELIB my_locale_typelib_month_names_el_GR= 
+{
+  array_elements(my_locale_month_names_el_GR) - 1,
+  "", my_locale_month_names_el_GR, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_month_names_el_GR= 
+{
+  array_elements(my_locale_ab_month_names_el_GR)-1,
+  "", my_locale_ab_month_names_el_GR, NULL
+};
+
+static TYPELIB my_locale_typelib_day_names_el_GR= 
+{
+  array_elements(my_locale_day_names_el_GR)-1,
+  "", my_locale_day_names_el_GR, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_day_names_el_GR= 
+{
+  array_elements(my_locale_ab_day_names_el_GR) - 1,
+  "", my_locale_ab_day_names_el_GR, NULL
+};
+
+MY_LOCALE my_locale_el_GR
+(
+  109,
+  "el_GR",
+  "Greek - Greece",
+  FALSE,
+  &my_locale_typelib_month_names_el_GR,
+  &my_locale_typelib_ab_month_names_el_GR,
+  &my_locale_typelib_day_names_el_GR,
+  &my_locale_typelib_ab_day_names_el_GR,
+  11,         /* max mon name length */ 
+  9,          /* max day name length */
+  ',',        /* decimal point el_GR */
+  '.',        /* thousands_sep el_GR */
+  "\x80"      /* grouping      el_GR */
+);
+/***** LOCALE END el_GR *****/
+
 /*
   The list of all locales.
   Note, locales must be ordered according to their
@@ -3126,6 +3197,7 @@ MY_LOCALE *my_locales[]=
     &my_locale_no_NO,
     &my_locale_sv_FI,
     &my_locale_zh_HK,
+    &my_locale_el_GR,
     NULL 
   };
 
