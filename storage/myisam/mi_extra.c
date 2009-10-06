@@ -286,9 +286,19 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       info->lock_type = F_UNLCK;
     }
     if (share->kfile >= 0)
+    {
+      /*
+        We don't need to call _mi_decrement_open_count() if we are
+        dropping the table, as the files will be removed anyway. If we
+        are aborted before the files is removed, it's better to not
+        call it as in that case the automatic repair on open will add
+        the missing index entries
+      */
+      if (function != HA_EXTRA_PREPARE_FOR_DROP)
       _mi_decrement_open_count(info);
-    if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
-      error=my_errno;
+      if (my_close(share->kfile,MYF(0)))
+        error=my_errno;
+    }
     {
       LIST *list_element ;
       for (list_element=myisam_open_list ;

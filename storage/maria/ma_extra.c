@@ -323,9 +323,16 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         error= my_errno;
       info->lock_type= F_UNLCK;
     }
-    if (share->kfile.file >= 0)
-      _ma_decrement_open_count(info);
+    /*
+      We don't need to call _mi_decrement_open_count() if we are
+      dropping the table, as the files will be removed anyway. If we
+      are aborted before the files is removed, it's better to not
+      call it as in that case the automatic repair on open will add
+      the missing index entries
+    */
     pthread_mutex_lock(&share->intern_lock);
+    if (share->kfile.file >= 0 && function != HA_EXTRA_PREPARE_FOR_DROP)
+      _ma_decrement_open_count(info);
     if (info->trn)
     {
       _ma_remove_table_from_trnman(share, info->trn);
