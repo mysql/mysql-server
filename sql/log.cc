@@ -153,7 +153,7 @@ private:
 class binlog_trx_data {
 public:
   binlog_trx_data()
-    : at_least_one_stmt(0), incident(FALSE), m_pending(0),
+    : at_least_one_stmt_committed(0), incident(FALSE), m_pending(0),
     before_stmt_pos(MY_OFF_T_UNDEF)
   {
     trans_log.end_of_file= max_binlog_cache_size;
@@ -182,7 +182,10 @@ public:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     DBUG_PRINT("info", ("before_stmt_pos=%lu", (ulong) pos));
-    delete pending();
+    if (pending())
+    {
+      delete pending();
+    }
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
     trans_log.end_of_file= max_binlog_cache_size;
@@ -192,12 +195,12 @@ public:
     /*
       The only valid positions that can be truncated to are at the
       beginning of a statement. We are relying on this fact to be able
-      to set the at_least_one_stmt flag correctly. In other word, if
+      to set the at_least_one_stmt_committed flag correctly. In other word, if
       we are truncating to the beginning of the transaction cache,
       there will be no statements in the cache, otherwhise, we will
       have at least one statement in the transaction cache.
      */
-    at_least_one_stmt= (pos > 0);
+    at_least_one_stmt_committed= (pos > 0);
   }
 
   /*
@@ -239,7 +242,7 @@ public:
     Boolean that is true if there is at least one statement in the
     transaction cache.
   */
-  bool at_least_one_stmt;
+  bool at_least_one_stmt_committed;
   bool incident;
 
 private:
@@ -1539,8 +1542,9 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
-    goto end;
   }
+
+  trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
 
 end:
   if (!all)
@@ -1608,15 +1612,18 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   {
    /*
       We flush the cache with a rollback, wrapped in a beging/rollback if:
-        . aborting a transcation that modified a non-transactional table or;
+        . aborting a transaction that modified a non-transactional table;
         . aborting a statement that modified both transactional and
-          non-transctional tables but which is not in the boundaries of any
-          transaction;
+          non-transactional tables but which is not in the boundaries of any
+          transaction or there was no early change;
         . the OPTION_KEEP_LOG is activate.
     */
     if ((all && thd->transaction.all.modified_non_trans_table) ||
         (!all && thd->transaction.stmt.modified_non_trans_table &&
          !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
+        (!all && thd->transaction.stmt.modified_non_trans_table &&
+         !trx_data->at_least_one_stmt_committed &&
+         thd->current_stmt_binlog_row_based) ||
         ((thd->options & OPTION_KEEP_LOG)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
