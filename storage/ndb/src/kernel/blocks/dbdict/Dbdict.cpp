@@ -4118,6 +4118,17 @@ Dbdict::restartCreateObj_parse(Signal* signal,
 
   c_restartRecord.m_op_cnt++;
 
+  if (OpSectionBuffer::getSegmentSize() * 
+      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  {
+    jam();
+    /**
+     * Commit transaction now...so we don't risk overflowing
+     *   c_opSectionBufferPool
+     */
+    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
+  }
+
   if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
   {
     jam();
@@ -4204,6 +4215,17 @@ Dbdict::restartDropObj(Signal* signal,
   ndbrequire(!hasError(error));
 
   c_restartRecord.m_op_cnt++;
+
+  if (OpSectionBuffer::getSegmentSize() * 
+      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  {
+    jam();
+    /**
+     * Commit transaction now...so we don't risk overflowing
+     *   c_opSectionBufferPool
+     */
+    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
+  }
 
   if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
   {
