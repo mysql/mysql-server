@@ -507,6 +507,10 @@ sub collect_one_suite($)
       next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
       # Diff around innodb_thread_concurrency variable
       next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
+      # Disable for Innodb Plugin until the fix for Plugin is received
+      next if ($test->{'name'} eq 'main.innodb_bug46000');
+      # Disable for Innodb Plugin until the fix for Plugin is received
+      next if ($test->{'name'} eq 'main.innodb_bug44369');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
