@@ -738,6 +738,7 @@ sub run_worker ($) {
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
+      stop_all_servers($opt_shutdown_timeout);
       exit(0);
     }
     else {
@@ -3443,14 +3444,14 @@ sub run_testcase ($) {
 	my $check_res;
 	if ( restart_forced_by_test() )
 	{
-	  stop_all_servers();
+	  stop_all_servers($opt_shutdown_timeout);
 	}
 	elsif ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
 	{
 	  if ($check_res == 1) {
 	    # Test case had sideeffects, not fatal error, just continue
-	    stop_all_servers();
+	    stop_all_servers($opt_shutdown_timeout);
 	    mtr_report("Resuming tests...\n");
 	  }
 	  else {
@@ -4091,6 +4092,7 @@ sub mysqld_stop {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--character-sets-dir=%s", $mysqld->value('character-sets-dir'));
   mtr_add_arg($args, "--user=%s", $opt_user);
   mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--port=%d", $mysqld->value('port'));
@@ -4294,11 +4296,12 @@ sub mysqld_start ($$) {
 
 
 sub stop_all_servers () {
+  my $shutdown_timeout = $_[0] or 0;
 
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-  My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
+  My::SafeProcess::shutdown($shutdown_timeout,
 			    started(all_servers()));
 
   # Remove pidfiles
@@ -5086,7 +5089,6 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--alignment=8");
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
