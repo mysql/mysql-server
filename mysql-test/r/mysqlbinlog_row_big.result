@@ -1,9 +1,4 @@
 #
-# We need big packets.
-#
-SET @old_global_max_allowed_packet=@@global.max_allowed_packet;
-SET @@global.max_allowed_packet= 1024*1024*1024;
-#
 # Preparatory cleanup.
 #
 DROP TABLE IF EXISTS t1;
@@ -104,5 +99,4 @@ FLUSH LOGS;
 # reset variable value to pass testcase checks
 SET @@global.max_allowed_packet = 1048576;
 DROP TABLE t1;
-SET @@global.max_allowed_packet=@old_global_max_allowed_packet;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out

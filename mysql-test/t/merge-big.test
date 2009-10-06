@@ -43,6 +43,7 @@ LOCK TABLE t1 WRITE;
     --echo # connection con1
     connect (con1,localhost,root,,);
     let $con1_id= `SELECT CONNECTION_ID()`;
+    SET @orig_debug=@@debug;
     SET GLOBAL debug="+d,sleep_open_and_lock_after_open";
     send INSERT INTO t1 VALUES (1);
 --echo # connection default
@@ -74,7 +75,7 @@ UNLOCK TABLES;
     --echo # connection con1
     connection con1;
     reap;
-    SET GLOBAL debug="-d,sleep_open_and_lock_after_open";
+    SET GLOBAL debug=@orig_debug;
     disconnect con1;
 --echo # connection default
 connection default;

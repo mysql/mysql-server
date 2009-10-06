@@ -109,3 +109,6 @@ ma_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
 ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+
+# Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
+regexec\.c : .*passing argument 3 of.*matcher.* discards qualifiers from pointer target type.*
