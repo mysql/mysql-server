@@ -3549,9 +3549,9 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
   /* Api failure special case */
-  for(Uint32 nodeId = 0; nodeId < MAX_NDB_NODES; nodeId ++)
+  for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId ++)
   {
-    if(NdbNodeBitmask::get(closeCom->theNodes, nodeId))
+    if (NodeBitmask::get(closeCom->theNodes, nodeId))
     {
       jam();
       /* Check that *only* 1 *API* node is included in
@@ -3559,8 +3559,8 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
        */
       ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
       ndbrequire(closeCom->noOfNodes == 1);
-      NdbNodeBitmask::clear(closeCom->theNodes, nodeId);
-      ndbrequire(NdbNodeBitmask::isclear(closeCom->theNodes));
+      NodeBitmask::clear(closeCom->theNodes, nodeId);
+      ndbrequire(NodeBitmask::isclear(closeCom->theNodes));
       
       /* Now that we know communication from the failed Api has
        * ceased, we can send the required API_FAILREQ signals
