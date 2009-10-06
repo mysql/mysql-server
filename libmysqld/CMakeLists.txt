@@ -88,10 +88,10 @@ FOREACH(rpath ${VIO_SOURCES})
 ENDFOREACH(rpath)
 
 FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/${ENGINE_LIB}/CMakeLists.txt)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/${plugin_dir_${ENGINE_LIB}}/CMakeLists.txt)
   STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
   FOREACH(rpath ${${ENGINE_LIB_UPPER}_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ${CMAKE_SOURCE_DIR}/storage/${ENGINE_LIB}/${rpath})
+    SET(LIB_SOURCES ${LIB_SOURCES} ${CMAKE_SOURCE_DIR}/storage/${plugin_dir_${ENGINE_LIB}}/${rpath})
   ENDFOREACH(rpath)
 ENDFOREACH(ENGINE_LIB)
 
@@ -112,6 +112,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/item_xmlfunc.cc ../sql/key.cc ../sql/lock.cc ../sql/log.cc 
            ../sql/log_event.cc ../sql/mf_iocache.cc ../sql/my_decimal.cc 
            ../sql/net_serv.cc ../sql/opt_range.cc ../sql/opt_sum.cc 
+	   ../sql/opt_table_elimination.cc
            ../sql/parse_file.cc ../sql/procedure.cc ../sql/protocol.cc 
            ../sql/records.cc ../sql/repl_failsafe.cc ../sql/rpl_filter.cc
            ../sql/rpl_record.cc

@@ -2697,7 +2697,7 @@ case $SYSTEM_TYPE in
     fi
 
     # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
     then
 	AC_MSG_ERROR([This commercially licensed MySQL source package can't
 	      be built with libreadline. Please use --with-libedit to use

@@ -233,6 +233,9 @@ FOREACH(SUBDIR ${STORAGE_SUBDIRS})
 	# where appropriate.
 	STRING (REGEX MATCH  "MYSQL_STORAGE_ENGINE.[a-z]*" PLUGIN_NAME ${PLUGIN_FILE_CONTENT})
 	STRING (REGEX REPLACE "MYSQL_STORAGE_ENGINE.(.*)" "\\1" PLUGIN_NAME ${PLUGIN_NAME})
+        
+        #  Also remember this "xtradb"/"innobase" name discrepancy for libmysqld/CMakeLists.txt:
+        SET (plugin_dir_${PLUGIN_NAME} ${DIRNAME})
 
         IF(MYSQL_PLUGIN_MANDATORY)
           SET(WITH_${ENGINE}_STORAGE_ENGINE TRUE)
@@ -245,6 +248,7 @@ FOREACH(SUBDIR ${STORAGE_SUBDIRS})
         ELSE(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
           SET(ENGINE_BUILD_TYPE "NONE")
         ENDIF(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
+
         IF (ENGINE_BUILD_TYPE STREQUAL "STATIC") 
           SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${PLUGIN_NAME}_plugin")
           SET (MYSQLD_STATIC_ENGINE_LIBS ${MYSQLD_STATIC_ENGINE_LIBS} ${PLUGIN_NAME})

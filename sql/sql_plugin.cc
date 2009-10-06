@@ -1168,6 +1168,22 @@ int plugin_init(int *argc, char **argv, int flags)
           !my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
                         6, (const uchar*) "InnoDB", 6))
         continue;
+#ifdef EMBEDDED_LIBRARY
+      /*
+        MariaDB: disable PBXT in embedded server. We do this for two reasons
+         - PBXT currently doesn't work in embedded server (see 
+         https://bugs.launchpad.net/maria/+bug/439889)
+         - Embedded server is supposed to be "leaner" and our current
+           understanding of that is "without PBXT". At the same time, we want
+           regular server to be with PBXT, and since we don't support compiling
+           embedded server with different options than the regular server,
+           the only way was to disable PBXT from here.
+      */
+      if (!my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
+                        4, (const uchar*) "PBXT", 4))
+        continue;
+
+#endif
       bzero(&tmp, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;

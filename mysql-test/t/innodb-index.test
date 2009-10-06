@@ -148,7 +148,9 @@ delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
 # there is no foreign key dc on t3
---replace_regex /'\.\/test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--replace_regex /\/test\/#sql2-[0-9a-f-]*'/\/#sql2-temporary'/
 --error ER_ERROR_ON_RENAME
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;

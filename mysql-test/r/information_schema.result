@@ -1385,7 +1385,7 @@ who
 other connection here
 SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
 IF(`time` < 1000, 'OK', `time`) AS time_high,
-IF(time_ms > 900, 'OK', time_ms) AS time_ms_low,
+IF(time_ms > 1500, 'OK', time_ms) AS time_ms_low,
 IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID=@tid;

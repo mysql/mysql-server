@@ -49,4 +49,4 @@ libpbxt_a_SOURCES =		$(libpbxt_la_SOURCES)
 libpbxt_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libpbxt_a_CFLAGS =		$(AM_CFLAGS) -std=c99
 
-EXTRA_DIST =			CMakeLists.txt pbms_enabled.cc
+EXTRA_DIST =			pbms_enabled.cc

@@ -16,7 +16,8 @@
 ## Process this file with automake to create Makefile.in
 EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat build-vs9.bat \
              build-vs9_x64.bat configure.js README mysql_manifest.cmake \
-             create_manifest.js create_def_file.js
+             create_manifest.js create_def_file.js build-nmake.bat \
+             build-nmake-x64.bat
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -13,7 +13,7 @@ AC_DEFUN([MYSQL_USE_BUNDLED_LIBEVENT], [
   AC_SUBST([libevent_dir])
 
   libevent_libs="\$(top_builddir)/extra/libevent/libevent.a"
-  libevent_includes="-I\$(top_builddir)/extra/libevent"
+  libevent_includes="-I\$(top_srcdir)/extra/libevent"
   libevent_test_option="--mysqld=--thread-handling=pool-of-threads"
   AC_SUBST(libevent_libs)
   AC_SUBST(libevent_includes)

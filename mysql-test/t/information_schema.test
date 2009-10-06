@@ -1105,13 +1105,13 @@ connect (pslistcon,localhost,root,,test);
 let $ID= `select connection_id()`;
 SELECT 'other connection here' AS who;
 connection default;
-sleep 1;
+sleep 2;
 --disable_query_log
 eval SET @tid=$ID;
 --enable_query_log
 SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
        IF(`time` < 1000, 'OK', `time`) AS time_high,
-       IF(time_ms > 900, 'OK', time_ms) AS time_ms_low,
+       IF(time_ms > 1500, 'OK', time_ms) AS time_ms_low,
        IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
   FROM INFORMATION_SCHEMA.PROCESSLIST
  WHERE ID=@tid;

@@ -1,3 +1,3 @@
 SUBDIRS = src
 
-EXTRA_DIST = plug.in
+EXTRA_DIST = CMakeLists.txt plug.in

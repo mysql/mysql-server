@@ -126,13 +126,13 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "binlog,federated,main,maria,rpl,innodb";
+my $DEFAULT_SUITES= "binlog,federated,main,maria,rpl,innodb,parts";
 my $opt_suites;
 
 our $opt_usage;
 our $opt_list_options;
 our $opt_suites;
-our $opt_suites_default= "main,backup,backup_engines,binlog,rpl"; # Default suites to run
+our $opt_suites_default= "main,backup,backup_engines,binlog,rpl,parts"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
@@ -844,7 +844,7 @@ sub command_line_setup {
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'vs-config'                => \$opt_vs_config,
+             'vs-config=s'              => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
@@ -1886,7 +1886,8 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   my $lib_udf_example=
     mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-		    "$basedir/sql/.libs/udf_example.so",);
+		    "$basedir/sql/.libs/udf_example.so",
+                    "$basedir/lib/mysql/plugin/udf_example.so",);
 
   if ( $lib_udf_example )
   {
@@ -1913,7 +1914,8 @@ sub environment_setup {
     }
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename);
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
@@ -1928,7 +1930,8 @@ sub environment_setup {
   # ----------------------------------------------------
   my $lib_simple_parser=
     mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
-		    "$basedir/plugin/fulltext/.libs/mypluglib.so",);
+		    "$basedir/plugin/fulltext/.libs/mypluglib.so",
+                    "$basedir/lib/mysql/plugin/mypluglib.so",);
 
   $ENV{'SIMPLE_PARSER'}=
     ($lib_simple_parser ? basename($lib_simple_parser) : "");
@@ -1999,6 +2002,15 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+
+  #
+  # Some stupid^H^H^H^H^H^Hignorant network providers set up "wildcard DNS"
+  # servers that return some given web server address for any lookup of a
+  # non-existent host name. This confuses test cases that want to test the
+  # behaviour when connecting to a non-existing host, so we need to be able
+  # to disable those tests when DNS is broken.
+  #
+  $ENV{HAVE_BROKEN_DNS}= defined(gethostbyname('invalid_hostname'));
 
   # ----------------------------------------------------
   # Setup env for NDB

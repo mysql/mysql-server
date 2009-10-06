@@ -1016,7 +1016,7 @@ extern "C" void *thr_main(void *data)
 #endif
 
 	try_(a) {
-		if (!xt_set_key(thr_key, self, &self->t_exception))
+		if (!xt_set_key((pthread_key_t)thr_key, self, &self->t_exception))
 			throw_();
 		td->td_started = TRUE;
 		return_data = (*start_routine)(self);
@@ -1352,12 +1352,12 @@ xtPublic XTThreadPtr xt_get_self(void)
 		return self;
 	/* Then it must be a background process, and the 
 	 * thread info is stored in the local key: */
-	return (XTThreadPtr) xt_get_key(thr_key);
+	return (XTThreadPtr) xt_get_key((pthread_key_t)thr_key);
 }
 
 xtPublic void xt_set_self(XTThreadPtr self)
 {
-	xt_set_key(thr_key, self, NULL);
+	xt_set_key((pthread_key_t)thr_key, self, NULL);
 }
 
 xtPublic void xt_clear_exception(XTThreadPtr thread)
@@ -1386,7 +1386,7 @@ xtPublic XTThreadPtr xt_create_thread(c_char *name, xtBool main_thread, xtBool u
 		return NULL;
 	}
 
-	if (!xt_set_key(thr_key, self, e)) {
+	if (!xt_set_key((pthread_key_t)thr_key, self, e)) {
 		xt_free_ns(self);
 		return NULL;
 	}
@@ -1400,7 +1400,7 @@ xtPublic XTThreadPtr xt_create_thread(c_char *name, xtBool main_thread, xtBool u
 	}
 	catch_(a) {
 		*e = self->t_exception;
-		xt_set_key(thr_key, NULL, NULL);
+		xt_set_key((pthread_key_t)thr_key, NULL, NULL);
 		xt_free_ns(self);
 		self = NULL;
 	}
@@ -1464,8 +1464,8 @@ void xt_free_thread(XTThreadPtr self)
 	  * PBXT resources on all MySQL THDs created by PBMS for it's own pthreads. So the 'self' 
 	  * being freed is not the same 'self' associated with the PBXT 'thr_key'.
 	  */
-	if (thr_key && (self == ((XTThreadPtr) xt_get_key(thr_key)))) {
-		xt_set_key(thr_key, NULL, NULL);
+	if (thr_key && (self == ((XTThreadPtr) xt_get_key((pthread_key_t)thr_key)))) {
+		xt_set_key((pthread_key_t)thr_key, NULL, NULL);
 	}
 	xt_free_ns(self);
 }
