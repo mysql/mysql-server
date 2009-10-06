@@ -560,8 +560,12 @@ sub collect_one_suite($)
 sub optimize_cases {
   my ($cases)= @_;
 
+  my @new_cases= ();
+
   foreach my $tinfo ( @$cases )
   {
+    push @new_cases, $tinfo;
+
     # Skip processing if already marked as skipped
     next if $tinfo->{skip};
 
@@ -615,6 +619,13 @@ sub optimize_cases {
 	  $tinfo->{'skip'}= 1;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$test_binlog_format'";
+          # This test was added as a replication combination, but it is not
+          # actually ever possible to run it, as it is not made for this
+          # combination.
+          # So delete it from the list, rather than confuse the user with a
+          # message that this test is skipped (it is not really, just run
+          # with other combinations).
+          pop(@new_cases);
 	  next;
 	}
       }
@@ -683,6 +694,7 @@ sub optimize_cases {
       }
     }
   }
+  @$cases= @new_cases;
 }
 
 
