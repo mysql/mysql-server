@@ -464,7 +464,7 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 drop index dc on t4;
 ERROR 42000: Can't DROP 'dc'; check that column/key exists
 alter table t3 drop foreign key dc;
-ERROR HY000: Error on rename of './test/t3' to '#sql2-temporary' (errno: 152)
+ERROR HY000: Error on rename of './test/t3' to './#sql2-temporary' (errno: 152)
 alter table t4 drop foreign key dc;
 select * from t2;
 a	b	c	d	e
