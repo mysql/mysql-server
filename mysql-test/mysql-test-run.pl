@@ -844,7 +844,7 @@ sub command_line_setup {
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'vs-config'                => \$opt_vs_config,
+             'vs-config=s'              => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
