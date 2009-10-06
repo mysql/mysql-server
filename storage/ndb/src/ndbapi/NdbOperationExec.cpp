@@ -350,7 +350,7 @@ Uint32
 NdbOperation::repack_read(Uint32 len)
 {
   Uint32 i;
-  Uint32 maxId = 0, check = 0;
+  Uint32 check = 0, prevId = 0;
   Uint32 save = len;
   Bitmask<MAXNROFATTRIBUTESINWORDS> mask;
   NdbApiSignal *tSignal = theFirstATTRINFO;
@@ -362,14 +362,16 @@ NdbOperation::repack_read(Uint32 len)
   {
     AttributeHeader tmp(* ptr++);
     Uint32 id = tmp.getAttributeId();
-    if (id >= NDB_MAX_ATTRIBUTES_IN_TABLE)
+    if (((i > 0) &&              // No prevId for first attrId
+         (id <= prevId)) ||
+        (id >= NDB_MAX_ATTRIBUTES_IN_TABLE))
     {
-      // Dont support == fallback
+      // AttrIds not strictly ascending with no duplicates
+      // and no pseudo-columns == fallback
       return save;
     }
+    prevId = id;
     mask.set(id);
-    maxId = (id > maxId) ? id : maxId;
-    check |= (id - maxId);
   }
 
   Uint32 cnt = 0;
@@ -382,20 +384,20 @@ NdbOperation::repack_read(Uint32 len)
     {
       AttributeHeader tmp(* ptr++);
       Uint32 id = tmp.getAttributeId();
-      if (id >= NDB_MAX_ATTRIBUTES_IN_TABLE)
+      if ((id <= prevId) ||
+          (id >= NDB_MAX_ATTRIBUTES_IN_TABLE))
       {
-        // Dont support == fallback
+        // AttrIds not strictly ascending with no duplicates
+        // and no pseudo-columns ==  fallback
         return save;
       }
+      prevId = id;
       
       mask.set(id);
-
-      maxId = (id > maxId) ? id : maxId;
-      check |= (id - maxId);
     }
     tSignal = tSignal->next();
   }
-  const Uint32 newlen = 1 + (maxId >> 5);
+  const Uint32 newlen = 1 + (prevId >> 5);
   const bool all = cols == save;
   if (check == 0)
   {

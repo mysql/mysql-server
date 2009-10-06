@@ -1362,3 +1362,7 @@ max-time: 300
 cmd: testNdbApi
 args: -n ApiFailReqBehaviour T1
 
+max-time: 300
+cmd: testNdbApi
+args: -n ReadColumnDuplicates
+
