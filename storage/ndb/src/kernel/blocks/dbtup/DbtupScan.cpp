@@ -580,12 +580,23 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
-  // in the future should not pre-allocate pages
-  if (frag.noOfPages == 0 && ((bits & ScanOp::SCAN_NR) == 0)) {
+
+  if (bits & ScanOp::SCAN_NR)
+  { 
+    if (scan.m_endPage == 0 && frag.m_max_page_no == 0)
+    {
+      jam();
+      scan.m_state = ScanOp::Last;
+      return;
+    }
+  }
+  else if (frag.noOfPages == 0)
+  {
     jam();
     scan.m_state = ScanOp::Last;
     return;
   }
+
   if (! (bits & ScanOp::SCAN_DD)) {
     key.m_file_no = ZNIL;
     key.m_page_no = 0;
