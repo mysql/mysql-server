@@ -172,6 +172,7 @@ local_infile_configs="--enable-local-infile"
 
 
 max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
+max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"
 max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server --with-libevent"
 max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server -with-libevent"
 # Disable NDB in maria max builds
