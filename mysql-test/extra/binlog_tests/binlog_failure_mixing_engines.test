@@ -34,13 +34,25 @@
 # simply roll the transaction back as this would undo any uncommitted changes
 # on T-tables.
 #
-# We check one more case. INSERT M...SELECT* which produces the following
+# We check two more cases. First, INSERT...SELECT* which produces the following
 # results:
 #
 # 1. B T INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates in
 # the binlog the following entries: "Nothing".
 # 2. B INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates in
 # the binlog the following entries: B INSERT M...SELECT* R.
+#
+# Finally, we also check if any N statement that happens early in a transaction
+# (i.e. before any T or M statement) is written to the binary log outside the
+# boundaries of the transaction. In particular, we expect the following
+# behavior:
+#
+# 1. B N N T C would generate in the binlog B N C B N C B T C.
+# 2. B N N T R would generate in the binlog B N C B N C B T R.
+# 3. B N* N* T C would generate in the binlog B N R B N R B T C.
+# 4. B N* N* T R would generate in the binlog B N R B N R B T R.
+# 5. B N N T N T C would generate in the binlog B N C B N C B T N T C.
+# 6. B N N T N T R would generate in the binlog the B N C B N C B T N T R.
 # 
 # Such issues do not happen in SBR. In RBR and MBR, a full-fledged fix will be
 # pushed after the WL#2687.
@@ -188,6 +200,94 @@ BEGIN;
 --error ER_DUP_ENTRY
 INSERT INTO nt_2(a, b) SELECT USER(), b FROM nt_1;
 COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T C" generates in the binlog the "B N C B N C B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+TRUNCATE TABLE nt_1;
+TRUNCATE TABLE tt_2;
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 1);
+INSERT INTO nt_1 VALUES (USER(), 2);
+INSERT INTO tt_2 VALUES (USER(), 3);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T R" generates in the binlog the "B N C B N C B T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 4);
+INSERT INTO nt_1 VALUES (USER(), 5);
+INSERT INTO tt_2 VALUES (USER(), 6);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N* N* T C" with error in N* generates in the binlog the "B N R B N R B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 7), (USER(), 1);
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 8), (USER(), 1);
+INSERT INTO tt_2 VALUES (USER(), 9);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N* N* T R" with error in N* generates in the binlog the "B N R B N R B T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 10), (USER(), 1);
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 11), (USER(), 1);
+INSERT INTO tt_2 VALUES (USER(), 12);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T N T C" generates in the binlog the "B N C B N C B T N T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 13);
+INSERT INTO nt_1 VALUES (USER(), 14);
+INSERT INTO tt_2 VALUES (USER(), 15);
+INSERT INTO nt_1 VALUES (USER(), 16);
+INSERT INTO tt_2 VALUES (USER(), 17);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T N T R" generates in the binlog the "B N C B N C B T N T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 18);
+INSERT INTO nt_1 VALUES (USER(), 19);
+INSERT INTO tt_2 VALUES (USER(), 20);
+INSERT INTO nt_1 VALUES (USER(), 21);
+INSERT INTO tt_2 VALUES (USER(), 22);
+ROLLBACK;
 --source include/show_binlog_events.inc
 
 --echo ###################################################################################
