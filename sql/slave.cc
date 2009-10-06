@@ -3761,7 +3761,7 @@ extern "C" void slave_io_thread_detach_vio()
 {
 #ifdef SIGNAL_WITH_VIO_CLOSE
   THD *thd= current_thd;
-  if (thd->slave_thread)
+  if (thd && thd->slave_thread)
     thd->clear_active_vio();
 #endif
 }
