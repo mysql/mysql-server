@@ -32,15 +32,18 @@ NdbReceiver::NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl) :
   theMagicNumber(0),
   m_ndb(aNdb),
   m_id(NdbObjectIdMap::InvalidId),
+  m_tcPtrI(RNIL),
   m_type(NDB_UNINITIALIZED),
   m_owner(0),
   m_using_ndb_record(false),
+  theCurrentRecAttr(NULL),
+  theFirstRecAttr(NULL),
+  m_rows(NULL),
+  m_current_row(0xffffffff),
+  m_result_rows(0),
+//m_defined_rows(0),
   m_query_operation_impl(queryOpImpl)
-{
-  theCurrentRecAttr = theFirstRecAttr = 0;
-  m_defined_rows = 0;
-  m_rows = NULL;
-}
+{}
  
 NdbReceiver::~NdbReceiver()
 {

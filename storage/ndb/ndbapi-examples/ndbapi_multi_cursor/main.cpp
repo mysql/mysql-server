@@ -32,7 +32,7 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryOperation.hpp"
 
-//#define USE_RECATTR
+#define USE_RECATTR
 
 /**
  * Helper debugging macros
@@ -229,6 +229,15 @@ int createEmployeeDb()
     if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('e005',210567,210567)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('f005',210568,210568)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('g005',210569,210569)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('h005',210560,210560)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('i005',210561,210561)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+
     if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,'d005')") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
@@ -354,7 +363,7 @@ int testQueryBuilder(Ndb &myNdb)
   }
 #endif
 
-#if 1
+#if 0
   /* qt1 is 'const defined' */
   printf("q1\n");
   const NdbQueryDef* q1 = 0;
@@ -419,6 +428,7 @@ int testQueryBuilder(Ndb &myNdb)
 
 
 #if 1
+{
   /* Composite operations building real *trees* aka. linked operations.
    * (First part is identical to building 'qt2' above)
    *
@@ -526,13 +536,16 @@ int testQueryBuilder(Ndb &myNdb)
   printf("employee emp_no: %d\n", employeeRow.emp_no);
 #endif
 
+  myQuery->close();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+}
 #endif
 
 
 #if 1
+{
   //////////////////////////////////////////////////
   printf("q4_1\n");
   const NdbQueryDef* q4_1 = 0;
@@ -633,15 +646,17 @@ int testQueryBuilder(Ndb &myNdb)
   printf("manager  emp_no: %d\n", managerRow.emp_no);
 #endif
 
-  // NOW: Result is available in 'managerRow' buffer
+  myQuery->close();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+}
 #endif
 
   /////////////////////////////////////////////////
 
 #if 1
+{
   // Example: ::readTuple() using Index for unique key lookup
   printf("q5\n");
 
@@ -715,11 +730,15 @@ int testQueryBuilder(Ndb &myNdb)
   printf("employee emp_no: %d\n", managerRow.emp_no);
 #endif
 
+  myQuery->close();
+
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+}
 #endif
 
 #if 1
+{
   printf("q6: Table scan + linked lookup\n");
 
   const NdbQueryDef* q6 = 0;
@@ -809,6 +828,7 @@ int testQueryBuilder(Ndb &myNdb)
     APIERROR(myTransaction->getNdbError());
   printf("Done executed\n");
 
+  int cnt = 0;
   while (true) {
     memset (&managerRow,  0, sizeof(managerRow));
     memset (&employeeRow, 0, sizeof(employeeRow));
@@ -831,16 +851,19 @@ int testQueryBuilder(Ndb &myNdb)
     printf("manager  emp_no: %d\n", managerRow.emp_no);
     printf("employee emp_no: %d\n", employeeRow.emp_no);
 #endif
-
+    cnt++;
   };
-  printf("EOF\n");
-//  myQuery->close();
+  printf("EOF, %d rows\n", cnt);
+  myQuery->close();
+//q6->release();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+}
 #endif
 
 #if 1
+{
   printf("Ordered index scan + lookup\n");
 
   const NdbQueryDef* q6_1 = 0;
@@ -936,6 +959,7 @@ int testQueryBuilder(Ndb &myNdb)
     APIERROR(myTransaction->getNdbError());
   printf("Done executed\n");
 
+  int cnt = 0;
   while (true) {
     memset (&managerRow,  0, sizeof(managerRow));
     memset (&employeeRow, 0, sizeof(employeeRow));
@@ -958,13 +982,16 @@ int testQueryBuilder(Ndb &myNdb)
     printf("manager  emp_no: %d\n", managerRow.emp_no);
     printf("employee emp_no: %d\n", employeeRow.emp_no);
 #endif
-
+    cnt++;
   };
-  printf("EOF\n");
-//  myQuery->close();
+
+  printf("EOF, %d rows\n", cnt);
+  myQuery->close();
+//q6_1->release();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+}
 #endif
 
 
