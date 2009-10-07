@@ -152,3 +152,64 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select * from ba order by ks;
 
 drop table ba;
+
+
+# Bug#46662
+# Replicating changes to tables with unique indexes
+# The fix to bug#27378 results in the slave using NdbApi's write()
+# mechanism when applying WRITE_ROW events to tables with unique
+# indices.
+# 
+# If this is not done then the slave attempts to partially use SQL 
+# REPLACE semantics when applying WRITE_ROW events to tables with 
+# unique indexes, which is not good and the slave fails with a 
+# duplicate key error on the primary key.
+#
+# The fix to Bug#46662 aims to correct this, so that replicated
+# updates to tables with unique indices can work.
+# Note that other issues with replicating into tables with unique
+# indexes remain.
+# 
+
+connection mysqld1;
+reset master;
+show variables like '%log_update%';
+
+create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
+
+insert into bah values (1,1,1);
+
+# Wait for epoch to complete in Binlog
+--disable_query_log
+create table dummy (a int primary key) engine=ndb;
+--enable_query_log
+
+# Now perform update
+# This will be logged as WRITE
+# Without ability to use NdbApi write() for replace, mysqlbinlog
+# application will fail with duplicate key error on insert.
+update bah set cvy= 2 where tst=1;
+
+select * from bah order by tst;
+
+# Wait for epoch to complete in Binlog
+--disable_query_log
+drop table dummy;
+flush logs;
+--enable_query_log
+
+drop table bah;
+
+# Now let's re-apply the binlog
+# Without fix, this fails with duplicate PK error
+--echo Manually applying captured binlog
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+let $BINLOG_FILE= '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql';
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $BINLOG_FILE
+--exec $MYSQL -uroot < $BINLOG_FILE
+
+--enable_query_log
+select * from bah order by tst;
+
+drop table bah;

@@ -75,3 +75,19 @@ ks	st	lp
 3	3	3
 4	4	40
 drop table ba;
+reset master;
+show variables like '%log_update%';
+Variable_name	Value
+sql_log_update	ON
+create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
+insert into bah values (1,1,1);
+update bah set cvy= 2 where tst=1;
+select * from bah order by tst;
+tst	cvy	sqs
+1	2	1
+drop table bah;
+Manually applying captured binlog
+select * from bah order by tst;
+tst	cvy	sqs
+1	2	1
+drop table bah;
