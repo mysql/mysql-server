@@ -1442,7 +1442,7 @@ FOR EACH ROW
 SET NEW.c1 = 'тест'	koi8r	koi8r_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT ev1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1		SYSTEM	CREATE EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 'тест' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
+ev1		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 'тест' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
