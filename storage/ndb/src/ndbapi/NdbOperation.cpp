@@ -379,6 +379,9 @@ NdbOperation::setValue(Uint32 anAttrId, const char* aValuePassed)
 NdbBlob*
 NdbOperation::getBlobHandle(const char* anAttrName)
 {
+  // semantics differs from overloaded 'getBlobHandle(const char*) const'
+  // by delegating to the non-const variant of internal getBlobHandle(...),
+  // which may create a new BlobHandle
   const NdbColumnImpl* col = m_currentTable->getColumn(anAttrName);
   if (col == NULL)
   {
@@ -394,6 +397,9 @@ NdbOperation::getBlobHandle(const char* anAttrName)
 NdbBlob*
 NdbOperation::getBlobHandle(Uint32 anAttrId)
 {
+  // semantics differs from overloaded 'getBlobHandle(Uint32) const'
+  // by delegating to the non-const variant of internal getBlobHandle(...),
+  // which may create a new BlobHandle
   const NdbColumnImpl* col = m_currentTable->getColumn(anAttrId);
   if (col == NULL)
   {
