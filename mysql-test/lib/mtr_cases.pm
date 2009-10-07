@@ -1084,6 +1084,17 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
+  if ( $tinfo->{'example_plugin_test'} )
+  {
+    if ( !$ENV{'EXAMPLE_PLUGIN'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test requires the 'example' plugin";
+      return $tinfo;
+    }
+  }
+
+
   # Set extra config file to use
   if (defined $defaults_extra_file) {
     $tinfo->{extra_template_path}= $defaults_extra_file;
@@ -1136,6 +1147,7 @@ my @tags=
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/not_valgrind.inc", "not_valgrind", 1],
+ ["include/have_example_plugin.inc", "example_plugin_test", 1]
 );
 
 
