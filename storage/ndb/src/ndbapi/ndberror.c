@@ -756,6 +756,8 @@ ErrorBundle ErrorCodes[] = {
     "Parameter values required by query was not specified"},
   { QRY_RESULT_ROW_ALREADY_DEFINED, DMEC, AE, 
     "Result row already defined for NdbQueryOperation."},
+  { QRY_HAS_ZERO_OPERATIONS, DMEC, AE, 
+    "Query defintion should have at least one operation."},
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

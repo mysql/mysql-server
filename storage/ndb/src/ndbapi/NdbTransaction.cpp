@@ -2861,8 +2861,7 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
     = NdbQueryImpl::buildQuery(*this, queryDef, m_firstQuery);
 
   if (query == NULL) {
-    setErrorCode(4000);
-    return NULL;
+    return NULL; // Error code for transaction is already set.
   }
 
   m_firstQuery = query;

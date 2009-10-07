@@ -364,6 +364,12 @@ NdbQueryDef::getImpl() const{
   return m_impl;
 }
 
+void 
+NdbQueryDef::release() const
+{
+  delete &getImpl();
+}
+
 /*************************************************************************
  * Glue layer between NdbQueryOperand interface and its Impl'ementation.
  ************************************************************************/

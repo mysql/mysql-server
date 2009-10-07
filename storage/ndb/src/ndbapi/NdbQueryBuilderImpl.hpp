@@ -36,6 +36,7 @@
 #define QRY_DUPLICATE_COLUMN_IN_PROJ 4812
 #define QRY_NEED_PARAMETER 4813
 #define QRY_RESULT_ROW_ALREADY_DEFINED 4814
+#define QRY_HAS_ZERO_OPERATIONS 4815
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -53,7 +54,7 @@ class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
 
 // For debuggging.
-#define TRACE_SERIALIZATION
+//#define TRACE_SERIALIZATION
 
 /** A buffer for holding serialized data.
  *
