@@ -220,15 +220,10 @@ BEGIN
 UPDATE test.t1 SET a = a + 1 WHERE a < 10;
 END|
 RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1.5;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
 include/start_slave.inc
 SET @@global.event_scheduler=1;
-SHOW STATUS LIKE 'slave_received_heartbeats';
-Variable_name	Value
-Slave_received_heartbeats	0
-SHOW STATUS LIKE 'slave_received_heartbeats';
-Variable_name	Value
-Slave_received_heartbeats	0
+Number of received heartbeat events: 0
 DELETE FROM t1;
 DROP EVENT e1;
 
