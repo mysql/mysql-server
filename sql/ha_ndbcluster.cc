@@ -253,18 +253,25 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   }
 
   /*
-    Push the NDB error message as warning
-    - Used to be able to use SHOW WARNINGS toget more info on what the error is
-    - Used by replication to see if the error was temporary
-  */
-  if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
-  else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
+    If we don't abort directly on warnings push a warning
+    with the internal error information
+   */
+  if (!current_thd->abort_on_warning)
+  {
+    /*
+      Push the NDB error message as warning
+      - Used to be able to use SHOW WARNINGS toget more info on what the error is
+      - Used by replication to see if the error was temporary
+    */
+    if (ndberr->status == NdbError::TemporaryError)
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+    else
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+  }
   return error;
 }
 
