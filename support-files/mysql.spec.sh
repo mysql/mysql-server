@@ -660,7 +660,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
@@ -683,7 +682,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
-%attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
@@ -867,6 +865,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
+
+- Removed mysql_fix_privilege_tables
+
 * Fri Aug 28 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Merge up from 5.1 to 5.4: Remove handling for the InnoDB plugin.
