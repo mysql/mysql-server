@@ -178,7 +178,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
 {
   jamEntry();
 
-  const LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtr();
+  const LqhKeyReq* req = reinterpret_cast<const LqhKeyReq*>(signal->getDataPtr());
 
   /**
    * #0 - KEYINFO contains key for first operation (used for hash in TC)
@@ -332,7 +332,7 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
     const Uint32 apiRef   = lqhKeyReq->variableData[0];
     const Uint32 apiOpRec = lqhKeyReq->variableData[1];
 
-    TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
+    TcKeyRef* const tcKeyRef = reinterpret_cast<TcKeyRef*>(signal->getDataPtrSend());
 
     tcKeyRef->connectPtr = apiOpRec;
     tcKeyRef->transId[0] = transid[0];
@@ -355,7 +355,7 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
 	TcOprec = lqhKeyReq->variableData[0];
     }
 
-    LqhKeyRef * const ref = (LqhKeyRef*)signal->getDataPtrSend();
+    LqhKeyRef* const ref = reinterpret_cast<LqhKeyRef*>(signal->getDataPtrSend());
     ref->userRef = clientPtr;
     ref->connectPtr = TcOprec;
     ref->errorCode = err;
@@ -825,7 +825,8 @@ Dbspj::execLQHKEYREF(Signal* signal)
 {
   jamEntry();
 
-  const LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
+  const LqhKeyRef* ref = reinterpret_cast<const LqhKeyRef*>(signal->getDataPtr());
+
   DEBUG("execLQHKEYREF, errorCode:" << ref->errorCode);
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, ref->connectPtr);
@@ -846,9 +847,9 @@ Dbspj::execLQHKEYCONF(Signal* signal)
 
   DEBUG("execLQHKEYCONF");
 
-  const LqhKeyConf* ref = (LqhKeyConf*)signal->getDataPtr();
+  const LqhKeyConf* conf = reinterpret_cast<const LqhKeyConf*>(signal->getDataPtr());
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ref->opPtr);
+  m_treenode_pool.getPtr(treeNodePtr, conf->opPtr);
 
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
@@ -863,7 +864,7 @@ void
 Dbspj::execSCAN_FRAGREF(Signal* signal)
 {
   jamEntry();
-  const ScanFragRef * ref = (ScanFragRef*)signal->getDataPtr();
+  const ScanFragRef* ref = reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
 
   DEBUG("execSCAN_FRAGREF, errorCode:" << ref->errorCode);
 
@@ -902,7 +903,7 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
   jamEntry();
   DEBUG("execSCAN_FRAGCONF");
 
-  const ScanFragConf * conf = (ScanFragConf*)signal->getDataPtr();
+  const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, conf->senderData);
@@ -942,13 +943,16 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     /**
      * TODO this needs more elaborate *abort* handling
      */
-    ScanFragConf * conf = (ScanFragConf*)signal->getDataPtrSend();
+    ScanFragConf* conf = reinterpret_cast<ScanFragConf*>(signal->getDataPtrSend());
+
     conf->senderData = requestPtr.p->m_senderData;
     conf->transId1 = requestPtr.p->m_transId[0];
     conf->transId2 = requestPtr.p->m_transId[1];
     conf->completedOps = 0;
     conf->fragmentCompleted = 2; // Finished...
     conf->total_len = 0; // Not supported...
+
+    DEBUG("execSCAN_NEXTREQ(close), fragmentCompleted:" << conf->fragmentCompleted);
 
     sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
                ScanFragConf::SignalLength, JBB);
@@ -1163,7 +1167,7 @@ Dbspj::lookup_start(Signal* signal,
 		    Ptr<TreeNode> treeNodePtr,
 		    SegmentedSectionPtr keyInfo)
 {
-  const LqhKeyReq* src = (LqhKeyReq*)signal->getDataPtrSend();
+  const LqhKeyReq* src = reinterpret_cast<const LqhKeyReq*>(signal->getDataPtr());
 
   Uint32 instanceNo = blockToInstance(signal->header.theReceiversBlockNumber);
   treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH, instanceNo, getOwnNodeId());
@@ -1233,7 +1237,8 @@ Dbspj::lookup_send(Signal* signal,
     requestPtr.p->m_cnt_active++;
   }
 
-  LqhKeyReq* req = (LqhKeyReq*)signal->getDataPtrSend();
+  LqhKeyReq* req = reinterpret_cast<LqhKeyReq*>(signal->getDataPtrSend());
+
   memcpy(req, treeNodePtr.p->m_lookup_data.m_lqhKeyReq,
 	 sizeof(treeNodePtr.p->m_lookup_data.m_lqhKeyReq));
   req->variableData[2] = requestPtr.p->m_rootResultData;
@@ -1794,7 +1799,7 @@ Dbspj::scanFrag_start(Signal* signal,
 		      Ptr<TreeNode> treeNodePtr,
 		      SegmentedSectionPtr keyInfo)
 {
-  const ScanFragReq* src = (ScanFragReq*)signal->getDataPtrSend();
+  const ScanFragReq* src = reinterpret_cast<const ScanFragReq*>(signal->getDataPtr());
 
   Uint32 instanceNo = blockToInstance(signal->header.theReceiversBlockNumber);
   treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH, instanceNo, getOwnNodeId());
@@ -1872,7 +1877,8 @@ Dbspj::scanFrag_send(Signal* signal,
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
   requestPtr.p->m_cnt_active++;
 
-  ScanFragReq* req = (ScanFragReq*)signal->getDataPtrSend();
+  ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
+
   memcpy(req, treeNodePtr.p->m_scanfrag_data.m_scanFragReq,
 	 sizeof(treeNodePtr.p->m_scanfrag_data.m_scanFragReq));
   req->variableData[0] = requestPtr.p->m_rootResultData;
@@ -2020,7 +2026,7 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   /**
    * TODO
    */
-  const ScanFragRef* const rep = (ScanFragRef*)signal->getDataPtr();
+  const ScanFragRef* const rep = reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
   Uint32 errCode = rep->errorCode;
 
   /**
@@ -2033,7 +2039,8 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   DEBUG("scanFrag_execSCAN_FRAGREF, rep->senderData:" << rep->senderData
          << ", requestPtr.p->m_senderData:" << requestPtr.p->m_senderData);
 
-  ScanFragRef* const ref = (ScanFragRef*)signal->getDataPtrSend();
+  ScanFragRef* const ref = reinterpret_cast<ScanFragRef*>(signal->getDataPtrSend());
+
   ref->senderData = requestPtr.p->m_senderData;
   ref->errorCode = errCode;
   ref->transId1 = requestPtr.p->m_transId[0];
@@ -2053,7 +2060,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
                                   Ptr<Request> requestPtr,
                                   Ptr<TreeNode> treeNodePtr)
 {
-  const ScanFragConf * conf = (ScanFragConf*)signal->getDataPtr();
+  const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
 
@@ -2090,7 +2097,7 @@ Dbspj::scanFrag_batch_complete(Signal* signal,
    *   if tree contains several scans...this is harder...
    *   but for now just reply to TC (and possibly cleanup)
    */
-  ScanFragConf * conf = (ScanFragConf*)signal->getDataPtrSend();
+  ScanFragConf* conf = reinterpret_cast<ScanFragConf*>(signal->getDataPtrSend());
   conf->senderData = requestPtr.p->m_senderData;
   conf->transId1 = requestPtr.p->m_transId[0];
   conf->transId2 = requestPtr.p->m_transId[1];
@@ -2139,6 +2146,14 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 {
   jamEntry();
 
+  ScanFragNextReq* nextReq = reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
+  nextReq->senderData = treeNodePtr.i;
+  ndbassert (nextReq->transId1 == requestPtr.p->m_transId[0]);
+  ndbassert (nextReq->transId2 == requestPtr.p->m_transId[1]);
+
+  DEBUG("scanFrag_execSCAN_NEXTREQ to: " << treeNodePtr.p->m_send.m_ref
+      << ", senderData: " << nextReq->senderData);
+
   sendSignal(treeNodePtr.p->m_send.m_ref, 
              GSN_SCAN_NEXTREQ, 
              signal, 
@@ -2156,7 +2171,6 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyreqs_sent = 0;
   treeNodePtr.p->m_scanfrag_data.m_missing_descendant_rows = 0;
 }//Dbspj::scanFrag_execSCAN_NEXTREQ()
-
 
 
 void

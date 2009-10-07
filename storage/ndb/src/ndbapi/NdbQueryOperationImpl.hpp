@@ -82,7 +82,7 @@ public:
   NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
 
   /** Close query*/
-  void close(bool forceSend, bool release);
+  int close(bool forceSend, bool release);
 
   NdbTransaction& getNdbTransaction() const
   { return m_transaction; }
@@ -232,7 +232,6 @@ private:
   /**
    * Signal building section:
    */
-  NdbApiSignal* m_signal;
   Uint32Buffer m_attrInfo;  // ATTRINFO: QueryTree + serialized parameters
   Uint32Buffer m_keyInfo;   // KEYINFO:  Lookup key or scan bounds
 

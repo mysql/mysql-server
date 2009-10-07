@@ -33,7 +33,7 @@
 #include "NdbTransaction.hpp"
 
 
-#define TEST_SCANREQ
+//#define TEST_SCANREQ
 
 /* Various error codes that are not specific to NdbQuery. */
 STATIC_CONST(Err_MemoryAlloc = 4000);
@@ -61,6 +61,9 @@ public:
     void put(Uint16 id, Uint32 num);
 
     Uint32 get(Uint16 id) const;
+
+    void clear()
+    { m_vector.clear(); }
 
   private:
     struct Pair{
@@ -92,8 +95,12 @@ public:
   int m_pendingResults;
   /** True if there is a pending SCAN_TABCONF messages for this stream.*/
   bool m_pendingScanTabConf;
-  /** Prepare for receiving results. */
+
+  /** Prepare for receiving first results. */
   int prepare();
+
+  /** Prepare for receiving next batch of scan results. */
+  void reset();
 
   Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const;
   void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index);
@@ -108,7 +115,7 @@ public:
   void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const;
     
   /** Check if batch is complete for this stream. */
-  bool isBatchComplete() const { 
+  bool isBatchComplete() const {
     return m_pendingResults==0 && !m_pendingScanTabConf;
   }
 
@@ -132,6 +139,142 @@ private:
   NdbResultStream(const NdbResultStream&);
   NdbResultStream& operator=(const NdbResultStream&);
 }; //class NdbResultStream
+
+////////////////////////////////////////////////
+/////////  NdbResultStream methods ///////////
+////////////////////////////////////////////////
+
+void 
+NdbResultStream::TupleIdMap::put(Uint16 id, Uint32 num){
+  const Pair p = {id, num};
+  m_vector.push_back(p);
+}
+
+Uint32 
+NdbResultStream::TupleIdMap::get(Uint16 id) const {
+  for(Uint32 i=0; i<m_vector.size(); i++){
+    if(m_vector[i].m_id == id){
+      return m_vector[i].m_num;
+    }
+  }
+  return tupleNotFound;
+}
+
+NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo):
+  m_streamNo(streamNo),
+  m_receiver(operation.getQuery().getNdbTransaction().getNdb(), &operation),  // FIXME? Use Ndb recycle lists
+  m_transidAICount(0),
+  m_correlToTupNumMap(),
+  m_pendingResults(0),
+  m_pendingScanTabConf(false),
+  m_operation(operation),
+  m_parentTupleCorr(NULL),
+  m_childTupleIdx(NULL)
+{};
+
+NdbResultStream::~NdbResultStream() { 
+  delete[] m_childTupleIdx; 
+  delete[] m_parentTupleCorr; 
+}
+
+int  // Return 0 if ok, else errorcode
+NdbResultStream::prepare()
+{
+  /* Parrent / child correlation is only relevant for scan type queries
+   * Don't create m_parentTupleCorr[] and m_childTupleIdx[] for lookups!
+   * Neither is these structures required for operations not having respective
+   * child or parent operations.
+   */
+  if (m_operation.getQueryDef().isScanQuery()) {
+
+    // Root scan-operation need a ScanTabConf to complete
+    m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
+
+    const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
+    if (m_operation.getNoOfParentOperations()>0) {
+      assert (m_operation.getNoOfParentOperations()==1);
+      m_parentTupleCorr = new Uint32[batchRows];
+      if (unlikely(m_parentTupleCorr==NULL))
+        return Err_MemoryAlloc;
+    }
+
+    if (m_operation.getNoOfChildOperations()>0) {
+      const size_t correlatedChilds =  batchRows
+                                     * m_operation.getNoOfChildOperations();
+      m_childTupleIdx = new Uint32[correlatedChilds];
+      if (unlikely(m_childTupleIdx==NULL))
+        return Err_MemoryAlloc;
+
+      for (unsigned i=0; i<correlatedChilds; i++) {
+        m_childTupleIdx[i] = tupleNotFound;
+      }
+    }
+  } else {  // Lookup query
+    // Root lookup operation need a CONF or REF reply to complete
+    m_pendingResults = (&m_operation.getRoot()==&m_operation);
+  }
+  return 0;
+} //NdbResultStream::prepare
+
+
+void
+NdbResultStream::reset()
+{
+  assert (m_operation.getQueryDef().isScanQuery());
+
+  // Root scan-operation need a ScanTabConf to complete
+  m_pendingResults = 0;
+  m_transidAICount = 0;
+  m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
+
+  if (m_parentTupleCorr!=NULL) {
+//  const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
+  }
+
+  if (m_childTupleIdx!=NULL) {
+    const size_t correlatedChilds =  m_operation.getQuery().getMaxBatchRows()
+                                   * m_operation.getNoOfChildOperations();
+    for (unsigned i=0; i<correlatedChilds; i++) {
+      m_childTupleIdx[i] = tupleNotFound;
+    }
+  }
+
+  m_correlToTupNumMap.clear();
+
+  m_receiver.prepareSend();
+} //NdbResultStream::reset
+
+
+void 
+NdbResultStream::setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const
+{
+  if (m_parentTupleCorr) {
+    m_parentTupleCorr[rowNo] = correlationNum;
+  } else {
+    assert (m_operation.getNoOfParentOperations()==0 || !m_operation.getQueryDef().isScanQuery());
+  }
+}
+
+void
+NdbResultStream::setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index)
+{
+  assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
+  unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
+  m_childTupleIdx[ix] = index;
+}
+
+Uint32
+NdbResultStream::getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const
+{
+  assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
+  unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
+  return m_childTupleIdx[ix];
+}
+
+
+///////////////////////////////////////////
+/////////  NdbQuery API methods ///////////
+///////////////////////////////////////////
 
 NdbQuery::NdbQuery(NdbQueryImpl& impl):
   m_impl(impl)
@@ -319,7 +462,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_maxBatchRows(0),
   m_applStreams(),
   m_fullStreams(),
-  m_signal(0),
   m_attrInfo(),
   m_keyInfo()
 {
@@ -343,10 +485,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
 
 NdbQueryImpl::~NdbQueryImpl()
 {
-  if (m_signal) {
-    printf("TODO: Deallocate TC signal\n");
-  }
-
   // NOTE: m_operations[] was allocated as a single memory chunk with
   // placement new construction of each operation.
   // Requires explicit call to d'tor of each operation before memory is free'ed.
@@ -355,6 +493,7 @@ NdbQueryImpl::~NdbQueryImpl()
     { m_operations[i].~NdbQueryOperationImpl();
     }
     free(m_operations);
+    m_operations = NULL;
   }
 }
 
@@ -493,10 +632,12 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
 
   /* Make results from root operation available to the user.*/
   NdbQueryOperationImpl& root = getRoot();
-  const char* const rootBuff = m_applStreams.top()->m_receiver.get_row();
+  NdbResultStream* resultStream = m_applStreams.top();
+  const Uint32 rowNo = resultStream->m_receiver.getCurrentRow();
+  const char* const rootBuff = resultStream->m_receiver.get_row();
   assert(rootBuff!=NULL);
   if (root.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecAttr) {
-    root.fetchRecAttrResults(m_applStreams.top()->m_streamNo);
+    root.fetchRecAttrResults(resultStream->m_streamNo);
   } else if (root.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecord) {
     if (root.m_resultRef!=NULL) {
       // Set application pointer to point into internal buffer.
@@ -504,30 +645,30 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
     } else { 
       // Copy result to buffer supplied by application.
       memcpy(root.m_resultBuffer, rootBuff, 
-             m_applStreams.top()->m_receiver.m_record.m_ndb_record
+             resultStream->m_receiver.m_record.m_ndb_record
              ->m_row_size);
     }
   }
   /* Make results from non-root operation availabel to the user.*/
   if (getQueryDef().isScanQuery()) {
-    const Uint32 rowNo 
-      = m_applStreams.top()->m_receiver.getCurrentRow() - 1;
     for (Uint32 i = 0; i<root.getNoOfChildOperations(); i++) {
       /* For each child, fetch the right row.*/
       root.getChildOperation(i)
-        .updateChildResult(m_applStreams.top()->m_streamNo, 
-                           m_applStreams.top()->getChildTupleIdx(i,rowNo));
+        .updateChildResult(resultStream->m_streamNo, 
+                           resultStream->getChildTupleIdx(i,rowNo));
     }
-  } else {
+  } else { // Lookup query
     /* Fetch results for all non-root lookups also.*/
     for (Uint32 i = 1; i<getNoOfOperations(); i++) {
       NdbQueryOperationImpl& operation = getQueryOperation(i);
-      assert(operation.m_resultStreams[0]->m_transidAICount<=1);
+      NdbResultStream* resultStream = operation.m_resultStreams[0];
 
-      operation.m_isRowNull = (operation.m_resultStreams[0]->m_transidAICount==0);
+      assert(resultStream->m_transidAICount<=1);
+      operation.m_isRowNull = (resultStream->m_transidAICount==0);
+
       // Check if there was a result for this operation.
       if (operation.m_isRowNull==false) {
-        const char* buff = operation.m_resultStreams[0]->m_receiver.get_row();
+        const char* buff = resultStream->m_receiver.get_row();
 
         if (operation.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecAttr) {
           operation.fetchRecAttrResults(0);
@@ -538,9 +679,9 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
           }else{
             // Copy result to buffer supplied by application.
             memcpy(operation.m_resultBuffer, buff, 
-                   operation.m_resultStreams[0]
-                   ->m_receiver.m_record.m_ndb_record
-                   ->m_row_size);
+                   resultStream
+                    ->m_receiver.m_record.m_ndb_record
+                    ->m_row_size);
           }
         }
       } else {
@@ -563,7 +704,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
 
   /* Check if there are any more completed streams available.*/
   if(m_queryDef.isScanQuery()){
-    Ndb* const ndb = getNdbTransaction().getNdb();
+    Ndb* const ndb = m_transaction.getNdb();
     
     TransporterFacade* const facade 
       = ndb->theImpl->m_transporter_facade;
@@ -578,20 +719,12 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
        * m_applStreams.*/
       if(m_fullStreams.top()==NULL){
         if(getRoot().isBatchComplete()){
-          /* FIXME: Add code to ask for the next batch if necessary.*/
-#ifdef TEST_SCANREQ
-          const bool scanComplete = false;
-#else
-          const bool scanComplete = true;
-#endif
-          if(scanComplete){
-            /* FIXME: Close scans properly. This would involve sending
-             * SCAN_NEXTREQ*/
+          // Request another scan batch, may already be at EOF
+          const int sent = sendFetchMore(m_transaction.getConnectedNodeId(),false);
+          if (sent==0)  // EOF reached?
             return FetchResult_scanComplete;
-          }else{
-            // FIXME: Ask for new scan batch.
-            sendFetchMore(m_transaction.getConnectedNodeId(),false);
-          }
+          else if (unlikely(sent<0))
+            return FetchResult_sendFail;
         }
         /* More results are on the way, so we wait for them.*/
         const FetchResult waitResult = static_cast<FetchResult>
@@ -601,21 +734,29 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         if(waitResult != FetchResult_ok){
           return waitResult;
         }
+      } // if (m_fullStreams.top()==NULL)
+
+      if(m_fullStreams.top()==NULL){
+//      printf("::fetchMoreResults, awake wo/ any m_fullStreams's\n");
       }
+      assert (m_fullStreams.top()!=NULL);   // Else we should not been awaked
+
       /* Move full streams from receiver thread's container to application 
        *  thread's container.*/
-      while(m_fullStreams.top()!=NULL){
-        m_applStreams.push(*m_fullStreams.top());
+      while(m_fullStreams.top()!=NULL) {
+        // Ignore empty 'm_fullStreams'
+        if (m_fullStreams.top()->m_receiver.hasResults()) {
+          m_applStreams.push(*m_fullStreams.top());
+        } else {
+//        printf("::fetchMoreResults, ignore empty m_fullStreams\n");
+        }
         m_fullStreams.pop();
       }
-      // Iterate over the new streams until we find one that contains data.
-      while(m_applStreams.top() != NULL
-            && !m_applStreams.top()->m_receiver.nextResult()){
-        m_applStreams.pop();
-      }
-      if(m_applStreams.top() != NULL){
+      if (m_applStreams.top() != NULL) {
+//      printf("::fetchMoreResults, got another 'm_applStreams'\n");
         return FetchResult_ok;
       }
+//    printf("::fetchMoreResults, waiting for more 'm_applStreams'\n");
     } // while(true)
   } else {
     /* The root operation is a lookup. Lookups are guaranteed to be complete
@@ -667,15 +808,111 @@ NdbQueryImpl::closeSingletonScans()
     } 
   }
   /* nextResult() will later move it from m_fullStreams to m_applStreams
-   * undex mutex protection.
+   * under mutex protection.
    */
   m_fullStreams.push(*getRoot().m_resultStreams[0]);
 } //NdbQueryImpl::closeSingletonScans
 
-void
+int
 NdbQueryImpl::close(bool forceSend, bool release)
 {
-  // FIXME
+  // FIXME - Need more debugging
+  if(m_queryDef.isScanQuery()){
+    Ndb* const ndb = m_transaction.getNdb();
+    
+    TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
+
+
+    /* This part needs to be done under mutex due to synchronization with 
+     * receiver thread. */
+    PollGuard poll_guard(facade,
+                         &ndb->theImpl->theWaiter,
+                         ndb->theNdbBlockNumber);
+
+      if(m_fullStreams.top()==NULL){
+        if(getRoot().isBatchComplete()){
+          // Request another scan batch, may already be at EOF
+          const int sent = sendFetchMore(m_transaction.getConnectedNodeId(),false);
+          if (sent==0)  // EOF reached?
+            return FetchResult_scanComplete;
+          else if (unlikely(sent<0))
+            return FetchResult_sendFail;
+        }
+        /* More results are on the way, so we wait for them.*/
+        const FetchResult waitResult = static_cast<FetchResult>
+          (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                m_transaction.getConnectedNodeId(), 
+                                forceSend));
+        if(waitResult != FetchResult_ok){
+          return waitResult;
+        }
+      } // if (m_fullStreams.top()==NULL)
+
+    /* Wait for outstanding scan results from current batch fetch */
+    while (!getRoot().isBatchComplete())
+    {
+      printf("::close waits for outstanding scan result batches\n");
+      const FetchResult waitResult = static_cast<FetchResult>
+            (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                  m_transaction.getConnectedNodeId(), 
+                                  forceSend));
+      switch (waitResult) {
+      case FetchResult_ok:
+        break;
+      case FetchResult_nodeFail:
+        setErrorCode(Err_NodeFailCausedAbort); // Node fail
+        return -1;
+      case FetchResult_timeOut:
+        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+        return -1;
+      default:
+        assert(false);
+      }
+    }
+    m_fullStreams.clear();
+    m_applStreams.clear();
+
+    /* Send SCANREQ(close) */
+    const int sent = sendFetchMore(m_transaction.getConnectedNodeId(), true);
+    if (unlikely(sent<0))
+      return -1;
+    else if (sent==0)  // Has already reached EOF and closed scan
+      return 0;
+
+    /* Wait for close to be confirm: */
+    while (!getRoot().isBatchComplete())
+    {
+      printf("::close waits for SCAN CONF\n");
+      const FetchResult waitResult = static_cast<FetchResult>
+            (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                  m_transaction.getConnectedNodeId(), 
+                                  forceSend));
+      switch (waitResult) {
+      case FetchResult_ok:
+        break;
+      case FetchResult_nodeFail:
+        setErrorCode(Err_NodeFailCausedAbort); // Node fail
+        return -1;
+      case FetchResult_timeOut:
+        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+        return -1;
+      default:
+        assert(false);
+      }
+    }
+
+  } else { // Lookup query
+    // Not likely to require any action to close lookups on TC
+  }
+
+  // Throw any pending results
+  m_fullStreams.clear();
+  m_applStreams.clear();
+
+  if (release) {
+    delete this;
+  }
+  return 0;
 }
 
 void
@@ -840,13 +1077,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
   Ndb& ndb = *m_transaction.getNdb();
   TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
 
-  // TODO: move signal allocation and building outside mutex protected ::doSend()
-  m_signal = ndb.getSignal();
-  if (m_signal == NULL) {
-    setErrorCodeAbort(Err_MemoryAlloc);  // Allocation failure
-    return -1; 
-  }
-
   const NdbQueryOperationDefImpl& rootDef = getRoot().getQueryOperationDef();
   const NdbTableImpl* const rootTable = rootDef.getIndex()
     ? rootDef.getIndex()->getIndexTable()
@@ -881,9 +1111,10 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     assert (m_parallelism > 0);
     assert (m_maxBatchRows > 0);
 
-    m_signal->setSignal(GSN_SCAN_TABREQ);
+    NdbApiSignal tSignal(&ndb);
+    tSignal.setSignal(GSN_SCAN_TABREQ);
 
-    ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, m_signal->getDataPtrSend());
+    ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, tSignal.getDataPtrSend());
     Uint32 reqInfo = 0;
 
     scanTabReq->apiConnectPtr = m_transaction.theTCConPtr;
@@ -928,9 +1159,9 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 //    printf("Build pruned SCANREQ, w/ hashValue:%d\n", hashValue);
       ScanTabReq::setDistributionKeyFlag(reqInfo, 1);
       scanTabReq->distributionKey= hashValue;
-      m_signal->setLength(ScanTabReq::StaticLength + 1);
+      tSignal.setLength(ScanTabReq::StaticLength + 1);
     } else {
-      m_signal->setLength(ScanTabReq::StaticLength);
+      tSignal.setLength(ScanTabReq::StaticLength);
     }
     scanTabReq->requestInfo = reqInfo;
 
@@ -944,47 +1175,42 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
      * Section 1 : ATTRINFO section
      * Section 2 : Optional KEYINFO section
      */
-    GenericSectionPtr secs[3];
-    Uint32 prepared_receivers[64];  // TODO: 64 is a temp hack
+    LinearSectionPtr secs[3];
+    Uint32 receivers[64];  // TODO: 64 is a temp hack
  
     const NdbQueryOperationImpl& queryOp = getRoot();
     for(Uint32 i = 0; i<m_parallelism; i++){
-      prepared_receivers[i] = queryOp.getReceiver(i).getId();
+      receivers[i] = queryOp.getReceiver(i).getId();
     }
 
-    LinearSectionIterator receiverIdIterator(prepared_receivers,
-                                             m_parallelism);
-
-    secs[0].sectionIter= &receiverIdIterator;
+    secs[0].p= receivers;
     secs[0].sz= m_parallelism;
 
-    LinearSectionIterator attrInfoIter(m_attrInfo.addr(),m_attrInfo.getSize());
-    secs[1].sectionIter= &attrInfoIter;
+    secs[1].p= m_attrInfo.addr();
     secs[1].sz= m_attrInfo.getSize();
 
     Uint32 numSections= 2;
-
-    LinearSectionIterator keyInfoIter(m_keyInfo.addr(), m_keyInfo.getSize());
     if (m_keyInfo.getSize() > 0)
     {
-      secs[2].sectionIter= &keyInfoIter;
+      secs[2].p= m_keyInfo.addr();
       secs[2].sz= m_keyInfo.getSize();
       numSections= 3;
     }
-  
+
     /* Send Fragmented as SCAN_TABREQ can be large */
-    const int res = tp->sendFragmentedSignal(m_signal, nodeId, secs, numSections);
+    const int res = tp->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
       setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
-      return -1;
+      return FetchResult_sendFail;
     }
 
   } else {  // Lookup query
 
-    m_signal->setSignal(GSN_TCKEYREQ);  // TODO: or GSN_TCINDXREQ
+    NdbApiSignal tSignal(&ndb);
+    tSignal.setSignal(GSN_TCKEYREQ);  // TODO: or GSN_TCINDXREQ
 
-    TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, m_signal->getDataPtrSend());
+    TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, tSignal.getDataPtrSend());
 
     tcKeyReq->apiConnectPtr   = m_transaction.theTCConPtr;
     tcKeyReq->apiOperationPtr = getRoot().getIdOfReceiver();
@@ -1015,7 +1241,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     TcKeyReq::setSimpleFlag(reqInfo, true);
     tcKeyReq->requestInfo = reqInfo;
 
-    m_signal->setLength(TcKeyReq::StaticLength);
+    tSignal.setLength(TcKeyReq::StaticLength);
 
 /****
     // Unused optional part located after TcKeyReq::StaticLength
@@ -1036,26 +1262,23 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
 *****/
 
-    LinearSectionIterator keyInfoIter (m_keyInfo.addr(), m_keyInfo.getSize());
-    LinearSectionIterator attrInfoIter(m_attrInfo.addr(),m_attrInfo.getSize());
-
-    GenericSectionPtr secs[2];
-    secs[TcKeyReq::KeyInfoSectionNum].sectionIter= &keyInfoIter;
+    LinearSectionPtr secs[2];
+    secs[TcKeyReq::KeyInfoSectionNum].p= m_keyInfo.addr();
     secs[TcKeyReq::KeyInfoSectionNum].sz= m_keyInfo.getSize();
     Uint32 numSections= 1;
 
     if (m_attrInfo.getSize() > 0)
     {
-      secs[TcKeyReq::AttrInfoSectionNum].sectionIter= &attrInfoIter;
+      secs[TcKeyReq::AttrInfoSectionNum].p= m_attrInfo.addr();
       secs[TcKeyReq::AttrInfoSectionNum].sz= m_attrInfo.getSize();
       numSections= 2;
     }
 
-    const int res = tp->sendSignal(m_signal, nodeId, secs, numSections);
+    const int res = tp->sendSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
       setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
-      return -1;
+      return FetchResult_sendFail;
     }
   }
 
@@ -1065,67 +1288,67 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
    */
   m_transaction.OpSent();
 
-  // TODO: Move outside mutex
-  ndb.releaseSignal(m_signal);
-  m_signal = NULL;
-
   return 1;
 } // NdbQueryImpl::doSend()
 
 
 /******************************************************************************
-int sendFetchMore()
+int sendFetchMore() - Fetch another scan batch, optionaly closing the scan
+                
+                Request another batch of rows to be retrieved from the scan.
+                Transporter mutex is locked before this method is called. 
 
 Return Value:   Return >0 : send was succesful, returns number of signals sent
+                Return =0 : No more rows is available -> EOF
                 Return -1: In all other case.   
 Parameters:     nodeId: Receiving processor node
+                closeFlag: Close the scan
 Remark:
 ******************************************************************************/
 int
-NdbQueryImpl::sendFetchMore(int nodeId, bool lastFlag)  // TODO: Unsure if we need 'lastFlag'
+NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
 {
-  Ndb& ndb = *m_transaction.getNdb();
-  TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
 
-  m_signal = ndb.getSignal();
-  if (m_signal == NULL) {
-    setErrorCodeAbort(Err_MemoryAlloc);  // Allocation failure
-    return -1; 
+  Uint32 receivers[64];  // TODO: 64 is a temp hack
+  Uint32 sent = 0;
+  NdbQueryOperationImpl& root = getRoot();
+  for(unsigned i = 0; i<m_parallelism; i++) {
+
+    const Uint32 tcPtrI = root.getReceiver(i).m_tcPtrI;
+    if (tcPtrI != RNIL) {
+      receivers[sent++] = tcPtrI;
+      for (unsigned op=0; op<m_countOperations; op++) {
+        m_operations[op].m_resultStreams[i]->reset();
+      }
+    }
   }
 
-  // TODO: It is likely we need to grab the transporter mutex, investigate
+  printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
+  if (sent==0)
+    return 0;
 
-  printf("::sendFetchMore, to nodeId:%d\n", nodeId);
-
-  m_signal->setSignal(GSN_SCAN_NEXTREQ);
-
-  Uint32* dataPtr = m_signal->getDataPtrSend();
-  ScanNextReq * const scanNextReq = CAST_PTR(ScanNextReq, dataPtr);
-  Uint32* receivers = dataPtr + ScanNextReq::SignalLength;
+  Ndb& ndb = *m_transaction.getNdb();
+  NdbApiSignal tSignal(&ndb);
+  tSignal.setSignal(GSN_SCAN_NEXTREQ);
+  ScanNextReq * const scanNextReq = CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
 
   Uint64 transId = m_transaction.getTransactionId();
   scanNextReq->apiConnectPtr = m_transaction.theTCConPtr;
-  scanNextReq->stopScan = 0;
+  scanNextReq->stopScan = closeFlag;
   scanNextReq->transId1 = (Uint32) transId;
   scanNextReq->transId2 = (Uint32) (transId >> 32);
+  tSignal.setLength(ScanNextReq::SignalLength);
 
-  // List of fragments from where we request 'NEXT' follows:
-  assert (m_parallelism<=21); // TODO: Else we need a (sectioned) long signal
-//const NdbQueryOperationImpl& queryOp = getRoot();
-  for(unsigned i = 0; i<m_parallelism; i++){
-    receivers[i] = i;  //queryOp.getReceiver(i).getId();  // TODO
-  }
-  m_signal->setLength(ScanNextReq::SignalLength+m_parallelism);
+  LinearSectionPtr secs[1];
+  secs[ScanNextReq::ReceiverIdsSectionNum].p = receivers;
+  secs[ScanNextReq::ReceiverIdsSectionNum].sz = sent;
 
-  const int res = tp->sendSignal(m_signal, nodeId);
-  if (unlikely(res == -1))
-  {
+  TransporterFacade* tp = ndb.theImpl->m_transporter_facade;
+  const int res = tp->sendSignal(&tSignal, nodeId, secs, 1);
+  if (unlikely(res == -1)) {
     setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
-    return -1;
+    return FetchResult_sendFail;
   }
-
-  ndb.releaseSignal(m_signal);
-  m_signal = NULL;
 
   return 1;
 } // NdbQueryImpl::sendFetchMore()
@@ -1159,107 +1382,6 @@ NdbQueryImpl::StreamStack::push(NdbResultStream& stream){
   m_array[m_current] = &stream; 
 }
 
-
-////////////////////////////////////////////////
-/////////  NdbResultStream methods ///////////
-////////////////////////////////////////////////
-
-void 
-NdbResultStream::TupleIdMap::put(Uint16 id, Uint32 num){
-  const Pair p = {id, num};
-  m_vector.push_back(p);
-}
-
-Uint32 
-NdbResultStream::TupleIdMap::get(Uint16 id) const {
-  for(Uint32 i=0; i<m_vector.size(); i++){
-    if(m_vector[i].m_id == id){
-      return m_vector[i].m_num;
-    }
-  }
-  return tupleNotFound;
-}
-
-NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo):
-  m_streamNo(streamNo),
-  m_receiver(operation.getQuery().getNdbTransaction().getNdb(), &operation),  // FIXME? Use Ndb recycle lists
-  m_transidAICount(0),
-  m_correlToTupNumMap(),
-  m_pendingResults(0),
-  m_pendingScanTabConf(false),
-  m_operation(operation),
-  m_parentTupleCorr(NULL),
-  m_childTupleIdx(NULL)
-{};
-
-NdbResultStream::~NdbResultStream() { 
-  delete[] m_childTupleIdx; 
-  delete[] m_parentTupleCorr; 
-}
-
-int  // Return 0 if ok, else errorcode
-NdbResultStream::prepare()
-{
-  /* Parrent / child correlation is only relevant for scan type queries
-   * Don't create m_parentTupleCorr[] and m_childTupleIdx[] for lookups!
-   * Neither is these structures required for operations not having respective
-   * child or parent operations.
-   */
-  if (m_operation.getQueryDef().isScanQuery()) {
-
-    // Root scan-operation need a ScanTabConf to complete
-    m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
-
-    const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
-    if (m_operation.getNoOfParentOperations()>0) {
-      assert (m_operation.getNoOfParentOperations()==1);
-      m_parentTupleCorr = new Uint32[batchRows];
-      if (unlikely(m_parentTupleCorr==NULL))
-        return Err_MemoryAlloc;
-    }
-
-    if (m_operation.getNoOfChildOperations()>0) {
-      m_childTupleIdx = new Uint32[batchRows * m_operation.getNoOfChildOperations()];
-      if (unlikely(m_childTupleIdx==NULL))
-        return Err_MemoryAlloc;
-
-      for (unsigned i=0; 
-           i<batchRows * m_operation.getNoOfChildOperations(); 
-           i++) {
-        m_childTupleIdx[i] = tupleNotFound;
-      }
-    }
-  } else {  // Lookup query
-    // Root lookup operation need a CONF or REF reply to complete
-    m_pendingResults = (&m_operation.getRoot()==&m_operation);
-  }
-  return 0;
-}
-
-void 
-NdbResultStream::setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const {
-  if (m_parentTupleCorr) {
-    m_parentTupleCorr[rowNo] = correlationNum;
-  } else {
-    assert (m_operation.getNoOfParentOperations()==0 || !m_operation.getQueryDef().isScanQuery());
-  }
-}
-
-void
-NdbResultStream::setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index)
-{
-  assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
-  unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
-  m_childTupleIdx[ix] = index;
-}
-
-Uint32
-NdbResultStream::getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const
-{
-  assert (tupleNo < m_operation.getQuery().getMaxBatchRows());
-  unsigned ix = (tupleNo*m_operation.getNoOfChildOperations()) + childNo;
-  return m_childTupleIdx[ix];
-}
 
 ////////////////////////////////////////////////////
 /////////  NdbQueryOperationImpl methods ///////////
@@ -1299,17 +1421,15 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
 
 NdbQueryOperationImpl::~NdbQueryOperationImpl(){
   Ndb* const ndb = m_queryImpl.getNdbTransaction().getNdb();
-  // Check against buffer overun.
+
 #ifndef NDEBUG // Buffer overrun check activated.
-  assert(m_batchBuffer==NULL ||
-         (m_batchBuffer[m_batchByteSize*getQuery().getParallelism()] 
-          == 'a' &&
-          m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+1] 
-          == 'b' &&
-          m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+2] 
-          == 'c' &&
-          m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+3] 
-          == 'd'));
+  { const size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
+    assert(m_batchBuffer==NULL ||
+           (m_batchBuffer[bufLen+0] == 'a' &&
+            m_batchBuffer[bufLen+1] == 'b' &&
+            m_batchBuffer[bufLen+2] == 'c' &&
+            m_batchBuffer[bufLen+3] == 'd'));
+  }
 #endif
   delete[] m_batchBuffer;
   if (m_resultStreams) {
@@ -1898,7 +2018,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
     if(root.m_resultStreams[streamNo]->isBatchComplete()){
       m_queryImpl.buildChildTupleLinks(streamNo);
       /* nextResult() will later move it from m_fullStreams to m_applStreams
-       * undex mutex protection.*/
+       * under mutex protection.*/
       m_queryImpl.m_fullStreams.push(*root.m_resultStreams[streamNo]);
     }
     return false;
@@ -1939,7 +2059,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
     }
     return false;
   }
-}
+} //NdbQueryOperationImpl::execTRANSID_AI
 
 
 bool 
@@ -1960,7 +2080,7 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
     return getQuery().incPendingStreams(-1);
   }
   return false;
-}
+} //NdbQueryOperationImpl::execTCKEYREF
 
 void 
 NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI, 
@@ -1981,28 +2101,32 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
         ->m_receiver != receiver; 
       streamNo++);
   assert(streamNo<getQuery().getParallelism());
-  assert(m_resultStreams[streamNo]->m_pendingScanTabConf);
-  m_resultStreams[streamNo]->m_pendingScanTabConf = false;;
-  m_resultStreams[streamNo]->m_pendingResults += rowCount;
-  if(m_resultStreams[streamNo]->isBatchComplete()){
+
+  NdbResultStream& resultStream = *m_resultStreams[streamNo];
+  assert(resultStream.m_pendingScanTabConf);
+  resultStream.m_pendingScanTabConf = false;;
+  resultStream.m_pendingResults += rowCount;
+
+  resultStream.m_receiver.m_tcPtrI = tcPtrI;  // Handle for SCAN_NEXTREQ, RNIL -> EOF
+
+  if(resultStream.isBatchComplete()){
     /* This stream is now complete*/
     m_queryImpl.incPendingStreams(-1);
     m_queryImpl.buildChildTupleLinks(streamNo);
     /* nextResult() will later move it from m_fullStreams to m_applStreams
-     * undex mutex protection.*/
-    m_queryImpl.m_fullStreams.push(*m_resultStreams[streamNo]);
+     * under mutex protection.*/
+    m_queryImpl.m_fullStreams.push(resultStream);
   }
-}
+} //NdbQueryOperationImpl::execSCAN_TABCONF
 
 void 
 NdbQueryOperationImpl::buildChildTupleLinks(Uint32 streamNo)
 {
   NdbResultStream& resultStream = *m_resultStreams[streamNo];
-  /* Now we have received all tuples for all operations. We can thus call
-   * execSCANOPCONF() with the right row count.
+  /* Now we have received all tuples for all operations. 
+   * Set correct #rows received in the NdbReceiver.
    */
-  resultStream.m_receiver.execSCANOPCONF(RNIL, 0, 
-                                         resultStream.m_transidAICount);
+  resultStream.m_receiver.m_result_rows = resultStream.m_transidAICount;
 
   if (getNoOfParentOperations()>0) {
     assert(getNoOfParentOperations()==1);
@@ -2082,9 +2206,7 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "  m_queryImpl: " << &op.m_queryImpl;
   out << "  m_operationDef: " << &op.m_operationDef;
   for(Uint32 i = 0; i<op.m_queryImpl.getParallelism(); i++){
-//  const NdbQueryOperationImpl::NdbResultStream& resultStream 
-    const NdbResultStream& resultStream 
-      = *op.m_resultStreams[i];
+    const NdbResultStream& resultStream = *op.m_resultStreams[i];
     out << "  m_resultStream[" << i << "]{";
     out << " m_transidAICount: " << resultStream.m_transidAICount;
     out << " m_pendingResults: " << resultStream.m_pendingResults;

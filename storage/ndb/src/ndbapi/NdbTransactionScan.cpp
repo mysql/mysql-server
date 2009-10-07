@@ -150,7 +150,6 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
             theScanningOp->receiver_completed(tOp);
           else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
             theScanningOp->receiver_delivered(tOp);
-          
         }
       }
     }
