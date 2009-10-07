@@ -156,7 +156,10 @@ function GetValue(str, key)
 function GetVersion(str)
 {
     var key = "AM_INIT_AUTOMAKE(mysql, ";
+    var key2 = "AM_INIT_AUTOMAKE(mariadb, ";
     var pos = str.indexOf(key); //5.0.6-beta)
+    if (pos == -1)
+      pos = str.indexOf(key2);
     if (pos == -1) return null;
     pos += key.length;
     var end = str.indexOf(")", pos);
