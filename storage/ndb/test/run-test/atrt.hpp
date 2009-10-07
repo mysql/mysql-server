@@ -190,4 +190,103 @@ extern int          g_default_ports;
 
 extern const char * g_clusters;
 
+#ifdef _WIN32
+#include <direct.h>
+#include <sys/stat.h>
+#include <io.h>
+
+inline int lstat(const char *name, struct stat *buf) {
+  return stat(name, buf);
+}
+
+inline int S_ISREG(int x) {
+  return x & _S_IFREG;
+}
+
+inline int S_ISDIR(int x) {
+  return x & _S_IFDIR;
+}
+
+#define S_IRUSR _S_IREAD
+#define S_IWUSR _S_IWRITE
+#define S_IXUSR _S_IEXEC
+#define S_IXGRP _S_IEXEC
+#define S_IRGRP _S_IREAD
+#endif
+
+
+/* in-place replace */
+static inline char* replace_chars(char *str, char from, char to)
+{
+  int i;
+
+  for(i = 0; str[i]; i++) {
+    if(i && str[i]==from && str[i-1]!=' ') {
+      str[i]=to;
+    }
+  }
+  return str;
+}
+
+static inline BaseString &replace_chars(BaseString &bs, char from, char to)
+{
+  replace_chars((char*)bs.c_str(), from, to);
+  return bs;
+}
+static inline BaseString &to_native(BaseString &bs) {
+  return replace_chars(bs, DIR_SEPARATOR[0]=='/'?'\\':'/', DIR_SEPARATOR[0]);
+}
+static inline BaseString &to_fwd_slashes(BaseString &bs) {
+  return replace_chars(bs, '\\', '/');
+}
+static inline char* to_fwd_slashes(char* bs) {
+  return replace_chars(bs, '\\', '/');
+}
+
+static inline int sh(const char *script){
+
+#ifdef _WIN32
+
+  BaseString bs;
+  BaseString tmp;
+
+  FILE *fp;
+  char *templat = "fnXXXXXX";
+  char *result;
+
+  tmp.assfmt("%s\\%s", getenv("TEMP"), templat);
+  result = _mktemp( (char*)tmp.c_str() );  // C4996
+  if (result == NULL) {
+     printf( "Problem creating the template\n" );
+     if (errno == EINVAL) {
+         printf( "Bad parameter\n");
+     }
+     else if (errno == EEXIST) {
+         printf( "Out of unique filenames\n");
+     }
+     return -1;
+  }
+  else {
+     fp = fopen(result, "w" );
+     if( fp == NULL ) {
+        printf( "Cannot open %s\n", result );
+     }
+     fprintf(fp, "%s", script);
+     fclose(fp);
+     bs.assfmt("sh %s", result);
+  }
+
+  int rv = system(bs.c_str());
+  if (rv) {
+    fprintf(stderr,"system returned %d\n", rv);
+  }
+  return rv;
+
+#else
+
+  return system(script);
+
+#endif
+
+}
 #endif

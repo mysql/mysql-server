@@ -84,7 +84,7 @@ AtrtClient::writeCommand(AtrtCommandType _type,
     return -1;
   }
 
-  return mysql_insert_id(m_mysql);
+  return (int)mysql_insert_id(m_mysql);
 }
 
 
