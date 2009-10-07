@@ -343,22 +343,27 @@ DELIMITER ;|
 --connection slave
 RESET SLAVE;
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1.5;
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
 --source include/start_slave.inc
 --connection master
 # Enable scheduler
 SET @@global.event_scheduler=1;
 --connection slave
-SHOW STATUS LIKE 'slave_received_heartbeats';
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 --sync_with_master
 # Wait some updates for table t1 from master
 let $wait_condition= SELECT COUNT(*)=1 FROM t1 WHERE a > 5;
 --source include/wait_condition.inc
-SHOW STATUS LIKE 'slave_received_heartbeats';
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Number of received heartbeat events: $result
 --connection master
 DELETE FROM t1;
 DROP EVENT e1;
 --echo
+
+
+
 
 # Check received heartbeat events while logs flushed on slave
 --connection slave
