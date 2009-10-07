@@ -1,4 +1,5 @@
 #! /bin/sh
+# Builds server without query cache support
 
 path=`dirname $0`
 . "$path/SETUP.sh"
