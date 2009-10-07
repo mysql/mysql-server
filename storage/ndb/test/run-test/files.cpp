@@ -1,6 +1,14 @@
 #include "atrt.hpp"
 #include <sys/types.h>
+#include <NdbDir.hpp>
+
+#ifdef _WIN32
+#include <direct.h>
+#include <sys/stat.h>
+#include <io.h>
+#else
 #include <dirent.h>
+#endif
 
 static bool create_directory(const char * path);
 
@@ -115,7 +123,7 @@ setup_files(atrt_config& config, int setup, int sshx)
    */
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
-  
+
   if (!create_directory(g_basedir))
   {
     return false;
@@ -124,20 +132,21 @@ setup_files(atrt_config& config, int setup, int sshx)
   if (mycnf != g_my_cnf)
   {
     struct stat sbuf;
-    int ret = lstat(mycnf.c_str(), &sbuf);
+    int ret = lstat(to_native(mycnf).c_str(), &sbuf);
     
     if (ret == 0)
     {
-      if (unlink(mycnf.c_str()) != 0)
+      if (unlink(to_native(mycnf).c_str()) != 0)
       {
 	g_logger.error("Failed to remove %s", mycnf.c_str());
 	return false;
       }
     }
     
-    BaseString cp = "cp ";
-    cp.appfmt("%s %s", g_my_cnf, mycnf.c_str());
-    if (system(cp.c_str()) != 0)
+    BaseString cp;
+    cp.assfmt("cp %s %s", g_my_cnf, mycnf.c_str());
+    to_fwd_slashes(cp);
+    if (sh(cp.c_str()) != 0)
     {
       g_logger.error("Failed to '%s'", cp.c_str());
       return false;
@@ -156,13 +165,16 @@ setup_files(atrt_config& config, int setup, int sshx)
       {
 	atrt_process& proc = *cluster.m_processes[j];
 	if (proc.m_type == atrt_process::AP_MYSQLD)
+#ifndef _WIN32
 	{
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > %s/mysql_install_db.log 2>&1",
+	  tmp.assfmt("%s/bin/mysql_install_db --basedir=. --defaults-file=%s/my.cnf --datadir=%s > %s/mysql_install_db.log 2>&1",
 		     g_prefix, g_basedir, val, proc.m_proc.m_cwd.c_str());
-	  if (system(tmp.c_str()) != 0)
+
+          to_fwd_slashes(tmp);
+	  if (sh(tmp.c_str()) != 0)
 	  {
 	    g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
 			   proc.m_proc.m_cwd.c_str(),
@@ -173,7 +185,13 @@ setup_files(atrt_config& config, int setup, int sshx)
 	    g_logger.info("mysql_install_db for %s",
 			  proc.m_proc.m_cwd.c_str());
 	  }
-	}
+        }
+#else
+        {
+          g_logger.info("not running mysql_install_db for %s",
+                         proc.m_proc.m_cwd.c_str());
+        }
+#endif
       }
     }
   }
@@ -246,6 +264,7 @@ setup_files(atrt_config& config, int setup, int sshx)
        */
       BaseString tmp;
       tmp.assfmt("%s/env.sh", proc.m_proc.m_cwd.c_str());
+      to_native(tmp);
       char **env = BaseString::argify(0, proc.m_proc.m_env.c_str());
       if (env[0] || proc.m_proc.m_path.length())
       {
@@ -314,32 +333,44 @@ setup_files(atrt_config& config, int setup, int sshx)
   return true;
 }
 
+static int 
+local_mkdir(const char * dir){
+#ifdef _WIN32
+  return mkdir(dir);
+#else
+  return mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+#endif
+}
+
 static
 bool
 create_directory(const char * path)
 {
+  BaseString native(path);
+  to_native(native);
   BaseString tmp(path);
   Vector<BaseString> list;
+
   if (tmp.split(list, "/") == 0)
   {
     g_logger.error("Failed to create directory: %s", tmp.c_str());
     return false;
   }
   
-  BaseString cwd = "/";
+  BaseString cwd = IF_WIN("","/");
   for (size_t i = 0; i < list.size(); i++) 
   {
     cwd.append(list[i].c_str());
     cwd.append("/");
-    mkdir(cwd.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+    local_mkdir(cwd.c_str());
   }
 
   struct stat sbuf;
-  if (lstat(path, &sbuf) != 0 ||
+  if (lstat(native.c_str(), &sbuf) != 0 ||
       !S_ISDIR(sbuf.st_mode))
   {
     g_logger.error("Failed to create directory: %s (%s)", 
-		   tmp.c_str(), 
+		   native.c_str(),
 		   cwd.c_str());
     return false;
   }
@@ -350,52 +381,13 @@ create_directory(const char * path)
 bool
 remove_dir(const char * path, bool inclusive)
 {
-  DIR* dirp = opendir(path);
-
-  if (dirp == 0)
-  {
-    if(errno != ENOENT) 
-    {
-      g_logger.error("Failed to remove >%s< errno: %d %s", 
-		     path, errno, strerror(errno));
-      return false;
-    }
+  if (access(path, 0))
+    return true;
+  if (!NdbDir::remove_recursive(path, !inclusive)) {
+    g_logger.warning("Couldn't remove %s", path);
+    return false;
+  }
+  else {
     return true;
   }
-  
-  struct dirent * dp;
-  BaseString name = path;
-  name.append("/");
-  while ((dp = readdir(dirp)) != NULL)
-  {
-    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) 
-    {
-      BaseString tmp = name;
-      tmp.append(dp->d_name);
-
-      if (remove(tmp.c_str()) == 0)
-      {
-	continue;
-      }
-      
-      if (!remove_dir(tmp.c_str()))
-      {
-	closedir(dirp);
-	return false;
-      }
-    }
-  }
-
-  closedir(dirp);
-  if (inclusive)
-  {
-    if (rmdir(path) != 0)
-    {
-      g_logger.error("Failed to remove >%s< errno: %d %s", 
-		     path, errno, strerror(errno));
-      return false;
-    }
-  }
-  return true;
 }
-

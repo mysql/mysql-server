@@ -3,6 +3,7 @@
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <NdbOut.hpp>
+#include <BaseString.hpp>
 
 extern int g_mt;
 extern int g_mt_rr;
@@ -703,7 +704,7 @@ generate(atrt_process& proc, const char * name, Properties& props)
     }
     
     char buf[255];
-    snprintf(buf, sizeof(buf), "%u", val);
+    BaseString::snprintf(buf, sizeof(buf), "%u", val);
     opts.m_loaded.put(name, buf);
     opts.m_generated.put(name, buf);
     return true;
@@ -757,7 +758,7 @@ generate(atrt_process& proc, const char * name, Properties& props)
     Uint32 val = 1;
     props.get(name, &val);
     char buf[255];
-    snprintf(buf, sizeof(buf), "%u", val);
+    BaseString::snprintf(buf, sizeof(buf), "%u", val);
     opts.m_loaded.put(name, buf);
     opts.m_generated.put(name, buf);
     props.put(name, (val + 1), true);
