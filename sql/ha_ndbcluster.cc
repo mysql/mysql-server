@@ -3218,6 +3218,27 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
   }
 }
 
+bool ha_ndbcluster::isManualBinlogExec(THD *thd)
+{
+  /* Are we executing handler methods as part of 
+   * a mysql client BINLOG statement?
+   */
+#ifndef EMBEDDED_LIBRARY
+  return thd ? 
+    ( thd->rli_fake? 
+      thd->rli_fake->get_flag(Relay_log_info::IN_STMT) : false)
+    : false;
+#else
+  /* For Embedded library, we can't determine if we're
+   * executing Binlog manually
+   * TODO : Find better way to determine whether to use
+   *        SQL REPLACE or Write_row semantics
+   */
+  return false;
+#endif
+
+}
+
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
@@ -3409,23 +3430,37 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       )
   {
     uchar *mask;
+    
+    /* Should we use the supplied table writeset or not?
+     * For a REPLACE command, we should ignore it, and write
+     * all columns to get correct REPLACE behaviour.
+     * For applying Binlog events, we need to use the writeset
+     * to avoid trampling unchanged columns when an update is
+     * logged as a WRITE
+     */
+    bool useWriteSet= isManualBinlogExec(thd);
 
 #ifdef HAVE_NDB_BINLOG
-    /*
-      The use of table->write_set is tricky here. This is done as a temporary
-      workaround for BUG#22045.
+    /* Slave always uses writeset
+     * TODO : What about SBR replicating a
+     * REPLACE command?
+     */
+    useWriteSet |= thd->slave_thread;
+#endif
 
-      There is some confusion on the precise meaning of write_set in write_row,
-      with REPLACE INTO and replication SQL thread having different opinions.
-      There is work on the way to sort that out, but until then we need to
-      implement different semantics depending on whether we are in the slave
-      SQL thread or not.
-
-        SQL thread -> use the write_set for writeTuple().
-        otherwise (REPLACE INTO) -> do not use write_set.
-    */
+    if (useWriteSet)
+    {
+      user_cols_written_bitmap= table->write_set;
+      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+    }
+    else
+    {
+      user_cols_written_bitmap= NULL;
+      mask= NULL;
+    }
 
 #if 0 /* NOT YET, interpeted function not supported for write */
+#ifdef HAVE_NDB_BINLOG
     /*
       Room for 10 instruction words, two labels (@ 2words/label)
       + 2 extra words for the case of resolve_size == 8
@@ -3433,12 +3468,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     Uint32 buffer[16];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
-#endif
-    if (thd->slave_thread)
+    if (useWriteSet)
     {
-      user_cols_written_bitmap= table->write_set;
-      mask= (uchar *)(user_cols_written_bitmap->bitmap);
-#if 0 /* NOT YET, interpeted function not supported for write */
       /* Conflict resolution in slave thread. */
       enum_conflict_fn_type cft= m_share->m_cfn_share ? m_share->m_cfn_share->m_resolve_cft : CFT_NDB_UNDEF;
       if (cft != CFT_NDB_UNDEF)
@@ -3449,7 +3480,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
           options.interpretedCode= &code;
           thd_ndb->m_conflict_fn_usage_count++;
         }
-
+        
         Ndb_exceptions_data ex_data;
         ex_data.share= m_share;
         /*
@@ -3469,14 +3500,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
         if (options.optionsPresent != 0)
           poptions=&options;
       }
-#endif
     }
-    else
-#endif
-    {
-      user_cols_written_bitmap= NULL;
-      mask= NULL;
-    }
+#endif  /* HAVE_NDB_BINLOG */
+#endif  /* NOT YET */
+
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                           (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
@@ -5157,7 +5184,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   case HA_EXTRA_WRITE_CAN_REPLACE:
     DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
     if (!m_has_unique_index ||
-        current_thd->slave_thread) /* always set if slave, quick fix for bug 27378 */
+        current_thd->slave_thread || /* always set if slave, quick fix for bug 27378 */
+        isManualBinlogExec(current_thd)) /* or if manual binlog application, for bug 46662 */
     {
       DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
       m_use_write= TRUE;
