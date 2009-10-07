@@ -1,0 +1,49 @@
+# This test uses chmod, can't be run with root permissions
+--source include/not_as_root.inc
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#26704: Failing DROP DATABASE brings mysql-client out of sync.
+--echo # --
+
+--echo
+--disable_warnings
+DROP DATABASE IF EXISTS mysql_test;
+--enable_warnings
+
+--echo
+CREATE DATABASE mysql_test;
+CREATE TABLE mysql_test.t1(c INT);
+
+use mysql_test;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo
+--echo chmod 000 mysql_test/t1.frm
+--chmod 0000 $MYSQLD_DATADIR/mysql_test/t1.frm
+
+--echo
+--error ER_DB_DROP_RMDIR
+DROP DATABASE mysql_test;
+
+--echo
+SELECT DATABASE();
+
+--echo
+--echo rm mysql_test/t1.MYD mysql_test/t1.MYI
+--exec rm $MYSQLD_DATADIR/mysql_test/t1.MYD
+--exec rm $MYSQLD_DATADIR/mysql_test/t1.MYI
+
+--echo
+DROP DATABASE mysql_test;
+
+--echo
+use test;
+
+--echo
+--echo # -- End of Bug#26704.
+
+###########################################################################
