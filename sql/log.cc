@@ -53,7 +53,7 @@ LOGGER logger;
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static bool test_if_number(const char *str,
-			   ulong *res, bool allow_wildcards);
+			   long *res, bool allow_wildcards);
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
@@ -1835,27 +1835,22 @@ static void setup_windows_event_source()
 /**
   Find a unique filename for 'filename.#'.
 
-  Set '#' to the number next to the maximum found in the most
-  recent log file extension.
-
-  This function will return nonzero if: (i) the generated name
-  exceeds FN_REFLEN; (ii) if the number of extensions is exhausted;
-  or (iii) some other error happened while examining the filesystem.
+  Set '#' to a number as low as possible.
 
   @return
-    nonzero if not possible to get unique filename.
+    nonzero if not possible to get unique filename
 */
 
 static int find_uniq_filename(char *name)
 {
+  long                  number;
   uint                  i;
-  char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
+  char                  buff[FN_REFLEN];
   struct st_my_dir     *dir_info;
   reg1 struct fileinfo *file_info;
-  ulong                 max_found= 0, next= 0, number= 0;
+  ulong                 max_found=0;
   size_t		buf_length, length;
   char			*start, *end;
-  int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
 
   length= dirname_part(buff, name, &buf_length);
@@ -1863,15 +1858,15 @@ static int find_uniq_filename(char *name)
   end=    strend(start);
 
   *end='.';
-  length= (size_t) (end - start + 1);
+  length= (size_t) (end-start+1);
 
-  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
+  if (!(dir_info = my_dir(buff,MYF(MY_DONT_SORT))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
-    DBUG_RETURN(1);
+    DBUG_RETURN(0);
   }
   file_info= dir_info->dir_entry;
-  for (i= dir_info->number_off_files ; i-- ; file_info++)
+  for (i=dir_info->number_off_files ; i-- ; file_info++)
   {
     if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
@@ -1881,44 +1876,9 @@ static int find_uniq_filename(char *name)
   }
   my_dirend(dir_info);
 
-  /* check if reached the maximum possible extension number */
-  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
-  {
-    sql_print_error("Log filename extension number exhausted: %06lu. \
-Please fix this by archiving old logs and \
-updating the index files.", max_found);
-    error= 1;
-    goto end;
-  }
-
-  next= max_found + 1;
-  sprintf(ext_buf, "%06lu", next);
   *end++='.';
-
-  /* 
-    Check if the generated extension size + the file name exceeds the
-    buffer size used. If one did not check this, then the filename might be
-    truncated, resulting in error.
-   */
-  if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
-  {
-    sql_print_error("Log filename too large: %s%s (%lu). \
-Please fix this by archiving old logs and updating the \
-index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
-    error= 1;
-    goto end;
-  }
-
-  sprintf(end, "%06lu", next);
-
-  /* print warning if reaching the end of available extensions. */
-  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
-    sql_print_warning("Next log extension: %lu. \
-Remaining log filename extensions: %lu. \
-Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
-
-end:
-  DBUG_RETURN(error);
+  sprintf(end,"%06ld",max_found+1);
+  DBUG_RETURN(0);
 }
 
 
@@ -2117,13 +2077,6 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        /* 
-          This should be treated as error once propagation of error further
-          up in the stack gets proper handling.
-        */
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                            log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -4841,11 +4794,11 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   @retval
     1	String is a number
   @retval
-    0	String is not a number
+    0	Error
 */
 
 static bool test_if_number(register const char *str,
-			   ulong *res, bool allow_wildcards)
+			   long *res, bool allow_wildcards)
 {
   reg2 int flag;
   const char *start;
