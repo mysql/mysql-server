@@ -728,6 +728,8 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap);
 
+  static inline bool isManualBinlogExec(THD *thd);
+
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name);
