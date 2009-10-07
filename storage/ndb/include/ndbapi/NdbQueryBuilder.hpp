@@ -338,12 +338,9 @@ private:
  */
 class NdbQueryDef
 {
-protected:
   friend class NdbQueryDefImpl;
-  NdbQueryDef(NdbQueryDefImpl& impl);
 
 public:
-  ~NdbQueryDef();
 
   // Copy construction of the NdbQueryDef IS defined.
   // May be convenient to take a copy when the same query is used from
@@ -359,12 +356,15 @@ public:
   const NdbQueryOperationDef* getQueryOperation(Uint32 index) const;
 
   // Remove this NdbQueryDef including operation and operands it contains
-//void release();    Just delete it instead ?
+  void release() const;
 
   NdbQueryDefImpl& getImpl() const;
 
 private:
   NdbQueryDefImpl& m_impl;
+
+  NdbQueryDef(NdbQueryDefImpl& impl);
+  ~NdbQueryDef();
 };
 
 

@@ -47,6 +47,7 @@ STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 STATIC_CONST( tupleNotFound = 0xffffffff);
 
+const bool traceSignals = false; 
 /** For scans, we receiver n parallel streams of data. There is a 
   * NdbResultStream object for each such stream. (For lookups, there is a 
   * single result stream.)
@@ -503,7 +504,15 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef, 
                          NdbQueryImpl* next)
 {
-  return new NdbQueryImpl(trans, queryDef, next);
+  if(queryDef.getNoOfOperations()==0){
+    trans.setErrorCode(QRY_HAS_ZERO_OPERATIONS);
+    return NULL;
+  }
+  NdbQueryImpl* const result = new NdbQueryImpl(trans, queryDef, next);
+  if(result==NULL){
+    trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
+  }
+  return result;
 }
 
 
@@ -635,6 +644,8 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
   NdbResultStream* resultStream = m_applStreams.top();
   const Uint32 rowNo = resultStream->m_receiver.getCurrentRow();
   const char* const rootBuff = resultStream->m_receiver.get_row();
+  assert(rootBuff!=NULL || 
+         root.m_resultStyle==NdbQueryOperationImpl::Style_None);
   assert(rootBuff!=NULL);
   if (root.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecAttr) {
     root.fetchRecAttrResults(resultStream->m_streamNo);
@@ -739,7 +750,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
       if(m_fullStreams.top()==NULL){
 //      printf("::fetchMoreResults, awake wo/ any m_fullStreams's\n");
       }
-      assert (m_fullStreams.top()!=NULL);   // Else we should not been awaked
+      //assert (m_fullStreams.top()!=NULL);   // Else we should not been awaked
 
       /* Move full streams from receiver thread's container to application 
        *  thread's container.*/
@@ -925,8 +936,10 @@ NdbQueryImpl::setErrorCodeAbort(int aErrorCode){
 
 bool 
 NdbQueryImpl::execTCKEYCONF(){
-  ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingStreams=" 
-         << m_pendingStreams << endl;
+  if(traceSignals){
+    ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingStreams=" 
+           << m_pendingStreams << endl;
+  }
   assert(!getQueryDef().isScanQuery());
   m_tcKeyConfReceived = true;
   if(m_pendingStreams==0){
@@ -1323,7 +1336,7 @@ NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
     }
   }
 
-  printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
+  //printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
   if (sent==0)
     return 0;
 
@@ -1628,7 +1641,7 @@ NdbQueryOperationImpl::updateChildResult(Uint32 streamNo, Uint32 rowNo){
     * iterate over results using an indexed structure.*/
     resultStream.m_receiver.setCurrentRow(rowNo);
     const char* buff = resultStream.m_receiver.get_row();
-    assert(buff!=NULL);
+    assert(buff!=NULL || m_resultStyle==Style_None);
     if(m_resultStyle==Style_NdbRecAttr){
       fetchRecAttrResults(streamNo);
     }else if(m_resultStyle==Style_NdbRecord){
@@ -1982,8 +1995,10 @@ static void getCorrelationData(const Uint32* ptr,
 
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
-  ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
-	 << *this << endl;
+  if(traceSignals){
+    ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
+           << *this << endl;
+  }
   NdbQueryOperationImpl& root = getRoot();
 
   if(getQueryDef().isScanQuery()){
@@ -2064,8 +2079,10 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
 
 bool 
 NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
-  ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
-        << *this << endl;
+  if(traceSignals){
+    ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
+           << *this << endl;
+  }
   /* The SPJ block does not forward TCKEYREFs for trees with scan roots.*/
   assert(!getQueryDef().isScanQuery());
   if(isBatchComplete()){
@@ -2087,9 +2104,11 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 rowCount,
                                         NdbReceiver* receiver)
 {
-  ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(): tcPtrI="
-         << tcPtrI << " rowCount=" << rowCount 
-         << " *this=" << *this << endl;
+  if(traceSignals){
+    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(): tcPtrI="
+           << tcPtrI << " rowCount=" << rowCount 
+           << " *this=" << *this << endl;
+  }
   // For now, only the root operation may be a scan.
   assert(m_operationDef.getQueryOperationIx()==0);
   assert(m_operationDef.isScanOperation());
