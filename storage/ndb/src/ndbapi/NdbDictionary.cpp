@@ -2054,7 +2054,9 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
 int
 NdbDictionary::Dictionary::listEvents(List& list)
 {
-  return m_impl.listEvents(list);
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listEvents(list);
 }
 
 int
@@ -2066,7 +2068,9 @@ NdbDictionary::Dictionary::listEvents(List& list) const
 int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 {
-  return m_impl.listObjects(list, type);
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listObjects(list, type);
 }
 
 int
@@ -2078,12 +2082,9 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 {
-  const NdbDictionary::Table* tab= getTable(tableName);
-  if(tab == 0)
-  {
-    return -1;
-  }
-  return m_impl.listIndexes(list, tab->getTableId());
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listIndexes(list, tableName);
 }
 
 int
