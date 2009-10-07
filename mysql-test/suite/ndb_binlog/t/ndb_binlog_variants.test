@@ -70,34 +70,85 @@ drop table stream_marker;
 --let $wait_binlog_event=stream_marker
 --enable_query_log
 
-# Now let's have a look at what's in the Binlog on each server
+# Now let's trim the Binlogs on each server
 
+connection mysqld1;
 --source include/wait_for_binlog_event.inc
 flush logs;
+connection mysqld2;
+--source include/wait_for_binlog_event.inc
+flush logs;
+connection mysqld3;
+--source include/wait_for_binlog_event.inc
+flush logs;
+connection mysqld4;
+--source include/wait_for_binlog_event.inc
+flush logs;
+
+# Empty the table
+delete from ba;
+
+# Now let's examine the contents of the first binlog
+# on each server
+# We'll also apply the Binlog and check that the
+# table contents are as expected in each case.
+# As each server is recording in a new binlog, the
+# new updates will go there.
+
+connection mysqld1;
+
 show variables like '%log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+--enable_query_log
+select * from ba order by ks;
+delete from ba;
 
 connection mysqld2;
 
---source include/wait_for_binlog_event.inc 
-flush logs;
 show variables like '%log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+--enable_query_log
+
+select * from ba order by ks;
+delete from ba;
 
 connection mysqld3;
 
---source include/wait_for_binlog_event.inc 
-flush logs;
 show variables like '%log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+--enable_query_log
+select * from ba order by ks;
+delete from ba;
 
 connection mysqld4;
 
---source include/wait_for_binlog_event.inc 
-flush logs;
 show variables like '%log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+--enable_query_log
+select * from ba order by ks;
 
 drop table ba;
-
