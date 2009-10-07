@@ -1231,13 +1231,22 @@ JOIN::optimize()
       (!group_list && tmp_table_param.sum_func_count))
     order=0;
 
-  // Can't use sort on head table if using row cache
+  // Can't use sort on head table if using join buffering
   if (full_join)
   {
-    if (group_list)
-      simple_group=0;
-    if (order)
-      simple_order=0;
+    TABLE *stable= (sort_by_table == (TABLE *) 1 ? 
+      join_tab[const_tables].table : sort_by_table);
+    /* 
+      FORCE INDEX FOR ORDER BY can be used to prevent join buffering when
+      sorting on the first table.
+    */
+    if (!stable || !stable->force_index_order)
+    {
+      if (group_list)
+        simple_group= 0;
+      if (order)
+        simple_order= 0;
+    }
   }
 
   /*

@@ -1402,3 +1402,35 @@ SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #43029: FORCE INDEX FOR ORDER BY is ignored when join buffering 
+--echo #   is used
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY (a));
+
+INSERT INTO t1 VALUES (0, NULL), (1, NULL), (2, NULL), (3, NULL);
+INSERT INTO t1 SELECT a+4, b FROM t1;
+INSERT INTO t1 SELECT a+8, b FROM t1;
+
+CREATE TABLE t2 (a INT, b INT);
+
+INSERT INTO t2 VALUES (0,NULL), (1,NULL), (2,NULL), (3,NULL), (4,NULL);
+INSERT INTO t2 SELECT a+4, b FROM t2;
+
+--echo # shouldn't have "using filesort"
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
+
+--echo # should have "using filesort"
+EXPLAIN 
+SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
+
+--echo # should have "using filesort"
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX FOR JOIN (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
+
+DROP TABLE t1, t2;
+
+--echo End of 5.1 tests
