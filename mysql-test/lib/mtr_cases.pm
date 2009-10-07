@@ -490,6 +490,8 @@ sub collect_one_suite($)
   my $lib_innodb_plugin=
     mtr_file_exists(::vs_config_dirs('storage/innodb_plugin', 'ha_innodb_plugin.dll'),
                     "$::basedir/storage/innodb_plugin/.libs/ha_innodb_plugin.so",
+                    "$::basedir/lib/mariadb/plugin/ha_innodb_plugin.so",
+                    "$::basedir/lib/mariadb/plugin/ha_innodb_plugin.dll",
                     "$::basedir/lib/mysql/plugin/ha_innodb_plugin.so",
                     "$::basedir/lib/mysql/plugin/ha_innodb_plugin.dll");
   if ($::mysql_version_id >= 50100 && !(IS_WINDOWS && $::opt_embedded_server) &&

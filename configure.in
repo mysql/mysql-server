@@ -15,7 +15,7 @@ AC_CANONICAL_SYSTEM
 # MySQL version number, but reset the maria subrelease (m1).
 #
 # Note: the following line must be parseable by win/configure.js:GetVersion()
-AM_INIT_AUTOMAKE(mariadb, 5.1.38m1-beta)
+AM_INIT_AUTOMAKE(mariadb, 5.1.38-beta)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
