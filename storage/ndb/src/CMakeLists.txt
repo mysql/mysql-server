@@ -20,7 +20,6 @@ ADD_SUBDIRECTORY(ndbapi)
 ADD_SUBDIRECTORY(kernel)
 ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
-ADD_SUBDIRECTORY(cw)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
