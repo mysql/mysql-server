@@ -1724,6 +1724,7 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   // Ordered index related
   void execBUILDINDXREQ(Signal* signal);
