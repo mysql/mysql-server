@@ -1317,17 +1317,17 @@ public:
      *       invalidated.
      */
     Uint16 savePageIndex;
-    Uint8 logTailMbyte;
+    Uint16 logTailMbyte;
     /**
      *       The mbyte within the starting log file where to start 
      *       executing the log.                
      */
-    Uint8 startMbyte;
+    Uint16 startMbyte;
     /**
      *       The last mbyte in which to execute the log during system
      *       restart.
      */
-    Uint8 stopMbyte;
+    Uint16 stopMbyte;
    /**
      *       This variable refers to the file where invalidation is
      *       occuring during system/node restart.
