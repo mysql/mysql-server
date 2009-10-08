@@ -22,4 +22,4 @@ ADD_LIBRARY(ndbdbdih STATIC
 
 ADD_EXECUTABLE(ndbd_sysfile_reader
     printSysfile.cpp)
-TARGET_LINK_LIBRARIES(ndbd_sysfile_reader dbug mysys strings)
+TARGET_LINK_LIBRARIES(ndbd_sysfile_reader ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
