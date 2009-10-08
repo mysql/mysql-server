@@ -1742,6 +1742,7 @@ restart:
       - block assigned but not yet read from file (invalid data).
   */
 
+#if THREAD
   if (keycache->in_resize)
   {
     /* This is a request during a resize operation */
@@ -1983,6 +1984,9 @@ restart:
     }
     DBUG_RETURN(0);
   }
+#else /* THREAD */
+  DBUG_ASSERT(!keycache->in_resize);
+#endif
 
   if (page_status == PAGE_READ &&
       (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
