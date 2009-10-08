@@ -868,17 +868,14 @@ convert_error_code_to_mysql(
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* Once MySQL add the appropriate code to errmsg.txt then
-		we can get rid of this #ifdef. NOTE: The code checked by
-		the #ifdef is the suggested name for the error condition
-		and the actual error code name could very well be different.
-		This will require some monitoring, ie. the status
-		of this request on our part.*/
-#ifdef ER_TOO_MANY_CONCURRENT_TRXS
-		return(ER_TOO_MANY_CONCURRENT_TRXS);
-#else
+		/* New error code HA_ERR_TOO_MANY_CONCURRENT_TRXS is only
+		available in 5.1.38 and later, but the plugin should still
+		work with previous versions of MySQL. */
+#ifdef HA_ERR_TOO_MANY_CONCURRENT_TRXS
+		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
+#else /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 		return(HA_ERR_RECORD_FILE_FULL);
-#endif
+#endif /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}

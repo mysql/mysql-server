@@ -950,7 +950,7 @@ trx_commit_off_kernel(
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
-crashed, andf we cannot roll it back. */
+crashed, and we cannot roll it back. */
 UNIV_INTERN
 void
 trx_cleanup_at_db_startup(
