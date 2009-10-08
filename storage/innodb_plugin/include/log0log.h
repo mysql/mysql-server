@@ -118,10 +118,9 @@ UNIV_INLINE
 ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
-	byte*		str,	/*!< in: string */
+	const void*	str,	/*!< in: string */
 	ulint		len,	/*!< in: string length */
-	ib_uint64_t*	start_lsn,/*!< out: start lsn of the log record */
-	ibool*		success);/*!< out: TRUE if success */
+	ib_uint64_t*	start_lsn);/*!< out: start lsn of the log record */
 /***********************************************************************//**
 Releases the log mutex. */
 UNIV_INLINE
