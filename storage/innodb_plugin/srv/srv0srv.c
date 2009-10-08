@@ -292,12 +292,6 @@ UNIV_INTERN ulint srv_buf_pool_flushed = 0;
 reading of a disk page */
 UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
-/** Number of sequential read-aheads */
-UNIV_INTERN ulint srv_read_ahead_seq = 0;
-
-/** Number of random read-aheads */
-UNIV_INTERN ulint srv_read_ahead_rnd = 0;
-
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
 
@@ -464,8 +458,6 @@ static ulint   srv_main_background_loops	= 0;
 static ulint   srv_main_flush_loops		= 0;
 /* Log writes involving flush. */
 static ulint   srv_log_writes_and_flush		= 0;
-/* Log writes not including flush. */
-static ulint   srv_log_buffer_writes		= 0;
 
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
@@ -714,9 +706,8 @@ srv_print_master_thread_info(
 		srv_main_1_second_loops, srv_main_sleeps,
 		srv_main_10_second_loops, srv_main_background_loops,
 		srv_main_flush_loops);
-	fprintf(file, "srv_master_thread log flush and writes: %lu "
-		      " log writes only: %lu\n",
-		      srv_log_writes_and_flush, srv_log_buffer_writes);
+	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
+		      srv_log_writes_and_flush);
 }
 
 /*********************************************************************//**
@@ -1877,14 +1868,16 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_reads = os_n_file_reads;
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
-	export_vars.innodb_buffer_pool_read_requests = buf_pool->n_page_gets;
+	export_vars.innodb_buffer_pool_read_requests = buf_pool->stat.n_page_gets;
 	export_vars.innodb_buffer_pool_write_requests
 		= srv_buf_pool_write_requests;
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
-	export_vars.innodb_buffer_pool_read_ahead_rnd = srv_read_ahead_rnd;
-	export_vars.innodb_buffer_pool_read_ahead_seq = srv_read_ahead_seq;
+	export_vars.innodb_buffer_pool_read_ahead
+		= buf_pool->stat.n_ra_pages_read;
+	export_vars.innodb_buffer_pool_read_ahead_evicted
+		= buf_pool->stat.n_ra_pages_evicted;
 	export_vars.innodb_buffer_pool_pages_data
 		= UT_LIST_GET_LEN(buf_pool->LRU);
 	export_vars.innodb_buffer_pool_pages_dirty
@@ -1915,9 +1908,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_log_writes = srv_log_writes;
 	export_vars.innodb_dblwr_pages_written = srv_dblwr_pages_written;
 	export_vars.innodb_dblwr_writes = srv_dblwr_writes;
-	export_vars.innodb_pages_created = buf_pool->n_pages_created;
-	export_vars.innodb_pages_read = buf_pool->n_pages_read;
-	export_vars.innodb_pages_written = buf_pool->n_pages_written;
+	export_vars.innodb_pages_created = buf_pool->stat.n_pages_created;
+	export_vars.innodb_pages_read = buf_pool->stat.n_pages_read;
+	export_vars.innodb_pages_written = buf_pool->stat.n_pages_written;
 	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
 	export_vars.innodb_row_lock_current_waits
 		= srv_n_lock_wait_current_count;
@@ -2284,12 +2277,6 @@ srv_sync_log_buffer_in_background(void)
 		log_buffer_sync_in_background(TRUE);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
-	} else {
-		/* Actually we don't need to write logs here.
-		We are just being extra safe here by forcing
-		the log buffer to log file. */
-		log_buffer_sync_in_background(FALSE);
-		srv_log_buffer_writes++;
 	}
 }
 
@@ -2340,8 +2327,8 @@ loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	n_ios_very_old = log_sys->n_log_ios + buf_pool->n_pages_read
-		+ buf_pool->n_pages_written;
+	n_ios_very_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
+		+ buf_pool->stat.n_pages_written;
 	mutex_enter(&kernel_mutex);
 
 	/* Store the user activity counter at the start of this loop */
@@ -2361,8 +2348,8 @@ loop:
 	skip_sleep = FALSE;
 
 	for (i = 0; i < 10; i++) {
-		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
-			+ buf_pool->n_pages_written;
+		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
+			+ buf_pool->stat.n_pages_written;
 		srv_main_thread_op_info = "sleeping";
 		srv_main_1_second_loops++;
 
@@ -2401,8 +2388,8 @@ loop:
 
 		n_pend_ios = buf_get_n_pending_ios()
 			+ log_sys->n_pending_writes;
-		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
-			+ buf_pool->n_pages_written;
+		n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
+			+ buf_pool->stat.n_pages_written;
 		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
 		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
@@ -2418,6 +2405,8 @@ loop:
 			/* Try to keep the number of modified pages in the
 			buffer pool under the limit wished by the user */
 
+			srv_main_thread_op_info =
+				"flushing buffer pool pages";
 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 							  PCT_IO(100),
 							  IB_ULONGLONG_MAX);
@@ -2436,6 +2425,8 @@ loop:
 			ulint n_flush = buf_flush_get_desired_flush_rate();
 
 			if (n_flush) {
+				srv_main_thread_op_info =
+					"flushing buffer pool pages";
 				n_flush = ut_min(PCT_IO(100), n_flush);
 				n_pages_flushed =
 					buf_flush_batch(
@@ -2473,8 +2464,8 @@ loop:
 	are not required, and may be disabled. */
 
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
-	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
-		+ buf_pool->n_pages_written;
+	n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
+		+ buf_pool->stat.n_pages_written;
 
 	srv_main_10_second_loops++;
 	if (n_pend_ios < SRV_PEND_IO_THRESHOLD

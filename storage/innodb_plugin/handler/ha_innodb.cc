@@ -72,6 +72,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
+#include "buf0lru.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -151,6 +152,10 @@ static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
+
+/** Percentage of the buffer pool to reserve for 'old' blocks.
+Connected to buf_LRU_old_ratio. */
+static uint innobase_old_blocks_pct;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -490,10 +495,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
   (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
-  {"buffer_pool_read_ahead_rnd",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
-  {"buffer_pool_read_ahead_seq",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_seq, SHOW_LONG},
+  {"buffer_pool_read_ahead",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
+  {"buffer_pool_read_ahead_evicted",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_evicted, SHOW_LONG},
   {"buffer_pool_read_requests",
   (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG},
   {"buffer_pool_reads",
@@ -2203,6 +2208,9 @@ innobase_change_buffering_inited_ok:
 
 	ut_a(0 == strcmp(my_charset_latin1.name, "latin1_swedish_ci"));
 	srv_latin1_ordering = my_charset_latin1.sort_order;
+
+	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
+		innobase_old_blocks_pct, FALSE);
 
 	innobase_commit_concurrency_init_default();
 
@@ -9610,6 +9618,25 @@ innodb_adaptive_hash_index_update(
 	}
 }
 
+/****************************************************************//**
+Update the system variable innodb_old_blocks_pct using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_old_blocks_pct_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
+		*static_cast<const uint*>(save), TRUE);
+}
+
 /*************************************************************//**
 Check if it is a valid value of innodb_change_buffering.  This function is
 registered as a callback with MySQL.
@@ -9847,7 +9874,7 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   NULL, NULL, 500L, 1L, ~0L, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
@@ -9885,6 +9912,18 @@ static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
   NULL, NULL, 1, 1, 10, 0);
+
+static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of the buffer pool to reserve for 'old' blocks.",
+  NULL, innodb_old_blocks_pct_update, 100 * 3 / 8, 5, 95, 0);
+
+static MYSQL_SYSVAR_UINT(old_blocks_time, buf_LRU_old_threshold_ms,
+  PLUGIN_VAR_RQCMDARG,
+  "Move blocks to the 'new' end of the buffer pool if the first access"
+  " was at least this many milliseconds ago."
+  " The timeout is disabled if 0 (the default).",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -9984,6 +10023,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_flushing),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(mirrored_log_groups),
+  MYSQL_SYSVAR(old_blocks_pct),
+  MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
