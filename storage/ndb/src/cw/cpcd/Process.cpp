@@ -18,14 +18,22 @@
 
 #include <ndb_global.h>
 
+#ifdef _WIN32
+#include <process.h>
+#include <sys/stat.h>
+#include <io.h>
+#endif
 #include <BaseString.hpp>
 #include <InputStream.hpp>
 
 #include "common.hpp"
 #include "CPCD.hpp"
+#include <errno.h>
 
 #ifndef _WIN32
 #include <pwd.h>
+#else
+#include <direct.h>
 #endif
 
 #ifdef HAVE_GETRLIMIT
@@ -55,7 +63,7 @@ CPCD::Process::print(FILE * f){
 
 CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
   m_id = -1;
-  m_pid = -1;
+  m_pid = bad_pid;
   props.get("id", (Uint32 *) &m_id);
   props.get("name", m_name);
   props.get("group", m_group);
@@ -108,12 +116,13 @@ CPCD::Process::monitor() {
 bool
 CPCD::Process::isRunning() {
 
-  if(m_pid <= 1){
+  if (is_bad_pid(m_pid)) {
     //logger.critical("isRunning(%d) invalid pid: %d", m_id, m_pid);
     return false;
   }
   /* Check if there actually exists a process with such a pid */
   errno = 0;
+#ifndef _WIN32
   int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
 				   * checkes if the process actually exists */
   if(s != 0) {
@@ -130,14 +139,15 @@ CPCD::Process::isRunning() {
       break;
     }
     return false;
-  } 
+  }
+#endif
   return true;
 }
 
 int
 CPCD::Process::readPid() {
-  if(m_pid != -1){
-    logger.critical("Reading pid while != -1(%d)", m_pid);
+  if (!is_bad_pid(m_pid)) {
+    logger.critical("Reading pid while having valid process (%d)", m_pid);
     return m_pid;
   }
 
@@ -167,6 +177,17 @@ CPCD::Process::readPid() {
   
   return -1;
 }
+#ifdef _WIN32
+inline int mkstemp(char *tmp)
+{
+  int fd;
+
+  if (!_mktemp(tmp))
+    return -1;
+  fd = _open(tmp, _O_CREAT|_O_RDWR|_O_TEXT|_O_TRUNC, _S_IREAD|_S_IWRITE);
+  return fd;
+}
+#endif
 
 int
 CPCD::Process::writePid(int pid) {
@@ -256,9 +277,13 @@ set_ulimit(const BaseString & pair){
   return 0;
 }
 
+#ifdef _WIN32
+const int S_IRUSR = _S_IREAD, S_IWUSR = _S_IWRITE;
+#endif
+
 void
 CPCD::Process::do_exec() {
-  size_t i; 
+  size_t i;
   setup_environment(m_env.c_str());
 
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
@@ -271,7 +296,7 @@ CPCD::Process::do_exec() {
       _exit(1);
     }
   }
-
+#ifndef _WIN32
   Vector<BaseString> ulimit;
   m_ulimit.split(ulimit);
   for(i = 0; i<ulimit.size(); i++){
@@ -330,7 +355,14 @@ CPCD::Process::do_exec() {
    * create a new logger here */
   logger.error("Exec failed: %s\n", strerror(errno));
   /* NOTREACHED */
+#endif
 }
+
+#ifdef _WIN32
+void sched_yield() {
+  Sleep(100);
+}
+#endif
 
 int
 CPCD::Process::start() {
@@ -352,6 +384,7 @@ CPCD::Process::start() {
   int pid = -1;
   switch(m_processType){
   case TEMPORARY:{
+#ifndef _WIN32
     /**
      * Simple fork
      * don't ignore child
@@ -375,8 +408,10 @@ CPCD::Process::start() {
       logger.debug("Started temporary %d : pid=%d", m_id, pid);
       break;
     }
+#endif
     break;
   }
+#ifndef _WIN32
   case PERMANENT:{
     /**
      * PERMANENT
@@ -417,6 +452,7 @@ CPCD::Process::start() {
     }
     break;
   }
+#endif
   default:
     logger.critical("Unknown process type");
     return -1;
@@ -427,17 +463,18 @@ CPCD::Process::start() {
   }
   
   errno = 0;
-  pid_t pgid = getpgid(pid);
+  pid_t pgid = IF_WIN(-1, getpgid(pid));
   
   if(pgid != -1 && pgid != m_pid){
     logger.error("pgid and m_pid don't match: %d %d (%d)", pgid, m_pid, pid);
   }
-  
+
   if(isRunning()){
     m_status = RUNNING;
     return 0;
   }
   m_status = STOPPED;
+
   return -1;
 }
 
@@ -448,13 +485,13 @@ CPCD::Process::stop() {
   BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
   
-  if(m_pid <= 1){
+  if (is_bad_pid(m_pid)) {
     logger.critical("Stopping process with bogus pid: %d id: %d", 
 		    m_pid, m_id);
     return;
   }
   m_status = STOPPING;
-  
+#ifndef _WIN32
   errno = 0;
   int signo= SIGTERM;
   if(m_shutdown_options == "SIGKILL")
@@ -482,7 +519,8 @@ CPCD::Process::stop() {
       break;
     }
   } 
-  
-  m_pid = -1;
+#endif
+
+  m_pid = bad_pid;
   m_status = STOPPED;
 }
