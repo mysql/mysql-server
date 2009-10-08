@@ -1106,7 +1106,7 @@ innobase_start_or_create_for_mysql(void)
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef HAVE_IB_GCC_ATOMIC_BUILTINS
 # ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	fprintf(stderr,
 		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
@@ -1130,10 +1130,10 @@ innobase_start_or_create_for_mysql(void)
 	fprintf(stderr,
 		"InnoDB: Mutexes use Windows interlocked functions.\n");
 # endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* HAVE_IB_GCC_ATOMIC_BUILTINS */
 	fprintf(stderr,
 		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_IB_GCC_ATOMIC_BUILTINS */
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
