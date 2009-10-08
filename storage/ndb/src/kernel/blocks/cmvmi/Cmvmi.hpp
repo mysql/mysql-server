@@ -118,6 +118,9 @@ private:
   Cmvmi(const Cmvmi &obj);
   void operator = (const Cmvmi &);
 
+  void startFragmentedSend(Signal* signal, Uint32 variant, Uint32 numSigs, NodeReceiverGroup rg);
+  void testNodeFailureCleanupCallback(Signal* signal, Uint32 variant, Uint32 elementsCleaned);
+  void testFragmentedCleanup(Signal* signal, SectionHandle* handle, Uint32 testType, Uint32 variant);
   void sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode);
 
   Uint32 c_memusage_report_frequency;

@@ -4259,6 +4259,17 @@ Dbdict::restartDropObj(Signal* signal,
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
+void Dbdict::handleApiFailureCallback(Signal* signal, 
+                                      Uint32 failedNodeId,
+                                      Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = reference();
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+}
+
 /* ---------------------------------------------------------------- */
 // We receive a report of an API that failed.
 /* ---------------------------------------------------------------- */
@@ -4268,6 +4279,7 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
   Uint32 failedApiNode = signal->theData[0];
   BlockReference retRef = signal->theData[1];
 
+  ndbrequire(retRef == QMGR_REF); // As callback hard-codes QMGR_REF
 #if 0
   Uint32 userNode = refToNode(c_connRecord.userBlockRef);
   if (userNode == failedApiNode) {
@@ -4277,7 +4289,22 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
 #endif
 
   // sends API_FAILCONF when done
-  handleApiFail(signal, failedApiNode, retRef);
+  handleApiFail(signal, failedApiNode);
+}//execAPI_FAILREQ()
+
+void Dbdict::handleNdbdFailureCallback(Signal* signal, 
+                                       Uint32 failedNodeId, 
+                                       Uint32 ignoredRc)
+{
+  jamEntry();
+
+  /* Node failure handling is complete */
+  NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
+  nfCompRep->blockNo      = DBDICT;
+  nfCompRep->nodeId       = getOwnNodeId();
+  nfCompRep->failedNodeId = failedNodeId;
+  sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
+             NFCompleteRep::SignalLength, JBB);
 }
 
 /* ---------------------------------------------------------------- */
@@ -4345,12 +4372,11 @@ void Dbdict::send_nf_complete_rep(Signal* signal, const NodeFailRep* nodeFail)
       ndbout_c("Sending NF_COMPLETEREP for node %u", i);
 #endif
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
-      NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
-      nfCompRep->blockNo      = DBDICT;
-      nfCompRep->nodeId       = getOwnNodeId();
-      nfCompRep->failedNodeId = nodePtr.i;
-      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
-		 NFCompleteRep::SignalLength, JBB);
+
+      Callback cb = {safe_cast(&Dbdict::handleNdbdFailureCallback),
+                     i};
+
+      simBlockNodeFailure(signal, nodePtr.i, cb);
     }//if
   }//for
 
@@ -25836,8 +25862,7 @@ Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
  */
 void
 Dbdict::handleApiFail(Signal* signal,
-                      Uint32 failedApiNode,
-                      BlockReference retRef)
+                      Uint32 failedApiNode)
 {
   D("handleApiFail" << V(failedApiNode));
 
@@ -25876,7 +25901,6 @@ Dbdict::handleApiFail(Signal* signal,
         ndbrequire(ok);
 
         tx_ptr.p->m_clientFlags |= TransClient::ApiFail;
-        tx_ptr.p->m_apiFailRetRef = retRef;
         takeOvers++;
       }
     }
@@ -25888,7 +25912,7 @@ Dbdict::handleApiFail(Signal* signal,
 
   if (takeOvers == 0) {
     jam();
-    sendApiFailConf(signal, failedApiNode, retRef);
+    apiFailBlockHandling(signal, failedApiNode);
   }
 }
 
@@ -26050,19 +26074,17 @@ Dbdict::finishApiFail(Signal* signal, TxHandlePtr tx_ptr)
 
   if (takeOvers == 0) {
     jam();
-    Uint32 retRef = tx_ptr.p->m_apiFailRetRef;
-    sendApiFailConf(signal, failedApiNode, retRef);
+    apiFailBlockHandling(signal, failedApiNode);
   }
 }
 
 void
-Dbdict::sendApiFailConf(Signal* signal,
-                        Uint32 failedApiNode,
-                        BlockReference retRef)
+Dbdict::apiFailBlockHandling(Signal* signal,
+                             Uint32 failedApiNode)
 {
-  signal->theData[0] = failedApiNode;
-  signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+  Callback cb = { safe_cast(&Dbdict::handleApiFailureCallback),
+                  failedApiNode };
+  simBlockNodeFailure(signal, failedApiNode, cb);
 }
 
 // find callback for any key
