@@ -114,10 +114,12 @@ int main(int argc, char** argv){
   if(debug)
     logger.createConsoleHandler();
 
+#ifndef _WIN32
   if(user && runas(user) != 0){
     logger.critical("Unable to change user: %s", user);
     _exit(1);
   }
+#endif
 
   if(logfile != NULL){
     BaseString tmp;
@@ -127,8 +129,10 @@ int main(int argc, char** argv){
     logger.addHandler(new FileLogHandler(tmp.c_str()));
   }
   
+#ifndef _WIN32
   if(use_syslog)
     logger.addHandler(new SysLogHandler());
+#endif
 
   logger.info("Starting");
 
