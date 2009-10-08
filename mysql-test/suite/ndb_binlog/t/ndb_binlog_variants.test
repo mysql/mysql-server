@@ -205,9 +205,8 @@ drop table bah;
 --echo Manually applying captured binlog
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
-let $BINLOG_FILE= '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql';
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $BINLOG_FILE
---exec $MYSQL -uroot < $BINLOG_FILE
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
 select * from bah order by tst;
