@@ -1797,7 +1797,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+  if ($mysql_version_id >= 50100) {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
