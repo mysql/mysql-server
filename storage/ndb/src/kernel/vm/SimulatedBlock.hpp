@@ -237,6 +237,37 @@ protected:
 			    Callback &,
 			    Uint32 messageSize = 240);
 
+  /**
+   * simBlockNodeFailure
+   *
+   * Method must be called by blocks that send or receive 
+   * remote Fragmented Signals when they detect a node 
+   * (NDBD or API) failure.
+   * If the block needs to acknowledge or perform further
+   * processing after completing block-level node failure 
+   * handling, it can supply a Callback which will be invoked 
+   * when block-level node failure handling has completed.
+   * Otherwise TheEmptyCallback is used.
+   * If TheEmptyCallback is used, all failure handling is
+   * performed in the current timeslice, to avoid any
+   * races.
+   * 
+   * Parameters
+   *   signal       : Current signal*
+   *   failedNodeId : Node id of failed node
+   *   cb           : Callback to be executed when block-level
+   *                  node failure handling completed.
+   *                  TheEmptyCallback is passed if no further
+   *                  processing is required.
+   * Returns
+   *   Number of 'resources' cleaned up in call.
+   *   Callback return code is total resources cleaned up.
+   *   
+   */
+  Uint32 simBlockNodeFailure(Signal* signal,
+                             Uint32 failedNodeId,
+                             Callback& cb = TheEmptyCallback);
+
   /**********************************************************
    * Fragmented signals structures
    */
@@ -273,7 +304,8 @@ protected:
     
     enum Status {
       SendNotComplete = 0,
-      SendComplete    = 1
+      SendComplete    = 1,
+      SendCancelled   = 2
     };
     Uint8  m_status;
     Uint8  m_prio;
@@ -355,6 +387,23 @@ private:
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const BlockReference theReference;
+
+  Uint32 doNodeFailureCleanup(Signal* signal,
+                              Uint32 failedNodeId,
+                              Uint32 resource,
+                              Uint32 cursor,
+                              Uint32 elementsCleaned,
+                              Callback& cb);
+
+  bool doCleanupFragInfo(Uint32 failedNodeId,
+                         Uint32& cursor,
+                         Uint32& rtUnitsUsed,
+                         Uint32& elementsCleaned);
+
+  bool doCleanupFragSend(Uint32 failedNodeId,
+                         Uint32& cursor,
+                         Uint32& rtUnitsUsed,
+                         Uint32& elementsCleaned);
   
 protected:
   Block_context m_ctx;
@@ -467,6 +516,9 @@ private:
   ArrayPool<FragmentSendInfo> c_fragmentSendPool;
   DLList<FragmentSendInfo> c_linearFragmentSendList;
   DLList<FragmentSendInfo> c_segmentedFragmentSendList;
+
+protected:
+  Uint32 debugPrintFragmentCounts();
   
 public: 
   class MutexManager {

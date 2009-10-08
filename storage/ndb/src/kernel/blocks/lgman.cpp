@@ -29,6 +29,7 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/LgmanContinueB.hpp>
 #include <signaldata/GetTabInfo.hpp>
+#include <signaldata/NodeFailRep.hpp>
 #include "ndbfs/Ndbfs.hpp"
 #include "dbtup/Dbtup.hpp"
 
@@ -66,6 +67,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_READ_CONFIG_REQ, &Lgman::execREAD_CONFIG_REQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Lgman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Lgman::execCONTINUEB);
+  addRecSignal(GSN_NODE_FAILREP, &Lgman::execNODE_FAILREP);
 
   addRecSignal(GSN_CREATE_FILE_REQ, &Lgman::execCREATE_FILE_REQ);
   addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Lgman::execCREATE_FILEGROUP_REQ);
@@ -255,6 +257,26 @@ Lgman::execCONTINUEB(Signal* signal){
     return;
   }
   }
+}
+
+void
+Lgman::execNODE_FAILREP(Signal* signal)
+{
+  jamEntry();
+  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NdbNodeBitmask failed; 
+  failed.assign(NdbNodeBitmask::Size, rep->theNodes);
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // No distributed fragmented signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
 }
 
 void
