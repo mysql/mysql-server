@@ -5372,6 +5372,20 @@ lock_release_autoinc_last_lock(
 }
 
 /*******************************************************************//**
+Check if a transaction holds any autoinc locks. 
+@return TRUE if the transaction holds any AUTOINC locks. */
+UNIV_INTERN
+ibool
+lock_trx_holds_autoinc_locks(
+/*=========================*/
+	const trx_t*	trx)		/*!< in: transaction */
+{
+	ut_a(trx->autoinc_locks != NULL);
+
+	return(!ib_vector_is_empty(trx->autoinc_locks));
+}
+
+/*******************************************************************//**
 Release all the transaction's autoinc locks. */
 UNIV_INTERN
 void

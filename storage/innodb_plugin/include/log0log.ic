@@ -27,6 +27,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "mtr0mtr.h"
 
+#ifdef UNIV_LOG_DEBUG
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
@@ -34,11 +35,12 @@ UNIV_INTERN
 ibool
 log_check_log_recs(
 /*===============*/
-	byte*		buf,		/*!< in: pointer to the start of
+	const byte*	buf,		/*!< in: pointer to the start of
 					the log segment in the
 					log_sys->buf log buffer */
 	ulint		len,		/*!< in: segment length in bytes */
 	ib_uint64_t	buf_start_lsn);	/*!< in: buffer start lsn */
+#endif /* UNIV_LOG_DEBUG */
 
 /************************************************************//**
 Gets a log block flush bit.
@@ -305,53 +307,49 @@ UNIV_INLINE
 ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
-	byte*		str,	/*!< in: string */
+	const void*	str,	/*!< in: string */
 	ulint		len,	/*!< in: string length */
-	ib_uint64_t*	start_lsn,/*!< out: start lsn of the log record */
-	ibool*		success)/*!< out: TRUE if success */
+	ib_uint64_t*	start_lsn)/*!< out: start lsn of the log record */
 {
-	log_t*		log	= log_sys;
 	ulint		data_len;
 	ib_uint64_t	lsn;
 
-	*success = TRUE;
+	mutex_enter(&log_sys->mutex);
 
-	mutex_enter(&(log->mutex));
-
-	data_len = len + log->buf_free % OS_FILE_LOG_BLOCK_SIZE;
+	data_len = len + log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE;
 
 	if (data_len >= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
 
 		/* The string does not fit within the current log block
 		or the log block would become full */
 
-		*success = FALSE;
-
-		mutex_exit(&(log->mutex));
+		mutex_exit(&log_sys->mutex);
 
 		return(0);
 	}
 
-	*start_lsn = log->lsn;
+	*start_lsn = log_sys->lsn;
 
-	ut_memcpy(log->buf + log->buf_free, str, len);
+	ut_memcpy(log_sys->buf + log_sys->buf_free, str, len);
 
-	log_block_set_data_len((byte*) ut_align_down(log->buf + log->buf_free,
+	log_block_set_data_len((byte*) ut_align_down(log_sys->buf
+						     + log_sys->buf_free,
 						     OS_FILE_LOG_BLOCK_SIZE),
 			       data_len);
 #ifdef UNIV_LOG_DEBUG
-	log->old_buf_free = log->buf_free;
-	log->old_lsn = log->lsn;
+	log_sys->old_buf_free = log_sys->buf_free;
+	log_sys->old_lsn = log_sys->lsn;
 #endif
-	log->buf_free += len;
+	log_sys->buf_free += len;
 
-	ut_ad(log->buf_free <= log->buf_size);
+	ut_ad(log_sys->buf_free <= log_sys->buf_size);
 
-	lsn = log->lsn += len;
+	lsn = log_sys->lsn += len;
 
 #ifdef UNIV_LOG_DEBUG
-	log_check_log_recs(log->buf + log->old_buf_free,
-			   log->buf_free - log->old_buf_free, log->old_lsn);
+	log_check_log_recs(log_sys->buf + log_sys->old_buf_free,
+			   log_sys->buf_free - log_sys->old_buf_free,
+			   log_sys->old_lsn);
 #endif
 	return(lsn);
 }
