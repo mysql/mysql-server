@@ -246,7 +246,7 @@ value may wrap around.  It should only be used for heuristic
 purposes.
 @return	ms since epoch */
 UNIV_INTERN
-uint
+ulint
 ut_time_ms(void);
 /*============*/
 #endif /* !UNIV_HOTBACKUP */

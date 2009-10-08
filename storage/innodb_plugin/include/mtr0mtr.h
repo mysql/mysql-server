@@ -118,7 +118,7 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 #define MLOG_WRITE_STRING	((byte)30)	/*!< write a string to
 						a page */
 #define	MLOG_MULTI_REC_END	((byte)31)	/*!< if a single mtr writes
-						log records for several pages,
+						several log records,
 						this log record ends the
 						sequence of these records */
 #define MLOG_DUMMY_RECORD	((byte)32)	/*!< dummy log record used to

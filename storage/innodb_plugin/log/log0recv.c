@@ -1327,6 +1327,7 @@ recv_recover_page_func(
 	buf_block_t*	block)	/*!< in/out: buffer block */
 {
 	page_t*		page;
+	page_zip_des_t*	page_zip;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1376,6 +1377,7 @@ recv_recover_page_func(
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	page = block->frame;
+	page_zip = buf_block_get_page_zip(block);
 
 #ifndef UNIV_HOTBACKUP
 	if (just_read_in) {
@@ -1436,12 +1438,18 @@ recv_recover_page_func(
 		if (recv->type == MLOG_INIT_FILE_PAGE) {
 			page_lsn = page_newest_lsn;
 
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM, 0);
-			mach_write_ull(page + FIL_PAGE_LSN, 0);
+			memset(FIL_PAGE_LSN + page, 0, 8);
+			memset(UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM
+			       + page, 0, 8);
+
+			if (page_zip) {
+				memset(FIL_PAGE_LSN + page_zip->data, 0, 8);
+			}
 		}
 
 		if (recv->start_lsn >= page_lsn) {
+
+			ib_uint64_t	end_lsn;
 
 			if (!modification_to_page) {
 
@@ -1464,11 +1472,17 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr);
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM,
-				       recv->start_lsn + recv->len);
-			mach_write_ull(page + FIL_PAGE_LSN,
-				       recv->start_lsn + recv->len);
+
+			end_lsn = recv->start_lsn + recv->len;
+			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
+			mach_write_ull(UNIV_PAGE_SIZE
+				       - FIL_PAGE_END_LSN_OLD_CHKSUM
+				       + page, end_lsn);
+
+			if (page_zip) {
+				mach_write_ull(FIL_PAGE_LSN
+					       + page_zip->data, end_lsn);
+			}
 		}
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {

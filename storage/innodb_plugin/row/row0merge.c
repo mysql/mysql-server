@@ -1576,7 +1576,6 @@ row_merge(
 	ulint		ohalf;	/*!< half the output file */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
-	ut_ad(ihalf > 0);
 	ut_ad(ihalf < file->offset);
 
 	of.fd = *tmpfd;
@@ -1665,6 +1664,10 @@ row_merge_sort(
 {
 	ulint	half = file->offset / 2;
 
+	/* The file should always contain at least one byte (the end
+	of file marker).  Thus, it must be at least one block. */
+	ut_ad(file->offset > 0);
+
 	do {
 		ulint	error;
 
@@ -1673,6 +1676,10 @@ row_merge_sort(
 		if (error != DB_SUCCESS) {
 			return(error);
 		}
+
+		/* half > 0 should hold except when the file consists
+		of one block.  No need to merge further then. */
+		ut_ad(half > 0 || file->offset == 1);
 	} while (half < file->offset && half > 0);
 
 	return(DB_SUCCESS);
