@@ -942,11 +942,12 @@ public:
 
     enum NodeFailBits
     {
-      NF_TAKEOVER          = 0x1,
-      NF_CHECK_SCAN        = 0x2,
-      NF_CHECK_TRANSACTION = 0x4,
-      NF_CHECK_DROP_TAB    = 0x8,
-      NF_NODE_FAIL_BITS    = 0xF // All bits...
+      NF_TAKEOVER          = 0x01,
+      NF_CHECK_SCAN        = 0x02,
+      NF_CHECK_TRANSACTION = 0x04,
+      NF_CHECK_DROP_TAB    = 0x08,
+      NF_BLOCK_HANDLE      = 0x10,
+      NF_NODE_FAIL_BITS    = 0x1F // All bits...
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
@@ -1634,7 +1635,10 @@ private:
 			 LocalDLList<ScanFragRec>::Head&);
 
   void nodeFailCheckTransactions(Signal*,Uint32 transPtrI,Uint32 failedNodeId);
+  void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
   void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
+
+  void apiFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
   
   // Initialisation
   void initData();

@@ -2153,7 +2153,12 @@ private:
 
   // NF handling
   void removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes);
-
+  void handleNdbdFailureCallback(Signal* signal, 
+                                 Uint32 failedNodeId,
+                                 Uint32 ignoredRc);
+  void handleApiFailureCallback(Signal* signal,
+                                Uint32 failedNodeId,
+                                Uint32 ignoredRc);
 
   // Statement blocks
 

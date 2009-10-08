@@ -43,6 +43,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   void execCREATE_FILE_REQ(Signal* signal);
   void execCREATE_FILEGROUP_REQ(Signal* signal);

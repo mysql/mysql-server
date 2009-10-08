@@ -850,6 +850,18 @@ Backup::execNODE_FAILREP(Signal* signal)
     jam();
     checkNodeFail(signal, ptr, newCoordinator, theFailedNodes);
   }
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(NdbNodeBitmask::get(theFailedNodes, i))
+    {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // Backup should have no distributed frag signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
 }
 
 bool
