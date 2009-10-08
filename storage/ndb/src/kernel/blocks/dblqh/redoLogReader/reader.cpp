@@ -60,7 +60,8 @@ Uint32 *redoLogPage;
 unsigned NO_MBYTE_IN_FILE = 16;
 
 NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
-  Uint32 wordIndex = 0;
+  ndb_init();
+  Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
   Uint32 recordType = 1234567890;
 
@@ -166,7 +167,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
       Uint32 *redoLogPagePos = redoLogPage + i*PAGESIZE;
       if (words_from_previous_page)
       {
-	memmove(redoLogPagePos + wordIndex ,
+	memmove(redoLogPagePos + wordIndex,
 		redoLogPagePos - words_from_previous_page,
 		words_from_previous_page*4);
       }
@@ -183,8 +184,8 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	else
 	{
 	  // Print out mbyte number, page number and word index.
-	  ndbout << j << ":" << i << ":" << wordIndex << endl 
-		 << " " << j*32 + i << ":" << wordIndex << " ";
+          ndbout_c("mb: %u fp: %u pos: %u",
+                   j, (j*32 + i), wordIndex);
 	}
 	redoLogPagePos = redoLogPage + i*PAGESIZE + wordIndex;
 	oldWordIndex = wordIndex;
@@ -319,7 +320,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
             wordIndex = lastWord;
           }
 	}
-      } while(wordIndex < lastWord && i < NO_PAGES_IN_MBYTE);
+      } while(wordIndex < (Int32)lastWord && i < NO_PAGES_IN_MBYTE);
 
 
       if (false && lastPage)
@@ -435,10 +436,6 @@ void readArguments(int argc, const char** argv)
 	onlyLap = true;
       } else if (strcmp(argv[i], "-mbyte") == 0) {
 	startAtMbyte = atoi(argv[i+1]);
-	if (startAtMbyte > 15) {
-	  usage(argv[0]);
-	  doExit();
-	}
 	argc--;
 	i++;
       } else if (strcmp(argv[i], "-page") == 0) {
