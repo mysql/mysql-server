@@ -71,6 +71,7 @@ private:
 
   // Node data needed when communicating with remote TRIX:es
   struct NodeRecord {
+    NodeRecord() {}
     bool alive;
     BlockReference trixRef;
     union {
