@@ -319,7 +319,7 @@ DbUtil::createDb(BaseString& m_db)
 
 /* Count Table Rows */
 
-unsigned long
+unsigned long long
 DbUtil::selectCountTable(const char * table)
 {
   BaseString query;
@@ -509,11 +509,11 @@ DbUtil::runQuery(const char* sql,
 
   // Save stats in result set
   rows.put("rows", row);
-  rows.put("affected_rows", mysql_affected_rows(m_mysql));
+  rows.put64("affected_rows", mysql_affected_rows(m_mysql));
   rows.put("mysql_errno", mysql_errno(m_mysql));
   rows.put("mysql_error", mysql_error(m_mysql));
   rows.put("mysql_sqlstate", mysql_sqlstate(m_mysql));
-  rows.put("insert_id", mysql_insert_id(m_mysql));
+  rows.put64("insert_id", mysql_insert_id(m_mysql));
 
   mysql_stmt_close(stmt);
   return true;
@@ -701,15 +701,14 @@ unsigned long long SqlResultSet::columnAsLong(const char* col_name){
 }
 
 
-uint SqlResultSet::insertId(){
-  return get_int("insert_id");
+unsigned long long SqlResultSet::insertId(){
+  return get_long("insert_id");
 }
 
 
-uint SqlResultSet::affectedRows(){
-  return get_int("affected_rows");
+unsigned long long SqlResultSet::affectedRows(){
+  return get_long("affected_rows");
 }
-
 
 uint SqlResultSet::numRows(void){
   return get_int("rows");

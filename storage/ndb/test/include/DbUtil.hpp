@@ -71,8 +71,8 @@ public:
   uint columnAsInt(const char* col_name);
   unsigned long long columnAsLong(const char* col_name);
 
-  uint insertId();
-  uint affectedRows();
+  unsigned long long insertId();
+  unsigned long long affectedRows();
   uint numRows(void);
   uint mysqlErrno();
   const char* mysqlError();
@@ -139,7 +139,7 @@ public:
   const char* last_error() const { return m_last_error.c_str(); }
   int last_errno() const { return m_last_errno; }
 
-  unsigned long selectCountTable(const char * table);
+  unsigned long long selectCountTable(const char * table);
 
   void silent() { m_silent= true; };
 
