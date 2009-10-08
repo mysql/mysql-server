@@ -1103,7 +1103,16 @@ struct buf_page_struct{
 					- BUF_BLOCK_FILE_PAGE:	flush_list
 					- BUF_BLOCK_ZIP_DIRTY:	flush_list
 					- BUF_BLOCK_ZIP_PAGE:	zip_clean
-					- BUF_BLOCK_ZIP_FREE:	zip_free[] */
+					- BUF_BLOCK_ZIP_FREE:	zip_free[]
+
+					The contents of the list node
+					is undefined if !in_flush_list
+					&& state == BUF_BLOCK_FILE_PAGE,
+					or if state is one of
+					BUF_BLOCK_MEMORY,
+					BUF_BLOCK_REMOVE_HASH or
+					BUF_BLOCK_READY_IN_USE. */
+
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
 					when buf_pool_mutex is free, the
