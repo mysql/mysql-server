@@ -24,6 +24,7 @@
 
 struct Tup_page 
 {
+  Tup_page() {}
   struct File_formats::Page_header m_page_header;
   Uint32 m_restart_seq;
   Uint32 page_state;

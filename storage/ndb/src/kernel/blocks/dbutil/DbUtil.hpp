@@ -425,6 +425,7 @@ public:
    * Lock manager
    */
   struct LockQueueElement {
+    LockQueueElement() {}
     Uint32 m_senderData;
     Uint32 m_senderRef;
     union {
