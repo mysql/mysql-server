@@ -200,6 +200,23 @@ ut_time_us(
 }
 
 /**********************************************************//**
+Returns the number of milliseconds since some epoch.  The
+value may wrap around.  It should only be used for heuristic
+purposes.
+@return	ms since epoch */
+UNIV_INTERN
+uint
+ut_time_ms(void)
+/*============*/
+{
+	struct timeval	tv;
+
+	ut_gettimeofday(&tv, NULL);
+
+	return((uint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
+/**********************************************************//**
 Returns the difference of two times in seconds.
 @return	time2 - time1 expressed in seconds */
 UNIV_INTERN

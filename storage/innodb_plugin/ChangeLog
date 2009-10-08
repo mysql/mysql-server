@@ -1,3 +1,37 @@
+2009-08-27	The InnoDB Team
+
+	* dict/dict0dict.c, include/dict0dict.h,
+	mysql-test/innodb_bug44571.result, mysql-test/innodb_bug44571.test:
+	Fix Bug#44571 InnoDB Plugin crashes on ADD INDEX
+
+2009-08-27	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix a bug in the merge sort that can corrupt indexes in fast index
+	creation.  Add some consistency checks.  Check that the number of
+	records remains constant in every merge sort pass.
+
+2009-08-27	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, buf/buf0rea.c,
+	handler/ha_innodb.cc, include/buf0buf.h, include/buf0buf.ic,
+	include/buf0lru.h, include/ut0ut.h, ut/ut0ut.c:
+	Make it possible to tune the buffer pool LRU eviction policy to be
+	more resistant against index scans.  Introduce the settable global
+	variables innodb_old_blocks_pct and innodb_old_blocks_time for
+	controlling the buffer pool eviction policy.  The parameter
+	innodb_old_blocks_pct (5..95) controls the desired amount of "old"
+	blocks in the LRU list.  The default is 37, corresponding to the
+	old fixed ratio of 3/8.  Each time a block is accessed, it will be
+	moved to the "new" blocks if its first access was at least
+	innodb_old_blocks_time milliseconds ago (default 0, meaning every
+	block).  The idea is that in index scans, blocks will be accessed
+	a few times within innodb_old_blocks_time, and they will remain in
+	the "old" section of the LRU list.  Thus, when
+	innodb_old_blocks_time is nonzero, blocks retrieved for one-time
+	index scans will be more likely candidates for eviction than
+	blocks that are accessed in random patterns.
+
 2009-08-26	The InnoDB Team
 
 	* handler/ha_innodb.cc, os/os0file.c:

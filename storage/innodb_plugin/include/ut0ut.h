@@ -239,6 +239,15 @@ ullint
 ut_time_us(
 /*=======*/
 	ullint*	tloc);	/*!< out: us since epoch, if non-NULL */
+/**********************************************************//**
+Returns the number of milliseconds since some epoch.  The
+value may wrap around.  It should only be used for heuristic
+purposes.
+@return	ms since epoch */
+UNIV_INTERN
+uint
+ut_time_ms(void);
+/*============*/
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
