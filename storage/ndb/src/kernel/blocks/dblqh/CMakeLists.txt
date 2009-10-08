@@ -16,15 +16,13 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-LINK_LIBRARIES(ndbgeneral
-               ndbportlib)
-IF(WIN32)
-LINK_LIBRARIES(wsock32)
-ENDIF(WIN32)
-
 ADD_LIBRARY(ndbdblqh STATIC
-            DblqhInit.cpp DblqhMain.cpp DblqhProxy.cpp DblqhCommon.cpp)
+    DblqhInit.cpp
+    DblqhMain.cpp
+    DblqhProxy.cpp
+    DblqhCommon.cpp)
 
 ADD_EXECUTABLE(ndbd_redo_log_reader
-               redoLogReader/records.cpp
-               redoLogReader/reader.cpp)
+    redoLogReader/records.cpp
+    redoLogReader/reader.cpp)
+TARGET_LINK_LIBRARIES(ndbd_redo_log_reader ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
