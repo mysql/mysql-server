@@ -39,10 +39,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 
-#ifdef __WIN__
-extern void win_install_sigabrt_handler();
-#endif
-
 /*
   Get structure for logging connection data for the current user
 */
@@ -612,13 +608,8 @@ void thd_init_client_charset(THD *thd, uint cs_number)
 bool init_new_connection_handler_thread()
 {
   pthread_detach_this_thread();
-#if defined(__WIN__)
-  win_install_sigabrt_handler();
-#else
-  /* Win32 calls this in pthread_create */
   if (my_thread_init())
     return 1;
-#endif /* __WIN__ */
   return 0;
 }
 
@@ -958,7 +949,7 @@ static bool login_connection(THD *thd)
 
   if (error)
   {						// Wrong permissions
-#ifdef __NT__
+#ifdef _WIN32
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);				/* must wait after eof() */
 #endif
