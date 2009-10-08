@@ -649,9 +649,10 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       Uint64 value_int;
       switch(options[i].var_type){
       case GET_INT:
+      case GET_UINT:
 	value_int = *(Uint32*)options[i].value;
 	break;
-      case GET_LL:
+      case GET_ULL:
 	value_int = *(Uint64*)options[i].value;
 	break;
       case GET_STR:
@@ -681,11 +682,19 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 	  ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
 	} 
       }
-      
-      if (options[i].var_type == GET_INT)
+
+      switch(options[i].var_type){
+      case GET_INT:
+      case GET_UINT:
 	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
-      else
-	ctx.m_currentSection->put64(options[i].name, value_int);	
+        break;
+      case GET_ULL:
+	ctx.m_currentSection->put64(options[i].name, value_int);
+        break;
+      default:
+        abort();
+        break;
+      }
     }
   }
   return true;
@@ -800,12 +809,12 @@ InitConfigFileParser::parse_mycnf()
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (uchar**)malloc(sizeof(int));
-	opt.var_type = GET_INT;
+	opt.value = (uchar**)malloc(sizeof(uint));
+	opt.var_type = GET_UINT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (uchar**)malloc(sizeof(Int64));
-	opt.var_type = GET_LL;
+	opt.value = (uchar**)malloc(sizeof(Uint64));
+	opt.var_type = GET_ULL;
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
