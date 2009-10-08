@@ -214,7 +214,7 @@ a waiting s-lock request on the next record? If this s-lock was placed
 by a read cursor moving in the ascending order in the index, we cannot
 do the insert immediately, because when we finally commit our transaction,
 the read cursor should see also the new inserted record. So we should
-move the read cursor backward from the the next record for it to pass over
+move the read cursor backward from the next record for it to pass over
 the new inserted record. This move backward may be too cumbersome to
 implement. If we in this situation just enqueue a second x-lock request
 for our transaction on the next record, then the deadlock mechanism
@@ -3580,7 +3580,8 @@ lock_table_remove_low(
 		and lock_grant()). Therefore it can be empty and we
 		need to check for that. */
 
-		if (!ib_vector_is_empty(trx->autoinc_locks)) {
+		if (!lock_get_wait(lock)
+		    && !ib_vector_is_empty(trx->autoinc_locks)) {
 			lock_t*	autoinc_lock;
 
 			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
@@ -3653,8 +3654,10 @@ lock_table_enqueue_waiting(
 
 	if (lock_deadlock_occurs(lock, trx)) {
 
-		lock_reset_lock_and_trx_wait(lock);
+		/* The order here is important, we don't want to
+		lose the state of the lock before calling remove. */
 		lock_table_remove_low(lock);
+		lock_reset_lock_and_trx_wait(lock);
 
 		return(DB_DEADLOCK);
 	}

@@ -1099,7 +1099,7 @@ fsp_header_inc_size(
 
 /**********************************************************************//**
 Gets the current free limit of the system tablespace.  The free limit
-means the place of the first page which has never been put to the the
+means the place of the first page which has never been put to the
 free list for allocation.  The space above that address is initialized
 to zero.  Sets also the global variable log_fsp_current_free_limit.
 @return	free limit in megabytes */

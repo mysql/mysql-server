@@ -208,9 +208,9 @@ int
 trx_general_rollback_for_mysql(
 /*===========================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		partial,/*!< in: TRUE if partial rollback requested */
 	trx_savept_t*	savept);/*!< in: pointer to savepoint undo number, if
-				partial rollback requested */
+				partial rollback requested, or NULL for
+				complete rollback */
 /*******************************************************************//**
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
