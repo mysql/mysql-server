@@ -1337,6 +1337,9 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
+
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
   }
@@ -1794,7 +1797,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+  if ($mysql_version_id >= 50100) {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
@@ -3252,6 +3255,12 @@ sub run_testcase ($) {
 
   mtr_verbose("Running test:", $tinfo->{name});
 
+  # Allow only alpanumerics pluss _ - + . in combination names
+  my $combination= $tinfo->{combination};
+  if ($combination && $combination !~ /^\w[\w-\.\+]+$/)
+  {
+    mtr_error("Combination '$combination' contains illegal characters");
+  }
   # -------------------------------------------------------
   # Init variables that can change between each test case
   # -------------------------------------------------------
@@ -3660,7 +3669,7 @@ sub extract_warning_lines ($$) {
      # of patterns. For more info see BUG#42408
      qr/^Warning:|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
-     qr/^==.* at 0x/,
+     qr/^==\d*==/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
@@ -4285,7 +4294,8 @@ sub mysqld_start ($$) {
 				 $opt_start_timeout,
 				 $mysqld->{'proc'}))
   {
-    mtr_error("Failed to start mysqld $mysqld->name()");
+    my $mname= $mysqld->name();
+    mtr_error("Failed to start mysqld $mname with command $exe");
   }
 
   # Remember options used when starting
