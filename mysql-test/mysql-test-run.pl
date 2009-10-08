@@ -3247,6 +3247,12 @@ sub run_testcase ($) {
 
   mtr_verbose("Running test:", $tinfo->{name});
 
+  # Allow only alpanumerics pluss _ - + . in combination names
+  my $combination= $tinfo->{combination};
+  if ($combination && $combination !~ /^\w[\w-\.\+]+$/)
+  {
+    mtr_error("Combination '$combination' contains illegal characters");
+  }
   # -------------------------------------------------------
   # Init variables that can change between each test case
   # -------------------------------------------------------
