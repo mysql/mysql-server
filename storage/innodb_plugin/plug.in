@@ -103,7 +103,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
       AC_CHECK_DECLS(
         [HAVE_SOLARIS_ATOMICS],
         [
-          AC_MSG_CHECKING(checking if pthread_t size is integral)
+          AC_MSG_CHECKING(checking if pthread_t type is integral)
           AC_TRY_RUN(
             [
               #include <pthread.h>

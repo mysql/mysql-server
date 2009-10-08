@@ -1,19 +1,20 @@
+2009-08-26	The InnoDB Team
+
+	* handler/ha_innodb.cc, os/os0file.c:
+	Fix Bug#42885 buf_read_ahead_random, buf_read_ahead_linear counters,
+	thread wakeups
+
 2009-08-20	The InnoDB Team
 
 	* lock/lock0lock.c:
-	Fix Bug#46650 InnoDB plugin: We only store the autoinc locks that are
-       	granted in the transaction's autoinc lock vector. A transacton, that
-       	has been rolled back due to a deadlock because of an AUTOINC lock
-       	attempt, will not have added that lock to the vector. We need to check
-       	for that when we remove that lock.
+	Fix Bug#46650 Innodb assertion autoinc_lock == lock in
+	lock_table_remove_low on INSERT SELECT
 
 2009-08-13	The InnoDB Team
 
 	* handler/handler0alter.cc:
 	Fix Bug#46657 InnoDB plugin: invalid read in index_merge_innodb test
-	On a successful CREATE INDEX, diagnostic code read the table flags
-	from a recently freed table object.  Read them from the newly
-	created object instead.
+	(Valgrind)
 
 2009-07-20	The InnoDB Team
 
