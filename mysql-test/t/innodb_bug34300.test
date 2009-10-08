@@ -9,6 +9,7 @@
 -- disable_result_log
 
 # set packet size and reconnect 
+let $max_packet=`select @@global.max_allowed_packet`;
 SET @@global.max_allowed_packet=16777216;
 --connect (newconn, localhost, root,,)
 

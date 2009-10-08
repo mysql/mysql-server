@@ -1,7 +1,6 @@
 2009-07-20	The InnoDB Team
 
-	* buf/buf0rea.c, handler/ha_innodb.cc, include/srv0srv.h,
-	srv/srv0srv.c:
+	* handler/ha_innodb.cc, buf/buf0rea.c, include/srv0srv.h, srv/srv0srv.c
 	Change the read ahead parameter name to innodb_read_ahead_threshold.
 	Change the meaning of this parameter to signify the number of pages
 	that must be sequentially accessed for InnoDB to trigger a readahead
@@ -16,8 +15,8 @@
 
 	* include/univ.i:
 	Support inlining of functions and prefetch with Sun Studio.
-	These changes are based on contribution from Sun Microsystems Inc.
-	under a BSD license.
+	These changes are based on contribution from
+	Sun Microsystems Inc. under a BSD license.
 
 2009-07-14	The InnoDB Team
 
@@ -40,9 +39,9 @@
 
 2009-07-08	The InnoDB Team
 
-	* buf/buf0flu.c, handler/ha_innodb.cc, include/buf0flu.h,
-	include/log0log.h, include/log0log.ic, include/srv0srv.h,
-	srv/srv0srv.c:
+	* srv/srv0srv.c, buf/buf0flu.c, handler/ha_innodb.cc,
+	include/srv0srv.h, include/log0log.ic, include/buf0flu.h,
+	include/log0log.h:
 	Implement the adaptive flushing of dirty pages, which uses
 	a heuristics based flushing rate of dirty pages to avoid IO
 	bursts at checkpoint. Expose new configure knob
@@ -51,8 +50,8 @@
 
 2009-07-07	The InnoDB Team
 
-	* handler/ha_innodb.cc, include/srv0srv.h, log/log0log.c,
-	srv/srv0srv.c:
+	* srv/srv0srv.c, handler/ha_innodb.cc, log/log0log.c,
+	include/srv0srv.h:
 	Implement IO capacity tuning. Expose new configure knob
 	innodb_io_capacity to control the master threads IO rate. The
 	ibuf merge is also changed from synchronous to asynchronous.
@@ -89,12 +88,13 @@
 
 	* handler/handler0alter.cc:
 	Start the user transaction prebuilt->trx if it was not started
-	before adding or dropping an index. Without this fix, the
+	before adding or dropping an index.  Without this fix, the
 	table could be locked outside an active transaction.
 
 2009-06-25	The InnoDB Team
 
-	* handler/ha_innodb.cc, mysql-test/innodb_bug42101.test,
+	* handler/ha_innodb.cc,
+	mysql-test/innodb_bug42101.test,
 	mysql-test/innodb_bug42101.result,
 	mysql-test/innodb_bug42101-nonzero.test,
 	mysql-test/innodb_bug42101-nonzero.result:
