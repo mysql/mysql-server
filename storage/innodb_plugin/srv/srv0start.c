@@ -1829,7 +1829,7 @@ innobase_start_or_create_for_mysql(void)
 		/* Actually, we did not change the undo log format between
 		4.0 and 4.1.1, and we would not need to run purge to
 		completion. Note also that the purge algorithm in 4.1.1
-		can process the the history list again even after a full
+		can process the history list again even after a full
 		purge, because our algorithm does not cut the end of the
 		history list in all cases so that it would become empty
 		after a full purge. That mean that we may purge 4.0 type

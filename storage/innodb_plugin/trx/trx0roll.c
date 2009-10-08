@@ -66,9 +66,9 @@ int
 trx_general_rollback_for_mysql(
 /*===========================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		partial,/*!< in: TRUE if partial rollback requested */
 	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
-				partial rollback requested */
+				partial rollback requested, or NULL for
+				complete rollback */
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
@@ -85,9 +85,8 @@ trx_general_rollback_for_mysql(
 
 	roll_node = roll_node_create(heap);
 
-	roll_node->partial = partial;
-
-	if (partial) {
+	if (savept) {
+		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
 	}
 
@@ -145,7 +144,7 @@ trx_rollback_for_mysql(
 	the transaction object does not have an InnoDB session object, and we
 	set a dummy session that we use for all MySQL transactions. */
 
-	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
+	err = trx_general_rollback_for_mysql(trx, NULL);
 
 	trx->op_info = "";
 
@@ -170,8 +169,7 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	trx->op_info = "rollback of SQL statement";
 
-	err = trx_general_rollback_for_mysql(trx, TRUE,
-					     &(trx->last_sql_stat_start));
+	err = trx_general_rollback_for_mysql(trx, &trx->last_sql_stat_start);
 	/* The following call should not be needed, but we play safe: */
 	trx_mark_sql_stat_end(trx);
 
@@ -282,7 +280,7 @@ trx_rollback_to_savepoint_for_mysql(
 
 	trx->op_info = "rollback to a savepoint";
 
-	err = trx_general_rollback_for_mysql(trx, TRUE, &(savep->savept));
+	err = trx_general_rollback_for_mysql(trx, &savep->savept);
 
 	/* Store the current undo_no of the transaction so that we know where
 	to roll back if we have to roll back the next SQL statement: */
