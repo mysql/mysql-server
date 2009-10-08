@@ -363,9 +363,6 @@ lock_rec_validate_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes
 			or 0 for uncompressed pages */
 	ulint	page_no);/*!< in: page number */
-
-/* Define the following in order to enable lock_rec_validate_page() checks. */
-# undef UNIV_DEBUG_LOCK_VALIDATE
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
