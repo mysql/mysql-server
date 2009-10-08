@@ -794,10 +794,11 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 
-uint32
-copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
-                 uint *errors)
+static uint32
+copy_and_convert_extended(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+                          const char *from, uint32 from_length,
+                          CHARSET_INFO *from_cs,
+                          uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -846,6 +847,65 @@ outp:
   }
   *errors= error_count;
   return (uint32) (to - to_start);
+}
+
+
+/*
+  Optimized for quick copying of ASCII characters in the range 0x00..0x7F.
+*/
+uint32
+copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
+                 uint *errors)
+{
+  /*
+    If any of the character sets is not ASCII compatible,
+    immediately switch to slow mb_wc->wc_mb method.
+  */
+  if ((to_cs->state | from_cs->state) & MY_CS_NONASCII)
+    return copy_and_convert_extended(to, to_length, to_cs,
+                                     from, from_length, from_cs, errors);
+
+  uint32 length= min(to_length, from_length), length2= length;
+
+#if defined(__i386__)
+  /*
+    Special loop for i386, it allows to refer to a
+    non-aligned memory block as UINT32, which makes
+    it possible to copy four bytes at once. This
+    gives about 10% performance improvement comparing
+    to byte-by-byte loop.
+  */
+  for ( ; length >= 4; length-= 4, from+= 4, to+= 4)
+  {
+    if ((*(uint32*)from) & 0x80808080)
+      break;
+    *((uint32*) to)= *((const uint32*) from);
+  }
+#endif
+
+  for (; ; *to++= *from++, length--)
+  {
+    if (!length)
+    {
+      *errors= 0;
+      return length2;
+    }
+    if (*((unsigned char*) from) > 0x7F) /* A non-ASCII character */
+    {
+      uint32 copied_length= length2 - length;
+      to_length-= copied_length;
+      from_length-= copied_length;
+      return copied_length + copy_and_convert_extended(to, to_length,
+                                                       to_cs,
+                                                       from, from_length,
+                                                       from_cs,
+                                                       errors);
+    }
+  }
+
+  DBUG_ASSERT(FALSE); // Should never get to here
+  return 0;           // Make compiler happy
 }
 
 
