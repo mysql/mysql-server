@@ -173,7 +173,7 @@ public:
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
-  
+
   struct Fragment {
     Uint64 noOfRecords;
     Uint32 tableId;

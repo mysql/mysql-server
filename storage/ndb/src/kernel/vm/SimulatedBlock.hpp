@@ -545,6 +545,7 @@ public:
      * core interface
      */
     struct ActiveMutex {
+      ActiveMutex() {}
       Uint32 m_gsn; // state
       Uint32 m_mutexId;
       Callback m_callback;
