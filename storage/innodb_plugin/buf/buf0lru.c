@@ -66,11 +66,6 @@ allowed to point to either end of the LRU list. */
 # error "BUF_LRU_NON_OLD_MIN_LEN >= BUF_LRU_OLD_MIN_LEN"
 #endif
 
-/** The whole LRU list length is divided by this number to determine an
-initial segment in buf_LRU_get_recent_limit */
-
-#define BUF_LRU_INITIAL_RATIO	8
-
 /** When dropping the search hash index entries before deleting an ibd
 file, we build a local array of pages belonging to that tablespace
 in the buffer pool. Following is the size of that array. */
