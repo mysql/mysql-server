@@ -3234,6 +3234,7 @@ loop:
 	ut_a(lsn == log_sys->lsn);
 }
 
+#ifdef UNIV_LOG_DEBUG
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
@@ -3241,7 +3242,7 @@ UNIV_INTERN
 ibool
 log_check_log_recs(
 /*===============*/
-	byte*		buf,		/*!< in: pointer to the start of
+	const byte*	buf,		/*!< in: pointer to the start of
 					the log segment in the
 					log_sys->buf log buffer */
 	ulint		len,		/*!< in: segment length in bytes */
@@ -3249,8 +3250,8 @@ log_check_log_recs(
 {
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	scanned_lsn;
-	byte*		start;
-	byte*		end;
+	const byte*	start;
+	const byte*	end;
 	byte*		buf1;
 	byte*		scan_buf;
 
@@ -3283,6 +3284,7 @@ log_check_log_recs(
 
 	return(TRUE);
 }
+#endif /* UNIV_LOG_DEBUG */
 
 /******************************************************//**
 Peeks the current lsn.

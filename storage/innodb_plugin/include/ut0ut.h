@@ -216,6 +216,7 @@ UNIV_INTERN
 ib_time_t
 ut_time(void);
 /*=========*/
+#ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
@@ -248,6 +249,7 @@ UNIV_INTERN
 uint
 ut_time_ms(void);
 /*============*/
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
