@@ -85,6 +85,10 @@ CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
   if(strcasecmp(m_type.c_str(), "temporary") == 0){
     m_processType = TEMPORARY;
   } else {
+#ifdef _WIN32
+    logger.critical("Process type must be 'temporary' on windows");
+    exit(1);
+#endif
     m_processType = PERMANENT;
   }
   
@@ -122,7 +126,25 @@ CPCD::Process::isRunning() {
   }
   /* Check if there actually exists a process with such a pid */
   errno = 0;
-#ifndef _WIN32
+
+#ifdef _WIN32
+  HANDLE proc;
+
+  if (!(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid))) {
+    logger.debug("Cannot OpenProcess on %d\n", m_pid);
+    return false;
+  }
+
+  BOOL result;
+  DWORD exitcode;
+  if (result = GetExitCodeProcess(proc, &exitcode) && exitcode != STILL_ACTIVE) {
+    CloseHandle(proc);
+    return false;
+  }
+
+  CloseHandle(proc);
+
+#else
   int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
 				   * checkes if the process actually exists */
   if(s != 0) {
@@ -214,6 +236,10 @@ CPCD::Process::writePid(int pid) {
   fprintf(f, "%d", pid);
   fclose(f);
 
+#ifdef _WIN32
+  unlink(filename);
+#endif
+
   if(rename(tmpfilename, filename) == -1){
     logger.error("Unable to rename from %s to %s", tmpfilename, filename);
     return -1;
@@ -227,6 +253,31 @@ setup_environment(const char *env) {
   p = BaseString::argify("", env);
   for(int i = 0; p[i] != NULL; i++){
     /*int res = */ putenv(p[i]);
+  }
+}
+
+static void
+save_environment(const char *env, Vector<BaseString> &saved) {
+  char **ptr;
+
+  ptr = BaseString::argify("", env);
+  if(!ptr) {
+    logger.error("Could not argify new environment");
+    return;
+  }
+
+  for(int i = 0; ptr[i] != NULL; i++) {
+    if(!ptr[i][0]) {
+      continue;
+    }
+    char *str1 = strdup(ptr[i]);
+    char *str2;
+    BaseString bs;
+
+    *strchr(str1, '=') = 0;
+    str2 = getenv(str1);
+    bs.assfmt("%s=%s", str1, str2 ? str2 : "");
+    saved.push_back(bs);
   }
 }
 
@@ -284,6 +335,12 @@ const int S_IRUSR = _S_IREAD, S_IWUSR = _S_IWRITE;
 void
 CPCD::Process::do_exec() {
   size_t i;
+
+#ifdef _WIN32
+  Vector<BaseString> saved;
+  save_environment(m_env.c_str(), saved);
+#endif
+
   setup_environment(m_env.c_str());
 
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
@@ -304,19 +361,27 @@ CPCD::Process::do_exec() {
       _exit(1);
     }
   }
+#endif
 
-  int fd = open("/dev/null", O_RDWR, 0);
-  if(fd == -1) {
-    logger.error("Cannot open `/dev/null': %s\n", strerror(errno));
+  const char *nul = IF_WIN("nul:", "/dev/null");
+  int fdnull = open(nul, O_RDWR, 0);
+  if(fdnull == -1) {
+    logger.error("Cannot open `%s': %s\n", nul, strerror(errno));
     _exit(1);
   }
   
   BaseString * redirects[] = { &m_stdin, &m_stdout, &m_stderr };
   int fds[3];
-  for(i = 0; i<3; i++){
-    if(redirects[i]->empty()){
+#ifdef _WIN32
+  int std_dups[3];
+#endif
+  for (i = 0; i < 3; i++) {
+#ifdef _WIN32
+    std_dups[i] = dup(i);
+#endif
+    if (redirects[i]->empty()) {
 #ifndef DEBUG
-      dup2(fd, i);
+      dup2(fdnull, i);
 #endif
       continue;
     }
@@ -343,8 +408,12 @@ CPCD::Process::do_exec() {
       _exit(1);
     }
     dup2(f, i);
+#ifdef _WIN32
+    close(f);
+#endif
   }
 
+#ifndef _WIN32
   /* Close all filedescriptors */
   for(i = STDERR_FILENO+1; (int)i < getdtablesize(); i++)
     close(i);
@@ -355,7 +424,38 @@ CPCD::Process::do_exec() {
    * create a new logger here */
   logger.error("Exec failed: %s\n", strerror(errno));
   /* NOTREACHED */
+#else
+  HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, m_path.c_str(), argv);
+
+  // get back to original std i/o
+  for(i = 0; i < 3; i++) {
+    dup2(std_dups[i], i);
+    close(std_dups[i]);
+  }
+
+  for (i = 0; i < saved.size(); i++) {
+    putenv(saved[i].c_str());
+  }
+
+  DWORD exitcode;
+  BOOL result = GetExitCodeProcess(proc, &exitcode);
+  //maybe a short running process
+  if (result && exitcode == 259) {
+    m_status = STOPPED;
+    logger.warning("Process terminated\n");
+  }
+
+  int pid = GetProcessId(proc);
+  CloseHandle(proc);
+  if (!pid) {
+    logger.critical("Couldn't get process ID");
+  }
+
+  m_status = RUNNING;
+  writePid(pid);
 #endif
+
+  close(fdnull);
 }
 
 #ifdef _WIN32
@@ -408,6 +508,8 @@ CPCD::Process::start() {
       logger.debug("Started temporary %d : pid=%d", m_id, pid);
       break;
     }
+#else //_WIN32
+    do_exec();
 #endif
     break;
   }
@@ -490,7 +592,9 @@ CPCD::Process::stop() {
 		    m_pid, m_id);
     return;
   }
+
   m_status = STOPPING;
+
 #ifndef _WIN32
   errno = 0;
   int signo= SIGTERM;
@@ -519,6 +623,23 @@ CPCD::Process::stop() {
       break;
     }
   } 
+#else
+  if (isRunning()) {
+    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, m_pid);
+
+    if (!proc) {
+      logger.critical("Cannot open process %d\n", m_pid);
+      return;
+    }
+
+    BOOL tp = TerminateProcess(proc, -1);
+
+    CloseHandle(proc);
+    if (!tp) {
+      logger.critical("Cannot terminate process %d\n", m_pid);
+      return;
+    }
+  }
 #endif
 
   m_pid = bad_pid;
