@@ -3662,11 +3662,6 @@ sub extract_warning_lines ($$) {
 
   my @patterns =
     (
-     # The patterns for detection of [Warning] and [ERROR]
-     # in the server log files have been faulty for a longer period
-     # and correcting them shows a few additional harmless warnings.
-     # Thus those patterns are temporarily removed from the list
-     # of patterns. For more info see BUG#42408
      qr/^Warning:|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
      qr/^==\d*==/, # valgrind errors
