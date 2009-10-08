@@ -158,6 +158,10 @@ inline
 DLHashTableImpl<P, T, U>::DLHashTableImpl(P & _pool)
   : thePool(_pool)
 {
+  // Require user defined constructor on T since we fiddle
+  // with T's members
+  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
+
   mask = 0;
   hashValues = 0;
 }

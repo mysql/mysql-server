@@ -34,6 +34,8 @@ public:
    */
   struct LockQueueElement 
   {
+    LockQueueElement() {}
+
     UtilLockReq m_req;
     union {
       Uint32 nextPool;
