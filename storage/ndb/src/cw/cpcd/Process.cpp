@@ -256,31 +256,6 @@ setup_environment(const char *env) {
   }
 }
 
-static void
-save_environment(const char *env, Vector<BaseString> &saved) {
-  char **ptr;
-
-  ptr = BaseString::argify("", env);
-  if(!ptr) {
-    logger.error("Could not argify new environment");
-    return;
-  }
-
-  for(int i = 0; ptr[i] != NULL; i++) {
-    if(!ptr[i][0]) {
-      continue;
-    }
-    char *str1 = strdup(ptr[i]);
-    char *str2;
-    BaseString bs;
-
-    *strchr(str1, '=') = 0;
-    str2 = getenv(str1);
-    bs.assfmt("%s=%s", str1, str2 ? str2 : "");
-    saved.push_back(bs);
-  }
-}
-
 static
 int
 set_ulimit(const BaseString & pair){
@@ -330,6 +305,31 @@ set_ulimit(const BaseString & pair){
 
 #ifdef _WIN32
 const int S_IRUSR = _S_IREAD, S_IWUSR = _S_IWRITE;
+
+static void
+save_environment(const char *env, Vector<BaseString> &saved) {
+  char **ptr;
+
+  ptr = BaseString::argify("", env);
+  if(!ptr) {
+    logger.error("Could not argify new environment");
+    return;
+  }
+
+  for(int i = 0; ptr[i] != NULL; i++) {
+    if(!ptr[i][0]) {
+      continue;
+    }
+    char *str1 = strdup(ptr[i]);
+    char *str2;
+    BaseString bs;
+
+    *strchr(str1, '=') = 0;
+    str2 = getenv(str1);
+    bs.assfmt("%s=%s", str1, str2 ? str2 : "");
+    saved.push_back(bs);
+  }
+}
 #endif
 
 void
