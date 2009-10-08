@@ -2048,6 +2048,12 @@ private:
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
 
+  void handleNdbdFailureCallback(Signal* signal, 
+                                 Uint32 failedNodeId,
+                                 Uint32 ignoredRc);
+  void handleApiFailureCallback(Signal* signal,
+                                Uint32 failedNodeId,
+                                Uint32 ignoredRc);
   // Statement blocks
 
   /* ------------------------------------------------------------ */

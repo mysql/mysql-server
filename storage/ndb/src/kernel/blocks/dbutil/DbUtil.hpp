@@ -78,6 +78,7 @@ protected:
   void execNDB_STTOR(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   /**
    * Sequence Service : Public interface
