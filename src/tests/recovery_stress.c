@@ -306,6 +306,14 @@ static void checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
     return;
 }
 
+struct checkpoint_callback_args {
+    DICTIONARY dictionaries;
+    ITER_SPEC spec;
+};
+static void checkpoint_callback_1(void *a){
+    struct checkpoint_callback_args *args = (struct checkpoint_callback_args *)a;
+    checkpoint_acts(args->dictionaries, args->spec);
+}
 
 static void post_checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
     int i, r, key;
@@ -433,10 +441,20 @@ static void run_test (int iter, int die UU()) {
     // perform pre-checkpoint actions
     pre_checkpoint_acts(dictionaries, &spec);
 
-    // take checkpoint (all dictionaries)
+    // perform checkpoint acts
     spec.step = CP_CP_STEP;
-    checkpoint_acts(dictionaries, &spec); // not correct - placeholder for now
-    snapshot(NULL, 1);    
+    struct checkpoint_callback_args cp_args;
+    cp_args.dictionaries = dictionaries;
+    cp_args.spec         = &spec;
+    if ( iter & 1 )
+        db_env_set_checkpoint_callback(checkpoint_callback_1, &cp_args);
+    else
+        db_env_set_checkpoint_callback2(checkpoint_callback_1, &cp_args);
+    r = env->txn_checkpoint(env, 0, 0, 0);
+    CKERR(r);
+    db_env_set_checkpoint_callback(NULL, NULL);
+    db_env_set_checkpoint_callback2(NULL, NULL);
+
 
     // post checkpoint acts
     spec.step = POST_POST_STEP;
