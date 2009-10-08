@@ -235,7 +235,7 @@ CPCD::notifyChanges() {
 static int link(const char* from_file, const char* to_file)
 {
   BOOL fail_if_exists = TRUE;
-  if (CopyFile(from_file, to_file, fail_if_exists) != 0)
+  if (CopyFile(from_file, to_file, fail_if_exists) == 0)
   {
     /* "On error, -1 is returned" */
     return -1;
@@ -366,6 +366,7 @@ CPCD::loadProcessList(){
   }
 
   CPCDAPISession sess(f, *this);
+  fclose(f);
   sess.loadFile();
   loadingProcessList = false;
 
