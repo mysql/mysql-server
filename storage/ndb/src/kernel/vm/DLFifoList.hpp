@@ -177,11 +177,16 @@ template <typename P, typename T, typename U>
 inline
 DLFifoListImpl<P,T,U>::Head::Head()
 {
+  // Require user defined constructor on T since we fiddle
+  // with T's members
+  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
+
   firstItem = RNIL;
   lastItem = RNIL;
 #ifdef VM_TRACE
   in_use = false;
 #endif
+
 }
 
 template <typename P, typename T, typename U>
