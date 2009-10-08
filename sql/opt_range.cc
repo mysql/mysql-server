@@ -5876,6 +5876,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       if (type == Item_func::LT_FUNC && (value->val_int() > 0))
         type = Item_func::LE_FUNC;
       else if (type == Item_func::GT_FUNC &&
+               (field->type() != FIELD_TYPE_BIT) &&
                !((Field_num*)field)->unsigned_flag &&
                !((Item_int*)value)->unsigned_flag &&
                (value->val_int() < 0))
@@ -5913,7 +5914,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
    */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((Field_num*)field)->unsigned_flag && !((Item_int*)value)->unsigned_flag)
+      ((field->type() == FIELD_TYPE_BIT || 
+       ((Field_num *) field)->unsigned_flag) && 
+       !((Item_int*) value)->unsigned_flag))
   {
     longlong item_val= value->val_int();
     if (item_val < 0)
