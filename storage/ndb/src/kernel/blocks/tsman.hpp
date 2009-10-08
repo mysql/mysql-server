@@ -44,6 +44,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   void execCREATE_FILE_IMPL_REQ(Signal* signal);
   void execCREATE_FILEGROUP_IMPL_REQ(Signal* signal);

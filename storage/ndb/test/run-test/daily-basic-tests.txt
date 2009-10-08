@@ -1444,4 +1444,7 @@ max-time: 300
 cmd: testNdbApi
 args: -n ReadColumnDuplicates
 
-# end of 6.3
+max-time: 300
+cmd: testNdbApi
+args: -n FragmentedApiFailure T1
+

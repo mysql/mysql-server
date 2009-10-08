@@ -2974,6 +2974,8 @@ public:
   void execREMOVE_MARKER_ORD(Signal* signal);
   void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
 
+  void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeID, Uint32 ignoredRc);
+
   struct Counters {
     Counters() {}
     Uint32 operations;

@@ -8338,16 +8338,31 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
         TfoundNodes++;
       }//if
     }//for
-    NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
-    nfCompRep->blockNo      = DBLQH;
-    nfCompRep->nodeId       = cownNodeid;
-    nfCompRep->failedNodeId = Tdata[i];
-    BlockReference dihRef = !isNdbMtLqh() ? DBDIH_REF : DBLQH_REF;
-    sendSignal(dihRef, GSN_NF_COMPLETEREP, signal, 
-	       NFCompleteRep::SignalLength, JBB);
+
+    /* Perform block-level ndbd failure handling */
+    Callback cb = { safe_cast(&Dblqh::ndbdFailBlockCleanupCallback),
+                    Tdata[i] };
+    simBlockNodeFailure(signal, Tdata[i], cb);
   }//for
   ndbrequire(TnoOfNodes == TfoundNodes);
 }//Dblqh::execNODE_FAILREP()
+
+
+void
+Dblqh::ndbdFailBlockCleanupCallback(Signal* signal,
+                                    Uint32 failedNodeId,
+                                    Uint32 ignoredRc)
+{
+  jamEntry();
+
+  NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
+  nfCompRep->blockNo      = DBLQH;
+  nfCompRep->nodeId       = cownNodeid;
+  nfCompRep->failedNodeId = failedNodeId;
+  BlockReference dihRef = !isNdbMtLqh() ? DBDIH_REF : DBLQH_REF;
+  sendSignal(dihRef, GSN_NF_COMPLETEREP, signal, 
+             NFCompleteRep::SignalLength, JBB);
+}
 
 /* ************************************************************************>>
  *  LQH_TRANSREQ: Report status of all transactions where TC was coordinated 

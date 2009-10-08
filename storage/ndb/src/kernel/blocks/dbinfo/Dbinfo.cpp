@@ -611,6 +611,10 @@ void Dbinfo::execNODE_FAILREP(Signal* signal)
       }//if
       nodePtr.p->alive = 0;
       c_aliveNodes.clear(nodePtr.p->nodeId);
+
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, nodePtr.p->nodeId); // No callback
+      ndbassert(elementsCleaned == 0); // DbInfo should have no distributed frag signals
+      (void) elementsCleaned; // Remove compiler warning
     }//if
   }//for
 
