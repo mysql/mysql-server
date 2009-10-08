@@ -31,7 +31,7 @@ LINK_LIBRARIES(ndbmgmclient
                ndbportlib
                ${NDB_SCI_LIBS})
 
-ADD_EXECUTABLE(cpcd
+ADD_EXECUTABLE(ndb_cpcd
         APIService.cpp
         CPCD.cpp
         Monitor.cpp
