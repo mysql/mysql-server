@@ -27,13 +27,33 @@
 #include <NdbCondition.h>
 #include <BaseString.hpp>
 
-/* XXX Need to figure out how to do this for non-Unix systems */
-#define CPCD_DEFAULT_WORK_DIR		"/var/run/ndb_cpcd"
+#ifdef _WIN32
+typedef DWORD pid_t;
+#else
+typedef int pid_t;
+#endif
+const pid_t bad_pid = -1;
+
+inline bool is_bad_pid(pid_t pid)
+{
+#ifdef _WIN32
+  return pid == bad_pid;
+#else
+  return pid <= 1;
+#endif
+}
+
 #define CPCD_DEFAULT_PROC_FILE    	"ndb_cpcd.conf"
 #define CPCD_DEFAULT_TCP_PORT		1234
 #define CPCD_DEFAULT_POLLING_INTERVAL	5 /* seconds */
+#ifndef _WIN32
+#define CPCD_DEFAULT_WORK_DIR		"/var/run/ndb_cpcd"
 #define CPCD_DEFAULT_CONFIG_FILE        "/etc/ndb_cpcd.conf"
 
+#else
+#define CPCD_DEFAULT_WORK_DIR		"c:\\ndb_cpcd"
+#define CPCD_DEFAULT_CONFIG_FILE        "c:\\ndb_cpcd\\ndb_cpcd.conf"
+#endif
 enum ProcessStatus {
   STOPPED  = 0,
   STARTING = 1,
@@ -87,7 +107,7 @@ public:
    *  @brief Manages a process
    */
   class Process {
-    int m_pid;
+    pid_t m_pid;
   public:
     /** 
      * @brief Constructs and empty Process
