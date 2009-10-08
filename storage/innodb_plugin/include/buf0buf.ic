@@ -72,10 +72,16 @@ buf_page_peek_if_too_old(
 /*=====================*/
 	const buf_page_t*	bpage)	/*!< in: block to make younger */
 {
-	if (buf_LRU_old_threshold_ms && bpage->old) {
+	if (UNIV_UNLIKELY(buf_pool->freed_page_clock == 0)) {
+		/* If eviction has not started yet, do not update the
+		statistics or move blocks in the LRU list.  This is
+		either the warm-up phase or an in-memory workload. */
+		return(FALSE);
+	} else if (buf_LRU_old_threshold_ms && bpage->old) {
 		unsigned	access_time = buf_page_is_accessed(bpage);
 
-		if (access_time && ut_time_ms() - access_time
+		if (access_time > 0
+		    && (ut_time_ms() - access_time)
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -85,10 +91,10 @@ buf_page_peek_if_too_old(
 	} else {
 		/* FIXME: bpage->freed_page_clock is 31 bits */
 		return((buf_pool->freed_page_clock & ((1UL << 31) - 1))
-		       > bpage->freed_page_clock
-		       + (buf_pool->curr_size
-			  * (BUF_LRU_OLD_RATIO_DIV - buf_LRU_old_ratio)
-			  / (BUF_LRU_OLD_RATIO_DIV * 4)));
+		       > ((ulint) bpage->freed_page_clock
+			  + (buf_pool->curr_size
+			     * (BUF_LRU_OLD_RATIO_DIV - buf_LRU_old_ratio)
+			     / (BUF_LRU_OLD_RATIO_DIV * 4))));
 	}
 }
 
@@ -490,14 +496,15 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage)		/*!< in/out: control block */
+	buf_page_t*	bpage,		/*!< in/out: control block */
+	ulint		time_ms)	/*!< in: ut_time_ms() */
 {
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(buf_pool_mutex_own());
 
 	if (!bpage->access_time) {
 		/* Make this the time of the first access. */
-		bpage->access_time = ut_time_ms();
+		bpage->access_time = time_ms;
 	}
 }
 
