@@ -346,7 +346,7 @@ buf_page_release(
 	mtr_t*		mtr);		/*!< in: mtr */
 /********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
-function can be used to prevent an important page from from slipping out of
+function can be used to prevent an important page from slipping out of
 the buffer pool. */
 UNIV_INTERN
 void
@@ -821,7 +821,8 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage)		/*!< in/out: control block */
+	buf_page_t*	bpage,		/*!< in/out: control block */
+	ulint		time_ms)	/*!< in: ut_time_ms() */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed

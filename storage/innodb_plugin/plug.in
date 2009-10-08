@@ -112,7 +112,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
     [
       AC_MSG_RESULT(no)
     ]
-    )
+  )
 
   AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
   AC_TRY_RUN(
@@ -142,7 +142,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
     [
       AC_MSG_RESULT(no)
     ]
-    )
+  )
 
   # Try using solaris atomics on SunOS if GCC atomics are not available
   AC_CHECK_DECLS(
