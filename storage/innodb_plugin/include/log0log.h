@@ -283,7 +283,7 @@ log_make_checkpoint_at(
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
 	ibool		write_always);	/*!< in: the function normally checks if
-					the the new checkpoint would have a
+					the new checkpoint would have a
 					greater lsn than the previous one: if
 					not, then no physical write is done;
 					by setting this parameter TRUE, a
