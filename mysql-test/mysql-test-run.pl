@@ -4286,7 +4286,8 @@ sub mysqld_start ($$) {
 				 $opt_start_timeout,
 				 $mysqld->{'proc'}))
   {
-    mtr_error("Failed to start mysqld $mysqld->name()");
+    my $mname= $mysqld->name();
+    mtr_error("Failed to start mysqld $mname with command $exe");
   }
 
   # Remember options used when starting
