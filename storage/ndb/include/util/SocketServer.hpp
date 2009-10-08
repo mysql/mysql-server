@@ -136,8 +136,8 @@ private:
   Vector<SessionInstance> m_sessions;
   MutexVector<ServiceInstance> m_services;
   unsigned m_maxSessions;
-  
-  void doAccept();
+
+  bool doAccept();
   void checkSessionsImpl();
   void startSession(SessionInstance &);
   
