@@ -23,11 +23,7 @@
 #include <signal.h>
 
 #ifdef THREAD
-#ifdef USE_TLS
 pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
-#else
-pthread_key(struct st_my_thread_var, THR_KEY_mysys);
-#endif /* USE_TLS */
 pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,
 	        THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_myisam,THR_LOCK_heap,
                 THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time;
@@ -46,7 +42,9 @@ pthread_mutexattr_t my_fast_mutexattr;
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
-
+#ifdef _MSC_VER
+static void install_sigabrt_handler();
+#endif
 #ifdef TARGET_OS_LINUX
 
 /*
@@ -149,15 +147,18 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_time,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&THR_COND_threads, NULL);
-#if defined( __WIN__) || defined(OS2)
-  win_pthread_init();
-#endif
+
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
   pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
 #endif
+
+#ifdef _MSC_VER
+  install_sigabrt_handler();
+#endif
+
   if (my_thread_init())
   {
     my_thread_global_end();			/* Clean up */
@@ -258,7 +259,6 @@ my_bool my_thread_init(void)
           (ulong) pthread_self());
 #endif  
 
-#if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
   {
 #ifdef EXTRA_DEBUG_THREADS
@@ -267,26 +267,18 @@ my_bool my_thread_init(void)
 #endif    
     goto end;
   }
+
+#ifdef _MSC_VER
+  install_sigabrt_handler();
+#endif
+
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
   {
     error= 1;
     goto end;
   }
   pthread_setspecific(THR_KEY_mysys,tmp);
-
-#else /* defined(__WIN__) && !(defined(USE_TLS) */
-  /*
-    Skip initialization if the thread specific variable is already initialized
-  */
-  if (THR_KEY_mysys.id)
-    goto end;
-  tmp= &THR_KEY_mysys;
-#endif
-#if defined(__WIN__) && defined(EMBEDDED_LIBRARY)
-  tmp->pthread_self= (pthread_t) getpid();
-#else
   tmp->pthread_self= pthread_self();
-#endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
   tmp->init= 1;
@@ -342,11 +334,7 @@ void my_thread_end(void)
     pthread_cond_destroy(&tmp->suspend);
 #endif
     pthread_mutex_destroy(&tmp->mutex);
-#if !defined(__WIN__) || defined(USE_TLS)
     free(tmp);
-#else
-    tmp->init= 0;
-#endif
 
     /*
       Decrement counter for number of running threads. We are using this
@@ -360,10 +348,7 @@ void my_thread_end(void)
       pthread_cond_signal(&THR_COND_threads);
    pthread_mutex_unlock(&THR_LOCK_threads);
   }
-  /* The following free has to be done, even if my_thread_var() is 0 */
-#if !defined(__WIN__) || defined(USE_TLS)
   pthread_setspecific(THR_KEY_mysys,0);
-#endif
 }
 
 struct st_my_thread_var *_my_thread_var(void)
@@ -418,5 +403,31 @@ static uint get_thread_lib(void)
 #endif
   return THD_LIB_OTHER;
 }
+
+#ifdef _WIN32
+/*
+  In Visual Studio 2005 and later, default SIGABRT handler will overwrite
+  any unhandled exception filter set by the application  and will try to
+  call JIT debugger. This is not what we want, this we calling __debugbreak
+  to stop in debugger, if process is being debugged or to generate 
+  EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
+*/
+
+#if (_MSC_VER >= 1400)
+static void my_sigabrt_handler(int sig)
+{
+  __debugbreak();
+}
+#endif /*_MSC_VER >=1400 */
+
+static void install_sigabrt_handler(void)
+{
+#if (_MSC_VER >=1400)
+  /*abort() should not override our exception filter*/
+  _set_abort_behavior(0,_CALL_REPORTFAULT);
+  signal(SIGABRT,my_sigabrt_handler);
+#endif /* _MSC_VER >=1400 */
+}
+#endif
 
 #endif /* THREAD */
