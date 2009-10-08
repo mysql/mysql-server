@@ -539,11 +539,11 @@ sub collect_one_suite($)
       push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
       if ($new_test->{combination})
       {
-        $new_test->{combination}.= ' + InnoDB plugin';
+        $new_test->{combination}.= '+innodb_plugin';
       }
       else
       {
-        $new_test->{combination}= 'InnoDB plugin';
+        $new_test->{combination}= 'innodb_plugin';
       }
       push(@new_cases, $new_test);
     }
