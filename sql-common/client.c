@@ -1919,6 +1919,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
 
+  /* Test whether we're already connected */
+  if (net->vio)
+  {
+    set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
   mysql->methods= &client_methods;
