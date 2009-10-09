@@ -3272,6 +3272,21 @@ Default database: '%s'. Query: '%s'",
     */
   } /* End of if (db_ok(... */
 
+  {/**
+      The following failure injecion works in cooperation with tests 
+      setting @@global.debug= 'd,stop_slave_middle_group'.
+      The sql thread receives the killed status and will proceed 
+      to shutdown trying to finish incomplete events group.
+   */
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
+                    if (strcmp("COMMIT", query) != 0 &&
+                        strcmp("BEGIN", query) != 0)
+                    {
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;
+                    };);
+  }
+
 end:
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
@@ -7475,8 +7490,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           thd->transaction.stmt.modified_non_trans_table= TRUE;
     } // row processing loop
 
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
-                    const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    {/**
+         The following failure injecion works in cooperation with tests 
+         setting @@global.debug= 'd,stop_slave_middle_group'.
+         The sql thread receives the killed status and will proceed 
+         to shutdown trying to finish incomplete events group.
+     */
+      DBUG_EXECUTE_IF("stop_slave_middle_group",
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    }
 
     if ((error= do_after_row_operations(rli, error)) &&
         ignored_error_code(convert_handler_error(error, thd, table)))
@@ -7512,32 +7535,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
-  }
-  /*
-    This code would ideally be placed in do_update_pos() instead, but
-    since we have no access to table there, we do the setting of
-    last_event_start_time here instead.
-  */
-  else if (table && (table->s->primary_key == MAX_KEY) &&
-           !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
-  {
-    /*
-      ------------ Temporary fix until WL#2975 is implemented ---------
-
-      This event is not the last one (no STMT_END_F). If we stop now
-      (in case of terminate_slave_thread()), how will we restart? We
-      have to restart from Table_map_log_event, but as this table is
-      not transactional, the rows already inserted will still be
-      present, and idempotency is not guaranteed (no PK) so we risk
-      that repeating leads to double insert. So we desperately try to
-      continue, hope we'll eventually leave this buggy situation (by
-      executing the final Rows_log_event). If we are in a hopeless
-      wait (reached end of last relay log and nothing gets appended
-      there), we timeout after one minute, and notify DBA about the
-      problem.  When WL#2975 is implemented, just remove the member
-      Relay_log_info::last_event_start_time and all its occurrences.
-    */
-    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(error);

@@ -49,6 +49,10 @@
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 #define MAX_SLAVE_RETRY_PAUSE 5
+/*
+  a parameter of sql_slave_killed() to defer the killed status
+*/
+#define SLAVE_WAIT_GROUP_DONE 60
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
@@ -790,45 +794,94 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
   DBUG_RETURN(mi->abort_slave || abort_loop || thd->killed);
 }
 
+/**
+   The function analyzes a possible killed status and makes
+   a decision whether to accept it or not.
+   Normally upon accepting the sql thread goes to shutdown.
+   In the event of deffering decision @rli->last_event_start_time waiting
+   timer is set to force the killed status be accepted upon its expiration.
 
+   @param thd   pointer to a THD instance
+   @param rli   pointer to Relay_log_info instance
+
+   @return TRUE the killed status is recognized, FALSE a possible killed
+           status is deferred.
+*/
 static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
+  bool ret= FALSE;
   DBUG_ENTER("sql_slave_killed");
 
   DBUG_ASSERT(rli->sql_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    if (rli->abort_slave && rli->is_in_group() &&
-        thd->transaction.all.modified_non_trans_table)
-      DBUG_RETURN(0);
-    /*
-      If we are in an unsafe situation (stopping could corrupt replication),
-      we give one minute to the slave SQL thread of grace before really
-      terminating, in the hope that it will be able to read more events and
-      the unsafe situation will soon be left. Note that this one minute starts
-      from the last time anything happened in the slave SQL thread. So it's
-      really one minute of idleness, we don't timeout if the slave SQL thread
-      is actively working.
-    */
-    if (rli->last_event_start_time == 0)
-      DBUG_RETURN(1);
-    DBUG_PRINT("info", ("Slave SQL thread is in an unsafe situation, giving "
-                        "it some grace period"));
-    if (difftime(time(0), rli->last_event_start_time) > 60)
+    if (thd->transaction.all.modified_non_trans_table && rli->is_in_group())
     {
-      rli->report(ERROR_LEVEL, 0,
-                  "SQL thread had to stop in an unsafe situation, in "
-                  "the middle of applying updates to a "
-                  "non-transactional table without any primary key. "
-                  "There is a risk of duplicate updates when the slave "
-                  "SQL thread is restarted. Please check your tables' "
-                  "contents after restart.");
-      DBUG_RETURN(1);
+      char msg_stopped[]=
+        "... The slave SQL is stopped, leaving the current group "
+        "of events unfinished with a non-transaction table changed. "
+        "If the group consists solely of Row-based events, you can try "
+        "restarting the slave with --slave-exec-mode=IDEMPOTENT, which "
+        "ignores duplicate key, key not found, and similar errors (see "
+        "documentation for details).";
+
+      if (rli->abort_slave)
+      {
+        DBUG_PRINT("info", ("Slave SQL thread is being stopped in the middle of"
+                            " a group having updated a non-trans table, giving"
+                            " it some grace period"));
+
+        /*
+          Slave sql thread shutdown in face of unfinished group modified 
+          Non-trans table is handled via a timer. The slave may eventually
+          give out to complete the current group and in that case there
+          might be issues at consequent slave restart, see the error message.
+          WL#2975 offers a robust solution requiring to store the last exectuted
+          event's coordinates along with the group's coordianates
+          instead of waiting with @c last_event_start_time the timer.
+        */
+
+        if (rli->last_event_start_time == 0)
+          rli->last_event_start_time= my_time(0);
+        ret= difftime(my_time(0), rli->last_event_start_time) <=
+          SLAVE_WAIT_GROUP_DONE ? FALSE : TRUE;
+
+        DBUG_EXECUTE_IF("stop_slave_middle_group", 
+                        DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
+                                        ret= TRUE;);); // time is over
+
+        if (ret == 0)
+        {
+          rli->report(WARNING_LEVEL, 0,
+                      "slave SQL thread is being stopped in the middle "
+                      "of applying of a group having updated a non-transaction "
+                      "table; waiting for the group completion ... ");
+        }
+        else
+        {
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER(ER_SLAVE_FATAL_ERROR), msg_stopped);
+        }
+      }
+      else
+      {
+        ret= TRUE;
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                    msg_stopped);
+      }
+    }
+    else
+    {
+      ret= TRUE;
     }
   }
-  DBUG_RETURN(0);
+  if (ret)
+    rli->last_event_start_time= 0;
+  
+  DBUG_RETURN(ret);
 }
+
 
 /*
   skip_load_data_infile()
@@ -2525,6 +2578,27 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       delete ev;
       DBUG_RETURN(1);
     }
+
+    { /**
+         The following failure injecion works in cooperation with tests 
+         setting @@global.debug= 'd,incomplete_group_in_relay_log'.
+         Xid or Commit events are not executed to force the slave sql
+         read hanging if the realy log does not have any more events.
+      */
+      DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
+                      if ((ev->get_type_code() == XID_EVENT) ||
+                          ((ev->get_type_code() == QUERY_EVENT) &&
+                           strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
+                      {
+                        DBUG_ASSERT(thd->transaction.all.modified_non_trans_table);
+                        rli->abort_slave= 1;
+                        pthread_mutex_unlock(&rli->data_lock);
+                        delete ev;
+                        rli->inc_event_relay_log_pos();
+                        DBUG_RETURN(0);
+                      };);
+    }
+
     exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
 
     /*
@@ -3953,7 +4027,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto skip_relay_logging;
   }
   break;
-    
+
   default:
     inc_pos= event_len;
     break;
