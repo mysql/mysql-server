@@ -1046,4 +1046,19 @@ ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx','a5','a6','a7','a8','a9',
 --disable_info
 DROP TABLE t1;
 
+#
+# Bug#43508: Renaming timestamp or date column triggers table copy
+#
+
+CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
+                 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
+
+--echo this should affect no rows as there is no real change
+--enable_info
+ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
+--disable_info
+DROP TABLE t1;
+
 --echo End of 5.1 tests
