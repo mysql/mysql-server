@@ -122,17 +122,19 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       If both EndOfData is set and number of operations is 0, close the scan.
     */
     if (conf->requestInfo == ScanTabConf::EndOfData) {
-      theScanningOp->execCLOSE_SCAN_REP();
-      return 0;
+      if (theScanningOp) {
+        theScanningOp->execCLOSE_SCAN_REP();
+      } else {
+        printf("TODO ::receiveSCAN_TABCONF received EOF, len:%d\n", len);
+      }
+      return 1; // -> Finished
     }
 
+    int scanStatus = 0;
     for(Uint32 i = 0; i<len; i += 3){
-      Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
       Uint32 info = * ops++;
-      opCount  = ScanTabConf::getRows(info);
-      totalLen = ScanTabConf::getLength(info);
       
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
@@ -142,18 +144,28 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
         // Check if this is a linked operation.
         if(tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
-          tOp->m_query_operation_impl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
+          Uint32 opCount = info;
+          NdbQueryOperationImpl* query = tOp->m_query_operation_impl;
+
+          if (query->execSCAN_TABCONF(tcPtrI, opCount, tOp))
+            scanStatus = 1; // We have result data, wakeup receiver
         }
         else
         {
+          Uint32 opCount  = ScanTabConf::getRows(info);
+          Uint32 totalLen = ScanTabConf::getLength(info);
+
           if (tcPtrI == RNIL && opCount == 0)
             theScanningOp->receiver_completed(tOp);
           else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
             theScanningOp->receiver_delivered(tOp);
+
+          // Plain Old scans always wakeup after SCAN_TABCONF
+          scanStatus = 1;
         }
       }
-    }
-    return 0;
+    } //for
+    return scanStatus;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();

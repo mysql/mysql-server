@@ -726,6 +726,8 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
 	 *********************************************************************/
         theSendStatus = sendCOMMITstate;
 	DBUG_VOID_RETURN;
+      } else if (m_firstQuery != NULL) {
+        // TODO_SPJ : Set theCommitIndicator on last query?
       } else {
 	/**********************************************************************
 	 * We need to put it into the array of completed transactions to 
@@ -781,15 +783,6 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   NdbQueryImpl* query = m_firstQuery;
   while (query!=NULL) {
     const int tReturnCode = query->prepareSend();
-
-    if (false && tReturnCode != 0) {
-
-      setErrorCode(tReturnCode);
-      //theSendStatus = sendABORTfail;
-      theReturnStatus = ReturnFailure;
-      DBUG_VOID_RETURN;
-    }
-
     if (tReturnCode == -1) {
       theSendStatus = sendABORTfail;
       DBUG_VOID_RETURN;

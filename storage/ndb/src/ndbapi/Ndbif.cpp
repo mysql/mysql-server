@@ -436,10 +436,17 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 					(Uint32) NO_WAIT : tWaitState);
 	  break;
         case NdbReceiver::NDB_QUERY_OPERATION:
-          if(tCon->OpCompleteSuccess() != -1){
-            completedTransaction(tCon);
+          // Handled differently whether it is a scan or lookup
+          if (tRec->m_query_operation_impl->getQueryDef().isScanQuery()) {
+	    theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+                                          (Uint32) NO_WAIT : tWaitState);
+            break;
+          } else {
+            if (tCon->OpCompleteSuccess() != -1) {
+              completedTransaction(tCon);
+            }
+            return;
           }
-          return;
 	default:
 	  goto InvalidSignal;
 	}
@@ -839,7 +846,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				      tDataPtr + ScanTabConf::SignalLength, 
 				      tLen - ScanTabConf::SignalLength);
 	}
-	if (tReturnCode != -1 && tWaitState == WAIT_SCAN)
+	if (tReturnCode > 0 && tWaitState == WAIT_SCAN)
 	  theImpl->theWaiter.m_state = NO_WAIT;
 	break;
       } else {
