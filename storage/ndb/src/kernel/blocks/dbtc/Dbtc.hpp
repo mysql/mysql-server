@@ -501,6 +501,8 @@ public:
   /* WHEN THE INDEX IS DROPPED.               */
   /* **************************************** */
   struct TcIndexData {
+    TcIndexData() {}
+
     /**
      *  IndexState
      */
