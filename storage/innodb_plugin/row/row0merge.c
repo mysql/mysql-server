@@ -1947,7 +1947,15 @@ row_merge_drop_index(
 	static const char str1[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
 		"BEGIN\n"
+		/* Rename the index, so that it will be dropped by
+		row_merge_drop_temp_indexes() at crash recovery
+		if the server crashes before this trx is committed. */
+		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
+		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
+		"COMMIT WORK;\n"
+		/* Drop the field definitions of the index. */
 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
+		/* Drop the index definition and the B-tree. */
 		"DELETE FROM SYS_INDEXES WHERE ID = :indexid\n"
 		"		AND TABLE_ID = :tableid;\n"
 		"END;\n";
