@@ -90,7 +90,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         field_name.length == other.field_name.length &&
+         !strcmp(field_name.str, other.field_name.str);
 }
 
 /**
