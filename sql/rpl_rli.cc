@@ -1195,7 +1195,6 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
   thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-  last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }
 
