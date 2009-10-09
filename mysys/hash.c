@@ -214,6 +214,20 @@ uchar* my_hash_search(const HASH *hash, const uchar *key, size_t length)
   return my_hash_first(hash, key, length, &state);
 }
 
+uchar* my_hash_search_using_hash_value(const HASH *hash, 
+                                       uint hash_value,
+                                       const uchar *key,
+                                       size_t length)
+{
+  HASH_SEARCH_STATE state;
+  return my_hash_first_from_hash_value(hash, hash_value,
+                                       key, length, &state);
+}
+
+uint my_calc_hash(const HASH *hash, const uchar *key, size_t length)
+{
+  return calc_hash(hash, key, length ? length : hash->key_length);
+}
 /*
   Search after a record based on a key
 
@@ -224,14 +238,25 @@ uchar* my_hash_search(const HASH *hash, const uchar *key, size_t length)
 uchar* my_hash_first(const HASH *hash, const uchar *key, size_t length,
                      HASH_SEARCH_STATE *current_record)
 {
+  return my_hash_first_from_hash_value(hash,
+                 calc_hash(hash, key, length ? length : hash->key_length),
+                 key, length, current_record);
+}
+                    
+uchar* my_hash_first_from_hash_value(const HASH *hash,
+                                     uint hash_value,
+                                     const uchar *key,
+                                     size_t length,
+                                     HASH_SEARCH_STATE *current_record)
+{
   HASH_LINK *pos;
   uint flag,idx;
-  DBUG_ENTER("my_hash_first");
+  DBUG_ENTER("my_hash_first_from_hash_value");
 
   flag=1;
   if (hash->records)
   {
-    idx= my_hash_mask(calc_hash(hash, key, length ? length : hash->key_length),
+    idx= my_hash_mask(hash_value,
                       hash->blength, hash->records);
     do
     {
