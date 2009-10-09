@@ -12,13 +12,14 @@ use mysql_test;
 chmod 000 mysql_test/t1.frm
 
 DROP DATABASE mysql_test;
-ERROR HY000: Error dropping database (can't rmdir './mysql_test', errno: 39)
 
 SELECT DATABASE();
 DATABASE()
 mysql_test
 
-rm mysql_test/t1.MYD mysql_test/t1.MYI
+rm -f mysql_test/t1.MYD mysql_test/t1.MYI
+chmod 666 mysql_test/t1.frm
+rm -f mysql_test/t1.frm
 
 DROP DATABASE mysql_test;
 

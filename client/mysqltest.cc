@@ -2964,6 +2964,7 @@ void do_move_file(struct st_command *command)
 void do_chmod_file(struct st_command *command)
 {
   long mode= 0;
+  int err_code;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
@@ -2983,7 +2984,10 @@ void do_chmod_file(struct st_command *command)
     die("You must write a 4 digit octal number for mode");
 
   DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
-  handle_command_error(command, chmod(ds_file.str, mode));
+  err_code= chmod(ds_file.str, mode);
+  if (err_code < 0)
+    err_code= 1;
+  handle_command_error(command, err_code);
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
