@@ -607,14 +607,14 @@ p2s(const Properties* prop, const char* name, BaseString& buf){
   {
     Uint32 val;
     require(prop->get(name, &val));
-    buf.assfmt("%d", val);
+    buf.assfmt("%u", val);
     break;
   }
   case PropertiesType_Uint64:
   {
     Uint64 val;
     require(prop->get(name, &val));
-    buf.assfmt("%lld", val);
+    buf.assfmt("%llu", val);
     break;
   }
   case PropertiesType_char:
