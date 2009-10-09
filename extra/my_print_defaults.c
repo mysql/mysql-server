@@ -189,6 +189,7 @@ int main(int argc, char **argv)
 		config_file);
     }
     error= 2;
+    exit(error);
   }
 
   for (argument= arguments+1 ; *argument ; argument++)
@@ -196,5 +197,5 @@ int main(int argc, char **argv)
   my_free((char*) load_default_groups,MYF(0));
   free_defaults(arguments);
 
-  exit(error);
+  exit(0);
 }

@@ -5931,7 +5931,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int parse_args(int argc, char **argv)
 {
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    exit(1);
+
   default_argv= argv;
 
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))

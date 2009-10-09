@@ -208,7 +208,9 @@ int main(int argc, char **argv)
   char **default_argv;
   MY_INIT(argv[0]);
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    exit(1);
+
   default_argv= argv;
   get_options(&argc,&argv);
 

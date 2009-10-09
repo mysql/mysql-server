@@ -479,9 +479,13 @@ int my_load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
-  error= my_search_option_files(conf_file, argc, argv, &args_used,
-                                handle_default_option, (void *) &ctx,
-                                dirs);
+  if ((error= my_search_option_files(conf_file, argc, argv, &args_used,
+                                     handle_default_option, (void *) &ctx,
+                                     dirs)))
+  {
+    free_root(&alloc,MYF(0));
+    DBUG_RETURN(error);
+  }
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
@@ -528,10 +532,10 @@ int my_load_defaults(const char *conf_file, const char **groups,
     exit(0);
   }
 
-  if (error == 0 && default_directories)
+  if (default_directories)
     *default_directories= dirs;
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
  err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
