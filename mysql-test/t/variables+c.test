@@ -1,4 +1,4 @@
---source include/have_community_features.inc
+--source include/have_profiling.inc
 
 #
 # Bug#24822: Patch: uptime_since_flush_status
