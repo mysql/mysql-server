@@ -853,6 +853,11 @@ recv_parse_or_apply_log_rec_body(
 	}
 
 	switch (type) {
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+		/* The LSN is checked in recv_parse_log_rec(). */
+		break;
+#endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
 #ifdef UNIV_DEBUG
 		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
@@ -1924,6 +1929,17 @@ recv_parse_log_rec(
 		return(0);
 	}
 
+#ifdef UNIV_LOG_LSN_DEBUG
+	if (*type == MLOG_LSN) {
+		ib_uint64_t	lsn = (ib_uint64_t) *space << 32 | *page_no;
+# ifdef UNIV_LOG_DEBUG
+		ut_a(lsn == log_sys->old_lsn);
+# else /* UNIV_LOG_DEBUG */
+		ut_a(lsn == recv_sys->recovered_lsn);
+# endif /* UNIV_LOG_DEBUG */
+	}
+#endif /* UNIV_LOG_LSN_DEBUG */
+
 	/* Check that page_no is sensible */
 
 	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
@@ -2181,6 +2197,12 @@ loop:
 #endif
 			/* In normal mysqld crash recovery we do not try to
 			replay file operations */
+#ifdef UNIV_LOG_LSN_DEBUG
+		} else if (type == MLOG_LSN) {
+			/* Do not add these records to the hash table.
+			The page number and space id fields are misused
+			for something else. */
+#endif /* UNIV_LOG_LSN_DEBUG */
 		} else {
 			recv_add_to_hash_table(type, space, page_no, body,
 					       ptr + len, old_lsn,
@@ -2212,11 +2234,11 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
-			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 #ifdef UNIV_LOG_DEBUG
+			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 				recv_check_incomplete_log_recs(ptr, len);
-#endif /* UNIV_LOG_DEBUG */
 			}
+#endif /* UNIV_LOG_DEBUG */
 
 #ifdef UNIV_DEBUG
 			if (log_debug_writes) {
@@ -2280,7 +2302,11 @@ loop:
 				break;
 			}
 
-			if (store_to_hash) {
+			if (store_to_hash
+#ifdef UNIV_LOG_LSN_DEBUG
+			    && type != MLOG_LSN
+#endif /* UNIV_LOG_LSN_DEBUG */
+			    ) {
 				recv_add_to_hash_table(type, space, page_no,
 						       body, ptr + len,
 						       old_lsn,

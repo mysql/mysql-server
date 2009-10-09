@@ -185,6 +185,9 @@ command. Not tested on Windows. */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
+#define UNIV_LOG_LSN_DEBUG			/* write LSN to the redo log;
+this will break redo log file compatibility, but it may be useful when
+debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;

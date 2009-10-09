@@ -1097,6 +1097,10 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
 #endif
 
+#ifdef UNIV_LOG_LSN_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!\n");
+#endif /* UNIV_LOG_LSN_DEBUG */
 #ifdef UNIV_MEM_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
