@@ -1266,14 +1266,17 @@ Pgman::process_lcp(Signal* signal)
 
   if (m_lcp_curr_bucket == ~(Uint32)0  && !m_lcp_outstanding)
   {
+    jam();
     Ptr<Page_entry> ptr;
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
     if (pl.first(ptr))
     {
+      jam();
       process_lcp_locked(signal, ptr);
     }
     else
     {
+      jam();
       if (ERROR_INSERTED(11007))
       {
         ndbout << "No more writes..." << endl;
@@ -1298,19 +1301,17 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
 {
   CRASH_INSERTION(11006);
 
+  // protect from tsman parallel access
+  Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
   ptr.p->m_last_lcp = m_last_lcp;
   if (ptr.p->m_state & Page_entry::DIRTY)
   {
-    {
-      // protect copy-page
-      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
-      Ptr<GlobalPage> org, copy;
-      ndbrequire(m_global_page_pool.seize(copy));
-      m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-      memcpy(copy.p, org.p, sizeof(GlobalPage));
-      ptr.p->m_copy_page_i = copy.i;
-    }
-    
+    Ptr<GlobalPage> org, copy;
+    ndbrequire(m_global_page_pool.seize(copy));
+    m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+    memcpy(copy.p, org.p, sizeof(GlobalPage));
+    ptr.p->m_copy_page_i = copy.i;
+
     m_lcp_outstanding++;
     ptr.p->m_state |= Page_entry::LCP;
     pageout(signal, ptr);
@@ -1328,16 +1329,12 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 {
-  {
-    // protect copy-page
-    Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
-    Ptr<GlobalPage> org, copy;
-    m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
-    m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-    memcpy(org.p, copy.p, sizeof(GlobalPage));
-    m_global_page_pool.release(copy);
-    ptr.p->m_copy_page_i = RNIL;
-  }
+  Ptr<GlobalPage> org, copy;
+  m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
+  m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+  memcpy(org.p, copy.p, sizeof(GlobalPage));
+  m_global_page_pool.release(copy);
+  ptr.p->m_copy_page_i = RNIL;
 
   Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
   pl.next(ptr);
@@ -1486,13 +1483,18 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 
   if (state & Page_entry::LCP)
   {
+    jam();
+    state &= ~ Page_entry::LCP;
     ndbrequire(m_lcp_outstanding);
     m_lcp_outstanding--;
-    state &= ~ Page_entry::LCP;
-    
     if (ptr.p->m_copy_page_i != RNIL)
     {
+      jam();
+      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
       process_lcp_locked_fswriteconf(signal, ptr);
+      set_page_state(ptr, state);
+      do_busy_loop(signal, true);
+      return;
     }
   }
   
