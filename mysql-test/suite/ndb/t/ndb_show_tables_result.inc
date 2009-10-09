@@ -12,6 +12,9 @@ eval LOAD DATA INFILE '$dump_file'
   INTO TABLE ndb_show_tables_results;
 --remove_file $dump_file
 
+# Clean the last column "name" from any windows line endings
+UPDATE ndb_show_tables_results SET name = REPLACE(name, '\r', '');
+
 --enable_query_log
 
 --echo
