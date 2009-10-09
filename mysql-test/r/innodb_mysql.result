@@ -2209,3 +2209,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	128	Using where
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Test for bug #39932 "create table fails if column for FK is in different
+#                      case than in corr index".
+#
+drop tables if exists t1, t2;
+create table t1 (pk int primary key) engine=InnoDB;
+# Even although the below statement uses uppercased field names in
+# foreign key definition it still should be able to find explicitly
+# created supporting index. So it should succeed and should not
+# create any additional supporting indexes.
+create table t2 (fk int, key x (fk),
+constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `x` (`fk`),
+  CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2, t1;
