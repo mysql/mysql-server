@@ -18458,7 +18458,9 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  load_defaults("my", client_test_load_default_groups, &argc, &argv);
+  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+    exit(1);
+
   defaults_argv= argv;
   get_options(&argc, &argv);
 

@@ -3283,7 +3283,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   orig_argc=argc;
   orig_argv=argv;
-  load_defaults(conf_file_name, groups, &argc, &argv);
+  if (load_defaults(conf_file_name, groups, &argc, &argv))
+    return 1;
   defaults_argv=argv;
   defaults_argc=argc;
   if (get_options(&defaults_argc, defaults_argv))

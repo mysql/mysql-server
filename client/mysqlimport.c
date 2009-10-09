@@ -596,7 +596,8 @@ int main(int argc, char **argv)
   char **argv_to_free;
   MY_INIT(argv[0]);
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    return 1;
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))
