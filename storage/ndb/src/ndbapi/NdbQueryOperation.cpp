@@ -47,7 +47,9 @@ STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 STATIC_CONST( tupleNotFound = 0xffffffff);
 
+/** Set to true to trace incomming signals.*/
 const bool traceSignals = false;
+
 
 /** For scans, we receiver n parallel streams of data. There is a 
   * NdbResultStream object for each such stream. (For lookups, there is a 
