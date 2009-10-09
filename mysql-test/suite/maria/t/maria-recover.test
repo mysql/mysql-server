@@ -54,11 +54,10 @@ perl;
     close FILE;
 EOF
 
-# line below will be removed
-disable_ps_protocol;
 replace_regex /Table.*t_corrupted2/t_corrupted2/ ;
+--enable_prepare_warnings
 select * from t_corrupted2; # should show corruption and repair messages
-enable_ps_protocol;
+--disable_prepare_warnings
 select * from t_corrupted2; # should show just rows
 
 drop database mysqltest;

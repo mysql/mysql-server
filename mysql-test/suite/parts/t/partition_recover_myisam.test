@@ -18,7 +18,9 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
 # Embedded server doesn't chdir to data directory
 --replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
+--disable_prepare_warnings
 DROP TABLE t1_will_crash;
 CREATE TABLE t1_will_crash (a INT, KEY (a))
 ENGINE=MyISAM
@@ -33,5 +35,7 @@ FLUSH TABLES;
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 # Embedded server doesn't chdir to data directory
 --replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
+--disable_prepare_warnings
 DROP TABLE t1_will_crash;
