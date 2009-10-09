@@ -1644,7 +1644,7 @@ public:
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
   Diagnostics_area *stmt_da;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
 

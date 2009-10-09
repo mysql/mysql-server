@@ -2082,7 +2082,7 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_community_features;
+extern SHOW_COMP_OPTION have_profiling;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;

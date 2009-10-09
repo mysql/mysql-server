@@ -257,7 +257,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
                            (info != NULL) ? info : "(null)"));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
@@ -522,7 +522,7 @@ THD::THD()
   *scramble= '\0';
 
   init();
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
   user_connect=(USER_CONN *)0;

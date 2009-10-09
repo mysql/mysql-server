@@ -635,7 +635,7 @@ MY_LOCALE *my_default_lc_time_names;
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
-SHOW_COMP_OPTION have_community_features;
+SHOW_COMP_OPTION have_profiling;
 
 /* Thread specific variables */
 
@@ -6230,7 +6230,7 @@ master-ssl",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (uchar**) &mysqld_port_timeout,
    (uchar**) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
    (uchar**) &global_system_variables.profiling_history_size,
    (uchar**) &max_system_variables.profiling_history_size,
@@ -7028,7 +7028,7 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#ifdef COMMUNITY_SERVER
+#ifdef ENABLED_PROFILING
 static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
@@ -7486,7 +7486,7 @@ SHOW_VAR status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
-#ifdef COMMUNITY_SERVER
+#ifdef ENABLED_PROFILING
   {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
 #endif
   {NullS, NullS, SHOW_LONG}
@@ -7719,10 +7719,10 @@ static int mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#ifdef COMMUNITY_SERVER
-    have_community_features = SHOW_OPTION_YES;
+#ifdef ENABLED_PROFILING
+    have_profiling = SHOW_OPTION_YES;
 #else
-    have_community_features = SHOW_OPTION_NO;
+    have_profiling = SHOW_OPTION_NO;
 #endif
   global_system_variables.ndb_index_stat_enable=FALSE;
   max_system_variables.ndb_index_stat_enable=TRUE;
@@ -8826,9 +8826,7 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
-#ifdef COMMUNITY_SERVER
   flush_status_time= time((time_t*) 0);
-#endif
   pthread_mutex_unlock(&LOCK_status);
 
   /*
