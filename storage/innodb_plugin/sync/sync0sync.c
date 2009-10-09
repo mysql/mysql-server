@@ -39,6 +39,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "srv0srv.h"
 #include "buf0types.h"
+#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
