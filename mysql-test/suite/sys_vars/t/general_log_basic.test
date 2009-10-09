@@ -103,7 +103,7 @@ SELECT @@session.general_log;
 # Check if the value in GLOBAL Tables matches values in variable             #
 ##############################################################################
 
-SELECT @@global.general_log = VARIABLE_VALUE 
+SELECT IF(@@global.general_log, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='general_log';
 

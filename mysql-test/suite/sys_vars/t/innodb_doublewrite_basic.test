@@ -52,7 +52,7 @@ SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.innodb_doublewrite = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.innodb_doublewrite, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_doublewrite';
 --echo 1 Expected

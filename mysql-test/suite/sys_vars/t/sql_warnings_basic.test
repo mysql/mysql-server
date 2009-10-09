@@ -140,7 +140,7 @@ WHERE VARIABLE_NAME='sql_warnings';
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@session.sql_warnings = VARIABLE_VALUE 
+SELECT IF(@@session.sql_warnings, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_warnings';
 SELECT @@session.sql_warnings;

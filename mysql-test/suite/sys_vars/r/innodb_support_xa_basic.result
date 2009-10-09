@@ -105,10 +105,10 @@ SELECT @@session.innodb_support_xa AS res_is_1;
 res_is_1
 1
 '#----------------------FN_DYNVARS_046_06------------------------#'
-SELECT @@global.innodb_support_xa =
+SELECT IF(@@global.innodb_support_xa, "ON", "OFF") =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_support_xa';
-@@global.innodb_support_xa =
+IF(@@global.innodb_support_xa, "ON", "OFF") =
 VARIABLE_VALUE
 1
 SELECT @@global.innodb_support_xa;
@@ -119,12 +119,12 @@ WHERE VARIABLE_NAME='innodb_support_xa';
 VARIABLE_VALUE
 OFF
 '#----------------------FN_DYNVARS_046_07------------------------#'
-SELECT @@session.innodb_support_xa =
+SELECT IF(@@session.innodb_support_xa, "ON", "OFF") =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='innodb_support_xa';
-@@session.innodb_support_xa =
+IF(@@session.innodb_support_xa, "ON", "OFF") =
 VARIABLE_VALUE
-0
+1
 SELECT @@session.innodb_support_xa;
 @@session.innodb_support_xa
 1

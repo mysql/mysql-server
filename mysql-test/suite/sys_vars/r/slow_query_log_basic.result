@@ -47,10 +47,10 @@ ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable and should be set wi
 SELECT @@session.slow_query_log;
 ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_05------------------------#'
-SELECT @@global.slow_query_log = VARIABLE_VALUE 
+SELECT IF(@@global.slow_query_log, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='slow_query_log';
-@@global.slow_query_log = VARIABLE_VALUE
+IF(@@global.slow_query_log, "ON", "OFF") = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_004_06----------------------#'
 SET @@global.slow_query_log = 0;
