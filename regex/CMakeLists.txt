@@ -18,7 +18,7 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG -DSAFEMALLOC -DSAFE_MUT
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
-SET(REGEX_SOURCES debug.c regcomp.c regerror.c regexec.c regfree.c reginit.c split.c)
+SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(regex ${REGEX_SOURCES})
