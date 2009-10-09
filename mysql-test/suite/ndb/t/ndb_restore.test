@@ -426,13 +426,16 @@ select count(*)
         select * from t11_c) a;
 #
 # Drop all table except t2_c
-#   This to make sure that error returned from ndb_restore above is 
+#   This to make sure that error returned from ndb_restore below is 
 #     guaranteed to be from t2_c, this since order of tables in backup
 #     is none deterministic
 # 
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
---exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 | grep Translate || true
+
+# ndb_restore should now fail, table t2_c already exists
+--error 1
+--exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
 
 CREATE TABLE t11_c (
   c1 int primary key, c2 char(10), c3 varchar(10)
