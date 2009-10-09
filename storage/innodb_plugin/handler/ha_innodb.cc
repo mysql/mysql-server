@@ -107,6 +107,9 @@ extern "C" {
 #include "i_s.h"
 
 #ifndef MYSQL_SERVER
+# ifndef MYSQL_PLUGIN_IMPORT
+#  define MYSQL_PLUGIN_IMPORT /* nothing */
+# endif /* MYSQL_PLUGIN_IMPORT */
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;

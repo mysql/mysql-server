@@ -231,10 +231,10 @@ the extent are free and which contain old tuple version to clean. */
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
 
+#ifndef UNIV_HOTBACKUP
 /* Flag to indicate if we have printed the tablespace full error. */
 static ibool fsp_tbs_full_error_printed = FALSE;
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Returns an extent to the free list of a space. */
 static
