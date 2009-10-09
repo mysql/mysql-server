@@ -135,6 +135,7 @@ public:
   };
 
   struct Subscriber {
+    Subscriber() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 nextList;
@@ -197,6 +198,8 @@ public:
 
   struct SubOpRecord
   {
+    SubOpRecord() {}
+
     enum OpType
     {
       R_SUB_START_REQ,
