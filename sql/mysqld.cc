@@ -4892,9 +4892,6 @@ static void create_new_thread(THD *thd)
   NET *net=&thd->net;
   DBUG_ENTER("create_new_thread");
 
-  if (protocol_version > 9)
-    net->return_errno=1;
-
   /*
     Don't allow too many connections. We roughly check here that we allow
     only (max_connections + 1) connections.
