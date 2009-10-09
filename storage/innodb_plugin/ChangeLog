@@ -1,3 +1,16 @@
+2009-09-28	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Try to prevent the reuse of tablespace identifiers after InnoDB
+	has crashed during table creation.  Also, refuse to start if files
+	with duplicate tablespace identifiers are encountered.
+
+2009-09-25	The InnoDB Team
+
+	* include/os0file.h, os/os0file.c:
+	Fix Bug#47055 unconditional exit(1) on ERROR_WORKING_SET_QUOTA
+	1453 (0x5AD) for InnoDB backend
+
 2009-09-19	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-consistent-master.opt,

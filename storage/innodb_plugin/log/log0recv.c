@@ -1274,7 +1274,7 @@ recv_add_to_hash_table(
 					   sizeof(recv_data_t) + len);
 		*prev_field = recv_data;
 
-		ut_memcpy(((byte*)recv_data) + sizeof(recv_data_t), body, len);
+		memcpy(recv_data + 1, body, len);
 
 		prev_field = &(recv_data->next);
 
