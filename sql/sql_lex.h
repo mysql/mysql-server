@@ -951,6 +951,8 @@ extern sys_var *trg_new_row_fake_var;
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
+extern const LEX_STRING null_lex_str;
+
 
 /*
   Class representing list of all tables used by statement.
