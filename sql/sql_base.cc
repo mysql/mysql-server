@@ -2513,6 +2513,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
+  uint hash_value;
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
@@ -2702,6 +2703,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     on disk.
   */
 
+  hash_value= my_calc_hash(&open_cache, (uchar*) key, key_length);
   VOID(pthread_mutex_lock(&LOCK_open));
 
   /*
@@ -2744,8 +2746,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     an implicit "pending locks queue" - see
     wait_for_locked_table_names for details.
   */
-  for (table= (TABLE*) hash_first(&open_cache, (uchar*) key, key_length,
-                                  &state);
+  for (table= (TABLE*) hash_first_from_hash_value(&open_cache,
+                                                  hash_value,
+                                                  (uchar*) key,
+                                                  key_length,
+                                                  &state);
        table && table->in_use ;
        table= (TABLE*) hash_next(&open_cache, (uchar*) key, key_length,
                                  &state))
