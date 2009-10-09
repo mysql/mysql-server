@@ -2122,6 +2122,7 @@ private:
   friend struct DictLockRecord;
 
   struct DictLockRecord {
+    DictLockRecord() {}
     DictLockReq req;
     const DictLockType* lt;
     bool locked;

@@ -175,6 +175,7 @@ public:
   typedef Ptr<Page32> Page32Ptr;
 
   struct Attribute {
+    Attribute() {}
     enum Flags {
       COL_NULLABLE = 0x1,
       COL_FIXED    = 0x2,
