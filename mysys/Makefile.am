@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c my_getpagesize.c \
-			mf_keycache.c mf_keycaches.c my_crc32.c \
+			mf_keycaches.c my_crc32.c \
 			mf_iocache.c mf_iocache2.c mf_cache.c mf_tempfile.c \
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
@@ -53,6 +53,14 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c my_libwrap.c
+
+if NEED_THREAD
+# mf_keycache is used only in the server, so it is safe to leave the file
+# out of the non-threaded library.
+# In fact, it will currently not compile without thread support.
+libmysys_a_SOURCES +=   mf_keycache.c
+endif
+
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			CMakeLists.txt mf_soundex.c \
