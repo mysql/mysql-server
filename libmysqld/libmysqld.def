@@ -13,9 +13,7 @@ EXPORTS
 	mysql_commit
 	mysql_data_seek
 	mysql_debug
-	mysql_disable_rpl_parse
 	mysql_dump_debug_info
-	mysql_enable_rpl_parse
 	mysql_eof
 	mysql_errno
 	mysql_error
@@ -61,8 +59,6 @@ EXPORTS
 	mysql_rollback
 	mysql_row_seek
 	mysql_row_tell
-	mysql_rpl_parse_enabled
-	mysql_rpl_probe
 	mysql_select_db
 	mysql_send_query
 	mysql_shutdown
