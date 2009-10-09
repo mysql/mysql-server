@@ -332,9 +332,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     }
     if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
       ctx.reportError("Illegal value %s for parameter %s.\n"
-		      "Legal values are between %Lu and %Lu", value, fname,
-		      m_info->getMin(ctx.m_currentInfo, fname), 
-		      m_info->getMax(ctx.m_currentInfo, fname));
+                      "Legal values are between %llu and %llu", value, fname,
+                      m_info->getMin(ctx.m_currentInfo, fname),
+                      m_info->getMax(ctx.m_currentInfo, fname));
       return false;
     }
     if(type == ConfigInfo::CI_INT){
@@ -664,12 +664,12 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 
       const char * fname = options[i].name;
       if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
-	ctx.reportError("Illegal value %lld for parameter %s.\n"
-			"Legal values are between %Lu and %Lu", 
-			value_int, fname,
-			m_info->getMin(ctx.m_currentInfo, fname), 
-			m_info->getMax(ctx.m_currentInfo, fname));
-	return false;
+        ctx.reportError("Illegal value %llu for parameter %s.\n"
+                        "Legal values are between %llu and %llu",
+                        value_int, fname,
+                        m_info->getMin(ctx.m_currentInfo, fname),
+                        m_info->getMax(ctx.m_currentInfo, fname));
+        return false;
       }
 
       ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
