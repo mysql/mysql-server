@@ -1413,3 +1413,26 @@ DROP USER 'user1';
 DROP USER 'user1'@'localhost';
 DROP USER 'user2';
 DROP DATABASE db1;
+#
+# Bug #25863 No database selected error, but documentation 
+#            says * for global allowed
+#
+GRANT ALL ON * TO mysqltest_1;
+ERROR 3D000: No database selected
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT ALL PRIVILEGES ON *.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
+USE test;
+GRANT ALL ON * TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
+GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT ALL PRIVILEGES ON *.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
