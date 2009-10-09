@@ -22,7 +22,11 @@
 #include <my_config.h>
 #include <ndb_types.h>
 
-#define NDB_PORT "@ndb_port@"
+#ifndef NDB_PORT
+/* Default port used by ndb_mgmd */
+#define NDB_PORT 1186
+#endif
+
 #define NDB_TCP_BASE_PORT "@ndb_port_base@"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
