@@ -1798,7 +1798,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    NDB_PORT,
+    STR_VALUE(NDB_PORT),
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3412,7 +3412,7 @@ fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data)
   ctx.m_userProperties.get(ctx.fname, &nodes);
   if (nodes == 1) // first management server
   {
-    Uint32 portno= atoi(NDB_PORT);
+    Uint32 portno= NDB_PORT;
     ctx.m_currentSection->get("PortNumber", &portno);
     ctx.m_userProperties.put("ShmUniqueId", portno);
   }
