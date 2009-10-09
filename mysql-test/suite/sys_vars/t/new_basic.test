@@ -154,7 +154,7 @@ SET @@session.new = test;
 ####################################################################
 
 
-SELECT @@global.new = VARIABLE_VALUE 
+SELECT IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='new';
 
@@ -163,7 +163,7 @@ WHERE VARIABLE_NAME='new';
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.new = VARIABLE_VALUE 
+SELECT IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='new';
 

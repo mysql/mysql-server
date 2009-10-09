@@ -102,10 +102,10 @@ SELECT @@session.sql_low_priority_updates AS res_is_1;
 res_is_1
 1
 '#----------------------FN_DYNVARS_159_06------------------------#'
-SELECT @@global.sql_low_priority_updates = VARIABLE_VALUE 
+SELECT IF(@@global.sql_low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='sql_low_priority_updates';
-@@global.sql_low_priority_updates = VARIABLE_VALUE
+IF(@@global.sql_low_priority_updates, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
@@ -116,11 +116,11 @@ WHERE VARIABLE_NAME='sql_low_priority_updates';
 VARIABLE_VALUE
 OFF
 '#----------------------FN_DYNVARS_159_07------------------------#'
-SELECT @@session.sql_low_priority_updates = VARIABLE_VALUE 
+SELECT IF(@@session.sql_low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_low_priority_updates';
-@@session.sql_low_priority_updates = VARIABLE_VALUE
-0
+IF(@@session.sql_low_priority_updates, "ON", "OFF") = VARIABLE_VALUE
+1
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 1

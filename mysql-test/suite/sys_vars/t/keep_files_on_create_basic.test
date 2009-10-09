@@ -156,7 +156,7 @@ SELECT @@session.keep_files_on_create;
 ####################################################################
 
 
-SELECT @@global.keep_files_on_create = VARIABLE_VALUE 
+SELECT IF(@@global.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='keep_files_on_create';
 
@@ -165,7 +165,7 @@ WHERE VARIABLE_NAME='keep_files_on_create';
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.keep_files_on_create = VARIABLE_VALUE 
+SELECT IF(@@session.keep_files_on_create, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='keep_files_on_create';
 
