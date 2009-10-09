@@ -242,7 +242,7 @@ engine ndb;
 # -----------------------------------------------------------------
 
 # --
-# -- WL#4300
+# -- WL#4300: Define privileges for tablespaces.
 # --
 GRANT CREATE TABLESPACE ON *.* TO mysqltest_u1@localhost;
 
