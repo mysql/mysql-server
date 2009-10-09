@@ -309,6 +309,21 @@ flush privileges;
 --connection default
 drop user mysqltest_32753@localhost;
 
+
+#
+# Bug#21099 MySQL 5.0.22 silently creates MyISAM tables even though 
+#           InnoDB specified.
+#
+
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='traditional';
+
+# Agreed change was to add NO_ENGINE_SUBSTITUTION to TRADITIONAL sql mode.
+SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
+
+SET sql_mode=@org_mode;
+
+
 #
 # Bug#45100: Incomplete DROP USER in case of SQL_MODE = 'PAD_CHAR_TO_FULL_LENGTH'
 #
