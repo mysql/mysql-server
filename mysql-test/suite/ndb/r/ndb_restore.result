@@ -550,7 +550,7 @@ select * from t11_c) a;
 count(*)
 1
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-Backup Id = 3
+Backup Id = the_backup_id
 Nodeid = 1
 Analyse node group map
 Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
