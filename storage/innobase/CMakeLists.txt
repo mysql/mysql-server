@@ -16,11 +16,7 @@
 # This is the CMakeLists for InnoDB Plugin
 
 
-# TODO: remove the two FLAGS_DEBUG settings when merging into
-# 6.0-based trees, like is already the case for other engines in
-# those trees.
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 
 # Include directories under innobase

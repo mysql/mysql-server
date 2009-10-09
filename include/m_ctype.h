@@ -87,6 +87,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
 #define MY_CS_HIDDEN	2048   /* don't display in SHOW          */	
 #define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
+#define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -474,6 +475,7 @@ my_bool my_charset_is_ascii_based(CHARSET_INFO *cs);
 my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
 uint my_charset_repertoire(CHARSET_INFO *cs);
 
+my_bool my_charset_is_ascii_compatible(CHARSET_INFO *cs);
 
 #define	_MY_U	01	/* Upper case */
 #define	_MY_L	02	/* Lower case */

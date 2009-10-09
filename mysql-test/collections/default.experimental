@@ -12,6 +12,7 @@ main.information_schema                  # Bug#47449 2009-09-19 alik main.inform
 main.innodb-autoinc                      # Bug#44030 2009-09-24 alik Marking innodb-autoinc experimental while waiting for the patch to be merged
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
+main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.plugin_load                         # Bug#47146
 
