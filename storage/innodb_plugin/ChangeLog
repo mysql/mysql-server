@@ -1,10 +1,53 @@
+2009-09-19	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-consistent-master.opt,
+	mysql-test/innodb-consistent.result,
+	mysql-test/innodb-consistent.test:
+	Fix Bug#37232 Innodb might get too many read locks for DML with
+	repeatable-read
+
+2009-09-19	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#31183 Tablespace full problems not reported in error log,
+	error message unclear
+
+2009-09-17	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
+	Make the test pass with zlib 1.2.3.3. Apparently, the definition
+	of compressBound() has changed between zlib versions, and the
+	maximum record size of a table with 1K compressed page size has
+	been reduced by one byte. This is an arbitrary test. In practical
+	applications, for good write performance, the compressed page size
+	should be chosen to be bigger than the absolute minimum.
+
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#46256 drop table with unknown collation crashes innodb
+
+2009-09-16	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc,
+	mysql-test/innodb_bug44369.result, mysql-test/innodb_bug44369.test,
+	row/row0mysql.c:
+	Fix Bug#44369 InnoDB: Does not uniformly disallow disallowed column
+	names
+
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/db0err.h,
+	mysql-test/innodb_bug46000.result, mysql-test/innodb_bug46000.test:
+	Fix Bug#46000 using index called GEN_CLUST_INDEX crashes server
+
 2009-09-02	The InnoDB Team
 
 	* include/lock0lock.h, include/row0mysql.h, lock/lock0lock.c,
 	row/row0mysql.c:
 	Fix a regression introduced by the fix for MySQL bug#26316. We check
 	whether a transaction holds any AUTOINC locks before we acquire
-       	the kernel mutex and release those locks.
+	the kernel mutex and release those locks.
 
 2009-08-27	The InnoDB Team
 
@@ -16,29 +59,29 @@
 
 	* row/row0merge.c:
 	Fix a bug in the merge sort that can corrupt indexes in fast index
-	creation.  Add some consistency checks.  Check that the number of
+	creation. Add some consistency checks. Check that the number of
 	records remains constant in every merge sort pass.
 
 2009-08-27	The InnoDB Team
 
-	* buf/buf0buf.c, buf/buf0lru.c, buf/buf0rea.c,
-	handler/ha_innodb.cc, include/buf0buf.h, include/buf0buf.ic,
-	include/buf0lru.h, include/ut0ut.h, ut/ut0ut.c:
+	* buf/buf0buf.c, buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
+	include/ut0ut.h, ut/ut0ut.c:
 	Make it possible to tune the buffer pool LRU eviction policy to be
-	more resistant against index scans.  Introduce the settable global
+	more resistant against index scans. Introduce the settable global
 	variables innodb_old_blocks_pct and innodb_old_blocks_time for
-	controlling the buffer pool eviction policy.  The parameter
+	controlling the buffer pool eviction policy. The parameter
 	innodb_old_blocks_pct (5..95) controls the desired amount of "old"
-	blocks in the LRU list.  The default is 37, corresponding to the
-	old fixed ratio of 3/8.  Each time a block is accessed, it will be
+	blocks in the LRU list. The default is 37, corresponding to the
+	old fixed ratio of 3/8. Each time a block is accessed, it will be
 	moved to the "new" blocks if its first access was at least
 	innodb_old_blocks_time milliseconds ago (default 0, meaning every
-	block).  The idea is that in index scans, blocks will be accessed
+	block). The idea is that in index scans, blocks will be accessed
 	a few times within innodb_old_blocks_time, and they will remain in
-	the "old" section of the LRU list.  Thus, when
-	innodb_old_blocks_time is nonzero, blocks retrieved for one-time
-	index scans will be more likely candidates for eviction than
-	blocks that are accessed in random patterns.
+	the "old" section of the LRU list. Thus, when innodb_old_blocks_time
+	is nonzero, blocks retrieved for one-time index scans will be more
+	likely candidates for eviction than blocks that are accessed in
+	random patterns.
 
 2009-08-26	The InnoDB Team
 
