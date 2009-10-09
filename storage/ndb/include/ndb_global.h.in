@@ -165,4 +165,49 @@ extern "C" {
 
 #define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
+
+/*
+  NDB_STATIC_ASSERT(expr)
+   - Check coding assumptions during compile time
+     by laying out code that will generate a compiler error
+     if the expression is false.
+*/
+
+#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
+
+/*
+  Prefer to use the 'static_assert' function from C++0x
+  to get best error message
+*/
+#define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
+
+#else
+
+/*
+  Fallback to use home grown solution
+*/
+
+#define STR_CONCAT_(x, y) x##y
+#define STR_CONCAT(x, y) STR_CONCAT_(x, y)
+
+#define NDB_STATIC_ASSERT(expr) \
+  enum {STR_CONCAT(static_assert_, __LINE__) = 1 / (!!(expr)) }
+
+#undef STR_CONCAT_
+#undef STR_CONCAT
+
+#endif
+
+
+#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
+#define HAVE_COMPILER_TYPE_TRAITS
+#endif
+
+#ifdef HAVE_COMPILER_TYPE_TRAITS
+#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
+  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
+#else
+#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
+#endif
+
 #endif

@@ -357,6 +357,7 @@ private:
 
   // ScanLock
   struct ScanLock {
+    ScanLock() {}
     Uint32 m_accLockOp;
     union {
     Uint32 nextPool;
