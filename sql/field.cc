@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6470,20 +6470,9 @@ uint Field::is_equal(Create_field *new_field)
 }
 
 
-/* If one of the fields is binary and the other one isn't return 1 else 0 */
-
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
-{
-  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
-         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
-}
-
-
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == real_type()) &&
@@ -8249,7 +8238,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
@@ -9535,7 +9524,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
 
     if (length == 0)
-      fld_length= 0; /* purecov: inspected */
+      fld_length= NULL; /* purecov: inspected */
   }
 
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
@@ -9687,8 +9676,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIMESTAMP:
     if (fld_length == NULL)
     {
-      /* Compressed date YYYYMMDDHHMMSS */
-      length= MAX_DATETIME_COMPRESSED_WIDTH;
+      length= MAX_DATETIME_WIDTH;
     }
     else if (length != MAX_DATETIME_WIDTH)
     {
@@ -9753,7 +9741,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
-    length= 10;
+    length= MAX_DATE_WIDTH;
     break;
   case MYSQL_TYPE_TIME:
     length= 10;
@@ -9832,6 +9820,17 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
     DBUG_RETURN(TRUE);
+  }
+
+  switch (fld_type) {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    charset= &my_charset_bin;
+    flags|= BINCMP_FLAG;
+  default: break;
   }
 
   DBUG_RETURN(FALSE); /* success */
