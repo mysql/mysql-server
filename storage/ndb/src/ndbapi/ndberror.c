@@ -758,6 +758,10 @@ ErrorBundle ErrorCodes[] = {
     "Result row already defined for NdbQueryOperation."},
   { QRY_HAS_ZERO_OPERATIONS, DMEC, AE, 
     "Query defintion should have at least one operation."},
+  { QRY_IN_ERROR_STATE, DMEC, AE, 
+    "A previous query operation failed, which you missed to catch."},
+  { QRY_ILLEGAL_STATE, DMEC, AE, 
+    "Query is in illegal state for this operation."},
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

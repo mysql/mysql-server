@@ -37,6 +37,8 @@
 #define QRY_NEED_PARAMETER 4813
 #define QRY_RESULT_ROW_ALREADY_DEFINED 4814
 #define QRY_HAS_ZERO_OPERATIONS 4815
+#define QRY_IN_ERROR_STATE 4816
+#define QRY_ILLEGAL_STATE 4817
 
 #ifdef __cplusplus
 #include <Vector.hpp>

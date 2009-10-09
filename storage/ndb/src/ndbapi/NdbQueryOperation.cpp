@@ -457,6 +457,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
                            const NdbQueryDefImpl& queryDef, 
                            NdbQueryImpl* next):
   m_interface(*this),
+  m_state(Initial),
   m_error(),
   m_transaction(trans),
   m_operations(0),
@@ -502,6 +503,7 @@ NdbQueryImpl::~NdbQueryImpl()
     free(m_operations);
     m_operations = NULL;
   }
+  m_state = Destructed;
 }
 
 //static
@@ -514,11 +516,12 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
     trans.setErrorCode(QRY_HAS_ZERO_OPERATIONS);
     return NULL;
   }
-  NdbQueryImpl* const result = new NdbQueryImpl(trans, queryDef, next);
-  if(result==NULL){
+  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef, next);
+  if(query==NULL){
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
   }
-  return result;
+  assert(query->m_state==Initial);
+  return query;
 }
 
 
@@ -552,7 +555,8 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
         return error;
     }
   }
-
+  assert(m_state<Defined);
+  m_state = Defined;
   return 0;
 }
 
@@ -601,10 +605,24 @@ NdbQueryImpl::getParameter(Uint32 num) const
 NdbQuery::NextResultOutcome
 NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
 {
+  if (unlikely(m_state < Executing || m_state >= Closed)) {
+    assert (m_state!=Destructed);
+    if (m_state == Failed)
+      setErrorCode(QRY_IN_ERROR_STATE);
+    else
+      setErrorCode(QRY_ILLEGAL_STATE);
+    return NdbQuery::NextResult_error;
+  }
+
+  if (m_state == EndOfData) {
+    return NdbQuery::NextResult_scanComplete;
+  }
+
   /* To minimize lock contention, each operation has two instances 
    * of StreamStack (which contains result streams). m_applStreams is only
    * accessed by the application thread, so it is safe to use it without 
-   * locks.*/
+   * locks.
+   */
   while(m_applStreams.top() != NULL
         && !m_applStreams.top()->m_receiver.nextResult()){
     m_applStreams.pop();
@@ -613,10 +631,6 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
   if (unlikely(m_applStreams.top()==NULL)) {
     /* m_applStreams is empty, so we cannot get more results without 
      * possibly blocking.*/
-
-//  if (unlikely(m_state == FetchState_closed)) {  // TODO: Query completed
-//    return NdbQuery::NextResult_scanComplete;
-//  }
 
     if (fetchAllowed) {
       /* fetchMoreResults() will either copy streams that are already
@@ -640,6 +654,9 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       case FetchResult_ok:
         break;
       case FetchResult_scanComplete:
+        for (unsigned i = 0; i<getNoOfOperations(); i++) {
+          m_operations[i].m_isRowNull = true;
+        }
         return NdbQuery::NextResult_scanComplete;
       default:
         assert(false);
@@ -715,6 +732,8 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       }
     }
   }
+
+  m_state = Fetching;
   return NdbQuery::NextResult_gotRow;
 } //NdbQueryImpl::nextResult
 
@@ -743,10 +762,12 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         if(getRoot().isBatchComplete()){
           // Request another scan batch, may already be at EOF
           const int sent = sendFetchMore(m_transaction.getConnectedNodeId(),false);
-          if (sent==0)  // EOF reached?
+          if (sent==0) {  // EOF reached?
+            m_state = EndOfData;
             return FetchResult_scanComplete;
-          else if (unlikely(sent<0))
+          } else if (unlikely(sent<0)) {
             return FetchResult_sendFail;
+          }
         }
         /* More results are on the way, so we wait for them.*/
         const FetchResult waitResult = static_cast<FetchResult>
@@ -789,6 +810,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
        *  - No results was returned (TCKEYREF)
        *  - or, the application called nextResult() twice for a lookup query.
        */
+      m_state = EndOfData;
       return FetchResult_scanComplete;
     }else{
       /* Move stream from receiver thread's container to application 
@@ -837,101 +859,85 @@ NdbQueryImpl::closeSingletonScans()
 int
 NdbQueryImpl::close(bool forceSend, bool release)
 {
+  assert (m_state != Destructed);
+
   // FIXME1 - Generally needxs more debugging
-  // FIXME2 - Might not have executed the scanquery yet, no close required then.
-  if (m_queryDef.isScanQuery()) {
-    Ndb* const ndb = m_transaction.getNdb();
+  if (m_state >= Executing  && m_state < EndOfData) {
+    if (m_queryDef.isScanQuery()) {
+      Ndb* const ndb = m_transaction.getNdb();
     
-    TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
+      TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
+      /* This part needs to be done under mutex due to synchronization with 
+       * receiver thread.
+       */
+      PollGuard poll_guard(facade,
+                           &ndb->theImpl->theWaiter,
+                           ndb->theNdbBlockNumber);
 
-    /* This part needs to be done under mutex due to synchronization with 
-     * receiver thread. */
-    PollGuard poll_guard(facade,
-                         &ndb->theImpl->theWaiter,
-                         ndb->theNdbBlockNumber);
-
-      if(m_fullStreams.top()==NULL){
-        if(getRoot().isBatchComplete()){
-          // Request another scan batch, may already be at EOF
-          const int sent = sendFetchMore(m_transaction.getConnectedNodeId(),false);
-          if (sent==0)  // EOF reached?
-            return FetchResult_scanComplete;
-          else if (unlikely(sent<0))
-            return FetchResult_sendFail;
-        }
-        /* More results are on the way, so we wait for them.*/
+      /* Wait for outstanding scan results from current batch fetch */
+      while (!getRoot().isBatchComplete())
+      {
+        printf("::close waits for outstanding scan result batches\n");
         const FetchResult waitResult = static_cast<FetchResult>
-          (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
-                                m_transaction.getConnectedNodeId(), 
-                                forceSend));
-        if(waitResult != FetchResult_ok){
-          return waitResult;
+              (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                    m_transaction.getConnectedNodeId(), 
+                                    forceSend));
+        switch (waitResult) {
+        case FetchResult_ok:
+          break;
+        case FetchResult_nodeFail:
+          setErrorCode(Err_NodeFailCausedAbort);  // Node fail
+          return -1;
+        case FetchResult_timeOut:
+          setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+          return -1;
+        default:
+          assert(false);
         }
-      } // if (m_fullStreams.top()==NULL)
+      } // while
 
-    /* Wait for outstanding scan results from current batch fetch */
-    while (!getRoot().isBatchComplete())
-    {
-      printf("::close waits for outstanding scan result batches\n");
-      const FetchResult waitResult = static_cast<FetchResult>
-            (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
-                                  m_transaction.getConnectedNodeId(), 
-                                  forceSend));
-      switch (waitResult) {
-      case FetchResult_ok:
-        break;
-      case FetchResult_nodeFail:
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
+      m_fullStreams.clear();
+      m_applStreams.clear();
+
+      /* Send SCANREQ(close) */
+      const int sent = sendFetchMore(m_transaction.getConnectedNodeId(), true);
+      if (unlikely(sent<0))
         return -1;
-      case FetchResult_timeOut:
-        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
-        return -1;
-      default:
-        assert(false);
-      }
-    } // while
 
-    m_fullStreams.clear();
-    m_applStreams.clear();
+      /* Wait for close to be confirm: */
+      while (sent > 0 && !getRoot().isBatchComplete())
+      {
+        printf("::close waits for SCAN CONF\n");
+        const FetchResult waitResult = static_cast<FetchResult>
+              (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
+                                    m_transaction.getConnectedNodeId(), 
+                                    forceSend));
+        switch (waitResult) {
+        case FetchResult_ok:
+          break;
+        case FetchResult_nodeFail:
+          setErrorCode(Err_NodeFailCausedAbort);  // Node fail
+          return -1;
+        case FetchResult_timeOut:
+          setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+          return -1;
+        default:
+          assert(false);
+        }
+        break;  // FIXME, temp hack, Ref ::receiveSCAN_TABCONF, & 'EndOfData'
+      } // while
 
-    /* Send SCANREQ(close) */
-    const int sent = sendFetchMore(m_transaction.getConnectedNodeId(), true);
-    if (unlikely(sent<0))
-      return -1;
-    else if (sent==0)  // Has already reached EOF and closed scan
-      return 0;
-
-    /* Wait for close to be confirm: */
-    while (!getRoot().isBatchComplete())
-    {
-      printf("::close waits for SCAN CONF\n");
-      const FetchResult waitResult = static_cast<FetchResult>
-            (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
-                                  m_transaction.getConnectedNodeId(), 
-                                  forceSend));
-      switch (waitResult) {
-      case FetchResult_ok:
-        break;
-      case FetchResult_nodeFail:
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
-        return -1;
-      case FetchResult_timeOut:
-        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
-        return -1;
-      default:
-        assert(false);
-      }
-      break;  // FIXME, temp hack, Ref ::receiveSCAN_TABCONF, & 'EndOfData'
-    } // while
-
-  } else { // Lookup query
-    // Not likely to require any action to close lookups on TC
+    } else { // Lookup query
+      // Not likely to require any action to close lookups on TC
+    }
+    m_state = EndOfData;
   }
 
   // Throw any pending results
   m_fullStreams.clear();
   m_applStreams.clear();
+  m_state = Closed;
 
   if (release) {
     delete this;
@@ -945,6 +951,7 @@ NdbQueryImpl::setErrorCodeAbort(int aErrorCode){
   m_transaction.theErrorLine = 0;
   m_transaction.theErrorOperation = NULL;
   m_transaction.setOperationErrorCodeAbort(aErrorCode);
+  m_state = Failed;
 }
 
 bool 
@@ -989,6 +996,15 @@ NdbQueryImpl::incPendingStreams(int increment){
 int
 NdbQueryImpl::prepareSend()
 {
+  if (unlikely(m_state != Defined)) {
+    assert (m_state!=Destructed);
+    if (m_state == Failed) 
+      setErrorCodeAbort(QRY_IN_ERROR_STATE);
+    else
+      setErrorCodeAbort(QRY_ILLEGAL_STATE);
+    return -1;
+  }
+
   assert (m_pendingStreams==0);
 
   // Determine execution parameters 'parallelism' and 'batch size'.
@@ -1010,7 +1026,7 @@ NdbQueryImpl::prepareSend()
     Uint32 batchRows = m_maxBatchRows; // >0: User specified prefered value, ==0: Use default CFG values
 
 #ifdef TEST_SCANREQ
-    batchRows = 4;  // To force usage of SCAN_NEXTREQ even for small scans
+    batchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans
 #endif
 
     // Calculate batchsize for query as minimum batchRows for all m_operations[].
@@ -1083,6 +1099,7 @@ NdbQueryImpl::prepareSend()
   ndbout << endl;
 #endif
 
+  m_state = Prepared;
   return 0;
 } // NdbQueryImpl::prepareSend
 
@@ -1100,6 +1117,15 @@ Remark:         Send a TCKEYREQ or SCAN_TABREQ (long) signal depending of
 int
 NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 {
+  if (unlikely(m_state != Prepared)) {
+    assert (m_state!=Destructed);
+    if (m_state == Failed) 
+      setErrorCodeAbort(QRY_IN_ERROR_STATE);
+    else
+      setErrorCodeAbort(QRY_ILLEGAL_STATE);
+    return -1;
+  }
+
   Ndb& ndb = *m_transaction.getNdb();
   TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
 
@@ -1307,6 +1333,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
       return FetchResult_sendFail;
     }
   }
+  m_state = Executing;
 
   /* Todo : Consider calling NdbOperation::postExecuteRelease()
    * Ideally it should be called outside TP mutex, so not added
@@ -1350,7 +1377,7 @@ NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
     }
   }
 
-//printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
+//  printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
   if (sent==0)
     return 0;
 
@@ -1433,7 +1460,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_batchBuffer(NULL),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
-  m_isRowNull(false),
+  m_isRowNull(true),
   m_ndbRecord(NULL),
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL)
@@ -1536,6 +1563,14 @@ NdbQueryOperationImpl::getValue(
                             const NdbDictionary::Column* column, 
                             char* resultBuffer)
 {
+  if (unlikely(getQuery().m_state != NdbQueryImpl::Defined)) {
+    assert (getQuery().m_state!=NdbQueryImpl::Destructed);
+    if (getQuery().m_state == NdbQueryImpl::Failed) 
+      getQuery().setErrorCode(QRY_IN_ERROR_STATE);
+    else
+      getQuery().setErrorCode(QRY_ILLEGAL_STATE);
+    return NULL;
+  }
   if(unlikely(m_resultStyle == Style_NdbRecord)){
     getQuery().setErrorCode(Err_MixRecAttrAndRecord);
     return NULL;
@@ -1577,6 +1612,14 @@ NdbQueryOperationImpl::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
+  if (unlikely(getQuery().m_state != NdbQueryImpl::Defined)) {
+    assert (getQuery().m_state!=NdbQueryImpl::Destructed);
+    if (getQuery().m_state == NdbQueryImpl::Failed) 
+      getQuery().setErrorCode(QRY_IN_ERROR_STATE);
+    else
+      getQuery().setErrorCode(QRY_ILLEGAL_STATE);
+    return -1;
+  }
   if (rec->tableId != 
       static_cast<Uint32>(m_operationDef.getTable().getTableId())){
     /* The key_record and attribute_record in primary key operation do not 
@@ -2156,7 +2199,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
 
   NdbResultStream& resultStream = *m_resultStreams[streamNo];
   assert(resultStream.m_pendingScanTabConf);
-  resultStream.m_pendingScanTabConf = false;;
+  resultStream.m_pendingScanTabConf = false;
   resultStream.m_pendingResults += rowCount;
 
   resultStream.m_receiver.m_tcPtrI = tcPtrI;  // Handle for SCAN_NEXTREQ, RNIL -> EOF
@@ -2240,8 +2283,12 @@ NdbQueryOperationImpl::getIdOfReceiver() const {
 }
 
 bool 
-NdbQueryOperationImpl::isBatchComplete() const { 
-  for(Uint32 i = 0; i < getQuery().getParallelism(); i++){
+NdbQueryOperationImpl::isBatchComplete() const {
+  if (m_queryImpl.m_state >= NdbQueryImpl::EndOfData) {
+    printf("Query state:%d (>= EndOfData) -> BatchCompleted\n", m_queryImpl.m_state);
+    return true;
+  }
+  for(Uint32 i = 0; i < m_queryImpl.getParallelism(); i++){
     if(!m_resultStreams[i]->isBatchComplete()){
       return false;
     }
@@ -2271,11 +2318,6 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "  m_operationDef: " << &op.m_operationDef;
   for(Uint32 i = 0; i<op.m_queryImpl.getParallelism(); i++){
     out << "  m_resultStream[" << i << "]{" << *op.m_resultStreams[i] << "}";
-//  const NdbResultStream& resultStream = *op.m_resultStreams[i];
-//  out << " m_transidAICount: " << resultStream.m_transidAICount;
-//  out << " m_pendingResults: " << resultStream.m_pendingResults;
-//  out << " m_pendingScanTabConf " << resultStream.m_pendingScanTabConf;
-//  out << "}";
   }
   out << " m_isRowNull " << op.m_isRowNull;
   out << " ]";
