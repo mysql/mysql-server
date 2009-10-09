@@ -192,7 +192,7 @@ NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime
 NULL	information_schema	ROUTINES	PARAMETER_STYLE	11		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	ROUTINES	ROUTINE_BODY	7		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
-NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_DEFINITION	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -552,7 +552,7 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 NULL	information_schema	ROUTINES	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	ROUTINES	LAST_ALTERED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	ROUTINES	SQL_MODE	varchar	8192	24576	utf8	utf8_general_ci	varchar(8192)
-3.0000	information_schema	ROUTINES	ROUTINE_COMMENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+1.0000	information_schema	ROUTINES	ROUTINE_COMMENT	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	ROUTINES	DEFINER	varchar	77	231	utf8	utf8_general_ci	varchar(77)
 3.0000	information_schema	ROUTINES	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	ROUTINES	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)

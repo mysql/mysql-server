@@ -8267,3 +8267,25 @@ DROP TABLE t1, t2;
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+--echo #
+--echo # Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
+--echo #            strict SQL mode
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE PROCEDURE p1 ()
+COMMENT
+'12345678901234567890123456789012345678901234567890123456789012345678901234567890'
+BEGIN
+END;
+
+SELECT comment FROM mysql.proc WHERE name = "p1";
+
+SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
+
+DROP PROCEDURE p1;
+

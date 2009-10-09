@@ -427,6 +427,9 @@ ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
                      AFTER db_collation;
 ALTER TABLE proc MODIFY body_utf8 longblob DEFAULT NULL;
 
+# Change comment from char(64) to text
+ALTER TABLE proc MODIFY comment
+                        text collate utf8_bin NOT NULL;
 
 #
 # EVENT privilege
