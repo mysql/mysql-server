@@ -102,7 +102,7 @@ LocalConfig::init(const char *connectString,
   {
     if(readConnectString("host=localhost:" STR_VALUE(NDB_PORT),
                          "default connect string"))
-      DBUG_RETURN(true);
+      return true;
   }
 
   setError(0, "");

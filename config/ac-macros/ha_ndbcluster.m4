@@ -147,9 +147,13 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
 
   AC_ARG_WITH([ndb-port-base],
               [AC_HELP_STRING([--with-ndb-port-base],
-                              [Base port for NDB Cluster transporters])],
-              [ndb_port_base="$withval"],
-              [ndb_port_base="default"])
+                              [Deprecated option])],
+              [ndb_port_base="$withval"], [])
+  if test "$ndb_port_base"
+  then
+     AC_MSG_WARN([Ignoring deprecated option --with-ndb-port-base])
+  fi
+
   AC_ARG_WITH([ndb-debug],
               [AC_HELP_STRING([--without-ndb-debug],
                               [Disable special ndb debug features])],
@@ -471,7 +475,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   AC_CONFIG_FILES([
    storage/ndb/include/ndb_version.h
-   storage/ndb/include/ndb_global.h
    storage/ndb/include/ndb_types.h
   ])
 ])
