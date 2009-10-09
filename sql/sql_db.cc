@@ -1027,7 +1027,7 @@ exit:
     SELECT DATABASE() in the future). For this we free() thd->db and set
     it to 0.
   */
-  if (thd->db && !strcmp(thd->db, db))
+  if (thd->db && !strcmp(thd->db, db) && error == 0)
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
