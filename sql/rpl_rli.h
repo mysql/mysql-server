@@ -349,12 +349,10 @@ public:
   void clear_tables_to_lock();
 
   /*
-    Used by row-based replication to detect that it should not stop at
-    this event, but give it a chance to send more events. The time
-    where the last event inside a group started is stored here. If the
-    variable is zero, we are not in a group (but may be in a
-    transaction).
-   */
+    Used to defer stopping the SQL thread to give it a chance
+    to finish up the current group of events.
+    The timestamp is set and reset in @c sql_slave_killed().
+  */
   time_t last_event_start_time;
 
   /**
