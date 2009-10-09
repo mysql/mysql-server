@@ -12,11 +12,11 @@ COUNT(@@SESSION.sql_auto_is_null)
 1
 1 Expected
 '#---------------------BS_STVARS_044_03----------------------#'
-SELECT @@SESSION.sql_auto_is_null = VARIABLE_VALUE 
+SELECT IF(@@SESSION.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_auto_is_null';
-@@SESSION.sql_auto_is_null = VARIABLE_VALUE
-0
+IF(@@SESSION.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE
+1
 1 Expected
 SELECT COUNT(@@SESSION.sql_auto_is_null);
 COUNT(@@SESSION.sql_auto_is_null)

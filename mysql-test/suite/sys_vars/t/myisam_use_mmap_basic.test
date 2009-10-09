@@ -54,7 +54,7 @@ SELECT COUNT(@@GLOBAL.myisam_use_mmap);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.myisam_use_mmap = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.myisam_use_mmap, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='myisam_use_mmap';
 --echo 1 Expected
