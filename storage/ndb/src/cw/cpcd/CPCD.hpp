@@ -29,8 +29,6 @@
 
 #ifdef _WIN32
 typedef DWORD pid_t;
-#else
-typedef int pid_t;
 #endif
 const pid_t bad_pid = -1;
 
