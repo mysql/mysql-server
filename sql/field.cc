@@ -9828,8 +9828,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_DATE:
     /* Old date type. */
-    if (protocol_version != PROTOCOL_VERSION-1)
-      sql_type= MYSQL_TYPE_NEWDATE;
+    sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
     length= 10;

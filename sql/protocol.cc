@@ -394,27 +394,19 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
     DBUG_RETURN(FALSE);
   }
 
-  if (net->return_errno)
-  {				// new client code; Add errno before message
-    int2store(buff,sql_errno);
-    pos= buff+2;
-    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
-    {
-      /* The first # is to make the protocol backward compatible */
-      buff[2]= '#';
-      pos= (uchar*) strmov((char*) buff+3, sqlstate);
-    }
-    length= (uint) (strmake((char*) pos, err, MYSQL_ERRMSG_SIZE-1) -
-                    (char*) buff);
-    err= (char*) buff;
-  }
-  else
+  int2store(buff,sql_errno);
+  pos= buff+2;
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
-    length=(uint) strlen(err);
-    set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
+    /* The first # is to make the protocol backward compatible */
+    buff[2]= '#';
+    pos= (uchar*) strmov((char*) buff+3, sqlstate);
   }
+  length= (uint) (strmake((char*) pos, err, MYSQL_ERRMSG_SIZE-1) -
+                  (char*) buff);
+  err= (char*) buff;
   DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
-                         length));
+                                length));
 }
 
 #endif /* EMBEDDED_LIBRARY */
