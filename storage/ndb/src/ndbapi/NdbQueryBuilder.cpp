@@ -1399,7 +1399,9 @@ NdbQueryLookupOperationDefImpl::prepareKeyInfo(
                               const constVoidPtr actualParam[]) const
 { 
   assert(getQueryOperationIx()==0); // Should only be called for root operation.
+#ifdef TRACE_SERIALIZATION
   int startPos = keyInfo.getSize();
+#endif
 
   const int keyCount = getIndex()==NULL ? 
     getTable().getNoOfPrimaryKeys() :
@@ -1524,84 +1526,6 @@ NdbQueryIndexScanOperationDefImpl::prepareKeyInfo(
   } else if (likely(length > 0)) {
     keyInfo.put(startPos, keyInfo.get(startPos) | (length << 16));
   }
-
-#if 0
-  /**
-   * Determine if scan may be pruned to a single partition:
-   */
-  const NdbRecord* key_record = m_index.getDefaultRecord();
-
-  const Uint32 index_distkeys = key_record->m_no_of_distribution_keys;
-  const Uint32 distkey_min = key_record->m_min_distkey_prefix_length;
-  const Uint32 table_distkeys = getTable().getDefaultRecord()->m_no_of_distribution_keys;
-
-  bool isPrunable = (                             // Initial prunable propert:
-            index_distkeys == table_distkeys &&   // Index has all base table d-keys
-            m_bound.lowKeys >= distkey_min &&     // Low bounds have all d-keys
-            m_bound.highKeys >= distkey_min);     // High bounds have all d-keys
-
-  isPruned = false;
-  if (isPrunable) {
-    Ndb::Key_part_ptr lowKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-    Ndb::Key_part_ptr highKey;
-
-    // Aggregate prunable propert:
-    // All hi/low keys values within 'distkey_min' must be equal
-    int keyPos = startPos;
-    for (unsigned keyNo = 0; keyNo < distkey_min; keyNo++)
-    {
-      Uint32 type        = keyInfo.get(keyPos) & 0xFFFF;
-      AttributeHeader ah = keyInfo.get(keyPos+1);
-      lowKey[keyNo].len = ah.getByteSize();
-      lowKey[keyNo].ptr = keyInfo.addr(keyPos+2);
-
-      keyPos += 1+1+ah.getDataSize();  // Skip data read above.
-
-      // Only has to compare values if not known to be 'BoundEQ'
-      if (type != NdbIndexScanOperation::BoundEQ)
-      {
-        assert ((keyInfo.get(keyPos) & 0xFFFF) != NdbIndexScanOperation::BoundEQ);
-        AttributeHeader ah = keyInfo.get(keyPos+1);
-        highKey.len = ah.getByteSize();
-        highKey.ptr = keyInfo.addr(keyPos+2);
-
-        keyPos += 1+1+ah.getDataSize();  // Skip data read above.
-
-        // Compare high and low bound value:
-        const NdbColumnImpl& column = NdbColumnImpl::getImpl(*m_index.getColumn(keyNo));
-        const NdbRecord::Attr& recAttr = key_record->columns[column.m_keyInfoPos];
-        const int res=
-          (*recAttr.compare_function)(recAttr.charset_info,
-                                       lowKey[keyNo].ptr, lowKey[keyNo].len,
-                                       highKey.ptr, highKey.len, true);
-        if (res!=0) {  // Not equal
-          assert(res != NdbSqlUtil::CmpUnknown);
-          isPrunable = false;
-          break;
-        }
-      } // != BoundEQ
-    } // for()
-
-    // Scan is now known to be prunable, calculate hashValue
-    if (isPrunable) {
-      isPruned = true;
-      Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
-
-      // hi/low is equal and prunable bounds, remember key for later 
-      // hashValue calculation.
-      for (Uint32 i = 0; i<key_record->distkey_index_length; i++)  {
-        // Revers lookup the index column with the value of this distrubution key.
-        Uint32 keyPos = NdbColumnImpl::getImpl(*m_index.getColumn(key_record->distkey_indexes[i])).m_keyInfoPos;
-        distKey[i] = lowKey[keyPos];
-      }
-      distKey[key_record->distkey_index_length].ptr = NULL;
-
-      int error = Ndb::computeHash(&hashValue, &getTable(), distKey, NULL, 0);
-      if (unlikely(error))
-        return error;
-    }
-  } // if 'isPrunable'
-#endif
 
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized KEYINFO w/ bounds for scan root : ";

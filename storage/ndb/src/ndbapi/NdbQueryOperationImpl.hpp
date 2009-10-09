@@ -92,6 +92,7 @@ public:
   void setErrorCode(int aErrorCode)
   { if (!m_error.code)
       m_error.code = aErrorCode;
+    m_state = Failed;
   }
 
   /** Set an error code and initiate transaction abort.*/
@@ -193,6 +194,18 @@ private:
 
   /** The interface that is visible to the application developer.*/
   NdbQuery m_interface;
+
+  enum {
+    Initial,
+    Defined,
+    Prepared,
+    Executing,
+    Fetching,
+    EndOfData,
+    Closed,
+    Failed,
+    Destructed
+  } m_state;
 
   /** Possible error status of this query.*/
   NdbError m_error;
