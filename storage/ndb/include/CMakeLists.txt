@@ -73,12 +73,3 @@ CONFIGURE_FILE(ndb_version.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_version.h
                @ONLY)
 
-#
-# Create ndb_global.h
-#
-SET(ndb_port "1186" CACHE STRING "Port for NDB Cluster management server")
-SET(ndb_port_base "default" CACHE STRING "Base port for NDB Cluster transporters")
-CONFIGURE_FILE(ndb_global.h.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/ndb_global.h
-               @ONLY)
-
