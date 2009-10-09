@@ -39,6 +39,8 @@ SET @max_row = 20;
 let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
 
+# This test relies on --list_files, which doesn't work correctly in embedded.
+--source include/not_embedded.inc
 # The server must support partitioning.
 --source include/have_partition.inc
 
