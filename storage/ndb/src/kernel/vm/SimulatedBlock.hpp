@@ -536,6 +536,7 @@ public:
      * core interface
      */
     struct ActiveMutex {
+      ActiveMutex() {}
       Uint32 m_gsn; // state
       Uint32 m_mutexId;
       Uint32 m_mutexKey;
