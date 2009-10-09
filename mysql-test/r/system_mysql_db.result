@@ -110,6 +110,7 @@ user	CREATE TABLE `user` (
   `Create_user_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Event_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Trigger_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Create_tablespace_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') CHARACTER SET utf8 NOT NULL DEFAULT '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,

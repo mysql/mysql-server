@@ -4899,7 +4899,7 @@ create_sp_error:
     res= mysql_xa_recover(thd);
     break;
   case SQLCOM_ALTER_TABLESPACE:
-    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
+    if (check_global_access(thd, CREATE_TABLESPACE_ACL))
       break;
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
       my_ok(thd);
