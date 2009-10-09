@@ -31,7 +31,13 @@
 
 sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
+/**
+  LEX_STRING constant for null-string to be used in parser and other places.
+*/
+const LEX_STRING null_lex_str= {NULL, 0};
+
 /* Longest standard keyword name */
+
 #define TOCK_NAME_LENGTH 24
 
 /*
