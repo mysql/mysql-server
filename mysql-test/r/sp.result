@@ -6933,3 +6933,20 @@ DROP TABLE t1, t2;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+#
+# Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
+#            strict SQL mode
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1 ()
+COMMENT
+'12345678901234567890123456789012345678901234567890123456789012345678901234567890'
+BEGIN
+END;
+SELECT comment FROM mysql.proc WHERE name = "p1";
+comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
+routine_comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+DROP PROCEDURE p1;
