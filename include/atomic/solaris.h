@@ -186,25 +186,25 @@ my_atomic_storeptr(void * volatile *a, void *v)
 /* ------------------------------------------------------------------------ */
 
 STATIC_INLINE int8
-my_atomic_swap8(int8 volatile *a, int8 v)
+my_atomic_fas8(int8 volatile *a, int8 v)
 {
 	return ((int8) atomic_swap_8((volatile uint8_t *)a, (uint8_t)v));
 }
 
 STATIC_INLINE int16
-my_atomic_swap16(int16 volatile *a, int16 v)
+my_atomic_fas16(int16 volatile *a, int16 v)
 {
 	return ((int16) atomic_swap_16((volatile uint16_t *)a, (uint16_t)v));
 }
 
 STATIC_INLINE int32
-my_atomic_swap32(int32 volatile *a, int32 v)
+my_atomic_fas32(int32 volatile *a, int32 v)
 {
 	return ((int32) atomic_swap_32((volatile uint32_t *)a, (uint32_t)v));
 }
 
 STATIC_INLINE void *
-my_atomic_swapptr(void * volatile *a, void *v)
+my_atomic_fasptr(void * volatile *a, void *v)
 {
 	return (atomic_swap_ptr(a, v));
 }
