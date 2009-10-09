@@ -2459,7 +2459,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.set_query_source(stmt->query, stmt->query_length);
 #endif
   DBUG_PRINT("exec_query", ("%s", stmt->query));

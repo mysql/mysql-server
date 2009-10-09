@@ -762,7 +762,7 @@ static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
                                           1,
                                           sys_var::SESSION_VARIABLE_IN_BINLOG);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
 static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
                                       set_option_bit,
                                       ulonglong(OPTION_PROFILING));
@@ -864,9 +864,9 @@ static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRIN
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
 static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_profiling(&vars, "have_profiling", &have_profiling);
 static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
                                            &have_query_cache);
-static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
 /* Global read-only variable describing server license */
