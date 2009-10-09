@@ -57,7 +57,7 @@ private:
       Uint32 cursor;
       Uint32 elementsCleaned;
       Uint32 callbackStart; /* Callback structure placed here */
-    };
+    } cleanup;
   };
 };
 

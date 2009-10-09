@@ -1246,13 +1246,13 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
               callbackWords);
     
     Callback cb;
-    memcpy(&cb, &sig->callbackStart, callbackWords << 2);
+    memcpy(&cb, &sig->cleanup.callbackStart, callbackWords << 2);
 
     doNodeFailureCleanup(signal,
-                         sig->failedNodeId,
-                         sig->resource,
-                         sig->cursor,
-                         sig->elementsCleaned,
+                         sig->cleanup.failedNodeId,
+                         sig->cleanup.resource,
+                         sig->cleanup.cursor,
+                         sig->cleanup.elementsCleaned,
                          cb);
     break;
   }
@@ -1630,15 +1630,15 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
   
   ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
   sig->type = ContinueFragmented::CONTINUE_CLEANUP;
-  sig->failedNodeId = failedNodeId;
-  sig->resource = resource;
-  sig->cursor = cursor;
-  sig->elementsCleaned= elementsCleaned;
+  sig->cleanup.failedNodeId = failedNodeId;
+  sig->cleanup.resource = resource;
+  sig->cleanup.cursor = cursor;
+  sig->cleanup.elementsCleaned= elementsCleaned;
   Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
   Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
     callbackWords;
   ndbassert(sigLen <= 25); // Should be STATIC_ASSERT
-  memcpy(&sig->callbackStart, &cb, callbackWords << 2);
+  memcpy(&sig->cleanup.callbackStart, &cb, callbackWords << 2);
   
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, sigLen, JBB);
 
