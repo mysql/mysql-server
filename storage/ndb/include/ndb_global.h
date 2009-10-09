@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2003 MySQL AB
+   Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc.
+
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -20,13 +21,13 @@
 #define NDB_GLOBAL_H
 
 #include <my_global.h>
+#include <mysql_com.h>
 #include <ndb_types.h>
 
-/* NAME_LEN */
-#include <mysql_com.h>
-
-#define NDB_PORT "@ndb_port@"
-#define NDB_TCP_BASE_PORT "@ndb_port_base@"
+#ifndef NDB_PORT
+/* Default port used by ndb_mgmd */
+#define NDB_PORT 1186
+#endif
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32 1
@@ -164,5 +165,50 @@ extern "C" {
 #endif
 
 #define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
+
+/*
+  NDB_STATIC_ASSERT(expr)
+   - Check coding assumptions during compile time
+     by laying out code that will generate a compiler error
+     if the expression is false.
+*/
+
+#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
+
+/*
+  Prefer to use the 'static_assert' function from C++0x
+  to get best error message
+*/
+#define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
+
+#else
+
+/*
+  Fallback to use home grown solution
+*/
+
+#define STR_CONCAT_(x, y) x##y
+#define STR_CONCAT(x, y) STR_CONCAT_(x, y)
+
+#define NDB_STATIC_ASSERT(expr) \
+  enum {STR_CONCAT(static_assert_, __LINE__) = 1 / (!!(expr)) }
+
+#undef STR_CONCAT_
+#undef STR_CONCAT
+
+#endif
+
+
+#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
+#define HAVE_COMPILER_TYPE_TRAITS
+#endif
+
+#ifdef HAVE_COMPILER_TYPE_TRAITS
+#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
+  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
+#else
+#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
+#endif
 
 #endif
