@@ -1170,7 +1170,7 @@ dict_col_name_is_reserved(
 	ulint			i;
 
 	for (i = 0; i < UT_ARR_SIZE(reserved_names); i++) {
-		if (strcmp(name, reserved_names[i]) == 0) {
+		if (innobase_strcasecmp(name, reserved_names[i]) == 0) {
 
 			return(TRUE);
 		}

@@ -398,10 +398,9 @@ compare to, new_val is the value to swap in. */
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
 	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
 
+/* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
-/* windows thread objects can always be passed to windows atomic functions */
-# define HAVE_IB_ATOMIC_PTHREAD_T_WINDOWS
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
