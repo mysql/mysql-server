@@ -7499,10 +7499,7 @@ SHOW_VAR status_vars[]= {
 static void print_version(void)
 {
   set_server_version();
-  /*
-    Note: the instance manager keys off the string 'Ver' so it can find the
-    version from the output of 'mysqld --version', so don't change it!
-  */
+
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
