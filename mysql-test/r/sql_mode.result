@@ -506,6 +506,12 @@ mysqltest_32753@localhost
 set session sql_mode=@OLD_SQL_MODE;
 flush privileges;
 drop user mysqltest_32753@localhost;
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='traditional';
+SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
+@@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%'
+1
+SET sql_mode=@org_mode;
 DROP TABLE IF EXISTS t1,t2;
 CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
 CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';
