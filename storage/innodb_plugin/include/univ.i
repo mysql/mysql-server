@@ -50,7 +50,7 @@ Created 1/20/1994 Heikki Tuuri
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
-calculated in in make_version_string() in sql/sql_show.cc like this:
+calculated in make_version_string() in sql/sql_show.cc like this:
 "version >> 8" . "version & 0xff"
 because the version is shown with only one dot, we skip the last
 component, i.e. we show M.N.P as M.N */
