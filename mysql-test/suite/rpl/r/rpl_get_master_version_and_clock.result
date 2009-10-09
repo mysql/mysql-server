@@ -18,7 +18,7 @@ start slave;
 SELECT RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
 RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
 1
-Slave_IO_Errno= 2013
+Slave_IO_Errno= 2003
 SELECT IS_FREE_LOCK("debug_lock.before_get_SERVER_ID");
 IS_FREE_LOCK("debug_lock.before_get_SERVER_ID")
 1
@@ -31,7 +31,7 @@ start slave;
 SELECT RELEASE_LOCK("debug_lock.before_get_SERVER_ID");
 RELEASE_LOCK("debug_lock.before_get_SERVER_ID")
 1
-Slave_IO_Errno= 2013
+Slave_IO_Errno= 2003
 set global debug= '';
 reset master;
 include/stop_slave.inc

@@ -145,9 +145,12 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
 #if defined(__WIN__) || defined(__NETWARE__)
-  return connect(fd, (struct sockaddr*) name, namelen);
+  DBUG_ENTER("my_connect");
+  DBUG_RETURN(connect(fd, (struct sockaddr*) name, namelen));
 #else
   int flags, res, s_err;
+  DBUG_ENTER("my_connect");
+  DBUG_PRINT("enter", ("fd: %d  timeout: %u", fd, timeout));
 
   /*
     If they passed us a timeout of zero, we should behave
@@ -155,24 +158,26 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   */
 
   if (timeout == 0)
-    return connect(fd, (struct sockaddr*) name, namelen);
+    DBUG_RETURN(connect(fd, (struct sockaddr*) name, namelen));
 
   flags = fcntl(fd, F_GETFL, 0);	  /* Set socket to not block */
 #ifdef O_NONBLOCK
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
 #endif
 
+  DBUG_PRINT("info", ("connecting non-blocking"));
   res= connect(fd, (struct sockaddr*) name, namelen);
+  DBUG_PRINT("info", ("connect result: %d  errno: %d", res, errno));
   s_err= errno;			/* Save the error... */
   fcntl(fd, F_SETFL, flags);
   if ((res != 0) && (s_err != EINPROGRESS))
   {
     errno= s_err;			/* Restore it */
-    return(-1);
+    DBUG_RETURN(-1);
   }
   if (res == 0)				/* Connected quickly! */
-    return(0);
-  return wait_for_data(fd, timeout);
+    DBUG_RETURN(0);
+  DBUG_RETURN(wait_for_data(fd, timeout));
 #endif
 }
 
@@ -191,26 +196,58 @@ static int wait_for_data(my_socket fd, uint timeout)
 #ifdef HAVE_POLL
   struct pollfd ufds;
   int res;
+  DBUG_ENTER("wait_for_data");
 
+  DBUG_PRINT("info", ("polling"));
   ufds.fd= fd;
   ufds.events= POLLIN | POLLPRI;
   if (!(res= poll(&ufds, 1, (int) timeout*1000)))
   {
+    DBUG_PRINT("info", ("poll timed out"));
     errno= EINTR;
-    return -1;
+    DBUG_RETURN(-1);
   }
+  DBUG_PRINT("info",
+             ("poll result: %d  errno: %d  revents: 0x%02d  events: 0x%02d",
+              res, errno, ufds.revents, ufds.events));
   if (res < 0 || !(ufds.revents & (POLLIN | POLLPRI)))
-    return -1;
-  return 0;
+    DBUG_RETURN(-1);
+  /*
+    At this point, we know that something happened on the socket.
+    But this does not means that everything is alright.
+    The connect might have failed. We need to retrieve the error code
+    from the socket layer. We must return success only if we are sure
+    that it was really a success. Otherwise we might prevent the caller
+    from trying another address to connect to.
+  */
+  {
+    int         s_err;
+    socklen_t   s_len= sizeof(s_err);
+
+    DBUG_PRINT("info", ("Get SO_ERROR from non-blocked connected socket."));
+    res= getsockopt(fd, SOL_SOCKET, SO_ERROR, &s_err, &s_len);
+    DBUG_PRINT("info", ("getsockopt res: %d  s_err: %d", res, s_err));
+    if (res)
+      DBUG_RETURN(res);
+    /* getsockopt() was successful, check the retrieved status value. */
+    if (s_err)
+    {
+      errno= s_err;
+      DBUG_RETURN(-1);
+    }
+    /* Status from connect() is zero. Socket is successfully connected. */
+  }
+  DBUG_RETURN(0);
 #else
   SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
   fd_set sfds;
   struct timeval tv;
   time_t start_time, now_time;
   int res, s_err;
+  DBUG_ENTER("wait_for_data");
 
   if (fd >= FD_SETSIZE)				/* Check if wrong error */
-    return 0;					/* Can't use timeout */
+    DBUG_RETURN(0);					/* Can't use timeout */
 
   /*
     Our connection is "in progress."  We can use the select() call to wait
@@ -250,11 +287,11 @@ static int wait_for_data(my_socket fd, uint timeout)
       break;
 #endif
     if (res == 0)					/* timeout */
-      return -1;
+      DBUG_RETURN(-1);
     now_time= my_time(0);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
-      return -1;
+      DBUG_RETURN(-1);
   }
 
   /*
@@ -265,14 +302,14 @@ static int wait_for_data(my_socket fd, uint timeout)
 
   s_err=0;
   if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
-    return(-1);
+    DBUG_RETURN(-1);
 
   if (s_err)
   {						/* getsockopt could succeed */
     errno = s_err;
-    return(-1);					/* but return an error... */
+    DBUG_RETURN(-1);					/* but return an error... */
   }
-  return (0);					/* ok */
+  DBUG_RETURN(0);					/* ok */
 #endif /* HAVE_POLL */
 }
 #endif /* defined(__WIN__) || defined(__NETWARE__) */
@@ -1313,7 +1350,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->flags=	uint2korr(pos+7);
       field->decimals=  (uint) pos[9];
 
-      if (INTERNAL_NUM_FIELD(field))
+      if (IS_NUM(field->type))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[7])
       {
@@ -1354,7 +1391,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags=   (uint) (uchar) row->data[4][0];
         field->decimals=(uint) (uchar) row->data[4][1];
       }
-      if (INTERNAL_NUM_FIELD(field))
+      if (IS_NUM(field->type))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[5])
       {
@@ -1877,7 +1914,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
 
-  DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
+  DBUG_PRINT("enter",("host: %s  db: %s  user: %s (client)",
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
@@ -1927,6 +1964,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     unix_socket=mysql->options.unix_socket;
 
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
+  DBUG_PRINT("info", ("Connecting"));
 
   /*
     Part 0: Grab a socket and connect it to the server
@@ -1936,6 +1974,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
+    DBUG_PRINT("info", ("Using shared memory"));
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
 	INVALID_HANDLE_VALUE)
     {
@@ -2034,6 +2073,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
   }
 #endif
+  DBUG_PRINT("info", ("net->vio: %p  protocol: %d",
+                      net->vio, mysql->options.protocol));
   if (!net->vio &&
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
@@ -2105,6 +2146,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
         DBUG_PRINT("info",("Trying %s...",
                           (my_inet_ntoa(sock_addr.sin_addr, ipaddr), ipaddr)));
+        /*
+          Here we rely on my_connect() to return success only if the
+          connect attempt was really successful. Otherwise we would stop
+          trying another address, believing we were successful.
+        */
         status= my_connect(sock, (struct sockaddr *) &sock_addr,
                            sizeof(sock_addr), mysql->options.connect_timeout);
       }
@@ -2163,6 +2209,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /*
     Part 1: Connection established, read and parse first packet
   */
+  DBUG_PRINT("info", ("Read first packet."));
 
   if ((pkt_length=cli_safe_read(mysql)) == packet_error)
   {
