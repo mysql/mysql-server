@@ -231,6 +231,9 @@ the extent are free and which contain old tuple version to clean. */
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
 
+/* Flag to indicate if we have printed the tablespace full error. */
+static ibool fsp_tbs_full_error_printed = FALSE;
+
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Returns an extent to the free list of a space. */
@@ -1218,6 +1221,19 @@ fsp_try_extend_data_file(
 
 	if (space == 0 && !srv_auto_extend_last_data_file) {
 
+		/* We print the error message only once to avoid
+		spamming the error log. Note that we don't need
+		to reset the flag to FALSE as dealing with this
+		error requires server restart. */
+		if (fsp_tbs_full_error_printed == FALSE) {
+			fprintf(stderr,
+				"InnoDB: Error: Data file(s) ran"
+				" out of space.\n"
+				"Please add another data file or"
+				" use \'autoextend\' for the last"
+				" data file.\n");
+			fsp_tbs_full_error_printed = TRUE;
+		}
 		return(FALSE);
 	}
 
