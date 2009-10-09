@@ -20,12 +20,14 @@
 #define NDB_GLOBAL_H
 
 #include <my_global.h>
+#include <mysql_com.h>
 #include <ndb_types.h>
 
-/* NAME_LEN */
-#include <mysql_com.h>
+#ifndef NDB_PORT
+/* Default port used by ndb_mgmd */
+#define NDB_PORT 1186
+#endif
 
-#define NDB_PORT "@ndb_port@"
 #define NDB_TCP_BASE_PORT "@ndb_port_base@"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
