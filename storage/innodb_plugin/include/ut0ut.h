@@ -34,6 +34,9 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0ut_h
 
 #include "univ.i"
+
+#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+
 #include <time.h>
 #ifndef MYSQL_SERVER
 #include <ctype.h>
@@ -47,7 +50,7 @@ Created 1/20/1994 Heikki Tuuri
 /** Time stamp */
 typedef time_t	ib_time_t;
 
-#if defined(IB_HAVE_PAUSE_INSTRUCTION)
+#if defined(HAVE_IB_PAUSE_INSTRUCTION)
 #  ifdef WIN32
      /* In the Win32 API, the x86 PAUSE instruction is executed by calling
      the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-

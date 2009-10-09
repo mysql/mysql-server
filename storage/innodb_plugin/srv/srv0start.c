@@ -103,6 +103,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
+# include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -1114,7 +1115,7 @@ innobase_start_or_create_for_mysql(void)
 	fprintf(stderr,
 		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
 # endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#elif defined(HAVE_SOLARIS_ATOMICS)
+#elif defined(HAVE_IB_SOLARIS_ATOMICS)
 # ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	fprintf(stderr,
 		"InnoDB: Mutexes and rw_locks use Solaris atomic functions.\n");
