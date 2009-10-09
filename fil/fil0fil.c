@@ -3244,7 +3244,7 @@ fil_load_single_table_tablespace(
 		fprintf(stderr,
 			"InnoDB: Renaming tablespace %s of id %lu,\n"
 			"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
-			"InnoDB: because its size %lld is too small"
+			"InnoDB: because its size %" PRId64 " is too small"
 			" (< 4 pages 16 kB each),\n"
 			"InnoDB: or the space id in the file header"
 			" is not sensible.\n"
