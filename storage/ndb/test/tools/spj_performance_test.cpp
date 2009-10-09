@@ -65,6 +65,7 @@ private:
 
 static void *callback(void* thread){
   reinterpret_cast<TestThread*>(thread)->run();
+  return NULL;
 }
 
 class Test{
@@ -178,7 +179,7 @@ void TestThread::run(){
       const Row** resultPtrs = new const Row*[m_params->m_depth+1];
       
       for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
-        
+        //ndbout << "Starting next iteration " << endl;
         // Build query definition if needed.
         if(iterNo==0 || (m_params->m_queryDefReuse>0 && 
                          iterNo%m_params->m_queryDefReuse==0)){
@@ -234,7 +235,7 @@ void TestThread::run(){
     }else{ // non-linked
       Row row = {0, 0};
       for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
-        if(m_params->m_scanLength){
+        if(m_params->m_scanLength>0){
           const KeyRow highKey = { m_params->m_scanLength };
           const NdbIndexScanOperation::IndexBound bound = {
             NULL, // Low key
@@ -286,7 +287,7 @@ void TestThread::run(){
           }
         }else{ 
           // Root is lookup.
-          for(int i = 0; i < m_params->m_depth; i++){
+          for(int i = 0; i < m_params->m_depth+1; i++){
             const KeyRow key = {row.b};
             const NdbOperation* const lookupOp = 
               trans->readTuple(keyRec, 
@@ -362,8 +363,8 @@ static void makeDatabase(const char* host, int port, int rowCount){
 }
 
 void printHeading(){
-  ndbout << "Use linked; Thread count; Iterations; Scan length; Depth; "
-    "Def re-use; Duration; Tuples per sec;" << endl;
+  ndbout << endl << "Use linked; Thread count; Iterations; Scan length;"
+    " Depth; Def re-use; Duration (ms); Tuples per sec;" << endl;
 }
 
 void runTest(TestThread** threads, int threadCount, 
@@ -384,13 +385,66 @@ void runTest(TestThread** threads, int threadCount,
   ndbout << param.m_depth <<"; ";
   ndbout << param.m_queryDefReuse << "; ";
   ndbout << duration << "; ";
-  const int tupPerSec = threadCount * 
-    param.m_iterations * 
-    param.m_scanLength * 
-    (param.m_depth+1) * 1000 / duration;
+  int tupPerSec;
+  if(duration==0){
+    tupPerSec = -1;
+  }else{
+    if(param.m_scanLength==0){
+      tupPerSec = threadCount * 
+        param.m_iterations * 
+        (param.m_depth+1) * 1000 / duration;
+    }else{
+      tupPerSec = threadCount * 
+        param.m_iterations * 
+        param.m_scanLength * 
+        (param.m_depth+1) * 1000 / duration;
+    }
+  }
   ndbout << tupPerSec << "; ";
   ndbout << endl;
   //ndbout << "Test " << name << " done in " << duration << "ms"<< endl;
+}
+
+const int threadCount = 1;
+TestThread** threads = NULL;
+
+void testLookupDepth(){
+  TestParameters param;
+  param.m_iterations = 200;
+  param.m_useLinkedOperations = false;
+  param.m_scanLength = 0;//50;
+  param.m_queryDefReuse = 0;
+
+  printHeading();
+  for(int i = 0; i<20; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
+  printHeading();
+  param.m_useLinkedOperations = true;
+  for(int i = 0; i<20; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
+}
+
+void testScanDepth(){
+  TestParameters param;
+  param.m_iterations = 50;
+  param.m_useLinkedOperations = false;
+  param.m_scanLength = 50;
+  param.m_queryDefReuse = 0;
+  printHeading();
+  for(int i = 0; i<10; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
+  printHeading();
+  param.m_useLinkedOperations = true;
+  for(int i = 0; i<10; i++){
+    param.m_depth = i;
+    runTest(threads, threadCount, param);
+  }
 }
 
 int main(int argc, char* argv[]){
@@ -418,26 +472,16 @@ int main(int argc, char* argv[]){
     const NdbDictionary::Table* const tab = dict->getTable(tableName);
     ASSERT_ALWAYS(tab!=NULL);*/
 
-    TestParameters param;
-    //param.m_iterations = 200;
-    param.m_iterations = 5;
-    param.m_depth = 20;
-    //param.m_depth = 1;
-    param.m_useLinkedOperations = false;
-    param.m_scanLength = 100;
-    param.m_queryDefReuse = 0;
-    const int threadCount = 1;
-    TestThread** threads = new TestThread*[threadCount];
+   const int threadCount = 1;
+    threads = new TestThread*[threadCount];
     for(int i = 0; i<threadCount; i++){
       threads[i] = new TestThread(con);
     }
     sleep(1);
-    printHeading();
-    runTest(threads, threadCount, param);
-    param.m_useLinkedOperations = true;
-    runTest(threads, threadCount, param);
-    /*runTest(threads, threadCount, param, "l2");
-    runTest(threads, threadCount, param, "l3");*/
+
+    testScanDepth();
+    testLookupDepth();
+ 
     for(int i = 0; i<threadCount; i++){
       delete threads[i];
     }
