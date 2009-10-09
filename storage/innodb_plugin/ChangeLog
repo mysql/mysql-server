@@ -1,3 +1,29 @@
+2009-10-01	The InnoDB Team
+
+	* fsp/fsp0fsp.c, row/row0merge.c:
+	Clean up after a crash during DROP INDEX.  When InnoDB crashes
+	while dropping an index, ensure that the index will be completely
+	dropped during crash recovery.  The MySQL .frm file may still
+	contain the dropped index, but there is little that we can do
+	about it.
+
+2009-09-28	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	When a secondary index exists in the MySQL .frm file but not in
+	the InnoDB data dictionary, return an error instead of letting an
+	assertion fail in index_read.
+
+2009-09-28	The InnoDB Team
+
+	* btr/btr0btr.c, buf/buf0buf.c, include/page0page.h,
+	include/page0zip.h, page/page0cur.c, page/page0page.c,
+	page/page0zip.c:
+	Do not write to PAGE_INDEX_ID when restoring an uncompressed page
+	after a compression failure.  The field should only be written
+	when creating a B-tree page.  This fix addresses a race condition
+	in a debug assertion.
+
 2009-09-28	The InnoDB Team
 
 	* fil/fil0fil.c:
@@ -113,6 +139,10 @@
 	* handler/handler0alter.cc:
 	Fix Bug#46657 InnoDB plugin: invalid read in index_merge_innodb test
 	(Valgrind)
+
+2009-08-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.4 released
 
 2009-07-20	The InnoDB Team
 

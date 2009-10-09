@@ -41,6 +41,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
+#include "log0log.h"
 
 /*
 Latching strategy of the InnoDB B-tree
@@ -873,6 +874,8 @@ leaf_loop:
 
 		goto leaf_loop;
 	}
+
+	log_write_up_to(mtr.end_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 top_loop:
 	mtr_start(&mtr);
 
@@ -1011,7 +1014,26 @@ btr_page_reorganize_low(
 	    (!page_zip_compress(page_zip, page, index, NULL))) {
 
 		/* Restore the old page and exit. */
-		buf_frame_copy(page, temp_page);
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		/* Check that the bytes that we skip are identical. */
+		ut_a(!memcmp(page, temp_page, PAGE_HEADER));
+		ut_a(!memcmp(PAGE_HEADER + PAGE_N_RECS + page,
+			     PAGE_HEADER + PAGE_N_RECS + temp_page,
+			     PAGE_DATA - (PAGE_HEADER + PAGE_N_RECS)));
+		ut_a(!memcmp(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page,
+			     UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + temp_page,
+			     FIL_PAGE_DATA_END));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+		memcpy(PAGE_HEADER + page, PAGE_HEADER + temp_page,
+		       PAGE_N_RECS - PAGE_N_DIR_SLOTS);
+		memcpy(PAGE_DATA + page, PAGE_DATA + temp_page,
+		       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(!memcmp(page, temp_page, UNIV_PAGE_SIZE));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 		goto func_exit;
 	}
