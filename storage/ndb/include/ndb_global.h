@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2003 MySQL AB
+   Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc.
+
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,8 +28,6 @@
 /* Default port used by ndb_mgmd */
 #define NDB_PORT 1186
 #endif
-
-#define NDB_TCP_BASE_PORT "@ndb_port_base@"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32 1
