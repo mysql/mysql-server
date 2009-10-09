@@ -1280,10 +1280,10 @@ void ha_partition::cleanup_new_partition(uint part_count)
     m_file= m_added_file;
     m_added_file= NULL;
 
+    external_lock(ha_thd(), F_UNLCK);
     /* delete_table also needed, a bit more complex */
     close();
 
-    m_added_file= m_file;
     m_file= save_m_file;
   }
   DBUG_VOID_RETURN;
