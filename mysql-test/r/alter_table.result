@@ -1268,4 +1268,12 @@ a	b
 4	b
 5	a
 DROP TABLE t1;
+CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
+f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
+this should affect no rows as there is no real change
+ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
 End of 5.1 tests
