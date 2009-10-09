@@ -952,7 +952,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     client_field->catalog= dup_str_aux(field_alloc, "def", 3, cs, thd_cs);
     client_field->catalog_length= 3;
 
-    if (INTERNAL_NUM_FIELD(client_field))
+    if (IS_NUM(client_field->type))
       client_field->flags|= NUM_FLAG;
 
     if (flags & (int) Protocol::SEND_DEFAULTS)
