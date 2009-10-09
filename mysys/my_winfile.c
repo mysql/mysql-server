@@ -367,8 +367,8 @@ size_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   LARGE_INTEGER li;
 
   DBUG_ENTER("my_win_pwrite");
-  DBUG_PRINT("my",("Filedes: %d, Buffer: %p, Count: %zd, offset: %llu", 
-    Filedes, Buffer, Count, (ulonglong)offset));
+  DBUG_PRINT("my",("Filedes: %d, Buffer: %p, Count: %llu, offset: %llu", 
+    Filedes, Buffer, (ulonglong)Count, (ulonglong)offset));
 
   if(!Count)
     DBUG_RETURN(0);
@@ -425,7 +425,8 @@ size_t my_win_write(File fd, const uchar *Buffer, size_t Count)
   HANDLE hFile;
 
   DBUG_ENTER("my_win_write");
-  DBUG_PRINT("my",("Filedes: %d, Buffer: %p, Count %zd", fd, Buffer, Count));
+  DBUG_PRINT("my",("Filedes: %d, Buffer: %p, Count %llu", fd, Buffer, 
+      (ulonglong)Count));
   if(my_get_open_flags(fd) & _O_APPEND)
   {
     /*
