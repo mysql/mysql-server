@@ -1349,8 +1349,8 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  load_defaults("my",load_default_groups,argc,argv);
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error= load_defaults("my",load_default_groups,argc,argv)) ||
+      (ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
