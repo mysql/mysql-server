@@ -16,6 +16,7 @@ connection master;
 reset master;
 
 connection slave;
+set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
 
 ###
@@ -161,6 +162,7 @@ drop table t1;
 
 #connection slave;
 sync_slave_with_master;
+set @@global.slave_net_timeout= @restore_slave_net_timeout;
 
 
 --echo End of tests
