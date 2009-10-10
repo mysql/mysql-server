@@ -22843,10 +22843,9 @@ SELECT * FROM v1 order by 2;
 f1	my_sqrt
 ABC	0
 ABC	1.73205080756888
-+ Warnings:
-+ Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
-+ Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
-
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 SELECT SQRT('DEF');
 SQRT('DEF')
 0
