@@ -2047,17 +2047,38 @@ check_connection_parameter_invalid_nodeid(NdbMgmd& mgmd)
 static bool
 check_connection_parameter(NdbMgmd& mgmd)
 {
+  // Find a NDB node with dynamic port
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId1 = 0;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    Uint32 nodeType;
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) == 0 &&
+        iter.get(CFG_TYPE_OF_SECTION, &nodeType) == 0 &&
+        nodeType == NDB_MGM_NODE_TYPE_NDB){
+      nodeId1 = i;
+      break;
+    }
+  }
+  if (nodeId1 == 0){
+    g_err << "No NDB node found, skipping test" << endl;
+    return true;
+  }
+
   NodeId otherNodeId = 0;
   BaseString original_value;
 
   // Get current value of first connection between mgmd and other node
   for (int nodeId = 1; nodeId < MAX_NODES; nodeId++){
 
-    g_info << "Checking if connection between " << mgmd.nodeid()
+    g_info << "Checking if connection between " << nodeId1
            << " and " << nodeId << " exists" << endl;
 
     Properties args;
-    args.put("node1", mgmd.nodeid());
+    args.put("node1", nodeId1);
     args.put("node2", nodeId);
 
     Properties result;
@@ -2087,7 +2108,7 @@ check_connection_parameter(NdbMgmd& mgmd)
   }
 
   Properties get_args;
-  get_args.put("node1", mgmd.nodeid());
+  get_args.put("node1", nodeId1);
   get_args.put("node2", otherNodeId);
 
   {
