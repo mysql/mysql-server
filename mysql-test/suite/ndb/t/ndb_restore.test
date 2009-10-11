@@ -434,7 +434,7 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
 
 # ndb_restore should now fail, table t2_c already exists
---replace_result $the_backup_id the_backup_id
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
 --error 1
 --exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
 
