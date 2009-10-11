@@ -19,8 +19,8 @@ win/configure-mariadb.sh
 
 cmake -G "Visual Studio 9 2008"
 
-devenv MySQL.sln /build RelWithDebInfo
-devenv MySQL.sln /build Debug
+devenv MySQL.sln /build RelWithDebInfo /out con
+devenv MySQL.sln /build Debug /out con
 
 # TODO extract version number
 VER=`cat configure.in | 
