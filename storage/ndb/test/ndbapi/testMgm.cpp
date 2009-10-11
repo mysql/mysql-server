@@ -2063,10 +2063,6 @@ check_connection_parameter(NdbMgmd& mgmd)
       break;
     }
   }
-  if (nodeId1 == 0){
-    g_err << "No NDB node found, skipping test" << endl;
-    return true;
-  }
 
   NodeId otherNodeId = 0;
   BaseString original_value;
