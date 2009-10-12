@@ -168,6 +168,14 @@ public:
   {
     if (!list->is_empty())
     {
+#if 0
+#else
+      if (is_empty())
+      {
+        *this= *list;
+        return;
+      }
+#endif
       *last= list->first;
       last= list->last;
       elements+= list->elements;

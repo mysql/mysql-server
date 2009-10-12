@@ -1,0 +1,805 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+DROP DATABASE IF EXISTS world;
+--enable_warnings
+
+set names utf8;
+
+CREATE DATABASE world;
+
+use world;
+
+--source include/world_schema.inc
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+--source include/world.inc
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+SELECT COUNT(*) FROM Country;
+SELECT COUNT(*) FROM City;
+SELECT COUNT(*) FROM CountryLanguage;
+
+CREATE INDEX Name ON City(Name);
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+ANALYZE TABLE City;
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+# The following 4 queries are added for code coverage 
+
+EXPLAIN
+SELECT * FROM City
+  WHERE (Population >= 100000 OR Name LIKE 'P%' OR Population < 100000);
+
+EXPLAIN
+SELECT * FROM City
+  WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
+        (Population < 100000 OR Name Like 'T%') AND Country='ARG';
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Population < 200000 AND Name LIKE 'P%' AND
+        (Population > 300000 OR Name LIKE 'T%') AND
+        (Population < 100000 OR Name LIKE 'Pa%');
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Population > 100000 AND Name LIKE 'Aba%' OR
+        Country IN ('CAN', 'ARG') AND ID < 3800 OR
+        Country < 'U' AND Name LIKE 'Zhu%' OR
+        ID BETWEEN 3800 AND 3810;
+
+# The output of the next 3 commands tells us about selectivities
+# of the conditions utilized in 2 queries following after them  
+
+EXPLAIN 
+SELECT * FROM City
+  WHERE (Population > 101000 AND Population < 115000);
+
+EXPLAIN 
+SELECT * FROM City
+  WHERE (Population > 101000 AND Population < 103000);
+
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'));
+
+# The pattern of the WHERE condition used in the following 2 queries is
+#   (range(key1) OR range(key2)) AND range(key3)
+# Varying values of the constants in the second conjunct of the condition
+# we can get either a plan with range index scan for key3 or a plan with
+# an index merge retrieval over key2 and key3
+
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 115000);
+
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 103000);
+
+# The following 4 queries check that the plans
+# for the previous 2 plans are valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 115000);
+
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 115000);
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 103000);
+
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+        AND (Population > 101000 AND Population < 103000);
+
+# The output of the next 7 commands tells us about selectivities
+# of the conditions utilized in 4 queries following after them  
+
+EXPLAIN
+SELECT  * FROM City WHERE (Name < 'Ac');
+EXPLAIN
+SELECT  * FROM City WHERE (Name < 'C');
+EXPLAIN
+SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
+EXPLAIN
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
+EXPLAIN
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'T');
+EXPLAIN
+SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
+EXPLAIN
+SELECT  * FROM City WHERE (Population > 103000 AND Population < 104000);
+
+# The pattern of the WHERE condition used in the following 4 queries is
+#   (range1(key1) AND range(key2)) OR (range2(key1) AND range(key3)
+# Varying values of the constants in the range conjuncts of the condition
+# we can get: 
+#     1. a plan with range index over key1 
+#   index merge retrievals over:
+#     2. key1 and key3
+#     3. key2 and key1
+#     4. key2 and key3
+
+EXPLAIN
+SELECT  * FROM City 
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+EXPLAIN
+SELECT  * FROM City
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+EXPLAIN
+SELECT  * FROM City
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+EXPLAIN
+SELECT  * FROM City
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+# The following 8 queries check that the plans
+# for the previous 4 plans are valid
+
+SELECT  * FROM City USE INDEX ()
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT  * FROM City 
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT  * FROM City USE INDEX ()
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+SELECT  * FROM City
+  WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+SELECT  * FROM City USE INDEX ()
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT  * FROM City
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT  * FROM City USE INDEX ()
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+SELECT  * FROM City
+  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+
+
+# The output of the next 6 commands tells us about selectivities
+# of the conditions utilized in 3 queries following after them  
+
+EXPLAIN
+SELECT * FROM City WHERE (ID < 50) OR (ID BETWEEN 100 AND 110);
+EXPLAIN
+SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 300 AND 600);
+EXPLAIN
+SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1800);
+EXPLAIN
+SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'H%' OR Name LIKE 'P%' ;
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
+
+# The pattern of the WHERE condition used in the following 3 queries is
+#   (range1(key1) AND (range1(key2) OR range(key3)) OR
+#   (range2(key1) AND (range2(key2) OR range(key4))
+# Varying values of the constants in the range predicates of the condition
+# we can get: 
+#     1. a plan with range index over key1 
+#     2. an index merge retrieval over key1, key2 and key3
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 100 AND 110) AND 
+            (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 900 AND 1800) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((ID < 600) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 300 AND 600) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+
+# The following 6 queries check that the plans
+# for the previous 3 plans are valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 100 AND 110) AND 
+            (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+
+SELECT * FROM City
+  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 100 AND 110) AND 
+            (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+
+SELECT * FROM City USE INDEX()
+  WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 900 AND 1800) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+SELECT * FROM City
+  WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 900 AND 1800) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 300 AND 600) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+SELECT * FROM City
+  WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 300 AND 600) AND 
+            (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+
+
+# The output of the next 8 commands tells us about selectivities
+# of the conditions utilized in 2 queries following after them  
+
+EXPLAIN 
+SELECT * FROM City WHERE Population > 101000 AND Population < 102000;
+EXPLAIN 
+SELECT * FROM City WHERE Population > 101000 AND Population < 110000;
+EXPLAIN 
+SELECT * FROM City WHERE Country < 'C';
+EXPLAIN 
+SELECT * FROM City WHERE Country < 'AGO';
+EXPLAIN 
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'T';
+EXPLAIN 
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
+EXPLAIN 
+SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
+EXPLAIN 
+SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+EXPLAIN 
+SELECT * FROM City WHERE Name LIKE 'P%';
+
+# The pattern of the WHERE condition used in the following 2 queries is
+#   (range(key1) AND (range1(key2) OR range1(key3)) OR
+#   (range(key4) AND (range2(key2) OR range2(key3))
+# Varying values of the constants in the range predicates of the condition
+# we can get:  
+#   index merge retrievals over:
+#     1. key1, key2 and key3
+#     2. key4, key2 and key3
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) AND
+         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+        ((ID BETWEEN 3400 AND 3800) AND 
+         (Country < 'AGO' OR Name LIKE 'Pa%'));
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 110000) AND
+         (Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+        ((ID BETWEEN 3790 AND 3800) AND 
+         (Country < 'C' OR Name LIKE 'P%'));
+
+# The following 4 queries check that the plans
+# for the previous 2 plans are valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 102000) AND
+         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+        ((ID BETWEEN 3400 AND 3800) AND 
+         (Country < 'AGO' OR Name LIKE 'Pa%'));
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) AND
+         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+        ((ID BETWEEN 3400 AND 3800) AND 
+         (Country < 'AGO' OR Name LIKE 'Pa%'));
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 110000) AND
+         (Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+        ((ID BETWEEN 3790 AND 3800) AND 
+         (Country < 'C' OR Name LIKE 'P%'));
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 110000) AND
+         (Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+        ((ID BETWEEN 3790 AND 3800) AND 
+         (Country < 'C' OR Name LIKE 'P%'));
+
+
+CREATE INDEX CountryPopulation ON City(Country,Population);
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+ANALYZE TABLE City;
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+# The output of the next 4 commands tells us about selectivities
+# of the conditions utilized in 2 queries following after them  
+
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Pas%';
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'P%';
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+EXPLAIN
+SELECT * FROM City WHERE Country='USA';
+
+# The pattern of the WHERE condition used in the following 3 queries is
+#   (range(key1_p2) OR (range(key2)) AND key1_p1=c
+# Varying values of the constants in the range predicates of the condition
+# we can get: 
+#     1. a plan with range index over key1_p1 
+#     2. an index merge retrieval over: key1 and key2
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+        AND Country='USA';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+        AND Country='USA';
+
+# The following 4 queries check that the plans
+# for the previous 2 plans are valid
+
+SELECT * FROM City 
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+        AND Country='USA';
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+        AND Country='USA';
+
+SELECT * FROM City 
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+        AND Country='USA';
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+        AND Country='USA';
+
+
+CREATE INDEX CountryName ON City(Country,Name);
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+ANALYZE TABLE City;
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+# The output of the next 11 commands tells us about selectivities
+# of the conditions utilized in 3 queries following after them  
+
+EXPLAIN
+SELECT * FROM City WHERE Country='USA';
+EXPLAIN
+SELECT * FROM City WHERE Country='BRA';
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Pa%';
+
+# The pattern of the WHERE condition used in the following 3 queries is
+#   (range(key1_p2) OR range1(key3)) AND
+#    range(key1|2_p1=c) AND 
+#   (range(key2_p2) OR range2(key3))
+# Varying values of the constants in the range conjuncts of the condition
+# we can get: 
+#     1. a plan with range index over key1|2_p1 
+#   index merge retrievals over:
+#     2. key1 and key3
+#     3. key2 and key3
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 103000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 110000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
+
+# The following 6 queries check that the plans
+# for the previous 3 plans are valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+
+
+# The pattern of the WHERE condition used in the following query is
+#   (range(key1_p2) OR range1(key3)) AND range(key1|2_p1=c1) AND 
+#   (range(key2_p2) OR range1(key3)) AND range(key1|2_p1=c2)
+# We get an index merge retrieval over key1, key2 and key3 for it
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 and Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+
+# The following 2 queries check that the plans
+# for the previous plan is valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 and Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+
+SELECT * FROM City
+  WHERE ((Population > 101000 and Population < 102000) OR
+          ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+
+# The pattern of the WHERE condition used in the following query is
+#   (impossible_range(key1_p2) OR range1(key3)) AND
+#    range(key1|2_p1=c1) AND 
+#   (range(key2_p2) OR range2(key3)) 
+# where range1(key3) and range2(key3) are disjoint 
+# Varying values of the constant in range predicates we get plans:
+#   1. with an index scan over key2 
+#   2. with an index scan over key4=key2_p2
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+
+# The following 4 queries check that the plans
+# for the previous 2 plans are valid
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+
+SELECT * FROM City USE INDEX ()
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+
+SELECT * FROM City
+  WHERE ((Population > 101000 AND Population < 11000) OR
+          ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+
+
+DROP DATABASE world;
+
+use test;
+
+#
+# Bug #17259: a bad range scan and a good index merge plan
+#
+
+CREATE TABLE t1 (
+  id int(10) unsigned NOT NULL auto_increment,
+  account_id int(10) unsigned NOT NULL,
+  first_name varchar(50) default NULL,
+  middle_name varchar(50) default NULL,
+  last_name  varchar(100) default NULL,
+  home_address_1 varchar(150) default NULL,
+  home_city varchar(75) default NULL,
+  home_state char(2) default NULL,
+  home_postal_code varchar(50) default NULL,
+  home_county varchar(75) default NULL,
+  home_country char(3) default NULL,
+  work_address_1 varchar(150) default NULL,
+  work_city varchar(75) default NULL,
+  work_state char(2) default NULL,
+  work_postal_code varchar(50) default NULL,
+  work_county varchar(75) default NULL,
+  work_country char(3) default NULL,
+  login varchar(50) NOT NULL,
+  PRIMARY KEY  (id),
+  KEY login (login,account_id),
+  KEY account_id (account_id),
+  KEY user_home_country_indx (home_country),
+  KEY user_work_country_indx (work_country),
+  KEY user_home_state_indx (home_state),
+  KEY user_work_state_indx (work_state),
+  KEY user_home_city_indx (home_city),
+  KEY user_work_city_indx (work_city),
+  KEY user_first_name_indx (first_name),
+  KEY user_last_name_indx (last_name)
+);
+
+insert into t1(account_id, login, home_state, work_state) values
+  (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'),
+  (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia');
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+  select 1, 'pw', 'ak', 'ak' from t1;
+
+analyze table t1;
+
+select count(*) from t1 where account_id = 1;
+
+select * from t1
+  where (home_state = 'ia' or work_state='ia') and account_id = 1;
+
+explain
+select * from t1
+  where (home_state = 'ia' or work_state='ia') and account_id = 1;
+
+drop table t1;
+
+#
+# Bug #17673: no index merge plan if the condition for the last used
+#             index component is factored out of the or formula  
+#
+
+CREATE TABLE t1 (
+  c1 int(11) NOT NULL auto_increment,
+  c2 decimal(10,0) default NULL,
+  c3 decimal(10,0) default NULL,
+  c4 decimal(10,0) default NULL,
+  c5 decimal(10,0) default NULL,
+  cp decimal(1,0) default NULL,
+  ce decimal(10,0) default NULL,
+  cdata char(20),
+  PRIMARY KEY  (c1),
+  KEY k1 (c2,c3,cp,ce),
+  KEY k2 (c4,c5,cp,ce)
+);
+
+insert into t1 (c2, c3, c4, c5, cp) values(1,1,1,1,1);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,1,1,4);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,2,1,1);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,3,1,4);
+insert into t1 (c2, c3, c4, c5, cp) values(3,1,4,1,4);
+
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+  select c2, c3, c4, c5, cp from t1 where cp = 4;
+
+analyze table t1;
+
+explain
+  select * from t1 where (c2=1 and c3=1) or (c4=2 and c5=1);
+
+explain
+  select * from t1
+    where (c2=1 and c3=1 and cp=1) or (c4=2 and c5=1 and cp=1);
+
+explain
+  select * from t1
+    where ((c2=1 and c3=1) or (c4=2 and c5=1)) and cp=1;
+
+select * from t1
+  where (c2=1 and c3=1 and cp=1) or (c4=2 and c5=1 and cp=1);
+
+select * from t1
+  where ((c2=1 and c3=1) or (c4=2 and c5=1)) and cp=1;
+
+drop table t1;
+
+#
+# Bug #23322: a bad range scan and a good index merge plan
+#
+
+create table t1 (
+  c1 int auto_increment primary key,
+  c2 char(20),
+  c3 char (20), 
+  c4 int
+);
+alter table t1 add key k1 (c2);
+alter table t1 add key k2 (c3);
+alter table t1 add key k3 (c4);
+
+insert into t1 values(null, 'a', 'b', 0);
+insert into t1 values(null, 'c', 'b', 0);
+insert into t1 values(null, 'a', 'd', 0);
+insert into t1 values(null, 'ccc', 'qqq', 0);
+
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+
+insert into t1 (c2,c3,c4) select c2,c3,1 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,2 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,3 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,4 from t1 where c2 != 'a';
+
+analyze table t1;
+
+select count(*) from t1 where (c2='e' OR c3='q');
+select count(*) from t1 where c4 != 0;
+
+explain
+  select distinct c1 from t1 where (c2='e' OR c3='q');
+
+explain
+  select distinct c1 from t1 where (c4!= 0) AND (c2='e' OR c3='q');
+
+drop table t1;
+
+#
+# Bug #30151: a bad range scan and a good index merge plan
+#
+
+create table t1 (
+  id int unsigned auto_increment primary key,
+  c1 char(12),
+  c2 char(15),
+  c3 char(1)
+);
+
+insert into t1 (c3) values ('1'), ('2');
+
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+
+update t1 set c1=lpad(id+1000, 12, ' '), c2=lpad(id+10000, 15, ' ');
+
+alter table t1 add unique index (c1), add unique index (c2), add index (c3);
+
+analyze table t1;
+
+explain
+  select * from t1 where (c1='      100000' or c2='         2000000');
+explain
+  select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
+
+select * from t1 where (c1='      100000' or c2='         2000000');
+select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
+
+drop table t1;
+
+
+
+
+
