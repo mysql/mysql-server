@@ -81,7 +81,7 @@ public:
   /* Insert an active transaction node with the specified position.
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int insert_tranx_node(const char *log_file_name, my_off_t log_file_pos);
 
@@ -91,7 +91,7 @@ public:
    * list and the hash table will be reset to empty.
    * 
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int clear_active_tranx_nodes(const char *log_file_name,
 			       my_off_t    log_file_pos);
@@ -253,8 +253,6 @@ class ReplSemiSyncMaster
   /* Is the slave servered by the thread requested semi-sync */
   bool is_semi_sync_slave();
 
-  int reportReplyBinlog(const char *log_file_pos);
-  
   /* In semi-sync replication, reports up to which binlog position we have
    * received replies from the slave indicating that it already get the events.
    *
@@ -265,7 +263,7 @@ class ReplSemiSyncMaster
    *                        the replies from the slave
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int reportReplyBinlog(uint32 server_id,
                         const char* log_file_name,
@@ -284,7 +282,7 @@ class ReplSemiSyncMaster
    *  trx_wait_binlog_pos  - (IN)  ending position's file offset
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int commitTrx(const char* trx_wait_binlog_name,
                 my_off_t trx_wait_binlog_pos);
@@ -313,7 +311,7 @@ class ReplSemiSyncMaster
    *  server_id     - (IN)  master server id number
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int updateSyncHeader(unsigned char *packet,
                        const char *log_file_name,
@@ -330,9 +328,22 @@ class ReplSemiSyncMaster
    *  log_file_pos  - (IN)  transaction ending position's file offset
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int writeTranxInBinlog(const char* log_file_name, my_off_t log_file_pos);
+
+  /* Read the slave's reply so that we know how much progress the slave makes
+   * on receive replication events.
+   * 
+   * Input:
+   *  net          - (IN)  the connection to master
+   *  server_id    - (IN)  master server id number
+   *  event_buf    - (IN)  pointer to the event packet
+   *
+   * Return:
+   *  0: success;  non-zero: error
+   */
+  int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
 
   /* Export internal statistics for semi-sync replication. */
   void setExportStats();

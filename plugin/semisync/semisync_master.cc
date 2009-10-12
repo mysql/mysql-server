@@ -546,19 +546,6 @@ bool ReplSemiSyncMaster::is_semi_sync_slave()
   return val;
 }
 
-int ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_pos)
-{
-  char log_name[FN_REFLEN];
-  char *endptr;
-  my_off_t log_pos= strtoull(log_file_pos, &endptr, 10);
-  if (!log_pos || !endptr || *endptr != ':' )
-    return 1;
-  endptr++;                                     // skip the ':' seperator
-  strncpy(log_name, endptr, FN_REFLEN);
-  uint32 server_id= 0;
-  return reportReplyBinlog(server_id, log_name, log_pos);
-}
-
 int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
 					  const char *log_file_name,
 					  my_off_t log_file_pos)
@@ -679,7 +666,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             "Waiting for semi-sync ACK from slave");
 
     /* This is the real check inside the mutex. */
-    if (!getMasterEnabled() || !is_on() || !rpl_semi_sync_master_clients)
+    if (!getMasterEnabled() || !is_on())
       goto l_end;
 
     if (trace_level_ & kTraceDetail)
@@ -691,17 +678,20 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     while (is_on())
     {
-      int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
-                                     trx_wait_binlog_name, trx_wait_binlog_pos);
-      if (cmp >= 0)
+      if (reply_file_name_inited_)
       {
-        /* We have already sent the relevant binlog to the slave: no need to
-         * wait here.
-         */
-        if (trace_level_ & kTraceDetail)
-          sql_print_information("%s: Binlog reply is ahead (%s, %lu),",
-                                kWho, reply_file_name_, (unsigned long)reply_file_pos_);
-        break;
+        int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
+                                       trx_wait_binlog_name, trx_wait_binlog_pos);
+        if (cmp >= 0)
+        {
+          /* We have already sent the relevant binlog to the slave: no need to
+           * wait here.
+           */
+          if (trace_level_ & kTraceDetail)
+            sql_print_information("%s: Binlog reply is ahead (%s, %lu),",
+                                  kWho, reply_file_name_, (unsigned long)reply_file_pos_);
+          break;
+        }
       }
 
       /* Let us update the info about the minimum binlog position of waiting
@@ -709,8 +699,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        */
       if (wait_file_name_inited_)
       {
-        cmp = ActiveTranx::compare(trx_wait_binlog_name, trx_wait_binlog_pos,
-                                   wait_file_name_, wait_file_pos_);
+        int cmp = ActiveTranx::compare(trx_wait_binlog_name, trx_wait_binlog_pos,
+                                       wait_file_name_, wait_file_pos_);
         if (cmp <= 0)
 	{
           /* This thd has a lower position, let's update the minimum info. */
@@ -824,6 +814,13 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     }
 
   l_end:
+    /*
+      At this point, the binlog file and position of this transaction
+      must have been removed from ActiveTranx.
+    */
+    assert(!active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
+                                             trx_wait_binlog_pos));
+    
     /* Update the status counter. */
     if (is_on() && rpl_semi_sync_master_clients)
       enabled_transactions_++;
@@ -1045,7 +1042,9 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
    * reserve the packet header.
    */
   if (sync)
+  {
     (packet)[2] = kPacketFlagSync;
+  }
 
   return function_exit(kWho, 0);
 }
@@ -1098,8 +1097,8 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
         if insert tranx_node failed, print a warning message
         and turn off semi-sync
       */
-      sql_print_warning("Semi-sync failed to insert tranx_node for binlog file: %s, position: %ul",
-                        log_file_name, log_file_pos);
+      sql_print_warning("Semi-sync failed to insert tranx_node for binlog file: %s, position: %lu",
+                        log_file_name, (ulong)log_file_pos);
       switch_off();
     }
   }
@@ -1109,6 +1108,113 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
 
   return function_exit(kWho, result);
 }
+
+int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
+                                       const char *event_buf)
+{
+  const char *kWho = "ReplSemiSyncMaster::readSlaveReply";
+  const unsigned char *packet;
+  char     log_file_name[FN_REFLEN];
+  my_off_t log_file_pos;
+  ulong    packet_len;
+  int      result = -1;
+
+  struct timeval start_tv;
+  int   start_time_err= 0;
+  ulong trc_level = trace_level_;
+
+  function_enter(kWho);
+
+  assert((unsigned char)event_buf[1] == kPacketMagicNum);
+  if ((unsigned char)event_buf[2] != kPacketFlagSync)
+  {
+    /* current event does not require reply */
+    result = 0;
+    goto l_end;
+  }
+
+  if (trc_level & kTraceNetWait)
+    start_time_err = gettimeofday(&start_tv, 0);
+
+  /* We flush to make sure that the current event is sent to the network,
+   * instead of being buffered in the TCP/IP stack.
+   */
+  if (net_flush(net))
+  {
+    sql_print_error("Semi-sync master failed on net_flush() "
+                    "before waiting for slave reply");
+    goto l_end;
+  }
+
+  net_clear(net, 0);
+  if (trc_level & kTraceDetail)
+    sql_print_information("%s: Wait for replica's reply", kWho);
+
+  /* Wait for the network here.  Though binlog dump thread can indefinitely wait
+   * here, transactions would not wait indefintely.
+   * Transactions wait on binlog replies detected by binlog dump threads.  If
+   * binlog dump threads wait too long, transactions will timeout and continue.
+   */
+  packet_len = my_net_read(net);
+
+  if (trc_level & kTraceNetWait)
+  {
+    if (start_time_err != 0)
+    {
+      sql_print_error("Semi-sync master wait for reply "
+                      "gettimeofday fail to get start time");
+      timefunc_fails_++;
+    }
+    else
+    {
+      int wait_time;
+
+      wait_time = getWaitTime(start_tv);
+      if (wait_time < 0)
+      {
+        sql_print_error("Semi-sync master wait for reply "
+                        "gettimeofday fail to get wait time.");
+        timefunc_fails_++;
+      }
+      else
+      {
+        total_net_wait_num_++;
+        total_net_wait_time_ += wait_time;
+      }
+    }
+  }
+
+  if (packet_len == packet_error || packet_len < REPLY_BINLOG_NAME_OFFSET)
+  {
+    if (packet_len == packet_error)
+      sql_print_error("Read semi-sync reply network error: %s (errno: %d)",
+                      net->last_error, net->last_errno);
+    else
+      sql_print_error("Read semi-sync reply length error: %s (errno: %d)",
+                      net->last_error, net->last_errno);
+    goto l_end;
+  }
+
+  packet = net->read_pos;
+  if (packet[REPLY_MAGIC_NUM_OFFSET] != ReplSemiSyncMaster::kPacketMagicNum)
+  {
+    sql_print_error("Read semi-sync reply magic number error");
+    goto l_end;
+  }
+
+  log_file_pos = uint8korr(packet + REPLY_BINLOG_POS_OFFSET);
+  strcpy(log_file_name, (const char*)packet + REPLY_BINLOG_NAME_OFFSET);
+
+  if (trc_level & kTraceDetail)
+    sql_print_information("%s: Got reply (%s, %lu)",
+                          kWho, log_file_name, (ulong)log_file_pos);
+
+  result = reportReplyBinlog(server_id, log_file_name, log_file_pos);
+
+ l_end:
+  return function_exit(kWho, result);
+}
+
 
 int ReplSemiSyncMaster::resetMaster()
 {
