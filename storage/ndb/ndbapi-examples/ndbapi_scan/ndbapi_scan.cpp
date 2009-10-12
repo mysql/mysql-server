@@ -344,19 +344,11 @@ int scan_delete(Ndb* myNdb,
       } while((check = myScanOp->nextResult(false)) == 0);
       
       /**
-       * Commit when all cached tuple have been marked for deletion
+       * NoCommit when all cached tuple have been marked for deletion
        */    
       if(check != -1)
       {
-	check = myTrans->execute(NdbTransaction::Commit);   
-      }
-
-      if(check == -1)
-      {
-	/**
-	 * Create a new transaction, while keeping scan open
-	 */
-	check = myTrans->restart();
+	check = myTrans->execute(NdbTransaction::NoCommit);
       }
 
       /**
@@ -377,6 +369,19 @@ int scan_delete(Ndb* myNdb,
        * End of loop 
        */
     }
+    /**
+     * Commit all prepared operations
+     */
+    if(myTrans->execute(NdbTransaction::Commit) == -1)
+    {
+      if(err.status == NdbError::TemporaryError){
+	std::cout << myTrans->getNdbError().message << std::endl;
+	myNdb->closeTransaction(myTrans);
+	milliSleep(50);
+	continue;
+      }	
+    }
+    
     std::cout << myTrans->getNdbError().message << std::endl;
     myNdb->closeTransaction(myTrans);
     return 0;
