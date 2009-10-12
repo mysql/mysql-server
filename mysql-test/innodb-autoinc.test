@@ -607,5 +607,16 @@ INSERT INTO t1 VALUES (NULL, NULL);
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
-
+#
 # End negative number check
+
+##
+# 47125: auto_increment start value is ignored if an index is created
+# and engine=innodb
+#
+CREATE TABLE T1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) AUTO_INCREMENT=10 ENGINE=InnoDB;
+CREATE INDEX i1 on T1(c2);
+SHOW CREATE TABLE T1;
+INSERT INTO T1 (c2) values (0);
+SELECT * FROM T1;
+DROP TABLE T1;
