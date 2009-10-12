@@ -30,7 +30,7 @@ echo Version string: $VER.
 
 ZIPNAME=mariadb-$VER-win32-noinstall
 ZIPFILE="$ZIPNAME.zip"
-echo sh -x scripts/make_win_bin_dist $ZIPFILE
+sh -x scripts/make_win_bin_dist $ZIPFILE
 
 rm -rf unpack
 mkdir unpack
