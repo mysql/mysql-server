@@ -40,6 +40,7 @@ unsigned long long rpl_semi_sync_master_net_wait_num = 0;
 unsigned long rpl_semi_sync_master_clients          = 0;
 unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
+char rpl_semi_sync_master_wait_no_slave = 1;
 
 
 static int getWaitTime(const struct timeval& start_tv);
@@ -525,6 +526,14 @@ void ReplSemiSyncMaster::remove_slave()
 {
   lock();
   rpl_semi_sync_master_clients--;
+
+  /* If user has chosen not to wait if no semi-sync slave available
+     and the last semi-sync slave exits, turn off semi-sync on master
+     immediately.
+   */
+  if (!rpl_semi_sync_master_wait_no_slave &&
+      rpl_semi_sync_master_clients == 0)
+    switch_off();
   unlock();
 }
 
@@ -812,7 +821,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     
     /* Update the status counter. */
-    if (is_on() && rpl_semi_sync_master_clients)
+    if (is_on())
       rpl_semi_sync_master_yes_transactions++;
     else
       rpl_semi_sync_master_no_transactions++;
@@ -1078,7 +1087,7 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
     commit_file_name_inited_ = true;
   }
 
-  if (is_on() && rpl_semi_sync_master_clients)
+  if (is_on())
   {
     assert(active_tranxs_ != NULL);
     if(active_tranxs_->insert_tranx_node(log_file_name, log_file_pos))
@@ -1153,7 +1162,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
     {
       sql_print_error("Semi-sync master wait for reply "
                       "gettimeofday fail to get start time");
-      timefunc_fails_++;
+      rpl_semi_sync_master_timefunc_fails++;
     }
     else
     {
@@ -1164,12 +1173,12 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
       {
         sql_print_error("Semi-sync master wait for reply "
                         "gettimeofday fail to get wait time.");
-        timefunc_fails_++;
+        rpl_semi_sync_master_timefunc_fails++;
       }
       else
       {
-        total_net_wait_num_++;
-        total_net_wait_time_ += wait_time;
+        rpl_semi_sync_master_net_wait_num++;
+        rpl_semi_sync_master_net_wait_time += wait_time;
       }
     }
   }
@@ -1242,7 +1251,7 @@ void ReplSemiSyncMaster::setExportStats()
 {
   lock();
 
-  rpl_semi_sync_master_status           = state_ && rpl_semi_sync_master_clients;
+  rpl_semi_sync_master_status           = state_;
   rpl_semi_sync_master_avg_trx_wait_time=
     ((rpl_semi_sync_master_trx_wait_num) ?
      (unsigned long)((double)rpl_semi_sync_master_trx_wait_time /
