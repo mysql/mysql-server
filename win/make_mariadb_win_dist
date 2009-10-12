@@ -4,6 +4,7 @@
 # This is a script that one needs to run in the source tarball to build
 # a MariaDB release for Windows
 #
+
 set -e
 
 if [ ! -d win/data ] ; then
@@ -67,6 +68,6 @@ echo "$ZIPFILE is the Windows noinstall binary zip"
 if [ $RES ] ; then
  echo "Archive contents differ from the standard file list, check the diff output above"
 else
-  echo "Archive contents match the standard list"
+  echo "Archive contents match the standard list, OK"
 fi
 
