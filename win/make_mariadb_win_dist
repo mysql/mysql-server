@@ -30,7 +30,7 @@ echo Version string: $VER.
 
 ZIPNAME=mariadb-$VER-win32-noinstall
 ZIPFILE="$ZIPNAME.zip"
-sh -x scripts/make_win_bin_dist $ZIPFILE
+sh -x scripts/make_win_bin_dist $ZIPNAME
 
 rm -rf unpack
 mkdir unpack
@@ -48,6 +48,7 @@ set -x
 cd ..
 
 rm -rf unpack
+ls -lah $ZIPFILE
 echo "$ZIPFILE is the Windows noinstall binary zip"
 
 if [ $RES ] ; then
