@@ -398,7 +398,6 @@ struct xid_t {
   my_xid get_my_xid()
   {
     return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           !memcmp(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id)) &&
            !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
            quick_get_my_xid() : 0;
   }
