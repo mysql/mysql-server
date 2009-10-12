@@ -37,27 +37,16 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
 	irix*|osf*|sysv5uw7*|openbsd*)
 		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 	*solaris*|*SunOS*)
-		# Begin Solaris atomic function checks
-		AC_CHECK_FUNCS(atomic_cas_ulong atomic_cas_32 \
-			       atomic_cas_64 atomic_add_long,
-			AC_DEFINE(
-				[HAVE_SOLARIS_ATOMICS],
-				[1],
-				[Define to 1 if Solaris supports \
-				 atomic functions.]))
-		### End Solaris atomic function checks
-
 		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
   esac
+
   INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
-  case "$target_cpu---$target_os" in
-	x86_64---*)
+
+  case "$target_cpu" in
+	x86_64)
 		# The AMD64 ABI forbids absolute addresses in shared libraries
 		;;
-	*---solaris*|*---SunOS*)
-		# Shared objects must be linked from PIC code on Solaris.
-		;;
-	*86---)
+	*86)
 		# Use absolute addresses on IA-32
 		INNODB_DYNAMIC_CFLAGS="$INNODB_DYNAMIC_CFLAGS -prefer-non-pic"
 		;;
@@ -65,6 +54,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
   AC_SUBST(INNODB_DYNAMIC_CFLAGS)
 
   AC_MSG_CHECKING(whether GCC atomic builtins are available)
+  # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
   AC_TRY_RUN(
     [
       int main()
@@ -115,6 +105,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
   )
 
   AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
+  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
   AC_TRY_RUN(
     [
       #include <pthread.h>
@@ -135,7 +126,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
       }
     ],
     [
-      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+      AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_GCC], [1],
                 [pthread_t can be used by GCC atomic builtins])
       AC_MSG_RESULT(yes)
     ],
@@ -144,38 +135,64 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
     ]
   )
 
-  # Try using solaris atomics on SunOS if GCC atomics are not available
-  AC_CHECK_DECLS(
-    [HAVE_ATOMIC_PTHREAD_T],
+  AC_MSG_CHECKING(whether Solaris libc atomic functions are available)
+  # either define HAVE_IB_SOLARIS_ATOMICS or not
+  AC_CHECK_FUNCS(atomic_add_long \
+		 atomic_cas_32 \
+		 atomic_cas_64 \
+		 atomic_cas_ulong,
+
+		 AC_DEFINE([HAVE_IB_SOLARIS_ATOMICS], [1],
+			   [Define to 1 if Solaris libc atomic functions \
+			    are available])
+  )
+
+  AC_MSG_CHECKING(whether pthread_t can be used by Solaris libc atomic functions)
+  # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
+  AC_TRY_RUN(
     [
-      AC_MSG_NOTICE(no need to check pthread_t size)
+      #include <pthread.h>
+      #include <string.h>
+
+      int main(int argc, char** argv) {
+        pthread_t       x1;
+        pthread_t       x2;
+        pthread_t       x3;
+
+        memset(&x1, 0x0, sizeof(x1));
+        memset(&x2, 0x0, sizeof(x2));
+        memset(&x3, 0x0, sizeof(x3));
+
+        if (sizeof(pthread_t) == 4) {
+        
+          atomic_cas_32(&x1, x2, x3);
+        
+        } else if (sizeof(pthread_t) == 8) {
+        
+          atomic_cas_64(&x1, x2, x3);
+        
+        } else {
+        
+          return(1);
+        }
+
+	return(0);
+      }
     ],
     [
-      AC_CHECK_DECLS(
-        [HAVE_SOLARIS_ATOMICS],
-        [
-          AC_MSG_CHECKING(checking if pthread_t type is integral)
-          AC_TRY_RUN(
-            [
-              #include <pthread.h>
-              int main()
-              {
-                pthread_t x = 0;
-                return(0);
-              }
-            ],
-            [
-              AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+      AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS], [1],
                 [pthread_t can be used by solaris atomics])
-              AC_MSG_RESULT(yes)
-              # size of pthread_t is needed for typed solaris atomics
-              AC_CHECK_SIZEOF([pthread_t], [], [#include <pthread.h>])
-            ],
-            [
-              AC_MSG_RESULT(no)
-            ])
-        ])
-    ])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+  )
+
+  # this is needed to know which one of atomic_cas_32() or atomic_cas_64()
+  # to use in the source
+  AC_CHECK_SIZEOF([pthread_t], [], [#include <pthread.h>])
+
   # Check for x86 PAUSE instruction
   AC_MSG_CHECKING(for x86 PAUSE instruction)
   # We have to actually try running the test program, because of a bug
@@ -192,7 +209,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
       }
     ],
     [
-      AC_DEFINE([IB_HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+      AC_DEFINE([HAVE_IB_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
       AC_MSG_RESULT(yes)
     ],
     [

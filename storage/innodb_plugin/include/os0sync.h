@@ -285,7 +285,7 @@ os_fast_mutex_free(
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
 
-#ifdef HAVE_IB_GCC_ATOMIC_BUILTINS
+#if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
 
 #define HAVE_ATOMIC_BUILTINS
 
@@ -306,6 +306,11 @@ compare to, new_val is the value to swap in. */
 #  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 #  define INNODB_RW_LOCKS_USE_ATOMICS
+#  define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes and rw_locks use GCC atomic builtins"
+# else /* HAVE_IB_ATOMIC_PTHREAD_T_GCC */
+#  define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes use GCC atomic builtins, rw_locks do not"
 # endif /* HAVE_IB_ATOMIC_PTHREAD_T_GCC */
 
 /**********************************************************//**
@@ -356,7 +361,12 @@ compare to, new_val is the value to swap in. */
 #  else
 #   error "SIZEOF_PTHREAD_T != 4 or 8"
 #  endif /* SIZEOF_PTHREAD_T CHECK */
-# define INNODB_RW_LOCKS_USE_ATOMICS
+#  define INNODB_RW_LOCKS_USE_ATOMICS
+#  define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes and rw_locks use Solaris atomic functions"
+# else /* HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS */
+#  define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes use Solaris atomic functions, rw_locks do not"
 # endif /* HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS */
 
 /**********************************************************//**
@@ -401,6 +411,9 @@ compare to, new_val is the value to swap in. */
 /* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+# define INNODB_RW_LOCKS_USE_ATOMICS
+# define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes and rw_locks use Windows interlocked functions"
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
@@ -420,6 +433,9 @@ clobbered */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	((byte) InterlockedExchange(ptr, new_val))
 
+#else
+# define IB_ATOMICS_STARTUP_MSG \
+	"Mutexes and rw_locks use InnoDB's own implementation"
 #endif
 
 #ifndef UNIV_NONINL
