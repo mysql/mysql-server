@@ -99,9 +99,16 @@ int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
 				uint32 flags)
 {
   if (rpl_semi_sync_slave_status && semi_sync_need_reply)
-    return repl_semisync.slaveReply(param->mysql,
+  {
+    /*
+      We deliberately ignore the error in slaveReply, such error
+      should not cause the slave IO thread to stop, and the error
+      messages are already reported.
+    */
+    (void) repl_semisync.slaveReply(param->mysql,
                                     param->master_log_name,
                                     param->master_log_pos);
+  }
   return 0;
 }
 
