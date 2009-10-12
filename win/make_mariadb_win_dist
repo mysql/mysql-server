@@ -53,7 +53,7 @@ wget -O base.list.gz \
 http://askmonty.org/wiki/images/5/57/Mariadb-5.1-pre-beta-file-list-r2.txt.gz
 gunzip base.list.gz
 unzip ../$ZIPFILE
-(cd $ZIPNAME; /bin/find . | sort ) > new.list
+(cd $ZIPCONTENT; /bin/find . | sort ) > new.list
 
 diff -u base.list new.list || true
 RES=$?
