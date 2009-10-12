@@ -105,7 +105,8 @@ public:
     append,
     append_synch,
     rmrf,
-    readPartial
+    readPartial,
+    allocmem
   };
   Action action;
   union {
@@ -131,6 +132,10 @@ public:
       bool directory;
       bool own_directory;
     } rmrf;
+    struct {
+      Block_context* ctx;
+      Uint32 requestInfo;
+    } alloc;
   } par;
   int error;
   
@@ -231,6 +236,11 @@ protected:
    */
   virtual void writeReq(Request *request);
   virtual void writevReq(Request *request);
+
+  /**
+   * Allocate memory (in separate thread)
+   */
+  virtual void allocMemReq(Request*);
 
   /**
    * endReq()
