@@ -104,8 +104,8 @@ NULL	mysql	ndb_binlog_index	inserts	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bi
 NULL	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 NULL	mysql	ndb_binlog_index	schemaops	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 NULL	mysql	ndb_binlog_index	updates	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	mysql	plugin	dl	2		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
-NULL	mysql	plugin	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
+NULL	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+NULL	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	body_utf8	20	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 NULL	mysql	proc	character_set_client	17	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	
@@ -386,8 +386,8 @@ NULL	mysql	ndb_binlog_index	inserts	bigint	NULL	NULL	NULL	NULL	bigint(20) unsign
 NULL	mysql	ndb_binlog_index	updates	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	ndb_binlog_index	deletes	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	ndb_binlog_index	schemaops	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	plugin	name	char	64	192	utf8	utf8_bin	char(64)
-3.0000	mysql	plugin	dl	char	128	384	utf8	utf8_bin	char(128)
+3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
 3.0000	mysql	proc	db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	proc	name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	proc	type	enum	9	27	utf8	utf8_general_ci	enum('FUNCTION','PROCEDURE')
