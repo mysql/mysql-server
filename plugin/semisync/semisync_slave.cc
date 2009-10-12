@@ -39,16 +39,6 @@ int ReplSemiSyncSlave::initObject()
   return result;
 }
 
-int ReplSemiSyncSlave::slaveReplyConnect()
-{
-  if (!mysql_reply && !(mysql_reply= rpl_connect_master(NULL)))
-  {
-    sql_print_error("Semisync slave connect to master for reply failed");
-    return 1;
-  }
-  return 0;
-}
-
 int ReplSemiSyncSlave::slaveReadSyncHeader(const char *header,
                                       unsigned long total_len,
                                       bool  *need_reply,

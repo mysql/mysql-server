@@ -77,11 +77,6 @@ public:
   int slaveReply(MYSQL *mysql, const char *binlog_filename,
                  my_off_t binlog_filepos);
 
-  /*
-    Connect to master for sending reply
-   */
-  int slaveReplyConnect();
-  
   int slaveStart(Binlog_relay_IO_param *param);
   int slaveStop(Binlog_relay_IO_param *param);
 
