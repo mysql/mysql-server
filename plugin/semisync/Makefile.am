@@ -18,6 +18,7 @@
 pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =              -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql \
+			-I$(top_srcdir)/regex \
 			-I$(srcdir)
 
 noinst_HEADERS = semisync.h semisync_master.h semisync_slave.h

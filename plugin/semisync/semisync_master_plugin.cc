@@ -69,8 +69,16 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
   
   if (semi_sync_slave)
+  {
     /* One more semi-sync slave */
     repl_semisync.add_slave();
+    
+    /*
+      Let's assume this semi-sync slave has already received all
+      binlog events before the filename and position it requests.
+  */
+    repl_semisync.reportReplyBinlog(param->server_id, log_file, log_pos);
+  }
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
 			semi_sync_slave ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);
@@ -114,6 +122,18 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
 int repl_semi_after_send_event(Binlog_transmit_param *param,
                                const char *event_buf, unsigned long len)
 {
+  if (repl_semisync.is_semi_sync_slave())
+  {
+    THD *thd= current_thd;
+    /*
+      Possible errors in reading slave reply are ignored deliberately
+      because we do not want dump thread to quit on this. Error
+      messages are already reported.
+    */
+    (void) repl_semisync.readSlaveReply(&thd->net,
+                                        param->server_id, event_buf);
+    thd->clear_error();
+  }
   return 0;
 }
 
@@ -142,11 +162,6 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
 				      void *ptr,
 				      const void *val);
 
-static void fix_rpl_semi_sync_master_reply_log_file_pos(MYSQL_THD thd,
-                                                 SYS_VAR *var,
-                                                 void *ptr,
-                                                 const void *val);
-
 static MYSQL_SYSVAR_BOOL(enabled, rpl_semi_sync_master_enabled,
   PLUGIN_VAR_OPCMDARG,
  "Enable semi-synchronous replication master (disabled by default). ",
@@ -168,22 +183,10 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   &fix_rpl_semi_sync_master_trace_level, // update
   32, 0, ~0L, 1);
 
-/*
-  Use a SESSION instead of GLOBAL variable for slave to send reply to
-  avoid requiring SUPER privilege.
-*/
-static MYSQL_THDVAR_STR(reply_log_file_pos,
-  PLUGIN_VAR_NOCMDOPT,
-  "The log filename and position slave has queued to relay log.",
-  NULL,             // check
-  &fix_rpl_semi_sync_master_reply_log_file_pos,
-  "");
-
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
   MYSQL_SYSVAR(trace_level),
-  MYSQL_SYSVAR(reply_log_file_pos),
   NULL,
 };
 
@@ -224,19 +227,6 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
     if (repl_semisync.disableMaster() != 0)
       rpl_semi_sync_master_enabled = true;
   }
-
-  return;
-}
-
-static void fix_rpl_semi_sync_master_reply_log_file_pos(MYSQL_THD thd,
-                                                 SYS_VAR *var,
-                                                 void *ptr,
-                                                 const void *val)
-{
-  const char *log_file_pos= *(char **)val;
-  
-  if (repl_semisync.reportReplyBinlog(log_file_pos))
-    sql_print_error("report slave binlog reply failed.");
 
   return;
 }
