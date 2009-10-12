@@ -3527,15 +3527,15 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       /* nextResult will always fail */  
       CHECK(-1 == scan->nextResult());
       
-      Uint32 scanError= scan->getNdbError().code;
+      NdbError scanError= scan->getNdbError();
       
       /* 'Success case' is 874 for too much AttrInfo */
-      if (scanError != 874)
+      if (scanError.code != 874)
       {
        /* When disconnected, we get 
          * 4028 : 'Node failure caused abort of transaction' 
          */
-        if (scanError == 4028)
+        if (scanError.classification == NdbError::NodeRecoveryError)
         {
           ndbout << stepNo << ": Scan failed due to node failure/disconnect" << endl;
           trans->close();
