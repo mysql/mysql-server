@@ -505,7 +505,9 @@ pthread_handler_t handle_bootstrap(void *arg)
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
     */
+    my_atomic_rwlock_wrlock(&global_query_id_lock);
     thd->query_id=next_query_id();
+    my_atomic_rwlock_wrunlock(&global_query_id_lock);
     thd->set_time();
     mysql_parse(thd, thd->query, length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
@@ -971,29 +973,30 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query_id= global_query_id;
-
-  switch( command ) {
-  /* Ignore these statements. */
-  case COM_STATISTICS:
-  case COM_PING:
-    break;
-  /* Only increase id on these statements but don't count them. */
-  case COM_STMT_PREPARE: 
-  case COM_STMT_CLOSE:
-  case COM_STMT_RESET:
-    next_query_id();
-    break;
-  /* Increase id and count all other statements. */
-  default:
-    statistic_increment(thd->status_var.questions, &LOCK_status);
-    next_query_id();
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  {
+    query_id_t query_id;
+    switch( command ) {
+    /* Ignore these statements. */
+    case COM_STATISTICS:
+    case COM_PING:
+      query_id= get_query_id();
+      break;
+    /* Only increase id on these statements but don't count them. */
+    case COM_STMT_PREPARE: 
+    case COM_STMT_CLOSE:
+    case COM_STMT_RESET:
+      query_id= next_query_id() - 1;
+      break;
+    /* Increase id and count all other statements. */
+    default:
+      statistic_increment(thd->status_var.questions, &LOCK_status);
+      query_id= next_query_id() - 1;
+    }
+    thd->query_id= query_id;
   }
-
-  thread_running++;
-  /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  inc_thread_running();
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1259,15 +1262,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
       thd->set_query(beginning_of_next_stmt, length);
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
       /*
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
+      my_atomic_rwlock_wrlock(&global_query_id_lock);
       thd->query_id= next_query_id();
+      my_atomic_rwlock_wrunlock(&global_query_id_lock);
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      VOID(pthread_mutex_unlock(&LOCK_thread_count));
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
@@ -1610,9 +1613,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thread_running--;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  dec_thread_running();
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
