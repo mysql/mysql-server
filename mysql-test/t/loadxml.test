@@ -1,0 +1,106 @@
+#
+# Tests for "LOAD XML" - a contributed patch from Erik Wetterberg.
+#
+
+# Running the $MYSQL_DUMP tool against an embedded server does not work.
+--source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (a int, b varchar(64));
+
+
+--echo -- Load a static XML file
+load xml infile '../../std_data/loadxml.dat' into table t1
+rows identified by '<row>';
+select * from t1 order by a;
+delete from t1;
+
+
+--echo -- Load a static XML file with 'IGNORE num ROWS'
+load xml infile '../../std_data/loadxml.dat' into table t1
+rows identified by '<row>' ignore 4 rows;
+select * from t1 order by a;
+
+
+--echo -- Check 'mysqldump --xml' + 'LOAD XML' round trip
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml" 2>&1
+delete from t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval load xml infile '$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml' into table t1 rows identified by '<row>';
+select * from t1 order by a;
+
+--echo --Check that default row tag is '<row>
+delete from t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval load xml infile '$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml' into table t1;
+select * from t1 order by a;
+
+--echo -- Check that 'xml' is not a keyword
+select 1 as xml;
+
+
+#
+# Bug #42520    killing load .. infile Assertion failed: ! is_set(), file .\sql_error.cc, line 8
+#
+
+--disable_query_log
+delete from t1;
+insert into t1 values (1, '12345678900987654321'), (2, 'asdfghjkl;asdfghjkl;');
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml" 2>&1
+--enable_query_log
+
+connect (addconroot, localhost, root,,);
+connection addconroot;
+create table t2(fl text);
+--let $PSEUDO_THREAD_ID=`select @@pseudo_thread_id    `
+
+--send LOAD XML LOCAL INFILE "$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml"  INTO TABLE t2 ROWS IDENTIFIED BY '<person>';
+
+sleep 3;
+
+
+connection default;
+show processlist;
+
+--disable_query_log
+--eval kill $PSEUDO_THREAD_ID
+--enable_query_log
+
+disconnect addconroot;
+
+#
+# Clean up
+#
+remove_file $MYSQLTEST_VARDIR/tmp/loadxml-dump.xml;
+drop table t1;
+drop table t2;
+
+#
+# Bug #36750    LOAD XML doesn't understand new line (feed) characters in multi line text fields
+#
+
+create table t1 (
+  id int(11) not null,
+  text text,
+  primary key (id)
+) engine=MyISAM default charset=latin1;
+load xml infile '../../std_data/loadxml2.dat' into table t1;
+select * from t1;
+drop table t1;
+

@@ -508,6 +508,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
+  enum enum_filetype filetype;
   Diag_condition_item_name diag_condition_item_name;
 }
 
@@ -1116,6 +1117,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  WRITE_SYM                     /* SQL-2003-N */
 %token  X509_SYM
 %token  XA_SYM
+%token  XML_SYM
 %token  XOR
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM                      /* SQL-2003-R */
@@ -1309,7 +1311,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         prepare prepare_src execute deallocate
         statement sp_suid
         sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
-        load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
+        opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
         view_replace_or_algorithm view_replace
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
@@ -1338,6 +1340,7 @@ END_OF_INPUT
 %type <spname> sp_name
 %type <index_hint> index_hint_type
 %type <num> index_hint_clause
+%type <filetype> data_or_xml
 
 %type <NONE> signal_stmt resignal_stmt
 %type <diag_condition_item_name> signal_condition_information_item_name
@@ -10663,7 +10666,7 @@ use:
 /* import, export of files */
 
 load:
-          LOAD DATA_SYM
+          LOAD data_or_xml
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -10671,12 +10674,42 @@ load:
 
             if (lex->sphead)
             {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
+              my_error(ER_SP_BADSTATEMENT, MYF(0), 
+                       $2 == FILETYPE_CSV ? "LOAD DATA" : "LOAD XML");
               MYSQL_YYABORT;
             }
             lex->fname_start= lip->get_ptr();
           }
-          load_data
+          load_data_lock opt_local INFILE TEXT_STRING_filesystem
+          {
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_LOAD;
+            lex->lock_option= $4;
+            lex->local_file=  $5;
+            lex->duplicates= DUP_ERROR;
+            lex->ignore= 0;
+            if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
+              MYSQL_YYABORT;
+          }
+          opt_duplicate INTO
+          {
+            Lex->fname_end= YYLIP->get_ptr();
+          }
+          TABLE_SYM table_ident
+          {
+            LEX *lex=Lex;
+            if (!Select->add_table_to_list(YYTHD, $13, NULL, TL_OPTION_UPDATING,
+                                           lex->lock_option))
+              MYSQL_YYABORT;
+            lex->field_list.empty();
+            lex->update_list.empty();
+            lex->value_list.empty();
+          }
+          opt_load_data_charset
+          { Lex->exchange->cs= $15; }
+          opt_xml_rows_identified_by
+          opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
+          opt_load_data_set_spec
           {}
         | LOAD TABLE_SYM table_ident FROM MASTER_SYM
           {
@@ -10692,46 +10725,28 @@ load:
             if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
               MYSQL_YYABORT;
           }
-        ;
+        | LOAD DATA_SYM FROM MASTER_SYM
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            Lex_input_stream *lip= YYLIP;
 
-load_data:
-          load_data_lock opt_local INFILE TEXT_STRING_filesystem
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_LOAD;
-            lex->lock_option= $1;
-            lex->local_file=  $2;
-            lex->duplicates= DUP_ERROR;
-            lex->ignore= 0;
-            if (!(lex->exchange= new sql_exchange($4.str, 0)))
+            if (lex->sphead)
+            {
+              my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
               MYSQL_YYABORT;
-          }
-          opt_duplicate INTO
-          {
-            Lex->fname_end= YYLIP->get_ptr();
-          }
-          TABLE_SYM table_ident
-          {
-            LEX *lex=Lex;
-            if (!Select->add_table_to_list(YYTHD, $10, NULL, TL_OPTION_UPDATING,
-                                           lex->lock_option))
-              MYSQL_YYABORT;
-            lex->field_list.empty();
-            lex->update_list.empty();
-            lex->value_list.empty();
-          }
-          opt_load_data_charset
-          { Lex->exchange->cs= $12; }
-          opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
-          opt_load_data_set_spec
-          {}
-        | FROM MASTER_SYM
-          {
+            }
+            lex->fname_start= lip->get_ptr();
             Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
             WARN_DEPRECATED(yythd, "6.0", "LOAD DATA FROM MASTER",
                             "mysqldump or future "
                             "BACKUP/RESTORE DATABASE facility");
           }
+        ;
+
+data_or_xml:
+        DATA_SYM  { $$= FILETYPE_CSV; }
+        | XML_SYM { $$= FILETYPE_XML; }
         ;
 
 opt_local:
@@ -10820,13 +10835,23 @@ line_term:
           }
         ;
 
+opt_xml_rows_identified_by:
+        /* empty */ { }
+        | ROWS_SYM IDENTIFIED_SYM BY text_string
+          { Lex->exchange->line_term = $4; };
+
 opt_ignore_lines:
           /* empty */
-        | IGNORE_SYM NUM LINES
+        | IGNORE_SYM NUM lines_or_rows
           {
             DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->skip_lines= atol($2.str);
           }
+        ;
+
+lines_or_rows:
+        LINES { }
+        | ROWS_SYM { }
         ;
 
 opt_field_or_var_spec:
@@ -11924,6 +11949,7 @@ keyword_sp:
         | WEEK_SYM                 {}
         | WORK_SYM                 {}
         | X509_SYM                 {}
+        | XML_SYM                  {}
         | YEAR_SYM                 {}
         ;
 
