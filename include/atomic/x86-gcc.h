@@ -42,14 +42,36 @@
 #endif
 
 #ifndef MY_ATOMIC_NO_XADD
-#define make_atomic_add_body(S)					\
-  asm volatile (LOCK_prefix "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
+#define make_atomic_add_body(S)         make_atomic_add_body ## S
+#define make_atomic_cas_body(S)         make_atomic_cas_body ## S
 #endif
-#define make_atomic_fas_body(S)				\
-  asm volatile ("xchg %0, %1;" : "+q" (v) , "+m" (*a))
-#define make_atomic_cas_body(S)					\
+
+#define make_atomic_add_body32                                  \
+  asm volatile (LOCK_prefix "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
+
+#define make_atomic_cas_body32                                  \
   asm volatile (LOCK_prefix "; cmpxchg %3, %0; setz %2;"	\
                : "+m" (*a), "+a" (*cmp), "=q" (ret): "r" (set))
+
+#define make_atomic_cas_bodyptr make_atomic_cas_body32
+
+#ifndef __x86_64__
+#define make_atomic_add_body64 make_atomic_add_body32
+#define make_atomic_cas_body64 make_atomic_cas_body32
+#else
+#define make_atomic_add_body64                                  \
+  int64 tmp=*a;                                                 \
+  while (!my_atomic_cas64(a, &tmp, tmp+v));                     \
+  v=tmp;
+#define make_atomic_cas_body64                                  \
+  int32 ebx=(set & 0xFFFFFFFF), ecx=(set >> 32);                \
+  asm volatile (LOCK_prefix "; cmpxchg8b %0; setz %2;"         \
+               : "+m" (*a), "+A" (*cmp), "=q" (ret)             \
+               :"b" (ebx), "c" (ecx))
+#endif
+
+#define make_atomic_fas_body(S)                                        \
+  asm volatile ("xchg %0, %1;" : "+r" (v) , "+m" (*a))
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 #define make_atomic_load_body(S)   ret=*a
