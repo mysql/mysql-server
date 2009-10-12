@@ -2758,10 +2758,10 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Outer Iter : " << outerIter 
            << " " << offset << "-" << (offset + numRecords - 1) << endl;
 
-    CHECK(hugoOps.startTransaction(pNdb) == 0);
-    CHECK(hugoOps.pkInsertRecord(pNdb, offset, numRecords) == 0);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);
-    CHECK(hugoOps.closeTransaction(pNdb) == 0);
+    {
+      HugoTransactions trans(*pTab);
+      CHECK(trans.loadTableStartFrom(pNdb, offset, numRecords) == 0);
+    }
 
     for (int iter=0; iter < numInnerIterations; iter++)
     {
@@ -2784,10 +2784,12 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
       if ((trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError) != 0))
       {
+        NdbError err = trans->getNdbError();
         ndbout << "Execute failed, error is " 
-               << trans->getNdbError().code << " "
-               << trans->getNdbError().message << endl;
-        CHECK(0);
+               << err.code << " " << endl;
+        CHECK((err.classification == NdbError::TemporaryResourceError ||
+               err.classification == NdbError::OverloadError));
+        NdbSleep_MilliSleep(50);
       }
       
       /* Now abort the transaction by closing it without committing */
