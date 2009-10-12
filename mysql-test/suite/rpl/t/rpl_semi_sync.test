@@ -287,6 +287,20 @@ echo [ on slave ];
 
 source include/stop_slave.inc;
 
+--echo #
+--echo # Flush status
+--echo #
+connection master;
+echo [ Semi-sync master status variables before FLUSH STATUS ];
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+# Do not write the FLUSH STATUS to binlog, to make sure we'll get a
+# clean status after this.
+FLUSH NO_WRITE_TO_BINLOG STATUS;
+echo [ Semi-sync master status variables after FLUSH STATUS ];
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+
 connection master;
 echo [ on master ];
 

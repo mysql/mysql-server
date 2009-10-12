@@ -204,6 +204,24 @@ Rpl_semi_sync_master_clients	1
 drop table t1;
 [ on slave ]
 include/stop_slave.inc
+#
+# Flush status
+#
+[ Semi-sync master status variables before FLUSH STATUS ]
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+Variable_name	Value
+Rpl_semi_sync_master_no_tx	3
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+Variable_name	Value
+Rpl_semi_sync_master_yes_tx	302
+FLUSH NO_WRITE_TO_BINLOG STATUS;
+[ Semi-sync master status variables after FLUSH STATUS ]
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+Variable_name	Value
+Rpl_semi_sync_master_no_tx	0
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+Variable_name	Value
+Rpl_semi_sync_master_yes_tx	0
 [ on master ]
 show master logs;
 Log_name	master-bin.000001
