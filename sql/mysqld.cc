@@ -523,7 +523,8 @@ uint mysqld_port_timeout;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
-uint volatile thread_count, thread_running;
+uint volatile thread_count;
+int32 thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
@@ -539,6 +540,7 @@ ulonglong  max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
+my_atomic_rwlock_t global_query_id_lock;
 ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -1349,6 +1351,7 @@ void clean_up(bool print_message)
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
+  my_atomic_rwlock_destroy(&global_query_id_lock);
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
@@ -7730,6 +7733,7 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;	/* Increments on each reload */
   global_query_id= thread_id= 1L;
+  my_atomic_rwlock_init(&global_query_id_lock);
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
   myisam_stats_method_str= "nulls_unequal";

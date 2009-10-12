@@ -132,9 +132,10 @@ post_init_event_thread(THD *thd)
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   thread_count++;
-  thread_running++;
   pthread_mutex_unlock(&LOCK_thread_count);
-
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  inc_thread_running();
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
   return FALSE;
 }
 
@@ -156,10 +157,12 @@ deinit_event_thread(THD *thd)
   DBUG_PRINT("exit", ("Event thread finishing"));
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  thread_running--;
   delete thd;
   pthread_cond_broadcast(&COND_thread_count);
   pthread_mutex_unlock(&LOCK_thread_count);
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  dec_thread_running();
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
 }
 
 
@@ -417,10 +420,12 @@ Event_scheduler::start()
     net_end(&new_thd->net);
     pthread_mutex_lock(&LOCK_thread_count);
     thread_count--;
-    thread_running--;
     delete new_thd;
     pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_wrlock(&global_query_id_lock);
+    dec_thread_running();
+    my_atomic_rwlock_wrunlock(&global_query_id_lock);
   }
 end:
   UNLOCK_DATA();
@@ -550,10 +555,12 @@ error:
     net_end(&new_thd->net);
     pthread_mutex_lock(&LOCK_thread_count);
     thread_count--;
-    thread_running--;
     delete new_thd;
     pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_wrlock(&global_query_id_lock);
+    dec_thread_running();
+    my_atomic_rwlock_wrunlock(&global_query_id_lock);
   }
   delete event_name;
   DBUG_RETURN(TRUE);

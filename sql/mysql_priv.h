@@ -43,6 +43,7 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include <my_atomic.h>
 
 class Parser_state;
 
@@ -75,11 +76,49 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 typedef ulonglong nested_join_map;
 
 /* query_id */
-typedef ulonglong query_id_t;
+typedef int64 query_id_t;
 extern query_id_t global_query_id;
+extern int32 thread_running;
+extern my_atomic_rwlock_t global_query_id_lock;
 
 /* increment query_id and return it.  */
-inline query_id_t next_query_id() { return global_query_id++; }
+inline query_id_t next_query_id()
+{
+  query_id_t id;
+  id= my_atomic_add64(&global_query_id, 1);
+  return (id+1);
+}
+
+inline query_id_t get_query_id()
+{
+  query_id_t id;
+  id= my_atomic_load64(&global_query_id);
+  return id;
+}
+
+inline int32
+inc_thread_running()
+{
+  int32 num_thread_running;
+  num_thread_running= my_atomic_add32(&thread_running, 1);
+  return (num_thread_running+1);
+}
+
+inline int32
+dec_thread_running()
+{
+  int32 num_thread_running;
+  num_thread_running= my_atomic_add32(&thread_running, -1);
+  return (num_thread_running-1);
+}
+
+inline int32
+get_thread_running()
+{
+  int32 num_thread_running;
+  num_thread_running= my_atomic_load32(&thread_running);
+  return num_thread_running;
+}
 
 /* useful constants */
 extern MYSQL_PLUGIN_IMPORT const key_map key_map_empty;
@@ -1994,7 +2033,7 @@ extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern bool in_bootstrap;
-extern uint volatile thread_count, thread_running, global_read_lock;
+extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
