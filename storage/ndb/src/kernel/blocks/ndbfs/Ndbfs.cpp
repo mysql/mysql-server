@@ -32,6 +32,7 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/NdbfsContinueB.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/AllocMem.hpp>
 
 #include <RefConvert.hpp>
 #include <NdbSleep.h>
@@ -55,8 +56,8 @@ int pageSize( const NewVARIABLE* baseAddrRef )
 
 Ndbfs::Ndbfs(Block_context& ctx) :
   SimulatedBlock(NDBFS, ctx),
-  scanningInProgress(false),
   theLastId(0),
+  scanningInProgress(false),
   theRequestPool(0),
   m_maxOpenedFiles(0)
 {
@@ -74,7 +75,10 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   addRecSignal(GSN_CONTINUEB, &Ndbfs::execCONTINUEB);
   addRecSignal(GSN_FSAPPENDREQ, &Ndbfs::execFSAPPENDREQ);
   addRecSignal(GSN_FSREMOVEREQ, &Ndbfs::execFSREMOVEREQ);
+  addRecSignal(GSN_ALLOC_MEM_REQ, &Ndbfs::execALLOC_MEM_REQ);
    // Set send signals
+
+  theRequestPool = new Pool<Request>;
 }
 
 Ndbfs::~Ndbfs()
@@ -171,8 +175,6 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
                                        tmp.c_str());
   m_base_path[FsOpenReq::BP_BACKUP].assign(m_ctx.m_config.backupFilePath());
 
-  theRequestPool = new Pool<Request>;
-
   const char * ddpath = 0;
   ndb_mgm_get_string_parameter(p, CFG_DB_DD_FILESYSTEM_PATH, &ddpath);
 
@@ -242,6 +244,10 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
+
+  // start scanning
+  signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
 }
 
 /* Received a restart signal.
@@ -264,15 +270,9 @@ Ndbfs::execSTTOR(Signal* signal)
     
     do_mkdir(m_base_path[FsOpenReq::BP_FS].c_str());
     
-    cownref = NDBFS_REF;
     // close all open files
     ndbrequire(theOpenFiles.size() == 0);
     
-    scanningInProgress = false;
-    
-    signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 1);
-
     signal->theData[3] = 255;
     sendSignal(NDBCNTR_REF, GSN_STTORRY, signal,4, JBB);
     return;
@@ -771,6 +771,30 @@ error:
   return;
 }
 
+void
+Ndbfs::execALLOC_MEM_REQ(Signal* signal)
+{
+  jamEntry();
+
+  AllocMemReq* req = (AllocMemReq*)signal->getDataPtr();
+
+  AsyncFile* file = getIdleFile();
+  ndbrequire(file != NULL);
+  file->reportTo(&theFromThreads);
+
+  Request *request = theRequestPool->get();
+
+  request->error = 0;
+  request->set(req->senderRef, req->senderData, 0);
+  request->file = file;
+  request->theTrace = signal->getTrace();
+
+  request->par.alloc.ctx = &m_ctx;
+  request->par.alloc.requestInfo = req->requestInfo;
+  request->action = Request::allocmem;
+  ndbrequire(forward(file, request));
+}
+
 Uint16
 Ndbfs::newId()
 {
@@ -920,6 +944,17 @@ Ndbfs::report(Request * request, Signal* signal)
       // Report nothing
       break;
     }
+    case Request::allocmem: {
+      jam();
+      AllocMemRef* rep = (AllocMemRef*)signal->getDataPtrSend();
+      rep->senderRef = reference();
+      rep->senderData = request->theUserPointer;
+      rep->errorCode = request->error;
+      sendSignal(ref, GSN_ALLOC_MEM_REF, signal,
+                 AllocMemRef::SignalLength, JBB);
+      theIdleFiles.push_back(request->file);
+      break;
+    }
     }//switch
   } else {
     jam();
@@ -990,6 +1025,16 @@ Ndbfs::report(Request * request, Signal* signal)
     }
     case Request:: end: {
       // Report nothing
+      break;
+    }
+    case Request::allocmem: {
+      jam();
+      AllocMemConf* conf = (AllocMemConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = request->theUserPointer;
+      sendSignal(ref, GSN_ALLOC_MEM_CONF, signal,
+                 AllocMemConf::SignalLength, JBB);
+      theIdleFiles.push_back(request->file);
       break;
     }
     }    

@@ -214,6 +214,9 @@ AsyncFile::run()
     case Request::rmrf:
       rmrfReq(request, (char*)theFileName.c_str(), request->par.rmrf.own_directory);
       break;
+    case Request::allocmem:
+      allocMemReq(request);
+      break;
     case Request:: end:
       if (isOpen())
         closeReq(request);
@@ -321,6 +324,16 @@ AsyncFile::writevReq( Request * request)
 {
   // WriteFileGather on WIN32?
   writeReq(request);
+}
+
+void
+AsyncFile::allocMemReq(Request* request)
+{
+  bool res = request->par.alloc.ctx->m_mm.init();
+  if (res == true)
+    request->error = 0;
+  else
+    request->error = 1;
 }
 
 void AsyncFile::endReq()

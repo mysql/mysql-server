@@ -38,6 +38,7 @@
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/DisconnectRep.hpp>
+#include <signaldata/AllocMem.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -91,7 +92,10 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
-  
+
+  addRecSignal(GSN_ALLOC_MEM_REF, &Cmvmi::execALLOC_MEM_REF);
+  addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
+
   subscriberPool.setSize(5);
   
   const ndb_mgm_configuration_iterator * db = m_ctx.m_config.getOwnConfigIterator();
@@ -385,40 +389,76 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     rl.m_resource_id = 0;
     m_ctx.m_mm.set_resource_limit(rl);
   }
-  
-  if (!m_ctx.m_mm.init())
+
+  // sloppy
+  ndbrequire(refToMain(ref) == NDBCNTR &&
+             (refToNode(ref) == getOwnNodeId() || refToNode(ref) == 0));
   {
-    char buf[255];
-
-    struct ndb_mgm_param_info dm;
-    struct ndb_mgm_param_info sga;
-    size_t size = sizeof(ndb_mgm_param_info);
-    
-    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
-    size = sizeof(ndb_mgm_param_info);
-    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
-
-    BaseString::snprintf(buf, sizeof(buf), 
-			 "Malloc (%lld bytes) for %s and %s failed", 
-			 Uint64(shared_mem + tupmem) * 32768,
-			 dm.m_name, sga.m_name);
-    
-    ErrorReporter::handleAssert(buf,
-				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
-    
-    ndbrequire(false);
+    AllocMemReq* req = (AllocMemReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = senderData;
+    req->requestInfo = AllocMemReq::RT_INIT;
+    sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
+               AllocMemReq::SignalLength, JBB);
   }
+}
+
+void
+Cmvmi::execALLOC_MEM_CONF(Signal* signal)
+{
+  jamEntry();
+  AllocMemConf * conf = (AllocMemConf*)signal->getDataPtr();
+  Uint32 ref = NDBCNTR_REF; // sloppy
+  Uint32 senderData = conf->senderData;
 
   {
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
+
+  {
+    ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    sendSignal(ref, GSN_READ_CONFIG_CONF, signal,
+               ReadConfigConf::SignalLength, JBB);
+  }
+}
+
+void
+Cmvmi::execALLOC_MEM_REF(Signal* signal)
+{
+  jamEntry();
+  char buf[255];
+
+  const ndb_mgm_configuration_iterator * p =
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+
+  Uint32 tupmem = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
+
+  struct ndb_mgm_param_info dm;
+  struct ndb_mgm_param_info sga;
+  size_t size = sizeof(ndb_mgm_param_info);
+
+  ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+  size = sizeof(ndb_mgm_param_info);
+  ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+  BaseString::snprintf(buf, sizeof(buf),
+                       "Malloc (%lld bytes) for %s and %s failed",
+                       Uint64(shared_mem + tupmem) * 32768,
+                       dm.m_name, sga.m_name);
+
+  ErrorReporter::handleAssert(buf,
+                              __FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
   
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
-	     ReadConfigConf::SignalLength, JBB);
+  ndbrequire(false);
 }
 
 void Cmvmi::execSTTOR(Signal* signal)

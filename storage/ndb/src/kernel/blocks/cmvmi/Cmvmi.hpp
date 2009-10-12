@@ -69,6 +69,9 @@ private:
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+
+  void execALLOC_MEM_REF(Signal* signal);
+  void execALLOC_MEM_CONF(Signal* signal);
   
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
