@@ -45,13 +45,6 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   if (!repl_semisync.getSlaveEnabled())
     return 0;
 
-  /*
-    Create the connection that is used to send slave ACK replies to
-    master
-  */
-  if (repl_semisync.slaveReplyConnect())
-    return 1;
-
   /* Check if master server has semi-sync plugin installed */
   query= "SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled'";
   if (mysql_real_query(mysql, query, strlen(query)) ||
@@ -106,7 +99,8 @@ int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
 				uint32 flags)
 {
   if (rpl_semi_sync_slave_status && semi_sync_need_reply)
-    return repl_semisync.slaveReply(param->master_log_name,
+    return repl_semisync.slaveReply(param->mysql,
+                                    param->master_log_name,
                                     param->master_log_pos);
   return 0;
 }

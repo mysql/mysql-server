@@ -104,19 +104,45 @@ int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int ReplSemiSyncSlave::slaveReply(const char *log_name, my_off_t log_pos)
+int ReplSemiSyncSlave::slaveReply(MYSQL *mysql,
+                                 const char *binlog_filename,
+                                 my_off_t binlog_filepos)
 {
-  char query[FN_REFLEN + 100];
-  sprintf(query, "SET SESSION rpl_semi_sync_master_reply_log_file_pos='%llu:%s'",
-          (unsigned long long)log_pos, log_name);
-  if (mysql_real_query(mysql_reply, query, strlen(query)))
+  const char *kWho = "ReplSemiSyncSlave::slaveReply";
+  NET *net= &mysql->net;
+  uchar reply_buffer[REPLY_MAGIC_NUM_LEN
+                     + REPLY_BINLOG_POS_LEN
+                     + REPLY_BINLOG_NAME_LEN];
+  int  reply_res, name_len = strlen(binlog_filename);
+
+  function_enter(kWho);
+
+  /* Prepare the buffer of the reply. */
+  reply_buffer[REPLY_MAGIC_NUM_OFFSET] = kPacketMagicNum;
+  int8store(reply_buffer + REPLY_BINLOG_POS_OFFSET, binlog_filepos);
+  memcpy(reply_buffer + REPLY_BINLOG_NAME_OFFSET,
+         binlog_filename,
+         name_len + 1 /* including trailing '\0' */);
+
+  if (trace_level_ & kTraceDetail)
+    sql_print_information("%s: reply (%s, %lu)", kWho,
+                          binlog_filename, (ulong)binlog_filepos);
+
+  net_clear(net, 0);
+  /* Send the reply. */
+  reply_res = my_net_write(net, reply_buffer,
+                           name_len + REPLY_BINLOG_NAME_OFFSET);
+  if (!reply_res)
   {
-    sql_print_error("Set 'rpl_semi_sync_master_reply_log_file_pos' on master failed");
-    mysql_free_result(mysql_store_result(mysql_reply));
-    mysql_close(mysql_reply);
-    mysql_reply= 0;
-    return 1;
+    reply_res = net_flush(net);
+    if (reply_res)
+      sql_print_error("Semi-sync slave net_flush() reply failed");
   }
-  mysql_free_result(mysql_store_result(mysql_reply));
-  return 0;
+  else
+  {
+    sql_print_error("Semi-sync slave send reply failed: %s (%d)",
+                    net->last_error, net->last_errno);
+  }
+
+  return function_exit(kWho, reply_res);
 }

@@ -81,7 +81,7 @@ Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
-create table t1(n int) engine = ENGINE_TYPE;
+create table t1(a int) engine = ENGINE_TYPE;
 [ master state after CREATE TABLE statement ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -92,6 +92,9 @@ Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	1
+select CONNECTIONS_NORMAL_SLAVE - CONNECTIONS_NORMAL_SLAVE as 'Should be 0';
+Should be 0
+0
 [ insert records to table ]
 [ master status after inserts ]
 show status like 'Rpl_semi_sync_master_status';
@@ -108,15 +111,19 @@ Rpl_semi_sync_master_yes_tx	301
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
-select count(distinct n) from t1;
-count(distinct n)
+select count(distinct a) from t1;
+count(distinct a)
 300
-select min(n) from t1;
-min(n)
+select min(a) from t1;
+min(a)
 1
-select max(n) from t1;
-max(n)
+select max(a) from t1;
+max(a)
 300
+#
+# Test semi-sync master will switch OFF after one transacton
+# timeout waiting for slave reply.
+#
 include/stop_slave.inc
 [ on master ]
 [ master status should be ON ]
@@ -134,7 +141,16 @@ Variable_name	Value
 Rpl_semi_sync_master_clients	1
 [ semi-sync replication of these transactions will fail ]
 insert into t1 values (500);
-delete from t1 where n < 500;
+[ master status should be OFF ]
+show status like 'Rpl_semi_sync_master_status';
+Variable_name	Value
+Rpl_semi_sync_master_status	OFF
+show status like 'Rpl_semi_sync_master_no_tx';
+Variable_name	Value
+Rpl_semi_sync_master_no_tx	1
+show status like 'Rpl_semi_sync_master_yes_tx';
+Variable_name	Value
+Rpl_semi_sync_master_yes_tx	301
 insert into t1 values (100);
 [ master status should be OFF ]
 show status like 'Rpl_semi_sync_master_status';
@@ -142,10 +158,13 @@ Variable_name	Value
 Rpl_semi_sync_master_status	OFF
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	3
+Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	301
+#
+# Test semi-sync status on master will be ON again when slave catches up
+#
 [ on slave ]
 [ slave status should be OFF ]
 show status like 'Rpl_semi_sync_slave_status';
@@ -156,31 +175,33 @@ include/start_slave.inc
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
-select count(distinct n) from t1;
-count(distinct n)
+select count(distinct a) from t1;
+count(distinct a)
 2
-select min(n) from t1;
-min(n)
+select min(a) from t1;
+min(a)
 100
-select max(n) from t1;
-max(n)
+select max(a) from t1;
+max(a)
 500
 [ on master ]
-[ do something to activate semi-sync ]
-drop table t1;
-[ master status should be ON again ]
+[ master status should be ON again after slave catches up ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	ON
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	3
+Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	302
+Rpl_semi_sync_master_yes_tx	301
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
+#
+# Test disable/enable master semi-sync on the fly.
+#
+drop table t1;
 [ on slave ]
 include/stop_slave.inc
 [ on master ]
@@ -206,6 +227,9 @@ rpl_semi_sync_master_enabled	ON
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	ON
+#
+# Test RESET MASTER/SLAVE
+#
 [ on slave ]
 include/start_slave.inc
 [ on master ]
