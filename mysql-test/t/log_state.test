@@ -390,7 +390,6 @@ if(!$fixed_bug38124)
    --enable_query_log
 }
 
-# Remove the log files that was created in the "default location"
+# Remove the log file that was created in the "default location"
 # i.e var/run
---remove_file $MYSQLTEST_VARDIR/run/mysqld.log
 --remove_file $MYSQLTEST_VARDIR/tmp/log.master

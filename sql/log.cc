@@ -110,9 +110,16 @@ sql_print_message_func sql_print_message_handlers[3] =
 };
 
 
+/**
+  Create the name of the default general log file
+  
+  @param[IN] buff    Location for building new string.
+  @param[IN] log_ext The extension for the file (e.g .log)
+  @returns Pointer to a new string containing the name
+*/
 char *make_default_log_name(char *buff,const char* log_ext)
 {
-  strmake(buff, pidfile_name, FN_REFLEN-5);
+  strmake(buff, default_logfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }

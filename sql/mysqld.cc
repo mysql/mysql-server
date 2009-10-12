@@ -572,6 +572,7 @@ const char *log_output_str= "FILE";
 time_t server_start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
+char default_logfile_name[FN_REFLEN];
 char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
@@ -3168,10 +3169,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
     strmake(glob_hostname, STRING_WITH_LEN("localhost"));
     sql_print_warning("gethostname failed, using '%s' as hostname",
                       glob_hostname);
-    strmake(pidfile_name, STRING_WITH_LEN("mysql"));
+    strmake(default_logfile_name, STRING_WITH_LEN("mysql"));
   }
   else
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
+    strmake(default_logfile_name, glob_hostname, 
+	    sizeof(default_logfile_name)-5);
+
+  strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
