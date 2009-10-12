@@ -36,6 +36,7 @@ void printErrorAndFlags(Uint32 used_flags);
 const int ERR_ReadUnderflow = 1000;
 
 class AsyncFile;
+struct Block_context;
 
 class Request
 {
@@ -60,7 +61,8 @@ public:
     append,
     append_synch,
     rmrf,
-    readPartial
+    readPartial,
+    allocmem
   };
   Action action;
   union {
@@ -86,6 +88,10 @@ public:
       bool directory;
       bool own_directory;
     } rmrf;
+    struct {
+      Block_context* ctx;
+      Uint32 requestInfo;
+    } alloc;
   } par;
   int error;
 
@@ -146,6 +152,8 @@ private:
   struct NdbThread* theThreadPtr;
   NdbMutex* theStartMutexPtr;
   NdbCondition* theStartConditionPtr;
+
+  void allocMemReq(Request*);
 };
 
 #endif

@@ -16,24 +16,42 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NDBFS_CONTINUEB_H
-#define NDBFS_CONTINUEB_H
+#ifndef ALLOC_MEM_HPP
+#define ALLOC_MEM_HPP
 
 #include "SignalData.hpp"
 
-class NdbfsContinueB {
-  /**
-   * Sender(s)/Reciver(s)
-   */
-  friend class Ndbfs;
-  friend class VoidFs;
-  friend bool printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData,
-				   Uint32 len, Uint16);
-private:
-  enum {
-    ZSCAN_MEMORYCHANNEL_10MS_DELAY  =  0,
-    ZSCAN_MEMORYCHANNEL_NO_DELAY    =  1
+struct AllocMemReq
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  enum RequestType
+  {
+    RT_INIT = 0
   };
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestInfo;
+};
+
+struct AllocMemRef
+{
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestInfo;
+  Uint32 errorCode;
+};
+
+struct AllocMemConf
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 requestInfo;
 };
 
 #endif
