@@ -28,23 +28,36 @@ VER=`cat configure.in |
 
 echo Version string: $VER.
 
-ZIPNAME=mariadb-$VER-win32-noinstall
-ZIPFILE="$ZIPNAME.zip"
-sh -x scripts/make_win_bin_dist $ZIPNAME
+# Remove '-maria-' from version number
+VER_NO_MARIA=${VER/maria-/}
+
+# We want the final zip to be named like this:
+#  mariadb-noinstall-5.1.38-win32.zip
+ZIPNAME=mariadb-noinstall-$VER_NO_MARIA-win32
+ZIPFILE=$ZIPNAME.zip
+
+# The top directory inside the zip should be called like this:
+#  mariadb-5.1-38-win32
+ZIPCONTENT=mariadb-$VER_NO_MARIA-win32
+
+# This will make $ZIPCONTENT.zip
+sh -x scripts/make_win_bin_dist $ZIPCONTENT
+
+mv $ZIPCONTENT.zip $ZIPFILE
 
 rm -rf unpack
 mkdir unpack
 
 cd unpack
 wget -O base.list.gz \
-http://askmonty.org/wiki/images/6/6c/Mariadb-5.1-pre-beta-file-list.txt.gz
+http://askmonty.org/wiki/images/5/57/Mariadb-5.1-pre-beta-file-list-r2.txt.gz
 gunzip base.list.gz
 unzip ../$ZIPFILE
 (cd $ZIPNAME; /bin/find . | sort ) > new.list
-set +x
+
 diff -u base.list new.list || true
 RES=$?
-set -x
+
 cd ..
 
 rm -rf unpack
