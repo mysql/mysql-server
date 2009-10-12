@@ -268,45 +268,60 @@ Binlog_transmit_observer transmit_observer = {
     return 0;								\
   }
 
-DEF_SHOW_FUNC(clients, SHOW_LONG)
-DEF_SHOW_FUNC(net_wait_time, SHOW_LONG)
-DEF_SHOW_FUNC(net_wait_total_time, SHOW_LONGLONG)
-DEF_SHOW_FUNC(net_wait_num, SHOW_LONGLONG)
-DEF_SHOW_FUNC(off_times, SHOW_LONG)
-DEF_SHOW_FUNC(no_transactions, SHOW_LONG)
 DEF_SHOW_FUNC(status, SHOW_BOOL)
-DEF_SHOW_FUNC(timefunc_fails, SHOW_LONG)
-DEF_SHOW_FUNC(trx_wait_time, SHOW_LONG)
-DEF_SHOW_FUNC(trx_wait_total_time, SHOW_LONGLONG)
+DEF_SHOW_FUNC(clients, SHOW_LONG)
+DEF_SHOW_FUNC(trx_wait_time, SHOW_LONGLONG)
 DEF_SHOW_FUNC(trx_wait_num, SHOW_LONGLONG)
-DEF_SHOW_FUNC(back_wait_pos, SHOW_LONG)
-DEF_SHOW_FUNC(wait_sessions, SHOW_LONG)
-DEF_SHOW_FUNC(yes_transactions, SHOW_LONG)
+DEF_SHOW_FUNC(net_wait_time, SHOW_LONGLONG)
+DEF_SHOW_FUNC(net_wait_num, SHOW_LONGLONG)
+DEF_SHOW_FUNC(avg_net_wait_time, SHOW_LONG)
+DEF_SHOW_FUNC(avg_trx_wait_time, SHOW_LONG)
 
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_master_status_vars[]= {
-  {"Rpl_semi_sync_master_clients",    (char*) &SHOW_FNAME(clients),         SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_avg_wait_time",
-                               (char*) &SHOW_FNAME(net_wait_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_wait_time",
-                               (char*) &SHOW_FNAME(net_wait_total_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_waits",  (char*) &SHOW_FNAME(net_wait_num),    SHOW_FUNC},
-  {"Rpl_semi_sync_master_no_times",   (char*) &SHOW_FNAME(off_times),       SHOW_FUNC},
-  {"Rpl_semi_sync_master_no_tx",      (char*) &SHOW_FNAME(no_transactions), SHOW_FUNC},
-  {"Rpl_semi_sync_master_status",     (char*) &SHOW_FNAME(status),          SHOW_FUNC},
-  {"Rpl_semi_sync_master_timefunc_failures",
-                               (char*) &SHOW_FNAME(timefunc_fails),  SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_avg_wait_time",
-                               (char*) &SHOW_FNAME(trx_wait_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_wait_time",
-                               (char*) &SHOW_FNAME(trx_wait_total_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_waits",   (char*) &SHOW_FNAME(trx_wait_num),    SHOW_FUNC},
-  {"Rpl_semi_sync_master_wait_pos_backtraverse",
-                               (char*) &SHOW_FNAME(back_wait_pos),   SHOW_FUNC},
+  {"Rpl_semi_sync_master_status",
+   (char*) &SHOW_FNAME(status),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_clients",
+   (char*) &SHOW_FNAME(clients),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_yes_tx",
+   (char*) &rpl_semi_sync_master_yes_transactions,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_no_tx",
+   (char*) &rpl_semi_sync_master_no_transactions,
+   SHOW_LONG},
   {"Rpl_semi_sync_master_wait_sessions",
-                               (char*) &SHOW_FNAME(wait_sessions),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_yes_tx",     (char*) &SHOW_FNAME(yes_transactions), SHOW_FUNC},
+   (char*) &rpl_semi_sync_master_wait_sessions,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_no_times",
+   (char*) &rpl_semi_sync_master_off_times,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_timefunc_failures",
+   (char*) &rpl_semi_sync_master_timefunc_fails,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_wait_pos_backtraverse",
+   (char*) &rpl_semi_sync_master_wait_pos_backtraverse,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_tx_wait_time",
+   (char*) &SHOW_FNAME(trx_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_tx_waits",
+   (char*) &SHOW_FNAME(trx_wait_num),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_tx_avg_wait_time",
+   (char*) &SHOW_FNAME(avg_trx_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_wait_time",
+   (char*) &SHOW_FNAME(net_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_waits",
+   (char*) &SHOW_FNAME(net_wait_num),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_avg_wait_time",
+   (char*) &SHOW_FNAME(avg_net_wait_time),
+   SHOW_FUNC},
   {NULL, NULL, SHOW_LONG},
 };
 

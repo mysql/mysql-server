@@ -175,19 +175,7 @@ class ReplSemiSyncMaster
   volatile bool            master_enabled_;      /* semi-sync is enabled on the master */
   unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
 
-  /* All status variables. */
   bool            state_;                    /* whether semi-sync is switched */
-  unsigned long           enabled_transactions_;          /* semi-sync'ed tansactions */
-  unsigned long           disabled_transactions_;     /* non-semi-sync'ed tansactions */
-  unsigned long           switched_off_times_;    /* how many times are switched off? */
-  unsigned long           timefunc_fails_;           /* how many time function fails? */
-  unsigned long           total_wait_timeouts_;      /* total number of wait timeouts */
-  unsigned long           wait_sessions_;      /* how many sessions wait for replies? */
-  unsigned long           wait_backtraverse_;         /* wait position back traverses */
-  unsigned long long       total_trx_wait_num_;   /* total trx waits: non-timeout ones */
-  unsigned long long       total_trx_wait_time_;         /* total trx wait time: in us */
-  unsigned long long       total_net_wait_num_;                 /* total network waits */
-  unsigned long long       total_net_wait_time_;            /* total network wait time */
 
   /* The number of maximum active transactions.  This should be the same as
    * maximum connections because MySQL does not do connection sharing now.
@@ -356,22 +344,23 @@ class ReplSemiSyncMaster
 
 /* System and status variables for the master component */
 extern char rpl_semi_sync_master_enabled;
+extern char rpl_semi_sync_master_status;
+extern unsigned long rpl_semi_sync_master_clients;
 extern unsigned long rpl_semi_sync_master_timeout;
 extern unsigned long rpl_semi_sync_master_trace_level;
-extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_yes_transactions;
 extern unsigned long rpl_semi_sync_master_no_transactions;
 extern unsigned long rpl_semi_sync_master_off_times;
+extern unsigned long rpl_semi_sync_master_wait_timeouts;
 extern unsigned long rpl_semi_sync_master_timefunc_fails;
 extern unsigned long rpl_semi_sync_master_num_timeouts;
 extern unsigned long rpl_semi_sync_master_wait_sessions;
-extern unsigned long rpl_semi_sync_master_back_wait_pos;
-extern unsigned long rpl_semi_sync_master_trx_wait_time;
-extern unsigned long rpl_semi_sync_master_net_wait_time;
+extern unsigned long rpl_semi_sync_master_wait_pos_backtraverse;
+extern unsigned long rpl_semi_sync_master_avg_trx_wait_time;
+extern unsigned long rpl_semi_sync_master_avg_net_wait_time;
 extern unsigned long long rpl_semi_sync_master_net_wait_num;
 extern unsigned long long rpl_semi_sync_master_trx_wait_num;
-extern unsigned long long rpl_semi_sync_master_net_wait_total_time;
-extern unsigned long long rpl_semi_sync_master_trx_wait_total_time;
-extern unsigned long rpl_semi_sync_master_clients;
+extern unsigned long long rpl_semi_sync_master_net_wait_time;
+extern unsigned long long rpl_semi_sync_master_trx_wait_time;
 
 #endif /* SEMISYNC_MASTER_H */
