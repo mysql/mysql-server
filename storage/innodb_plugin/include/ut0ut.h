@@ -35,7 +35,9 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#endif /* UNIV_HOTBACKUP */
 
 #include <time.h>
 #ifndef MYSQL_SERVER
@@ -50,6 +52,7 @@ Created 1/20/1994 Heikki Tuuri
 /** Time stamp */
 typedef time_t	ib_time_t;
 
+#ifndef UNIV_HOTBACKUP
 #if defined(HAVE_IB_PAUSE_INSTRUCTION)
 #  ifdef WIN32
      /* In the Win32 API, the x86 PAUSE instruction is executed by calling
@@ -87,6 +90,7 @@ do {								\
 		os_thread_sleep(2000 /* 2 ms */);		\
 	}							\
 } while (0)
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************//**
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,

@@ -41,7 +41,6 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
-#include "log0log.h"
 
 /*
 Latching strategy of the InnoDB B-tree
@@ -874,8 +873,6 @@ leaf_loop:
 
 		goto leaf_loop;
 	}
-
-	log_write_up_to(mtr.end_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 top_loop:
 	mtr_start(&mtr);
 
