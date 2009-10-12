@@ -482,6 +482,7 @@ DROP TABLE t2;
 # 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
 # the index (PRIMARY)
 # This test requires a restart of the server
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (null);
 INSERT INTO t1 VALUES (null);
@@ -496,9 +497,10 @@ SELECT * FROM t1;
 # longer results in the two data dictionaries being out of sync. If they
 # revert their changes then this check for ER_AUTOINC_READ_FAILED will need
 # to be enabled.
-# -- error ER_AUTOINC_READ_FAILED,1467
+#-- error ER_AUTOINC_READ_FAILED,1467
 INSERT INTO t1 VALUES(null);
 ALTER TABLE t1 AUTO_INCREMENT = 3;
+SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;

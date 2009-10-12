@@ -2123,6 +2123,8 @@ innobase_rollback(
 
 	innobase_release_stat_resources(trx);
 
+	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
+
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
