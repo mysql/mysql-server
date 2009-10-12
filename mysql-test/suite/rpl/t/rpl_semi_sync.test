@@ -7,21 +7,21 @@ source include/master-slave.inc;
 let $engine_type= InnoDB;
 #let $engine_type= MyISAM;
 
-# After fix of BUG#45848, semi-sync slave should not create any extra
-# connections on master, save the count of connections before start
-# semi-sync slave for comparison below.
-let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
-
 # Suppress warnings that might be generated during the test
 disable_query_log;
 connection master;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
+call mtr.add_suppression("Read semi-sync reply");
 connection slave;
-call mtr.add_suppression("Master server does not support");
-# These will be removed after fix bug#45852
-call mtr.add_suppression("Set 'rpl_semi_sync_master_reply_log_file_pos' on master failed");
-call mtr.add_suppression("Slave I/O: Fatal error: Failed to run 'after_queue_event' hook, Error_code: 1593");
+call mtr.add_suppression("Master server does not support semi-sync");
+call mtr.add_suppression("Semi-sync slave .* reply");
 enable_query_log;
+connection master;
+
+# After fix of BUG#45848, semi-sync slave should not create any extra
+# connections on master, save the count of connections before start
+# semi-sync slave for comparison below.
+let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
 
 --echo #
 --echo # Uninstall semi-sync plugins on master and slave
