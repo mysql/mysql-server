@@ -1273,7 +1273,10 @@ buf_LRU_make_block_young(
 	buf_page_t*	bpage)	/*!< in: control block */
 {
 	ut_ad(buf_pool_mutex_own());
-	buf_pool->stat.n_pages_made_young++;
+
+	if (bpage->old) {
+		buf_pool->stat.n_pages_made_young++;
+	}
 
 	buf_LRU_remove_block(bpage);
 	buf_LRU_add_block_low(bpage, FALSE);
