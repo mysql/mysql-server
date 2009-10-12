@@ -76,7 +76,7 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
     /*
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
-  */
+    */
     repl_semisync.reportReplyBinlog(param->server_id, log_file, log_pos);
   }
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
@@ -176,6 +176,13 @@ static MYSQL_SYSVAR_ULONG(timeout, rpl_semi_sync_master_timeout,
   fix_rpl_semi_sync_master_timeout,	// update
   10000, 0, ~0L, 1);
 
+static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
+  PLUGIN_VAR_OPCMDARG,
+ "Wait until timeout when no semi-synchronous replication slave available (enabled by default). ",
+  NULL, 			// check
+  NULL,                         // update
+  1);
+
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   PLUGIN_VAR_OPCMDARG,
  "The tracing level for semi-sync replication.",
@@ -186,6 +193,7 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
+  MYSQL_SYSVAR(wait_no_slave),
   MYSQL_SYSVAR(trace_level),
   NULL,
 };

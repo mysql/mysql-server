@@ -29,13 +29,13 @@ set global rpl_semi_sync_master_enabled = 1;
 show variables like 'rpl_semi_sync_master_enabled';
 Variable_name	Value
 rpl_semi_sync_master_enabled	ON
-[ status of semi-sync on master should be OFF without any semi-sync slaves ]
+[ status of semi-sync on master should be ON even without any semi-sync slaves ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	0
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
+Rpl_semi_sync_master_status	ON
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
@@ -210,7 +210,7 @@ include/stop_slave.inc
 [ Semi-sync master status variables before FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	3
+Rpl_semi_sync_master_no_tx	302
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	302
@@ -355,7 +355,7 @@ Variable_name	Value
 Rpl_semi_sync_master_clients	0
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
+Rpl_semi_sync_master_status	ON
 set global rpl_semi_sync_master_enabled= 0;
 [ on slave ]
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
@@ -364,17 +364,17 @@ rpl_semi_sync_slave_enabled	ON
 include/start_slave.inc
 [ on master ]
 insert into t1 values (8);
-[ master semi-sync clients should be 0, status should be OFF ]
+[ master semi-sync clients should be 1, status should be OFF ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
+Rpl_semi_sync_master_clients	1
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	OFF
 [ on slave ]
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_slave_status	ON
 include/stop_slave.inc
 [ on master ]
 set sql_log_bin=0;

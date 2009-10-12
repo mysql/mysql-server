@@ -363,4 +363,12 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_num;
 extern unsigned long long rpl_semi_sync_master_net_wait_time;
 extern unsigned long long rpl_semi_sync_master_trx_wait_time;
 
+/*
+  This indicates whether we should keep waiting if no semi-sync slave
+  is available.
+     0           : stop waiting if detected no avaialable semi-sync slave.
+     1 (default) : keep waiting until timeout even no available semi-sync slave.
+*/
+extern char rpl_semi_sync_master_wait_no_slave;
+
 #endif /* SEMISYNC_MASTER_H */
