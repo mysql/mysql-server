@@ -56,10 +56,11 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   }
 
   row= mysql_fetch_row(res);
-  if (!row || strcmp(row[1], "ON"))
+  if (!row)
   {
-    /* Master does not support or not configured semi-sync */
-    sql_print_warning("Master server does not support or not configured semi-sync replication, fallback to asynchronous");
+    /* Master does not support semi-sync */
+    sql_print_warning("Master server does not support semi-sync, "
+                      "fallback to asynchronous replication");
     rpl_semi_sync_slave_status= 0;
     return 0;
   }
