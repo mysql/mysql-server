@@ -6026,7 +6026,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache_abort(&thd->net);
+      query_cache_abort(&thd->query_cache_tls);
     }
     if (thd->lex->sphead)
     {
