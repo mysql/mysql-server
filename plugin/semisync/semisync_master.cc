@@ -30,16 +30,17 @@ unsigned long rpl_semi_sync_master_yes_transactions = 0;
 unsigned long rpl_semi_sync_master_no_transactions  = 0;
 unsigned long rpl_semi_sync_master_off_times        = 0;
 unsigned long rpl_semi_sync_master_timefunc_fails   = 0;
-unsigned long rpl_semi_sync_master_num_timeouts     = 0;
+unsigned long rpl_semi_sync_master_wait_timeouts     = 0;
 unsigned long rpl_semi_sync_master_wait_sessions    = 0;
-unsigned long rpl_semi_sync_master_back_wait_pos    = 0;
-unsigned long rpl_semi_sync_master_trx_wait_time    = 0;
+unsigned long rpl_semi_sync_master_wait_pos_backtraverse = 0;
+unsigned long rpl_semi_sync_master_avg_trx_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_num = 0;
-unsigned long rpl_semi_sync_master_net_wait_time    = 0;
+unsigned long rpl_semi_sync_master_avg_net_wait_time    = 0;
 unsigned long long rpl_semi_sync_master_net_wait_num = 0;
 unsigned long rpl_semi_sync_master_clients          = 0;
-unsigned long long rpl_semi_sync_master_net_wait_total_time = 0;
-unsigned long long rpl_semi_sync_master_trx_wait_total_time = 0;
+unsigned long long rpl_semi_sync_master_net_wait_time = 0;
+unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
+char rpl_semi_sync_master_wait_no_slave = 1;
 
 
 static int getWaitTime(const struct timeval& start_tv);
@@ -379,16 +380,6 @@ ReplSemiSyncMaster::ReplSemiSyncMaster()
     master_enabled_(false),
     wait_timeout_(0L),
     state_(0),
-    enabled_transactions_(0),
-    disabled_transactions_(0),
-    switched_off_times_(0),
-    timefunc_fails_(0),
-    wait_sessions_(0),
-    wait_backtraverse_(0),
-    total_trx_wait_num_(0),
-    total_trx_wait_time_(0),
-    total_net_wait_num_(0),
-    total_net_wait_time_(0),
     max_transactions_(0L)
 {
   strcpy(reply_file_name_, "");
@@ -535,6 +526,14 @@ void ReplSemiSyncMaster::remove_slave()
 {
   lock();
   rpl_semi_sync_master_clients--;
+
+  /* If user has chosen not to wait if no semi-sync slave available
+     and the last semi-sync slave exits, turn off semi-sync on master
+     immediately.
+   */
+  if (!rpl_semi_sync_master_wait_no_slave &&
+      rpl_semi_sync_master_clients == 0)
+    switch_off();
   unlock();
 }
 
@@ -544,19 +543,6 @@ bool ReplSemiSyncMaster::is_semi_sync_slave()
   long long val= 0;
   get_user_var_int("rpl_semi_sync_slave", &val, &null_value);
   return val;
-}
-
-int ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_pos)
-{
-  char log_name[FN_REFLEN];
-  char *endptr;
-  my_off_t log_pos= strtoull(log_file_pos, &endptr, 10);
-  if (!log_pos || !endptr || *endptr != ':' )
-    return 1;
-  endptr++;                                     // skip the ':' seperator
-  strncpy(log_name, endptr, FN_REFLEN);
-  uint32 server_id= 0;
-  return reportReplyBinlog(server_id, log_name, log_pos);
 }
 
 int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
@@ -624,7 +610,7 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
                             log_file_name, (unsigned long)log_file_pos);
   }
 
-  if (wait_sessions_ > 0)
+  if (rpl_semi_sync_master_wait_sessions > 0)
   {
     /* Let us check if some of the waiting threads doing a trx
      * commit can now proceed.
@@ -679,7 +665,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             "Waiting for semi-sync ACK from slave");
 
     /* This is the real check inside the mutex. */
-    if (!getMasterEnabled() || !is_on() || !rpl_semi_sync_master_clients)
+    if (!getMasterEnabled() || !is_on())
       goto l_end;
 
     if (trace_level_ & kTraceDetail)
@@ -691,17 +677,20 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     while (is_on())
     {
-      int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
-                                     trx_wait_binlog_name, trx_wait_binlog_pos);
-      if (cmp >= 0)
+      if (reply_file_name_inited_)
       {
-        /* We have already sent the relevant binlog to the slave: no need to
-         * wait here.
-         */
-        if (trace_level_ & kTraceDetail)
-          sql_print_information("%s: Binlog reply is ahead (%s, %lu),",
-                                kWho, reply_file_name_, (unsigned long)reply_file_pos_);
-        break;
+        int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
+                                       trx_wait_binlog_name, trx_wait_binlog_pos);
+        if (cmp >= 0)
+        {
+          /* We have already sent the relevant binlog to the slave: no need to
+           * wait here.
+           */
+          if (trace_level_ & kTraceDetail)
+            sql_print_information("%s: Binlog reply is ahead (%s, %lu),",
+                                  kWho, reply_file_name_, (unsigned long)reply_file_pos_);
+          break;
+        }
       }
 
       /* Let us update the info about the minimum binlog position of waiting
@@ -709,15 +698,15 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        */
       if (wait_file_name_inited_)
       {
-        cmp = ActiveTranx::compare(trx_wait_binlog_name, trx_wait_binlog_pos,
-                                   wait_file_name_, wait_file_pos_);
+        int cmp = ActiveTranx::compare(trx_wait_binlog_name, trx_wait_binlog_pos,
+                                       wait_file_name_, wait_file_pos_);
         if (cmp <= 0)
 	{
           /* This thd has a lower position, let's update the minimum info. */
           strcpy(wait_file_name_, trx_wait_binlog_name);
           wait_file_pos_ = trx_wait_binlog_pos;
 
-          wait_backtraverse_++;
+          rpl_semi_sync_master_wait_pos_backtraverse++;
           if (trace_level_ & kTraceDetail)
             sql_print_information("%s: move back wait position (%s, %lu),",
                                   kWho, wait_file_name_, (unsigned long)wait_file_pos_);
@@ -762,7 +751,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
          * when replication has progressed far enough, we will release
          * these waiting threads.
          */
-        wait_sessions_++;
+        rpl_semi_sync_master_wait_sessions++;
 
         if (trace_level_ & kTraceDetail)
           sql_print_information("%s: wait %lu ms for binlog sent (%s, %lu)",
@@ -770,7 +759,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                 wait_file_name_, (unsigned long)wait_file_pos_);
 
         wait_result = cond_timewait(&abstime);
-        wait_sessions_--;
+        rpl_semi_sync_master_wait_sessions--;
 
         if (wait_result != 0)
 	{
@@ -779,7 +768,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             "semi-sync up to file %s, position %lu.",
                             trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
                             reply_file_name_, (unsigned long)reply_file_pos_);
-          total_wait_timeouts_++;
+          rpl_semi_sync_master_wait_timeouts++;
 
           /* switch semi-sync off */
           switch_off();
@@ -798,12 +787,12 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                               "wait position (%s, %lu)",
                               trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
             }
-            timefunc_fails_++;
+            rpl_semi_sync_master_timefunc_fails++;
           }
 	  else
 	  {
-            total_trx_wait_num_++;
-            total_trx_wait_time_ += wait_time;
+            rpl_semi_sync_master_trx_wait_num++;
+            rpl_semi_sync_master_trx_wait_time += wait_time;
           }
         }
       }
@@ -816,7 +805,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                           "wait position (%s, %lu)",
                           trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
         }
-        timefunc_fails_++;
+        rpl_semi_sync_master_timefunc_fails++;
 
         /* switch semi-sync off */
         switch_off();
@@ -824,11 +813,18 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     }
 
   l_end:
+    /*
+      At this point, the binlog file and position of this transaction
+      must have been removed from ActiveTranx.
+    */
+    assert(!active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
+                                             trx_wait_binlog_pos));
+    
     /* Update the status counter. */
-    if (is_on() && rpl_semi_sync_master_clients)
-      enabled_transactions_++;
+    if (is_on())
+      rpl_semi_sync_master_yes_transactions++;
     else
-      disabled_transactions_++;
+      rpl_semi_sync_master_no_transactions++;
 
     /* The lock held will be released by thd_exit_cond, so no need to
        call unlock() here */
@@ -868,7 +864,7 @@ int ReplSemiSyncMaster::switch_off()
   assert(active_tranxs_ != NULL);
   result = active_tranxs_->clear_active_tranx_nodes(NULL, 0);
 
-  switched_off_times_++;
+  rpl_semi_sync_master_off_times++;
   wait_file_name_inited_   = false;
   reply_file_name_inited_  = false;
   sql_print_information("Semi-sync replication switched OFF.");
@@ -1045,7 +1041,9 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
    * reserve the packet header.
    */
   if (sync)
+  {
     (packet)[2] = kPacketFlagSync;
+  }
 
   return function_exit(kWho, 0);
 }
@@ -1089,7 +1087,7 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
     commit_file_name_inited_ = true;
   }
 
-  if (is_on() && rpl_semi_sync_master_clients)
+  if (is_on())
   {
     assert(active_tranxs_ != NULL);
     if(active_tranxs_->insert_tranx_node(log_file_name, log_file_pos))
@@ -1098,8 +1096,8 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
         if insert tranx_node failed, print a warning message
         and turn off semi-sync
       */
-      sql_print_warning("Semi-sync failed to insert tranx_node for binlog file: %s, position: %ul",
-                        log_file_name, log_file_pos);
+      sql_print_warning("Semi-sync failed to insert tranx_node for binlog file: %s, position: %lu",
+                        log_file_name, (ulong)log_file_pos);
       switch_off();
     }
   }
@@ -1109,6 +1107,113 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
 
   return function_exit(kWho, result);
 }
+
+int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
+                                       const char *event_buf)
+{
+  const char *kWho = "ReplSemiSyncMaster::readSlaveReply";
+  const unsigned char *packet;
+  char     log_file_name[FN_REFLEN];
+  my_off_t log_file_pos;
+  ulong    packet_len;
+  int      result = -1;
+
+  struct timeval start_tv;
+  int   start_time_err= 0;
+  ulong trc_level = trace_level_;
+
+  function_enter(kWho);
+
+  assert((unsigned char)event_buf[1] == kPacketMagicNum);
+  if ((unsigned char)event_buf[2] != kPacketFlagSync)
+  {
+    /* current event does not require reply */
+    result = 0;
+    goto l_end;
+  }
+
+  if (trc_level & kTraceNetWait)
+    start_time_err = gettimeofday(&start_tv, 0);
+
+  /* We flush to make sure that the current event is sent to the network,
+   * instead of being buffered in the TCP/IP stack.
+   */
+  if (net_flush(net))
+  {
+    sql_print_error("Semi-sync master failed on net_flush() "
+                    "before waiting for slave reply");
+    goto l_end;
+  }
+
+  net_clear(net, 0);
+  if (trc_level & kTraceDetail)
+    sql_print_information("%s: Wait for replica's reply", kWho);
+
+  /* Wait for the network here.  Though binlog dump thread can indefinitely wait
+   * here, transactions would not wait indefintely.
+   * Transactions wait on binlog replies detected by binlog dump threads.  If
+   * binlog dump threads wait too long, transactions will timeout and continue.
+   */
+  packet_len = my_net_read(net);
+
+  if (trc_level & kTraceNetWait)
+  {
+    if (start_time_err != 0)
+    {
+      sql_print_error("Semi-sync master wait for reply "
+                      "gettimeofday fail to get start time");
+      rpl_semi_sync_master_timefunc_fails++;
+    }
+    else
+    {
+      int wait_time;
+
+      wait_time = getWaitTime(start_tv);
+      if (wait_time < 0)
+      {
+        sql_print_error("Semi-sync master wait for reply "
+                        "gettimeofday fail to get wait time.");
+        rpl_semi_sync_master_timefunc_fails++;
+      }
+      else
+      {
+        rpl_semi_sync_master_net_wait_num++;
+        rpl_semi_sync_master_net_wait_time += wait_time;
+      }
+    }
+  }
+
+  if (packet_len == packet_error || packet_len < REPLY_BINLOG_NAME_OFFSET)
+  {
+    if (packet_len == packet_error)
+      sql_print_error("Read semi-sync reply network error: %s (errno: %d)",
+                      net->last_error, net->last_errno);
+    else
+      sql_print_error("Read semi-sync reply length error: %s (errno: %d)",
+                      net->last_error, net->last_errno);
+    goto l_end;
+  }
+
+  packet = net->read_pos;
+  if (packet[REPLY_MAGIC_NUM_OFFSET] != ReplSemiSyncMaster::kPacketMagicNum)
+  {
+    sql_print_error("Read semi-sync reply magic number error");
+    goto l_end;
+  }
+
+  log_file_pos = uint8korr(packet + REPLY_BINLOG_POS_OFFSET);
+  strcpy(log_file_name, (const char*)packet + REPLY_BINLOG_NAME_OFFSET);
+
+  if (trc_level & kTraceDetail)
+    sql_print_information("%s: Got reply (%s, %lu)",
+                          kWho, log_file_name, (ulong)log_file_pos);
+
+  result = reportReplyBinlog(server_id, log_file_name, log_file_pos);
+
+ l_end:
+  return function_exit(kWho, result);
+}
+
 
 int ReplSemiSyncMaster::resetMaster()
 {
@@ -1126,16 +1231,16 @@ int ReplSemiSyncMaster::resetMaster()
   reply_file_name_inited_  = false;
   commit_file_name_inited_ = false;
 
-  enabled_transactions_ = 0;
-  disabled_transactions_ = 0;
-  switched_off_times_ = 0;
-  timefunc_fails_ = 0;
-  wait_sessions_ = 0;
-  wait_backtraverse_ = 0;
-  total_trx_wait_num_ = 0;
-  total_trx_wait_time_ = 0;
-  total_net_wait_num_ = 0;
-  total_net_wait_time_ = 0;
+  rpl_semi_sync_master_yes_transactions = 0;
+  rpl_semi_sync_master_no_transactions = 0;
+  rpl_semi_sync_master_off_times = 0;
+  rpl_semi_sync_master_timefunc_fails = 0;
+  rpl_semi_sync_master_wait_sessions = 0;
+  rpl_semi_sync_master_wait_pos_backtraverse = 0;
+  rpl_semi_sync_master_trx_wait_num = 0;
+  rpl_semi_sync_master_trx_wait_time = 0;
+  rpl_semi_sync_master_net_wait_num = 0;
+  rpl_semi_sync_master_net_wait_time = 0;
 
   unlock();
 
@@ -1146,27 +1251,15 @@ void ReplSemiSyncMaster::setExportStats()
 {
   lock();
 
-  rpl_semi_sync_master_status           = state_ && rpl_semi_sync_master_clients;
-  rpl_semi_sync_master_yes_transactions = enabled_transactions_;
-  rpl_semi_sync_master_no_transactions  = disabled_transactions_;
-  rpl_semi_sync_master_off_times        = switched_off_times_;
-  rpl_semi_sync_master_timefunc_fails   = timefunc_fails_;
-  rpl_semi_sync_master_num_timeouts     = total_wait_timeouts_;
-  rpl_semi_sync_master_wait_sessions    = wait_sessions_;
-  rpl_semi_sync_master_back_wait_pos    = wait_backtraverse_;
-  rpl_semi_sync_master_trx_wait_num     = total_trx_wait_num_;
-  rpl_semi_sync_master_trx_wait_time    =
-    ((total_trx_wait_num_) ?
-     (unsigned long)((double)total_trx_wait_time_ /
-             ((double)total_trx_wait_num_)) : 0);
-  rpl_semi_sync_master_net_wait_num     = total_net_wait_num_;
-  rpl_semi_sync_master_net_wait_time    =
-    ((total_net_wait_num_) ?
-     (unsigned long)((double)total_net_wait_time_ /
-             ((double)total_net_wait_num_)) : 0);
-
-  rpl_semi_sync_master_net_wait_total_time = total_net_wait_time_;
-  rpl_semi_sync_master_trx_wait_total_time = total_trx_wait_time_;
+  rpl_semi_sync_master_status           = state_;
+  rpl_semi_sync_master_avg_trx_wait_time=
+    ((rpl_semi_sync_master_trx_wait_num) ?
+     (unsigned long)((double)rpl_semi_sync_master_trx_wait_time /
+                     ((double)rpl_semi_sync_master_trx_wait_num)) : 0);
+  rpl_semi_sync_master_avg_net_wait_time=
+    ((rpl_semi_sync_master_net_wait_num) ?
+     (unsigned long)((double)rpl_semi_sync_master_net_wait_time /
+                     ((double)rpl_semi_sync_master_net_wait_num)) : 0);
 
   unlock();
 }

@@ -69,8 +69,16 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
   
   if (semi_sync_slave)
+  {
     /* One more semi-sync slave */
     repl_semisync.add_slave();
+    
+    /*
+      Let's assume this semi-sync slave has already received all
+      binlog events before the filename and position it requests.
+    */
+    repl_semisync.reportReplyBinlog(param->server_id, log_file, log_pos);
+  }
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
 			semi_sync_slave ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);
@@ -114,6 +122,18 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
 int repl_semi_after_send_event(Binlog_transmit_param *param,
                                const char *event_buf, unsigned long len)
 {
+  if (repl_semisync.is_semi_sync_slave())
+  {
+    THD *thd= current_thd;
+    /*
+      Possible errors in reading slave reply are ignored deliberately
+      because we do not want dump thread to quit on this. Error
+      messages are already reported.
+    */
+    (void) repl_semisync.readSlaveReply(&thd->net,
+                                        param->server_id, event_buf);
+    thd->clear_error();
+  }
   return 0;
 }
 
@@ -142,11 +162,6 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
 				      void *ptr,
 				      const void *val);
 
-static void fix_rpl_semi_sync_master_reply_log_file_pos(MYSQL_THD thd,
-                                                 SYS_VAR *var,
-                                                 void *ptr,
-                                                 const void *val);
-
 static MYSQL_SYSVAR_BOOL(enabled, rpl_semi_sync_master_enabled,
   PLUGIN_VAR_OPCMDARG,
  "Enable semi-synchronous replication master (disabled by default). ",
@@ -161,6 +176,13 @@ static MYSQL_SYSVAR_ULONG(timeout, rpl_semi_sync_master_timeout,
   fix_rpl_semi_sync_master_timeout,	// update
   10000, 0, ~0L, 1);
 
+static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
+  PLUGIN_VAR_OPCMDARG,
+ "Wait until timeout when no semi-synchronous replication slave available (enabled by default). ",
+  NULL, 			// check
+  NULL,                         // update
+  1);
+
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   PLUGIN_VAR_OPCMDARG,
  "The tracing level for semi-sync replication.",
@@ -168,22 +190,11 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   &fix_rpl_semi_sync_master_trace_level, // update
   32, 0, ~0L, 1);
 
-/*
-  Use a SESSION instead of GLOBAL variable for slave to send reply to
-  avoid requiring SUPER privilege.
-*/
-static MYSQL_THDVAR_STR(reply_log_file_pos,
-  PLUGIN_VAR_NOCMDOPT,
-  "The log filename and position slave has queued to relay log.",
-  NULL,             // check
-  &fix_rpl_semi_sync_master_reply_log_file_pos,
-  "");
-
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
+  MYSQL_SYSVAR(wait_no_slave),
   MYSQL_SYSVAR(trace_level),
-  MYSQL_SYSVAR(reply_log_file_pos),
   NULL,
 };
 
@@ -228,19 +239,6 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
   return;
 }
 
-static void fix_rpl_semi_sync_master_reply_log_file_pos(MYSQL_THD thd,
-                                                 SYS_VAR *var,
-                                                 void *ptr,
-                                                 const void *val)
-{
-  const char *log_file_pos= *(char **)val;
-  
-  if (repl_semisync.reportReplyBinlog(log_file_pos))
-    sql_print_error("report slave binlog reply failed.");
-
-  return;
-}
-
 Trans_observer trans_observer = {
   sizeof(Trans_observer),		// len
 
@@ -278,45 +276,60 @@ Binlog_transmit_observer transmit_observer = {
     return 0;								\
   }
 
-DEF_SHOW_FUNC(clients, SHOW_LONG)
-DEF_SHOW_FUNC(net_wait_time, SHOW_LONG)
-DEF_SHOW_FUNC(net_wait_total_time, SHOW_LONGLONG)
-DEF_SHOW_FUNC(net_wait_num, SHOW_LONGLONG)
-DEF_SHOW_FUNC(off_times, SHOW_LONG)
-DEF_SHOW_FUNC(no_transactions, SHOW_LONG)
 DEF_SHOW_FUNC(status, SHOW_BOOL)
-DEF_SHOW_FUNC(timefunc_fails, SHOW_LONG)
-DEF_SHOW_FUNC(trx_wait_time, SHOW_LONG)
-DEF_SHOW_FUNC(trx_wait_total_time, SHOW_LONGLONG)
+DEF_SHOW_FUNC(clients, SHOW_LONG)
+DEF_SHOW_FUNC(trx_wait_time, SHOW_LONGLONG)
 DEF_SHOW_FUNC(trx_wait_num, SHOW_LONGLONG)
-DEF_SHOW_FUNC(back_wait_pos, SHOW_LONG)
-DEF_SHOW_FUNC(wait_sessions, SHOW_LONG)
-DEF_SHOW_FUNC(yes_transactions, SHOW_LONG)
+DEF_SHOW_FUNC(net_wait_time, SHOW_LONGLONG)
+DEF_SHOW_FUNC(net_wait_num, SHOW_LONGLONG)
+DEF_SHOW_FUNC(avg_net_wait_time, SHOW_LONG)
+DEF_SHOW_FUNC(avg_trx_wait_time, SHOW_LONG)
 
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_master_status_vars[]= {
-  {"Rpl_semi_sync_master_clients",    (char*) &SHOW_FNAME(clients),         SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_avg_wait_time",
-                               (char*) &SHOW_FNAME(net_wait_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_wait_time",
-                               (char*) &SHOW_FNAME(net_wait_total_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_net_waits",  (char*) &SHOW_FNAME(net_wait_num),    SHOW_FUNC},
-  {"Rpl_semi_sync_master_no_times",   (char*) &SHOW_FNAME(off_times),       SHOW_FUNC},
-  {"Rpl_semi_sync_master_no_tx",      (char*) &SHOW_FNAME(no_transactions), SHOW_FUNC},
-  {"Rpl_semi_sync_master_status",     (char*) &SHOW_FNAME(status),          SHOW_FUNC},
-  {"Rpl_semi_sync_master_timefunc_failures",
-                               (char*) &SHOW_FNAME(timefunc_fails),  SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_avg_wait_time",
-                               (char*) &SHOW_FNAME(trx_wait_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_wait_time",
-                               (char*) &SHOW_FNAME(trx_wait_total_time),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_tx_waits",   (char*) &SHOW_FNAME(trx_wait_num),    SHOW_FUNC},
-  {"Rpl_semi_sync_master_wait_pos_backtraverse",
-                               (char*) &SHOW_FNAME(back_wait_pos),   SHOW_FUNC},
+  {"Rpl_semi_sync_master_status",
+   (char*) &SHOW_FNAME(status),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_clients",
+   (char*) &SHOW_FNAME(clients),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_yes_tx",
+   (char*) &rpl_semi_sync_master_yes_transactions,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_no_tx",
+   (char*) &rpl_semi_sync_master_no_transactions,
+   SHOW_LONG},
   {"Rpl_semi_sync_master_wait_sessions",
-                               (char*) &SHOW_FNAME(wait_sessions),   SHOW_FUNC},
-  {"Rpl_semi_sync_master_yes_tx",     (char*) &SHOW_FNAME(yes_transactions), SHOW_FUNC},
+   (char*) &rpl_semi_sync_master_wait_sessions,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_no_times",
+   (char*) &rpl_semi_sync_master_off_times,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_timefunc_failures",
+   (char*) &rpl_semi_sync_master_timefunc_fails,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_wait_pos_backtraverse",
+   (char*) &rpl_semi_sync_master_wait_pos_backtraverse,
+   SHOW_LONG},
+  {"Rpl_semi_sync_master_tx_wait_time",
+   (char*) &SHOW_FNAME(trx_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_tx_waits",
+   (char*) &SHOW_FNAME(trx_wait_num),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_tx_avg_wait_time",
+   (char*) &SHOW_FNAME(avg_trx_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_wait_time",
+   (char*) &SHOW_FNAME(net_wait_time),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_waits",
+   (char*) &SHOW_FNAME(net_wait_num),
+   SHOW_FUNC},
+  {"Rpl_semi_sync_master_net_avg_wait_time",
+   (char*) &SHOW_FNAME(avg_net_wait_time),
+   SHOW_FUNC},
   {NULL, NULL, SHOW_LONG},
 };
 

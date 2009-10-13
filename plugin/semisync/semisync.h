@@ -18,25 +18,9 @@
 #ifndef SEMISYNC_H
 #define SEMISYNC_H
 
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/time.h>
-#include <time.h>
-#include <stdio.h>
-#include <pthread.h>
-#include <mysql.h>
-
-typedef uint32_t uint32;
-typedef unsigned long long my_off_t;
-#define FN_REFLEN	512	/* Max length of full path-name */
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
-extern unsigned long max_connections;
-
 #define MYSQL_SERVER
 #define HAVE_REPLICATION
+#include <mysql_priv.h>
 #include <my_global.h>
 #include <my_pthread.h>
 #include <mysql/plugin.h>
@@ -91,5 +75,17 @@ public:
   static const unsigned char kPacketMagicNum;
   static const unsigned char kPacketFlagSync;
 };
+
+/* The layout of a semisync slave reply packet:
+   1 byte for the magic num
+   8 bytes for the binlog positon
+   n bytes for the binlog filename, terminated with a '\0'
+*/
+#define REPLY_MAGIC_NUM_LEN 1
+#define REPLY_BINLOG_POS_LEN 8
+#define REPLY_BINLOG_NAME_LEN (FN_REFLEN + 1)
+#define REPLY_MAGIC_NUM_OFFSET 0
+#define REPLY_BINLOG_POS_OFFSET (REPLY_MAGIC_NUM_OFFSET + REPLY_MAGIC_NUM_LEN)
+#define REPLY_BINLOG_NAME_OFFSET (REPLY_BINLOG_POS_OFFSET + REPLY_BINLOG_POS_LEN)
 
 #endif /* SEMISYNC_H */
