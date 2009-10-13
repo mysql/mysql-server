@@ -1535,7 +1535,7 @@ void show_diff(DYNAMIC_STRING* ds,
   else
     diff_name = 0;
 #else
-  diff_name = "diff";		// Otherwise always assume it's called diff
+  diff_name = "diff";           /* Otherwise always assume it's called diff */
 #endif
 
   if (diff_name)
@@ -6907,6 +6907,16 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       */
     }
 
+    /*
+      Need to grab affected rows information before getting
+      warnings here
+    */
+    ulonglong affected_rows;
+    LINT_INIT(affected_rows);
+
+    if (!disable_info)
+      affected_rows= mysql_affected_rows(mysql);
+
     if (!disable_warnings)
     {
       /* Get the warnings from execute */
@@ -6931,7 +6941,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
 
     if (!disable_info)
-      append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
+      append_info(ds, affected_rows, mysql_info(mysql));
 
   }
 

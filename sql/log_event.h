@@ -1960,15 +1960,15 @@ private:
 class Load_log_event: public Log_event
 {
 private:
-  uint get_query_buffer_length();
-  void print_query(bool need_db, char *buf, char **end,
-                   char **fn_start, char **fn_end);
 protected:
   int copy_log_event(const char *buf, ulong event_len,
                      int body_offset,
                      const Format_description_log_event* description_event);
 
 public:
+  uint get_query_buffer_length();
+  void print_query(bool need_db, const char *cs, char *buf, char **end,
+                   char **fn_start, char **fn_end);
   ulong thread_id;
   ulong slave_proxy_id;
   uint32 table_name_len;
