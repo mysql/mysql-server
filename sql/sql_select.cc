@@ -2251,7 +2251,7 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.cleanup();
+    tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
@@ -3311,12 +3311,12 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
      @retval FALSE  it's something else
 */
 
-inline static bool
+static bool
 is_local_field (Item *field)
 {
-  field= field->real_item();
-  return field->type() == Item::FIELD_ITEM && 
-    !((Item_field *)field)->depended_from;
+  return field->real_item()->type() == Item::FIELD_ITEM
+    && !(field->used_tables() & OUTER_REF_TABLE_BIT)
+    && !((Item_field *)field->real_item())->depended_from;
 }
 
 

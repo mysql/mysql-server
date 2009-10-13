@@ -98,3 +98,73 @@ DROP TABLE t1;
 --echo [on slave]
 sync_slave_with_master;
 
+--echo
+--echo Bug #43746:
+--echo "return wrong query string when parse 'load data infile' sql statement"
+--echo
+
+--echo [master]
+connection master;
+let $MYSQLD_DATADIR= `select @@datadir`;
+SELECT @@SESSION.sql_mode INTO @old_mode;
+
+SET sql_mode='ignore_space';
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval SELECT * INTO OUTFILE '$MYSQLD_DATADIR/bug43746.sql' FROM t1;
+TRUNCATE TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD/* look mum, with comments in weird places! */DATA/* oh hai */LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql'/* we are */INTO/* from the internets */TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA/*!10000 LOCAL */INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' /*!10000 INTO */ TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' /*!10000 INTO TABLE */ t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA /*!10000 LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO TABLE */ t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA/*!10000 LOCAL */INFILE '$MYSQLD_DATADIR/bug43746.sql'/*!10000 INTO*/TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA/*!10000 LOCAL */INFILE '$MYSQLD_DATADIR/bug43746.sql'/* empty */INTO TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA/*!10000 LOCAL */INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO/* empty */TABLE t1;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD/*!99999 special comments that do not expand */DATA/*!99999 code from the future */LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql'/*!99999 have flux capacitor */INTO/*!99999 will travel */TABLE t1;
+
+SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER';
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
+
+--echo [slave]
+sync_slave_with_master;
+
+# cleanup
+
+--remove_file $MYSQLD_DATADIR/bug43746.sql
+
+--echo [master]
+connection master;
+DROP TABLE t1;
+SET SESSION sql_mode=@old_mode;
+
+--echo [slave]
+sync_slave_with_master;
+
+connection master;
