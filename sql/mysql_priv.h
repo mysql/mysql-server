@@ -905,6 +905,8 @@ struct Query_cache_query_flags
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
+#define query_cache_abort(A) query_cache.abort(A)
+#define query_cache_end_of_result(A) query_cache.end_of_result(A)
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)

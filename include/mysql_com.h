@@ -264,10 +264,9 @@ typedef struct st_net {
   */
 #endif
   /*
-    'query_cache_query' should be accessed only via query cache
-    functions and methods to maintain proper locking.
+    Unused, please remove with the next incompatible ABI change.
   */
-  unsigned char *query_cache_query;
+  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error; 
   my_bool unused4; /* Please remove with the next incompatible ABI change. */

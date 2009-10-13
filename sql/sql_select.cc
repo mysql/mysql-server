@@ -9187,7 +9187,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
            thd->substitute_null_with_insert_id))
       {
 #ifdef HAVE_QUERY_CACHE
-	query_cache_abort(&thd->net);
+	query_cache_abort(&thd->query_cache_tls);
 #endif
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
