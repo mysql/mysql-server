@@ -11,12 +11,17 @@ let $engine_type= InnoDB;
 disable_query_log;
 connection master;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
+call mtr.add_suppression("Read semi-sync reply");
 connection slave;
-call mtr.add_suppression("Master server does not support");
-# These will be removed after fix bug#45852
-call mtr.add_suppression("Set 'rpl_semi_sync_master_reply_log_file_pos' on master failed");
-call mtr.add_suppression("Slave I/O: Fatal error: Failed to run 'after_queue_event' hook, Error_code: 1593");
+call mtr.add_suppression("Master server does not support semi-sync");
+call mtr.add_suppression("Semi-sync slave .* reply");
 enable_query_log;
+connection master;
+
+# After fix of BUG#45848, semi-sync slave should not create any extra
+# connections on master, save the count of connections before start
+# semi-sync slave for comparison below.
+let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
 
 --echo #
 --echo # Uninstall semi-sync plugins on master and slave
@@ -69,7 +74,7 @@ echo [ enable semi-sync on master ];
 set global rpl_semi_sync_master_enabled = 1;
 show variables like 'rpl_semi_sync_master_enabled';
 
-echo [ status of semi-sync on master should be OFF without any semi-sync slaves ];
+echo [ status of semi-sync on master should be ON even without any semi-sync slaves ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_yes_tx';
@@ -150,12 +155,19 @@ show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 
 replace_result $engine_type ENGINE_TYPE;
-eval create table t1(n int) engine = $engine_type;
+eval create table t1(a int) engine = $engine_type;
 
 echo [ master state after CREATE TABLE statement ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
+
+# After fix of BUG#45848, semi-sync slave should not create any extra
+# connections on master.
+let $_connections_semisync_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
+replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
+replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
+eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
 let $i=300;
 echo [ insert records to table ];
@@ -178,10 +190,15 @@ echo [ on slave ];
 echo [ slave status after replicated inserts ];
 show status like 'Rpl_semi_sync_slave_status';
 
-select count(distinct n) from t1;
-select min(n) from t1;
-select max(n) from t1;
+select count(distinct a) from t1;
+select min(a) from t1;
+select max(a) from t1;
 
+--echo #
+--echo # Test semi-sync master will switch OFF after one transacton
+--echo # timeout waiting for slave reply.
+--echo #
+connection slave;
 source include/stop_slave.inc;
 
 connection master;
@@ -197,8 +214,11 @@ show status like 'Rpl_semi_sync_master_clients';
 
 echo [ semi-sync replication of these transactions will fail ];
 insert into t1 values (500);
-delete from t1 where n < 500;
-insert into t1 values (100);
+
+# Wait for the semi-sync replication of this transaction to timeout
+let $status_var= Rpl_semi_sync_master_status;
+let $status_var_value= OFF;
+source include/wait_for_status_var.inc;
 
 # The second semi-sync check should be off because one transaction
 # times out during waiting.
@@ -206,6 +226,28 @@ echo [ master status should be OFF ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
+
+# Semi-sync status on master is now OFF, so all these transactions
+# will be replicated asynchronously.
+let $i=300;
+disable_query_log;
+while ($i)
+{
+  eval delete from t1 where a=$i;
+  dec $i;
+}
+enable_query_log;
+
+insert into t1 values (100);
+
+echo [ master status should be OFF ];
+show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_master_no_tx';
+show status like 'Rpl_semi_sync_master_yes_tx';
+
+--echo #
+--echo # Test semi-sync status on master will be ON again when slave catches up
+--echo #
 
 # Save the master position for later use.
 save_master_pos;
@@ -221,27 +263,43 @@ sync_with_master;
 echo [ slave status should be ON ];
 show status like 'Rpl_semi_sync_slave_status';
 
-select count(distinct n) from t1;
-select min(n) from t1;
-select max(n) from t1;
+select count(distinct a) from t1;
+select min(a) from t1;
+select max(a) from t1;
 
 connection master;
 echo [ on master ];
 
-echo [ do something to activate semi-sync ];
-drop table t1;
-
-# The third semi-sync check should be on again.
-echo [ master status should be ON again ];
+# The master semi-sync status should be on again after slave catches up.
+echo [ master status should be ON again after slave catches up ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 show status like 'Rpl_semi_sync_master_clients';
 
+--echo #
+--echo # Test disable/enable master semi-sync on the fly.
+--echo #
+
+drop table t1;
 sync_slave_with_master;
 echo [ on slave ];
 
 source include/stop_slave.inc;
+
+--echo #
+--echo # Flush status
+--echo #
+connection master;
+echo [ Semi-sync master status variables before FLUSH STATUS ];
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+# Do not write the FLUSH STATUS to binlog, to make sure we'll get a
+# clean status after this.
+FLUSH NO_WRITE_TO_BINLOG STATUS;
+echo [ Semi-sync master status variables after FLUSH STATUS ];
+SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 
 connection master;
 echo [ on master ];
@@ -258,6 +316,10 @@ echo [ enable semi-sync on the fly ];
 set global rpl_semi_sync_master_enabled=1;
 show variables like 'rpl_semi_sync_master_enabled';
 show status like 'Rpl_semi_sync_master_status';
+
+--echo #
+--echo # Test RESET MASTER/SLAVE
+--echo #
 
 connection slave;
 echo [ on slave ];
@@ -435,7 +497,10 @@ source include/start_slave.inc;
 connection master;
 echo [ on master ];
 insert into t1 values (8);
-echo [ master semi-sync clients should be 0, status should be OFF ];
+let $status_var= Rpl_semi_sync_master_clients;
+let $status_var_value= 1;
+source include/wait_for_status_var.inc;
+echo [ master semi-sync clients should be 1, status should be OFF ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
 sync_slave_with_master;
@@ -512,6 +577,8 @@ source include/start_slave.inc;
 
 connection master;
 drop table t1;
+sync_slave_with_master;
+
+connection master;
 drop user rpl@127.0.0.1;
 flush privileges;
-sync_slave_with_master;
