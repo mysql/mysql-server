@@ -357,6 +357,8 @@ public:
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
     to other tables than the first non-constant table in the JOIN.
     It's also set if ORDER/GROUP BY is empty.
+    Used for deciding for or against using a temporary table to compute 
+    GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
   /**

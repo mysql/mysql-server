@@ -749,6 +749,16 @@ bin(a1)
 110000111111111
 110001011111111
 drop table t1bit7, t2bit7;
+#
+# Bug42803: Field_bit does not have unsigned_flag field, 
+# can lead to bad memory access
+#
+CREATE TABLE t1 (a BIT(7), b BIT(9), KEY(a, b));
+INSERT INTO t1 VALUES(0, 0), (5, 3), (5, 6), (6, 4), (7, 0);
+EXPLAIN SELECT a+0, b+0 FROM t1 WHERE a > 4 and b < 7 ORDER BY 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	2	NULL	4	Using where; Using index; Using filesort
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a bit(7));
 insert into t1 values(0x40);
