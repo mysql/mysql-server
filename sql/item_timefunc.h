@@ -871,6 +871,7 @@ public:
   { 
     decimals=0;
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null= 1;
   }
   longlong val_int();
 };
@@ -1025,4 +1026,9 @@ public:
   Item_func_last_day(Item *a) :Item_date(a) {}
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  void fix_length_and_dec()
+  { 
+    Item_date::fix_length_and_dec();
+    maybe_null= 1;
+  }
 };
