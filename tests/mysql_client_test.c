@@ -680,6 +680,29 @@ int my_stmt_result(const char *buff)
   return row_count;
 }
 
+/* Print the total number of warnings and the warnings themselves.  */
+
+void my_process_warnings(MYSQL *conn, unsigned expected_warning_count)
+{
+  MYSQL_RES *result;
+  int rc;
+
+  if (!opt_silent)
+    fprintf(stdout, "\n total warnings: %u (expected: %u)\n",
+            mysql_warning_count(conn), expected_warning_count);
+
+  DIE_UNLESS(mysql_warning_count(mysql) == expected_warning_count);
+
+  rc= mysql_query(conn, "SHOW WARNINGS");
+  DIE_UNLESS(rc == 0);
+
+  result= mysql_store_result(conn);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  mysql_free_result(result);
+}
+
 
 /* Utility function to verify a particular column data */
 
@@ -12478,7 +12501,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 6);
+  my_process_warnings(mysql, 12);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12509,7 +12532,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 3);
+  my_process_warnings(mysql, 6);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12548,7 +12571,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) == 2);
+  my_process_warnings(mysql, 2);
 
   verify_col_data("t1", "day_ovfl", "838:59:59");
   verify_col_data("t1", "day", "828:30:30");
@@ -17411,6 +17434,7 @@ static void test_bug28386()
   DBUG_VOID_RETURN;
 }
 
+
 static void test_wl4166_1()
 {
   MYSQL_STMT *stmt;
@@ -17622,6 +17646,167 @@ static void test_wl4166_2()
 
 }
 
+
+/**
+  Test how warnings generated during assignment of parameters
+  are (currently not) preserve in case of reprepare.
+*/
+
+static void test_wl4166_3()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[1];
+  MYSQL_TIME tm[1];
+
+  myheader("test_wl4166_3");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "create table t1 (year datetime)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "insert into t1 (year) values (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  bzero((char*) my_bind, sizeof(my_bind));
+  my_bind[0].buffer_type= MYSQL_TYPE_DATETIME;
+  my_bind[0].buffer= &tm[0];
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  tm[0].year= 10000;
+  tm[0].month= 1; tm[0].day= 1;
+  tm[0].hour= 1; tm[0].minute= 1; tm[0].second= 1;
+  tm[0].second_part= 0; tm[0].neg= 0;
+
+  /* Cause a statement reprepare */
+  rc= mysql_query(mysql, "alter table t1 add column c int");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  /*
+    Sic: only one warning, instead of two. The warning
+    about data truncation when assigning a parameter is lost.
+    This is a bug.
+  */
+  my_process_warnings(mysql, 1);
+
+  verify_col_data("t1", "year", "0000-00-00 00:00:00");
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/**
+  Test that long data parameters, as well as parameters
+  that were originally in a different character set, are
+  preserved in case of reprepare.
+*/
+
+static void test_wl4166_4()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text;
+  MYSQL_BIND bind_array[2];
+
+  /* Represented as numbers to keep UTF8 tools from clobbering them. */
+  const char *koi8= "\xee\xd5\x2c\x20\xda\xc1\x20\xd2\xd9\xc2\xc1\xcc\xcb\xd5";
+  const char *cp1251= "\xcd\xf3\x2c\x20\xe7\xe0\x20\xf0\xfb\xe1\xe0\xeb\xea\xf3";
+  char buf1[16], buf2[16];
+  ulong buf1_len, buf2_len;
+
+  myheader("test_wl4166_4");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+
+  /*
+    Create table with binary columns, set session character set to cp1251,
+    client character set to koi8, and make sure that there is conversion
+    on insert and no conversion on select
+  */
+  rc= mysql_query(mysql,
+                  "create table t1 (c1 varbinary(255), c2 varbinary(255))");
+  myquery(rc);
+  rc= mysql_query(mysql, "set character_set_client=koi8r, "
+                         "character_set_connection=cp1251, "
+                         "character_set_results=koi8r");
+  myquery(rc);
+
+  bzero((char*) bind_array, sizeof(bind_array));
+
+  bind_array[0].buffer_type= MYSQL_TYPE_STRING;
+
+  bind_array[1].buffer_type= MYSQL_TYPE_STRING;
+  bind_array[1].buffer= (void *) koi8;
+  bind_array[1].buffer_length= strlen(koi8);
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  stmt_text= "insert into t1 (c1, c2) values (?, ?)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+
+  /* Cause a reprepare at statement execute */
+  rc= mysql_query(mysql, "alter table t1 add column d int");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  stmt_text= "select c1, c2 from t1";
+
+  /* c1 and c2 are binary so no conversion will be done on select */
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer= buf1;
+  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].length= &buf1_len;
+
+  bind_array[1].buffer= buf2;
+  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].length= &buf2_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == strlen(cp1251));
+  DIE_UNLESS(buf2_len == strlen(cp1251));
+  DIE_UNLESS(!memcmp(buf1, cp1251, buf1_len));
+  DIE_UNLESS(!memcmp(buf2, cp1251, buf1_len));
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+}
+
 /**
   Bug#38486 Crash when using cursor protocol
 */
@@ -17651,6 +17836,49 @@ static void test_bug38486(void)
 
   DBUG_VOID_RETURN;
 }
+
+
+/**
+     Bug# 33831 mysql_real_connect() should fail if
+     given an already connected MYSQL handle.
+*/
+
+static void test_bug33831(void)
+{
+  MYSQL *l_mysql;
+  my_bool error;
+
+  DBUG_ENTER("test_bug33831");
+  
+  error= 0;
+
+  if (!(l_mysql= mysql_init(NULL)))
+  {
+    myerror("mysql_init() failed");
+    DIE_UNLESS(0);
+  }
+  if (!(mysql_real_connect(l_mysql, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    DIE_UNLESS(0);
+  }
+
+  if (mysql_real_connect(l_mysql, opt_host, opt_user,
+                         opt_password, current_db, opt_port,
+                         opt_unix_socket, 0))
+  {
+    myerror("connection should have failed");
+    DIE_UNLESS(0);
+  }
+
+
+  mysql_close(l_mysql);
+  
+  DBUG_VOID_RETURN;
+}
+
 
 static void test_bug40365(void)
 {
@@ -18026,49 +18254,6 @@ static void test_bug44495()
   DBUG_VOID_RETURN;
 }
 
-
-/**
-     Bug# 33831 mysql_real_connect() should fail if
-     given an already connected MYSQL handle.
-*/
-
-static void test_bug33831(void)
-{
-  MYSQL *l_mysql;
-  my_bool error;
-
-  DBUG_ENTER("test_bug33831");
-  
-  error= 0;
-
-  if (!(l_mysql= mysql_init(NULL)))
-  {
-    myerror("mysql_init() failed");
-    DIE_UNLESS(0);
-  }
-  if (!(mysql_real_connect(l_mysql, opt_host, opt_user,
-                           opt_password, current_db, opt_port,
-                           opt_unix_socket, 0)))
-  {
-    myerror("connection failed");
-    DIE_UNLESS(0);
-  }
-
-  if (mysql_real_connect(l_mysql, opt_host, opt_user,
-                         opt_password, current_db, opt_port,
-                         opt_unix_socket, 0))
-  {
-    myerror("connection should have failed");
-    DIE_UNLESS(0);
-  }
-
-
-  mysql_close(l_mysql);
-  
-  DBUG_VOID_RETURN;
-}
-
-
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -18378,6 +18563,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28386", test_bug28386 },
   { "test_wl4166_1", test_wl4166_1 },
   { "test_wl4166_2", test_wl4166_2 },
+  { "test_wl4166_3", test_wl4166_3 },
+  { "test_wl4166_4", test_wl4166_4 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
