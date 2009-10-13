@@ -292,3 +292,47 @@ DROP TABLE t1;
 DROP FUNCTION f1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#46958: Assertion in Diagnostics_area::set_ok_status, trigger, 
+--echo # merge table
+--echo #
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT );
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+
+CREATE TRIGGER tr1 BEFORE DELETE ON t2
+FOR EACH ROW INSERT INTO no_such_table VALUES (1);
+
+--error ER_NO_SUCH_TABLE
+DELETE t1, t2, t3 FROM t1, t2, t3;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT );
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+
+CREATE TRIGGER tr1 AFTER DELETE ON t2
+FOR EACH ROW INSERT INTO no_such_table VALUES (1);
+
+--error ER_NO_SUCH_TABLE
+DELETE t1, t2, t3 FROM t1, t2, t3;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE t1, t2, t3;

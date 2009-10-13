@@ -1896,6 +1896,11 @@ public:
   partition_info *work_part_info;
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Debug Sync facility. See debug_sync.cc. */
+  struct st_debug_sync_control *debug_sync_control;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   THD();
   ~THD();
 
@@ -2907,7 +2912,8 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes();
+  int do_deletes();
+  int do_table_deletes(TABLE *table, bool ignore);
   bool send_eof();
   inline ha_rows num_deleted()
   {
