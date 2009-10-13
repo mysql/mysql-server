@@ -448,6 +448,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
   chain= chain_buffer;
   file_buff= new Transparent_file();
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);;
 }
 
 
@@ -594,7 +595,7 @@ int ha_tina::find_current_row(uchar *buf)
   bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
-  free_root(&blobroot, MYF(MY_MARK_BLOCKS_FREE));
+  free_root(&blobroot, MYF(0));
 
   /*
     We do not read further then local_saved_data_file_length in order
@@ -1073,8 +1074,6 @@ int ha_tina::rnd_init(bool scan)
   records_is_known= 0;
   chain_ptr= chain;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   DBUG_RETURN(0);
 }
 
@@ -1191,6 +1190,7 @@ int ha_tina::extra(enum ha_extra_function operation)
  }
   DBUG_RETURN(0);
 }
+
 
 /*
   Set end_pos to the last valid byte of continuous area, closest
@@ -1394,8 +1394,6 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1595,8 +1593,6 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1604,7 +1600,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     count--;
     current_position= next_position;
   }
-  
+
   free_root(&blobroot, MYF(0));
 
   my_free((char*)buf, MYF(0));
