@@ -382,6 +382,9 @@ y
 SELECT b DIV 900 y FROM t1 GROUP BY y;
 y
 0
+Warnings:
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 y
 0
@@ -482,4 +485,12 @@ RAND(i)
 0.155220427694936
 DROP TABLE t1;
 #
+select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
+ERROR 22003: Out of range value for column 'x' at row 1
+select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x;
+ERROR 22003: Out of range value for column 'x' at row 1
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Error	1264	Out of range value for column 'x' at row 1
 End of 5.1 tests
