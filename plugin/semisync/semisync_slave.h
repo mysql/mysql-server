@@ -57,7 +57,7 @@ public:
    *  payload_len - (IN)  payload length
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int slaveReadSyncHeader(const char *header, unsigned long total_len, bool *need_reply,
                           const char **payload, unsigned long *payload_len);
@@ -67,19 +67,16 @@ public:
    * binlog position.
    * 
    * Input:
-   *  log_name         - (IN)  the reply point's binlog file name
-   *  log_pos   - (IN)  the reply point's binlog file offset
+   *  mysql            - (IN)  the mysql network connection
+   *  binlog_filename  - (IN)  the reply point's binlog file name
+   *  binlog_filepos   - (IN)  the reply point's binlog file offset
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
-  int slaveReply(const char *log_name, my_off_t log_pos);
+  int slaveReply(MYSQL *mysql, const char *binlog_filename,
+                 my_off_t binlog_filepos);
 
-  /*
-    Connect to master for sending reply
-   */
-  int slaveReplyConnect();
-  
   int slaveStart(Binlog_relay_IO_param *param);
   int slaveStop(Binlog_relay_IO_param *param);
 

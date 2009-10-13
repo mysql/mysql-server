@@ -81,7 +81,7 @@ public:
   /* Insert an active transaction node with the specified position.
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int insert_tranx_node(const char *log_file_name, my_off_t log_file_pos);
 
@@ -91,7 +91,7 @@ public:
    * list and the hash table will be reset to empty.
    * 
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int clear_active_tranx_nodes(const char *log_file_name,
 			       my_off_t    log_file_pos);
@@ -175,19 +175,7 @@ class ReplSemiSyncMaster
   volatile bool            master_enabled_;      /* semi-sync is enabled on the master */
   unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
 
-  /* All status variables. */
   bool            state_;                    /* whether semi-sync is switched */
-  unsigned long           enabled_transactions_;          /* semi-sync'ed tansactions */
-  unsigned long           disabled_transactions_;     /* non-semi-sync'ed tansactions */
-  unsigned long           switched_off_times_;    /* how many times are switched off? */
-  unsigned long           timefunc_fails_;           /* how many time function fails? */
-  unsigned long           total_wait_timeouts_;      /* total number of wait timeouts */
-  unsigned long           wait_sessions_;      /* how many sessions wait for replies? */
-  unsigned long           wait_backtraverse_;         /* wait position back traverses */
-  unsigned long long       total_trx_wait_num_;   /* total trx waits: non-timeout ones */
-  unsigned long long       total_trx_wait_time_;         /* total trx wait time: in us */
-  unsigned long long       total_net_wait_num_;                 /* total network waits */
-  unsigned long long       total_net_wait_time_;            /* total network wait time */
 
   /* The number of maximum active transactions.  This should be the same as
    * maximum connections because MySQL does not do connection sharing now.
@@ -253,8 +241,6 @@ class ReplSemiSyncMaster
   /* Is the slave servered by the thread requested semi-sync */
   bool is_semi_sync_slave();
 
-  int reportReplyBinlog(const char *log_file_pos);
-  
   /* In semi-sync replication, reports up to which binlog position we have
    * received replies from the slave indicating that it already get the events.
    *
@@ -265,7 +251,7 @@ class ReplSemiSyncMaster
    *                        the replies from the slave
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int reportReplyBinlog(uint32 server_id,
                         const char* log_file_name,
@@ -284,7 +270,7 @@ class ReplSemiSyncMaster
    *  trx_wait_binlog_pos  - (IN)  ending position's file offset
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int commitTrx(const char* trx_wait_binlog_name,
                 my_off_t trx_wait_binlog_pos);
@@ -313,7 +299,7 @@ class ReplSemiSyncMaster
    *  server_id     - (IN)  master server id number
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int updateSyncHeader(unsigned char *packet,
                        const char *log_file_name,
@@ -330,9 +316,22 @@ class ReplSemiSyncMaster
    *  log_file_pos  - (IN)  transaction ending position's file offset
    *
    * Return:
-   *  0: success;  -1 or otherwise: error
+   *  0: success;  non-zero: error
    */
   int writeTranxInBinlog(const char* log_file_name, my_off_t log_file_pos);
+
+  /* Read the slave's reply so that we know how much progress the slave makes
+   * on receive replication events.
+   * 
+   * Input:
+   *  net          - (IN)  the connection to master
+   *  server_id    - (IN)  master server id number
+   *  event_buf    - (IN)  pointer to the event packet
+   *
+   * Return:
+   *  0: success;  non-zero: error
+   */
+  int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
 
   /* Export internal statistics for semi-sync replication. */
   void setExportStats();
@@ -345,22 +344,31 @@ class ReplSemiSyncMaster
 
 /* System and status variables for the master component */
 extern char rpl_semi_sync_master_enabled;
+extern char rpl_semi_sync_master_status;
+extern unsigned long rpl_semi_sync_master_clients;
 extern unsigned long rpl_semi_sync_master_timeout;
 extern unsigned long rpl_semi_sync_master_trace_level;
-extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_yes_transactions;
 extern unsigned long rpl_semi_sync_master_no_transactions;
 extern unsigned long rpl_semi_sync_master_off_times;
+extern unsigned long rpl_semi_sync_master_wait_timeouts;
 extern unsigned long rpl_semi_sync_master_timefunc_fails;
 extern unsigned long rpl_semi_sync_master_num_timeouts;
 extern unsigned long rpl_semi_sync_master_wait_sessions;
-extern unsigned long rpl_semi_sync_master_back_wait_pos;
-extern unsigned long rpl_semi_sync_master_trx_wait_time;
-extern unsigned long rpl_semi_sync_master_net_wait_time;
+extern unsigned long rpl_semi_sync_master_wait_pos_backtraverse;
+extern unsigned long rpl_semi_sync_master_avg_trx_wait_time;
+extern unsigned long rpl_semi_sync_master_avg_net_wait_time;
 extern unsigned long long rpl_semi_sync_master_net_wait_num;
 extern unsigned long long rpl_semi_sync_master_trx_wait_num;
-extern unsigned long long rpl_semi_sync_master_net_wait_total_time;
-extern unsigned long long rpl_semi_sync_master_trx_wait_total_time;
-extern unsigned long rpl_semi_sync_master_clients;
+extern unsigned long long rpl_semi_sync_master_net_wait_time;
+extern unsigned long long rpl_semi_sync_master_trx_wait_time;
+
+/*
+  This indicates whether we should keep waiting if no semi-sync slave
+  is available.
+     0           : stop waiting if detected no avaialable semi-sync slave.
+     1 (default) : keep waiting until timeout even no available semi-sync slave.
+*/
+extern char rpl_semi_sync_master_wait_no_slave;
 
 #endif /* SEMISYNC_MASTER_H */

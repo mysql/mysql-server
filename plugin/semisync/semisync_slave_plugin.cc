@@ -45,13 +45,6 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   if (!repl_semisync.getSlaveEnabled())
     return 0;
 
-  /*
-    Create the connection that is used to send slave ACK replies to
-    master
-  */
-  if (repl_semisync.slaveReplyConnect())
-    return 1;
-
   /* Check if master server has semi-sync plugin installed */
   query= "SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled'";
   if (mysql_real_query(mysql, query, strlen(query)) ||
@@ -63,10 +56,11 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   }
 
   row= mysql_fetch_row(res);
-  if (!row || strcmp(row[1], "ON"))
+  if (!row)
   {
-    /* Master does not support or not configured semi-sync */
-    sql_print_warning("Master server does not support or not configured semi-sync replication, fallback to asynchronous");
+    /* Master does not support semi-sync */
+    sql_print_warning("Master server does not support semi-sync, "
+                      "fallback to asynchronous replication");
     rpl_semi_sync_slave_status= 0;
     return 0;
   }
@@ -106,8 +100,16 @@ int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
 				uint32 flags)
 {
   if (rpl_semi_sync_slave_status && semi_sync_need_reply)
-    return repl_semisync.slaveReply(param->master_log_name,
+  {
+    /*
+      We deliberately ignore the error in slaveReply, such error
+      should not cause the slave IO thread to stop, and the error
+      messages are already reported.
+    */
+    (void) repl_semisync.slaveReply(param->mysql,
+                                    param->master_log_name,
                                     param->master_log_pos);
+  }
   return 0;
 }
 
