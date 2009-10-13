@@ -98,6 +98,7 @@ public:
       my_free(chain, 0);
     if (file_buff)
       delete file_buff;
+    free_root(&blobroot, MYF(0));
   }
   const char *table_type() const { return "CSV"; }
   const char *index_type(uint inx) { return "NONE"; }
