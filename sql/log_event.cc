@@ -1852,6 +1852,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
 {
   const uchar *value0= value;
   const uchar *null_bits= value;
+  uint null_bit_index= 0;
   char typestr[64]= "";
   
   value+= (m_width + 7) / 8;
@@ -1860,7 +1861,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   
   for (size_t i= 0; i < td->size(); i ++)
   {
-    int is_null= (null_bits[i / 8] >> (i % 8))  & 0x01;
+    int is_null= (null_bits[null_bit_index / 8] 
+                  >> (null_bit_index % 8))  & 0x01;
 
     if (bitmap_is_set(cols_bitmap, i) == 0)
       continue;
@@ -1897,6 +1899,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     }
     
     my_b_printf(file, "\n");
+    
+    null_bit_index++;
   }
   return value - value0;
 }
