@@ -13,14 +13,13 @@ OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
 TARGET = libtokuportability.$(AEXT)
 
 build install: $(LIBPORTABILITY)
-	cd tests;$(MAKE) build
 
 $(LIBPORTABILITY): $(TARGET)
 	if ! diff $< $@ 2>/dev/null; then cp $< $@; fi
 
 $(TARGET): $(OBJS)
 
-$(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED
+$(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED -D_GNU_SOURCE
 #Blank on purpose
 
 check: $(TARGET)

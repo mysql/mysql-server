@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id: brt.c 10921 2009-04-01 16:54:40Z yfogel $"
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2009 Tokutek Inc.  All rights reserved."
 #ifndef _TOKU_PTHREAD_H
 #define _TOKU_PTHREAD_H
 
@@ -19,6 +19,7 @@ typedef pthread_condattr_t toku_pthread_condattr_t;
 typedef pthread_cond_t toku_pthread_cond_t;
 typedef pthread_rwlock_t toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t  toku_pthread_rwlockattr_t;
+typedef pthread_key_t toku_pthread_key_t;
 typedef struct timespec toku_timespec_t;
 
 static inline int
@@ -105,7 +106,10 @@ int toku_pthread_mutex_lock(toku_pthread_mutex_t *mutex) {
     return pthread_mutex_lock(mutex);
 }
 
-int toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex);
+static inline 
+int toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex) {
+    return pthread_mutex_trylock(mutex);
+}
 
 static inline
 int toku_pthread_mutex_unlock(toku_pthread_mutex_t *mutex) {
@@ -140,6 +144,26 @@ int toku_pthread_cond_signal(toku_pthread_cond_t *cond) {
 static inline
 int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond) {
     return pthread_cond_broadcast(cond);
+}
+
+static inline
+int toku_pthread_key_create(toku_pthread_key_t *key, void (*destroyf)(void *)) {
+    return pthread_key_create(key, destroyf);
+}
+
+static inline
+int toku_pthread_key_delete(toku_pthread_key_t key) {
+    return pthread_key_delete(key);
+}
+
+static inline
+void *toku_pthread_getspecific(toku_pthread_key_t key) {
+    return pthread_getspecific(key);
+}
+
+static inline
+int toku_pthread_setspecific(toku_pthread_key_t key, void *data) {
+    return pthread_setspecific(key, data);
 }
 
 #if defined(__cplusplus)

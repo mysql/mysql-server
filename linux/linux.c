@@ -226,3 +226,31 @@ toku_fstat(int fd, toku_struct_stat *buf) {
     return r;
 }
 
+int
+toku_os_get_processor_frequency(uint64_t *hzret) {
+    int r;
+    FILE *fp = fopen("/proc/cpuinfo", "r");
+    if (!fp) {
+        r = errno;
+    } else {
+        uint64_t maxhz = 0;
+        char *buf = NULL;
+        size_t n = 0;
+        while (getline(&buf, &n, fp) >= 0) {
+            unsigned int cpu;
+            sscanf(buf, "processor : %u", &cpu);
+            unsigned int ma, mb;
+            if (sscanf(buf, "cpu MHz : %d.%d", &ma, &mb) == 2) {
+                uint64_t hz = ma * 1000000ULL + mb * 1000ULL;
+                if (hz > maxhz)
+                    maxhz = hz;
+            }
+        }
+        if (buf)
+            free(buf);
+        fclose(fp);
+        *hzret = maxhz;
+        r = maxhz == 0 ? ENOENT : 0;;
+    }
+    return r;
+}
