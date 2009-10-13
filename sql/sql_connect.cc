@@ -151,7 +151,15 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 
 end:
   if (error)
+  {
     uc->connections--; // no need for decrease_user_connections() here
+    /*
+      The thread may returned back to the pool and assigned to a user
+      that doesn't have a limit. Ensure the user is not using resources
+      of someone else.
+    */
+    thd->user_connect= NULL;
+  }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
@@ -462,7 +470,10 @@ check_user(THD *thd, enum enum_server_command command,
         {
           /* mysql_change_db() has pushed the error message. */
           if (thd->user_connect)
+          {
             decrease_user_connections(thd->user_connect);
+            thd->user_connect= 0;
+          }
           DBUG_RETURN(1);
         }
       }
@@ -975,7 +986,15 @@ static void end_connection(THD *thd)
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
+  {
     decrease_user_connections(thd->user_connect);
+    /*
+      The thread may returned back to the pool and assigned to a user
+      that doesn't have a limit. Ensure the user is not using resources
+      of someone else.
+    */
+    thd->user_connect= NULL;
+  }
 
   if (thd->killed || net->error && net->vio != 0)
   {
