@@ -2826,7 +2826,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--loose-skip-innodb");
-  mtr_add_arg($args, "--loose-skip-falcon");
+  mtr_add_arg($args, "--loose-skip-pbxt");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--loose-skip-maria");
   mtr_add_arg($args, "--disable-sync-frm");
