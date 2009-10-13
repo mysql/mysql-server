@@ -23,7 +23,7 @@ typedef enum __recovery_stress_steps
     POST_POST_STEP
 } STEP;
 //const int OPER_PER_STEP = 331;
-const int OPER_PER_STEP = 3;
+const int OPER_PER_STEP = 43;
 #define OPER_PER_ITER ( OPER_STEPS * OPER_PER_STEP )
 
 #define DBG(str)   if (verbose) printf("%s:%25s: %s\n", __FILE__, __FUNCTION__, str)
@@ -81,6 +81,7 @@ static void verify (DICTIONARY dictionaries, int iter) {
 }
 
 struct iteration_spec {
+    DICTIONARY dictionaries;
     int iter;
     STEP step;
     DB_TXN *pre_pre_insert_commit;
@@ -121,9 +122,10 @@ struct iteration_spec {
 };
 typedef struct iteration_spec *ITER_SPEC;
 
-static void pre_checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
+static void pre_checkpoint_acts(ITER_SPEC spec) {
     int i;
     DB *db;
+    DICTIONARY dictionaries = spec->dictionaries;
     int iter = spec->iter;
     assert(spec->step == PRE_PRE_STEP);
     int key;
@@ -218,10 +220,11 @@ static void pre_checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
     return;
 }
 
-static void checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
+static void checkpoint_acts(ITER_SPEC spec) {
     int i, r, key;
     DB *db;
     int iter = spec->iter;
+    DICTIONARY dictionaries = spec->dictionaries;
     assert(spec->step == CP_CP_STEP);
 //    iDBG(iter);
     for (i=0;i<NUM_DICTIONARIES;i++) {
@@ -306,19 +309,11 @@ static void checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
     return;
 }
 
-struct checkpoint_callback_args {
-    DICTIONARY dictionaries;
-    ITER_SPEC spec;
-};
-static void checkpoint_callback_1(void *a){
-    struct checkpoint_callback_args *args = (struct checkpoint_callback_args *)a;
-    checkpoint_acts(args->dictionaries, args->spec);
-}
-
-static void post_checkpoint_acts(DICTIONARY dictionaries, ITER_SPEC spec) {
+static void post_checkpoint_acts(ITER_SPEC spec) {
     int i, r, key;
     DB *db;
     int iter = spec->iter;
+    DICTIONARY dictionaries = spec->dictionaries;
     assert(spec->step == POST_POST_STEP);
 //    iDBG(iter);
     for (i=0;i<NUM_DICTIONARIES;i++) {
@@ -437,28 +432,25 @@ static void run_test (int iter, int die UU()) {
 
     struct iteration_spec spec;
     spec.iter = iter;
+    spec.dictionaries = dictionaries;
     spec.step = PRE_PRE_STEP;
     // perform pre-checkpoint actions
-    pre_checkpoint_acts(dictionaries, &spec);
+    pre_checkpoint_acts(&spec);
 
     // perform checkpoint acts
     spec.step = CP_CP_STEP;
-    struct checkpoint_callback_args cp_args;
-    cp_args.dictionaries = dictionaries;
-    cp_args.spec         = &spec;
-    if ( iter & 1 )
-        db_env_set_checkpoint_callback(checkpoint_callback_1, &cp_args);
+    if ( iter & 1 ) 
+        db_env_set_checkpoint_callback((void (*)(void*))checkpoint_acts, &spec);
     else
-        db_env_set_checkpoint_callback2(checkpoint_callback_1, &cp_args);
+        db_env_set_checkpoint_callback2((void (*)(void*))checkpoint_acts, &spec);
     r = env->txn_checkpoint(env, 0, 0, 0);
     CKERR(r);
     db_env_set_checkpoint_callback(NULL, NULL);
     db_env_set_checkpoint_callback2(NULL, NULL);
 
-
     // post checkpoint acts
     spec.step = POST_POST_STEP;
-    post_checkpoint_acts(dictionaries, &spec);
+    post_checkpoint_acts(&spec);
 
     // if requesting crash, randomly do other non-committed acts, then "drop_dead"
     if (die && (iter > 0)) {
