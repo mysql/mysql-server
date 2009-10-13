@@ -32,7 +32,7 @@ typedef struct st_net {
   my_bool unused2;
   my_bool compress;
   my_bool unused3;
-  unsigned char *query_cache_query;
+  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
   my_bool unused4;

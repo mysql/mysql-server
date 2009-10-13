@@ -315,6 +315,27 @@ typedef enum enum_diag_condition_item_name
 */
 extern const LEX_STRING Diag_condition_item_names[];
 
+/**
+  Query_cache_tls -- query cache thread local data.
+*/
+
+class Query_cache_block;
+
+struct Query_cache_tls
+{
+  /*
+    'first_query_block' should be accessed only via query cache
+    functions and methods to maintain proper locking.
+  */
+  Query_cache_block *first_query_block;
+  void set_first_query_block(Query_cache_block *first_query_block_arg)
+  {
+    first_query_block= first_query_block_arg;
+  }
+
+  Query_cache_tls() :first_query_block(NULL) {}
+};
+
 #include "sql_lex.h"				/* Must be here */
 
 class Delayed_insert;
@@ -1239,6 +1260,9 @@ public:
     fields then.
   */
   struct st_mysql_stmt *current_stmt;
+#endif
+#ifdef HAVE_QUERY_CACHE
+  Query_cache_tls query_cache_tls;
 #endif
   NET	  net;				// client connection descriptor
   Protocol *protocol;			// Current protocol

@@ -501,9 +501,6 @@ THD::THD()
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-#ifdef HAVE_QUERY_CACHE
-  query_cache_init_query(&net);                 // If error on boot
-#endif
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
@@ -796,7 +793,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition_no_handler");
 
-  query_cache_abort(& net);
+  query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
   if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
