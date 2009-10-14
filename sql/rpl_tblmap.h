@@ -18,8 +18,7 @@
 
 /* Forward declarations */
 #ifndef MYSQL_CLIENT
-struct st_table;
-typedef st_table TABLE;
+struct TABLE;
 #else
 class Table_map_log_event;
 typedef Table_map_log_event TABLE;

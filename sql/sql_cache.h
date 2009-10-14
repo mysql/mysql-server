@@ -65,7 +65,7 @@ struct Query_cache_query;
 struct Query_cache_result;
 class Query_cache;
 struct Query_cache_tls;
-struct st_lex;
+struct LEX;
 
 /**
   This class represents a node in the linked chain of queries

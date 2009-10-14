@@ -2927,7 +2927,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         Set 1 as a flag here
       */
       if (error < 0)
-        table_list->view= (st_lex*)1;
+        table_list->view= (LEX*)1;
 
       my_free((uchar*)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
