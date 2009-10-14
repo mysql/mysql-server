@@ -42,6 +42,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "debug_sync.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -442,6 +443,9 @@ THD::THD()
    derived_tables_processing(FALSE),
    spcont(NULL),
    m_parser_state(NULL),
+#if defined(ENABLED_DEBUG_SYNC)
+   debug_sync_control(0),
+#endif /* defined(ENABLED_DEBUG_SYNC) */
    main_warning_info(0)
 {
   ulong tmp;
@@ -895,6 +899,11 @@ void THD::init(void)
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_init_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 }
 
 
@@ -974,6 +983,12 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);

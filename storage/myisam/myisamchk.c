@@ -837,7 +837,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       mi_check_print_error(param,"'%s' is marked as crashed after last repair",filename);
       break;
     case HA_ERR_OLD_FILE:
-      mi_check_print_error(param,"'%s' is a old type of MyISAM-table", filename);
+      mi_check_print_error(param,"'%s' is an old type of MyISAM-table", filename);
       break;
     case HA_ERR_END_OF_FILE:
       mi_check_print_error(param,"Couldn't read complete header from '%s'", filename);

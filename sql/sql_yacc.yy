@@ -10667,14 +10667,12 @@ load:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Lex_input_stream *lip= YYLIP;
 
             if (lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
               MYSQL_YYABORT;
             }
-            lex->fname_start= lip->get_ptr();
           }
           load_data
           {}
@@ -10706,14 +10704,10 @@ load_data:
             if (!(lex->exchange= new sql_exchange($4.str, 0)))
               MYSQL_YYABORT;
           }
-          opt_duplicate INTO
-          {
-            Lex->fname_end= YYLIP->get_ptr();
-          }
-          TABLE_SYM table_ident
+          opt_duplicate INTO TABLE_SYM table_ident
           {
             LEX *lex=Lex;
-            if (!Select->add_table_to_list(YYTHD, $10, NULL, TL_OPTION_UPDATING,
+            if (!Select->add_table_to_list(YYTHD, $9, NULL, TL_OPTION_UPDATING,
                                            lex->lock_option))
               MYSQL_YYABORT;
             lex->field_list.empty();
@@ -10721,7 +10715,7 @@ load_data:
             lex->value_list.empty();
           }
           opt_load_data_charset
-          { Lex->exchange->cs= $12; }
+          { Lex->exchange->cs= $11; }
           opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
           opt_load_data_set_spec
           {}

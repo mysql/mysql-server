@@ -1195,7 +1195,7 @@ err:
     if (master_res)
       mysql_free_result(master_res);
     DBUG_ASSERT(err_code != 0);
-    mi->report(ERROR_LEVEL, err_code, err_buff);
+    mi->report(ERROR_LEVEL, err_code, "%s", err_buff);
     DBUG_RETURN(1);
   }
 
@@ -2387,7 +2387,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   if (io_slave_killed(thd, mi))
   {
     if (info && global_system_variables.log_warnings)
-      sql_print_information(info);
+      sql_print_information("%s", info);
     return TRUE;
   }
   return FALSE;
@@ -2457,13 +2457,13 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
     }
     else
     {
-      sql_print_information(buf);
+      sql_print_information("%s", buf);
     }
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
     if (global_system_variables.log_warnings)
-      sql_print_information(messages[SLAVE_RECON_MSG_KILLED_AFTER]);
+      sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
     return 1;
   }
   return 0;
@@ -2679,15 +2679,19 @@ Log entry on master is longer than max_allowed_packet (%ld) on \
 slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
+          mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
+                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
-          sql_print_error(ER(mysql_error_number), mysql_error_number,
-                          mysql_error(mysql));
+          mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
+                     ER(ER_MASTER_FATAL_ERROR_READING_BINLOG),
+                     mysql_error_number, mysql_error(mysql));
           goto err;
-        case EE_OUTOFMEMORY:
-        case ER_OUTOFMEMORY:
+        case ER_OUT_OF_RESOURCES:
           sql_print_error("\
 Stopping slave I/O thread due to out-of-memory error from master");
+          mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
+                     "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
@@ -2796,9 +2800,11 @@ err:
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 /*
@@ -3045,7 +3051,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), errmsg);
+            rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), "%s", errmsg);
           }
           else if (last_errno != thd->stmt_da->sql_errno())
           {
@@ -3154,10 +3160,11 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_cond_broadcast(&rli->stop_cond);
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
-  
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -3755,7 +3762,7 @@ extern "C" void slave_io_thread_detach_vio()
 {
 #ifdef SIGNAL_WITH_VIO_CLOSE
   THD *thd= current_thd;
-  if (thd->slave_thread)
+  if (thd && thd->slave_thread)
     thd->clear_active_vio();
 #endif
 }
