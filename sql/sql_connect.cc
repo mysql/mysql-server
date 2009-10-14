@@ -61,7 +61,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
-  if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
+  if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
 					       (uchar*) temp_user, temp_len)))
   {
     /* First connection for user; Create a user connection object */
@@ -191,7 +191,7 @@ void decrease_user_connections(USER_CONN *uc)
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(uchar*) uc);
+    (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
@@ -524,10 +524,10 @@ extern "C" void free_user(struct user_conn *uc)
 void init_max_user_conn(void)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
-		   0,0,
-		   (hash_get_key) get_key_conn, (hash_free_key) free_user,
-		   0);
+  (void)
+    my_hash_init(&hash_user_connections,system_charset_info,max_connections,
+                 0,0, (my_hash_get_key) get_key_conn,
+                 (my_hash_free_key) free_user, 0);
 #endif
 }
 
@@ -535,7 +535,7 @@ void init_max_user_conn(void)
 void free_max_user_conn(void)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  hash_free(&hash_user_connections);
+  my_hash_free(&hash_user_connections);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
@@ -553,8 +553,9 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
-    if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(uchar*) temp_user, temp_len)))
+    if ((uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
+                                                   (uchar*) temp_user,
+                                                   temp_len)))
     {
       uc->questions=0;
       get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
@@ -567,8 +568,8 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     /* for FLUSH PRIVILEGES and FLUSH USER_RESOURCES */
     for (uint idx=0;idx < hash_user_connections.records; idx++)
     {
-      USER_CONN *uc=(struct user_conn *) hash_element(&hash_user_connections,
-						      idx);
+      USER_CONN *uc=(struct user_conn *)
+        my_hash_element(&hash_user_connections, idx);
       if (get_them)
 	get_mqh(uc->user,uc->host,uc);
       uc->questions=0;

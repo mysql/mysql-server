@@ -3984,7 +3984,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
   /* Wait for any database locks */
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         hash_search(&lock_db_cache,(uchar*) db, strlen(db)))
+         my_hash_search(&lock_db_cache,(uchar*) db, strlen(db)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);

@@ -772,8 +772,8 @@ public:
   Statement *find_by_name(LEX_STRING *name)
   {
     Statement *stmt;
-    stmt= (Statement*)hash_search(&names_hash, (uchar*)name->str,
-                                  name->length);
+    stmt= (Statement*)my_hash_search(&names_hash, (uchar*)name->str,
+                                     name->length);
     return stmt;
   }
 
@@ -782,7 +782,7 @@ public:
     if (last_found_statement == 0 || id != last_found_statement->id)
     {
       Statement *stmt;
-      stmt= (Statement *) hash_search(&st_hash, (uchar *) &id, sizeof(id));
+      stmt= (Statement *) my_hash_search(&st_hash, (uchar *) &id, sizeof(id));
       if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;

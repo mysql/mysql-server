@@ -3249,7 +3249,7 @@ int mysql_add_sys_var_chain(sys_var *first, struct my_option *long_options)
 
 error:
   for (; first != var; first= first->next)
-    hash_delete(&system_variable_hash, (uchar*) first);
+    my_hash_delete(&system_variable_hash, (uchar*) first);
   return 1;
 }
  
@@ -3273,7 +3273,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
    
   for (sys_var *var= first; var; var= var->next)
-    result|= hash_delete(&system_variable_hash, (uchar*) var);
+    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
 
   return result;
 }
@@ -3310,7 +3310,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     for (i= 0; i < count; i++)
     {
-      sys_var *var= (sys_var*) hash_element(&system_variable_hash, i);
+      sys_var *var= (sys_var*) my_hash_element(&system_variable_hash, i);
       show->name= var->name;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -3347,8 +3347,8 @@ int set_var_init()
   
   for (sys_var *var=vars.first; var; var= var->next, count++);
 
-  if (hash_init(&system_variable_hash, system_charset_info, count, 0,
-                0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+  if (my_hash_init(&system_variable_hash, system_charset_info, count, 0,
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
     goto error;
 
   vars.last->next= NULL;
@@ -3373,7 +3373,7 @@ error:
 
 void set_var_free()
 {
-  hash_free(&system_variable_hash);
+  my_hash_free(&system_variable_hash);
 }
 
 
@@ -3399,7 +3399,7 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) hash_search(&system_variable_hash,
+  var= (sys_var*) my_hash_search(&system_variable_hash,
 			      (uchar*) str, length ? length : strlen(str));
   if (!(var || no_error))
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
