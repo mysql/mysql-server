@@ -2036,6 +2036,7 @@ JOIN::exec()
                       *curr_all_fields, 0);
   
   if (curr_join->group || curr_join->implicit_grouping ||
+      curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
     if (make_group_fields(this, curr_join))
