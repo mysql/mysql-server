@@ -156,9 +156,6 @@ buf_flush_block_cmp(
 	const buf_page_t*	b1 = *(const buf_page_t**) p1;
 	const buf_page_t*	b2 = *(const buf_page_t**) p2;
 
-	ut_ad(p1 != NULL);
-	ut_ad(p2 != NULL);
-
 	ut_ad(b1 != NULL);
 	ut_ad(b2 != NULL);
 
