@@ -92,9 +92,7 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
-#ifdef UNIV_HOTBACKUP
-# define os_aio_use_native_aio	FALSE
-#else /* UNIV_HOTBACKUP */
+#ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
@@ -283,7 +281,7 @@ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 /** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
 UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
@@ -3743,7 +3741,7 @@ readahead requests. */
 	os_aio_array_t*	array;
 	ulint		g;
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
 		return;
@@ -4829,9 +4827,11 @@ loop:
 	memset(n_res_seg, 0x0, sizeof(n_res_seg));
 
 	for (i = 0; i < array->n_slots; i++) {
+		ulint	seg_no;
+
 		slot = os_aio_array_get_nth_slot(array, i);
 
-		ulint	seg_no = (i * array->n_segments) / array->n_slots;
+		seg_no = (i * array->n_segments) / array->n_slots;
 		if (slot->reserved) {
 			n_reserved++;
 			n_res_seg[seg_no]++;
