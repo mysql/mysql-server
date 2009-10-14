@@ -1135,7 +1135,7 @@ void free_used_memory()
 
   close_connections();
   close_files();
-  hash_free(&var_hash);
+  my_hash_free(&var_hash);
 
   for (i= 0 ; i < q_lines.elements ; i++)
   {
@@ -1998,8 +1998,8 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, (const uchar*) save_var_name,
-                                            length)))
+    if (!(v = (VAR*) my_hash_search(&var_hash, (const uchar*) save_var_name,
+                                    length)))
     {
       char buff[MAX_VAR_NAME_LENGTH+1];
       strmake(buff, save_var_name, length);
@@ -2030,7 +2030,7 @@ err:
 VAR *var_obtain(const char *name, int len)
 {
   VAR* v;
-  if ((v = (VAR*)hash_search(&var_hash, (const uchar *) name, len)))
+  if ((v = (VAR*)my_hash_search(&var_hash, (const uchar *) name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
   my_hash_insert(&var_hash, (uchar*)v);
@@ -7580,8 +7580,8 @@ int main(int argc, char **argv)
 
   my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
 
-  if (hash_init(&var_hash, charset_info,
-                1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (my_hash_init(&var_hash, charset_info,
+                   1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
   var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);

@@ -261,8 +261,8 @@ my_bool acl_init(bool dont_read_acl_tables)
   DBUG_ENTER("acl_init");
 
   acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
-                           (hash_get_key) acl_entry_get_key,
-                           (hash_free_key) free,
+                           (my_hash_get_key) acl_entry_get_key,
+                           (my_hash_free_key) free,
                            lower_case_file_system ?
                            system_charset_info : &my_charset_bin);
   if (dont_read_acl_tables)
@@ -638,7 +638,7 @@ void acl_free(bool end)
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
   delete_dynamic(&acl_wild_hosts);
-  hash_free(&acl_check_hosts);
+  my_hash_free(&acl_check_hosts);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
@@ -714,7 +714,7 @@ my_bool acl_reload(THD *thd)
   old_acl_dbs=acl_dbs;
   old_mem=mem;
   delete_dynamic(&acl_wild_hosts);
-  hash_free(&acl_check_hosts);
+  my_hash_free(&acl_check_hosts);
 
   if ((return_val= acl_load(thd, tables)))
   {					// Error. Revert to old list
@@ -1429,8 +1429,8 @@ static void init_check_host(void)
   DBUG_ENTER("init_check_host");
   VOID(my_init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
-  VOID(hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
-		 (hash_get_key) check_get_key,0,0));
+  VOID(my_hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
+                    (my_hash_get_key) check_get_key,0,0));
   if (!allow_all_hosts)
   {
     for (uint i=0 ; i < acl_users.elements ; i++)
@@ -1452,8 +1452,9 @@ static void init_check_host(void)
 	if (j == acl_wild_hosts.elements)	// If new
 	  (void) push_dynamic(&acl_wild_hosts,(uchar*) &acl_user->host);
       }
-      else if (!hash_search(&acl_check_hosts,(uchar*) acl_user->host.hostname,
-			    strlen(acl_user->host.hostname)))
+      else if (!my_hash_search(&acl_check_hosts,(uchar*)
+                               acl_user->host.hostname,
+                               strlen(acl_user->host.hostname)))
       {
 	if (my_hash_insert(&acl_check_hosts,(uchar*) acl_user))
 	{					// End of memory
@@ -1480,7 +1481,7 @@ static void init_check_host(void)
 void rebuild_check_host(void)
 {
   delete_dynamic(&acl_wild_hosts);
-  hash_free(&acl_check_hosts);
+  my_hash_free(&acl_check_hosts);
   init_check_host();
 }
 
@@ -1493,8 +1494,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if ((host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
-      (ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
+  if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
+      (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -2298,8 +2299,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                 	 const char *t, ulong p, ulong c)
   :GRANT_NAME(h,d,u,t,p), cols(c)
 {
-  (void) hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (hash_get_key) get_key_column,0,0);
+  (void) my_hash_init2(&hash_columns,4,system_charset_info,
+                   0,0,0, (my_hash_get_key) get_key_column,0,0);
 }
 
 
@@ -2339,15 +2340,15 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
-    hash_clear(&hash_columns);                  /* allow for destruction */
+    my_hash_clear(&hash_columns);               /* allow for destruction */
     cols= 0;
     return;
   }
   cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
-  (void) hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (hash_get_key) get_key_column,0,0);
+  (void) my_hash_init2(&hash_columns,4,system_charset_info,
+                   0,0,0, (my_hash_get_key) get_key_column,0,0);
   if (cols)
   {
     uint key_prefix_len;
@@ -2399,7 +2400,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
 
 GRANT_TABLE::~GRANT_TABLE()
 {
-  hash_free(&hash_columns);
+  my_hash_free(&hash_columns);
 }
 
 
@@ -2413,7 +2414,7 @@ static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
 
 void free_grant_table(GRANT_TABLE *grant_table)
 {
-  hash_free(&grant_table->hash_columns);
+  my_hash_free(&grant_table->hash_columns);
 }
 
 
@@ -2431,11 +2432,11 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (uchar*) helping,
-                                            len, &state);
+  for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,
+                                               len, &state);
        grant_name ;
-       grant_name= (GRANT_NAME*) hash_next(name_hash,(uchar*) helping,
-                                           len, &state))
+       grant_name= (GRANT_NAME*) my_hash_next(name_hash,(uchar*) helping,
+                                              len, &state))
   {
     if (exact)
     {
@@ -2479,7 +2480,8 @@ table_hash_search(const char *host, const char *ip, const char *db,
 inline GRANT_COLUMN *
 column_hash_search(GRANT_TABLE *t, const char *cname, uint length)
 {
-  return (GRANT_COLUMN*) hash_search(&t->hash_columns, (uchar*) cname,length);
+  return (GRANT_COLUMN*) my_hash_search(&t->hash_columns,
+                                        (uchar*) cname, length);
 }
 
 
@@ -2659,7 +2661,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	    goto end;				/* purecov: deadcode */
 	  }
 	  if (grant_column)
-	    hash_delete(&g_t->hash_columns,(uchar*) grant_column);
+	    my_hash_delete(&g_t->hash_columns,(uchar*) grant_column);
 	}
       }
     } while (!table->file->index_next(table->record[0]) &&
@@ -2785,7 +2787,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
   else
   {
-    hash_delete(&column_priv_hash,(uchar*) grant_table);
+    my_hash_delete(&column_priv_hash,(uchar*) grant_table);
   }
   DBUG_RETURN(0);
 
@@ -2906,7 +2908,8 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
   else
   {
-    hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*) grant_name);
+    my_hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*)
+                   grant_name);
   }
   DBUG_RETURN(0);
 
@@ -3147,8 +3150,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       column_priv= 0;
       for (uint idx=0 ; idx < grant_table->hash_columns.records ; idx++)
       {
-	grant_column= (GRANT_COLUMN*) hash_element(&grant_table->hash_columns,
-						   idx);
+        grant_column= (GRANT_COLUMN*)
+          my_hash_element(&grant_table->hash_columns, idx);
 	grant_column->rights&= ~rights;		// Fix other columns
 	column_priv|= grant_column->rights;
       }
@@ -3479,9 +3482,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 void  grant_free(void)
 {
   DBUG_ENTER("grant_free");
-  hash_free(&column_priv_hash);
-  hash_free(&proc_priv_hash);
-  hash_free(&func_priv_hash);
+  my_hash_free(&column_priv_hash);
+  my_hash_free(&proc_priv_hash);
+  my_hash_free(&func_priv_hash);
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -3538,12 +3541,12 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
                                                            THR_MALLOC);
   DBUG_ENTER("grant_load_procs_priv");
-  (void) hash_init(&proc_priv_hash,system_charset_info,
-                   0,0,0, (hash_get_key) get_grant_table,
-                   0,0);
-  (void) hash_init(&func_priv_hash,system_charset_info,
-                   0,0,0, (hash_get_key) get_grant_table,
-                   0,0);
+  (void) my_hash_init(&proc_priv_hash,system_charset_info,
+                      0,0,0, (my_hash_get_key) get_grant_table,
+                      0,0);
+  (void) my_hash_init(&func_priv_hash,system_charset_info,
+                      0,0,0, (my_hash_get_key) get_grant_table,
+                      0,0);
   p_table->file->ha_index_init(0, 1);
   p_table->use_all_columns();
 
@@ -3639,9 +3642,9 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
-  (void) hash_init(&column_priv_hash,system_charset_info,
-                   0,0,0, (hash_get_key) get_grant_table,
-                   (hash_free_key) free_grant_table,0);
+  (void) my_hash_init(&column_priv_hash,system_charset_info,
+                      0,0,0, (my_hash_get_key) get_grant_table,
+                      (my_hash_free_key) free_grant_table,0);
 
   t_table = tables[0].table;
   c_table = tables[1].table;
@@ -3744,8 +3747,8 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   else
   {
-    hash_free(&old_proc_priv_hash);
-    hash_free(&old_func_priv_hash);
+    my_hash_free(&old_proc_priv_hash);
+    my_hash_free(&old_func_priv_hash);
   }
   rw_unlock(&LOCK_grant);
 
@@ -3814,7 +3817,7 @@ my_bool grant_reload(THD *thd)
   }
   else
   {
-    hash_free(&old_column_priv_hash);
+    my_hash_free(&old_column_priv_hash);
     free_root(&old_mem,MYF(0));
   }
   rw_unlock(&LOCK_grant);
@@ -4210,7 +4213,7 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 
   for (uint idx= 0; idx < hash->records; ++idx)
   {
-    GRANT_NAME *item= (GRANT_NAME*) hash_element(hash, idx);
+    GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
 
     if (strcmp(item->user, sctx->priv_user) == 0 &&
         strcmp(item->db, db) == 0 &&
@@ -4243,8 +4246,9 @@ bool check_grant_db(THD *thd,const char *db)
 
   for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
   {
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
-							  idx);
+    GRANT_TABLE *grant_table= (GRANT_TABLE*)
+      my_hash_element(&column_priv_hash,
+                      idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
         compare_hostname(&grant_table->host, sctx->host, sctx->ip))
@@ -4716,8 +4720,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
     const char *user, *host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
-							  index);
+    GRANT_TABLE *grant_table= (GRANT_TABLE*)
+      my_hash_element(&column_priv_hash, index);
 
     if (!(user=grant_table->user))
       user= "";
@@ -4770,7 +4774,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		     col_index++)
 		{
 		  GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-		    hash_element(&grant_table->hash_columns,col_index);
+                    my_hash_element(&grant_table->hash_columns,col_index);
 		  if (grant_column->rights & j)
 		  {
 		    if (!found_col)
@@ -4860,7 +4864,7 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
   for (index=0 ; index < hash->records ; index++)
   {
     const char *user, *host;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, index);
+    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
 
     if (!(user=grant_proc->user))
       user= "";
@@ -5373,13 +5377,13 @@ static int handle_grant_struct(uint struct_no, bool drop,
       break;
 
     case 2:
-      grant_name= (GRANT_NAME*) hash_element(&column_priv_hash, idx);
+      grant_name= (GRANT_NAME*) my_hash_element(&column_priv_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
 
     case 3:
-      grant_name= (GRANT_NAME*) hash_element(&proc_priv_hash, idx);
+      grant_name= (GRANT_NAME*) my_hash_element(&proc_priv_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
@@ -5412,11 +5416,11 @@ static int handle_grant_struct(uint struct_no, bool drop,
         break;
 
       case 2:
-        hash_delete(&column_priv_hash, (uchar*) grant_name);
+        my_hash_delete(&column_priv_hash, (uchar*) grant_name);
 	break;
 
       case 3:
-        hash_delete(&proc_priv_hash, (uchar*) grant_name);
+        my_hash_delete(&proc_priv_hash, (uchar*) grant_name);
 	break;
       }
       elements--;
@@ -5930,8 +5934,8 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
       {
 	const char *user,*host;
-	GRANT_TABLE *grant_table= (GRANT_TABLE*)hash_element(&column_priv_hash,
-							     counter);
+        GRANT_TABLE *grant_table=
+          (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
 	if (!(user=grant_table->user))
 	  user= "";
 	if (!(host=grant_table->host.hostname))
@@ -5977,7 +5981,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       for (counter= 0, revoked= 0 ; counter < hash->records ; )
       {
 	const char *user,*host;
-	GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, counter);
+        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
 	if (!(user=grant_proc->user))
 	  user= "";
 	if (!(host=grant_proc->host.hostname))
@@ -6125,7 +6129,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   {
     for (counter= 0, revoked= 0 ; counter < hash->records ; )
     {
-      GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, counter);
+      GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
       if (!my_strcasecmp(system_charset_info, grant_proc->db, sp_db) &&
 	  !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
@@ -6515,7 +6519,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
 							  index);
     if (!(user=grant_table->user))
       user= "";
@@ -6598,7 +6602,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
 							  index);
     if (!(user=grant_table->user))
       user= "";
@@ -6633,7 +6637,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
                  col_index++)
             {
               GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-                hash_element(&grant_table->hash_columns,col_index);
+                my_hash_element(&grant_table->hash_columns,col_index);
               if ((grant_column->rights & j) && (table_access & j))
               {
                 if (update_schema_privilege(thd, table, buff, grant_table->db,
