@@ -4011,7 +4011,7 @@ uint Load_log_event::get_query_buffer_length()
 }
 
 
-void Load_log_event::print_query(bool need_db, char *buf,
+void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
                                  char **end, char **fn_start, char **fn_end)
 {
   char *pos= buf;
@@ -4035,9 +4035,9 @@ void Load_log_event::print_query(bool need_db, char *buf,
   pos= strmov(pos+fname_len, "' ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
-    pos= strmov(pos, " REPLACE ");
+    pos= strmov(pos, "REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG)
-    pos= strmov(pos, " IGNORE ");
+    pos= strmov(pos, "IGNORE ");
 
   pos= strmov(pos ,"INTO");
 
@@ -4048,8 +4048,16 @@ void Load_log_event::print_query(bool need_db, char *buf,
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
-  /* We have to create all optinal fields as the default is not empty */
-  pos= strmov(pos, "` FIELDS TERMINATED BY ");
+  if (cs != NULL)
+  {
+    pos= strmov(pos ,"` CHARACTER SET ");
+    pos= strmov(pos ,  cs);
+  }
+  else
+    pos= strmov(pos, "`");
+
+  /* We have to create all optional fields as the default is not empty */
+  pos= strmov(pos, " FIELDS TERMINATED BY ");
   pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
   if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
     pos= strmov(pos, " OPTIONALLY ");
@@ -4103,7 +4111,7 @@ void Load_log_event::pack_info(Protocol *protocol)
 
   if (!(buf= (char*) my_malloc(get_query_buffer_length(), MYF(MY_WME))))
     return;
-  print_query(TRUE, buf, &end, 0, 0);
+  print_query(TRUE, NULL, buf, &end, 0, 0);
   protocol->store(buf, end-buf, &my_charset_bin);
   my_free(buf, MYF(0));
 }
@@ -4368,9 +4376,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   my_b_printf(&cache, "INFILE '%-*s' ", fname_len, fname);
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
-    my_b_printf(&cache," REPLACE ");
+    my_b_printf(&cache,"REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG)
-    my_b_printf(&cache," IGNORE ");
+    my_b_printf(&cache,"IGNORE ");
   
   my_b_printf(&cache, "INTO TABLE `%s`", table_name);
   my_b_printf(&cache, " FIELDS TERMINATED BY ");
@@ -4572,8 +4580,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         goto error;
       }
 
-      print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
-                  (char **)&thd->lex->fname_end);
+      print_query(FALSE, NULL, load_data_query, &end, NULL, NULL);
       *end= 0;
       thd->set_query(load_data_query, (uint) (end - load_data_query));
 
@@ -6727,7 +6734,7 @@ void Execute_load_query_log_event::print(FILE* file,
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
-    my_b_printf(&cache, " INTO ");
+    my_b_printf(&cache, " INTO");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
     my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
@@ -8830,11 +8837,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0)
+  if (table->s->keys > 0 && table->s->keys_in_use.is_set(0))
   {
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
-    /* We have a key: search the table using the index */
+    /* The 0th key is active: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
