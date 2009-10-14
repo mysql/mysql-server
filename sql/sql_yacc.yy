@@ -10678,7 +10678,7 @@ load:
                        $2 == FILETYPE_CSV ? "LOAD DATA" : "LOAD XML");
               MYSQL_YYABORT;
             }
-            lex->fname_start= lip->get_ptr();
+            lex->fname_start= lip->get_tok_end();
           }
           load_data_lock opt_local INFILE TEXT_STRING_filesystem
           {
@@ -10729,14 +10729,12 @@ load:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Lex_input_stream *lip= YYLIP;
 
             if (lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD DATA");
               MYSQL_YYABORT;
             }
-            lex->fname_start= lip->get_ptr();
             Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
             WARN_DEPRECATED(yythd, "6.0", "LOAD DATA FROM MASTER",
                             "mysqldump or future "
