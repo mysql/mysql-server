@@ -505,9 +505,8 @@ class st_alter_tablespace : public Sql_alloc
 
 /* The handler for a table type.  Will be included in the TABLE structure */
 
-struct st_table;
-typedef struct st_table TABLE;
-typedef struct st_table_share TABLE_SHARE;
+struct TABLE;
+struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
@@ -1076,8 +1075,8 @@ class handler :public Sql_alloc
 public:
   typedef ulonglong Table_flags;
 protected:
-  struct st_table_share *table_share;   /* The table definition */
-  struct st_table *table;               /* The current open table */
+  TABLE_SHARE *table_share;   /* The table definition */
+  TABLE *table;               /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;

@@ -641,7 +641,6 @@ enum enum_parsing_place
   IN_ON
 };
 
-struct st_table;
 
 #define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;

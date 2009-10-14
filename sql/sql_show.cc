@@ -3141,7 +3141,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   {
     tbl.s= share;
     table_list.table= &tbl;
-    table_list.view= (st_lex*) share->is_view;
+    table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     closefrm(&tbl, true);

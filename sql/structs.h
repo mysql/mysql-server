@@ -16,7 +16,7 @@
 
 /* The old structures from unireg */
 
-struct st_table;
+struct TABLE;
 class Field;
 
 typedef struct st_date_time_format {
@@ -97,7 +97,7 @@ typedef struct st_key {
   union {
     int  bdb_return_if_eq;
   } handler;
-  struct st_table *table;
+  TABLE *table;
 } KEY;
 
 
@@ -121,9 +121,9 @@ class THD;
 class handler;
 
 typedef struct st_read_record {			/* Parameter to read_record */
-  struct st_table *table;			/* Head-form */
+  TABLE *table;                                 /* Head-form */
   handler *file;
-  struct st_table **forms;			/* head and ref forms */
+  TABLE **forms;                                /* head and ref forms */
   int (*read_record)(struct st_read_record *);
   THD *thd;
   SQL_SELECT *select;
