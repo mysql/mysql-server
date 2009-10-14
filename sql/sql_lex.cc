@@ -31,6 +31,23 @@
 
 sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in enum_binlog_stmt_unsafe.
+*/
+const int
+Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
+{
+  ER_BINLOG_UNSAFE_LIMIT,
+  ER_BINLOG_UNSAFE_INSERT_DELAYED,
+  ER_BINLOG_UNSAFE_SYSTEM_TABLE,
+  ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS,
+  ER_BINLOG_UNSAFE_UDF,
+  ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
+  ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+};
+
+
 /* Longest standard keyword name */
 #define TOCK_NAME_LENGTH 24
 

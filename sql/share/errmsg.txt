@@ -6076,7 +6076,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT."
+        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: %s"
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6211,7 +6211,7 @@ ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
 ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
   eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
 ER_BINLOG_UNSAFE_AND_STMT_ENGINE
-  eng "Unsafe statement binlogged as statement since storage engine is limited to statement-logging."
+  eng "Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: %s"
 ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
   eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
 ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
@@ -6236,7 +6236,5 @@ ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
 ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
   eng "Statement uses a system function whose value may differ on slave."
 
-ER_BINLOG_UNSAFE_WARNING_SHORT
-  eng "%s Reason: %s"
-ER_BINLOG_UNSAFE_WARNING_LONG
-  eng "%s Reason: %s Statement: %s"
+ER_MESSAGE_AND_STATEMENT
+  eng "%s Statement: %s"
