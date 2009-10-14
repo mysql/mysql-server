@@ -1726,6 +1726,23 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
 fi
 
+# Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
+AC_MSG_CHECKING(if Debug Sync Facility should be enabled.)
+AC_ARG_ENABLE(debug_sync,
+              AS_HELP_STRING([--enable-debug-sync],
+                             [Build a version with Debug Sync Facility]),
+              [ enable_debug_sync=$enableval ],
+              [ enable_debug_sync=$with_debug ])
+
+if test "$enable_debug_sync" != "no"
+then
+  AC_DEFINE([ENABLED_DEBUG_SYNC], [1],
+            [If Debug Sync Facility should be enabled])
+  AC_MSG_RESULT([yes]) 
+else
+  AC_MSG_RESULT([no])
+fi
+
 # If we should allow error injection tests
 AC_ARG_WITH(error-inject,
     AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),

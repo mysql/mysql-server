@@ -3561,7 +3561,7 @@ static void print_warnings()
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
   */
-  if (!cur || num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10))
+  if (!cur || (num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10)))
     goto end;
 
   /* Print the warnings */
