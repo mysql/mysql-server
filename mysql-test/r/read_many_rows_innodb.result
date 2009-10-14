@@ -40,8 +40,8 @@ ON t1 FOR EACH ROW
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLSTATE '40001' SET @a:= 'deadlock';
 DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
-INSERT INTO t2 (f2) VALUES (1);
-DELETE FROM t2 WHERE f2 = 1;
+INSERT INTO t2 (f2) VALUES (NEW.f1);
+DELETE FROM t2 WHERE f2 = NEW.f1;
 END;|
 CREATE PROCEDURE proc24989()
 BEGIN
@@ -63,7 +63,7 @@ insert into t1 values(1);
 start transaction;
 insert into t2 values(123);
 insert into t1 values(1);
-insert into t1 values(1);
+insert into t1 values(123);
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 select @a;
 @a
@@ -76,7 +76,7 @@ insert into t1 values(1);
 start transaction;
 insert into t2 values(123);
 call proc24989();
-insert into t1 values(1);
+insert into t1 values(123);
 select @a,@b;
 @a	@b
 exception	deadlock
@@ -88,7 +88,7 @@ insert into t1 values(1);
 start transaction;
 insert into t2 values(123);
 call proc24989_2();
-insert into t1 values(1);
+insert into t1 values(123);
 commit;
 exception
 Outer handler
