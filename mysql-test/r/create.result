@@ -1487,10 +1487,10 @@ ERROR 42000: Too many keys specified; max 64 keys allowed
 drop table t1;
 create table t1 (c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, 
 c8 int, c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, 
-c16 int, c17 int);
+c16 int, c17 int, c18 int,c19 int,c20 int,c21 int,c22 int,c23 int,c24 int,c25 int,c26 int,c27 int,c28 int,c29 int,c30 int,c31 int,c32 int, c33 int);
 alter table t1 add key i1 (
-c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16, c17);
-ERROR 42000: Too many key parts specified; max 16 parts allowed
+c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16, c17,c18,c19,c20,c21,c22,c23,c24,c25,c26,c27,c28,c29,c30,c31,c32,c33);
+ERROR 42000: Too many key parts specified; max 32 parts allowed
 alter table t1 add key 
 a001_long_123456789_123456789_123456789_123456789_123456789_12345 (c1);
 ERROR 42000: Identifier name 'a001_long_123456789_123456789_123456789_123456789_123456789_12345' is too long
@@ -1513,7 +1513,23 @@ t1	CREATE TABLE `t1` (
   `c14` int(11) DEFAULT NULL,
   `c15` int(11) DEFAULT NULL,
   `c16` int(11) DEFAULT NULL,
-  `c17` int(11) DEFAULT NULL
+  `c17` int(11) DEFAULT NULL,
+  `c18` int(11) DEFAULT NULL,
+  `c19` int(11) DEFAULT NULL,
+  `c20` int(11) DEFAULT NULL,
+  `c21` int(11) DEFAULT NULL,
+  `c22` int(11) DEFAULT NULL,
+  `c23` int(11) DEFAULT NULL,
+  `c24` int(11) DEFAULT NULL,
+  `c25` int(11) DEFAULT NULL,
+  `c26` int(11) DEFAULT NULL,
+  `c27` int(11) DEFAULT NULL,
+  `c28` int(11) DEFAULT NULL,
+  `c29` int(11) DEFAULT NULL,
+  `c30` int(11) DEFAULT NULL,
+  `c31` int(11) DEFAULT NULL,
+  `c32` int(11) DEFAULT NULL,
+  `c33` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 
@@ -1733,7 +1749,8 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
@@ -1747,7 +1764,8 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 like information_schema.character_sets;
@@ -1893,5 +1911,20 @@ DROP TABLE t1;
 # -- End of Bug#34274
 create table `me:i`(id int);
 drop table `me:i`;
+
+# --
+# -- Bug#45829: CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+# --
+
+drop table if exists t1,t2,t3;
+# Fix modified for MariaDB: we support this syntax
+create table t1 (a int) transactional=0;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+create table t2 (a int) page_checksum=1;
+create table t3 (a int) row_format=page;
+drop table t1,t2,t3;
+
+# -- End of Bug#45829
 
 End of 5.1 tests

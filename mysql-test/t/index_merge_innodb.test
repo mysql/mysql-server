@@ -10,7 +10,10 @@
 #               include/index_merge*.inc files
 #
 
+# Slow test, don't run during staging part
+--source include/not_staging.inc
 --source include/have_innodb.inc
+
 let $engine_type= InnoDB;
 # InnoDB does not support Merge tables (affects include/index_merge1.inc)
 let $merge_table_support= 0;

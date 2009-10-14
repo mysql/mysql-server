@@ -55,7 +55,8 @@ disconnect con4;
 connect (fail_con,localhost,test,,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect (fail_con,localhost,test,,"");
+# Need to protect "" within '' so it's interpreted literally
+connect (fail_con,localhost,test,,'""');
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,test2);

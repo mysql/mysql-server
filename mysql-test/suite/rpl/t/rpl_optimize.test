@@ -11,6 +11,8 @@
 # Skipping this test if default engine = ndb
 #####################################
 -- source include/not_ndb_default.inc
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 -- source include/master-slave.inc
 
 create table t1 (a int not null auto_increment primary key, b int, key(b));

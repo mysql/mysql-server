@@ -123,7 +123,6 @@ let $my_select = SELECT * FROM information_schema.triggers
 WHERE trigger_name = 'trg1';
 let $my_show =   SHOW TRIGGERS FROM db_datadict;
 --echo # Establish connection testuser1 (user=testuser1)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --replace_result $engine_type <engine_type>

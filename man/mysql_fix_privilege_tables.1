@@ -1,0 +1,173 @@
+'\" t
+.\"     Title: \fBmysql_fix_privilege_tables\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_FIX_PRIVILE" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_fix_privilege_tables
+.\" upgrading: grant tables
+.\" grant tables: upgrading
+.SH "NAME"
+mysql_fix_privilege_tables \- upgrade MySQL system tables
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_fix_privilege_tables\ \-\-password=\fR\fB\fIroot_password\fR\fR\ 'u
+\fBmysql_fix_privilege_tables \-\-password=\fR\fB\fIroot_password\fR\fR
+.SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+In MySQL 5\&.1\&.7,
+\fBmysql_fix_privilege_tables\fR
+was superseded by
+\fBmysql_upgrade\fR, which should be used instead\&. See
+\fBmysql_upgrade\fR(1)\&.
+.sp .5v
+.RE
+.PP
+Some releases of MySQL introduce changes to the structure of the system tables in the
+mysql
+database to add new privileges or support new features\&. When you update to a new version of MySQL, you should update your system tables as well to make sure that their structure is up to date\&. Otherwise, there might be capabilities that you cannot take advantage of\&.
+.PP
+\fBmysql_fix_privilege_tables\fR
+is an older script that previously was used to uprade the system tables in the
+mysql
+database after a MySQL upgrade\&.
+.PP
+Before running
+\fBmysql_fix_privilege_tables\fR, make a backup of your
+mysql
+database\&.
+.PP
+On Unix or Unix\-like systems, update the system tables by running the
+\fBmysql_fix_privilege_tables\fR
+script:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_fix_privilege_tables\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+You must run this script while the server is running\&. It attempts to connect to the server running on the local host as
+root\&. If your
+root
+account requires a password, indicate the password on the command line like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_fix_privilege_tables \-\-password=\fR\fB\fIroot_password\fR\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The
+\fBmysql_fix_privilege_tables\fR
+script performs any actions necessary to convert your system tables to the current format\&. You might see some
+Duplicate column name
+warnings as it runs; you can ignore them\&.
+.PP
+After running the script, stop the server and restart it so that any changes made to the system tables take effect\&.
+.PP
+On Windows systems, MySQL distributions include a
+mysql_fix_privilege_tables\&.sql
+SQL script that you can run using the
+\fBmysql\fR
+client\&. For example, if your MySQL installation is located at
+C:\eProgram Files\eMySQL\eMySQL Server 5\&.1, the commands look like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+C:\e> \fBcd "C:\eProgram Files\eMySQL\eMySQL Server 5\&.1"\fR
+C:\e> \fBbin\emysql \-u root \-p mysql\fR
+mysql> \fBSOURCE share/mysql_fix_privilege_tables\&.sql\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Prior to version 5\&.1\&.17, this script is found in the
+scripts
+directory\&.
+.sp .5v
+.RE
+.PP
+The
+\fBmysql\fR
+command will prompt you for the
+root
+password; enter it when prompted\&.
+.PP
+If your installation is located in some other directory, adjust the path names appropriately\&.
+.PP
+As with the Unix procedure, you might see some
+Duplicate column name
+warnings as
+\fBmysql\fR
+processes the statements in the
+mysql_fix_privilege_tables\&.sql
+script; you can ignore them\&.
+.PP
+After running the script, stop the server and restart it\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

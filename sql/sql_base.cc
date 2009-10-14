@@ -478,8 +478,9 @@ static TABLE_SHARE
     DBUG_RETURN(share);
 
   /* Table didn't exist. Check if some engine can provide it */
-  if ((tmp= ha_create_table_from_engine(thd, table_list->db,
-                                        table_list->table_name)) < 0)
+  tmp= ha_create_table_from_engine(thd, table_list->db,
+                                   table_list->table_name);
+  if (tmp < 0)
   {
     /*
       No such table in any engine.
@@ -1431,11 +1432,10 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table;
-  TABLE *next;
+  TABLE *next= NULL;
   TABLE *prev_table;
   /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
-  LINT_INIT(next);
 
   if (!thd->temporary_tables)
     return;
@@ -1541,19 +1541,8 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE);
+                            0, FALSE, 0);
       thd->variables.character_set_client= cs_save;
-      /*
-        Imagine the thread had created a temp table, then was doing a
-        SELECT, and the SELECT was killed. Then it's not clever to
-        mark the statement above as "killed", because it's not really
-        a statement updating data, and there are 99.99% chances it
-        will succeed on slave.  If a real update (one updating a
-        persistent table) was killed on the master, then this real
-        update will be logged with error_code=killed, rightfully
-        causing the slave to stop.
-      */
-      qinfo.error_code= 0;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
@@ -2446,7 +2435,7 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
 
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   int rc;
   DBUG_ENTER("check_if_table_exists");
 
@@ -2603,27 +2592,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
-    bool check_if_used= thd->prelocked_mode &&
-                        ((int) table_list->lock_type >=
-                         (int) TL_WRITE_ALLOW_WRITE);
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->table_cache_key.length == key_length &&
 	  !memcmp(table->s->table_cache_key.str, key, key_length))
       {
-        if (check_if_used && table->query_id &&
-            table->query_id != thd->query_id)
-        {
-          /*
-            If we are in stored function or trigger we should ensure that
-            we won't change table that is already used by calling statement.
-            So if we are opening table for writing, we should check that it
-            is not already open by some calling stamement.
-          */
-          my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
-                   table->s->table_name.str);
-          DBUG_RETURN(0);
-        }
         /*
           When looking for a usable TABLE, ignore MERGE children, as they
           belong to their parent and cannot be used explicitly.
@@ -2652,13 +2625,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           {
             best_distance= distance;
             best_table= table;
-            if (best_distance == 0 && !check_if_used)
+            if (best_distance == 0)
             {
               /*
-                If we have found perfect match and we don't need to check that
-                table is not used by one of calling statements (assuming that
-                we are inside of function or trigger) we can finish iterating
-                through open tables list.
+                We have found a perfect match and can finish iterating
+                through open tables list. Check for table use conflict
+                between calling statement and SP/trigger is done in
+                lock_tables().
               */
               break;
             }
@@ -2679,7 +2652,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       real fix will be made after definition cache will be made)
     */
     {
-      char path[FN_REFLEN];
+      char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
                            table_list->db, table_list->table_name, reg_ext, 0);
@@ -2993,6 +2966,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
   table->auto_increment_field_not_null= FALSE;
@@ -3889,6 +3863,16 @@ retry:
   if (share->is_view)
   {
     /*
+      If parent_l of the table_list is non null then a merge table
+      has this view as child table, which is not supported.
+    */
+    if (table_list->parent_l)
+    {
+      my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      goto err;
+    }
+
+    /*
       This table is a view. Validate its metadata version: in particular,
       that it was a view when the statement was prepared.
     */
@@ -4050,8 +4034,10 @@ retry:
         /* this DELETE FROM is needed even with row-based binlogging */
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
+        int errcode= query_error_code(thd, TRUE);
         thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query), FALSE, FALSE);
+                          query, (ulong)(end-query),
+                          FALSE, FALSE, errcode);
         my_free(query, MYF(0));
       }
       else
@@ -4906,9 +4892,9 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
     lock_flags          Flags passed to mysql_lock_table
 
   NOTE
-    This function don't do anything like SP/SF/views/triggers analysis done
-    in open_tables(). It is intended for opening of only one concrete table.
-    And used only in special contexts.
+    This function doesn't do anything like SP/SF/views/triggers analysis done 
+    in open_table()/lock_tables(). It is intended for opening of only one
+    concrete table. And used only in special contexts.
 
   RETURN VALUES
     table		Opened table
@@ -4925,6 +4911,9 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   TABLE *table;
   bool refresh;
   DBUG_ENTER("open_ltable");
+
+  /* should not be used in a prelocked_mode context, see NOTE above */
+  DBUG_ASSERT(!thd->prelocked_mode);
 
   thd_proc_info(thd, "Opening table");
   thd->current_tablenr= 0;
@@ -5392,8 +5381,29 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
          table && table != first_not_own;
          table= table->next_global)
     {
-      if (!table->placeholder() &&
-	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (table->placeholder())
+        continue;
+
+      /*
+        In a stored function or trigger we should ensure that we won't change
+        a table that is already used by the calling statement.
+      */
+      if (thd->prelocked_mode &&
+          table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      {
+        for (TABLE* opentab= thd->open_tables; opentab; opentab= opentab->next)
+        {
+          if (table->table->s == opentab->s && opentab->query_id &&
+              table->table->query_id != opentab->query_id)
+          {
+            my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
+                     table->table->s->table_name.str);
+            DBUG_RETURN(-1);
+          }
+        }
+      }
+
+      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	DBUG_RETURN(-1);
       }
@@ -5589,6 +5599,13 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     else
       current_bitmap= table->write_set;
 
+    /* 
+       The test-and-set mechanism in the bitmap is not reliable during
+       multi-UPDATE statements under MARK_COLUMNS_READ mode
+       (thd->mark_used_columns == MARK_COLUMNS_READ), as this bitmap contains
+       only those columns that are used in the SET clause. I.e they are being
+       set here. See multi_update::prepare()
+    */
     if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
     {
       if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
@@ -6336,7 +6353,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2+1];
+    char buff[NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -6409,8 +6426,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     (and not an item that happens to have a name).
   */
   bool is_ref_by_name= 0;
-  uint unaliased_counter;
-  LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
+  uint unaliased_counter= 0;
 
   *resolution= NOT_RESOLVED;
 
@@ -7374,6 +7390,12 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 #ifdef HAVE_valgrind
     if (&select_lex->item_list != &fields)      // Avoid warning
 #endif
+    /*   
+      The assignment below is translated to memcpy() call (at least on some
+      platforms). memcpy() expects that source and destination areas do not
+      overlap. That problem was detected by valgrind. 
+    */
+    if (&select_lex->item_list != &fields)
       select_lex->item_list= fields;
 
     thd->restore_active_arena(arena, &backup);

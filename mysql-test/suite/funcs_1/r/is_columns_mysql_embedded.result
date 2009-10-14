@@ -48,7 +48,7 @@ NULL	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NUL
 NULL	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp				
 NULL	mysql	event	name	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI			
 NULL	mysql	event	on_completion	14	DROP	NO	enum	8	24	NULL	NULL	utf8	utf8_general_ci	enum('DROP','PRESERVE')				
-NULL	mysql	event	originator	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10)				
+NULL	mysql	event	originator	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
 NULL	mysql	event	sql_mode	15		NO	set	478	1434	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')				
 NULL	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
 NULL	mysql	event	status	13	ENABLED	NO	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')				
@@ -60,7 +60,7 @@ NULL	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('fu
 NULL	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext				
 NULL	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
-NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
 NULL	mysql	general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
 NULL	mysql	general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext				
 NULL	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI			
@@ -150,7 +150,7 @@ NULL	mysql	slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time
 NULL	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time				
 NULL	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
 NULL	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
-NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
 NULL	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext				
 NULL	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
 NULL	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext				
@@ -329,7 +329,7 @@ NULL	mysql	event	ends	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	mysql	event	on_completion	enum	8	24	utf8	utf8_general_ci	enum('DROP','PRESERVE')
 3.0000	mysql	event	sql_mode	set	478	1434	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
 3.0000	mysql	event	comment	char	64	192	utf8	utf8_bin	char(64)
-NULL	mysql	event	originator	int	NULL	NULL	NULL	NULL	int(10)
+NULL	mysql	event	originator	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	event	time_zone	char	64	64	latin1	latin1_swedish_ci	char(64)
 3.0000	mysql	event	character_set_client	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	event	collation_connection	char	32	96	utf8	utf8_bin	char(32)
@@ -342,7 +342,7 @@ NULL	mysql	func	ret	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	general_log	event_time	timestamp	NULL	NULL	NULL	NULL	timestamp
 1.0000	mysql	general_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	general_log	thread_id	int	NULL	NULL	NULL	NULL	int(11)
-NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(11)
+NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	mysql	general_log	argument	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
@@ -434,7 +434,7 @@ NULL	mysql	slow_log	rows_examined	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	mysql	slow_log	db	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 NULL	mysql	slow_log	last_insert_id	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	insert_id	int	NULL	NULL	NULL	NULL	int(11)
-NULL	mysql	slow_log	server_id	int	NULL	NULL	NULL	NULL	int(11)
+NULL	mysql	slow_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slow_log	sql_text	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 3.0000	mysql	tables_priv	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	tables_priv	Db	char	64	192	utf8	utf8_bin	char(64)

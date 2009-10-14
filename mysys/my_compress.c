@@ -57,19 +57,86 @@ my_bool my_compress(uchar *packet, size_t *len, size_t *complen)
 }
 
 
+/*
+  Valgrind normally gives false alarms for zlib operations, in the form of
+  "conditional jump depends on uninitialised values" etc. The reason is
+  explained in the zlib FAQ (http://www.zlib.net/zlib_faq.html#faq36):
+
+    "That is intentional for performance reasons, and the output of deflate
+    is not affected."
+
+  Also discussed on a blog
+  (http://www.sirena.org.uk/log/2006/02/19/zlib-generating-valgrind-warnings/):
+
+    "...loop unrolling in the zlib library causes the mentioned
+    “Conditional jump or move depends on uninitialised value(s)”
+    warnings. These are safe since the results of the comparison are
+    subsequently ignored..."
+
+    "the results of the calculations are discarded by bounds checking done
+    after the loop exits"
+
+  Fix by initializing the memory allocated by zlib when running under Valgrind.
+
+  This fix is safe, since such memory is only used internally by zlib, so we
+  will not hide any bugs in mysql this way.
+*/
+void *my_az_allocator(void *dummy __attribute__((unused)), unsigned int items,
+                      unsigned int size)
+{
+  return my_malloc((size_t)items*(size_t)size, IF_VALGRIND(MY_ZEROFILL, MYF(0)));
+}
+
+void my_az_free(void *dummy __attribute__((unused)), void *address)
+{
+  my_free(address, MYF(MY_ALLOW_ZERO_PTR));
+}
+
+/*
+  This works like zlib compress(), but using custom memory allocators to work
+  better with my_malloc leak detection and Valgrind.
+*/
+int my_compress_buffer(uchar *dest, size_t *destLen,
+                       const uchar *source, size_t sourceLen)
+{
+    z_stream stream;
+    int err;
+
+    stream.next_in = (Bytef*)source;
+    stream.avail_in = (uInt)sourceLen;
+    stream.next_out = (Bytef*)dest;
+    stream.avail_out = (uInt)*destLen;
+    if ((size_t)stream.avail_out != *destLen)
+      return Z_BUF_ERROR;
+
+    stream.zalloc = (alloc_func)my_az_allocator;
+    stream.zfree = (free_func)my_az_free;
+    stream.opaque = (voidpf)0;
+
+    err = deflateInit(&stream, Z_DEFAULT_COMPRESSION);
+    if (err != Z_OK) return err;
+
+    err = deflate(&stream, Z_FINISH);
+    if (err != Z_STREAM_END) {
+        deflateEnd(&stream);
+        return err == Z_OK ? Z_BUF_ERROR : err;
+    }
+    *destLen = stream.total_out;
+
+    err = deflateEnd(&stream);
+    return err;
+}
+
 uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
 {
   uchar *compbuf;
-  uLongf tmp_complen;
   int res;
   *complen=  *len * 120 / 100 + 12;
 
   if (!(compbuf= (uchar *) my_malloc(*complen, MYF(MY_WME))))
     return 0;					/* Not enough memory */
 
-  tmp_complen= (uLongf) *complen;
-  res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, (uLong) *len);
-  *complen=    tmp_complen;
+  res= my_compress_buffer(compbuf, complen, packet, *len);
 
   if (res != Z_OK)
   {

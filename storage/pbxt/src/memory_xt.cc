@@ -34,7 +34,7 @@
 #include "trace_xt.h"
 
 #ifdef DEBUG
-#define RECORD_MM
+//#define RECORD_MM
 #endif
 
 #ifdef DEBUG
@@ -117,7 +117,7 @@ xtPublic xtBool	xt_realloc(XTThreadPtr self, void **ptr, size_t size)
 	return OK;
 }
 
-xtPublic void xt_free(XTThreadPtr self __attribute__((unused)), void *ptr)
+xtPublic void xt_free(XTThreadPtr XT_UNUSED(self), void *ptr)
 {
 	free(ptr);
 }
@@ -186,7 +186,7 @@ xtPublic void xt_free_ns(void *ptr)
 	free(ptr);
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 
 /*
  * -----------------------------------------------------------------------
@@ -678,7 +678,7 @@ void xt_mm_memset(void *block, void *dest, int value, size_t size)
 	memset(dest, value, size);
 }
 
-void *xt_mm_malloc(XTThreadPtr self, size_t size, u_int line __attribute__((unused)), c_char *file __attribute__((unused)))
+void *xt_mm_malloc(XTThreadPtr self, size_t size, u_int line, c_char *file)
 {
 	unsigned char *p;
 
@@ -695,6 +695,8 @@ void *xt_mm_malloc(XTThreadPtr self, size_t size, u_int line __attribute__((unus
 	*(p + size + MEM_DEBUG_HDR_SIZE) = MEM_TRAILER_BYTE;
 	*(p + size + MEM_DEBUG_HDR_SIZE + 1L) = MEM_TRAILER_BYTE;
 
+	(void) line;
+	(void) file;
 #ifdef RECORD_MM
 	xt_lock_mutex(self, &mm_mutex);
 	mm_add_core_ptr(self, p + MEM_DEBUG_HDR_SIZE, 0, line, file);
@@ -704,7 +706,7 @@ void *xt_mm_malloc(XTThreadPtr self, size_t size, u_int line __attribute__((unus
 	return p + MEM_DEBUG_HDR_SIZE;
 }
 
-void *xt_mm_calloc(XTThreadPtr self, size_t size, u_int line __attribute__((unused)), c_char *file __attribute__((unused)))
+void *xt_mm_calloc(XTThreadPtr self, size_t size, u_int line, c_char *file)
 {
 	unsigned char *p;
 	
@@ -719,6 +721,8 @@ void *xt_mm_calloc(XTThreadPtr self, size_t size, u_int line __attribute__((unus
 	*(p + size + MEM_DEBUG_HDR_SIZE) = MEM_TRAILER_BYTE;
 	*(p + size + MEM_DEBUG_HDR_SIZE + 1L) = MEM_TRAILER_BYTE;
 
+	(void) line;
+	(void) file;
 #ifdef RECORD_MM
 	xt_lock_mutex(self, &mm_mutex);
 	mm_add_core_ptr(self, p + MEM_DEBUG_HDR_SIZE, 0, line, file);
@@ -849,7 +853,7 @@ void xt_mm_check_ptr(XTThreadPtr self, void *ptr)
 
 xtPublic xtBool xt_init_memory(void)
 {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	XTThreadPtr	self = NULL;
 
 	if (!xt_init_mutex_with_autoname(NULL, &mm_mutex))
@@ -875,7 +879,7 @@ xtPublic void debug_ik_sum(void);
 
 xtPublic void xt_exit_memory(void)
 {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	long	mm;
 	int		i;
 
@@ -919,7 +923,7 @@ xtPublic void xt_exit_memory(void)
  * MEMORY ALLOCATION UTILITIES
  */
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 char	*xt_mm_dup_string(XTThreadPtr self, c_char *str, u_int line, c_char *file)
 #else
 char	*xt_dup_string(XTThreadPtr self, c_char *str)
@@ -931,7 +935,7 @@ char	*xt_dup_string(XTThreadPtr self, c_char *str)
 	if (!str)
 		return NULL;
 	len = strlen(str);
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	new_str = (char *) xt_mm_malloc(self, len + 1, line, file);
 #else
 	new_str = (char *) xt_malloc(self, len + 1);
@@ -1020,7 +1024,7 @@ xtPublic xtBool	xt_realloc(XTThreadPtr self, void **ptr, size_t size)
 	return *ptr != NULL;
 }
 
-xtPublic void xt_free(XTThreadPtr self __attribute__((unused)), void *ptr)
+xtPublic void xt_free(XTThreadPtr XT_UNUSED(self), void *ptr)
 {
 	char	*old_ptr;
 	xtWord4 size;

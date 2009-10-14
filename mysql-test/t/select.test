@@ -3726,6 +3726,20 @@ cr.f4 = cr2.f4
 GROUP BY a.f3, cr.f4;
 
 drop table t1, t2, t3;
+
+
+#
+# Bug #40925: Equality propagation takes non indexed attribute
+#
+
+CREATE TABLE t1 (a INT KEY, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
+
+EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
+EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
+
+DROP TABLE t1;
+ 
 --echo End of 5.0 tests
 
 #
@@ -3785,4 +3799,90 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#45266: Uninitialized variable lead to an empty result.
+--echo #
+--disable_warnings
+drop table if exists A,AA,B,BB;
+CREATE TABLE `A` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `int_nokey` int(11) NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`)
+);
+
+CREATE TABLE `AA` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `time_key` time NOT NULL,
+  KEY `time_key` (`time_key`),
+  PRIMARY KEY (`pk`)
+);
+
+CREATE TABLE `B` (
+  `date_nokey` date NOT NULL,
+  `date_key` date NOT NULL,
+  `time_key` time NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `varchar_key` (`varchar_key`)
+);
+
+INSERT INTO `B` VALUES ('2003-07-28','2003-07-28','15:13:38','0000-00-00 00:00:00','f'),('0000-00-00','0000-00-00','00:05:48','2004-07-02 14:34:13','x');
+
+CREATE TABLE `BB` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  `date_nokey` date NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `date_key` (`date_key`)
+);
+
+INSERT INTO `BB` VALUES (10,8,'0000-00-00','i','0000-00-00'),(11,0,'2005-08-18','','2005-08-18');
+# Test #1
+SELECT table1 . `pk` AS field1 
+  FROM 
+    (BB AS table1 INNER JOIN 
+      (AA AS table2 STRAIGHT_JOIN A AS table3 
+        ON ( table3 . `date_key` = table2 . `pk` ))
+       ON ( table3 . `datetime_key` = table2 . `int_nokey` ))
+  WHERE  ( table3 . `date_key` <= 4 AND table2 . `pk` = table1 . `varchar_nokey`)
+  GROUP BY field1 ;
+
+SELECT table3 .`date_key` field1
+  FROM
+    B table1 LEFT JOIN B table3 JOIN
+      (BB table6 JOIN A table7 ON table6 .`varchar_nokey`)
+       ON table6 .`int_nokey` ON table6 .`date_key`
+  WHERE  NOT ( table1 .`varchar_key`  AND table7 .`pk`) GROUP  BY field1;
+
+# Test #2
+SELECT table4 . `time_nokey` AS field1 FROM 
+  (AA AS table1 CROSS JOIN 
+    (AA AS table2 STRAIGHT_JOIN 
+      (B AS table3 STRAIGHT_JOIN A AS table4 
+       ON ( table4 . `date_key` = table3 . `time_key` ))
+     ON ( table4 . `pk` = table3 . `date_nokey` ))
+   ON ( table4 . `time_key` = table3 . `datetime_nokey` ))
+  WHERE  ( table4 . `time_key` < table1 . `time_key` AND
+            table1 . `int_nokey` != 'f')
+  GROUP BY field1  ORDER BY field1 , field1;
+
+SELECT table1 .`time_key` field2  FROM B table1  LEFT JOIN  BB JOIN A table5 ON table5 .`date_nokey`  ON table5 .`int_nokey` GROUP  BY field2;
+--enable_warnings
+
+drop table A,AA,B,BB;
+--echo #end of test for bug#45266
 --echo End of 5.1 tests

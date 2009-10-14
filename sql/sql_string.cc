@@ -27,14 +27,6 @@
 #include <floatingpoint.h>
 #endif
 
-/*
-  The following extern declarations are ok as these are interface functions
-  required by the string function
-*/
-
-extern uchar* sql_alloc(unsigned size);
-extern void sql_element_free(void *ptr);
-
 #include "sql_string.h"
 
 /*****************************************************************************
@@ -322,12 +314,24 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
   return copy_aligned(str, arg_length, offset, cs);
 }
 
-	/* Copy with charset conversion */
+
+/**
+   Copies the character data into this String, with optional character set
+   conversion.
+
+   @return
+   FALSE ok
+   TRUE  Could not allocate result buffer
+
+*/
 
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
+
+  DBUG_ASSERT(!str || str != Ptr);
+  
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
   {
     *errors= 0;
@@ -782,10 +786,11 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 
-uint32
-copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
-                 uint *errors)
+static uint32
+copy_and_convert_extended(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+                          const char *from, uint32 from_length,
+                          CHARSET_INFO *from_cs,
+                          uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -898,6 +903,65 @@ my_copy_with_hex_escaping(CHARSET_INFO *cs,
   }
   return dst - dst0;
 }
+
+/*
+  Optimized for quick copying of ASCII characters in the range 0x00..0x7F.
+*/
+uint32
+copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
+                 uint *errors)
+{
+  /*
+    If any of the character sets is not ASCII compatible,
+    immediately switch to slow mb_wc->wc_mb method.
+  */
+  if ((to_cs->state | from_cs->state) & MY_CS_NONASCII)
+    return copy_and_convert_extended(to, to_length, to_cs,
+                                     from, from_length, from_cs, errors);
+
+  uint32 length= min(to_length, from_length), length2= length;
+
+#if defined(__i386__)
+  /*
+    Special loop for i386, it allows to refer to a
+    non-aligned memory block as UINT32, which makes
+    it possible to copy four bytes at once. This
+    gives about 10% performance improvement comparing
+    to byte-by-byte loop.
+  */
+  for ( ; length >= 4; length-= 4, from+= 4, to+= 4)
+  {
+    if ((*(uint32*)from) & 0x80808080)
+      break;
+    *((uint32*) to)= *((const uint32*) from);
+  }
+#endif
+
+  for (; ; *to++= *from++, length--)
+  {
+    if (!length)
+    {
+      *errors= 0;
+      return length2;
+    }
+    if (*((unsigned char*) from) > 0x7F) /* A non-ASCII character */
+    {
+      uint32 copied_length= length2 - length;
+      to_length-= copied_length;
+      from_length-= copied_length;
+      return copied_length + copy_and_convert_extended(to, to_length,
+                                                       to_cs,
+                                                       from, from_length,
+                                                       from_cs,
+                                                       errors);
+    }
+  }
+
+  DBUG_ASSERT(FALSE); // Should never get to here
+  return 0;           // Make compiler happy
+}
+
 
 /*
   copy a string,
@@ -1106,4 +1170,77 @@ void String::swap(String &s)
   swap_variables(uint32, Alloced_length, s.Alloced_length);
   swap_variables(bool, alloced, s.alloced);
   swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
+}
+
+
+/**
+  Convert string to printable ASCII string
+
+  @details This function converts input string "from" replacing non-ASCII bytes
+  with hexadecimal sequences ("\xXX") optionally appending "..." to the end of
+  the resulting string.
+  This function used in the ER_TRUNCATED_WRONG_VALUE_FOR_FIELD error messages,
+  e.g. when a string cannot be converted to a result charset.
+
+
+  @param    to          output buffer
+  @param    to_len      size of the output buffer (8 bytes or greater)
+  @param    from        input string
+  @param    from_len    size of the input string
+  @param    from_cs     input charset
+  @param    nbytes      maximal number of bytes to convert (from_len if 0)
+
+  @return   number of bytes in the output string
+*/
+
+uint convert_to_printable(char *to, size_t to_len,
+                          const char *from, size_t from_len,
+                          CHARSET_INFO *from_cs, size_t nbytes /*= 0*/)
+{
+  /* needs at least 8 bytes for '\xXX...' and zero byte */
+  DBUG_ASSERT(to_len >= 8);
+
+  char *t= to;
+  char *t_end= to + to_len - 1; // '- 1' is for the '\0' at the end
+  const char *f= from;
+  const char *f_end= from + (nbytes ? min(from_len, nbytes) : from_len);
+  char *dots= to; // last safe place to append '...'
+
+  if (!f || t == t_end)
+    return 0;
+
+  for (; t < t_end && f < f_end; f++)
+  {
+    /*
+      If the source string is ASCII compatible (mbminlen==1)
+      and the source character is in ASCII printable range (0x20..0x7F),
+      then display the character as is.
+      
+      Otherwise, if the source string is not ASCII compatible (e.g. UCS2),
+      or the source character is not in the printable range,
+      then print the character using HEX notation.
+    */
+    if (((unsigned char) *f) >= 0x20 &&
+        ((unsigned char) *f) <= 0x7F &&
+        from_cs->mbminlen == 1)
+    {
+      *t++= *f;
+    }
+    else
+    {
+      if (t_end - t < 4) // \xXX
+        break;
+      *t++= '\\';
+      *t++= 'x';
+      *t++= _dig_vec_upper[((unsigned char) *f) >> 4];
+      *t++= _dig_vec_upper[((unsigned char) *f) & 0x0F];
+    }
+    if (t_end - t >= 3) // '...'
+      dots= t;
+  }
+  if (f < from + from_len)
+    memcpy(dots, STRING_WITH_LEN("...\0"));
+  else
+    *t= '\0';
+  return t - to;
 }

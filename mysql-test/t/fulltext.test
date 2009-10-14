@@ -471,3 +471,25 @@ CREATE TABLE t1(a TEXT);
 --error ER_WRONG_ARGUMENTS
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
 DROP TABLE t1;
+
+#
+# BUG#42907 - Multi-term boolean fulltext query containing a single
+#             quote fails in 5.1.x
+#
+CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a));
+INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('+awrd bwrd* +cwrd*' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+#
+# BUG#37740 Server crashes on execute statement with full text search and match against
+#
+CREATE TABLE t1 (col text, FULLTEXT KEY full_text (col));
+
+PREPARE s FROM 
+  "SELECT MATCH (col) AGAINST('findme') FROM t1 ORDER BY MATCH (col) AGAINST('findme')"
+  ;
+
+EXECUTE s;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;

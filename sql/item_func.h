@@ -378,7 +378,8 @@ public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
     decimals= dec;
-    max_length= my_decimal_precision_to_length(len, dec, unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(len, dec,
+                                                             unsigned_flag);
   }
   String *val_str(String *str);
   double val_real();
@@ -696,14 +697,16 @@ public:
 class Item_func_rand :public Item_real_func
 {
   struct my_rnd_struct *rand;
+  bool first_eval; // TRUE if val_real() is called 1st time
 public:
-  Item_func_rand(Item *a) :Item_real_func(a), rand(0) {}
+  Item_func_rand(Item *a) :Item_real_func(a), rand(0), first_eval(TRUE) {}
   Item_func_rand()	  :Item_real_func() {}
   double val_real();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
   void update_used_tables();
   bool fix_fields(THD *thd, Item **ref);
+  void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
   void seed_random (Item * val);  
 };
@@ -1341,6 +1344,7 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
+  void save_item_result(Item *item);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref);
@@ -1452,6 +1456,7 @@ public:
                            LEX_STRING *component_arg, const char *name_arg,
                            size_t name_len_arg);
   enum Functype functype() const { return GSYSVAR_FUNC; }
+  void update_null_value();
   void fix_length_and_dec();
   void print(String *str, enum_query_type query_type);
   bool const_item() const { return true; }
@@ -1513,6 +1518,7 @@ public:
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
     concat_ws= 0;
+    table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }

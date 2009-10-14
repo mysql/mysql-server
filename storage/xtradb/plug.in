@@ -1,0 +1,82 @@
+#
+# Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+# 
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA
+#
+
+MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
+        [Transactional Tables using InnoDB], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(innobase, [storage/xtradb])
+MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
+MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
+MYSQL_PLUGIN_ACTIONS(innobase,  [
+  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+  AC_SUBST(innodb_system_libs)
+  AC_CHECK_HEADERS(aio.h sched.h)
+  AC_CHECK_SIZEOF(int, 4)
+  AC_CHECK_SIZEOF(long, 4)
+  AC_CHECK_SIZEOF(void*, 4)
+  AC_CHECK_FUNCS(sched_yield fdatasync localtime_r)
+  AC_C_BIGENDIAN
+  case "$target_os" in
+	lin*)
+		CFLAGS="$CFLAGS -DUNIV_LINUX";;
+	hpux10*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+	hp*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+	aix*)
+		CFLAGS="$CFLAGS -DUNIV_AIX";;
+	irix*|osf*|sysv5uw7*|openbsd*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+	*solaris*|*SunOS*)
+		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
+  esac
+  INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
+  case "$target_cpu" in
+	x86_64)
+		# The AMD64 ABI forbids absolute addresses in shared libraries
+		;;
+	*86)
+		# Use absolute addresses on IA-32
+		INNODB_DYNAMIC_CFLAGS="$INNODB_DYNAMIC_CFLAGS -prefer-non-pic"
+		;;
+  esac
+  AC_SUBST(INNODB_DYNAMIC_CFLAGS)
+  AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
+  AC_TRY_RUN(
+    [
+      #include <pthread.h>
+
+      int main(int argc, char** argv) {
+        pthread_t       x1;
+        pthread_t       x2;
+        pthread_t       x3;
+
+        __sync_bool_compare_and_swap(&x1, x2, x3);
+
+        return(0);
+      }
+    ],
+    [
+      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+                [pthread_t can be used by GCC atomic builtins])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+    )
+  ])
+
+# vim: set ft=config:

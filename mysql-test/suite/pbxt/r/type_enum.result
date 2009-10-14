@@ -1776,8 +1776,14 @@ t1	CREATE TABLE `t1` (
   `russian_deviant` enum('E','F','EÿF','F,E') NOT NULL DEFAULT 'E'
 ) ENGINE=PBXT DEFAULT CHARSET=latin1
 drop table t1;
+select @@SESSION.sql_mode;
+@@SESSION.sql_mode
+
+select @@GLOBAL.sql_mode;
+@@GLOBAL.sql_mode
+
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
 
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+drop table t1;
 End of 5.1 tests

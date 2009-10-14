@@ -1,0 +1,156 @@
+#
+# Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+# 
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA 02111-1307 USA
+#
+
+MYSQL_STORAGE_ENGINE(innodb_plugin,, [InnoDB Storage Engine],
+        [Transactional Tables using InnoDB],)
+MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
+MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
+MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
+  AC_CHECK_HEADERS(sched.h)
+  AC_CHECK_SIZEOF(int, 4)
+  AC_CHECK_SIZEOF(long, 4)
+  AC_CHECK_SIZEOF(void*, 4)
+  AC_CHECK_FUNCS(sched_yield fdatasync localtime_r)
+  AC_C_BIGENDIAN
+  case "$target_os" in
+	lin*)
+		CFLAGS="$CFLAGS -DUNIV_LINUX";;
+	hpux10*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+	hp*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+	aix*)
+		CFLAGS="$CFLAGS -DUNIV_AIX";;
+	irix*|osf*|sysv5uw7*|openbsd*)
+		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+	*solaris*|*SunOS*)
+		# Begin Solaris atomic function checks
+		AC_CHECK_FUNCS(atomic_cas_ulong atomic_cas_32 \
+			       atomic_cas_64 atomic_add_long,
+			AC_DEFINE(
+				[HAVE_SOLARIS_ATOMICS],
+				[1],
+				[Define to 1 if Solaris supports \
+				 atomic functions.]))
+		### End Solaris atomic function checks
+
+		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
+  esac
+  INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
+  case "$target_cpu---$target_os" in
+	x86_64---*)
+		# The AMD64 ABI forbids absolute addresses in shared libraries
+		;;
+	*---solaris*|*---SunOS*)
+		# Shared objects must be linked from PIC code on Solaris.
+		;;
+	*86---)
+		# Use absolute addresses on IA-32
+		INNODB_DYNAMIC_CFLAGS="$INNODB_DYNAMIC_CFLAGS -prefer-non-pic"
+		;;
+  esac
+  AC_SUBST(INNODB_DYNAMIC_CFLAGS)
+  AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
+  AC_TRY_RUN(
+    [
+      #include <pthread.h>
+      #include <string.h>
+
+      int main(int argc, char** argv) {
+        pthread_t       x1;
+        pthread_t       x2;
+        pthread_t       x3;
+
+	memset(&x1, 0x0, sizeof(x1));
+	memset(&x2, 0x0, sizeof(x2));
+	memset(&x3, 0x0, sizeof(x3));
+
+        __sync_bool_compare_and_swap(&x1, x2, x3);
+
+        return(0);
+      }
+    ],
+    [
+      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+                [pthread_t can be used by GCC atomic builtins])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+    )
+
+  # Try using solaris atomics on SunOS if GCC atomics are not available
+  AC_CHECK_DECLS(
+    [HAVE_ATOMIC_PTHREAD_T],
+    [
+      AC_MSG_NOTICE(no need to check pthread_t size)
+    ],
+    [
+      AC_CHECK_DECLS(
+        [HAVE_SOLARIS_ATOMICS],
+        [
+          AC_MSG_CHECKING(checking if pthread_t size is integral)
+          AC_TRY_RUN(
+            [
+              #include <pthread.h>
+              int main()
+              {
+                pthread_t x = 0;
+                return(0);
+              }
+            ],
+            [
+              AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+                [pthread_t can be used by solaris atomics])
+              AC_MSG_RESULT(yes)
+              # size of pthread_t is needed for typed solaris atomics
+              AC_CHECK_SIZEOF([pthread_t], [], [#include <pthread.h>])
+            ],
+            [
+              AC_MSG_RESULT(no)
+            ])
+        ])
+    ])
+  # Check for x86 PAUSE instruction
+  AC_MSG_CHECKING(for x86 PAUSE instruction)
+  # We have to actually try running the test program, because of a bug
+  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
+  # supported when trying to run an application. See
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
+  # We use ib_ prefix to avoid collisoins if this code is added to
+  # mysql's configure.in.
+  AC_TRY_RUN(
+    [
+      int main() {
+        __asm__ __volatile__ ("pause");
+        return(0);
+      }
+    ],
+    [
+      AC_DEFINE([IB_HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+  )
+  ])
+
+# vim: set ft=config:

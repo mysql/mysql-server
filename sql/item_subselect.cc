@@ -39,7 +39,7 @@ inline Item * and_items(Item* cond, Item *item)
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), engine_changed(0), changed(0), is_correlated(FALSE)
+  const_item_cache(1), in_fix_fields(0), engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();
@@ -151,10 +151,14 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
+  if (!in_fix_fields)
+    refers_to.empty();
+  eliminated= FALSE;
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
-
+  
+  in_fix_fields++;
   res= engine->prepare();
 
   // all transformation is done (used by prepared statements)
@@ -181,12 +185,14 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, ref);
       thd->where= save_where;
+      in_fix_fields--;
       return ret;
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+      in_fix_fields--;
       return TRUE;
     }
     fix_length_and_dec();
@@ -203,10 +209,29 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   fixed= 1;
 
 err:
+  in_fix_fields--;
   thd->where= save_where;
   return res;
 }
 
+
+bool Item_subselect::enumerate_field_refs_processor(uchar *arg)
+{
+  List_iterator<Item> it(refers_to);
+  Item *item;
+  while ((item= it++))
+  {
+    if (item->walk(&Item::enumerate_field_refs_processor, FALSE, arg))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+bool Item_subselect::mark_as_eliminated_processor(uchar *arg)
+{
+  eliminated= TRUE;
+  return FALSE;
+}
 
 bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
                           uchar *argument)
@@ -225,6 +250,7 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
       if (lex->having && (lex->having)->walk(processor, walk_subquery,
                                              argument))
         return 1;
+      /* TODO: why does this walk WHERE/HAVING but not ON expressions of outer joins? */
 
       while ((item=li++))
       {
@@ -1227,6 +1253,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       else
       {
 	// it is single select without tables => possible optimization
+        // remove the dependence mark since the item is moved to upper
+        // select and is not outer anymore.
+        item->walk(&Item::remove_dependence_processor, 0,
+                           (uchar *) select_lex->outer_select());
 	item= func->create(left_expr, item);
 	// fix_field of item will be done in time of substituting
 	substitution= item;

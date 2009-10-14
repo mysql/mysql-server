@@ -1,0 +1,240 @@
+'\" t
+.\"     Title: \fBmysql_config\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_CONFIG\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_config
+.SH "NAME"
+mysql_config \- get compile options for compiling clients
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_config\ \fR\fB\fIoptions\fR\fR\ 'u
+\fBmysql_config \fR\fB\fIoptions\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_config\fR
+provides you with useful information for compiling your MySQL client and connecting it to MySQL\&.
+.PP
+\fBmysql_config\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: cflags option
+.\" cflags option: mysql_config
+\fB\-\-cflags\fR
+.sp
+Compiler flags to find include files and critical compiler flags and defines used when compiling the
+libmysqlclient
+library\&. The options returned are tied to the specific compiler that was used when the library was created and might clash with the settings for your own compiler\&. Use
+\fB\-\-include\fR
+for more portable options that contain only include paths\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: include option
+.\" include option: mysql_config
+\fB\-\-include\fR
+.sp
+Compiler options to find MySQL include files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: libmysqld-libs option
+.\" libmysqld-libs option: mysql_config
+.\" mysql_config: embedded option
+.\" embedded option: mysql_config
+\fB\-\-libmysqld\-libs\fR,
+\fB\-\-embedded\fR
+.sp
+Libraries and options required to link with the MySQL embedded server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: libs option
+.\" libs option: mysql_config
+\fB\-\-libs\fR
+.sp
+Libraries and options required to link with the MySQL client library\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: libs_r option
+.\" libs_r option: mysql_config
+\fB\-\-libs_r\fR
+.sp
+Libraries and options required to link with the thread\-safe MySQL client library\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: plugindir option
+.\" plugindir option: mysql_config
+\fB\-\-plugindir\fR
+.sp
+The default plugin directory path name, defined when configuring MySQL\&. This option was added in MySQL 5\&.1\&.24\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: port option
+.\" port option: mysql_config
+\fB\-\-port\fR
+.sp
+The default TCP/IP port number, defined when configuring MySQL\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: socket option
+.\" socket option: mysql_config
+\fB\-\-socket\fR
+.sp
+The default Unix socket file, defined when configuring MySQL\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_config: version option
+.\" version option: mysql_config
+\fB\-\-version\fR
+.sp
+Version number for the MySQL distribution\&.
+.RE
+.PP
+If you invoke
+\fBmysql_config\fR
+with no options, it displays a list of all options that it supports, and their values:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_config\fR
+Usage: /usr/local/mysql/bin/mysql_config [options]
+Options:
+  \-\-cflags         [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
+  \-\-include        [\-I/usr/local/mysql/include/mysql]
+  \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lmysqlclient \-lz
+                    \-lcrypt \-lnsl \-lm \-L/usr/lib \-lssl \-lcrypto]
+  \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lmysqlclient_r
+                    \-lpthread \-lz \-lcrypt \-lnsl \-lm \-lpthread]
+  \-\-socket         [/tmp/mysql\&.sock]
+  \-\-port           [3306]
+  \-\-version        [4\&.0\&.16]
+  \-\-libmysqld\-libs [\-L/usr/local/mysql/lib/mysql \-lmysqld \-lpthread \-lz
+                    \-lcrypt \-lnsl \-lm \-lpthread \-lrt]
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+You can use
+\fBmysql_config\fR
+within a command line to include the value that it displays for a particular option\&. For example, to compile a MySQL client program, use
+\fBmysql_config\fR
+as follows:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBCFG=/usr/local/mysql/bin/mysql_config\fR
+shell> \fBsh \-c "gcc \-o progname `$CFG \-\-include` progname\&.c `$CFG \-\-libs`"\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+When you use
+\fBmysql_config\fR
+this way, be sure to invoke it within backtick (\(lq`\(rq) characters\&. That tells the shell to execute it and substitute its output into the surrounding command\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

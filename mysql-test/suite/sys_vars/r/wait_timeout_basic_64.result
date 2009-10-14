@@ -44,7 +44,7 @@ Warnings:
 Warning	1292	Truncated incorrect wait_timeout value: '0'
 SET @@global.wait_timeout = -1024;
 Warnings:
-Warning	1292	Truncated incorrect wait_timeout value: '0'
+Warning	1292	Truncated incorrect wait_timeout value: '-1024'
 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.wait_timeout = ON;
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'

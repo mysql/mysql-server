@@ -40,17 +40,11 @@ try
         var parts = args.Item(i).split('=');
         switch (parts[0])
         {
-            case "WITH_ARCHIVE_STORAGE_ENGINE":
-            case "WITH_BLACKHOLE_STORAGE_ENGINE":
-            case "WITH_EXAMPLE_STORAGE_ENGINE":
-            case "WITH_FEDERATED_STORAGE_ENGINE":
-            case "WITH_INNOBASE_STORAGE_ENGINE":
-            case "WITH_PARTITION_STORAGE_ENGINE":
-            case "__NT__":
             case "CYBOZU":
             case "EMBED_MANIFESTS":
             case "EXTRA_DEBUG":
             case "WITH_EMBEDDED_SERVER":
+            case "WITHOUT_MARIA_TEMP_TABLES":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "WITH_MARIA_STORAGE_ENGINE":
@@ -130,7 +124,11 @@ try
                          GetBaseVersion(version) + "\")");
     configfile.WriteLine("SET (MYSQL_VERSION_ID \"" +
                          GetVersionId(version) + "\")");
-
+    var engineOptions = ParsePlugins();
+    for (option in engineOptions)
+    {
+       configfile.WriteLine("SET(" + engineOptions[option] + " TRUE)");
+    }
     configfile.Close();
     
     fso = null;
@@ -158,9 +156,16 @@ function GetValue(str, key)
 function GetVersion(str)
 {
     var key = "AM_INIT_AUTOMAKE(mysql, ";
+    var key2 = "AM_INIT_AUTOMAKE(mariadb, ";
+    var key_len = key.length;
     var pos = str.indexOf(key); //5.0.6-beta)
+    if (pos == -1)
+    {
+      pos = str.indexOf(key2);
+      key_len= key2.length;
+    }
     if (pos == -1) return null;
-    pos += key.length;
+    pos += key_len;
     var end = str.indexOf(")", pos);
     if (end == -1) return null;
     return str.substring(pos, end);
@@ -199,4 +204,140 @@ function GetVersionId(version)
         id += '0';
     id += build;
     return id;
+}
+
+function PluginConfig(isGroup, include)
+{
+    this.isGroup = isGroup;
+    this.include = include;
+}
+
+
+// Parse command line arguments specific to plugins (aka storage engines).
+//
+// --with-plugin-PLUGIN, --with-plugins=group,  --with-plugins=PLUGIN[,PLUGIN...]
+// --without-plugin-PLUGIN is supported.
+//
+// Legacy option WITH_<PLUGIN>_STORAGE_ENGINE is supported as well.
+// The function returns string array with elements like WITH_SOME_STORAGE_ENGINE 
+// or WITHOUT_SOME_STORAGE_ENGINE.
+//
+// This function handles groups, for example effect of specifying --with-plugins=max 
+// is the same as --with-plugins==archive,federated,falcon,innobase...
+
+function ParsePlugins()
+{
+
+    var config = new Array();  
+
+    config["DEFAULT"] = new PluginConfig(true,true);
+    
+    // Parse command line parameters
+    for (i=0; i< WScript.Arguments.length;i++)
+    {
+        var option = WScript.Arguments.Item(i);
+        var match = /WITH_(\w+)_STORAGE_ENGINE/.exec(option);
+        if (match == null)
+            match = /--with-plugin-(\w+)/.exec(option);
+        if (match != null)
+        {
+            config[match[1].toUpperCase()] =  new PluginConfig(false,true);
+            continue;
+        }
+
+        match = /WITHOUT_(\w+)_STORAGE_ENGINE/.exec(option);
+        if (match == null)
+            match = /--without-plugin-(\w+)/.exec(option);
+    
+        if (match != null)
+        {
+            config[match[1].toUpperCase()] =  
+                new PluginConfig(false,false);
+            continue;
+        }
+        
+        match = /--with-plugins=([\w,\-_]+)/.exec(option);
+        if(match != null)
+        {
+        
+            var plugins  = match[1].split(",");
+            for(var key in plugins)
+            {
+                config[plugins[key].toUpperCase()] = 
+                    new PluginConfig(null,true);
+            }
+            continue;
+        }
+        match = /--without-plugins=([\w,\-_]+)/.exec(option);
+        if(match != null)
+        {
+            var plugins = match[1].split(",");
+            for(var key in plugins)
+                config[plugins[key].toUpperCase()] =
+                    new PluginConfig(null, false);
+            continue;
+        }
+    }
+    
+    // Read plugin definitions, find out groups plugins belong to.
+    var fc = new Enumerator(fso.GetFolder("storage").SubFolders);
+    for (;!fc.atEnd(); fc.moveNext())
+    {
+        var subfolder = fc.item();
+        var name =  subfolder.name.toUpperCase();
+        
+        // Handle case where storage engine  was already specified by name in 
+        // --with-plugins or --without-plugins.
+        if (config[name] != undefined)
+        {
+            config[name].isGroup = false;
+            continue;
+        }
+        config[name] = new PluginConfig(false,null);
+        
+        // Handle groups. For each plugin, find out which group it belongs to
+        // If this group was specified on command line for inclusion/exclusion,
+        // then include/exclude the plugin.
+        filename  = subfolder +"\\plug.in";
+        if (fso.FileExists(filename))
+        {
+            var content = fso.OpenTextFile(filename, ForReading).ReadAll();
+            var match = 
+              /MYSQL_STORAGE_ENGINE([ ]*)[\(]([^\)]+)[\)]/.exec(content);
+            if (match== null)
+                continue;
+            match = /\[[\w,\-_]+\][\s]?\)/.exec(match[0]);
+            if (match == null)
+                continue;
+            groups = match[0].split(/[\,\(\)\[\] ]/);
+            for (var key in groups)
+            {
+                var group = groups[key].toUpperCase();
+                if (config[group] != undefined)
+                {
+                    config[group].isGroup = true;
+                    if (config[group].include != null)
+                    {
+                        config[name].include = config[group].include;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    var arr = new Array();
+    for(key in config)
+    {
+        var eng = config[key];
+        if(eng.isGroup != undefined && !eng.isGroup	&& eng.include != undefined)
+        {
+            if (fso.FolderExists("storage\\"+key) || key=="PARTITION")
+            {
+                arr[arr.length] = eng.include? 
+                    "WITH_"+key+"_STORAGE_ENGINE":"WITHOUT_"+key+"_STORAGE_ENGINE";
+            }
+        }
+    }
+    return arr;
 }

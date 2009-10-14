@@ -224,7 +224,7 @@ int main(int argc, char **argv)
   }
   else if (verbose)
   {
-    printf("file %s= %llu bytes (%lu pages)...\n", argv[1], size, pages);
+    printf("file %s = %llu bytes (%lu pages)...\n", argv[optind], size, pages);
     printf("checking pages in range %lu to %lu\n", start_page, use_end_page ? end_page : (pages - 1));
   }
 

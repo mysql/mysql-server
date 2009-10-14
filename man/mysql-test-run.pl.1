@@ -1,0 +1,2251 @@
+'\" t
+.\"     Title: \fBmysql-test-run.pl\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/08/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL
+.\"  Language: English
+.\"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "08/08/2009" "MySQL" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql-test-run.pl
+.SH "NAME"
+mysql-test-run.pl \- run MySQL test suite
+.SH "SYNOPSIS"
+.HP \w'\fBmysql\-test\-run\&.pl\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
+\fBmysql\-test\-run\&.pl [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+The
+\fBmysql\-test\-run\&.pl\fR
+Perl script is the main application used to run the MySQL test suite\&. It invokes
+\fBmysqltest\fR
+to run individual test cases\&. (Prior to MySQL 4\&.1, a similar shell script,
+\fBmysql\-test\-run\fR, can be used instead\&.)
+.PP
+Invoke
+\fBmysql\-test\-run\&.pl\fR
+in the
+mysql\-test
+directory like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql\-test\-run\&.pl [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fItest_name\fR\fR\fB] \&.\&.\&.\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Each
+\fItest_name\fR
+argument names a test case\&. The test case file that corresponds to the test name is
+t/\fItest_name\fR\&.test\&.
+.PP
+For each
+\fItest_name\fR
+argument,
+\fBmysql\-test\-run\&.pl\fR
+runs the named test case\&. With no
+\fItest_name\fR
+arguments,
+\fBmysql\-test\-run\&.pl\fR
+runs all
+\&.test
+files in the
+t
+subdirectory\&.
+.PP
+If no suffix is given for the test name, a suffix of
+\&.test
+is assumed\&. Any leading path name is ignored\&. These commands are equivalent:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql\-test\-run\&.pl mytest\fR
+shell> \fBmysql\-test\-run\&.pl mytest\&.test\fR
+shell> \fBmysql\-test\-run\&.pl t/mytest\&.test\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+As of MySQL 5\&.1\&.23, a suite name can be given as part of the test name\&. That is, the syntax for naming a test is:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[\fIsuite_name\fR\&.]\fItest_name\fR[\&.\fIsuffix\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If a suite name is given,
+\fBmysql\-test\-run\&.pl\fR
+looks in that suite for the test\&. With no suite name,
+\fBmysql\-test\-run\&.pl\fR
+looks in the default list of suites for a match and runs the test in any suites where it finds the test\&. Suppose that the default suite list is
+main,
+binlog,
+rpl, and that a test
+mytest\&.test
+exists in the
+main
+and
+rpl
+suites\&. With an argument of
+mytest
+or
+mytest\&.test,
+\fBmysql\-test\-run\&.pl\fR
+will run
+mytest\&.test
+from the
+main
+and
+rpl
+suites\&.
+.PP
+To run a family of test cases for which the names share a common prefix, use the
+\fB\-\-do\-test=\fR\fB\fIprefix\fR\fR
+option\&. For example,
+\fB\-\-do\-test=rpl\fR
+runs the replication tests (test cases that have names beginning with
+rpl)\&.
+\fB\-\-skip\-test\fR
+has the opposite effect of skipping test cases for which the names share a common prefix\&.
+.PP
+As of MySQL 5\&.0\&.54/5\&.1\&.23/6\&.0\&.5, the argument for the
+\fB\-\-do\-test\fR
+and
+\fB\-\-skip\-test\fR
+options allows more flexible specification of which tests to perform or skip\&. If the argument contains a pattern metacharacter other than a lone period, it is interpreted as a Perl regular expression and applies to test names that match the pattern\&. If the argument contains a lone period or does not contain any pattern metacharacters, it is interpreted the same way as previously and matches test names that begin with the argument value\&. For example,
+\fB\-\-do\-test=testa\fR
+matches tests that begin with
+testa,
+\fB\-\-do\-test=main\&.testa\fR
+matches tests in the
+main
+test suite that begin with
+testa, and
+\fB\-\-do\-test=main\&.*testa\fR
+matches test names that contain
+main
+followed by
+testa
+with anything in between\&. In the latter case, the pattern match is not anchored to the beginning of the test name, so it also matches names such as
+xmainytestz\&.
+.PP
+To perform setup prior to running tests,
+\fBmysql\-test\-run\&.pl\fR
+needs to invoke
+\fBmysqld\fR
+with the
+\fB\-\-bootstrap\fR
+and
+\fB\-\-skip\-grant\-tables\fR
+options (see
+\m[blue]\fBTypical \fBconfigure\fR Options\fR\m[]\&\s-2\u[1]\d\s+2)\&. If MySQL was configured with the
+\fB\-\-disable\-grant\-options\fR
+option,
+\fB\-\-bootstrap\fR,
+\fB\-\-skip\-grant\-tables\fR, and
+\fB\-\-init\-file\fR
+will be disabled\&. To handle this, set the
+MYSQLD_BOOTSTRAP
+environment variable to the full path name of a server that has all options enabled\&.
+\fBmysql\-test\-run\&.pl\fR
+will use that server to perform setup; it is not used to run the tests\&.
+.PP
+The
+init_file
+test will fail if
+\fB\-\-init\-file\fR
+is disabled\&. This is an expected failure that can be handled as follows:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBexport MYSQLD_BOOTSTRAP\fR
+shell> \fBMYSQLD_BOOTSTRAP=/full/path/to/mysqld\fR
+shell> \fBmake test force="\-\-skip\-test=init_file"\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To run
+\fBmysql\-test\-run\&.pl\fR
+on Windows, you\'ll need either Cygwin or ActiveState Perl to run it\&. You may also need to install the modules required by the script\&. To run the test script, change location into the
+mysql\-test
+directory, set the
+MTR_VS_CONFIG
+environment variable to the configuration you selected earlier (or use the
+\fB\-\-vs\-config\fR
+option), and invoke
+\fBmysql\-test\-run\&.pl\fR\&. For example (using Cygwin and the
+\fBbash\fR
+shell):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBcd mysql\-test\fR
+shell> \fBexport MTR_VS_CONFIG=debug\fR
+shell> \fB\&./mysqltest\-run\&.pl \-\-force \-\-timer\fR
+shell> \fB\&./mysqltest\-run\&.pl \-\-force \-\-timer \-\-ps\-protocol\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If you have a copy of
+\fBmysqld\fR
+running on the machine where you want to run the test suite, you do not have to stop it, as long as it is not using ports
+9306
+or
+9307\&. If either of those ports is taken, you should set the
+MTR_BUILD_THREAD
+environment variable to an appropriate value, and the test suite will use a different set of ports for master, slave, NDB, and Instance Manager)\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBexport MTR_BUILD_THREAD=31\fR
+shell> \fB\&./mysql\-test\-run\&.pl [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fItest_name\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysql\-test\-run\&.pl\fR
+defines several environment variables\&. Some of them are listed in the following table\&.
+.TS
+allbox tab(:);
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBVariable\fR
+T}:T{
+\fBMeaning\fR
+T}
+T{
+MYSQL_TEST
+T}:T{
+Path name to \fBmysqltest\fR binary
+T}
+T{
+MYSQLTEST_VARDIR
+T}:T{
+Path name to the var directory that is used for
+                logs, temporary files, and so forth
+T}
+T{
+MYSQLD_BOOTSTRAP
+T}:T{
+Full path name to \fBmysqld\fR that has all options enabled
+T}
+T{
+MASTER_MYPORT
+T}:T{
+???
+T}
+T{
+MASTER_MYSOCK
+T}:T{
+???
+T}
+.TE
+.sp 1
+.PP
+Tests sometimes rely on certain environment variables being defined\&. For example, certain tests assume that
+MYSQL_TEST
+is defined so that
+\fBmysqltest\fR
+can invoke itself with
+exec $MYSQL_TEST\&.
+.PP
+\fBmysql\-test\-run\&.pl\fR
+supports the options in the following list\&. An argument of
+\fB\-\-\fR
+tells
+\fBmysql\-test\-run\&.pl\fR
+not to process any following arguments as options\&. (A description of differences between the options supported by
+\fBmysql\-test\-run\&.pl\fR
+and
+\fBmysql\-test\-run\fR
+appears following the list\&.)
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: help option
+.\" help option: mysql-test-run.pl
+\fB\-\-help\fR,
+\fB\-h\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: bench option
+.\" bench option: mysql-test-run.pl
+\fB\-\-bench\fR
+.sp
+Run the benchmark suite\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: benchdir option
+.\" benchdir option: mysql-test-run.pl
+\fB\-\-benchdir=\fR\fB\fIpath\fR\fR
+.sp
+The directory where the benchmark suite is located\&. The default path is
+\&.\&./\&.\&./mysql\-bench\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: big option
+.\" big option: mysql-test-run.pl
+\fB\-\-big\-test\fR
+.sp
+Pass the
+\fB\-\-big\-test\fR
+option to
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: check-testcases option
+.\" check-testcases option: mysql-test-run.pl
+\fB\-\-check\-testcases\fR
+.sp
+Check test cases for side effects\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: client-bindir option
+.\" client-bindir option: mysql-test-run.pl
+\fB\-\-client\-bindir\fR
+.sp
+The path to the directory where client binaries are located\&. This option was added in MySQL 5\&.0\&.66/5\&.1\&.27\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: client-ddd option
+.\" client-ddd option: mysql-test-run.pl
+\fB\-\-client\-ddd\fR
+.sp
+Start
+\fBmysqltest\fR
+in the
+\fBddd\fR
+debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: client-debugger option
+.\" client-debugger option: mysql-test-run.pl
+\fB\-\-client\-debugger\fR
+.sp
+Start
+\fBmysqltest\fR
+in the named debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: client-gdb option
+.\" client-gdb option: mysql-test-run.pl
+\fB\-\-client\-gdb\fR
+.sp
+Start
+\fBmysqltest\fR
+in the
+\fBgdb\fR
+debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: client-libdir option
+.\" client-libdir option: mysql-test-run.pl
+\fB\-\-client\-libdir\fR
+.sp
+The path to the directory where client libraries are located\&. This option was added in MySQL 5\&.0\&.66/5\&.1\&.27\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: combination option
+.\" combination option: mysql-test-run.pl
+\fB\-\-combination=\fR\fB\fIvalue\fR\fR
+.sp
+Extra options to pass to
+\fBmysqld\fR\&. The value should consist of one or more comma\-separated
+\fBmysqld\fR
+options\&. This option is similar to
+\fB\-\-mysqld\fR
+but should be given two or more times\&.
+\fBmysql\-test\-run\&.pl\fR
+executes multiple test runs, using the options for each instance of
+\fB\-\-combination\fR
+in successive runs\&. If
+\fB\-\-combination\fR
+is given only once, it has no effect\&. For test runs specific to a given test suite, an alternative to the use of
+\fB\-\-combination\fR
+is to create a
+combinations
+file in the suite directory\&. The file should contain a section of options for each test run\&. See
+Section\ \&4.9, \(lqPassing Options from mysql-test-run.pl to mysqld or mysqltest\(rq\&.
+.sp
+This option was added in MySQL 5\&.1\&.23/6\&.0\&.4\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: comment option
+.\" comment option: mysql-test-run.pl
+\fB\-\-comment=\fR\fB\fIstr\fR\fR
+.sp
+Write
+\fIstr\fR
+to the output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: compress option
+.\" compress option: mysql-test-run.pl
+\fB\-\-compress\fR
+.sp
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: cursor-protocol option
+.\" cursor-protocol option: mysql-test-run.pl
+\fB\-\-cursor\-protocol\fR
+.sp
+Pass the
+\fB\-\-cursor\-protocol\fR
+option to
+\fBmysqltest\fR
+(implies
+\fB\-\-ps\-protocol\fR)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ddd option
+.\" ddd option: mysql-test-run.pl
+\fB\-\-ddd\fR
+.sp
+Start
+\fBmysqld\fR
+in the
+\fBddd\fR
+debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: debug option
+.\" debug option: mysql-test-run.pl
+\fB\-\-debug\fR
+.sp
+Dump trace output for all clients and servers\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: debugger option
+.\" debugger option: mysql-test-run.pl
+\fB\-\-debugger\fR
+.sp
+Start
+\fBmysqld\fR
+using the named debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: debug-sync-timeout option
+.\" debug-sync-timeout option: mysql-test-run.pl
+\fB\-\-debug\-sync\-timeout=\fR\fB\fIN\fR\fR
+.sp
+Controls whether the Debug Sync facility for testing and debugging is enabled\&. The option value is a timeout in seconds\&. The default value is 300\&. A value of 0 disables Debug Sync\&. The value of this option also becomes the default timeout for individual synchronization points\&.
+.sp
+\fBmysql\-test\-run\&.pl\fR
+passes
+\fB\-\-loose\-debug\-sync\-timeout=\fR\fB\fIN\fR\fR
+to
+\fBmysqld\fR\&. The
+\fB\-\-loose\fR
+prefix is used so that
+\fBmysqld\fR
+does not fail if Debug Sync is not compiled in\&.
+.sp
+For information about using the Debug Sync facility for testing, see
+Section\ \&4.14, \(lqThread Synchronization in Test Cases\(rq\&.
+.sp
+This option was added in MySQL 5\&.4\&.4/6\&.0\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: do-test option
+.\" do-test option: mysql-test-run.pl
+\fB\-\-do\-test=\fR\fB\fIprefix\fR\fR
+.sp
+Run all test cases having a name that begins with the given
+\fIprefix\fR
+value\&. This option provides a convenient way to run a family of similarly named tests\&.
+.sp
+As of MySQL 5\&.0\&.54/5\&.1\&.23/6\&.0\&.5, the argument for the
+\fB\-\-do\-test\fR
+option allows more flexible specification of which tests to perform\&. If the argument contains a pattern metacharacter other than a lone period, it is interpreted as a Perl regular expression and applies to test names that match the pattern\&. If the argument contains a lone period or does not contain any pattern metacharacters, it is interpreted the same way as previously and matches test names that begin with the argument value\&. For example,
+\fB\-\-do\-test=testa\fR
+matches tests that begin with
+testa,
+\fB\-\-do\-test=main\&.testa\fR
+matches tests in the
+main
+test suite that begin with
+testa, and
+\fB\-\-do\-test=main\&.*testa\fR
+matches test names that contain
+main
+followed by
+testa
+with anything in between\&. In the latter case, the pattern match is not anchored to the beginning of the test name, so it also matches names such as
+xmainytestz\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: embedded-server option
+.\" embedded-server option: mysql-test-run.pl
+\fB\-\-embedded\-server\fR
+.sp
+Use a version of
+\fBmysqltest\fR
+built with the embedded server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: experimental option
+.\" experimental option: mysql-test-run.pl
+\fB\-\-experimental=\fR\fB\fIfile_name\fR\fR
+.sp
+Specify a file that contains a list of test cases that should be displayed with the
+[ exp\-fail ]
+code rather than
+[ fail ]
+if they fail\&. This option was added in MySQL 5\&.1\&.33/6\&.0\&.11\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: extern option
+.\" extern option: mysql-test-run.pl
+\fB\-\-extern\fR
+.sp
+Use an already running server\&.
+.sp
+Note: If a test case has an
+\&.opt
+file that requires the server to be restarted with specific options, the file will not be used\&. The test case likely will fail as a result\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: fast option
+.\" fast option: mysql-test-run.pl
+\fB\-\-fast\fR
+.sp
+Do not clean up from earlier test runs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: force option
+.\" force option: mysql-test-run.pl
+\fB\-\-force\fR
+.sp
+Normally,
+\fBmysql\-test\-run\&.pl\fR
+exits if a test case fails\&.
+\fB\-\-force\fR
+causes execution to continue regardless of test case failure\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: gcov option
+.\" gcov option: mysql-test-run.pl
+\fB\-\-gcov\fR
+.sp
+Run tests with the
+\fBgcov\fR
+test coverage tool\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: gdb option
+.\" gdb option: mysql-test-run.pl
+\fB\-\-gdb\fR
+.sp
+Start
+\fBmysqld\fR
+in the
+\fBgdb\fR
+debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: gprof option
+.\" gprof option: mysql-test-run.pl
+\fB\-\-gprof\fR
+.sp
+Run tests with the
+\fBgprof\fR
+profiling tool\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: im-mysqld1-port option
+.\" im-mysqld1-port option: mysql-test-run.pl
+\fB\-\-im\-mysqld1\-port\fR
+.sp
+TCP/IP port number to use for the first
+\fBmysqld\fR, controlled by Instance Manager\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: im-mysqld2-port option
+.\" im-mysqld2-port option: mysql-test-run.pl
+\fB\-\-im\-mysqld2\-port\fR
+.sp
+TCP/IP port number to use for the second
+\fBmysqld\fR, controlled by Instance Manager\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: im-port option
+.\" im-port option: mysql-test-run.pl
+\fB\-\-im\-port\fR
+.sp
+TCP/IP port number to use for
+\fBmysqld\fR, controlled by Instance Manager\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: log-warnings option
+.\" log-warnings option: mysql-test-run.pl
+\fB\-\-log\-warnings\fR
+.sp
+Pass the
+\fB\-\-log\-warnings\fR
+option to
+\fBmysqld\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: manual-debug option
+.\" manual-debug option: mysql-test-run.pl
+\fB\-\-manual\-debug\fR
+.sp
+Use a server that has already been started by the user in a debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: manual-gdb option
+.\" manual-gdb option: mysql-test-run.pl
+\fB\-\-manual\-gdb\fR
+.sp
+Use a server that has already been started by the user in the
+\fBgdb\fR
+debugger\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: master-binary option
+.\" master-binary option: mysql-test-run.pl
+\fB\-\-master\-binary=\fR\fB\fIpath\fR\fR
+.sp
+Specify the path of the
+\fBmysqld\fR
+binary to use for master servers\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: master_port option
+.\" master_port option: mysql-test-run.pl
+\fB\-\-master_port=\fR\fB\fIport_num\fR\fR
+.sp
+Specify the TCP/IP port number for the first master server to use\&. Observe that the option name has an underscore and not a dash\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: mem option
+.\" mem option: mysql-test-run.pl
+\fB\-\-mem\fR
+.sp
+Run the test suite in memory, using tmpfs or ramdisk\&. This can decrease test times significantly\&.
+\fBmysql\-test\-run\&.pl\fR
+attempts to find a suitable location using a built\-in list of standard locations for tmpfs and puts the
+var
+directory there\&. This option also affects placement of temporary files, which are created in
+var/tmp\&.
+.sp
+The default list includes
+/dev/shm\&. You can also enable this option by setting the environment variable
+MTR_MEM[=\fIdir_name\fR]\&. If
+\fIdir_name\fR
+is given, it is added to the beginning of the list of locations to search, so it takes precedence over any built\-in locations\&.
+.sp
+This option was added in MySQL 4\&.1\&.22, 5\&.0\&.30, and 5\&.1\&.13\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: mysqld option
+.\" mysqld option: mysql-test-run.pl
+\fB\-\-mysqld=\fR\fB\fIvalue\fR\fR
+.sp
+Extra options to pass to
+\fBmysqld\fR\&. The value should consist of one or more comma\-separated
+\fBmysqld\fR
+options\&. See
+Section\ \&4.9, \(lqPassing Options from mysql-test-run.pl to mysqld or mysqltest\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: mysqltest option
+.\" mysqltest option: mysql-test-run.pl
+\fB\-\-mysqltest=\fR\fB\fIvalue\fR\fR
+.sp
+Extra options to pass to
+\fBmysqltest\fR\&. The value should consist of one or more comma\-separated
+\fBmysqltest\fR
+options\&. See
+Section\ \&4.9, \(lqPassing Options from mysql-test-run.pl to mysqld or mysqltest\(rq\&. This option was added in MySQL 6\&.0\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ndb-connectstring option
+.\" ndb-connectstring option: mysql-test-run.pl
+\fB\-\-ndb\-connectstring=\fR\fB\fIstr\fR\fR
+.sp
+Pass
+\fB\-\-ndb\-connectstring=\fR\fB\fIstr\fR\fR
+to the master MySQL server\&. This option also prevents
+\fBmysql\-test\-run\&.pl\fR
+from starting a cluster\&. It is assumed that there is already a cluster running to which the server can connect with the given connectstring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ndb-connectstring-slave option
+.\" ndb-connectstring-slave option: mysql-test-run.pl
+\fB\-\-ndb\-connectstring\-slave=\fR\fB\fIstr\fR\fR
+.sp
+Pass
+\fB\-\-ndb\-connectstring=\fR\fB\fIstr\fR\fR
+to slave MySQL servers\&. This option also prevents
+\fBmysql\-test\-run\&.pl\fR
+from starting a cluster\&. It is assumed that there is already a cluster running to which the server can connect with the given connectstring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ndb-extra-test option
+.\" ndb-extra-test option: mysql-test-run.pl
+\fB\-\-ndb\-extra\-test\fR
+.sp
+Unknown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ndbcluster-port option
+.\" ndbcluster-port option: mysql-test-run.pl
+.\" mysql-test-run.pl: ndbcluster_port option
+.\" ndbcluster_port option: mysql-test-run.pl
+\fB\-\-ndbcluster\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-\-ndbcluster_port=\fR\fB\fIport_num\fR\fR
+.sp
+Specify the TCP/IP port number that NDB Cluster should use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ndbcluster-port-slave option
+.\" ndbcluster-port-slave option: mysql-test-run.pl
+\fB\-\-ndbcluster\-port\-slave=\fR\fB\fIport_num\fR\fR
+.sp
+Specify the TCP/IP port number that the slave NDB Cluster should use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: netware option
+.\" netware option: mysql-test-run.pl
+\fB\-\-netware\fR
+.sp
+Run
+\fBmysqld\fR
+with options needed on NetWare\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: notimer option
+.\" notimer option: mysql-test-run.pl
+\fB\-\-notimer\fR
+.sp
+Cause
+\fBmysqltest\fR
+not to generate a timing file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ps-protocol option
+.\" ps-protocol option: mysql-test-run.pl
+\fB\-\-ps\-protocol\fR
+.sp
+Pass the
+\fB\-\-ps\-protocol\fR
+option to
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: record option
+.\" record option: mysql-test-run.pl
+\fB\-\-record\fR
+.sp
+Pass the
+\fB\-\-record\fR
+option to
+\fBmysqltest\fR\&. This option requires a specific test case to be named on the command line\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: reorder option
+.\" reorder option: mysql-test-run.pl
+\fB\-\-reorder\fR
+.sp
+Reorder tests to minimize the number of server restarts needed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: report-features option
+.\" report-features option: mysql-test-run.pl
+\fB\-\-report\-features\fR
+.sp
+Display the output of
+SHOW ENGINES
+and
+SHOW VARIABLES\&. This can be used to verify that binaries are built with all required features\&.
+.sp
+This option was added in MySQL 4\&.1\&.23, 5\&.0\&.30, and 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: script-debug option
+.\" script-debug option: mysql-test-run.pl
+\fB\-\-script\-debug\fR
+.sp
+Enable debug output for
+\fBmysql\-test\-run\&.pl\fR
+itself\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-im option
+.\" skip-im option: mysql-test-run.pl
+\fB\-\-skip\-im\fR
+.sp
+Do not start Instance Manager; skip Instance Manager test cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-master-binlog option
+.\" skip-master-binlog option: mysql-test-run.pl
+\fB\-\-skip\-master\-binlog\fR
+.sp
+Do not enable master server binary logging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-ndbcluster option
+.\" skip-ndbcluster option: mysql-test-run.pl
+\fB\-\-skip\-ndbcluster\fR,
+.\" mysql-test-run.pl: skip-ndb option
+.\" skip-ndb option: mysql-test-run.pl
+\fB\-\-skip\-ndb\fR
+.sp
+Do not start NDB Cluster; skip Cluster test cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-ndbcluster-slave option
+.\" skip-ndbcluster-slave option: mysql-test-run.pl
+\fB\-\-skip\-ndbcluster\-slave\fR,
+.\" mysql-test-run.pl: skip-ndb-slave option
+.\" skip-ndb-slave option: mysql-test-run.pl
+\fB\-\-skip\-ndb\-slave\fR
+.sp
+Do not start an NDB Cluster slave\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-rpl option
+.\" skip-rpl option: mysql-test-run.pl
+\fB\-\-skip\-rpl\fR
+.sp
+Skip replication test cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-slave-binlog option
+.\" skip-slave-binlog option: mysql-test-run.pl
+\fB\-\-skip\-slave\-binlog\fR
+.sp
+Do not enable master server binary logging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-ssl option
+.\" skip-ssl option: mysql-test-run.pl
+\fB\-\-skip\-ssl\fR
+.sp
+Do not start
+\fBmysqld\fR
+with support for SSL connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: skip-test option
+.\" skip-test option: mysql-test-run.pl
+\fB\-\-skip\-test=\fR\fB\fIregex\fR\fR
+.sp
+Specify a regular expression to be applied to test case names\&. Cases with names that match the expression are skipped\&. tests to skip\&.
+.sp
+As of MySQL 5\&.0\&.54/5\&.1\&.23/6\&.0\&.5, the argument for the
+\fB\-\-skip\-test\fR
+option allows more flexible specification of which tests to skip\&. If the argument contains a pattern metacharacter other than a lone period, it is interpreted as a Perl regular expression and applies to test names that match the pattern\&. See the description of the
+\fB\-\-do\-test\fR
+option for details\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-skip\-*\fR
+.sp
+\fB\-\-skip\-*\fR
+options not otherwise recognized by
+\fBmysql\-test\-run\&.pl\fR
+are passed to the master server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: slave-binary option
+.\" slave-binary option: mysql-test-run.pl
+\fB\-\-slave\-binary=\fR\fB\fIpath\fR\fR
+.sp
+Specify the path of the
+\fBmysqld\fR
+binary to use for slave servers\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: slave_port option
+.\" slave_port option: mysql-test-run.pl
+\fB\-\-slave_port=\fR\fB\fIport_num\fR\fR
+.sp
+Specify the TCP/IP port number for the first master server to use\&. Observe that the option name has an underscore and not a dash\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: sleep option
+.\" sleep option: mysql-test-run.pl
+\fB\-\-sleep=\fR\fB\fIN\fR\fR
+.sp
+Pass
+\fB\-\-sleep=\fR\fB\fIN\fR\fR
+to
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: small-bench option
+.\" small-bench option: mysql-test-run.pl
+\fB\-\-small\-bench\fR
+.sp
+Run the benchmarks with the
+\fB\-\-small\-tests\fR
+and
+\fB\-\-small\-tables\fR
+options\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: socket option
+.\" socket option: mysql-test-run.pl
+\fB\-\-socket=\fR\fB\fIfile_name\fR\fR
+.sp
+For connections to
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: sp-protocol option
+.\" sp-protocol option: mysql-test-run.pl
+\fB\-\-sp\-protocol\fR
+.sp
+Pass the
+\fB\-\-sp\-protocol\fR
+option to
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: ssl option
+.\" ssl option: mysql-test-run.pl
+\fB\-\-ssl\fR
+.sp
+If
+\fBmysql\-test\-run\&.pl\fR
+is started with the
+\fB\-\-ssl\fR
+option, it sets up a secure conection for all test cases\&. In this case, if
+\fBmysqld\fR
+does not support SSL,
+\fBmysql\-test\-run\&.pl\fR
+exits with an error message:
+Couldn\'t find support for SSL
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: start option
+.\" start option: mysql-test-run.pl
+\fB\-\-start\fR
+.sp
+Initialize and start servers with the startup settings for the first specified test case\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBcd mysql\-test\fR
+shell> \fB\&./mysql\-test\-run\&.pl \-\-start alias &\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This option was added in MySQL 5\&.1\&.32/6\&.0\&.11\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: start-and-exit option
+.\" start-and-exit option: mysql-test-run.pl
+\fB\-\-start\-and\-exit\fR
+.sp
+Initialize and start servers with the startup settings for the specified test case or cases, if any, and then exit\&. You can use this option to start a server to which you can connect later\&. For example, after building a source distribution you can start a server and connect to it with the
+\fBmysql\fR
+client like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBcd mysql\-test\fR
+shell> \fB\&./mysql\-test\-run\&.pl \-\-start\-and\-exit\fR
+shell> \fB\&.\&./mysql \-S \&./var/tmp/master\&.sock \-h localhost \-u root\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: start-dirty option
+.\" start-dirty option: mysql-test-run.pl
+\fB\-\-start\-dirty\fR
+.sp
+Start servers (without initialization) for the specified test case or cases, if any, and then exit\&. You can then manually run the test cases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: start-from option
+.\" start-from option: mysql-test-run.pl
+\fB\-\-start\-from=\fR\fB\fItest_name\fR\fR
+.sp
+\fBmysql\-test\-run\&.pl\fR
+sorts the list of names of the test cases to be run, and then begins with
+\fItest_name\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: strace-client option
+.\" strace-client option: mysql-test-run.pl
+\fB\-\-strace\-client\fR
+.sp
+Create
+\fBstrace\fR
+output for
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress option
+.\" stress option: mysql-test-run.pl
+\fB\-\-stress\fR
+.sp
+Run the stress test\&. The other
+\fB\-\-stress\-\fR\fB\fIxxx\fR\fR
+options apply in this case\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-init-file option
+.\" stress-init-file option: mysql-test-run.pl
+\fB\-\-stress\-init\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+\fIfile_name\fR
+is the location of the file that contains the list of tests\&. The default file is
+stress_init\&.txt
+in the test suite directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-loop-count option
+.\" stress-loop-count option: mysql-test-run.pl
+\fB\-\-stress\-loop\-count=\fR\fB\fIN\fR\fR
+.sp
+In sequential stress\-test mode, the number of loops to execute before exiting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-mode option
+.\" stress-mode option: mysql-test-run.pl
+\fB\-\-stress\-mode=\fR\fB\fImode\fR\fR
+.sp
+This option indicates the test order in stress\-test mode\&. The
+\fImode\fR
+value is either
+random
+to select tests in random order or
+seq
+to run tests in each thread in the order specified in the test list file\&. The default mode is
+random\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-suite option
+.\" stress-suite option: mysql-test-run.pl
+\fB\-\-stress\-suite=\fR\fB\fIsuite_name\fR\fR
+.sp
+The name of the test suite to use for stress testing\&. The default suite name is
+main
+(the regular test suite located in the
+mysql\-test
+directory)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-test-count option
+.\" stress-test-count option: mysql-test-run.pl
+\fB\-\-stress\-test\-count=\fR\fB\fIN\fR\fR
+.sp
+For stress testing, the number of tests to execute before exiting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-test-duration option
+.\" stress-test-duration option: mysql-test-run.pl
+\fB\-\-stress\-test\-duration=\fR\fB\fIN\fR\fR
+.sp
+For stress testing, the duration of stress testing in seconds\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-test-file option
+.\" stress-test-file option: mysql-test-run.pl
+\fB\-\-stress\-test\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+The file that contains the list of tests to use in stress testing\&. The tests should be named without the
+\&.test
+extension\&. The default file is
+stress_tests\&.txt
+in the test suite directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: stress-threads option
+.\" stress-threads option: mysql-test-run.pl
+\fB\-\-stress\-threads=\fR\fB\fIN\fR\fR
+.sp
+The number of threads to use in stress testing\&. The default is 5\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: suite option
+.\" suite option: mysql-test-run.pl
+\fB\-\-suite=\fR\fB\fIsuite_name\fR\fR
+.sp
+Run the named test suite\&. The default name is
+main
+(the regular test suite located in the
+mysql\-test
+directory)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: suite-timeout option
+.\" suite-timeout option: mysql-test-run.pl
+\fB\-\-suite\-timeout=\fR\fB\fIminutes\fR\fR
+.sp
+Specify the maximum test suite runtime\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: testcase-timeout option
+.\" testcase-timeout option: mysql-test-run.pl
+\fB\-\-testcase\-timeout\fR
+.sp
+Specify the maximum test case runtime\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: timer option
+.\" timer option: mysql-test-run.pl
+\fB\-\-timer\fR
+.sp
+Cause
+\fBmysqltest\fR
+to generate a timing file\&. The default file is named
+\&./var/log/timer\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: tmpdir option
+.\" tmpdir option: mysql-test-run.pl
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
+.sp
+The directory where temporary file are stored\&. The default location is
+\&./var/tmp\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: unified-diff option
+.\" unified-diff option: mysql-test-run.pl
+\fB\-\-unified\-diff\fR,
+\fB\-\-udiff\fR
+.sp
+Use unified diff format when presenting differences between expected and actual test case results\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: use-old-data option
+.\" use-old-data option: mysql-test-run.pl
+\fB\-\-use\-old\-data\fR
+.sp
+Do not install the test databases\&. (Use existing ones\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: user-test option
+.\" user-test option: mysql-test-run.pl
+\fB\-\-user\-test=\fR\fB\fIval\fR\fR
+.sp
+Unused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: user option
+.\" user option: mysql-test-run.pl
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind option
+.\" valgrind option: mysql-test-run.pl
+\fB\-\-valgrind\fR
+.sp
+Run
+\fBmysqltest\fR
+and
+\fBmysqld\fR
+with
+\fBvalgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-all option
+.\" valgrind-all option: mysql-test-run.pl
+\fB\-\-valgrind\-all\fR
+.sp
+Like
+\fB\-\-valgrind\fR, but passes the
+\fB\-\-verbose\fR
+and
+\fB\-\-show\-reachable\fR
+options to
+\fBvalgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-mysqltest option
+.\" valgrind-mysqltest option: mysql-test-run.pl
+\fB\-\-valgrind\-mysqltest\fR
+.sp
+Run
+\fBmysqltest\fR
+with
+\fBvalgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-mysqltest-all option
+.\" valgrind-mysqltest-all option: mysql-test-run.pl
+\fB\-\-valgrind\-mysqltest\-all\fR
+.sp
+Like
+\fB\-\-valgrind\-mysqltest\fR, but passes the
+\fB\-\-verbose\fR
+and
+\fB\-\-show\-reachable\fR
+options to
+\fBvalgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-options option
+.\" valgrind-options option: mysql-test-run.pl
+\fB\-\-valgrind\-options=\fR\fB\fIstr\fR\fR
+.sp
+Extra options to pass to
+\fBvalgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-path option
+.\" valgrind-path option: mysql-test-run.pl
+\fB\-\-valgrind\-path=\fR\fB\fIpath\fR\fR
+.sp
+Specify the path name to the
+\fBvalgrind\fR
+executable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: vardir option
+.\" vardir option: mysql-test-run.pl
+\fB\-\-vardir=\fR\fB\fIpath\fR\fR
+.sp
+Specify the path where files generated during the test run are stored\&. The default location is
+\&./var\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: view-protocol option
+.\" view-protocol option: mysql-test-run.pl
+\fB\-\-view\-protocol\fR
+.sp
+Pass the
+\fB\-\-view\-protocol\fR
+option to
+\fBmysqltest\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: vs-config option
+.\" vs-config option: mysql-test-run.pl
+\fB\-\-vs\-config=\fR\fB\fIconfig_val\fR\fR
+.sp
+Specify the configuration used to build MySQL (for example,
+\fB\-\-vs\-config=debug\fR
+\fB\-\-vs\-config=release\fR)\&. This option is for Windows only\&. It is available as of MySQL 4\&.1\&.23, 5\&.0\&.30, and 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: wait-timeout option
+.\" wait-timeout option: mysql-test-run.pl
+\fB\-\-wait\-timeout=\fR\fB\fIN\fR\fR
+.sp
+Unused?
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: warnings option
+.\" warnings option: mysql-test-run.pl
+\fB\-\-warnings\fR
+.sp
+This option is a synonym for
+\fB\-\-log\-warnings\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: with-ndbcluster option
+.\" with-ndbcluster option: mysql-test-run.pl
+\fB\-\-with\-ndbcluster\fR
+.sp
+Use NDB Cluster and enable test cases that require it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: with-ndbcluster-all option
+.\" with-ndbcluster-all option: mysql-test-run.pl
+\fB\-\-with\-ndbcluster\-all\fR
+.sp
+Use NDB Cluster in all tests\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: with-ndbcluster-only option
+.\" with-ndbcluster-only option: mysql-test-run.pl
+\fB\-\-with\-ndbcluster\-only\fR
+.sp
+Run only test cases that have
+ndb
+in their name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: with-ndbcluster-slave option
+.\" with-ndbcluster-slave option: mysql-test-run.pl
+\fB\-\-with\-ndbcluster\-slave\fR
+.sp
+Unknown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: with-openssl option
+.\" with-openssl option: mysql-test-run.pl
+\fB\-\-with\-openssl\fR
+.sp
+This option is a synonym for
+\fB\-\-ssl\fR\&.
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBmysql\-test\-run\fR
+supports the following options not supported by
+\fBmysql\-test\-run\&.pl\fR:
+\fB\-\-local\fR,
+\fB\-\-local\-master\fR,
+\fB\-\-ndb\-verbose\fR,
+\fB\-\-ndb_mgm\-extra\-opts\fR,
+\fB\-\-ndb_mgmd\-extra\-opts\fR,
+\fB\-\-ndbd\-extra\-opts\fR,
+\fB\-\-old\-master\fR,
+\fB\-\-purify\fR,
+\fB\-\-use\-old\-data\fR,
+\fB\-\-valgrind\-mysqltest\-all\fR\&.
+.PP
+Conversely,
+\fBmysql\-test\-run\&.pl\fR
+supports the following options not supported by
+\fBmysql\-test\-run\fR:
+\fB\-\-benchdir\fR,
+\fB\-\-check\-testcases\fR,
+\fB\-\-client\-ddd\fR,
+\fB\-\-client\-debugger\fR,
+\fB\-\-cursor\-protocol\fR,
+\fB\-\-debugger\fR,
+\fB\-\-im\-mysqld1\-port\fR,
+\fB\-\-im\-mysqld2\-port\fR,
+\fB\-\-im\-port\fR,
+\fB\-\-manual\-debug\fR,
+\fB\-\-netware\fR,
+\fB\-\-notimer\fR,
+\fB\-\-reorder\fR,
+\fB\-\-script\-debug\fR,
+\fB\-\-skip\-im\fR,
+\fB\-\-skip\-ssl\fR,
+\fB\-\-sp\-protocol\fR,
+\fB\-\-start\-dirty\fR,
+\fB\-\-suite\fR,
+\fB\-\-suite\-timeout\fR,
+\fB\-\-testcase\-timeout\fR,
+\fB\-\-udiff\fR,
+\fB\-\-unified\-diff\fR,,
+\fB\-\-valgrind\-path\fR,
+\fB\-\-vardir\fR,
+\fB\-\-view\-protocol\fR\&.
+.sp .5v
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "NOTES"
+.IP " 1." 4
+Typical \fBconfigure\fR Options
+.RS 4
+\%http://dev.mysql.com/doc/refman/5.1/en/configure-options.html
+.RE
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

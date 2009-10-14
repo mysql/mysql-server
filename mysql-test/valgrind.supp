@@ -401,10 +401,96 @@
 }
 
 {
-   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
+   dlclose memory loss from plugin variant 3
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_scope_free
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z15free_plugin_memP12st_plugin_dl
+   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 4
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 5
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+}
+
+{
+   dlclose memory loss from plugin variant 6, seen on Ubuntu Jaunty i686
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_scope_free
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:dlclose_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 7, seen on Ubuntu Jaunty i686
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:dlclose_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
    obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 2
+   Memcheck:Leak
+   fun:*alloc
    obj:/lib*/ld-*.so
    obj:/lib*/ld-*.so
    obj:/lib*/ld-*.so
@@ -616,4 +702,181 @@
    Memcheck:Leak
    fun:malloc
    fun:inet_ntoa
+}
+
+
+#
+# Some problem inside glibc on Ubuntu 9.04, x86 (but not amd64):
+# 
+# ==5985== 19 bytes in 1 blocks are still reachable in loss record 1 of 6
+# ==5985==    at 0x7AF3FDE: malloc (vg_replace_malloc.c:207) 
+#               ... 11,12, or 13 functions w/o symbols ...
+# ==5985==    by 0x8717185: nptl_pthread_exit_hack_handler (my_thr_init.c:55)
+#
+# Since valgrind 3.3.0 doesn't support '...' multi-function pattern, using
+# multiple suppressions:
+#
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+#
+# BUG#45630
+# Suppress valgrind failures within nptl_pthread_exit_hack_handler on Ubuntu 9.04, x86 (but not amd64)
+#
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 1
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 2
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 3
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 4
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 5
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
 }

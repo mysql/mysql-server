@@ -98,7 +98,8 @@ extern const double log_10[309];
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
 #else
-#define strmov_overlapp(A,B) strmov(A,B)
+extern char *strmov_overlapp(char *dest, const char *src);
+/* Warning: the following is likely not to work: */
 #define strmake_overlapp(A,B,C) strmake(A,B,C)
 #endif
 

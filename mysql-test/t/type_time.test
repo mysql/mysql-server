@@ -77,3 +77,16 @@ insert into t1 values('2007-07-02', 1);
 insert into t1 values('2007-07-02', 2);
 SELECT sum(f3) FROM t1 where f2='2007-07-01 00:00:00' group by f2;
 drop table t1;
+
+
+--echo #
+--echo # Bug #44792: valgrind warning when casting from time to time
+--echo #
+
+CREATE TABLE t1 (c TIME);
+INSERT INTO t1 VALUES ('0:00:00');
+SELECT CAST(c AS TIME) FROM t1;
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests

@@ -1,0 +1,77 @@
+'\" t
+.\"     Title: \fBmysql_fix_extensions\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_FIX_EXTENSI" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_fix_extensions
+.SH "NAME"
+mysql_fix_extensions \- normalize table file name extensions
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_fix_extensions\ \fR\fB\fIdata_dir\fR\fR\ 'u
+\fBmysql_fix_extensions \fR\fB\fIdata_dir\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_fix_extensions\fR
+converts the extensions for
+MyISAM
+(or
+ISAM) table files to their canonical forms\&. It looks for files with extensions matching any lettercase variant of
+\&.frm,
+\&.myd,
+\&.myi,
+\&.isd, and
+\&.ism
+and renames them to have extensions of
+\&.frm,
+\&.MYD,
+\&.MYI,
+\&.ISD, and
+\&.ISM, respectively\&. This can be useful after transferring the files from a system with case\-insensitive file names (such as Windows) to a system with case\-sensitive file names\&.
+.PP
+Invoke
+\fBmysql_fix_extensions\fR
+like this, where
+\fIdata_dir\fR
+is the path name to the MySQL data directory\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_fix_extensions \fR\fB\fIdata_dir\fR\fR
+.fi
+.if n \{\
+.RE
+.\}
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

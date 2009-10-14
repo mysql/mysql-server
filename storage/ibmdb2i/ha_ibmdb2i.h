@@ -383,7 +383,15 @@ private:
   int32 prepareWriteBufferForLobs();
   uint32 adjustLobBuffersForRead();
   bool lobFieldsRequested();
-  int convertFieldChars(enum_conversionDirection direction, uint16 fieldID, const char* input, char* output, size_t ilen, size_t olen, size_t* outDataLen);
+  int convertFieldChars(enum_conversionDirection direction, 
+                        uint16 fieldID, 
+                        const char* input, 
+                        char* output, 
+                        size_t ilen, 
+                        size_t olen, 
+                        size_t* outDataLen,
+                        bool tacitErrors=FALSE,
+                        size_t* substChars=NULL);
 
   /**
     Fast integer log2 function
@@ -522,6 +530,13 @@ private:
                                  bool isPrimary,
                                  const char* db2LibName,    
                                  const char* db2FileName);
+  
+  int32 buildIndexFieldList(String& appendHere,
+                            const KEY& key,
+                            bool isPrimary,
+                            char* fileSortSequenceType, 
+                            char* fileSortSequence, 
+                            char* fileSortSequenceLibrary);
 
   // Specify NULL for data when using the data pointed to by field
   int32 convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char* db2Buf, const uchar* data = NULL); 
@@ -746,5 +761,62 @@ private:
       free_root(&conversionBufferMemroot, MYF(0));
     }    
   }
- 
+  
+  
+/**
+  Generate a valid RCDFMT name based on the name of the table.
+  
+  The RCDFMT name is devised by munging the name of the table,
+  uppercasing all ascii alpha-numeric characters and replacing all other
+  characters with underscores until up to ten characters have been generated.
+    
+  @param tableName  The name of the table, as given on the MySQL
+                    CREATE TABLE statement
+  @param[out] query  The string to receive the generated RCDFMT name
+*/
+  static void generateAndAppendRCDFMT(const char* tableName, String& query)
+  {
+    char rcdfmt[11];
+    
+    // The RCDFMT name must begin with an alpha character.
+    // We enforce this by skipping to the first alpha character in the table
+    // name. If no alpha character exists, we use 'X' for the RCDFMT name;
+    
+    while (*tableName &&
+           (!my_isascii(*tableName) ||
+            !my_isalpha(system_charset_info, *tableName)))
+    {
+      tableName += my_mbcharlen(system_charset_info, *tableName);
+    }
+    
+    if (unlikely(!(*tableName)))
+    { 
+      rcdfmt[0]= 'X';
+      rcdfmt[1]= 0;
+    }
+    else
+    {
+      int r= 0;
+      while ((r < sizeof(rcdfmt)-1) && *tableName)
+      {
+        if (my_isascii(*tableName) &&
+            my_isalnum(system_charset_info, *tableName))
+          rcdfmt[r] = my_toupper(system_charset_info, *tableName);
+        else
+          rcdfmt[r] = '_';
+        
+        ++r;
+        tableName += my_mbcharlen(system_charset_info, *tableName);
+      }
+      rcdfmt[r]= 0;
+    }
+    query.append(STRING_WITH_LEN(" RCDFMT "));
+    query.append(rcdfmt);
+  }
+  
+  int32 generateShadowIndex(SqlStatementStream& stream, 
+                           const KEY& key,
+                           const char* libName,
+                           const char* fileName,
+                           const String& fieldDefinition);
 };

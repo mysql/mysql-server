@@ -1,0 +1,1080 @@
+'\" t
+.\"     Title: \fBmysqladmin\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQLADMIN\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqladmin
+.\" administration: server
+.\" server administration
+.SH "NAME"
+mysqladmin \- client for administering a MySQL server
+.SH "SYNOPSIS"
+.HP \w'\fBmysqladmin\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIcommand\fR\fR\fB\ [\fR\fB\fIcommand\-options\fR\fR\fB]\ [\fR\fB\fIcommand\fR\fR\fB\ [\fR\fB\fIcommand\-options\fR\fR\fB]]\ \&.\&.\&.\fR\ 'u
+\fBmysqladmin [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand\-options\fR\fR\fB] [\fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand\-options\fR\fR\fB]] \&.\&.\&.\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysqladmin\fR
+is a client for performing administrative operations\&. You can use it to check the server\'s configuration and current status, to create and drop databases, and more\&.
+.PP
+Invoke
+\fBmysqladmin\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqladmin [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand\-arg\fR\fR\fB] [\fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand\-arg\fR\fR\fB]] \&.\&.\&.\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysqladmin\fR
+supports the commands described in the following list\&. Some of the commands take an argument following the command name\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+create \fIdb_name\fR
+.sp
+Create a new database named
+\fIdb_name\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+debug
+.sp
+Tell the server to write debug information to the error log\&.
+.sp
+Beginning with MySQL 5\&.1\&.12, this includes information about the Event Scheduler\&. See
+Section\ \&19.4.5, \(lqEvent Scheduler Status\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+drop \fIdb_name\fR
+.sp
+Delete the database named
+\fIdb_name\fR
+and all its tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+extended\-status
+.sp
+Display the server status variables and their values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-hosts
+.sp
+Flush all information in the host cache\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-logs
+.sp
+Flush all logs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-privileges
+.sp
+Reload the grant tables (same as
+reload)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-status
+.sp
+Clear status variables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-tables
+.sp
+Flush all tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+flush\-threads
+.sp
+Flush the thread cache\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+kill \fIid\fR,\fIid\fR,\&.\&.\&.
+.sp
+Kill server threads\&. If multiple thread ID values are given, there must be no spaces in the list\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+old\-password \fInew\-password\fR
+.sp
+This is like the
+password
+command but stores the password using the old (pre\-4\&.1) password\-hashing format\&. (See
+Section\ \&5.5.6.3, \(lqPassword Hashing in MySQL\(rq\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+password \fInew\-password\fR
+.sp
+Set a new password\&. This changes the password to
+\fInew\-password\fR
+for the account that you use with
+\fBmysqladmin\fR
+for connecting to the server\&. Thus, the next time you invoke
+\fBmysqladmin\fR
+(or any other client program) using the same account, you will need to specify the new password\&.
+.sp
+If the
+\fInew\-password\fR
+value contains spaces or other characters that are special to your command interpreter, you need to enclose it within quotes\&. On Windows, be sure to use double quotes rather than single quotes; single quotes are not stripped from the password, but rather are interpreted as part of the password\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqladmin password "my new password"\fR
+.fi
+.if n \{\
+.RE
+.\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+Do not use this command used if the server was started with the
+\fB\-\-skip\-grant\-tables\fR
+option\&. No password change will be applied\&. This is true even if you precede the
+password
+command with
+flush\-privileges
+on the same command line to re\-enable the grant tables because the flush operation occurs after you connect\&. However, you can use
+\fBmysqladmin flush\-privileges\fR
+to re\-enable the grant table and then use a separate
+\fBmysqladmin password\fR
+command to change the password\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ping
+.sp
+Check whether the server is alive\&. The return status from
+\fBmysqladmin\fR
+is 0 if the server is running, 1 if it is not\&. This is 0 even in case of an error such as
+Access denied, because this means that the server is running but refused the connection, which is different from the server not running\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+processlist
+.sp
+Show a list of active server threads\&. This is like the output of the
+SHOW PROCESSLIST
+statement\&. If the
+\fB\-\-verbose\fR
+option is given, the output is like that of
+SHOW FULL PROCESSLIST\&. (See
+Section\ \&12.5.5.31, \(lqSHOW PROCESSLIST Syntax\(rq\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+reload
+.sp
+Reload the grant tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+refresh
+.sp
+Flush all tables and close and open log files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+shutdown
+.sp
+Stop the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+start\-slave
+.sp
+Start replication on a slave server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+status
+.sp
+Display a short server status message\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+stop\-slave
+.sp
+Stop replication on a slave server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+variables
+.sp
+Display the server system variables and their values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+version
+.sp
+Display version information from the server\&.
+.RE
+.PP
+All commands can be shortened to any unique prefix\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqladmin proc stat\fR
++\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-+\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| Id | User  | Host      | db | Command | Time | State | Info             |
++\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-+\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| 51 | monty | localhost |    | Query   | 0    |       | show processlist |
++\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-+\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-+\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+Uptime: 1473624  Threads: 1  Questions: 39487
+Slow queries: 0  Opens: 541  Flush tables: 1
+Open tables: 19  Queries per second avg: 0\&.0268
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.\" status command: results
+.PP
+The
+\fBmysqladmin status\fR
+command result displays the following values:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" uptime
+Uptime
+.sp
+The number of seconds the MySQL server has been running\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" threads
+Threads
+.sp
+The number of active threads (clients)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" questions
+Questions
+.sp
+The number of questions (queries) from clients since the server was started\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" slow queries
+Slow queries
+.sp
+The number of queries that have taken more than
+long_query_time
+seconds\&. See
+Section\ \&5.2.5, \(lqThe Slow Query Log\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" opens
+Opens
+.sp
+The number of tables the server has opened\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" flush tables
+.\" tables: flush
+Flush tables
+.sp
+The number of
+flush\-*,
+refresh, and
+reload
+commands the server has executed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" open tables
+Open tables
+.sp
+The number of tables that currently are open\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" memory use
+Memory in use
+.sp
+The amount of memory allocated directly by
+\fBmysqld\fR\&. This value is displayed only when MySQL has been compiled with
+\fB\-\-with\-debug=full\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" maximum memory used
+Maximum memory used
+.sp
+The maximum amount of memory allocated directly by
+\fBmysqld\fR\&. This value is displayed only when MySQL has been compiled with
+\fB\-\-with\-debug=full\fR\&.
+.RE
+.PP
+If you execute
+\fBmysqladmin shutdown\fR
+when connecting to a local server using a Unix socket file,
+\fBmysqladmin\fR
+waits until the server\'s process ID file has been removed, to ensure that the server has stopped properly\&.
+.\" mysqladmin command options
+.\" command options: mysqladmin
+.\" options: command-line: mysqladmin
+.\" startup parameters: mysqladmin
+.PP
+\fBmysqladmin\fR
+supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: help option
+.\" help option: mysqladmin
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: character-sets-dir option
+.\" character-sets-dir option: mysqladmin
+\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+.sp
+The directory where character sets are installed\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: compress option
+.\" compress option: mysqladmin
+\fB\-\-compress\fR,
+\fB\-C\fR
+.sp
+Compress all information sent between the client and the server if both support compression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: count option
+.\" count option: mysqladmin
+\fB\-\-count=\fR\fB\fIN\fR\fR,
+\fB\-c \fR\fB\fIN\fR\fR
+.sp
+The number of iterations to make for repeated command execution if the
+\fB\-\-sleep\fR
+option is given\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: debug option
+.\" debug option: mysqladmin
+\fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
+\fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.sp
+Write a debugging log\&. A typical
+\fIdebug_options\fR
+string is
+\'d:t:o,\fIfile_name\fR\'\&. The default is
+\'d:t:o,/tmp/mysqladmin\&.trace\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: debug-check option
+.\" debug-check option: mysqladmin
+\fB\-\-debug\-check\fR
+.sp
+Print some debugging information when the program exits\&. This option was added in MySQL 5\&.1\&.21\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: debug-info option
+.\" debug-info option: mysqladmin
+\fB\-\-debug\-info\fR
+.sp
+Print debugging information and memory and CPU usage statistics when the program exits\&. This option was added in MySQL 5\&.1\&.14\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: default-character-set option
+.\" default-character-set option: mysqladmin
+\fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
+.sp
+Use
+\fIcharset_name\fR
+as the default character set\&. See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: force option
+.\" force option: mysqladmin
+\fB\-\-force\fR,
+\fB\-f\fR
+.sp
+Do not ask for confirmation for the
+drop \fIdb_name\fR
+command\&. With multiple commands, continue even if an error occurs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: host option
+.\" host option: mysqladmin
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+\fB\-h \fR\fB\fIhost_name\fR\fR
+.sp
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: no-beep option
+.\" no-beep option: mysqladmin
+\fB\-\-no\-beep\fR,
+\fB\-b\fR
+.sp
+Suppress the warning beep that is emitted by default for errors such as a failure to connect to the server\&. This option was added in MySQL 5\&.1\&.17\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: password option
+.\" password option: mysqladmin
+\fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
+\fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.sp
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
+\fIcannot\fR
+have a space between the option and the password\&. If you omit the
+\fIpassword\fR
+value following the
+\fB\-\-password\fR
+or
+\fB\-p\fR
+option on the command line, you are prompted for one\&.
+.sp
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: pipe option
+.\" pipe option: mysqladmin
+\fB\-\-pipe\fR,
+\fB\-W\fR
+.sp
+On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: port option
+.\" port option: mysqladmin
+\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-P \fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: protocol option
+.\" protocol option: mysqladmin
+\fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.sp
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: relative option
+.\" relative option: mysqladmin
+\fB\-\-relative\fR,
+\fB\-r\fR
+.sp
+Show the difference between the current and previous values when used with the
+\fB\-\-sleep\fR
+option\&. Currently, this option works only with the
+extended\-status
+command\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: silent option
+.\" silent option: mysqladmin
+\fB\-\-silent\fR,
+\fB\-s\fR
+.sp
+Exit silently if a connection to the server cannot be established\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: sleep option
+.\" sleep option: mysqladmin
+\fB\-\-sleep=\fR\fB\fIdelay\fR\fR,
+\fB\-i \fR\fB\fIdelay\fR\fR
+.sp
+Execute commands repeatedly, sleeping for
+\fIdelay\fR
+seconds in between\&. The
+\fB\-\-count\fR
+option determines the number of iterations\&. If
+\fB\-\-count\fR
+is not given,
+\fBmysqladmin\fR
+executes commands indefinitely until interrupted\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: socket option
+.\" socket option: mysqladmin
+\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+\fB\-S \fR\fB\fIpath\fR\fR
+.sp
+For connections to
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: SSL options
+.\" SSL options: mysqladmin
+\fB\-\-ssl*\fR
+.sp
+Options that begin with
+\fB\-\-ssl\fR
+specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&5.5.7.3, \(lqSSL Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: user option
+.\" user option: mysqladmin
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: verbose option
+.\" verbose option: mysqladmin
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.sp
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: version option
+.\" version option: mysqladmin
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: vertical option
+.\" vertical option: mysqladmin
+\fB\-\-vertical\fR,
+\fB\-E\fR
+.sp
+Print output vertically\&. This is similar to
+\fB\-\-relative\fR, but prints output vertically\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: wait option
+.\" wait option: mysqladmin
+\fB\-\-wait[=\fR\fB\fIcount\fR\fR\fB]\fR,
+\fB\-w[\fR\fB\fIcount\fR\fR\fB]\fR
+.sp
+If the connection cannot be established, wait and retry instead of aborting\&. If a
+\fIcount\fR
+value is given, it indicates the number of times to retry\&. The default is one time\&.
+.RE
+.PP
+You can also set the following variables by using
+\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
+The
+\fB\-\-set\-variable\fR
+format is deprecated\&. syntax:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect_timeout variable
+.\" timeout: connect_timeout variable
+connect_timeout
+.sp
+The maximum number of seconds before connection timeout\&. The default value is 43200 (12 hours)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" shutdown_timeout variable
+.\" timeout: shutdown_timeout variable
+shutdown_timeout
+.sp
+The maximum number of seconds to wait for server shutdown\&. The default value is 3600 (1 hour)\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

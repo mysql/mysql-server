@@ -61,6 +61,7 @@ while ($1)
 }
 --enable_query_log
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
+SET @old_event_scheduler=@@event_scheduler;
 SET GLOBAL event_scheduler=on;
 --sleep 2.5
 DROP DATABASE events_conn1_test2;
@@ -109,7 +110,7 @@ connection conn3;
 --send
 DROP DATABASE events_conn3_db;
 connection default;
---send
+# --send
 DROP DATABASE events_conn1_test2;
 DROP DATABASE events_conn1_test3;
 SET GLOBAL event_scheduler=off;
@@ -135,3 +136,7 @@ DROP USER event_user3@localhost;
 #
 
 DROP DATABASE events_test;
+
+# Cleanup
+SET GLOBAL event_scheduler=@old_event_scheduler;
+--source include/check_events_off.inc

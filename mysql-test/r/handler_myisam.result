@@ -737,3 +737,7 @@ handler t1 read a next;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 handler t1 close;
 drop table t1;
+USE information_schema;
+HANDLER COLUMNS OPEN;
+ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+USE test;

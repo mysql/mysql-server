@@ -1960,6 +1960,26 @@ select * from t2;
 s1
 drop table t1;
 drop temporary table t2;
+#------------------------------------------------------------------------
+# Bug#39953 Triggers are not working properly with multi table updates
+#------------------------------------------------------------------------
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS t_insert;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (a int, date_insert timestamp, PRIMARY KEY (a));
+INSERT INTO t1 (a) VALUES (2),(5);
+CREATE TABLE t2 (a int, b int, PRIMARY KEY (a));
+CREATE TRIGGER t_insert AFTER INSERT ON t2 FOR EACH ROW BEGIN UPDATE t1,t2 SET
+date_insert=NOW() WHERE t1.a=t2.b AND t2.a=NEW.a; END |
+INSERT INTO t2 (a,b) VALUES (1,2);
+DROP TRIGGER t_insert;
+CREATE TRIGGER t_insert AFTER INSERT ON t2 FOR EACH ROW BEGIN UPDATE t1,t2 SET
+date_insert=NOW(),b=b+1 WHERE t1.a=t2.b AND t2.a=NEW.a; END |
+INSERT INTO t2 (a,b) VALUES (3,5);
+ERROR HY000: Can't update table 't2' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP TABLE t1;
+DROP TRIGGER t_insert;
+DROP TABLE t2;
 End of 5.0 tests
 drop table if exists table_25411_a;
 drop table if exists table_25411_b;
@@ -2053,4 +2073,18 @@ select @a, @b;
 drop trigger trg1;
 drop trigger trg2;
 drop table t1, t2;
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY, b INT );
+INSERT INTO t1 (a) VALUES (1);
+CREATE TRIGGER tr1
+BEFORE INSERT ON t2
+FOR EACH ROW 
+BEGIN 
+UPDATE a_nonextisting_table SET a = 1;
+END//
+CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
+ERROR 42S02: Table 'test.a_nonextisting_table' doesn't exist
+SELECT * FROM t2;
+a	b
+DROP TABLE t1, t2;
 End of 5.1 tests.

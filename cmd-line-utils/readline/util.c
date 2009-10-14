@@ -81,8 +81,13 @@ rl_alphabetic (c)
 
 #if defined (HANDLE_MULTIBYTE)
 int
-_rl_walphabetic (wc)
-     wchar_t wc;
+/*
+  Portability issue with VisualAge C++ Professional / C for AIX Compiler, Version 6:
+    "util.c", line 84.1: 1506-343 (S) Redeclaration of _rl_walphabetic differs
+    from previous declaration on line 110 of "rlmbutil.h".
+  So, put type in the function signature here.
+*/
+_rl_walphabetic (wchar_t wc)
 {
   int c;
 
@@ -115,14 +120,14 @@ _rl_abort_internal ()
 
 int
 rl_abort (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   return (_rl_abort_internal ());
 }
 
 int
 rl_tty_status (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
@@ -172,7 +177,7 @@ rl_extend_line_buffer (len)
 /* A function for simple tilde expansion. */
 int
 rl_tilde_expand (ignore, key)
-     int ignore, key;
+     int ignore __attribute__((unused)), key __attribute__((unused));
 {
   register int start, end;
   char *homedir, *temp;

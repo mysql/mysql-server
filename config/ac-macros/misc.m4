@@ -231,16 +231,19 @@ esac
 AC_DEFUN([MYSQL_CHECK_LIB_TERMCAP],
 [
 AC_CACHE_VAL(mysql_cv_termcap_lib,
-[AC_CHECK_LIB(ncurses, tgetent, mysql_cv_termcap_lib=libncurses,
-    [AC_CHECK_LIB(curses, tgetent, mysql_cv_termcap_lib=libcurses,
-	[AC_CHECK_LIB(termcap, tgetent, mysql_cv_termcap_lib=libtermcap,
-          [AC_CHECK_LIB(tinfo, tgetent, mysql_cv_termcap_lib=libtinfo,
-	    mysql_cv_termcap_lib=NOT_FOUND)])])])])
+    [AC_CHECK_LIB(ncursesw, tgetent, mysql_cv_termcap_lib=libncursesw,
+        [AC_CHECK_LIB(ncurses, tgetent, mysql_cv_termcap_lib=libncurses,
+            [AC_CHECK_LIB(curses, tgetent, mysql_cv_termcap_lib=libcurses,
+                [AC_CHECK_LIB(termcap, tgetent, mysql_cv_termcap_lib=libtermcap,
+                    [AC_CHECK_LIB(tinfo, tgetent, mysql_cv_termcap_lib=libtinfo,
+                        mysql_cv_termcap_lib=NOT_FOUND)])])])])])
 AC_MSG_CHECKING(for termcap functions library)
 if test "$mysql_cv_termcap_lib" = "NOT_FOUND"; then
 AC_MSG_ERROR([No curses/termcap library found])
 elif test "$mysql_cv_termcap_lib" = "libtermcap"; then
 TERMCAP_LIB=-ltermcap
+elif test "$mysql_cv_termcap_lib" = "libncursesw"; then
+TERMCAP_LIB=-lncursesw
 elif test "$mysql_cv_termcap_lib" = "libncurses"; then
 TERMCAP_LIB=-lncurses
 elif test "$mysql_cv_termcap_lib" = "libtinfo"; then
@@ -453,6 +456,10 @@ fi
 AC_DEFUN([MYSQL_STACK_DIRECTION],
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([#include <stdlib.h>
+ /* Prevent compiler optimization by HP's compiler, see bug#42213 */
+#if defined(__HP_cc) || defined (__HP_aCC) || defined (__hpux)
+#pragma noinline
+#endif
  int find_stack_direction ()
  {
    static char *addr = 0;
@@ -594,15 +601,15 @@ dnl ---------------------------------------------------------------------------
 
 dnl MYSQL_NEEDS_MYSYS_NEW
 AC_DEFUN([MYSQL_NEEDS_MYSYS_NEW],
-[AC_CACHE_CHECK([needs mysys_new helpers], mysql_use_mysys_new,
+[AC_CACHE_CHECK([needs mysys_new helpers], mysql_cv_use_mysys_new,
 [
 AC_LANG_PUSH(C++)
 AC_TRY_LINK([], [
 class A { public: int b; }; A *a=new A; a->b=10; delete a;
-], mysql_use_mysys_new=no, mysql_use_mysys_new=yes)
+], mysql_cv_use_mysys_new=no, mysql_cv_use_mysys_new=yes)
 AC_LANG_POP(C++)
 ])
-if test "$mysql_use_mysys_new" = "yes"
+if test "$mysql_cv_use_mysys_new" = "yes"
 then
   AC_DEFINE([USE_MYSYS_NEW], [1], [Needs to use mysys_new helpers])
 fi

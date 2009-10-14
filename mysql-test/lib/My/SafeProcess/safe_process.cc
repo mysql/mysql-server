@@ -89,7 +89,7 @@ static void die(const char* fmt, ...)
 }
 
 
-static void kill_child (void)
+static void kill_child(void)
 {
   int status= 0;
 
@@ -119,7 +119,7 @@ static void kill_child (void)
 }
 
 
-static void handle_abort (int sig)
+extern "C" void handle_abort(int sig)
 {
     message("Got signal %d, child_pid: %d, sending ABRT", sig, child_pid);
 
@@ -128,8 +128,8 @@ static void handle_abort (int sig)
     }
 }
 
-    
-static void handle_signal (int sig)
+
+extern "C" void handle_signal(int sig)
 {
   message("Got signal %d, child_pid: %d", sig, child_pid);
   terminated= 1;
@@ -152,7 +152,7 @@ int main(int argc, char* const argv[] )
   pid_t own_pid= getpid();
   pid_t parent_pid= getppid();
   bool nocore = false;
-  
+
   /* Install signal handlers */
   signal(SIGTERM, handle_signal);
   signal(SIGINT,  handle_signal);
@@ -232,10 +232,11 @@ int main(int argc, char* const argv[] )
         message("setrlimit failed, errno=%d", errno);
       }
     }
-    
+
     // Signal that child is ready
     buf= 37;
-    write(pfd[1], &buf, 1);
+    if ((write(pfd[1], &buf, 1)) < 1)
+      die("Failed to signal that child is ready");
     // Close write end
     close(pfd[1]);
 
@@ -246,8 +247,10 @@ int main(int argc, char* const argv[] )
   close(pfd[1]); // Close unused write end
 
   // Wait for child to signal it's ready
-  read(pfd[0], &buf, 1);
-  if(buf != 37)
+  if ((read(pfd[0], &buf, 1)) < 1)
+    die("Failed to read signal from child");
+
+  if (buf != 37)
     die("Didn't get 37 from pipe");
   close(pfd[0]); // Close read end
 
@@ -272,7 +275,7 @@ int main(int argc, char* const argv[] )
       if (WIFEXITED(status))
       {
         // Process has exited, collect return status
-        int ret_code= WEXITSTATUS(status);
+        ret_code= WEXITSTATUS(status);
         message("Child exit: %d", ret_code);
         // Exit with exit status of the child
         exit(ret_code);
@@ -287,6 +290,6 @@ int main(int argc, char* const argv[] )
   }
   kill_child();
 
-  exit(1);
+  return 1;
 }
 

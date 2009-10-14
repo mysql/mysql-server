@@ -1,0 +1,42 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SELECT IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
+IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
+1
+SELECT GET_LOCK("debug_lock.before_get_UNIX_TIMESTAMP", 1000);
+GET_LOCK("debug_lock.before_get_UNIX_TIMESTAMP", 1000)
+1
+set global debug= 'd,debug_lock.before_get_UNIX_TIMESTAMP';
+stop slave;
+start slave;
+SELECT RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
+RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
+1
+Check network error happened here
+NETWORK ERROR
+SELECT IS_FREE_LOCK("debug_lock.before_get_SERVER_ID");
+IS_FREE_LOCK("debug_lock.before_get_SERVER_ID")
+1
+SELECT GET_LOCK("debug_lock.before_get_SERVER_ID", 1000);
+GET_LOCK("debug_lock.before_get_SERVER_ID", 1000)
+1
+set global debug= 'd,debug_lock.before_get_SERVER_ID';
+stop slave;
+start slave;
+SELECT RELEASE_LOCK("debug_lock.before_get_SERVER_ID");
+RELEASE_LOCK("debug_lock.before_get_SERVER_ID")
+1
+Check network error happened here
+NETWORK ERROR
+set global debug= '';
+reset master;
+include/stop_slave.inc
+change master to master_port=SLAVE_PORT;
+start slave;
+*** must be having the replicate-same-server-id IO thread error ***
+Slave_IO_Errno= 1593
+Slave_IO_Error= Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).

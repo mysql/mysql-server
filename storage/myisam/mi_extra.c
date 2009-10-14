@@ -260,9 +260,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PREPARE_FOR_DROP:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
-    /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
+    /* Flush pages that we don't need anymore */
     if (flush_key_blocks(share->key_cache, share->kfile,
 			 (function == HA_EXTRA_PREPARE_FOR_DROP ?
                           FLUSH_IGNORE_CHANGED : FLUSH_RELEASE)))
@@ -272,6 +271,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       mi_print_error(info->s, HA_ERR_CRASHED);
       mi_mark_crashed(info);			/* Fatal error found */
     }
+#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
+    /* Close the isam and data files as Win32 can't drop an open table */
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -285,9 +286,19 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       info->lock_type = F_UNLCK;
     }
     if (share->kfile >= 0)
+    {
+      /*
+        We don't need to call _mi_decrement_open_count() if we are
+        dropping the table, as the files will be removed anyway. If we
+        are aborted before the files is removed, it's better to not
+        call it as in that case the automatic repair on open will add
+        the missing index entries
+      */
+      if (function != HA_EXTRA_PREPARE_FOR_DROP)
       _mi_decrement_open_count(info);
-    if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
-      error=my_errno;
+      if (my_close(share->kfile,MYF(0)))
+        error=my_errno;
+    }
     {
       LIST *list_element ;
       for (list_element=myisam_open_list ;
@@ -304,8 +315,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       }
     }
     share->kfile= -1;				/* Files aren't open anymore */
-    pthread_mutex_unlock(&share->intern_lock);
 #endif
+    pthread_mutex_unlock(&share->intern_lock);
     pthread_mutex_unlock(&THR_LOCK_myisam);
     break;
   case HA_EXTRA_FLUSH:

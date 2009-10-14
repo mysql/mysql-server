@@ -83,7 +83,9 @@ HA_CHECK check_param;
 int main(int argc, char **argv)
 {
   int error;
+  uchar rc;
   MY_INIT(argv[0]);
+  my_progname_short= "myisamchk";
 
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */
@@ -132,7 +134,8 @@ int main(int argc, char **argv)
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-  exit(error);
+  rc= (uchar) error;
+  exit(rc);
 #ifndef _lint
   return 0;				/* No compiler warning */
 #endif
@@ -284,8 +287,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
-    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
+    GET_ULL, REQUIRED_ARG, USE_BUFFER_INIT, MALLOC_OVERHEAD,
+    SIZE_T_MAX, MALLOC_OVERHEAD,  IO_SIZE, 0},
   { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
     (uchar**) &opt_key_cache_block_size,
     (uchar**) &opt_key_cache_block_size, 0,
@@ -1099,7 +1102,7 @@ static int myisamchk(HA_CHECK *param, char * filename)
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
 	  VOID(init_key_cache(dflt_key_cache,opt_key_cache_block_size,
-                              param->use_buffers, 0, 0));
+                              (size_t) param->use_buffers, 0, 0));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1303,7 +1306,7 @@ static void descript(HA_CHECK *param, register MI_INFO *info, char * name)
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
 	printf("Max datafile length: %13s  Max keyfile length: %13s\n",
 	       llstr(share->base.max_data_file_length-1,llbuff),
-	       llstr(share->base.max_key_file_length-1,llbuff2));
+               ullstr(share->base.max_key_file_length - 1, llbuff2));
     }
   }
 
@@ -1522,8 +1525,8 @@ static int mi_sort_records(HA_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_key_cache, opt_key_cache_block_size, param->use_buffers,
-                 0, 0);
+  init_key_cache(dflt_key_cache, opt_key_cache_block_size,
+                 (size_t) param->use_buffers, 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))

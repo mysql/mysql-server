@@ -1,0 +1,528 @@
+'\" t
+.\"     Title: \fBmysqlhotcopy\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQLHOTCOPY\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlhotcopy
+.\" dumping: databases and tables
+.\" backups: databases and tables
+.\" databases: dumping
+.\" tables: dumping
+.SH "NAME"
+mysqlhotcopy \- a database backup program
+.SH "SYNOPSIS"
+.HP \w'\fBmysqlhotcopy\ \fR\fB\fIarguments\fR\fR\ 'u
+\fBmysqlhotcopy \fR\fB\fIarguments\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysqlhotcopy\fR
+is a Perl script that was originally written and contributed by Tim Bunce\&. It uses
+LOCK TABLES,
+FLUSH TABLES, and
+cp
+or
+scp
+to make a database backup quickly\&. It is the fastest way to make a backup of the database or single tables, but it can be run only on the same machine where the database directories are located\&.
+\fBmysqlhotcopy\fR
+works only for backing up
+MyISAM
+and
+ARCHIVE
+tables\&. It runs on Unix and NetWare\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fI/path/to/new_directory\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name_1\fR\fR\fB \&.\&.\&. \fR\fB\fIdb_name_n\fR\fR\fB \fR\fB\fI/path/to/new_directory\fR\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Back up tables in the given database that match a regular expression:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB\&./\fR\fB\fIregex\fR\fR\fB/\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The regular expression for the table name can be negated by prefixing it with a tilde (\(lq~\(rq):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB\&./~\fR\fB\fIregex\fR\fR\fB/\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysqlhotcopy\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: help option
+.\" help option: mysqlhotcopy
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: addtodest option
+.\" addtodest option: mysqlhotcopy
+\fB\-\-addtodest\fR
+.sp
+Do not rename target directory (if it exists); merely add files to it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: allowold option
+.\" allowold option: mysqlhotcopy
+\fB\-\-allowold\fR
+.sp
+Do not abort if a target exists; rename it by adding an
+_old
+suffix\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: checkpoint option
+.\" checkpoint option: mysqlhotcopy
+\fB\-\-checkpoint=\fR\fB\fIdb_name\fR\fR\fB\&.\fR\fB\fItbl_name\fR\fR
+.sp
+Insert checkpoint entries into the specified database
+\fIdb_name\fR
+and table
+\fItbl_name\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: chroot option
+.\" chroot option: mysqlhotcopy
+\fB\-\-chroot=\fR\fB\fIpath\fR\fR
+.sp
+Base directory of the
+\fBchroot\fR
+jail in which
+\fBmysqld\fR
+operates\&. The
+\fIpath\fR
+value should match that of the
+\fB\-\-chroot\fR
+option given to
+\fBmysqld\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: debug option
+.\" debug option: mysqlhotcopy
+\fB\-\-debug\fR
+.sp
+Enable debug output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: dryrun option
+.\" dryrun option: mysqlhotcopy
+\fB\-\-dryrun\fR,
+\fB\-n\fR
+.sp
+Report actions without performing them\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: flushlog option
+.\" flushlog option: mysqlhotcopy
+\fB\-\-flushlog\fR
+.sp
+Flush logs after all tables are locked\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: host option
+.\" host option: mysqlhotcopy
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+\fB\-h \fR\fB\fIhost_name\fR\fR
+.sp
+The host name of the local host to use for making a TCP/IP connection to the local server\&. By default, the connection is made to
+localhost
+using a Unix socket file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: keepold option
+.\" keepold option: mysqlhotcopy
+\fB\-\-keepold\fR
+.sp
+Do not delete previous (renamed) target when done\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: method option
+.\" method option: mysqlhotcopy
+\fB\-\-method=\fR\fB\fIcommand\fR\fR
+.sp
+The method for copying files (cp
+or
+scp)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: noindices option
+.\" noindices option: mysqlhotcopy
+\fB\-\-noindices\fR
+.sp
+Do not include full index files in the backup\&. This makes the backup smaller and faster\&. The indexes for reloaded tables can be reconstructed later with
+\fBmyisamchk \-rq\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: password option
+.\" password option: mysqlhotcopy
+\fB\-\-password=\fR\fB\fIpassword\fR\fR,
+\fB\-p\fR\fB\fIpassword\fR\fR
+.sp
+The password to use when connecting to the server\&. Note that the password value is not optional for this option, unlike for other MySQL programs\&. You can use an option file to avoid giving the password on the command line\&.
+.sp
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: port option
+.\" port option: mysqlhotcopy
+\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-P \fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use when connecting to the local server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: quiet option
+.\" quiet option: mysqlhotcopy
+\fB\-\-quiet\fR,
+\fB\-q\fR
+.sp
+Be silent except for errors\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: record_log_pos option
+.\" record_log_pos option: mysqlhotcopy
+\fB\-\-record_log_pos=\fR\fB\fIdb_name\fR\fR\fB\&.\fR\fB\fItbl_name\fR\fR
+.sp
+Record master and slave status in the specified database
+\fIdb_name\fR
+and table
+\fItbl_name\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: regexp option
+.\" regexp option: mysqlhotcopy
+\fB\-\-regexp=\fR\fB\fIexpr\fR\fR
+.sp
+Copy all databases with names that match the given regular expression\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: resetmaster option
+.\" resetmaster option: mysqlhotcopy
+\fB\-\-resetmaster\fR
+.sp
+Reset the binary log after locking all the tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: resetslave option
+.\" resetslave option: mysqlhotcopy
+\fB\-\-resetslave\fR
+.sp
+Reset the
+master\&.info
+file after locking all the tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: socket option
+.\" socket option: mysqlhotcopy
+\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+\fB\-S \fR\fB\fIpath\fR\fR
+.sp
+The Unix socket file to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: suffix option
+.\" suffix option: mysqlhotcopy
+\fB\-\-suffix=\fR\fB\fIstr\fR\fR
+.sp
+The suffix for names of copied databases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: tmpdir option
+.\" tmpdir option: mysqlhotcopy
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
+.sp
+The temporary directory\&. The default is
+/tmp\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlhotcopy: user option
+.\" user option: mysqlhotcopy
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.PP
+\fBmysqlhotcopy\fR
+reads the
+[client]
+and
+[mysqlhotcopy]
+option groups from option files\&.
+.PP
+To execute
+\fBmysqlhotcopy\fR, you must have access to the files for the tables that you are backing up, the
+SELECT
+privilege for those tables, the
+RELOAD
+privilege (to be able to execute
+FLUSH TABLES), and the
+LOCK TABLES
+privilege (to be able to lock the tables)\&.
+.PP
+Use
+perldoc
+for additional
+\fBmysqlhotcopy\fR
+documentation, including information about the structure of the tables needed for the
+\fB\-\-checkpoint\fR
+and
+\fB\-\-record_log_pos\fR
+options:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBperldoc mysqlhotcopy\fR
+.fi
+.if n \{\
+.RE
+.\}
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

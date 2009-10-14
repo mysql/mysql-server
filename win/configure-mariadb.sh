@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#
+# This script is the "standard" way to configure MariaDB on Windows. To be 
+# used by buildbot slaves and release build script.
+# 
+
+set -e
+
+cscript win/configure.js \
+ WITH_ARCHIVE_STORAGE_ENGINE \
+ WITH_BLACKHOLE_STORAGE_ENGINE \
+ WITH_CSV_STORAGE_ENGINE \
+ WITH_EXAMPLE_STORAGE_ENGINE \
+ WITH_FEDERATED_STORAGE_ENGINE \
+ WITH_MERGE_STORAGE_ENGINE \
+ WITH_PARTITION_STORAGE_ENGINE \
+  WITH_MARIA_STORAGE_ENGINE \
+  WITH_PBXT_STORAGE_ENGINE \
+  WITH_XTRADB_STORAGE_ENGINE \
+ WITH_EMBEDDED_SERVER
+
+

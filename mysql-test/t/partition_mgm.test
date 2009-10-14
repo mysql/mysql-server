@@ -67,13 +67,14 @@ drop table t1;
 #
 # Verification tests for bug#14326
 #
---error ER_PARSE_ERROR
 CREATE TABLE t1 (a INT)
 /*!50100 PARTITION BY HASH (a)
 /* Test
    of multi-line
    comment */
 PARTITIONS 5 */;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 CREATE TABLE t1 (a INT)
 /*!50100 PARTITION BY HASH (a)
 -- with a single line comment embedded

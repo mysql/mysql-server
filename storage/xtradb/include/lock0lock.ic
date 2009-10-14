@@ -1,0 +1,123 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/******************************************************
+The transaction lock system
+
+Created 5/7/1996 Heikki Tuuri
+*******************************************************/
+
+#include "sync0sync.h"
+#include "srv0srv.h"
+#include "dict0dict.h"
+#include "row0row.h"
+#include "trx0sys.h"
+#include "trx0trx.h"
+#include "buf0buf.h"
+#include "page0page.h"
+#include "page0cur.h"
+#include "row0vers.h"
+#include "que0que.h"
+#include "btr0cur.h"
+#include "read0read.h"
+#include "log0recv.h"
+
+/*************************************************************************
+Calculates the fold value of a page file address: used in inserting or
+searching for a lock in the hash table. */
+UNIV_INLINE
+ulint
+lock_rec_fold(
+/*==========*/
+			/* out: folded value */
+	ulint	space,	/* in: space */
+	ulint	page_no)/* in: page number */
+{
+	return(ut_fold_ulint_pair(space, page_no));
+}
+
+/*************************************************************************
+Calculates the hash value of a page file address: used in inserting or
+searching for a lock in the hash table. */
+UNIV_INLINE
+ulint
+lock_rec_hash(
+/*==========*/
+			/* out: hashed value */
+	ulint	space,	/* in: space */
+	ulint	page_no)/* in: page number */
+{
+	return(hash_calc_hash(lock_rec_fold(space, page_no),
+			      lock_sys->rec_hash));
+}
+
+/*************************************************************************
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index. */
+UNIV_INLINE
+trx_t*
+lock_clust_rec_some_has_impl(
+/*=========================*/
+				/* out: transaction which has the x-lock, or
+				NULL */
+	const rec_t*	rec,	/* in: user record */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+{
+	dulint	trx_id;
+
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(page_rec_is_user_rec(rec));
+
+	trx_id = row_get_rec_trx_id(rec, index, offsets);
+
+	if (trx_is_active(trx_id)) {
+		/* The modifying or inserting transaction is active */
+
+		return(trx_get_on_id(trx_id));
+	}
+
+	return(NULL);
+}
+
+/*************************************************************************
+Gets the heap_no of the smallest user record on a page. */
+UNIV_INLINE
+ulint
+lock_get_min_heap_no(
+/*=================*/
+					/* out: heap_no of smallest
+					user record, or
+					PAGE_HEAP_NO_SUPREMUM */
+	const buf_block_t*	block)	/* in: buffer block */
+{
+	const page_t*	page	= block->frame;
+
+	if (page_is_comp(page)) {
+		return(rec_get_heap_no_new(
+			       page
+			       + rec_get_next_offs(page + PAGE_NEW_INFIMUM,
+						   TRUE)));
+	} else {
+		return(rec_get_heap_no_old(
+			       page
+			       + rec_get_next_offs(page + PAGE_OLD_INFIMUM,
+						   FALSE)));
+	}
+}

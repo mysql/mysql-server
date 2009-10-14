@@ -1,0 +1,185 @@
+'\" t
+.\"     Title: \fBmake_win_bin_dist\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMAKE_WIN_BIN_DIST" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" make_win_bin_dist
+.SH "NAME"
+make_win_bin_dist \- package MySQL distribution as ZIP archive
+.SH "SYNOPSIS"
+.HP \w'\fBmake_win_bin_dist\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIpackage_basename\fR\fR\fB\ [\fR\fB\fIcopy_def\fR\fR\fB\ \&.\&.\&.]\fR\ 'u
+\fBmake_win_bin_dist [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpackage_basename\fR\fR\fB [\fR\fB\fIcopy_def\fR\fR\fB \&.\&.\&.]\fR
+.SH "DESCRIPTION"
+.PP
+This script is used on Windows after building a MySQL distribution from source to create executable programs\&. It packages the binaries and support files into a ZIP archive that can be unpacked at the location where you want to install MySQL\&.
+.PP
+\fBmake_win_bin_dist\fR
+is a shell script, so you must have Cygwin installed to use it\&.
+.PP
+This program\'s use is subject to change\&. Currently, you invoke it as follows from the root directory of your source distribution:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmake_win_bin_dist [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpackage_basename\fR\fR\fB [\fR\fB\fIcopy_def\fR\fR\fB \&.\&.\&.]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The
+\fIpackage_basename\fR
+argument provides the basename for the resulting ZIP archive\&. This name will be the name of the directory that results from unpacking the archive\&.
+.PP
+Because you might want to include files of directories from other builds, you can instruct this script do copy them in for you, via
+\fIcopy_def\fR
+arguments, which of which is of the form
+\fIrelative_dest_name\fR=\fIsource_name\fR\&.
+.PP
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+bin/mysqld\-max\&.exe=\&.\&./my\-max\-build/sql/release/mysqld\&.exe
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If you specify a directory, the entire directory will be copied\&.
+.PP
+\fBmake_win_bin_dist\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: debug option
+.\" debug option: make_win_bin_dist
+\fB\-\-debug\fR
+.sp
+Pack the debug binaries and produce an error if they were not built\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: embedded option
+.\" embedded option: make_win_bin_dist
+\fB\-\-embedded\fR
+.sp
+Pack the embedded server and produce an error if it was not built\&. The default is to pack it if it was built\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: exe-suffix option
+.\" exe-suffix option: make_win_bin_dist
+\fB\-\-exe\-suffix=\fR\fB\fIsuffix\fR\fR
+.sp
+Add a suffix to the basename of the
+\fBmysql\fR
+binary\&. For example, a suffix of
+\-abc
+produces a binary named
+\fBmysqld\-abc\&.exe\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: no-debug option
+.\" no-debug option: make_win_bin_dist
+\fB\-\-no\-debug\fR
+.sp
+Do not pack the debug binaries even if they were built\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: no-embedded option
+.\" no-embedded option: make_win_bin_dist
+\fB\-\-no\-embedded\fR
+.sp
+Do not pack the embedded server even if it was built\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" make_win_bin_dist: only-debug option
+.\" only-debug option: make_win_bin_dist
+\fB\-\-only\-debug\fR
+.sp
+Use this option when the target for this build was
+Debug, and you just want to replace the normal binaries with debug versions (that is, do not use separate
+debug
+directories)\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

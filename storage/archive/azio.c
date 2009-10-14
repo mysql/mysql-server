@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "my_sys.h"
+
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
@@ -37,40 +39,6 @@ void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
 void read_header(azio_stream *s, unsigned char *buffer);
 
-/*
-  Valgrind normally gives false alarms for zlib operations, in the form of
-  "conditional jump depends on uninitialised values" etc. The reason is
-  explained in the zlib FAQ (http://www.zlib.net/zlib_faq.html#faq36):
-
-    "That is intentional for performance reasons, and the output of deflate
-    is not affected."
-
-  Also discussed on a blog
-  (http://www.sirena.org.uk/log/2006/02/19/zlib-generating-valgrind-warnings/):
-
-    "...loop unrolling in the zlib library causes the mentioned
-    “Conditional jump or move depends on uninitialised value(s)”
-    warnings. These are safe since the results of the comparison are
-    subsequently ignored..."
-
-    "the results of the calculations are discarded by bounds checking done
-    after the loop exits"
-
-  Fix by initializing the memory allocated by zlib when running under Valgrind.
-
-  This fix is safe, since such memory is only used internally by zlib, so we
-  will not hide any bugs in mysql this way.
-*/
-static void *az_allocator(void *dummy, uInt items, uInt size)
-{
-  return my_malloc((size_t)items*(size_t)size, IF_VALGRIND(MY_ZEROFILL, MYF(0)));
-}
-
-static void az_free(void *dummy, void *address)
-{
-  my_free(address, MYF(MY_ALLOW_ZERO_PTR));
-}
-
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
   is as in fopen ("rb" or "wb"). The file is given either by file descriptor
@@ -86,8 +54,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
-  s->stream.zalloc = az_allocator;
-  s->stream.zfree = az_free;
+  s->stream.zalloc = my_az_allocator;
+  s->stream.zfree = my_az_free;
   s->stream.opaque = (voidpf)0;
   memset(s->inbuf, 0, AZ_BUFSIZE_READ);
   memset(s->outbuf, 0, AZ_BUFSIZE_WRITE);

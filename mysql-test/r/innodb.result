@@ -1736,36 +1736,36 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
-show status like "Innodb_buffer_pool_pages_total";
-Variable_name	Value
-Innodb_buffer_pool_pages_total	512
-show status like "Innodb_page_size";
-Variable_name	Value
-Innodb_page_size	16384
-show status like "Innodb_rows_deleted";
-Variable_name	Value
-Innodb_rows_deleted	71
-show status like "Innodb_rows_inserted";
-Variable_name	Value
-Innodb_rows_inserted	1084
-show status like "Innodb_rows_updated";
-Variable_name	Value
-Innodb_rows_updated	885
-show status like "Innodb_row_lock_waits";
-Variable_name	Value
-Innodb_row_lock_waits	0
-show status like "Innodb_row_lock_current_waits";
-Variable_name	Value
-Innodb_row_lock_current_waits	0
-show status like "Innodb_row_lock_time";
-Variable_name	Value
-Innodb_row_lock_time	0
-show status like "Innodb_row_lock_time_max";
-Variable_name	Value
-Innodb_row_lock_time_max	0
-show status like "Innodb_row_lock_time_avg";
-Variable_name	Value
-Innodb_row_lock_time_avg	0
+SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+variable_value
+511
+SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+variable_value
+16384
+SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
+variable_value - @innodb_rows_deleted_orig
+71
+SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+variable_value - @innodb_rows_inserted_orig
+1084
+SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+variable_value - @innodb_rows_updated_orig
+885
+SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
+variable_value - @innodb_row_lock_waits_orig
+0
+SELECT variable_value - @innodb_row_lock_current_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
+variable_value - @innodb_row_lock_current_waits_orig
+0
+SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
+variable_value - @innodb_row_lock_time_orig
+0
+SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
+variable_value - @innodb_row_lock_time_max_orig
+0
+SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+variable_value - @innodb_row_lock_time_avg_orig
+0
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
@@ -1784,7 +1784,7 @@ innodb_sync_spin_loops	20
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect thread_concurrency value: '1001'
@@ -2377,6 +2377,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3190,6 +3192,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
+set innodb_strict_mode=on;
 CREATE TABLE t1 (
 c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),

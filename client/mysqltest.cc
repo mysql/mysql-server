@@ -100,6 +100,7 @@ static my_bool display_result_vertically= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0;
+static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
 static my_bool server_initialized= 0;
@@ -289,6 +290,7 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
+  Q_MOVE_FILE, Q_ENABLE_PREPARE_WARNINGS, Q_DISABLE_PREPARE_WARNINGS,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -385,6 +387,9 @@ const char *command_names[]=
   "list_files_append_file",
   "send_shutdown",
   "shutdown_server",
+  "move_file",
+  "enable_prepare_warnings",
+  "disable_prepare_warnings",
 
   0
 };
@@ -975,6 +980,7 @@ void check_command_args(struct st_command *command,
   for (i= 0; i < num_args; i++)
   {
     const struct command_arg *arg= &args[i];
+    char delimiter;
 
     switch (arg->type) {
       /* A string */
@@ -983,8 +989,15 @@ void check_command_args(struct st_command *command,
       while (*ptr && *ptr == ' ')
         ptr++;
       start= ptr;
-      /* Find end of arg, terminated by "delimiter_arg" */
-      while (*ptr && *ptr != delimiter_arg)
+      delimiter = delimiter_arg;
+      /* If start of arg is ' ` or " search to matching quote end instead */
+      if (*ptr && strchr ("'`\"", *ptr))
+      {
+	delimiter= *ptr;
+	start= ++ptr;
+      }
+      /* Find end of arg, terminated by "delimiter" */
+      while (*ptr && *ptr != delimiter)
         ptr++;
       if (ptr > start)
       {
@@ -996,6 +1009,11 @@ void check_command_args(struct st_command *command,
         /* Empty string */
         init_dynamic_string(arg->ds, "", 0, 0);
       }
+      /* Find real end of arg, terminated by "delimiter_arg" */
+      /* This will do nothing if arg was not closed by quotes */
+      while (*ptr && *ptr != delimiter_arg)
+        ptr++;      
+
       command->last_argument= (char*)ptr;
 
       /* Step past the delimiter */
@@ -1454,33 +1472,37 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   Test if diff is present.  This is needed on Windows systems
   as the OS returns 1 whether diff is successful or if it is
   not present.
-  Takes name of diff program as argument
-  
+
   We run diff -v and look for output in stdout.
   We don't redirect stderr to stdout to make for a simplified check
   Windows will output '"diff"' is not recognized... to stderr if it is
   not present.
 */
 
-int diff_check (const char *diff_name)
+#ifdef __WIN__
+
+static int diff_check(const char *diff_name)
 {
-    char buf[512]= {0};
-    FILE *res_file;
-    char cmd[128];
-    my_snprintf (cmd, sizeof(cmd), "%s -v", diff_name);
-    int have_diff = 0;
+  FILE *res_file;
+  char buf[128];
+  int have_diff= 0;
 
-    if (!(res_file= popen(cmd, "r")))
-        die("popen(\"%s\", \"r\") failed", cmd);
+  my_snprintf(buf, sizeof(buf), "%s -v", diff_name);
 
-    /* if diff is not present, nothing will be in stdout to increment have_diff */
-    if (fgets(buf, sizeof(buf), res_file))
-        {
-            have_diff += 1;
-        } 
-    pclose(res_file);
-    return have_diff;
+  if (!(res_file= popen(buf, "r")))
+    die("popen(\"%s\", \"r\") failed", buf);
+
+  /* if diff is not present, nothing will be in stdout to increment have_diff */
+  if (fgets(buf, sizeof(buf), res_file))
+    have_diff= 1;
+
+  pclose(res_file);
+
+  return have_diff;
 }
+
+#endif
+
 
 /*
   Show the diff of two files using the systems builtin diff
@@ -1823,7 +1845,7 @@ void check_result()
           log_file.file_name(), reject_file, errno);
 
     show_diff(NULL, result_file_name, reject_file);
-    die(mess);
+    die("%s", mess);
     break;
   }
   default: /* impossible */
@@ -2911,6 +2933,42 @@ void do_copy_file(struct st_command *command)
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE)) != 0);
+  handle_command_error(command, error);
+  dynstr_free(&ds_from_file);
+  dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_move_file
+  command	command handle
+
+  DESCRIPTION
+  move_file <from_file> <to_file>
+  Move <from_file> to <to_file>
+*/
+
+void do_move_file(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_from_file;
+  static DYNAMIC_STRING ds_to_file;
+  const struct command_arg move_file_args[] = {
+    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to move from" },
+    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" }
+  };
+  DBUG_ENTER("do_move_file");
+
+  check_command_args(command, command->first_argument,
+                     move_file_args,
+                     sizeof(move_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
+  error= (my_rename(ds_from_file.str, ds_to_file.str,
+                    MYF(0)) != 0);
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -4575,7 +4633,7 @@ void select_connection(struct st_command *command)
   };
   check_command_args(command, command->first_argument, connection_args,
                      sizeof(connection_args)/sizeof(struct command_arg),
-                     ',');
+                     ' ');
 
   DBUG_PRINT("info", ("changing connection: %s", ds_connection.str));
   select_connection_name(ds_connection.str);
@@ -5702,11 +5760,11 @@ static struct my_option my_long_options[] =
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
    (uchar**) &sp_protocol, (uchar**) &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the resul to include in a failure report",
    (uchar**) &opt_tail_lines, (uchar**) &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
-#include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"connect-timeout", OPT_MY_CONNECT_TIMEOUT, "Client connection timeout",
@@ -5843,6 +5901,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
     if (argument)
     {
       my_free(opt_pass, MYF(MY_ALLOW_ZERO_PTR));
@@ -6872,8 +6932,17 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
       mysql_free_result(res);     /* Free normal result set with meta data */
 
-      /* Clear prepare warnings */
-      dynstr_set(&ds_prepare_warnings, NULL);
+      /*
+        Normally, if there is a result set, we do not show warnings from the
+        prepare phase. This is because some warnings are generated both during
+        prepare and execute; this would generate different warning output
+        between normal and ps-protocol test runs.
+
+        The --enable_prepare_warnings command can be used to change this so
+        that warnings from both the prepare and execute phase are shown.
+      */
+      if (!disable_warnings && !prepare_warnings_enabled)
+        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
@@ -7697,6 +7766,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
+      case Q_ENABLE_PREPARE_WARNINGS:  prepare_warnings_enabled=1; break;
+      case Q_DISABLE_PREPARE_WARNINGS: prepare_warnings_enabled=0; break;
       case Q_ENABLE_INFO:        disable_info=0; break;
       case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;
@@ -7727,6 +7798,7 @@ int main(int argc, char **argv)
       case Q_CHANGE_USER: do_change_user(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
+      case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
       case Q_DELIMITER:

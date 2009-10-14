@@ -1,8 +1,191 @@
 
-You can find information about how to install binary distributions at
+2.9. Installing MySQL from tar.gz Packages on Other Unix-Like Systems
 
-  http://dev.mysql.com/doc/refman/5.1/en/quick-standard-installation.html
+   This section covers the installation of MySQL binary distributions
+   that are provided for various platforms in the form of compressed
+   tar files (files with a .tar.gz extension). See Section 2.1.2.4,
+   "MySQL Binaries Compiled by Sun Microsystems, Inc.," for a
+   detailed list.
 
-The MySQL Reference Manual is also available in various formats on
-http://dev.mysql.com/doc; if you're interested in the DocBook XML
-sources go to http://svn.mysql.com.
+   To obtain MySQL, see Section 2.1.3, "How to Get MySQL."
+
+   MySQL tar file binary distributions have names of the form
+   mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
+   5.1.39), and OS indicates the type of operating system for which
+   the distribution is intended (for example, pc-linux-i686).
+
+   In addition to these generic packages, we also offer binaries in
+   platform-specific package formats for selected platforms. See
+   Section 2.2, "Standard MySQL Installation Using a Binary
+   Distribution," for more information on how to install these.
+
+   You need the following tools to install a MySQL tar file binary
+   distribution:
+
+     * GNU gunzip to uncompress the distribution.
+
+     * A reasonable tar to unpack the distribution. GNU tar is known
+       to work. Some operating systems come with a preinstalled
+       version of tar that is known to have problems. For example,
+       the tar provided with early versions of Mac OS X, SunOS 4.x
+       and Solaris 8 and earlier are known to have problems with long
+       file names. On Mac OS X, you can use the preinstalled gnutar
+       program. On other systems with a deficient tar, you should
+       install GNU tar first.
+
+   If you run into problems and need to file a bug report, please use
+   the instructions in Section 1.6, "How to Report Bugs or Problems."
+
+   The basic commands that you must execute to install and use a
+   MySQL binary distribution are:
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+shell> cd /usr/local
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
+shell> cd mysql
+shell> chown -R mysql .
+shell> chgrp -R mysql .
+shell> scripts/mysql_install_db --user=mysql
+shell> chown -R root .
+shell> chown -R mysql data
+shell> bin/mysqld_safe --user=mysql &
+
+Note
+
+   This procedure does not set up any passwords for MySQL accounts.
+   After following the procedure, proceed to Section 2.11,
+   "Post-Installation Setup and Testing."
+
+   A more detailed version of the preceding description for
+   installing a binary distribution follows:
+
+    1. Add a login user and group for mysqld to run as:
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+       These commands add the mysql group and the mysql user. The
+       syntax for useradd and groupadd may differ slightly on
+       different versions of Unix, or they may have different names
+       such as adduser and addgroup.
+       You might want to call the user and group something else
+       instead of mysql. If so, substitute the appropriate name in
+       the following steps.
+
+    2. Pick the directory under which you want to unpack the
+       distribution and change location into it. In the following
+       example, we unpack the distribution under /usr/local. (The
+       instructions, therefore, assume that you have permission to
+       create files and directories in /usr/local. If that directory
+       is protected, you must perform the installation as root.)
+shell> cd /usr/local
+
+    3. Obtain a distribution file using the instructions in Section
+       2.1.3, "How to Get MySQL." For a given release, binary
+       distributions for all platforms are built from the same MySQL
+       source distribution.
+
+    4. Unpack the distribution, which creates the installation
+       directory. Then create a symbolic link to that directory:
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
+       The tar command creates a directory named mysql-VERSION-OS.
+       The ln command makes a symbolic link to that directory. This
+       lets you refer more easily to the installation directory as
+       /usr/local/mysql.
+       With GNU tar, no separate invocation of gunzip is necessary.
+       You can replace the first line with the following alternative
+       command to uncompress and extract the distribution:
+shell> tar zxvf /path/to/mysql-VERSION-OS.tar.gz
+
+    5. Change location into the installation directory:
+shell> cd mysql
+       You will find several files and subdirectories in the mysql
+       directory. The most important for installation purposes are
+       the bin and scripts subdirectories:
+
+          + The bin directory contains client programs and the
+            server. You should add the full path name of this
+            directory to your PATH environment variable so that your
+            shell finds the MySQL programs properly. See Section
+            2.14, "Environment Variables."
+
+          + The scripts directory contains the mysql_install_db
+            script used to initialize the mysql database containing
+            the grant tables that store the server access
+            permissions.
+
+    6. Ensure that the distribution contents are accessible to mysql.
+       If you unpacked the distribution as mysql, no further action
+       is required. If you unpacked the distribution as root, its
+       contents will be owned by root. Change its ownership to mysql
+       by executing the following commands as root in the
+       installation directory:
+shell> chown -R mysql .
+shell> chgrp -R mysql .
+       The first command changes the owner attribute of the files to
+       the mysql user. The second changes the group attribute to the
+       mysql group.
+
+    7. If you have not installed MySQL before, you must create the
+       MySQL data directory and initialize the grant tables:
+shell> scripts/mysql_install_db --user=mysql
+       If you run the command as root, include the --user option as
+       shown. If you run the command while logged in as that user,
+       you can omit the --user option.
+       The command should create the data directory and its contents
+       with mysql as the owner.
+       After creating or updating the grant tables, you need to
+       restart the server manually.
+
+    8. Most of the MySQL installation can be owned by root if you
+       like. The exception is that the data directory must be owned
+       by mysql. To accomplish this, run the following commands as
+       root in the installation directory:
+shell> chown -R root .
+shell> chown -R mysql data
+
+    9. If you want MySQL to start automatically when you boot your
+       machine, you can copy support-files/mysql.server to the
+       location where your system has its startup files. More
+       information can be found in the support-files/mysql.server
+       script itself and in Section 2.11.2.2, "Starting and Stopping
+       MySQL Automatically."
+   10. You can set up new accounts using the bin/mysql_setpermission
+       script if you install the DBI and DBD::mysql Perl modules. See
+       Section 4.6.14, "mysql_setpermission --- Interactively Set
+       Permissions in Grant Tables." For Perl module installation
+       instructions, see Section 2.15, "Perl Installation Notes."
+   11. If you would like to use mysqlaccess and have the MySQL
+       distribution in some nonstandard location, you must change the
+       location where mysqlaccess expects to find the mysql client.
+       Edit the bin/mysqlaccess script at approximately line 18.
+       Search for a line that looks like this:
+$MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
+       Change the path to reflect the location where mysql actually
+       is stored on your system. If you do not do this, a Broken pipe
+       error will occur when you run mysqlaccess.
+
+   After everything has been unpacked and installed, you should test
+   your distribution. To start the MySQL server, use the following
+   command:
+shell> bin/mysqld_safe --user=mysql &
+
+   If you run the command as root, you must use the --user option as
+   shown. The value of the option is the name of the login account
+   that you created in the first step to use for running the server.
+   If you run the command while logged in as mysql, you can omit the
+   --user option.
+
+   If the command fails immediately and prints mysqld ended, you can
+   find some information in the host_name.err file in the data
+   directory.
+
+   More information about mysqld_safe is given in Section 4.3.2,
+   "mysqld_safe --- MySQL Server Startup Script."
+
+Note
+
+   The accounts that are listed in the MySQL grant tables initially
+   have no passwords. After starting the server, you should set up
+   passwords for them using the instructions in Section 2.11,
+   "Post-Installation Setup and Testing."

@@ -27,14 +27,14 @@ UPDATE t1 SET DATA = data*2 WHERE id = 3;
 
 # grouping/referencing in replace_regex is very slow on long strings,
 # removing all before/after the interesting row before grouping/referencing
---replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+--replace_regex /.*LIST OF TRANSACTIONS FOR EACH SESSION:// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
 SHOW ENGINE InnoDB STATUS;
 
 UPDATE t1 SET data = data*2 WHERE data = 2;
 
 # grouping/referencing in replace_regex is very slow on long strings,
 # removing all before/after the interesting row before grouping/referencing
---replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+--replace_regex /.*LIST OF TRANSACTIONS FOR EACH SESSION:// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
 SHOW ENGINE InnoDB STATUS;
 
 SET @@session.tx_isolation = @old_tx_isolation;

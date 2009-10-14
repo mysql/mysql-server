@@ -514,7 +514,7 @@ NULL	test	tb1	f6	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	latin1	latin1
 NULL	test	tb1	f7	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	latin1	latin1_swedish_ci	longtext				
 NULL	test	tb1	f8	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	tinyblob				
 NULL	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	blob				
-NULL	test	tb2	f100	42	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	date				
 NULL	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time				
 NULL	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
@@ -547,32 +547,32 @@ NULL	test	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	decimal(63,30) u
 NULL	test	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill				
 NULL	test	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	decimal(63,30) unsigned zerofill				
 NULL	test	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb2	f74	16	NULL	YES	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb2	f75	17	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb2	f76	18	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb2	f78	20	7.7	YES	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb2	f79	21	00000000000000000007.7	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb2	f80	22	00000000000000000008.8	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test	tb2	f82	24	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb2	f83	25	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb2	f84	26	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test	tb2	f87	29	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb2	f88	30	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb2	f89	31	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb2	f90	32	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb2	f91	33	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb2	f92	34	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb2	f95	37	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb2	f96	38	8.8	NO	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb2	f97	39	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb2	f98	40	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb2	f99	41	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	latin1	latin1_swedish_ci	char(1)				
 NULL	test	tb3	f119	2		NO	char	1	1	NULL	NULL	latin1	latin1_bin	char(1)				
 NULL	test	tb3	f120	3		NO	char	1	1	NULL	NULL	latin1	latin1_swedish_ci	char(1)				
@@ -646,33 +646,33 @@ NULL	test	tb4	f187	12	000000000000000000000000000000009.000000000000000000000000
 NULL	test	tb4	f188	13	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill				
 NULL	test	tb4	f189	14	000000000000000000000000000000009.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	decimal(63,30) unsigned zerofill				
 NULL	test	tb4	f190	15	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb4	f191	16	88.8	NO	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb4	f192	17	00000000000000000088.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb4	f193	18	00000000000000000088.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f191	16	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb4	f192	17	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f193	18	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb4	f194	19	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb4	f195	20	55.5	NO	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb4	f196	21	00000000000000000055.5	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb4	f197	22	00000000000000000055.5	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f195	20	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb4	f196	21	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f197	22	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb4	f198	23	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test	tb4	f199	24	NULL	YES	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb4	f200	25	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f201	26	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f199	24	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb4	f200	25	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f201	26	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test	tb4	f202	27	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test	tb4	f203	28	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test	tb4	f204	29	NULL	YES	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb4	f205	30	NULL	YES	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb4	f206	31	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f207	32	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f208	33	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f209	34	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f204	29	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb4	f205	30	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb4	f206	31	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f207	32	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f208	33	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f209	34	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test	tb4	f210	35	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test	tb4	f211	36	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test	tb4	f212	37	NULL	YES	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test	tb4	f213	38	NULL	YES	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test	tb4	f214	39	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f215	40	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test	tb4	f216	41	NULL	YES	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test	tb4	f217	42	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f212	37	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test	tb4	f213	38	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test	tb4	f214	39	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f215	40	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test	tb4	f216	41	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test	tb4	f217	42	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date				
 NULL	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time				
 NULL	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
@@ -698,7 +698,7 @@ NULL	test	tb4	f239	64	NULL	YES	varbinary	1000	1000	NULL	NULL	NULL	NULL	varbinary
 NULL	test	tb4	f240	65	NULL	YES	varchar	120	120	NULL	NULL	latin1	latin1_swedish_ci	varchar(120)				
 NULL	test	tb4	f241	66	NULL	YES	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)				
 NULL	test	tb4	f242	67	NULL	YES	bit	NULL	NULL	30	NULL	NULL	NULL	bit(30)				
-NULL	test1	tb2	f100	42	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	date				
 NULL	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time				
 NULL	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
@@ -731,32 +731,32 @@ NULL	test1	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	decimal(63,30) 
 NULL	test1	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill				
 NULL	test1	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	decimal(63,30) unsigned zerofill				
 NULL	test1	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test1	tb2	f74	16	NULL	YES	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test1	tb2	f75	17	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test1	tb2	f76	18	NULL	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test1	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test1	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test1	tb2	f78	20	7.7	YES	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test1	tb2	f79	21	00000000000000000007.7	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test1	tb2	f80	22	00000000000000000008.8	YES	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test1	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
 NULL	test1	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test1	tb2	f82	24	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test1	tb2	f83	25	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test1	tb2	f84	26	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test1	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test1	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test1	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
-NULL	test1	tb2	f87	29	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test1	tb2	f88	30	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test1	tb2	f89	31	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test1	tb2	f90	32	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test1	tb2	f91	33	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test1	tb2	f92	34	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test1	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test1	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test1	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float				
 NULL	test1	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double				
-NULL	test1	tb2	f95	37	8.8	NO	float unsigned	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
-NULL	test1	tb2	f96	38	8.8	NO	double unsigned	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
-NULL	test1	tb2	f97	39	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
-NULL	test1	tb2	f98	40	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
-NULL	test1	tb2	f99	41	0000000008.8	NO	float unsigned zerofill	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned				
+NULL	test1	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned				
+NULL	test1	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
+NULL	test1	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill				
+NULL	test1	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	float unsigned zerofill				
 NULL	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)				
 NULL	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)				
 NULL	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date				
@@ -817,11 +817,7 @@ NULL	date	NULL	NULL
 NULL	datetime	NULL	NULL
 NULL	decimal	NULL	NULL
 NULL	double	NULL	NULL
-NULL	double unsigned	NULL	NULL
-NULL	double unsigned zerofill	NULL	NULL
 NULL	float	NULL	NULL
-NULL	float unsigned	NULL	NULL
-NULL	float unsigned zerofill	NULL	NULL
 NULL	int	NULL	NULL
 NULL	mediumint	NULL	NULL
 NULL	smallint	NULL	NULL
@@ -963,33 +959,33 @@ NULL	test	tb2	f70	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test	tb2	f71	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned zerofill
 NULL	test	tb2	f72	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test	tb2	f73	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb2	f74	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb2	f75	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb2	f76	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f74	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb2	f75	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f76	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb2	f77	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb2	f78	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb2	f79	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb2	f80	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f78	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb2	f79	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f80	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb2	f81	float	NULL	NULL	NULL	NULL	float
-NULL	test	tb2	f82	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb2	f83	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f84	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f82	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb2	f83	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f84	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test	tb2	f85	float	NULL	NULL	NULL	NULL	float
 NULL	test	tb2	f86	float	NULL	NULL	NULL	NULL	float
-NULL	test	tb2	f87	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb2	f88	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb2	f89	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f90	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f91	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f92	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f87	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb2	f88	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb2	f89	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f90	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f91	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f92	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test	tb2	f93	float	NULL	NULL	NULL	NULL	float
 NULL	test	tb2	f94	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb2	f95	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb2	f96	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb2	f97	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f98	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb2	f99	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb2	f100	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f95	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb2	f96	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb2	f97	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f98	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb2	f99	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb2	f100	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime
@@ -1080,33 +1076,33 @@ NULL	test	tb4	f187	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test	tb4	f188	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned zerofill
 NULL	test	tb4	f189	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test	tb4	f190	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb4	f191	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb4	f192	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb4	f193	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f191	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb4	f192	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f193	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb4	f194	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb4	f195	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb4	f196	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb4	f197	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f195	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb4	f196	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f197	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb4	f198	float	NULL	NULL	NULL	NULL	float
-NULL	test	tb4	f199	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb4	f200	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f201	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f199	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb4	f200	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f201	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test	tb4	f202	float	NULL	NULL	NULL	NULL	float
 NULL	test	tb4	f203	float	NULL	NULL	NULL	NULL	float
-NULL	test	tb4	f204	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb4	f205	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb4	f206	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f207	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f208	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f209	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f204	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb4	f205	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb4	f206	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f207	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f208	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f209	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test	tb4	f210	float	NULL	NULL	NULL	NULL	float
 NULL	test	tb4	f211	double	NULL	NULL	NULL	NULL	double
-NULL	test	tb4	f212	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test	tb4	f213	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test	tb4	f214	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f215	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test	tb4	f216	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test	tb4	f217	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f212	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test	tb4	f213	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test	tb4	f214	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f215	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test	tb4	f216	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test	tb4	f217	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test	tb4	f218	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb4	f219	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb4	f220	datetime	NULL	NULL	NULL	NULL	datetime
@@ -1147,33 +1143,33 @@ NULL	test1	tb2	f70	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test1	tb2	f71	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned zerofill
 NULL	test1	tb2	f72	decimal	NULL	NULL	NULL	NULL	decimal(63,30) unsigned zerofill
 NULL	test1	tb2	f73	double	NULL	NULL	NULL	NULL	double
-NULL	test1	tb2	f74	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test1	tb2	f75	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test1	tb2	f76	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f74	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test1	tb2	f75	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f76	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test1	tb2	f77	double	NULL	NULL	NULL	NULL	double
-NULL	test1	tb2	f78	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test1	tb2	f79	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test1	tb2	f80	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f78	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test1	tb2	f79	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f80	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test1	tb2	f81	float	NULL	NULL	NULL	NULL	float
-NULL	test1	tb2	f82	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test1	tb2	f83	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f84	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f82	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test1	tb2	f83	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f84	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test1	tb2	f85	float	NULL	NULL	NULL	NULL	float
 NULL	test1	tb2	f86	float	NULL	NULL	NULL	NULL	float
-NULL	test1	tb2	f87	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test1	tb2	f88	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test1	tb2	f89	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f90	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f91	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f92	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f87	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test1	tb2	f88	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test1	tb2	f89	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f90	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f91	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f92	float	NULL	NULL	NULL	NULL	float unsigned zerofill
 NULL	test1	tb2	f93	float	NULL	NULL	NULL	NULL	float
 NULL	test1	tb2	f94	double	NULL	NULL	NULL	NULL	double
-NULL	test1	tb2	f95	float unsigned	NULL	NULL	NULL	NULL	float unsigned
-NULL	test1	tb2	f96	double unsigned	NULL	NULL	NULL	NULL	double unsigned
-NULL	test1	tb2	f97	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f98	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
-NULL	test1	tb2	f99	float unsigned zerofill	NULL	NULL	NULL	NULL	float unsigned zerofill
-NULL	test1	tb2	f100	double unsigned zerofill	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f95	float	NULL	NULL	NULL	NULL	float unsigned
+NULL	test1	tb2	f96	double	NULL	NULL	NULL	NULL	double unsigned
+NULL	test1	tb2	f97	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f98	double	NULL	NULL	NULL	NULL	double unsigned zerofill
+NULL	test1	tb2	f99	float	NULL	NULL	NULL	NULL	float unsigned zerofill
+NULL	test1	tb2	f100	double	NULL	NULL	NULL	NULL	double unsigned zerofill
 NULL	test1	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test1	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test1	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime

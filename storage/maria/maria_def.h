@@ -83,6 +83,7 @@ typedef struct st_maria_state_info
   pgcache_page_no_t first_bitmap_with_space;
   ulonglong auto_increment;
   TrID create_trid;                     /* Minum trid for file */
+  TrID last_change_trn;                 /* selfdescriptive */
   ulong update_count;			/* Updated for each write lock */
   ulong status;
   double *rec_per_key_part;
@@ -337,7 +338,10 @@ typedef struct st_maria_share
   /* Mapings to read/write the data file */
   size_t (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
   size_t (*file_write)(MARIA_HA *, const uchar *, size_t, my_off_t, myf);
-  invalidator_by_filename invalidator;	/* query cache invalidator */
+  /* query cache invalidator for merged tables */
+  invalidator_by_filename invalidator;
+  /* query cache invalidator for changing state */
+  invalidator_by_filename chst_invalidator;
   my_off_t key_del_current;		/* delete links for index pages */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */

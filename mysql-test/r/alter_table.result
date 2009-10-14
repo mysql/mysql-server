@@ -1268,4 +1268,21 @@ a	b
 4	b
 5	a
 DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode=strict_all_tables;
+CREATE TABLE t1 (a int NOT NULL default 42);
+INSERT INTO t1 values ();
+SELECT * FROM t1;
+a
+42
+ALTER TABLE t1 ALTER COLUMN a DROP DEFAULT;
+INSERT INTO t1 values ();
+ERROR HY000: Field 'a' doesn't have a default value
+INSERT INTO t1 (a) VALUES (11);
+SELECT * FROM t1 ORDER BY a;
+a
+11
+42
+DROP TABLE t1;
+SET @@sql_mode=@save_sql_mode;
 End of 5.1 tests

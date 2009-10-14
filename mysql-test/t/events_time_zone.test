@@ -36,6 +36,9 @@ let $N = 5;
 #    after a tests would be a perfect replacement.
 #
 
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
 --source include/big_test.inc
 
 

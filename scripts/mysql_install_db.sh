@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2002-2003 MySQL AB
+# Copyright (C) 2002-2003 MySQL AB & Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# This scripts creates the MySQL Server system tables
+# This scripts creates the MariaDB Server system tables
 #
 # All unrecognized arguments to this script are passed to mysqld.
 
@@ -38,26 +38,27 @@ usage()
 {
   cat <<EOF
 Usage: $0 [OPTIONS]
-  --basedir=path       The path to the MySQL installation directory.
+  --basedir=path       The path to the MariaDB installation directory.
   --builddir=path      If using --srcdir with out-of-directory builds, you
                        will need to set this to the location of the build
                        directory where built files reside.
-  --cross-bootstrap    For internal use.  Used when building the MySQL system
+  --cross-bootstrap    For internal use.  Used when building the MariaDB system
                        tables on a different host than the target.
-  --datadir=path       The path to the MySQL data directory.
+  --datadir=path       The path to the MariaDB data directory.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
                        use hostnames will use IP addresses.
-  --ldata=path         The path to the MySQL data directory. Same as --datadir.
+  --ldata=path         The path to the MariaDB data directory. Same as
+                       --datadir.
   --rpm                For internal use.  This option is used by RPM files
-                       during the MySQL installation process.
+                       during the MariaDB installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
                        grant table entries.  This option can be useful if
                        your DNS does not work.
-  --srcdir=path        The path to the MySQL source directory.  This option
+  --srcdir=path        The path to the MariaDB source directory.  This option
                        uses the compiled binaries and support files within the
                        source tree, useful for if you don't want to install
-                       MySQL yet and just want to create the system tables.
+                       MariaDB yet and just want to create the system tables.
   --user=user_name     The login username to use for running mysqld.  Files
                        and directories created by mysqld will be owned by this
                        user.  You must be root to use this option.  By default
@@ -116,7 +117,7 @@ parse_arguments()
         defaults="$arg" ;;
 
       --cross-bootstrap|--windows)
-        # Used when building the MySQL system tables on a different host than
+        # Used when building the MariaDB system tables on a different host than
         # the target. The platform-independent files that are created in
         # --datadir on the host can be copied to the target system.
         #
@@ -338,10 +339,10 @@ then
     fi
     echo "WARNING: The host '$hostname' could not be looked up with resolveip."
     echo "This probably means that your libc libraries are not 100 % compatible"
-    echo "with this binary MySQL version. The MySQL daemon, mysqld, should work"
+    echo "with this binary MariaDB version. The MariaDB daemon, mysqld, should work"
     echo "normally with the exception that host name resolving will not work."
     echo "This means that you should use IP addresses instead of hostnames"
-    echo "when specifying MySQL privileges !"
+    echo "when specifying MariaDB privileges !"
   fi
 fi
 
@@ -388,7 +389,7 @@ mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --net_buffer_length=16K"
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
-s_echo "Installing MySQL system tables..."
+s_echo "Installing MariaDB/MySQL system tables..."
 if { echo "use mysql;"; cat $create_system_tables $fill_system_tables; } | eval "$filter_cmd_line" | $mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
@@ -410,14 +411,16 @@ else
   echo "Try 'mysqld --help' if you have problems with paths.  Using --log"
   echo "gives you a log in $ldata that may be helpful."
   echo
-  echo "The latest information about MySQL is available on the web at"
-  echo "http://www.mysql.com/.  Please consult the MySQL manual section"
+  echo "The latest information about MariaDB is available on the web at"
+  echo "http://askmonty.org/wiki/index.php/MariaDB".
+  echo "If you have a problem, you can consult the MySQL manual section"
   echo "'Problems running mysql_install_db', and the manual section that"
-  echo "describes problems on your OS.  Another information source are the"
-  echo "MySQL email archives available at http://lists.mysql.com/."
+  echo "describes problems on your OS at http://dev.mysql.com/doc/"
+  echo "MariaDB is hosted on launchpad; You can find the latest source and"
+  echo "email lists at http://launchpad.net/maria"
   echo
   echo "Please check all of the above before mailing us!  And remember, if"
-  echo "you do mail us, you MUST use the $scriptdir/mysqlbug script!"
+  echo "you do mail us, you should use the $scriptdir/mysqlbug script!"
   echo
   exit 1
 fi
@@ -442,7 +445,7 @@ then
   s_echo "support-files/mysql.server to the right place for your system"
 
   echo
-  echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
+  echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MariaDB root USER !"
   echo "To do so, start the server, then issue the following commands:"
   echo
   echo "$bindir/mysqladmin -u root password 'new-password'"
@@ -455,23 +458,28 @@ then
   echo "databases and anonymous user created by default.  This is"
   echo "strongly recommended for production servers."
   echo
-  echo "See the manual for more instructions."
+  echo "See the MySQL manual for more instructions."
 
   if test "$in_rpm" -eq 0
   then
     echo
-    echo "You can start the MySQL daemon with:"
+    echo "You can start the MariaDB daemon with:"
     echo "cd $basedir ; $bindir/mysqld_safe &"
     echo
-    echo "You can test the MySQL daemon with mysql-test-run.pl"
+    echo "You can test the MariaDB daemon with mysql-test-run.pl"
     echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"
   fi
 
   echo
   echo "Please report any problems with the $scriptdir/mysqlbug script!"
   echo
-  echo "The latest information about MySQL is available at http://www.mysql.com/"
-  echo "Support MySQL by buying support/licenses from http://shop.mysql.com/"
+  echo "The latest information about MariaDB is available at http://www.askmonty.org/."
+  echo "You can find additional information about the MySQL part at:"
+  echo "http://dev.mysql.com"
+  echo "Support MariaDB development by buying support/new features from"
+  echo "Monty Program Ab. You can contact us about this at sales@askmonty.org".
+  echo "Alternatively consider joining our community based development effort:"
+  echo "http://askmonty.org/wiki/index.php/MariaDB#How_can_I_participate_in_the_development_of_MariaDB.3F"
   echo
 fi
 

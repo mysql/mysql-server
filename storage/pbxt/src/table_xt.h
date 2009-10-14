@@ -45,7 +45,17 @@ struct XTTablePath;
 #define XT_TAB_INCOMPATIBLE_VERSION	4
 #define XT_TAB_CURRENT_VERSION		5
 
-#define XT_IND_CURRENT_VERSION		3
+/* This version of the index does not have lazy
+ * delete. The new version is compatible with
+ * this and maintains the old format.
+ */
+#define XT_IND_NO_LAZY_DELETE		3
+#define XT_IND_LAZY_DELETE_OK		4
+#ifdef XT_USE_LAZY_DELETE
+#define XT_IND_CURRENT_VERSION		XT_IND_LAZY_DELETE_OK
+#else
+#define XT_IND_CURRENT_VERSION		XT_IND_NO_LAZY_DELETE
+#endif
 
 #define XT_HEAD_BUFFER_SIZE			1024
 
@@ -100,15 +110,21 @@ struct XTTablePath;
 #define XT_TAB_POOL_CLOSED			3				/* Cannot open table at the moment, the pool is closed. */
 #define XT_TAB_FAILED				4
 
-#define XT_TAB_ROW_USE_RW_MUTEX
+#ifdef XT_NO_ATOMICS
+#define XT_TAB_ROW_USE_PTHREAD_RW
+#else
+//#define XT_TAB_ROW_USE_RWMUTEX
+//#define XT_TAB_ROW_USE_SPINXSLOCK
+#define XT_TAB_ROW_USE_XSMUTEX
+#endif
 
-#ifdef XT_TAB_ROW_USE_FASTWRLOCK
-#define XT_TAB_ROW_LOCK_TYPE			XTFastRWLockRec
-#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_fastrwlock_init(s, i)
-#define XT_TAB_ROW_FREE_LOCK(s, i)		xt_fastrwlock_free(s, i)	
-#define XT_TAB_ROW_READ_LOCK(i, s)		xt_fastrwlock_slock(i, s)
-#define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_fastrwlock_xlock(i, s)
-#define XT_TAB_ROW_UNLOCK(i, s)			xt_fastrwlock_unlock(i, s)
+#ifdef XT_TAB_ROW_USE_XSMUTEX
+#define XT_TAB_ROW_LOCK_TYPE			XTXSMutexRec
+#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_xsmutex_init_with_autoname(s, i)
+#define XT_TAB_ROW_FREE_LOCK(s, i)		xt_xsmutex_free(s, i)	
+#define XT_TAB_ROW_READ_LOCK(i, s)		xt_xsmutex_slock(i, (s)->t_id)
+#define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_xsmutex_xlock(i, (s)->t_id)
+#define XT_TAB_ROW_UNLOCK(i, s)			xt_xsmutex_unlock(i, (s)->t_id)
 #elif defined(XT_TAB_ROW_USE_PTHREAD_RW)
 #define XT_TAB_ROW_LOCK_TYPE			xt_rwlock_type
 #define XT_TAB_ROW_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
@@ -116,16 +132,23 @@ struct XTTablePath;
 #define XT_TAB_ROW_READ_LOCK(i, s)		xt_slock_rwlock_ns(i)
 #define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
 #define XT_TAB_ROW_UNLOCK(i, s)			xt_unlock_rwlock_ns(i)
-#elif defined(XT_TAB_ROW_USE_RW_MUTEX)
+#elif defined(XT_TAB_ROW_USE_RWMUTEX)
 #define XT_TAB_ROW_LOCK_TYPE			XTRWMutexRec
 #define XT_TAB_ROW_INIT_LOCK(s, i)		xt_rwmutex_init_with_autoname(s, i)
 #define XT_TAB_ROW_FREE_LOCK(s, i)		xt_rwmutex_free(s, i)	
 #define XT_TAB_ROW_READ_LOCK(i, s)		xt_rwmutex_slock(i, (s)->t_id)
 #define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_rwmutex_xlock(i, (s)->t_id)
 #define XT_TAB_ROW_UNLOCK(i, s)			xt_rwmutex_unlock(i, (s)->t_id)
+#elif defined(XT_TAB_ROW_USE_SPINXSLOCK)
+#define XT_TAB_ROW_LOCK_TYPE			XTSpinXSLockRec
+#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, i)
+#define XT_TAB_ROW_FREE_LOCK(s, i)		xt_spinxslock_free(s, i)	
+#define XT_TAB_ROW_READ_LOCK(i, s)		xt_spinxslock_slock(i, (s)->t_id)
+#define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_spinxslock_xlock(i, (s)->t_id)
+#define XT_TAB_ROW_UNLOCK(i, s)			xt_spinxslock_unlock(i, (s)->t_id)
 #else
 #define XT_TAB_ROW_LOCK_TYPE			XTSpinLockRec
-#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_spinlock_init(s, i)
+#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_spinlock_init_with_autoname(s, i)
 #define XT_TAB_ROW_FREE_LOCK(s, i)		xt_spinlock_free(s, i)	
 #define XT_TAB_ROW_READ_LOCK(i, s)		xt_spinlock_lock(i)
 #define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_spinlock_lock(i)
@@ -310,6 +333,7 @@ typedef struct XTTable : public XTHeap {
 	/* Values that belong in the header when flushed! */
 	xtBool					tab_flush_pending;						/* TRUE if the table needs to be flushed */
 	xtBool					tab_recovery_done;						/* TRUE if the table has been recovered */
+	xtBool					tab_repair_pending;						/* TRUE if the table has been marked for repair */
 	xtBool					tab_temporary;							/* TRUE if this is a temporary table {TEMP-TABLES}. */
 	off_t					tab_bytes_to_flush;						/* Number of bytes of the record/row files to flush. */
 
@@ -441,6 +465,9 @@ typedef struct XTOpenTable {
 	xtRecordID				ot_seq_rec_id;							/* Current position of a sequential scan. */
 	xtRecordID				ot_seq_eof_id;							/* The EOF at the start of the sequential scan. */
 	XTTabCachePagePtr		ot_seq_page;							/* If ot_seq_buffer is non-NULL, then a page has been locked! */
+	xtWord1					*ot_seq_data;							/* Non-NULL if the data references memory mapped memory, or if it was
+																	 * allocated if no memory mapping is being used.
+																	 */
 	xtBool					ot_on_page;
 	size_t					ot_seq_offset;							/* Offset on the current page. */
 } XTOpenTableRec, *XTOpenTablePtr;
@@ -488,7 +515,7 @@ XTTableHPtr			xt_use_table_no_lock(XTThreadPtr self, struct XTDatabase *db, XTPa
 int					xt_use_table_by_id(struct XTThread *self, XTTableHPtr *tab, struct XTDatabase *db, xtTableID tab_id);
 XTOpenTablePtr		xt_open_table(XTTableHPtr tab);
 void				xt_close_table(XTOpenTablePtr ot, xtBool flush, xtBool have_table_lock);
-void				xt_drop_table(struct XTThread *self, XTPathStrPtr name);
+void				xt_drop_table(struct XTThread *self, XTPathStrPtr name, xtBool drop_db);
 void				xt_check_table(XTThreadPtr self, XTOpenTablePtr tab);
 void				xt_rename_table(struct XTThread *self, XTPathStrPtr old_name, XTPathStrPtr new_name);
 
@@ -536,7 +563,12 @@ xtBool				xt_tab_put_eof_rec_data(XTOpenTablePtr ot, xtRecordID rec_id, size_t s
 xtBool				xt_tab_put_log_op_rec_data(XTOpenTablePtr ot, u_int status, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *buffer);
 xtBool				xt_tab_put_log_rec_data(XTOpenTablePtr ot, u_int status, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *buffer, xtOpSeqNo *op_seq);
 xtBool				xt_tab_get_rec_data(register XTOpenTablePtr ot, xtRecordID rec_id, size_t size, xtWord1 *buffer);
+void				xt_tab_disable_index(XTTableHPtr tab, u_int ind_error);
 void				xt_tab_set_index_error(XTTableHPtr tab);
+
+xtBool				xt_tab_is_table_repair_pending(XTTableHPtr tab);
+void				xt_tab_table_repaired(XTTableHPtr tab);
+void				xt_tab_set_table_repair_pending(XTTableHPtr tab);
 
 inline off_t		xt_row_id_to_row_offset(register XTTableHPtr tab, xtRowID row_id)
 {
@@ -605,3 +637,4 @@ inline xtIndexNodeID xt_ind_offset_to_node(register XTTableHPtr tab, off_t ind_o
 	while (0)
 
 #endif
+

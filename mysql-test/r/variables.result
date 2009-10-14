@@ -865,7 +865,7 @@ select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
 set global sql_mode=repeat('a',80);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 End of 4.1 tests
 create table t1 (a int);
 select a into @x from t1;
@@ -1438,7 +1438,7 @@ Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 select @@storage_engine;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@@storage_engine	253	6	6	N	1	31	8
+def					@@storage_engine	253	6	6	Y	0	31	8
 @@storage_engine
 MyISAM
 SET @old_server_id = @@GLOBAL.server_id;
@@ -1469,4 +1469,24 @@ SELECT @@GLOBAL.server_id;
 @@GLOBAL.server_id
 0
 SET GLOBAL server_id = @old_server_id;
+SELECT @@GLOBAL.INIT_FILE, @@GLOBAL.INIT_FILE IS NULL;
+@@GLOBAL.INIT_FILE	@@GLOBAL.INIT_FILE IS NULL
+NULL	1
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES ();
+SET @bug42778= @@sql_safe_updates;
+SET @@sql_safe_updates= 0;
+DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
+SET @@sql_safe_updates= @bug42778;
+DROP TABLE t1;
+#
+# BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+#
+SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
+# Set the max_binlog_cache_size to size more than 4GB. 
+SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
+SELECT @@GLOBAL.max_binlog_cache_size;
+@@GLOBAL.max_binlog_cache_size
+5368709120
+SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 End of 5.1 tests

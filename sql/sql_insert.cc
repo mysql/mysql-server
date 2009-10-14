@@ -322,7 +322,6 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
 {
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark;
-
   LINT_INIT(timestamp_mark);
 
   if (table->timestamp_field)
@@ -888,6 +887,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       if (mysql_bin_log.is_open())
       {
+        int errcode= 0;
 	if (error <= 0)
         {
 	  /*
@@ -902,6 +902,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  /* todo: consider removing */
 	  thd->clear_error();
 	}
+        else
+          errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        
 	/* bug#22725:
 
 	A query which per-row-loop can not be interrupted with
@@ -918,8 +921,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
 			      thd->query, thd->query_length,
 			      transactional_table, FALSE,
-			      (error>0) ? thd->killed : THD::NOT_KILLED) &&
-	    transactional_table)
+			      errcode))
         {
 	  error=1;
 	}
@@ -1139,6 +1141,33 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 
 
 /*
+  Get extra info for tables we insert into
+
+  @param table     table(TABLE object) we insert into,
+                   might be NULL in case of view
+  @param           table(TABLE_LIST object) or view we insert into
+*/
+
+static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
+{
+  if (table)
+  {
+    if(table->reginfo.lock_type != TL_WRITE_DELAYED)
+      table->prepare_for_position();
+    return;
+  }
+
+  DBUG_ASSERT(tables->view);
+  List_iterator<TABLE_LIST> it(*tables->view_tables);
+  TABLE_LIST *tbl;
+  while ((tbl= it++))
+    prepare_for_positional_update(tbl->table, tbl);
+
+  return;
+}
+
+
+/*
   Prepare items in INSERT statement
 
   SYNOPSIS
@@ -1183,7 +1212,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   bool res= 0;
   table_map map= 0;
   DBUG_ENTER("mysql_prepare_insert");
-  DBUG_PRINT("enter", ("table_list 0x%lx  table 0x%lx  view %d",
+  DBUG_PRINT("enter", ("table_list: 0x%lx  table: 0x%lx  view: %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
   /* INSERT should have a SELECT or VALUES clause */
@@ -1288,9 +1317,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     Only call prepare_for_posistion() if we are not performing a DELAYED
     operation. It will instead be executed by delayed insert thread.
   */
-  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
-      (table->reginfo.lock_type != TL_WRITE_DELAYED))
-    table->prepare_for_position();
+  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+    prepare_for_positional_update(table, table_list);
   DBUG_RETURN(FALSE);
 }
 
@@ -1908,7 +1936,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
-      di->thd.query= my_strdup(table_list->table_name, MYF(MY_WME));
+      di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
       if (di->thd.db == NULL || di->thd.query == NULL)
       {
         /* The error is reported */
@@ -2696,6 +2724,12 @@ bool Delayed_insert::handle_inserts(void)
         thd.variables.time_zone = row->time_zone;
       }
 
+      /* if the delayed insert was killed, the killed status is
+         ignored while binlogging */
+      int errcode= 0;
+      if (thd.killed == THD::NOT_KILLED)
+        errcode= query_error_code(&thd, TRUE);
+      
       /*
         If the query has several rows to insert, only the first row will come
         here. In row-based binlogging, this means that the first row will be
@@ -2706,7 +2740,7 @@ bool Delayed_insert::handle_inserts(void)
       */
       thd.binlog_query(THD::ROW_QUERY_TYPE,
                        row->query.str, row->query.length,
-                       FALSE, FALSE);
+                       FALSE, FALSE, errcode);
 
       thd.time_zone_used = backup_time_zone_used;
       thd.variables.time_zone = backup_time_zone;
@@ -3119,7 +3153,10 @@ bool select_insert::send_data(List<Item> &values)
   store_values(values);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   if (thd->is_error())
+  {
+    table->auto_increment_field_not_null= FALSE;
     DBUG_RETURN(1);
+  }
   if (table_list)                               // Not CREATE ... SELECT
   {
     switch (table_list->view_check_option(thd, info.ignore)) {
@@ -3130,6 +3167,9 @@ bool select_insert::send_data(List<Item> &values)
     }
   }
   
+  // Release latches in case bulk insert takes a long time
+  ha_release_temporary_latches(thd);
+
   error= write_record(thd, table, &info);
   table->auto_increment_field_not_null= FALSE;
   
@@ -3223,11 +3263,14 @@ bool select_insert::send_eof()
   */
   if (mysql_bin_log.is_open())
   {
+    int errcode= 0;
     if (!error)
       thd->clear_error();
+    else
+      errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      trans_table, FALSE, killed_status);
+                      trans_table, FALSE, errcode);
   }
   table->file->ha_release_auto_increment();
 
@@ -3294,8 +3337,11 @@ void select_insert::abort() {
     if (thd->transaction.stmt.modified_non_trans_table)
     {
         if (mysql_bin_log.is_open())
+        {
+          int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            transactional_table, FALSE);
+                            transactional_table, FALSE, errcode);
+        }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
 	if (changed)
@@ -3694,10 +3740,14 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())
+  {
+    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
                       query.ptr(), query.length(),
                       /* is_trans */ TRUE,
-                      /* suppress_use */ FALSE);
+                      /* suppress_use */ FALSE,
+                      errcode);
+  }
 }
 
 void select_create::store_values(List<Item> &values)

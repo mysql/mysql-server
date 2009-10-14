@@ -1,0 +1,9 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+source suite/ibmdb2i/include/have_i61.inc;
+
+
+create table t1 (c char(10) collate utf8_swedish_ci, index(c)) engine=ibmdb2i;
+drop table t1;
+
+create table t1 (c char(10) collate ucs2_swedish_ci, index(c)) engine=ibmdb2i;
+drop table t1;

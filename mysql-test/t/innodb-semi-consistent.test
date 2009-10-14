@@ -2,7 +2,7 @@
 -- source include/have_innodb.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 # basic tests of semi-consistent reads
@@ -53,3 +53,16 @@ drop table t1;
 connection default;
 disconnect a;
 disconnect b;
+
+# Bug 39320
+create table t1 (a int, b int) engine=myisam;
+create table t2 (c int, d int, key (c)) engine=innodb;
+insert into t1 values (1,1);
+insert into t2 values (1,2);
+connect (a,localhost,root,,);
+connection a;
+set session transaction isolation level read committed;
+delete from t1 using t1 join t2 on t1.a = t2.c where t2.d in (1);
+connection default;
+disconnect a;
+drop table t1, t2;

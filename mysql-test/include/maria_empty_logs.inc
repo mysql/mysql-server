@@ -1,6 +1,10 @@
 # Maria help script.
 # Cleans up all logs to give recovery a fresh start.
-
+#
+# Note that this script relies on the number of threads connect at start of
+# this script, so one should run this script with a freshly started server
+# for it to work.
+#
 # API: set mel_keep_control_file=1 if want to keep control file;
 # uses vardir, port and socket.
 

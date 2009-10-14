@@ -1,0 +1,109 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE db1.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db1.t2 (s CHAR(255)) ENGINE=MyISAM;
+include/stop_slave.inc
+[on master]
+CREATE PROCEDURE db1.p1 ()
+BEGIN
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+END//
+CREATE PROCEDURE db1.p2 ()
+BEGIN
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2 VALUES ('executed db1.p2()');
+END//
+INSERT INTO db1.t2 VALUES ('before call db1.p1()');
+use test;
+BEGIN;
+CALL db1.p1();
+COMMIT;
+INSERT INTO db1.t2 VALUES ('after call db1.p1()');
+SELECT * FROM db1.t1;
+a
+1
+2
+3
+4
+5
+SELECT * FROM db1.t2;
+s
+before call db1.p1()
+after call db1.p1()
+[on slave]
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_POS;
+#
+# If we got non-zero here, then we're suffering BUG#43263
+#
+SELECT 0 as 'Must be 0';
+Must be 0
+0
+SELECT * from db1.t1;
+a
+1
+2
+3
+4
+5
+SELECT * from db1.t2;
+s
+before call db1.p1()
+[on master]
+INSERT INTO db1.t2 VALUES ('before call db1.p2()');
+BEGIN;
+CALL db1.p2();
+ROLLBACK;
+INSERT INTO db1.t2 VALUES ('after call db1.p2()');
+SELECT * FROM db1.t1;
+a
+1
+2
+3
+4
+5
+SELECT * FROM db1.t2;
+s
+before call db1.p1()
+after call db1.p1()
+before call db1.p2()
+executed db1.p2()
+after call db1.p2()
+[on slave]
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_POS;
+#
+# If we got non-zero here, then we're suffering BUG#43263
+#
+SELECT 0 as 'Must be 0';
+Must be 0
+0
+SELECT * from db1.t1;
+a
+1
+2
+3
+4
+5
+SELECT * from db1.t2;
+s
+before call db1.p1()
+executed db1.p2()
+#
+# Clean up
+#
+DROP DATABASE db1;
+DROP DATABASE db1;

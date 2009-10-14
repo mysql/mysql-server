@@ -1337,52 +1337,6 @@ drop procedure opp|
 drop procedure ip|
 show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-drop table if exists t3|
-create table t3 ( f bigint unsigned not null )|
-drop procedure if exists fib|
-create procedure fib(n int unsigned)
-begin
-if n > 1 then
-begin
-declare x, y bigint unsigned;
-declare c cursor for select f from t3 order by f desc limit 2;
-open c;
-fetch c into y;
-fetch c into x;
-close c;
-insert into t3 values (x+y);
-call fib(n-1);
-end;
-end if;
-end|
-set @@max_sp_recursion_depth= 20|
-insert into t3 values (0), (1)|
-call fib(3)|
-select * from t3 order by f asc|
-f
-0
-1
-1
-2
-truncate table t3|
-insert into t3 values (0), (1)|
-call fib(10)|
-select * from t3 order by f asc|
-f
-0
-1
-1
-2
-3
-5
-8
-13
-21
-34
-55
-drop table t3|
-drop procedure fib|
-set @@max_sp_recursion_depth= 0|
 drop procedure if exists bar|
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
@@ -4342,9 +4296,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
 REPAIR TABLE t1;
-BACKUP TABLE t1 to '../../tmp';
+BACKUP TABLE t1 to '<MYSQLTEST_VARDIR>/tmp/';
 DROP TABLE t1;
-RESTORE TABLE t1 FROM '../../tmp';
+RESTORE TABLE t1 FROM '<MYSQLTEST_VARDIR>/tmp/';
 END|
 call bug13012()|
 Table	Op	Msg_type	Msg_text
@@ -6994,6 +6948,21 @@ select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 name
 p
 drop procedure p;
+CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+SHOW TABLE STATUS like 't1';
+END;//
+CREATE TABLE t1 (f1 INT);
+CALL p1();
+CALL p1();
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

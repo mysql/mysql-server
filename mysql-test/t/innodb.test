@@ -6,21 +6,44 @@
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
 
 -- source include/have_innodb.inc
 
-#
-# Small basic test with ignore
-#
+# Save the original values of some variables in order to be able to
+# estimate how much they have changed during the tests. Previously this
+# test assumed that e.g. rows_deleted is 0 here and after deleting 23
+# rows it expected that rows_deleted will be 23. Now we do not make
+# assumptions about the values of the variables at the beginning, e.g.
+# rows_deleted should be 23 + "rows_deleted before the test". This allows
+# the test to be run multiple times without restarting the mysqld server.
+# See Bug#43309 Test main.innodb can't be run twice
+-- disable_query_log
+SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
+
+SET @innodb_rows_deleted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
+SET @innodb_rows_inserted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted');
+SET @innodb_rows_updated_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated');
+SET @innodb_row_lock_waits_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits');
+SET @innodb_row_lock_current_waits_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits');
+SET @innodb_row_lock_time_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time');
+SET @innodb_row_lock_time_max_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max');
+SET @innodb_row_lock_time_avg_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg');
+-- enable_query_log
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 --enable_warnings
+
+#
+# Small basic test with ignore
+#
 
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=innodb;
 
@@ -1126,7 +1149,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1025,1025
+--error ER_DROP_INDEX_FK,ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;
@@ -1294,18 +1317,23 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
-show status like "Innodb_buffer_pool_pages_total";
-show status like "Innodb_page_size";
-show status like "Innodb_rows_deleted";
-show status like "Innodb_rows_inserted";
-show status like "Innodb_rows_updated";
+
+# InnoDB aligns the memory for the buffer pool to a page boundary. This may
+# cause actual pool size to be one less than requested depending on exact
+# alignment of obtained memory.
+--replace_result 512 511
+SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
+SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 
 # Test for row locks InnoDB status variables.
-show status like "Innodb_row_lock_waits";
-show status like "Innodb_row_lock_current_waits";
-show status like "Innodb_row_lock_time";
-show status like "Innodb_row_lock_time_max";
-show status like "Innodb_row_lock_time_avg";
+SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
+SELECT variable_value - @innodb_row_lock_current_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
+SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
+SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
+SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
 # Test for innodb_sync_spin_loops variable
 show variables like "innodb_sync_spin_loops";
@@ -2357,6 +2385,7 @@ DROP TABLE t1,t2;
 #
 # Bug #21101 (Prints wrong error message if max row size is too large)
 #
+set innodb_strict_mode=on;
 --error 1118
 CREATE TABLE t1 (
 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
@@ -2524,6 +2553,8 @@ DROP TABLE bug35537;
 DISCONNECT c1;
 CONNECTION default;
 
+SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
@@ -2532,7 +2563,9 @@ CONNECTION default;
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################

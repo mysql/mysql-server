@@ -23,11 +23,6 @@
 
 static int count_relay_log_space(Relay_log_info* rli);
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-
 
 Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),
@@ -104,9 +99,16 @@ int init_relay_log_info(Relay_log_info* rli,
   rli->tables_to_lock= 0;
   rli->tables_to_lock_count= 0;
 
-  fn_format(rli->slave_patternload_file, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
-            MY_PACK_FILENAME | MY_UNPACK_FILENAME |
-            MY_RETURN_REAL_PATH);
+  char pattern[FN_REFLEN];
+  if (fn_format(pattern, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
+            MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
+  {
+    pthread_mutex_unlock(&rli->data_lock);
+    sql_print_error("Unable to use slave's temporary directory %s",
+                    slave_load_tmpdir);
+    DBUG_RETURN(1);
+  }
+  unpack_filename(rli->slave_patternload_file, pattern);
   rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
 
   /*
@@ -940,6 +942,7 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
   if (count_relay_log_space(rli))
   {
     *errmsg= "Error counting relay log space";
+    error=1;
     goto err;
   }
   if (!just_reset)

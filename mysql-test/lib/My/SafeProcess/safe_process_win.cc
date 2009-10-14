@@ -163,6 +163,7 @@ int main(int argc, const char** argv )
   HANDLE job_handle;
   HANDLE wait_handles[NUM_HANDLES]= {0};
   PROCESS_INFORMATION process_info= {0};
+  BOOL nocore= FALSE;
 
   sprintf(safe_process_name, "safe_process[%d]", pid);
 
@@ -192,18 +193,22 @@ int main(int argc, const char** argv )
       }
       break;
     } else {
-      if ( strcmp(arg, "--verbose") == 0 )
+      if (strcmp(arg, "--verbose") == 0)
         verbose++;
-	  else if ( strncmp(arg, "--parent-pid", 10) == 0 )
-	  {
-	    /* Override parent_pid with a value provided by user */
-		const char* start;
+      else if (strncmp(arg, "--parent-pid", 10) == 0)
+      {
+            /* Override parent_pid with a value provided by user */
+        const char* start;
         if ((start= strstr(arg, "=")) == NULL)
-		  die("Could not find start of option value in '%s'", arg);
-		start++; /* Step past = */
-		if ((parent_pid= atoi(start)) == 0)
-		  die("Invalid value '%s' passed to --parent-id", start);
-	  }
+          die("Could not find start of option value in '%s'", arg);
+        start++; /* Step past = */
+        if ((parent_pid= atoi(start)) == 0)
+          die("Invalid value '%s' passed to --parent-id", start);
+      }
+      else if (strcmp(arg, "--nocore") == 0)
+      {
+        nocore= TRUE;
+      }
       else
         die("Unknown option: %s", arg);
     }
@@ -241,6 +246,11 @@ int main(int argc, const char** argv )
                               &jeli, sizeof(jeli)) == 0)
     message("SetInformationJobObject failed, continue anyway...");
 
+				/* Avoid popup box */
+  if (nocore)
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
+                 | SEM_NOOPENFILEERRORBOX);
+
 #if 0
   /* Setup stdin, stdout and stderr redirect */
   si.dwFlags= STARTF_USESTDHANDLES;
@@ -259,22 +269,37 @@ int main(int argc, const char** argv )
     the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE flag, making sure it will be
     terminated when the last handle to it is closed(which is owned by
     this process).
+
+    If breakaway from job fails on some reason, fallback is to create a
+    new process group. Process groups also allow to kill process and its 
+    descedants, subject to some restrictions (processes have to run within
+    the same console,and must not ignore CTRL_BREAK)
   */
-  if (CreateProcess(NULL, (LPSTR)child_args,
+  DWORD create_flags[]= {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP, 0};
+  BOOL process_created= FALSE;
+  BOOL jobobject_assigned= FALSE;
+
+  for (int i=0; i < sizeof(create_flags)/sizeof(create_flags[0]); i++)
+  { 
+    process_created= CreateProcess(NULL, (LPSTR)child_args,
                     NULL,
                     NULL,
                     TRUE, /* inherit handles */
-                    CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB,
+                    CREATE_SUSPENDED | create_flags[i],
                     NULL,
                     NULL,
                     &si,
-                    &process_info) == 0)
-    die("CreateProcess failed");
+                    &process_info);
+    if (process_created)
+    {
+     jobobject_assigned= AssignProcessToJobObject(job_handle, process_info.hProcess);
+     break;
+    }
+  }
 
-  if (AssignProcessToJobObject(job_handle, process_info.hProcess) == 0)
+  if (!process_created)
   {
-    TerminateProcess(process_info.hProcess, 200);
-    die("AssignProcessToJobObject failed");
+    die("CreateProcess failed");
   }
   ResumeThread(process_info.hThread);
   CloseHandle(process_info.hThread);
@@ -312,6 +337,13 @@ int main(int argc, const char** argv )
     message("TerminateJobObject failed");
   CloseHandle(job_handle);
   message("Job terminated and closed");
+
+  if (!jobobject_assigned)
+  {
+    GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, process_info.dwProcessId);
+    TerminateProcess(process_info.hProcess, 202);
+  }
+
   if (wait_res != WAIT_OBJECT_0 + CHILD)
   {
     /* The child has not yet returned, wait for it */

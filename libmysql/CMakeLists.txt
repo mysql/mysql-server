@@ -94,7 +94,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/safemalloc.c ../mysys/sha1.c ../strings/str2int.c
                      ../strings/str_alloc.c ../strings/strcend.c ../strings/strcont.c ../strings/strend.c 
                      ../strings/strfill.c ../mysys/string.c ../strings/strinstr.c ../strings/strmake.c 
-                     ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
+                     ../strings/strmov.c ../strings/strmov_overlapp.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
                      ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/mf_qsort.c

@@ -1,0 +1,59 @@
+#
+# Test error checks on mysqld command line option parsing.
+#
+# Call mysqld with different invalid options, and check that it fails in each case.
+#
+# This means that a test failure results in mysqld starting up, which is only
+# caught when the test case times out. This is not ideal, but I did not find an
+# easy way to have the server shut down after a successful startup.
+#
+
+--source include/not_embedded.inc
+
+# mysqld refuses to run as root normally.
+-- source include/not_as_root.inc
+
+# We have not run (and do not need) bootstrap of the server. We just
+# give it a dummy data directory (for log files etc).
+
+mkdir $MYSQLTEST_VARDIR/tmp/mysqld_option_err;
+
+
+--echo Test that unknown option is not silently ignored.
+--error 2
+--exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --nonexistentoption >$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+
+--echo Test bad binlog format.
+--error 1
+--exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --log-bin --binlog-format=badformat >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+
+--echo Test bad default storage engine.
+--error 1
+--exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --default-storage-engine=nonexistentengine >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+
+--echo Test non-numeric value passed to number option.
+--error 1
+--exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables  --min-examined-row-limit=notanumber >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+
+# Test for MBug#423035: error in parsing enum value for plugin
+# variable in mysqld command-line option.
+# See also Bug#32034.
+--echo Test that bad value for plugin enum option is rejected correctly.
+--error 7
+--exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables $EXAMPLE_PLUGIN_OPT --plugin-load=EXAMPLE=ha_example.so --plugin-example-enum-var=noexist >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+#
+# Test that an wrong option with --help --verbose gives an error
+#
+
+--echo Test that --help --verbose works
+--exec $MYSQLD --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--echo Test that --not-known-option --help --verbose gives error
+--error 2
+--exec $MYSQLD --not-known-option --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+
+--echo Done.

@@ -1,0 +1,715 @@
+'\" t
+.\"     Title: \fBmysqld_multi\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQLD_MULTI\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqld_multi
+.\" tools: mysqld_multi
+.\" scripts
+.\" multi mysqld
+.SH "NAME"
+mysqld_multi \- manage multiple MySQL servers
+.SH "SYNOPSIS"
+.HP \w'\fBmysqld_multi\ [\fR\fB\fIoptions\fR\fR\fB]\ {start|stop|report}\ [\fR\fB\fIGNR\fR\fR\fB[,\fR\fB\fIGNR\fR\fR\fB]\ \&.\&.\&.]\fR\ 'u
+\fBmysqld_multi [\fR\fB\fIoptions\fR\fR\fB] {start|stop|report} [\fR\fB\fIGNR\fR\fR\fB[,\fR\fB\fIGNR\fR\fR\fB] \&.\&.\&.]\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysqld_multi\fR
+is designed to manage several
+\fBmysqld\fR
+processes that listen for connections on different Unix socket files and TCP/IP ports\&. It can start or stop servers, or report their current status\&. The MySQL Instance Manager is an alternative means of managing multiple servers (see
+\fBmysqlmanager\fR(8))\&.
+.PP
+\fBmysqld_multi\fR
+searches for groups named
+[mysqld\fIN\fR]
+in
+my\&.cnf
+(or in the file named by the
+\fB\-\-config\-file\fR
+option)\&.
+\fIN\fR
+can be any positive integer\&. This number is referred to in the following discussion as the option group number, or
+\fIGNR\fR\&. Group numbers distinguish option groups from one another and are used as arguments to
+\fBmysqld_multi\fR
+to specify which servers you want to start, stop, or obtain a status report for\&. Options listed in these groups are the same that you would use in the
+[mysqld]
+group used for starting
+\fBmysqld\fR\&. (See, for example,
+Section\ \&2.11.2.2, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
+Section\ \&5.6, \(lqRunning Multiple MySQL Servers on the Same Machine\(rq\&.
+.PP
+To invoke
+\fBmysqld_multi\fR, use the following syntax:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqld_multi [\fR\fB\fIoptions\fR\fR\fB] {start|stop|report} [\fR\fB\fIGNR\fR\fR\fB[,\fR\fB\fIGNR\fR\fR\fB] \&.\&.\&.]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+start,
+stop, and
+report
+indicate which operation to perform\&. You can perform the designated operation for a single server or multiple servers, depending on the
+\fIGNR\fR
+list that follows the option name\&. If there is no list,
+\fBmysqld_multi\fR
+performs the operation for all servers in the option file\&.
+.PP
+Each
+\fIGNR\fR
+value represents an option group number or range of group numbers\&. The value should be the number at the end of the group name in the option file\&. For example, the
+\fIGNR\fR
+for a group named
+[mysqld17]
+is
+17\&. To specify a range of numbers, separate the first and last numbers by a dash\&. The
+\fIGNR\fR
+value
+10\-13
+represents groups
+[mysqld10]
+through
+[mysqld13]\&. Multiple groups or group ranges can be specified on the command line, separated by commas\&. There must be no whitespace characters (spaces or tabs) in the
+\fIGNR\fR
+list; anything after a whitespace character is ignored\&.
+.PP
+This command starts a single server using option group
+[mysqld17]:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqld_multi start 17\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+This command stops several servers, using option groups
+[mysqld8]
+and
+[mysqld10]
+through
+[mysqld13]:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqld_multi stop 8,10\-13\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+For an example of how you might set up an option file, use this command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqld_multi \-\-example\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+As of MySQL 5\&.1\&.18,
+\fBmysqld_multi\fR
+searches for option files as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: no-defaults option
+.\" no-defaults option: mysqld_multi
+With
+\fB\-\-no\-defaults\fR, no option files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: defaults-file option
+.\" defaults-file option: mysqld_multi
+With
+\fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR, only the named file is read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: defaults-extra-file option
+.\" defaults-extra-file option: mysqld_multi
+Otherwise, option files in the standard list of locations are read, including any file named by the
+\fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+option, if one is given\&. (If the option is given multiple times, the last value is used\&.)
+.RE
+.PP
+Option files read are searched for
+[mysqld_multi]
+and
+[mysqld\fIN\fR]
+option groups\&.
+.PP
+Before MySQL 5\&.1\&.18, the preceding options are not recognized\&. Files in the standard locations are read, and any file named by the
+\fB\-\-config\-file=\fR\fB\fIfile_name\fR\fR
+option, if one is given\&. A file named by
+\fB\-\-config\-file\fR
+is read only for
+[mysqld\fIN\fR]
+option groups, not the
+[mysqld_multi]
+group\&.
+.PP
+\fBmysqld_multi\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: help option
+.\" help option: mysqld_multi
+\fB\-\-help\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: config-file option
+.\" config-file option: mysqld_multi
+\fB\-\-config\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+As of MySQL 5\&.1\&.18, this option is deprecated\&. If given, it is treated the same way as
+\fB\-\-defaults\-extra\-file\fR, described earlier\&.
+.sp
+Before MySQL 5\&.1\&.18, this option specifies the name of an extra option file\&. It affects where
+\fBmysqld_multi\fR
+looks for
+[mysqld\fIN\fR]
+option groups\&. Without this option, all options are read from the usual
+my\&.cnf
+file\&. The option does not affect where
+\fBmysqld_multi\fR
+reads its own options, which are always taken from the
+[mysqld_multi]
+group in the usual
+my\&.cnf
+file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: example option
+.\" example option: mysqld_multi
+\fB\-\-example\fR
+.sp
+Display a sample option file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: log option
+.\" log option: mysqld_multi
+\fB\-\-log=\fR\fB\fIfile_name\fR\fR
+.sp
+Specify the name of the log file\&. If the file exists, log output is appended to it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: mysqladmin option
+.\" mysqladmin option: mysqld_multi
+\fB\-\-mysqladmin=\fR\fB\fIprog_name\fR\fR
+.sp
+The
+\fBmysqladmin\fR
+binary to be used to stop servers\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: mysqld option
+.\" mysqld option: mysqld_multi
+\fB\-\-mysqld=\fR\fB\fIprog_name\fR\fR
+.sp
+The
+\fBmysqld\fR
+binary to be used\&. Note that you can specify
+\fBmysqld_safe\fR
+as the value for this option also\&. If you use
+\fBmysqld_safe\fR
+to start the server, you can include the
+mysqld
+or
+ledir
+options in the corresponding
+[mysqld\fIN\fR]
+option group\&. These options indicate the name of the server that
+\fBmysqld_safe\fR
+should start and the path name of the directory where the server is located\&. (See the descriptions for these options in
+\fBmysqld_safe\fR(1)\&.) Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[mysqld38]
+mysqld = mysqld\-debug
+ledir  = /opt/local/mysql/libexec
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: no-log option
+.\" no-log option: mysqld_multi
+\fB\-\-no\-log\fR
+.sp
+Print log information to
+stdout
+rather than to the log file\&. By default, output goes to the log file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: password option
+.\" password option: mysqld_multi
+\fB\-\-password=\fR\fB\fIpassword\fR\fR
+.sp
+The password of the MySQL account to use when invoking
+\fBmysqladmin\fR\&. Note that the password value is not optional for this option, unlike for other MySQL programs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: silent option
+.\" silent option: mysqld_multi
+\fB\-\-silent\fR
+.sp
+Silent mode; disable warnings\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: tcp-ip option
+.\" tcp-ip option: mysqld_multi
+\fB\-\-tcp\-ip\fR
+.sp
+Connect to each MySQL server via the TCP/IP port instead of the Unix socket file\&. (If a socket file is missing, the server might still be running, but accessible only via the TCP/IP port\&.) By default, connections are made using the Unix socket file\&. This option affects
+stop
+and
+report
+operations\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: user option
+.\" user option: mysqld_multi
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR
+.sp
+The user name of the MySQL account to use when invoking
+\fBmysqladmin\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: verbose option
+.\" verbose option: mysqld_multi
+\fB\-\-verbose\fR
+.sp
+Be more verbose\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_multi: version option
+.\" version option: mysqld_multi
+\fB\-\-version\fR
+.sp
+Display version information and exit\&.
+.RE
+.PP
+Some notes about
+\fBmysqld_multi\fR:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBMost important\fR: Before using
+\fBmysqld_multi\fR
+be sure that you understand the meanings of the options that are passed to the
+\fBmysqld\fR
+servers and
+\fIwhy\fR
+you would want to have separate
+\fBmysqld\fR
+processes\&. Beware of the dangers of using multiple
+\fBmysqld\fR
+servers with the same data directory\&. Use separate data directories, unless you
+\fIknow\fR
+what you are doing\&. Starting multiple servers with the same data directory does
+\fInot\fR
+give you extra performance in a threaded system\&. See
+Section\ \&5.6, \(lqRunning Multiple MySQL Servers on the Same Machine\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+Make sure that the data directory for each server is fully accessible to the Unix account that the specific
+\fBmysqld\fR
+process is started as\&.
+\fIDo not\fR
+use the Unix
+\fIroot\fR
+account for this, unless you
+\fIknow\fR
+what you are doing\&. See
+Section\ \&5.3.5, \(lqHow to Run MySQL as a Normal User\(rq\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Make sure that the MySQL account used for stopping the
+\fBmysqld\fR
+servers (with the
+\fBmysqladmin\fR
+program) has the same user name and password for each server\&. Also, make sure that the account has the
+SHUTDOWN
+privilege\&. If the servers that you want to manage have different user names or passwords for the administrative accounts, you might want to create an account on each server that has the same user name and password\&. For example, you might set up a common
+multi_admin
+account by executing the following commands for each server:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-u root \-S /tmp/mysql\&.sock \-p\fR
+Enter password:
+mysql> \fBGRANT SHUTDOWN ON *\&.*\fR
+    \-> \fBTO \'multi_admin\'@\'localhost\' IDENTIFIED BY \'multipass\';\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+See
+Section\ \&5.4, \(lqThe MySQL Access Privilege System\(rq\&. You have to do this for each
+\fBmysqld\fR
+server\&. Change the connection parameters appropriately when connecting to each one\&. Note that the host name part of the account name must allow you to connect as
+multi_admin
+from the host where you want to run
+\fBmysqld_multi\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The Unix socket file and the TCP/IP port number must be different for every
+\fBmysqld\fR\&. (Alternatively, if the host has multiple network addresses, you can use
+\fB\-\-bind\-address\fR
+to cause different servers to listen to different interfaces\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+\fB\-\-pid\-file\fR
+option is very important if you are using
+\fBmysqld_safe\fR
+to start
+\fBmysqld\fR
+(for example,
+\fB\-\-mysqld=mysqld_safe\fR) Every
+\fBmysqld\fR
+should have its own process ID file\&. The advantage of using
+\fBmysqld_safe\fR
+instead of
+\fBmysqld\fR
+is that
+\fBmysqld_safe\fR
+monitors its
+\fBmysqld\fR
+process and restarts it if the process terminates due to a signal sent using
+kill \-9
+or for other reasons, such as a segmentation fault\&. Please note that the
+\fBmysqld_safe\fR
+script might require that you start it from a certain place\&. This means that you might have to change location to a certain directory before running
+\fBmysqld_multi\fR\&. If you have problems starting, please see the
+\fBmysqld_safe\fR
+script\&. Check especially the lines:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+MY_PWD=`pwd`
+# Check if we are starting this relative (for the binary release)
+if test \-d $MY_PWD/data/mysql \-a \e
+   \-f \&./share/mysql/english/errmsg\&.sys \-a \e
+   \-x \&./bin/mysqld
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The test performed by these lines should be successful, or you might encounter problems\&. See
+\fBmysqld_safe\fR(1)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You might want to use the
+\fB\-\-user\fR
+option for
+\fBmysqld\fR, but to do this you need to run the
+\fBmysqld_multi\fR
+script as the Unix
+root
+user\&. Having the option in the option file doesn\'t matter; you just get a warning if you are not the superuser and the
+\fBmysqld\fR
+processes are started under your own Unix account\&.
+.RE
+.PP
+The following example shows how you might set up an option file for use with
+\fBmysqld_multi\fR\&. The order in which the
+\fBmysqld\fR
+programs are started or stopped depends on the order in which they appear in the option file\&. Group numbers need not form an unbroken sequence\&. The first and fifth
+[mysqld\fIN\fR]
+groups were intentionally omitted from the example to illustrate that you can have
+\(lqgaps\(rq
+in the option file\&. This gives you more flexibility\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# This file should probably be in your home dir (~/\&.my\&.cnf)
+# or /etc/my\&.cnf
+# Version 2\&.1 by Jani Tolonen
+[mysqld_multi]
+mysqld     = /usr/local/bin/mysqld_safe
+mysqladmin = /usr/local/bin/mysqladmin
+user       = multi_admin
+password   = multipass
+[mysqld2]
+socket     = /tmp/mysql\&.sock2
+port       = 3307
+pid\-file   = /usr/local/mysql/var2/hostname\&.pid2
+datadir    = /usr/local/mysql/var2
+language   = /usr/local/share/mysql/english
+user       = john
+[mysqld3]
+socket     = /tmp/mysql\&.sock3
+port       = 3308
+pid\-file   = /usr/local/mysql/var3/hostname\&.pid3
+datadir    = /usr/local/mysql/var3
+language   = /usr/local/share/mysql/swedish
+user       = monty
+[mysqld4]
+socket     = /tmp/mysql\&.sock4
+port       = 3309
+pid\-file   = /usr/local/mysql/var4/hostname\&.pid4
+datadir    = /usr/local/mysql/var4
+language   = /usr/local/share/mysql/estonia
+user       = tonu
+[mysqld6]
+socket     = /tmp/mysql\&.sock6
+port       = 3311
+pid\-file   = /usr/local/mysql/var6/hostname\&.pid6
+datadir    = /usr/local/mysql/var6
+language   = /usr/local/share/mysql/japanese
+user       = jani
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+See
+Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

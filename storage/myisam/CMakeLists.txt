@@ -12,15 +12,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
                                 ha_myisam.cc
@@ -35,11 +31,9 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
 				rt_split.c sort.c sp_key.c ft_eval.h myisamdef.h rt_index.h mi_rkey.c)
 
+MYSQL_STORAGE_ENGINE(MYISAM)
+
 IF(NOT SOURCE_SUBLIBS)
-
-  ADD_LIBRARY(myisam ${MYISAM_SOURCES})
-  ADD_DEPENDENCIES(myisam GenError)
-
   ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
   TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
 
@@ -67,6 +61,8 @@ IF(NOT SOURCE_SUBLIBS)
   ADD_EXECUTABLE(rt_test rt_test.c)
   TARGET_LINK_LIBRARIES(rt_test myisam mysys debug dbug strings zlib wsock32)
   
+  SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
+
   IF(EMBED_MANIFESTS)
     MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
     MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")

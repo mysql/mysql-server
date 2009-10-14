@@ -12,11 +12,11 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int) engine=innodb
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -29,7 +29,7 @@ drop table t1;
 show binlog events in 'master-bin.000001' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -249,7 +249,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
-master-bin.000001	205	Query	1	273	use `test`; BEGIN
+master-bin.000001	205	Query	1	273	BEGIN
 master-bin.000001	273	Table_map	1	314	table_id: # (test.t1)
 master-bin.000001	314	Write_rows	1	348	table_id: # flags: STMT_END_F
 master-bin.000001	348	Table_map	1	389	table_id: # (test.t1)
@@ -266,7 +266,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	206	use `test`; create table t1 (a int) engine=innodb
-master-bin.000001	206	Query	1	274	use `test`; BEGIN
+master-bin.000001	206	Query	1	274	BEGIN
 master-bin.000001	274	Table_map	1	315	table_id: # (test.t1)
 master-bin.000001	315	Write_rows	1	349	table_id: # flags: STMT_END_F
 master-bin.000001	349	Table_map	1	390	table_id: # (test.t1)
@@ -1085,10 +1085,10 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	227	Query	1	295	use `test`; BEGIN
+master-bin.000001	227	Query	1	295	BEGIN
 master-bin.000001	295	Table_map	1	337	table_id: # (test.t1)
 master-bin.000001	337	Write_rows	1	383	table_id: # flags: STMT_END_F
-master-bin.000001	383	Query	1	452	use `test`; COMMIT
+master-bin.000001	383	Query	1	452	COMMIT
 master-bin.000001	452	Query	1	528	use `test`; drop table t1
 reset master;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
@@ -1192,32 +1192,32 @@ use test;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t2` (
   `a` int(11) DEFAULT NULL
 )
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int(11) DEFAULT NULL
 )
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 insert delayed into t1 values (207);
@@ -1227,46 +1227,46 @@ FLUSH TABLES;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t2` (
   `a` int(11) DEFAULT NULL
 )
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int(11) DEFAULT NULL
 )
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
-master-bin.000001	#	Query	#	#	use `mysql`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.user)
 master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `mysql`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t1`,`t2`,`t3` /* generated by server */
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 insert delayed into t1 values (null),(null),(null),(null);
 insert delayed into t1 values (null),(null),(400),(null);
@@ -1298,3 +1298,14 @@ show master status /* must show new binlog index after rotating */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	106		
 drop table t3;
+#
+# Bug #45998: database crashes when running "create as select"
+#
+CREATE DATABASE test1;
+USE test1;
+DROP DATABASE test1;
+CREATE TABLE test.t1(a int);
+INSERT INTO test.t1 VALUES (1), (2);
+CREATE TABLE test.t2 SELECT * FROM test.t1;
+USE test;
+DROP TABLES t1, t2;

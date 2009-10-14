@@ -656,6 +656,21 @@ struct row_prebuilt_struct {
 					This eliminates lock waits in some
 					cases; note that this breaks
 					serializability. */
+	ulint		new_rec_locks;	/* normally 0; if
+					srv_locks_unsafe_for_binlog is
+					TRUE or session is using READ
+					COMMITTED isolation level, in a
+					cursor search, if we set a new
+					record lock on an index, this is
+					incremented; this is used in
+					releasing the locks under the
+					cursors if we are performing an
+					UPDATE and we determine after
+					retrieving the row that it does
+					not need to be locked; thus,
+					these can be used to implement a
+					'mini-rollback' that releases
+					the latest record locks */
 	ulint		mysql_prefix_len;/* byte offset of the end of
 					the last requested column */
 	ulint		mysql_row_len;	/* length in bytes of a row in the

@@ -1,0 +1,8 @@
+--source suite/ibmdb2i/include/have_ibmdb2i.inc
+--source suite/ibmdb2i/include/have_i54.inc
+
+--error 1005
+create table t1 (c char(1) character set armscii8) engine=ibmdb2i;
+
+--error 1005
+create table t1 (c char(1) character set eucjpms ) engine=ibmdb2i;

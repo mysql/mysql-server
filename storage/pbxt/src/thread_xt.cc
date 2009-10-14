@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #ifndef XT_WIN
 #include <unistd.h>
 #include <sys/time.h>
@@ -177,7 +181,7 @@ static void thr_log_newline(XTThreadPtr self, c_char *func, c_char *file, u_int 
 #endif
 #endif
 
-void xt_log_flush(XTThreadPtr self __attribute__((unused)))
+void xt_log_flush(XTThreadPtr XT_UNUSED(self))
 {
 	fflush(log_file);
 }
@@ -466,7 +470,7 @@ static void thr_free_resources(XTThreadPtr self, XTResourcePtr top)
 	}
 }
 
-xtPublic void xt_bug(XTThreadPtr self __attribute__((unused)))
+xtPublic void xt_bug(XTThreadPtr XT_UNUSED(self))
 {
 	static int *bug_ptr = NULL;
 	
@@ -532,7 +536,11 @@ xtPublic void xt_throw_error(XTThreadPtr self, c_char *func, c_char *file, u_int
 
 #define XT_SYS_ERR_SIZE		300
 
-static c_char *thr_get_sys_error(int err, char *err_msg __attribute__((unused)))
+#ifdef XT_WIN
+static c_char *thr_get_sys_error(int err, char *err_msg)
+#else
+static c_char *thr_get_sys_error(int err, char *XT_UNUSED(err_msg))
+#endif
 {
 #ifdef XT_WIN
 	char *ptr;
@@ -617,7 +625,7 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_NO_REFERENCED_ROW:		str = "Constraint: `%s`"; break;  // "Foreign key '%s', referenced row does not exist"
 		case XT_ERR_ROW_IS_REFERENCED:		str = "Constraint: `%s`"; break;  // "Foreign key '%s', has a referencing row"
 		case XT_ERR_BAD_DICTIONARY:			str = "Internal dictionary does not match MySQL dictionary"; break;
-		case XT_ERR_LOADING_MYSQL_DIC:		str = "Error %s loading MySQL .frm file"; break;
+		case XT_ERR_LOADING_MYSQL_DIC:		str = "Error loading %s.frm file, MySQL error: %s"; break;
 		case XT_ERR_COLUMN_IS_NOT_NULL:		str = "Column `%s` is NOT NULL"; break;
 		case XT_ERR_INCORRECT_NO_OF_COLS:	str = "Incorrect number of columns near %s"; break;
 		case XT_ERR_FK_ON_TEMP_TABLE:		str = "Cannot create foreign key on temporary table"; break;
@@ -638,7 +646,7 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_INDEX_CORRUPTED:		str = "Table `%s` index is corrupted, REPAIR TABLE required"; break;
 		case XT_ERR_NO_INDEX_CACHE:			str = "Not enough index cache memory to handle concurrent updates"; break;
 		case XT_ERR_INDEX_LOG_CORRUPT:		str = "Index log corrupt: '%s'"; break;
-		case XT_ERR_TOO_MANY_THREADS:		str = "Too many threads: %s, increase max_connections"; break;
+		case XT_ERR_TOO_MANY_THREADS:		str = "Too many threads: %s, increase pbxt_max_threads"; break;
 		case XT_ERR_TOO_MANY_WAITERS:		str = "Too many waiting threads: %s"; break;
 		case XT_ERR_INDEX_OLD_VERSION:		str = "Table `%s` index created by an older version, REPAIR TABLE required"; break;
 		case XT_ERR_PBXT_TABLE_EXISTS:		str = "System table cannot be dropped because PBXT table still exists"; break;
@@ -648,6 +656,8 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_NEW_TYPE_OF_XLOG:		str = "Transaction log %s, is using a newer format, upgrade required"; break;
 		case XT_ERR_NO_BEFORE_IMAGE:		str = "Internal error: no before image"; break;
 		case XT_ERR_FK_REF_TEMP_TABLE:		str = "Foreign key may not reference temporary table"; break;
+		case XT_ERR_MYSQL_SHUTDOWN:			str = "Cannot open table, MySQL has shutdown"; break;
+		case XT_ERR_MYSQL_NO_THREAD:		str = "Cannot create thread, MySQL has shutdown"; break;
 		default:							str = "Unknown XT error"; break;
 	}
 	return str;
@@ -869,13 +879,18 @@ xtPublic void xt_log_errno(XTThreadPtr self, c_char *func, c_char *file, u_int l
  * -----------------------------------------------------------------------
  * Assertions and failures (one breakpoints for all failures)
  */
+//#define CRASH_ON_ASSERT
 
-xtPublic xtBool xt_assert(XTThreadPtr self __attribute__((unused)), c_char *expr, c_char *func, c_char *file, u_int line)
+xtPublic xtBool xt_assert(XTThreadPtr self, c_char *expr, c_char *func, c_char *file, u_int line)
 {
+	(void) self;
 #ifdef DEBUG
 	//xt_set_fflush(TRUE);
 	//xt_dump_trace();
 	printf("%s(%s:%d) %s\n", func, file, (int) line, expr);
+#ifdef CRASH_ON_ASSERT
+	abort();
+#endif
 #ifdef XT_WIN
 	FatalAppExit(0, "Assertion Failed!");
 #endif
@@ -981,11 +996,13 @@ static xtBool thr_setup_signals(void)
 }
 #endif
 
-static void *thr_main(void *data)
+typedef void *(*ThreadMainFunc)(XTThreadPtr self);
+
+extern "C" void *thr_main(void *data)
 {
 	ThreadDataPtr	td = (ThreadDataPtr) data;
 	XTThreadPtr		self = td->td_thr;
-	void			*(*start_routine)(XTThreadPtr);
+	ThreadMainFunc		start_routine;
 	void			*return_data;
 
 	enter_();
@@ -999,7 +1016,7 @@ static void *thr_main(void *data)
 #endif
 
 	try_(a) {
-		if (!xt_set_key(thr_key, self, &self->t_exception))
+		if (!xt_set_key((pthread_key_t)thr_key, self, &self->t_exception))
 			throw_();
 		td->td_started = TRUE;
 		return_data = (*start_routine)(self);
@@ -1011,6 +1028,11 @@ static void *thr_main(void *data)
 
 	outer_();
 	xt_free_thread(self);
+	
+	/* {MYSQL-THREAD-KILL}
+	 * Clean up any remaining MySQL thread!
+	 */
+	myxt_delete_remaining_thread();
 	return return_data;
 }
 
@@ -1330,12 +1352,12 @@ xtPublic XTThreadPtr xt_get_self(void)
 		return self;
 	/* Then it must be a background process, and the 
 	 * thread info is stored in the local key: */
-	return (XTThreadPtr) xt_get_key(thr_key);
+	return (XTThreadPtr) xt_get_key((pthread_key_t)thr_key);
 }
 
 xtPublic void xt_set_self(XTThreadPtr self)
 {
-	xt_set_key(thr_key, self, NULL);
+	xt_set_key((pthread_key_t)thr_key, self, NULL);
 }
 
 xtPublic void xt_clear_exception(XTThreadPtr thread)
@@ -1364,7 +1386,7 @@ xtPublic XTThreadPtr xt_create_thread(c_char *name, xtBool main_thread, xtBool u
 		return NULL;
 	}
 
-	if (!xt_set_key(thr_key, self, e)) {
+	if (!xt_set_key((pthread_key_t)thr_key, self, e)) {
 		xt_free_ns(self);
 		return NULL;
 	}
@@ -1378,7 +1400,7 @@ xtPublic XTThreadPtr xt_create_thread(c_char *name, xtBool main_thread, xtBool u
 	}
 	catch_(a) {
 		*e = self->t_exception;
-		xt_set_key(thr_key, NULL, NULL);
+		xt_set_key((pthread_key_t)thr_key, NULL, NULL);
 		xt_free_ns(self);
 		self = NULL;
 	}
@@ -1442,8 +1464,8 @@ void xt_free_thread(XTThreadPtr self)
 	  * PBXT resources on all MySQL THDs created by PBMS for it's own pthreads. So the 'self' 
 	  * being freed is not the same 'self' associated with the PBXT 'thr_key'.
 	  */
-	if (thr_key && (self == ((XTThreadPtr) xt_get_key(thr_key)))) {
-		xt_set_key(thr_key, NULL, NULL);
+	if (thr_key && (self == ((XTThreadPtr) xt_get_key((pthread_key_t)thr_key)))) {
+		xt_set_key((pthread_key_t)thr_key, NULL, NULL);
 	}
 	xt_free_ns(self);
 }
@@ -1857,7 +1879,7 @@ xtPublic void xt_signal_thread(XTThreadPtr target)
 	xt_broadcast_cond_ns(&target->t_cond);
 }
 
-xtPublic void xt_terminate_thread(XTThreadPtr self __attribute__((unused)), XTThreadPtr target)
+xtPublic void xt_terminate_thread(XTThreadPtr XT_UNUSED(self), XTThreadPtr target)
 {
 	target->t_quit = TRUE;
 	target->t_delayed_signal = SIGTERM;

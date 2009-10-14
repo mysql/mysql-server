@@ -765,6 +765,11 @@ f1	f2
 2	2
 10	10
 DROP TABLE t1, t2;
+CREATE TABLE t1 ( a INT KEY, b INT );
+INSERT INTO t1 VALUES ( 0, 1 );
+INSERT INTO t1 ( b ) SELECT MAX( b ) FROM t1 WHERE b = 2;
+ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+DROP TABLE t1;
 SET SQL_MODE='STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (c VARCHAR(30), INDEX ix_c (c(10)));
 CREATE TABLE t2 (d VARCHAR(10));
@@ -827,4 +832,4 @@ check table t2 extended;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 drop table t1,t2;
-##################################################################
+End of 5.0 tests

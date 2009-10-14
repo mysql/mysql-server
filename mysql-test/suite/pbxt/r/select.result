@@ -604,15 +604,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	18	
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	1	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	period	period	4	NULL	1	
-1	SIMPLE	t1	ref	period	period	4	test.t3.period	18	
+1	SIMPLE	t3	index	period	period	4	NULL	10	
+1	SIMPLE	t1	ref	period	period	4	test.t3.period	1	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	period	period	4	NULL	1	
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	18	
+1	SIMPLE	t1	index	period	period	4	NULL	10	
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	1	
 select period from t1;
 period
 9410
@@ -2095,7 +2095,7 @@ show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE	
 t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE	
-t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE	
+t2	1	fld3	1	fld3	A	1199	NULL	NULL		BTREE	
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
@@ -2369,7 +2369,7 @@ insert into t2 values (1,3), (2,3), (3,4), (4,4);
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	c,d	d	5	const	1	Using where
-1	SIMPLE	t1	ref	a	a	5	test.t2.c	2	Using where
+1	SIMPLE	t1	ref	a	a	5	test.t2.c	1	Using where
 select * from t1 left join t2 on a=c where d in (4);
 a	b	c	d
 3	2	3	4
@@ -2377,7 +2377,7 @@ a	b	c	d
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	c,d	d	5	const	1	Using where
-1	SIMPLE	t1	ref	a	a	5	test.t2.c	2	Using where
+1	SIMPLE	t1	ref	a	a	5	test.t2.c	1	Using where
 select * from t1 left join t2 on a=c where d = 4;
 a	b	c	d
 3	2	3	4
@@ -2403,11 +2403,11 @@ INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	1	
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	1	
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
@@ -2792,26 +2792,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select max(key1) from t1 where key1 <= 0.6158;
 max(key1)
-0.61580002307892
+0.615800023078918
 select max(key2) from t2 where key2 <= 1.6158;
 max(key2)
-1.6158000230789
+1.61580002307892
 select min(key1) from t1 where key1 >= 0.3762;
 min(key1)
-0.37619999051094
+0.376199990510941
 select min(key2) from t2 where key2 >= 1.3762;
 min(key2)
-1.3761999607086
+1.37619996070862
 select max(key1), min(key2) from t1, t2
 where key1 <= 0.6158 and key2 >= 1.3762;
 max(key1)	min(key2)
-0.61580002307892	1.3761999607086
+0.615800023078918	1.37619996070862
 select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 max(key1)
-0.61580002307892
+0.615800023078918
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
-0.37619999051094
+0.376199990510941
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
@@ -3454,7 +3454,7 @@ explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
 and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	1	Using where
-1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	11	
+1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	1	
 drop table t1, t2;
 CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
 INSERT INTO t1 VALUES (1, 3), (9,4), (7,5), (4,5), (6,2),
@@ -3468,12 +3468,12 @@ EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	1	Using where
-1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	Using where
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	1	Using where
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,b	PRIMARY	4	NULL	1	Using where
-1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	Using where
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	1	Using where
 DROP TABLE t1, t2;
 create table t1 (
 a int unsigned    not null auto_increment primary key,
@@ -3585,7 +3585,6 @@ INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
 EXPLAIN SELECT t1.a FROM t1 LEFT JOIN t2 ON t2.b=t1.b WHERE t1.a=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	const	b	b	22	const	1	Using index
 DROP TABLE t1,t2;
 CREATE TABLE t1(id int PRIMARY KEY, b int, e int);
 CREATE TABLE t2(i int, a int, INDEX si(i), INDEX ai(a));

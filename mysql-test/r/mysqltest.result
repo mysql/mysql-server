@@ -545,6 +545,8 @@ mysqltest: At line 1: Failed to open file 'non_existing_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'move_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'move_file'
 mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
@@ -697,6 +699,7 @@ statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
 statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
 value= ->A B<-
 value= 1
+value= 2
 mysqltest: At line 1: query_get_value - argument list started with '(' must be ended with ')'
 mysqltest: At line 1: Missing required argument 'query' to command 'query_get_value'
 mysqltest: At line 1: Missing required argument 'column name' to command 'query_get_value'

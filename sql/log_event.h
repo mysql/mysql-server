@@ -676,6 +676,7 @@ typedef struct st_print_event_info
 #ifdef MYSQL_CLIENT
   uint verbose;
   table_mapping m_table_map;
+  table_mapping m_table_map_ignored;
 #endif
 
   /*
@@ -1623,8 +1624,7 @@ public:
 #ifndef MYSQL_CLIENT
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-                  bool using_trans, bool suppress_use,
-                  THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+                  bool using_trans, bool suppress_use, int error);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -2875,8 +2875,7 @@ public:
                                uint fn_pos_end_arg,
                                enum_load_dup_handling dup_handling_arg,
                                bool using_trans, bool suppress_use,
-                               THD::killed_state
-                               killed_err_arg= THD::KILLED_NO_VALUE);
+                               int errcode);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -3916,6 +3915,10 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     my_b_copy_to_file(cache, file) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
+
+bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
+                           const char **group_relay_log_name,
+                           ulonglong *relay_log_pos);
 
 /**
   @} (end of group Replication)

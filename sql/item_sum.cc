@@ -350,7 +350,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
+  thd->lex->current_select->mark_as_dependent(aggr_sel, NULL);
   return FALSE;
 }
 
@@ -542,11 +542,6 @@ void Item_sum::update_used_tables ()
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
     }
-
-    used_tables_cache&= PSEUDO_TABLE_BITS;
-
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -798,8 +793,9 @@ void Item_sum_sum::fix_length_and_dec()
   {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
     int precision= args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     curr_dec_buff= 0;
     hybrid_type= DECIMAL_RESULT;
     my_decimal_set_zero(dec_buffs);
@@ -1233,8 +1229,9 @@ void Item_sum_avg::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision() + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     f_precision= min(precision+DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
@@ -1439,8 +1436,9 @@ void Item_sum_variance::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision()*2 + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
 
     break;
   }
@@ -3324,8 +3322,13 @@ bool Item_func_group_concat::add()
 
   TREE_ELEMENT *el= 0;                          // Only for safety
   if (row_eligible && tree)
+  {
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
+    /* check if there was enough memory to insert the row */
+    if (!el)
+      return 1;
+  }
   /*
     If the row is not a duplicate (el->count == 1)
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)

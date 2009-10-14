@@ -87,6 +87,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
 #define MY_CS_HIDDEN	2048   /* don't display in SHOW          */	
 #define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
+#define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -285,7 +286,7 @@ typedef struct charset_info_st
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
 
-extern CHARSET_INFO my_charset_bin;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
 extern CHARSET_INFO my_charset_big5_chinese_ci;
 extern CHARSET_INFO my_charset_big5_bin;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
@@ -298,7 +299,7 @@ extern CHARSET_INFO my_charset_gb2312_chinese_ci;
 extern CHARSET_INFO my_charset_gb2312_bin;
 extern CHARSET_INFO my_charset_gbk_chinese_ci;
 extern CHARSET_INFO my_charset_gbk_bin;
-extern CHARSET_INFO my_charset_latin1;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
 extern CHARSET_INFO my_charset_latin1_german2_ci;
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_latin2_czech_ci;
@@ -315,7 +316,7 @@ extern CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_cp1250_czech_ci;
-extern CHARSET_INFO my_charset_filename;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,
@@ -517,6 +518,7 @@ uint my_charset_repertoire(CHARSET_INFO *cs);
 #define my_strcasecmp(s, a, b)        ((s)->coll->strcasecmp((s), (a), (b)))
 #define my_charpos(cs, b, e, num)     (cs)->cset->charpos((cs), (const char*) (b), (const char *)(e), (num))
 
+my_bool my_charset_is_ascii_compatible(CHARSET_INFO *cs);
 
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))

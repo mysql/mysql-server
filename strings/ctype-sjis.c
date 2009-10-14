@@ -4650,10 +4650,10 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
   my_mb_ctype_mb,
-  my_caseup_str_8bit,
-  my_casedn_str_8bit,
-  my_caseup_8bit,
-  my_casedn_8bit,
+  my_caseup_str_mb,
+  my_casedn_str_mb,
+  my_caseup_mb,
+  my_casedn_mb,
   my_snprintf_8bit,
   my_long10_to_str_8bit,
   my_longlong10_to_str_8bit,
@@ -4672,7 +4672,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 CHARSET_INFO my_charset_sjis_japanese_ci=
 {
     13,0,0,		/* number */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_NONASCII,	/* state      */
     "sjis",		/* cs name    */
     "sjis_japanese_ci",	/* name */
     "",			/* comment    */
@@ -4704,7 +4704,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
 CHARSET_INFO my_charset_sjis_bin=
 {
     88,0,0,		/* number */
-    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_NONASCII, /* state      */
     "sjis",		/* cs name    */
     "sjis_bin",		/* name */
     "",			/* comment    */

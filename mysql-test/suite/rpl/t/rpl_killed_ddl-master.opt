@@ -1,0 +1,1 @@
+--debug=d,debug_lock_before_query_log_event

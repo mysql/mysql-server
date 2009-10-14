@@ -28,7 +28,7 @@ create view v2 as select * from mysqltest.t2;
 ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 't2'
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_1`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select `mysqltest`.`t1`.`a` AS `a`,`mysqltest`.`t1`.`b` AS `b` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `mysqltest`.`t1`.`a` AS `a`,`mysqltest`.`t1`.`b` AS `b` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 grant create view,drop,select on test.* to mysqltest_1@localhost;
 use test;
 alter view v1 as select * from mysqltest.t1;
@@ -309,7 +309,7 @@ grant create view,select on test.* to mysqltest_1@localhost;
 create view v1 as select * from mysqltest.t1;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_1`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select `mysqltest`.`t1`.`a` AS `a`,`mysqltest`.`t1`.`b` AS `b` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `mysqltest`.`t1`.`a` AS `a`,`mysqltest`.`t1`.`b` AS `b` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 revoke select on mysqltest.t1 from mysqltest_1@localhost;
 select * from v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them

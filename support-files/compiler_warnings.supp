@@ -25,6 +25,9 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
+btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
+include/buf0buf\.ic: unused parameter ‘mtr’
+fil/fil0fil\.c: comparison between signed and unsigned : 3100-3199
 
 #
 # bdb is not critical to keep up to date
@@ -39,6 +42,12 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # readline is not maintained by us
 #
 .*/cmd-line-utils/readline/.* : .*
+
+#
+# Ignore some warnings in libevent, which is not maintained by us.
+#
+.*/extra/libevent/.* : .*unused parameter.*
+.*/extra/libevent/select\.c : .*comparison between signed and unsigned.* : 270-280
 
 #
 # Ignore all conversion warnings on windows 64
@@ -75,6 +84,17 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 
 #
+# I think these are due to mix of C and C++.
+#
+storage/pbxt/ : typedef.*was ignored in this declaration
+
+
+#
+# Groff warnings on OpenSUSE.
+#
+.*/dbug/.*(groff|<standard input>) : .*
+
+#
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
@@ -89,3 +109,6 @@ ma_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
 ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+
+# Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
+regexec\.c : .*passing argument 3 of.*matcher.* discards qualifiers from pointer target type.*

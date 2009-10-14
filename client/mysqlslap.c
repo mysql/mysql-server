@@ -448,7 +448,16 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
 
     /* First we create */
     if (create_statements)
+    {
+      /*
+         If we have an --engine option, then we indicate
+         create_schema() to add the engine type to the DDL.
+       */
+      if (eptr)
+        create_statements->type= CREATE_TABLE_TYPE;
+
       create_schema(mysql, create_schema_string, create_statements, eptr);
+    }
 
     /*
       If we generated GUID we need to build a list of them from creation that
@@ -565,8 +574,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
-    (uchar**) &opt_csv_str, (uchar**) &opt_csv_str, 0, GET_STR, 
-    OPT_ARG, 0, 0, 0, 0, 0, 0},
+    NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -588,7 +596,9 @@ static struct my_option my_long_options[] =
     "Detach (close and reopen) connections after X number of requests.",
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"engine", 'e', "Storage engine to use for creating the table.",
+  {"engine", 'e', "Comma separated list of storage engines to use for creating the table."
+     "The test is run for each engine. You can also specify an option for an engine"
+     "after a `:', like memory:max_row=2300",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
@@ -712,6 +722,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     verbose++;
     break;
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			/* Don't require password */
     if (argument)
     {
       char *start= argument;
@@ -737,6 +749,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     debug_check_flag= 1;
+    break;
+  case OPT_SLAP_CSV:
+    if (!argument)
+      argument= (char *)"-"; /* use stdout */
+    opt_csv_str= argument;
     break;
 #include <sslopt-case.h>
   case 'V':
@@ -958,6 +975,7 @@ build_update_string(void)
     ptr->type= UPDATE_TYPE_REQUIRES_PREFIX ;
   else
     ptr->type= UPDATE_TYPE;
+
   strmov(ptr->string, update_string.str);
   dynstr_free(&update_string);
   DBUG_RETURN(ptr);
@@ -973,8 +991,8 @@ build_update_string(void)
 static statement *
 build_insert_string(void)
 {
-  char       buf[HUGE_STRING_LENGTH];
-  unsigned int        col_count;
+  char buf[HUGE_STRING_LENGTH];
+  unsigned int col_count;
   statement *ptr;
   DYNAMIC_STRING insert_string;
   DBUG_ENTER("build_insert_string");
@@ -1064,8 +1082,8 @@ build_insert_string(void)
 static statement *
 build_select_string(my_bool key)
 {
-  char       buf[HUGE_STRING_LENGTH];
-  unsigned int        col_count;
+  char buf[HUGE_STRING_LENGTH];
+  unsigned int col_count;
   statement *ptr;
   static DYNAMIC_STRING query_string;
   DBUG_ENTER("build_select_string");
@@ -1117,6 +1135,7 @@ build_select_string(my_bool key)
     ptr->type= SELECT_TYPE_REQUIRES_PREFIX;
   else
     ptr->type= SELECT_TYPE;
+
   strmov(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
@@ -1175,8 +1194,6 @@ get_options(int *argc,char ***argv)
       exit(1);
     }
 
-
-
   if (auto_generate_sql && num_of_query && auto_actual_queries)
   {
       fprintf(stderr,
@@ -1217,6 +1234,7 @@ get_options(int *argc,char ***argv)
     num_int_cols= atoi(str->string);
     if (str->option)
       num_int_cols_index= atoi(str->option);
+
     option_cleanup(str);
   }
 
@@ -1229,6 +1247,7 @@ get_options(int *argc,char ***argv)
       num_char_cols_index= atoi(str->option);
     else
       num_char_cols_index= 0;
+
     option_cleanup(str);
   }
 
@@ -1463,6 +1482,7 @@ get_options(int *argc,char ***argv)
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
+
   DBUG_RETURN(0);
 }
 
@@ -1477,6 +1497,7 @@ static int run_query(MYSQL *mysql, const char *query, int len)
 
   if (verbose >= 3)
     printf("%.*s;\n", len, query);
+
   return mysql_real_query(mysql, query, len);
 }
 
@@ -1592,18 +1613,6 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
     }
   }
 
-  if (engine_stmt)
-  {
-    len= snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
-                  engine_stmt->string);
-    if (run_query(mysql, query, len))
-    {
-      fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
-              mysql_error(mysql));
-      exit(1);
-    }
-  }
-
   count= 0;
   after_create= stmt;
 
@@ -1617,8 +1626,21 @@ limit_not_met:
     {
       char buffer[HUGE_STRING_LENGTH];
 
-      snprintf(buffer, HUGE_STRING_LENGTH, "%s %s", ptr->string, 
-               engine_stmt->option);
+      snprintf(buffer, HUGE_STRING_LENGTH, "%s Engine = %s %s", 
+               ptr->string, engine_stmt->string, engine_stmt->option);
+      if (run_query(mysql, buffer, strlen(buffer)))
+      {
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+        exit(1);
+      }
+    }
+    else if (engine_stmt && engine_stmt->string && ptr->type == CREATE_TABLE_TYPE)
+    {
+      char buffer[HUGE_STRING_LENGTH];
+
+      snprintf(buffer, HUGE_STRING_LENGTH, "%s Engine = %s", 
+               ptr->string, engine_stmt->string);
       if (run_query(mysql, buffer, strlen(buffer)))
       {
         fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
@@ -1652,6 +1674,7 @@ drop_schema(MYSQL *mysql, const char *db)
 {
   char query[HUGE_STRING_LENGTH];
   int len;
+
   DBUG_ENTER("drop_schema");
   len= snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
 
@@ -1940,17 +1963,27 @@ parse_option(const char *origin, option_string **stmt, char delm)
   uint count= 0; /* We know that there is always one */
 
   for (tmp= *sptr= (option_string *)my_malloc(sizeof(option_string),
-                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+                                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
        (retstr= strchr(ptr, delm)); 
        tmp->next=  (option_string *)my_malloc(sizeof(option_string),
-                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
+                                              MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
        tmp= tmp->next)
   {
-    char buffer[HUGE_STRING_LENGTH];
+    /*
+       Initialize buffer, because otherwise an
+       --engine=<storage_engine>:<option>,<eng1>,<eng2>
+       will crash.
+     */
+    char buffer[HUGE_STRING_LENGTH]= "";
     char *buffer_ptr;
 
     count++;
     strncpy(buffer, ptr, (size_t)(retstr - ptr));
+    /*
+       Handle --engine=memory:max_row=200 cases, or more general speaking
+       --engine=<storage_engine>:<options>, which will be translated to
+       Engine = storage_engine option.
+     */
     if ((buffer_ptr= strchr(buffer, ':')))
     {
       char *option_ptr;
@@ -1971,13 +2004,15 @@ parse_option(const char *origin, option_string **stmt, char delm)
       tmp->length= (size_t)(retstr - ptr);
     }
 
+    /* Skip delimiter delm */
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
+
     count++;
   }
 
-  if (ptr != origin+length)
+  if (ptr != origin + length)
   {
     char *origin_ptr;
 
@@ -1986,7 +2021,7 @@ parse_option(const char *origin, option_string **stmt, char delm)
       char *option_ptr;
 
       tmp->length= (size_t)(origin_ptr - ptr);
-      tmp->string= my_strndup(origin, tmp->length, MYF(MY_FAE));
+      tmp->string= my_strndup(ptr, tmp->length, MYF(MY_FAE));
 
       option_ptr= (char *)ptr + 1 + tmp->length;
 
@@ -2036,7 +2071,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   if (ptr != script+length)
   {
     tmp->string= my_strndup(ptr, (uint)((script + length) - ptr), 
-                                       MYF(MY_FAE));
+                            MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
     count++;
   }
@@ -2094,6 +2129,7 @@ print_conclusions_csv(conclusions *con)
 {
   char buffer[HUGE_STRING_LENGTH];
   const char *ptr= auto_generate_sql_type ? auto_generate_sql_type : "query";
+
   snprintf(buffer, HUGE_STRING_LENGTH, 
            "%s,%s,%ld.%03ld,%ld.%03ld,%ld.%03ld,%d,%llu\n",
            con->engine ? con->engine : "", /* Storage engine we ran against */

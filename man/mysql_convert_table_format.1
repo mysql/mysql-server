@@ -1,0 +1,232 @@
+'\" t
+.\"     Title: \fBmysql_convert_table_format\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_CONVERT_TAB" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_convert_table_format
+.SH "NAME"
+mysql_convert_table_format \- convert tables to use a given storage engine
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_convert_table_format\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\ 'u
+\fBmysql_convert_table_format [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_convert_table_format\fR
+converts the tables in a database to use a particular storage engine (MyISAM
+by default)\&.
+\fBmysql_convert_table_format\fR
+is written in Perl and requires that the
+DBI
+and
+DBD::mysql
+Perl modules be installed (see
+Section\ \&2.15, \(lqPerl Installation Notes\(rq)\&.
+.PP
+Invoke
+\fBmysql_convert_table_format\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_convert_table_format [\fR\fB\fIoptions\fR\fR\fB]\fR\fB\fIdb_name\fR\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The
+\fIdb_name\fR
+argument indicates the database containing the tables to be converted\&.
+.PP
+\fBmysql_convert_table_format\fR
+supports the options described in the following list\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: help option
+.\" help option: mysql_convert_table_format
+\fB\-\-help\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: force option
+.\" force option: mysql_convert_table_format
+\fB\-\-force\fR
+.sp
+Continue even if errors occur\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: host option
+.\" host option: mysql_convert_table_format
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR
+.sp
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: password option
+.\" password option: mysql_convert_table_format
+\fB\-\-password=\fR\fB\fIpassword\fR\fR
+.sp
+The password to use when connecting to the server\&. Note that the password value is not optional for this option, unlike for other MySQL programs\&. You can use an option file to avoid giving the password on the command line\&.
+.sp
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: port option
+.\" port option: mysql_convert_table_format
+\fB\-\-port=\fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: socket option
+.\" socket option: mysql_convert_table_format
+\fB\-\-socket=\fR\fB\fIpath\fR\fR
+.sp
+For connections to
+localhost, the Unix socket file to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: type option
+.\" type option: mysql_convert_table_format
+\fB\-\-type=\fR\fB\fIengine_name\fR\fR
+.sp
+Specify the storage engine that the tables should be converted to use\&. The default is
+MyISAM
+if this option is not given\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: user option
+.\" user option: mysql_convert_table_format
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: verbose option
+.\" verbose option: mysql_convert_table_format
+\fB\-\-verbose\fR
+.sp
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_convert_table_format: version option
+.\" version option: mysql_convert_table_format
+\fB\-\-version\fR
+.sp
+Display version information and exit\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

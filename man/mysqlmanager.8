@@ -1,0 +1,2077 @@
+'\" t
+.\"     Title: \fBmysqlmanager\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQLMANAGER\FR" "8" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlmanager
+.\" MySQL Instance Manager
+.SH "NAME"
+mysqlmanager \- the MySQL Instance Manager
+.SH "SYNOPSIS"
+.HP \w'\fBmysqlmanager\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
+\fBmysqlmanager [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+\fBmysqlmanager\fR
+is the MySQL Instance Manager (IM)\&. This program monitors and manages MySQL Database Server instances\&. MySQL Instance Manager is available for Unix\-like operating systems, as well as Windows\&. It runs as a daemon that listens on a TCP/IP port\&. On Unix, it also listens on a Unix socket file\&.
+.PP
+MySQL Instance Manager can be used in place of the
+mysqld_safe
+script to start and stop one or more instances of MySQL Server\&. Because Instance Manager can manage multiple server instances, it can also be used in place of the
+\fBmysqld_multi\fR
+script\&. Instance Manager offers these capabilities:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Instance Manager can start and stop instances, and report on the status of instances\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Server instances can be treated as guarded or unguarded:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When Instance Manager starts, it starts each guarded instance\&. If the instance crashes, Instance Manager detects this and restarts it\&. When Instance Manager stops, it stops the instance\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A nonguarded instance is not started when Instance Manager starts or monitored by it\&. If the instance crashes after being started, Instance Manager does not restart it\&. When Instance Manager exits, it does not stop the instance if it is running\&.
+.RE
+.RS 4
+Instances are guarded by default\&. An instance can be designated as nonguarded by including the
+\fBnonguarded\fR
+option in the configuration file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Instance Manager provides an interactive interface for configuring instances, so that the need to edit the configuration file manually is reduced or eliminated\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Instance Manager provides remote instance management\&. That is, it runs on the host where you want to control MySQL Server instances, but you can connect to it from a remote host to perform instance\-management operations\&.
+.RE
+.PP
+The following sections describe MySQL Instance Manager operation in more detail\&.
+.SH "MYSQL INSTANCE MANAGER COMMAND OPTIONS"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+The MySQL Instance Manager supports a number of command options\&. For a brief listing, invoke
+\fBmysqlmanager\fR
+with the
+\fB\-\-help\fR
+option\&. Options may be given on the command line or in the Instance Manager configuration file\&. On Windows, the standard configuration file is
+my\&.ini
+in the directory where Instance Manager is installed\&. On Unix, the standard file is
+/etc/my\&.cnf\&. To specify a different configuration file, start Instance Manager with the
+\fB\-\-defaults\-file\fR
+option\&.
+.PP
+\fBmysqlmanager\fR
+supports the options described in the following list\&. The options for managing entries in the password file are described further in
+the section called \(lqINSTANCE MANAGER USER AND PASSWORD MANAGEMENT\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: help option
+.\" help option: mysqlmanager
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: add-user option
+.\" add-user option: mysqlmanager
+\fB\-\-add\-user\fR
+.sp
+Add a new user (specified with the
+\fB\-\-username\fR
+option) to the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: angel-pid-file option
+.\" angel-pid-file option: mysqlmanager
+\fB\-\-angel\-pid\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+The file in which the angel process records its process ID when
+\fBmysqlmanager\fR
+runs in daemon mode (that is, when the
+\fB\-\-run\-as\-service\fR
+option is given)\&. The default file name is
+mysqlmanager\&.angel\&.pid\&.
+.sp
+If the
+\fB\-\-angel\-pid\-file\fR
+option is not given, the default angel PID file has the same name as the PID file except that any PID file extension is replaced with an extension of
+\&.angel\&.pid\&. (For example,
+mysqlmanager\&.pid
+becomes
+mysqlmanager\&.angel\&.pid\&.)
+.sp
+This option was added in MySQL 5\&.1\&.11\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: bind-address option
+.\" bind-address option: mysqlmanager
+\fB\-\-bind\-address=\fR\fB\fIIP\fR\fR
+.sp
+The IP address to bind to\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: check-password-file option
+.\" check-password-file option: mysqlmanager
+\fB\-\-check\-password\-file\fR
+.sp
+Check the validity and consistency of the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: clean-password-file option
+.\" clean-password-file option: mysqlmanager
+\fB\-\-clean\-password\-file\fR
+.sp
+Drop all users from the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: debug option
+.\" debug option: mysqlmanager
+\fB\-\-debug=\fR\fB\fIdebug_options\fR\fR\fB, \-# \fR\fB\fIdebug_options\fR\fR
+.sp
+Write a debugging log\&. A typical
+\fIdebug_options\fR
+string is
+\'d:t:o,\fIfile_name\fR\'\&. This option was added in MySQL 5\&.1\&.10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: default-mysqld-path option
+.\" default-mysqld-path option: mysqlmanager
+\fB\-\-default\-mysqld\-path=\fR\fB\fIpath\fR\fR
+.sp
+The path name of the MySQL Server binary\&. This path name is used for all server instance sections in the configuration file for which no
+\fBmysqld\-path\fR
+option is present\&. The default value of this option is the compiled\-in path name, which depends on how the MySQL distribution was configured\&. Example:
+\fB\-\-default\-mysqld\-path=/usr/sbin/mysqld\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: defaults-file option
+.\" defaults-file option: mysqlmanager
+\fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Read Instance Manager and MySQL Server settings from the given file\&. All configuration changes made by the Instance Manager will be written to this file\&. This must be the first option on the command line if it is used, and the file must exist\&.
+.sp
+If this option is not given, Instance Manager uses its standard configuration file\&. On Windows, the standard file is
+my\&.ini
+in the directory where Instance Manager is installed\&. On Unix, the standard file is
+/etc/my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: drop-user option
+.\" drop-user option: mysqlmanager
+\fB\-\-drop\-user\fR
+.sp
+Drop a user (specified with the
+\fB\-\-username\fR
+option) from the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: edit-user option
+.\" edit-user option: mysqlmanager
+\fB\-\-edit\-user\fR
+.sp
+Change an entry for an existing user (specified with the
+\fB\-\-username\fR
+option) in the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: install option
+.\" install option: mysqlmanager
+\fB\-\-install\fR
+.sp
+On Windows, install Instance Manager as a Windows service\&. The service name is
+MySQL Manager\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: list-users option
+.\" list-users option: mysqlmanager
+\fB\-\-list\-users\fR
+.sp
+List the users in the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: log option
+.\" log option: mysqlmanager
+\fB\-\-log=\fR\fB\fIfile_name\fR\fR
+.sp
+The path to the Instance Manager log file\&. This option has no effect unless the
+\fB\-\-run\-as\-service\fR
+option is also given\&. If the file name specified for the option is a relative name, the log file is created under the directory from which Instance Manager is started\&. To ensure that the file is created in a specific directory, specify it as a full path name\&.
+.sp
+If
+\fB\-\-run\-as\-service\fR
+is given without
+\fB\-\-log\fR, the log file is
+mysqlmanager\&.log
+in the data directory\&.
+.sp
+If
+\fB\-\-run\-as\-service\fR
+is not given, log messages go to the standard output\&. To capture log output, you can redirect Instance Manager output to a file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager > im\&.log
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: monitoring-interval option
+.\" monitoring-interval option: mysqlmanager
+\fB\-\-monitoring\-interval=\fR\fB\fIseconds\fR\fR
+.sp
+The interval in seconds for monitoring server instances\&. The default value is 20 seconds\&. Instance Manager tries to connect to each monitored (guarded) instance using the nonexisting
+MySQL_Instance_Manager
+user account to check whether it is alive/not hanging\&. If the result of the connection attempt indicates that the instance is unavailable, Instance Manager performs several attempts to restart the instance\&.
+.sp
+Normally, the
+MySQL_Instance_Manager
+account does not exist, so the connection attempts by Instance Manager cause the monitored instance to produce messages in its general query log similar to the following:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Access denied for user \'MySQL_Instance_M\'@\'localhost\' \(Fc
+    (using password: YES)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The
+nonguarded
+option in the appropriate server instance section disables monitoring for a particular instance\&. If the instance dies after being started, Instance Manager will not restart it\&. Instance Manager tries to connect to a nonguarded instance only when you request the instance\'s status (for example, with the
+SHOW INSTANCES
+status\&.
+.sp
+See
+the section called \(lqMYSQL SERVER INSTANCE STATUS MONITORING\(rq, for more information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: mysqld-safe-compatible option
+.\" mysqld-safe-compatible option: mysqlmanager
+\fB\-\-mysqld\-safe\-compatible\fR
+.sp
+Run in a
+\fBmysqld_safe\fR\-compatible manner\&. For details, see
+the section called \(lqSTARTING THE MYSQL SERVER WITH MYSQL INSTANCE MANAGER\(rq\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: password option
+.\" password option: mysqlmanager
+\fB\-\-password=\fR\fB\fIpassword\fR\fR,
+\fB\-p \fR\fB\fIpassword\fR\fR
+.sp
+Specify the password for an entry to be added to or modified in the password file\&. Unlike the
+\fB\-\-password\fR/\fB\-P\fR
+option for most MySQL programs, the password value is required, not optional\&. See also
+the section called \(lqINSTANCE MANAGER USER AND PASSWORD MANAGEMENT\(rq\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: password-file option
+.\" password-file option: mysqlmanager
+\fB\-\-password\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+The name of the file where the Instance Manager looks for users and passwords\&. On Windows, the default is
+mysqlmanager\&.passwd
+in the directory where Instance Manager is installed\&. On Unix, the default file is
+/etc/mysqlmanager\&.passwd\&. See also
+the section called \(lqINSTANCE MANAGER USER AND PASSWORD MANAGEMENT\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: pid-file option
+.\" pid-file option: mysqlmanager
+\fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+The process ID file to use\&. On Windows, the default file is
+mysqlmanager\&.pid
+in the directory where Instance Manager is installed\&. On Unix, the default is
+mysqlmanager\&.pid
+in the data directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: port option
+.\" port option: mysqlmanager
+\fB\-\-port=\fR\fB\fIport_num\fR\fR
+.sp
+The port number to use when listening for TCP/IP connections from clients\&. The default port number (assigned by IANA) is 2273\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: print-defaults option
+.\" print-defaults option: mysqlmanager
+\fB\-\-print\-defaults\fR
+.sp
+Print the current defaults and exit\&. This must be the first option on the command line if it is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: print-password-line option
+.\" print-password-line option: mysqlmanager
+\fB\-\-print\-password\-line\fR
+.sp
+Prepare an entry for the password file, print it to the standard output, and exit\&. You can redirect the output from Instance Manager to a file to save the entry in the file\&.
+.sp
+Prior to MySQL 5\&.1\&.12, this option was named
+\fB\-\-passwd\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: remove option
+.\" remove option: mysqlmanager
+\fB\-\-remove\fR
+.sp
+On Windows, removes Instance Manager as a Windows service\&. This assumes that Instance Manager has been run with
+\fB\-\-install\fR
+previously\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: run-as-service option
+.\" run-as-service option: mysqlmanager
+\fB\-\-run\-as\-service\fR
+.sp
+On Unix, daemonize and start an angel process\&. The angel process monitors Instance Manager and restarts it if it crashes\&. (The angel process itself is simple and unlikely to crash\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: socket option
+.\" socket option: mysqlmanager
+\fB\-\-socket=\fR\fB\fIpath\fR\fR
+.sp
+On Unix, the socket file to use for incoming connections\&. The default file is named
+/tmp/mysqlmanager\&.sock\&. This option has no meaning on Windows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: standalone option
+.\" standalone option: mysqlmanager
+\fB\-\-standalone\fR
+.sp
+This option is used on Windows to run Instance Manager in standalone mode\&. You should specify it when you start Instance Manager from the command line\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: user option
+.\" user option: mysqlmanager
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR
+.sp
+On Unix, the user name of the system account to use for starting and running
+\fBmysqlmanager\fR\&. This option generates a warning and has no effect unless you start
+\fBmysqlmanager\fR
+as
+root
+(so that it can change its effective user ID), or as the named user\&. It is recommended that you configure
+\fBmysqlmanager\fR
+to run using the same account used to run the
+\fBmysqld\fR
+server\&. (\(lqUser\(rq
+in this context refers to a system login account, not a MySQL user listed in the grant tables\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: username option
+.\" username option: mysqlmanager
+\fB\-\-username=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+Specify the user name for an entry to be added to or modified in the password file\&. This option was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: version option
+.\" version option: mysqlmanager
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlmanager: wait-timeout option
+.\" wait-timeout option: mysqlmanager
+\fB\-\-wait\-timeout=\fR\fB\fIN\fR\fR
+.sp
+The number of seconds to wait for activity on an incoming connection before closing it\&. The default is 28800 seconds (8 hours)\&.
+.sp
+This option was added in MySQL 5\&.1\&.7\&. Before that, the timeout is 30 seconds and cannot be changed\&.
+.RE
+.SH "MYSQL INSTANCE MANAGER CONFIGURATION FILES"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+Instance Manager uses its standard configuration file unless it is started with a
+\fB\-\-defaults\-file\fR
+option that specifies a different file\&. On Windows, the standard file is
+my\&.ini
+in the directory where Instance Manager is installed\&. On Unix, the standard file is
+/etc/my\&.cnf\&.
+.PP
+Instance Manager reads options for itself from the
+[manager]
+section of the configuration file, and options for server instances from
+[mysqld]
+or
+[mysqld\fIN\fR]
+sections\&. The
+[manager]
+section contains any of the options listed in
+the section called \(lqMYSQL INSTANCE MANAGER COMMAND OPTIONS\(rq, except for those specified as having to be given as the first option on the command line\&. Here is a sample
+[manager]
+section:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# MySQL Instance Manager options section
+[manager]
+default\-mysqld\-path = /usr/local/mysql/libexec/mysqld
+socket=/tmp/manager\&.sock
+pid\-file=/tmp/manager\&.pid
+password\-file = /home/cps/\&.mysqlmanager\&.passwd
+monitoring\-interval = 2
+port = 1999
+bind\-address = 192\&.168\&.1\&.5
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Each
+[mysqld]
+or
+[mysqld\fIN\fR]
+instance section specifies options given by Instance Manager to a server instance at startup\&. These are mainly common MySQL Server options (see
+Section\ \&5.1.2, \(lqServer Command Options\(rq)\&. In addition, a
+[mysqld\fIN\fR]
+section can contain the options in the following list, which are specific to Instance Manager\&. These options are interpreted by Instance Manager itself; it does not pass them to the server when it attempts to start that server\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+The Instance Manager\-specific options must not be used in a
+[mysqld]
+section\&. If a server is started without using Instance Manager, it will not recognize these options and will fail to start properly\&.
+.sp .5v
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mysqld\-path = \fIpath\fR
+.sp
+The path name of the
+\fBmysqld\fR
+server binary to use for the server instance\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+nonguarded
+.sp
+This option disables Instance Manager monitoring functionality for the server instance\&. By default, an instance is guarded: At Instance Manager start time, it starts the instance\&. It also monitors the instance status and attempts to restart it if it fails\&. At Instance Manager exit time, it stops the instance\&. None of these things happen for nonguarded instances\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+shutdown\-delay = \fIseconds\fR
+.sp
+The number of seconds Instance Manager should wait for the server instance to shut down\&. The default value is 35 seconds\&. After the delay expires, Instance Manager assumes that the instance is hanging and attempts to terminate it\&. If you use
+InnoDB
+with large tables, you should increase this value\&.
+.RE
+.PP
+Here are some sample instance sections:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[mysqld1]
+mysqld\-path=/usr/local/mysql/libexec/mysqld
+socket=/tmp/mysql\&.sock
+port=3307
+server_id=1
+skip\-stack\-trace
+core\-file
+log\-bin
+log\-error
+log=mylog
+log\-slow\-queries
+[mysqld2]
+nonguarded
+port=3308
+server_id=2
+mysqld\-path= /home/cps/mysql/trees/mysql\-5\&.1/sql/mysqld
+socket     = /tmp/mysql\&.sock5
+pid\-file   = /tmp/hostname\&.pid5
+datadir= /home/cps/mysql_data/data_dir1
+language=/home/cps/mysql/trees/mysql\-5\&.1/sql/share/english
+log\-bin
+log=/tmp/fordel\&.log
+.fi
+.if n \{\
+.RE
+.\}
+.SH "STARTING THE MYSQL SERVER WITH MYSQL INSTANCE MANAGER"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+This section discusses how Instance Manager starts server instances when it starts\&. However, before you start Instance Manager, you should set up a password file for it\&. Otherwise, you will not be able to connect to Instance Manager to control it after it starts\&. For details about creating Instance Manager accounts, see
+the section called \(lqINSTANCE MANAGER USER AND PASSWORD MANAGEMENT\(rq\&.
+.PP
+On Unix, the
+\fBmysqld\fR
+MySQL database server normally is started with the
+\fBmysql\&.server\fR
+script, which usually resides in the
+/etc/init\&.d/
+folder\&. That script invokes the
+\fBmysqld_safe\fR
+script by default\&. However, you can use Instance Manager instead if you modify the
+/etc/my\&.cnf
+configuration file by adding
+use\-manager
+to the
+[mysql\&.server]
+section:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[mysql\&.server]
+use\-manager
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Before MySQL 5\&.1\&.12, Instance Manager always tries to start at least one server instance: When it starts, it reads its configuration file if it exists to find server instance sections and prepare a list of instances\&. Instance sections have names of the form
+[mysqld]
+or
+[mysqld\fIN\fR], where
+\fIN\fR
+is an unsigned integer (for example,
+[mysqld1],
+[mysqld2], and so forth)\&.
+.PP
+After preparing the list of instances, Instance Manager starts the guarded instances in the list\&. If there are no instances, Instance Manager creates an instance named
+mysqld
+and attempts to start it with default (compiled\-in) configuration values\&. This means that the Instance Manager cannot find the
+\fBmysqld\fR
+program if it is not installed in the default location\&. (Section\ \&2.1.5, \(lqInstallation Layouts\(rq, describes default locations for components of MySQL distributions\&.) If you have installed the MySQL server in a nonstandard location, you should create the Instance Manager configuration file\&.
+.PP
+The startup behavior just described is similar to that of
+\fBmysqld_safe\fR, which always attempts to start a server\&. However, it lacks the flexibility required for some operations because it is not possible to run Instance Manager in such a way that it refrains from starting any server instances\&. For example, you cannot invoke Instance Manager for the purpose of configuring an instance without also starting it (a task that a MySQL installer application might want to perform)\&. Consequently, MySQL 5\&.1\&.12 introduces the following changes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A new option,
+\fB\-\-mysqld\-safe\-compatible\fR, may be used to cause Instance Manager to run with startup behavior similar to that used before MySQL 5\&.1\&.12: If Instance Manager finds a
+[mysqld]
+instance section in the configuration file, it will start it\&. If Instance Manager finds no
+[mysqld]
+section, it creates one using default configuration values, writes a
+[mysqld]
+section to the configuration file if it is accessible, and starts the
+mysqld
+instance\&. Instance Manager also starts any other guarded instances listed in the configuration file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Without
+\fB\-\-mysqld\-safe\-compatible\fR, Instance Manager reads its configuration file if it exists and starts instances for any guarded instance sections that it finds\&. If there are none, it starts no instances\&.
+.RE
+.PP
+Instance Manager also stops all guarded server instances when it shuts down\&.
+.PP
+The allowable options for
+[mysqld\fIN\fR]
+server instance sections are described in
+the section called \(lqMYSQL INSTANCE MANAGER CONFIGURATION FILES\(rq\&. In these sections, you can use a special
+\fBmysqld\-path=\fR\fB\fIpath\-to\-mysqld\-binary\fR\fR
+option that is recognized only by Instance Manager\&. Use this option to let Instance Manager know where the
+\fBmysqld\fR
+binary resides\&. If there are multiple instances, it may also be necessary to set other options such as
+\fBdatadir\fR
+and
+\fBport\fR, to ensure that each instance has a different data directory and TCP/IP port number\&.
+Section\ \&5.6, \(lqRunning Multiple MySQL Servers on the Same Machine\(rq, discusses the configuration values that must differ for each instance when you run multiple instance on the same machine\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+The
+[mysqld]
+instance section, if it exists, must not contain any Instance Manager\-specific options\&.
+.sp .5v
+.RE
+.PP
+The typical Unix startup/shutdown cycle for a MySQL server with the MySQL Instance Manager enabled is as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The
+\fB/etc/init\&.d/mysql\fR
+script starts MySQL Instance Manager\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Instance Manager starts the guarded server instances and monitors them\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+If a server instance fails, Instance Manager restarts it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+If Instance Manager is shut down (for example, with the
+\fB/etc/init\&.d/mysql stop\fR
+command), it shuts down all server instances\&.
+.RE
+.SH "INSTANCE MANAGER USER AND PASSWORD MANAGEMENT"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+The Instance Manager stores its user information in a password file\&. On Windows, the default is
+mysqlmanager\&.passwd
+in the directory where Instance Manager is installed\&. On Unix, the default file is
+/etc/mysqlmanager\&.passwd\&. To specify a different location for the password file, use the
+\fB\-\-password\-file\fR
+option\&.
+.PP
+If the password file does not exist or contains no password entries, you cannot connect to the Instance Manager\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Any Instance Manager process that is running to monitor server instances does not notice changes to the password file\&. You must stop it and restart it after making password entry changes\&.
+.sp .5v
+.RE
+.PP
+Entries in the password file have the following format, where the two fields are the account user name and encrypted password, separated by a colon:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+petr:*35110DC9B4D8140F5DE667E28C72DD2597B5C848
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Instance Manager password encryption is the same as that used by MySQL Server\&. It is a one\-way operation; no means are provided for decrypting encrypted passwords\&.
+.PP
+Instance Manager accounts differ somewhat from MySQL Server accounts:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+MySQL Server accounts are associated with a host name, user name, and password (see
+Section\ \&5.5.1, \(lqUser Names and Passwords\(rq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Instance Manager accounts are associated with a user name and password only\&.
+.RE
+.PP
+This means that a client can connect to Instance Manager with a given user name from any host\&. To limit connections so that clients can connect only from the local host, start Instance Manager with the
+\fB\-\-bind\-address=127\&.0\&.0\&.1\fR
+option so that it listens only to the local network interface\&. Remote clients will not be able to connect\&. Local clients can connect like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-h 127\&.0\&.0\&.1 \-P 2273\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Before MySQL 5\&.1\&.12, the only option for creating password file entries is
+\fB\-\-passwd\fR, which causes Instance Manager to prompt for user name and password values and display the resulting entry\&. You can save the output in the
+/etc/mysqlmanager\&.passwd
+password file to store it\&. Here is an example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlmanager \-\-passwd >> /etc/mysqlmanager\&.passwd\fR
+Creating record for new user\&.
+Enter user name: \fBmike\fR
+Enter password: \fBmikepass\fR
+Re\-type password: \fBmikepass\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+At the prompts, enter the user name and password for the new Instance Manager user\&. You must enter the password twice\&. It does not echo to the screen, so double entry guards against entering a different password than you intend (if the two passwords do not match, no entry is generated)\&.
+.PP
+The preceding command causes the following line to be added to
+/etc/mysqlmanager\&.passwd:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mike:*BBF1F551DD9DD96A01E66EC7DDC073911BAD17BA
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Use of the
+\fB\-\-password\fR
+option fails if
+\fBmysqlmanager\fR
+is invoked directly from an IBM 5250 terminal\&. To work around this, use a command like the following from the command line to generate the password entry:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-B \-\-skip\-column\-name \e\fR
+         \fB\-e \'SELECT CONCAT("\fR\fB\fIuser_name\fR\fR\fB",":",PASSWORD("\fR\fB\fIpass_val\fR\fR\fB"));\'\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The output from the command can be used an entry in the
+/etc/mysqlmanager\&.passwd
+file\&.
+.PP
+Beginning with MySQL 5\&.1\&.12, the
+\fB\-\-passwd\fR
+option is renamed to
+\fB\-\-print\-password\-line\fR
+and there are several other options for managing user accounts from the command line\&. For example, the
+\fB\-\-username\fR
+and
+\fB\-\-password\fR
+options are available on the command line for specifying the user name and password for an account entry\&. You can use them to generate an entry with no prompting like this (type the command on a single line):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqlmanager \-\-print\-password\-line\fR
+         \fB\-\-username=mike \-\-password=mikepass >> /etc/mysqlmanager\&.passwd\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If you omit the
+\fB\-\-username\fR
+or
+\fB\-\-password\fR
+option, Instance Manager prompts for the required value\&.
+.PP
+\fB\-\-print\-password\-line\fR
+causes Instance Manager to send the resulting account entry to its output, which you can append to the password file\&. The following list describes other account\-management options that cause Instance Manager to operate directly on the password file\&. (These options make Instance Manager scriptable for account\-management purposes\&.) For operations on the password file to succeed, the file must exist and it must be accessible by Instance Manager\&. (The exception is
+\fB\-\-clean\-password\-file\fR, which creates the file if it does not exist\&. Alternatively, if there is no password file, manually create it as an empty file and ensure that its ownership and access modes allow it to be read and written by Instance Manager\&.) The default password file is used unless you specify a
+\fB\-\-password\-file\fR
+option\&.
+.PP
+To ensure consistent treatment of the password file, it should be owned by the system account that you use for running Instance Manager to manage server instances, and you should invoke it from that account when you use it to manage accounts in the password file\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Create a new user:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-add\-user \-\-username=\fIuser_name\fR [\-\-password=\fIpassword\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command adds a new entry with the given user name and password to the password file\&. The
+\fB\-\-username\fR
+(or
+\fB\-u\fR) option is required\&.
+\fBmysqlmanager\fR
+prompts for the password if it is not given on the command line with the
+\fB\-\-password\fR
+(or
+\fB\-p\fR) option\&. The command fails if the user already exists\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Drop an existing user:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-drop\-user \-\-username=\fIuser_name\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command removes the entry with the given user name from the password file\&. The user name is required\&. The command fails if the user does not exist\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Change the password for an existing user:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-edit\-user \-\-username=\fIuser_name\fR [\-\-password=\fIpassword\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command changes the given user\'s password in the password file\&. The user name is required\&.
+\fBmysqlmanager\fR
+prompts for the password it is not given on the command line\&. The command fails if the user does not exist\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+List existing users:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-list\-users
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command lists the user names of the accounts in the password file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Check the password file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-check\-password\-file
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command performs a consistency and validity check of the password file\&. The command fails if there is something wrong with the file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Empty the password file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqlmanager \-\-clean\-password\-file
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This command empties the password file, which has the effect of dropping all users listed in it\&. The option creates the password file if it does not exist, so it can be used to initialize a new password file to be used for other account\-management operations\&. Take care not to use this option to reinitialize a file containing accounts that you do not want to drop\&.
+.RE
+.SH "MYSQL SERVER INSTANCE STATUS MONITORING"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+To monitor the status of each guarded server instance, the MySQL Instance Manager attempts to connect to the instance at regular intervals using the
+MySQL_Instance_Manager@localhost
+user account with a password of
+check_connection\&.
+.PP
+You are
+\fInot\fR
+required to create this account for MySQL Server; in fact, it is expected that it will not exist\&. Instance Manager can tell that a server is operational if the server accepts the connection attempt but refuses access for the account by returning a login error\&. However, these failed connection attempts are logged by the server to its general query log (see
+Section\ \&5.2.3, \(lqThe General Query Log\(rq)\&.
+.PP
+Instance Manager also attempts a connection to nonguarded server instances when you use the
+SHOW INSTANCES
+or
+SHOW INSTANCE STATUS
+command\&. This is the only status monitoring done for nonguarded instances\&.
+.PP
+Instance Manager knows if a server instance fails at startup because it receives a status from the attempt\&. For an instance that starts but later crashes, Instance Manager receives a signal because it is the parent process of the instance\&.
+.PP
+Beginning with MySQL 5\&.1\&.12, Instance Manager tracks instance states so that it can determine which commands are allowed for each instance\&. For example, commands that modify an instance\'s configuration are allowed only while the instance is offline\&.
+.PP
+Each instance is in one of the states described in the following table\&. Guarded instances can be in any of the states\&. Nonguarded instances can only be offline or online\&. Instance state information is displayed in the
+status
+column of the
+SHOW INSTANCES
+and
+SHOW INSTANCE STATUS
+commands\&.
+.TS
+allbox tab(:);
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBState\fR
+T}:T{
+\fBMeaning\fR
+T}
+T{
+offline
+T}:T{
+The instance has not been started and is not running\&.
+T}
+T{
+starting
+T}:T{
+The instance is starting (initializing)\&. Nonguarded instances cannot be
+                in this state\&. A nonguarded instance goes directly from
+                offline to online\&.
+T}
+T{
+stopping
+T}:T{
+The instance is stopping\&. Nonguarded instances cannot be in this state\&.
+                A nonguarded instance goes directly from online to
+                offline, or stays offline if startup fails\&.
+T}
+T{
+online
+T}:T{
+The instance has started and is running\&.
+T}
+T{
+failed
+T}:T{
+The instance was online but it crashed and is being restarted by
+                Instance Manager, or else the instance failed to start
+                at all and Instance Manager is again attempting to start
+                it\&. Nonguarded instances cannot be in this state\&.
+T}
+T{
+crashed
+T}:T{
+Instance Manager failed to start the instance after several attempts\&.
+                (Instance Manager will try again later\&.) Nonguarded
+                instances cannot be in this state\&.
+T}
+T{
+abandoned
+T}:T{
+Instance Manager was not able to start the instance, has given up, and
+                will make no further attempts until instructed
+                otherwise\&. To tell Instance Manager to try again, you
+                must first use STOP INSTANCE to put
+                the instance in offline state, and then use
+                START INSTANCE to start the instance\&.
+                If it is necessary to make configuration changes for the
+                instance, you must do so after putting the instance
+                offline and before starting it\&. (Instance Manager
+                accepts configuration\-changing commands only for offline
+                instances\&.) Nonguarded instances cannot be in this
+                state\&.
+T}
+.TE
+.sp 1
+.SH "CONNECTING TO MYSQL INSTANCE MANAGER"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+After you set up a password file for the MySQL Instance Manager and Instance Manager is running, you can connect to it\&. The MySQL client\-server protocol is used to communicate with the Instance Manager\&. For example, you can connect to it using the standard
+\fBmysql\fR
+client program:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-\-port=2273 \-\-host=im\&.example\&.org \-\-user=mysql \-\-password\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Instance Manager supports the version of the MySQL client\-server protocol used by the client tools and libraries distributed with MySQL 4\&.1 or later, so other programs that use the MySQL C API also can connect to it\&.
+.SH "MYSQL INSTANCE MANAGER COMMANDS"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.4\&.
+.sp .5v
+.RE
+.PP
+After you connect to MySQL Instance Manager, you can issue commands\&. The following general principles apply to Instance Manager command execution:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Commands that take an instance name fail if the name is not a valid instance name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Commands that take an instance name (other than
+CREATE INSTANCE) fail if the instance does not exist\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+As of MySQL 5\&.1\&.12, commands for an instance require that the instance be in an appropriate state\&. You cannot configure or start an instance that is not offline\&. You cannot start an instance that is online\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Instance Manager maintains information about instance configuration in an internal (in\-memory) cache\&. Initially, this information comes from the configuration file if it exists, but some commands change the configuration of an instance\&. Commands that modify the configuration file fail if the file does not exist or is not accessible to Instance Manager\&.
+.sp
+As of MySQL 5\&.1\&.12, configuration\-changing commands modify both the in\-memory cache and the server instance section recorded in the configuration file to maintain consistency between them\&. For this to occur, the instance must be offline and the configuration file must be accessible and not malformed\&. If the configuration file cannot be updated, the command fails and the cache remains unchanged\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+On Windows, the standard file is
+my\&.ini
+in the directory where Instance Manager is installed\&. On Unix, the standard configuration file is
+/etc/my\&.cnf\&. To specify a different configuration file, start Instance Manager with the
+\fB\-\-defaults\-file\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If a
+[mysqld]
+instance section exists in the configuration file, it must not contain any Instance Manager\-specific options (see
+the section called \(lqMYSQL INSTANCE MANAGER CONFIGURATION FILES\(rq)\&. Therefore, you must not add any of these options if you change the configuration for an instance named
+mysqld\&.
+.RE
+.PP
+The following list describes the commands that Instance Manager accepts, with examples\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+CREATE INSTANCE \fIinstance_name\fR [\fIoption_name\fR[=\fIoption_value\fR], \&.\&.\&.]
+.sp
+This command configures a new instance by creating an
+[\fIinstance_name\fR]
+section in the configuration file\&. The command fails if
+\fIinstance_name\fR
+is not a valid instance name or the instance already exists\&.
+.sp
+The created section instance is empty if no options are given\&. Otherwise, the options are added to the section\&. Options should be given in the same format used when you write options in option files\&. (See
+Section\ \&4.2.3.3, \(lqUsing Option Files\(rq
+for a description of the allowable syntax\&.) If you specify multiple options, separate them by commas\&.
+.sp
+For example, to create an instance section named
+[mysqld98], you might write something like this were you to modify the configuration file directly:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[mysqld98]
+basedir=/var/mysql98
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To achieve the same effect via
+CREATE INSTANCE, issue this command to Instance Manager:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBCREATE INSTANCE mysqld98 basedir="/var/mysql98";\fR
+Query OK, 0 rows affected (0,00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+CREATE INSTANCE
+creates the instance but does not start it\&.
+.sp
+If the instance name is the (deprecated) name
+mysqld, the option list cannot include any options that are specific to Instance Manager, such as
+nonguarded
+(see
+the section called \(lqMYSQL INSTANCE MANAGER CONFIGURATION FILES\(rq)\&.
+.sp
+This command was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+DROP INSTANCE \fIinstance_name\fR
+.sp
+This command removes the configuration for
+\fIinstance_name\fR
+from the configuration file\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBDROP INSTANCE mysqld98;\fR
+Query OK, 0 rows affected (0,00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The command fails if
+\fIinstance_name\fR
+is not a valid instance name, the instance does not exist, or is not offline\&.
+.sp
+This command was added in MySQL 5\&.1\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+START INSTANCE \fIinstance_name\fR
+.sp
+This command attempts to start an offline instance\&. The command is asynchronous; it does not wait for the instance to start\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSTART INSTANCE mysqld4;\fR
+Query OK, 0 rows affected (0,00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STOP INSTANCE \fIinstance_name\fR
+.sp
+This command attempts to stop an instance\&. The command is synchronous; it waits for the instance to stop\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSTOP INSTANCE mysqld4;\fR
+Query OK, 0 rows affected (0,00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHOW INSTANCES
+.sp
+Shows the names and status of all loaded instances\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSHOW INSTANCES;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+| instance_name | status  |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+| mysqld3       | offline |
+| mysqld4       | online  |
+| mysqld2       | offline |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHOW INSTANCE STATUS \fIinstance_name\fR
+.sp
+Shows status and version information for an instance\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSHOW INSTANCE STATUS mysqld3;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+| instance_name | status | version |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+| mysqld3       | online | unknown |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHOW INSTANCE OPTIONS \fIinstance_name\fR
+.sp
+Shows the options used by an instance\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSHOW INSTANCE OPTIONS mysqld3;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| option_name   | value                                             |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| instance_name | mysqld3                                           |
+| mysqld\-path   | /home/cps/mysql/trees/mysql\-4\&.1/sql/mysqld        |
+| port          | 3309                                              |
+| socket        | /tmp/mysql\&.sock3                                  |
+| pid\-file      | hostname\&.pid3                                     |
+| datadir       | /home/cps/mysql_data/data_dir1/                   |
+| language      | /home/cps/mysql/trees/mysql\-4\&.1/sql/share/english |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHOW \fIinstance_name\fR LOG FILES
+.sp
+The command lists all log files used by the instance\&. The result set contains the path to the log file and the log file size\&. If no log file path is specified in the instance section of the configuration file (for example,
+log=/var/mysql\&.log), the Instance Manager tries to guess its placement\&. If Instance Manager is unable to guess the log file placement you should specify the log file location explicitly by using a log option in the appropriate instance section of the configuration file\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSHOW mysqld LOG FILES;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+
+| Logfile     | Path                               | Filesize |
++\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+
+| ERROR LOG   | /home/cps/var/mysql/owlet\&.err      | 9186     |
+| GENERAL LOG | /home/cps/var/mysql/owlet\&.log      | 471503   |
+| SLOW LOG    | /home/cps/var/mysql/owlet\-slow\&.log | 4463     |
++\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+SHOW \&.\&.\&. LOG FILES
+displays information only about log files\&. If a server instance uses log tables (see
+Section\ \&5.2.1, \(lqSelecting General Query and Slow Query Log Output Destinations\(rq), no information about those tables is shown\&.
+.sp
+Log options are described in
+Section\ \&5.1.2, \(lqServer Command Options\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHOW \fIinstance_name\fR LOG {ERROR | SLOW | GENERAL} \fIsize\fR[,\fIoffset_from_end\fR]
+.sp
+This command retrieves a portion of the specified log file\&. Because most users are interested in the latest log messages, the
+\fIsize\fR
+parameter defines the number of bytes to retrieve from the end of the log\&. To retrieve data from the middle of the log file, specify the optional
+\fIoffset_from_end\fR
+parameter\&. The following example retrieves 21 bytes of data, starting 23 bytes before the end of the log file and ending 2 bytes before the end:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSHOW mysqld LOG GENERAL 21, 2;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| Log                 |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| using password: YES |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SET \fIinstance_name\fR\&.\fIoption_name\fR[=\fIoption_value\fR]
+.sp
+This command edits the specified instance\'s configuration section to change or add instance options\&. The option is added to the section is it is not already present\&. Otherwise, the new setting replaces the existing one\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSET mysqld2\&.port=3322;\fR
+Query OK, 0 rows affected (0\&.00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+As of MySQL 5\&.1\&.12, you can specify multiple options (separated by commas), and
+SET
+can be used only for offline instances\&. Each option must indicate the instance name:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSET mysqld2\&.port=3322, mysqld3\&.nonguarded;\fR
+Query OK, 0 rows affected (0\&.00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\'s local cache of instance settings until a
+FLUSH INSTANCES
+command is executed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+UNSET \fIinstance_name\fR\&.\fIoption_name\fR
+.sp
+This command removes an option from an instance\'s configuration section\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBUNSET mysqld2\&.port;\fR
+Query OK, 0 rows affected (0\&.00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+As of MySQL 5\&.1\&.12, you can specify multiple options (separated by commas), and
+UNSET
+can be used only for offline instances\&. Each option must indicate the instance name:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBUNSET mysqld2\&.port, mysqld4\&.nonguarded;\fR
+Query OK, 0 rows affected (0\&.00 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\'s local cache of instance settings until a
+FLUSH INSTANCES
+command is executed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+FLUSH INSTANCES
+.sp
+As of MySQL 5\&.1\&.12,
+FLUSH INSTANCES
+cannot be used unless all instances are offline\&. The command causes Instance Manager to reread the configuration file, update its in\-memory configuration cache, and start any guarded instances\&.
+.sp
+Before MySQL 5\&.1\&.12, this command forces Instance Manager reread the configuration file and to refresh internal structures\&. This command should be performed after editing the configuration file\&. The command does not restart instances\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBFLUSH INSTANCES;\fR
+Query OK, 0 rows affected (0\&.04 sec)
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

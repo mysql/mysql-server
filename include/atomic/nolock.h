@@ -14,7 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #if defined(__i386__) || defined(_MSC_VER) || \
-    defined(__x86_64__) || defined(HAVE_GCC_ATOMIC_BUILTINS)
+    defined(__x86_64__) || defined(MY_ATOMIC_MODE_GCC_BUILTINS)
 
 #  ifdef MY_ATOMIC_MODE_DUMMY
 #    define LOCK_prefix ""
@@ -22,7 +22,7 @@
 #    define LOCK_prefix "lock"
 #  endif
 
-#  ifdef HAVE_GCC_ATOMIC_BUILTINS
+#  ifdef MY_ATOMIC_MODE_GCC_BUILTINS
 #    include "gcc_builtins.h"
 #  elif __GNUC__
 #    include "x86-gcc.h"

@@ -1128,15 +1128,22 @@ SHOW CREATE TABLE mysqltest2.t2|
 #
 # Cleanup.
 #
+delimiter ;|
 
+--connection con2
+--echo
+--echo ---> connection: con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+--connection con3
+--echo
+--echo ---> connection: con3
+--disconnect con3
+--source include/wait_until_disconnected.inc
 --connection default
 --echo
 --echo ---> connection: default
+USE test;
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
 
---disconnect con2
---disconnect con3
-
-use test|
-
-DROP DATABASE mysqltest1|
-DROP DATABASE mysqltest2|

@@ -493,8 +493,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+         create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -963,7 +963,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
 	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
@@ -1282,9 +1282,11 @@ warn:
 #endif // LOCK_OPEN_HACK_REQUIRED
 
 //------------------------------
-int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *name, DT_FIELD_INFO *info, DT_KEY_INFO *keys __attribute__((unused)), xtBool skip_existing)
+int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *name, DT_FIELD_INFO *info, DT_KEY_INFO *XT_UNUSED(keys), xtBool skip_existing)
 {
 #ifdef DRIZZLED
+    drizzled::message::Table table_proto;
+
 	static const char *ext = ".dfe";
 	static const int ext_len = 4;
 #else
@@ -1329,8 +1331,7 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 			info->field_flags,
             COLUMN_FORMAT_TYPE_FIXED,
 		    NULL /*default_value*/, NULL /*on_update_value*/, &comment, NULL /*change*/,
-            NULL /*interval_list*/, info->field_charset,
-			NULL /*vcol_info*/))
+            NULL /*interval_list*/, info->field_charset))
 #else
 		if (add_field_to_list(thd, &field_name, info->field_type, field_length_ptr, info->field_decimal_length,
 			info->field_flags,
@@ -1365,7 +1366,10 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 	
 	/* Create an internal temp table */
 #ifdef DRIZZLED
-	if (mysql_create_table_no_lock(thd, db, name, &mylex.create_info, &mylex.alter_info, 1, 0, false)) 
+    table_proto.set_name(name);
+    table_proto.set_type(drizzled::message::Table::STANDARD);
+
+	if (mysql_create_table_no_lock(thd, db, name, &mylex.create_info, &table_proto, &mylex.alter_info, 1, 0, false)) 
 		goto error;
 #else
 	if (mysql_create_table_no_lock(thd, db, name, &mylex.create_info, &mylex.alter_info, 1, 0)) 

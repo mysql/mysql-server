@@ -1,0 +1,325 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/******************************************************
+Insert buffer
+
+Created 7/19/1997 Heikki Tuuri
+*******************************************************/
+
+#include "buf0lru.h"
+#include "page0page.h"
+#include "page0zip.h"
+
+extern ulint	ibuf_flush_count;
+
+/* If this number is n, an index page must contain at least the page size
+per n bytes of free space for ibuf to try to buffer inserts to this page.
+If there is this much of free space, the corresponding bits are set in the
+ibuf bitmap. */
+#define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
+
+/* Insert buffer struct */
+
+struct ibuf_struct{
+	ulint		size;		/* current size of the ibuf index
+					tree, in pages */
+	ulint		max_size;	/* recommended maximum size of the
+					ibuf index tree, in pages */
+	ulint		seg_size;	/* allocated pages of the file
+					segment containing ibuf header and
+					tree */
+	ibool		empty;		/* after an insert to the ibuf tree
+					is performed, this is set to FALSE,
+					and if a contract operation finds
+					the tree empty, this is set to
+					TRUE */
+	ulint		free_list_len;	/* length of the free list */
+	ulint		height;		/* tree height */
+	dict_index_t*	index;		/* insert buffer index */
+
+	ulint		n_inserts;	/* number of inserts made to
+					the insert buffer */
+	ulint		n_merges;	/* number of pages merged */
+	ulint		n_merged_recs;	/* number of records merged */
+};
+
+/****************************************************************************
+Sets the free bit of the page in the ibuf bitmap. This is done in a separate
+mini-transaction, hence this operation does not restrict further work to only
+ibuf bitmap operations, which would result if the latch to the bitmap page
+were kept. */
+UNIV_INTERN
+void
+ibuf_set_free_bits_func(
+/*====================*/
+	buf_block_t*	block,	/* in: index page of a non-clustered index;
+				free bit is reset if page level is 0 */
+#ifdef UNIV_IBUF_DEBUG
+	ulint		max_val,/* in: ULINT_UNDEFINED or a maximum
+				value which the bits must have before
+				setting; this is for debugging */
+#endif /* UNIV_IBUF_DEBUG */
+	ulint		val);	/* in: value to set: < 4 */
+#ifdef UNIV_IBUF_DEBUG
+# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,max,v)
+#else /* UNIV_IBUF_DEBUG */
+# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,v)
+#endif /* UNIV_IBUF_DEBUG */
+
+/**************************************************************************
+A basic partial test if an insert to the insert buffer could be possible and
+recommended. */
+UNIV_INLINE
+ibool
+ibuf_should_try(
+/*============*/
+	dict_index_t*	index,			/* in: index where to insert */
+	ulint		ignore_sec_unique)	/* in: if != 0, we should
+						ignore UNIQUE constraint on
+						a secondary index when we
+						decide */
+{
+	if (ibuf_use != IBUF_USE_NONE
+	    && !dict_index_is_clust(index)
+	    && (ignore_sec_unique || !dict_index_is_unique(index))) {
+
+		ibuf_flush_count++;
+
+		if (ibuf_flush_count % 4 == 0) {
+
+			buf_LRU_try_free_flushed_blocks();
+		}
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/***************************************************************************
+Checks if a page address is an ibuf bitmap page address. */
+UNIV_INLINE
+ibool
+ibuf_bitmap_page(
+/*=============*/
+			/* out: TRUE if a bitmap page */
+	ulint	zip_size,/* in: compressed page size in bytes;
+			0 for uncompressed pages */
+	ulint	page_no)/* in: page number */
+{
+	ut_ad(ut_is_2pow(zip_size));
+
+	if (!zip_size) {
+		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
+				     == FSP_IBUF_BITMAP_OFFSET));
+	}
+
+	return(UNIV_UNLIKELY((page_no & (zip_size - 1))
+			     == FSP_IBUF_BITMAP_OFFSET));
+}
+
+/*************************************************************************
+Translates the free space on a page to a value in the ibuf bitmap.*/
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free_bits(
+/*===========================*/
+				/* out: value for ibuf bitmap bits */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	max_ins_size)	/* in: maximum insert size after reorganize
+				for the page */
+{
+	ulint	n;
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+
+	if (zip_size) {
+		n = max_ins_size
+			/ (zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	} else {
+		n = max_ins_size
+			/ (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
+
+	if (n == 3) {
+		n = 2;
+	}
+
+	if (n > 3) {
+		n = 3;
+	}
+
+	return(n);
+}
+
+/*************************************************************************
+Translates the ibuf free bits to the free space on a page in bytes. */
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free_from_bits(
+/*================================*/
+			/* out: maximum insert size after reorganize for the
+			page */
+	ulint	zip_size,/* in: compressed page size in bytes;
+			0 for uncompressed pages */
+	ulint	bits)	/* in: value for ibuf bitmap bits */
+{
+	ut_ad(bits < 4);
+	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+
+	if (zip_size) {
+		if (bits == 3) {
+			return(4 * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+		}
+
+		return(bits * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
+
+	if (bits == 3) {
+		return(4 * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
+
+	return(bits * (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE));
+}
+
+/*************************************************************************
+Translates the free space on a compressed page to a value in the ibuf bitmap.*/
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free_zip(
+/*==========================*/
+					/* out: value for ibuf bitmap bits */
+	ulint			zip_size,
+					/* in: compressed page size in bytes */
+	const buf_block_t*	block)	/* in: buffer block */
+{
+	ulint			max_ins_size;
+	const page_zip_des_t*	page_zip;
+	lint			zip_max_ins;
+
+	ut_ad(zip_size == buf_block_get_zip_size(block));
+	ut_ad(zip_size);
+
+	max_ins_size = page_get_max_insert_size_after_reorganize(
+		buf_block_get_frame(block), 1);
+
+	page_zip = buf_block_get_page_zip(block);
+	zip_max_ins = page_zip_max_ins_size(page_zip,
+					    FALSE/* not clustered */);
+
+	if (UNIV_UNLIKELY(zip_max_ins < 0)) {
+		return(0);
+	} else if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+		max_ins_size = (ulint) zip_max_ins;
+	}
+
+	return(ibuf_index_page_calc_free_bits(zip_size, max_ins_size));
+}
+
+/*************************************************************************
+Translates the free space on a page to a value in the ibuf bitmap.*/
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free(
+/*======================*/
+					/* out: value for ibuf bitmap bits */
+	ulint			zip_size,/* in: compressed page size in bytes;
+					0 for uncompressed pages */
+	const buf_block_t*	block)	/* in: buffer block */
+{
+	ut_ad(zip_size == buf_block_get_zip_size(block));
+
+	if (!zip_size) {
+		ulint	max_ins_size;
+
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+			buf_block_get_frame(block), 1);
+
+		return(ibuf_index_page_calc_free_bits(0, max_ins_size));
+	} else {
+		return(ibuf_index_page_calc_free_zip(zip_size, block));
+	}
+}
+
+/****************************************************************************
+Updates the free bits of an uncompressed page in the ibuf bitmap if
+there is not enough free on the page any more.  This is done in a
+separate mini-transaction, hence this operation does not restrict
+further work to only ibuf bitmap operations, which would result if the
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is
+unsafe to increment the bits in a separately committed
+mini-transaction, because in crash recovery, the free bits could
+momentarily be set too high.  It is only safe to use this function for
+decrementing the free bits.  Should more free space become available,
+we must not update the free bits here, because that would break crash
+recovery. */
+UNIV_INLINE
+void
+ibuf_update_free_bits_if_full(
+/*==========================*/
+	buf_block_t*	block,	/* in: index page to which we have added new
+				records; the free bits are updated if the
+				index is non-clustered and non-unique and
+				the page level is 0, and the page becomes
+				fuller */
+	ulint		max_ins_size,/* in: value of maximum insert size with
+				reorganize before the latest operation
+				performed to the page */
+	ulint		increase)/* in: upper limit for the additional space
+				used in the latest operation, if known, or
+				ULINT_UNDEFINED */
+{
+	ulint	before;
+	ulint	after;
+
+	ut_ad(!buf_block_get_page_zip(block));
+
+	before = ibuf_index_page_calc_free_bits(0, max_ins_size);
+
+	if (max_ins_size >= increase) {
+#if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE
+# error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE"
+#endif
+		after = ibuf_index_page_calc_free_bits(0, max_ins_size
+						       - increase);
+#ifdef UNIV_IBUF_DEBUG
+		ut_a(after <= ibuf_index_page_calc_free(0, block));
+#endif
+	} else {
+		after = ibuf_index_page_calc_free(0, block);
+	}
+
+	if (after == 0) {
+		/* We move the page to the front of the buffer pool LRU list:
+		the purpose of this is to prevent those pages to which we
+		cannot make inserts using the insert buffer from slipping
+		out of the buffer pool */
+
+		buf_page_make_young(&block->page);
+	}
+
+	if (before > after) {
+		ibuf_set_free_bits(block, after, before);
+	}
+}

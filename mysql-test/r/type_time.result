@@ -128,3 +128,13 @@ SELECT sum(f3) FROM t1 where f2='2007-07-01 00:00:00' group by f2;
 sum(f3)
 3
 drop table t1;
+#
+# Bug #44792: valgrind warning when casting from time to time
+#
+CREATE TABLE t1 (c TIME);
+INSERT INTO t1 VALUES ('0:00:00');
+SELECT CAST(c AS TIME) FROM t1;
+CAST(c AS TIME)
+00:00:00
+DROP TABLE t1;
+End of 5.0 tests

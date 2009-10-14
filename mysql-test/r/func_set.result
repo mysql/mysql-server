@@ -103,3 +103,59 @@ CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL),
 CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL))
 8
 End of 5.0 tests
+drop table if exists t1;
+create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
+engine=myisam default charset=latin1;
+insert into t1 values (''),(null),(null),(''),(''),('');
+select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
+a
+0
+NULL
+NULL
+0
+0
+0
+0
+NULL
+NULL
+0
+0
+0
+0
+NULL
+NULL
+0
+0
+0
+0
+NULL
+NULL
+0
+0
+0
+0
+NULL
+NULL
+0
+0
+0
+0
+NULL
+NULL
+0
+0
+0
+drop table t1;
+CREATE TABLE t1( a SET('a', 'b', 'c') );
+CREATE TABLE t2( a SET('a', 'b', 'c') );
+INSERT INTO t1 VALUES ('d');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+INSERT INTO t2 VALUES ('');
+SELECT CONVERT( a USING latin1 ) FROM t1;
+CONVERT( a USING latin1 )
+
+SELECT CONVERT( a USING latin1 ) FROM t2;
+CONVERT( a USING latin1 )
+
+DROP TABLE t1, t2;

@@ -51,8 +51,13 @@ echo;
 -- disable_query_log
 
 # Run the mysql_fix_privilege_tables.sql using "mysql --force"
+# Determine the number of open sessions
+--source include/count_sessions.inc
 --exec $MYSQL --force mysql < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/tmp/fix_priv_tables.log 2>&1
 --remove_file $MYSQLTEST_VARDIR/tmp/fix_priv_tables.log
+# Wait till the number of open sessions is <= the number before the run with $MYSQL
+# = The session caused by mysql has finished its disconnect
+--source include/wait_until_count_sessions.inc
 
 -- enable_query_log
 -- enable_result_log

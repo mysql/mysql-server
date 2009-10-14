@@ -1,0 +1,39 @@
+#
+# BUG#40827 - Killing insert-select to MyISAM can cause table corruption
+#
+CREATE TABLE `t1` (
+`id` BIGINT(20) ,
+`id1` BIGINT(20) AUTO_INCREMENT,
+KEY(id1), KEY(id)
+) ENGINE=MyISAM;
+CREATE TABLE `t2` (
+`id` BIGINT(20) ,
+`id1` BIGINT(20) AUTO_INCREMENT,
+KEY (id1), KEY(id)
+) ENGINE=MyISAM;
+INSERT INTO t2 (id) VALUES (123);
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+INSERT INTO t2 (id) SELECT id  FROM t2;
+# Switch to insert Connection
+SET SESSION debug='+d,wait_in_enable_indexes';
+# Send insert data
+INSERT INTO t1(id) SELECT id  FROM t2;
+# Switch to default Connection
+# Wait for insert data to reach the debug point
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE STATE = 'wait_in_enable_indexes' AND 
+INFO = "INSERT INTO t1(id) SELECT id  FROM t2" 
+INTO @thread_id;
+KILL QUERY @thread_id;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1,t2;

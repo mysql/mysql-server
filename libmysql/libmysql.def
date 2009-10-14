@@ -151,3 +151,4 @@ EXPORTS
 	mysql_get_character_set_info
 	get_defaults_options
 	modify_defaults_file
+	mysql_get_server_name

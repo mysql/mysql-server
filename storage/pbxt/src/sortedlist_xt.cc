@@ -234,7 +234,7 @@ xtPublic void xt_sl_delete_item_at(struct XTThread *self, XTSortedListPtr sl, si
 	XT_MEMMOVE(sl->sl_data, &sl->sl_data[idx * sl->sl_item_size], &sl->sl_data[(idx+1) * sl->sl_item_size], (sl->sl_usage_count-idx) * sl->sl_item_size);
 }
 
-xtPublic void xt_sl_remove_from_front(struct XTThread *self __attribute__((unused)), XTSortedListPtr sl, size_t items)
+xtPublic void xt_sl_remove_from_front(struct XTThread *XT_UNUSED(self), XTSortedListPtr sl, size_t items)
 {
 	if (sl->sl_usage_count <= items)
 		xt_sl_set_size(sl, 0);

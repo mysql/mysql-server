@@ -28,6 +28,7 @@
 #include <my_bit.h>
 #include "ha_maria.h"
 #include "trnman_public.h"
+#include "trnman.h"
 
 C_MODE_START
 #include "maria_def.h"
@@ -223,6 +224,17 @@ static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
        "creation. Possible values are \"never\", \"newfile\" and "
        "\"always\").", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
        &maria_sync_log_dir_typelib);
+
+#ifdef USE_MARIA_FOR_TMP_TABLES
+static my_bool use_maria_for_temp_tables= 1;
+#else
+static my_bool use_maria_for_temp_tables= 0;
+#endif
+
+static MYSQL_SYSVAR_BOOL(used_for_temp_tables, 
+       use_maria_for_temp_tables, PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
+       "Whether temporary tables should be MyISAM or Maria", 0, 0,
+       1);
 
 /*****************************************************************************
 ** MARIA tables
@@ -907,6 +919,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
 
+  file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
+
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
 
@@ -1130,14 +1144,21 @@ int ha_maria::restore(THD * thd, HA_CHECK_OPT *check_opt)
 
 err:
   {
-    HA_CHECK param;
-    maria_chk_init(&param);
-    param.thd= thd;
-    param.op_name= "restore";
-    param.db_name= table->s->db.str;
-    param.table_name= table->s->table_name.str;
-    param.testflag= 0;
-    _ma_check_print_error(&param, errmsg, my_errno);
+    /*
+      Don't allocate param on stack here as this may be huge and it's
+      also allocated by repair()
+    */
+    HA_CHECK *param;
+    if (!(param= (HA_CHECK*) my_malloc(sizeof(*param), MYF(MY_WME | MY_FAE))))
+      DBUG_RETURN(error);
+    maria_chk_init(param);
+    param->thd= thd;
+    param->op_name= "restore";
+    param->db_name= table->s->db.str;
+    param->table_name= table->s->table_name.str;
+    param->testflag= 0;
+    _ma_check_print_error(param, errmsg, my_errno);
+    my_free(param, MYF(0));
     DBUG_RETURN(error);
   }
 }
@@ -3220,6 +3241,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   */
   *engine_data= 0;
 
+  if (file->s->now_transactional && file->s->have_versioning)
+    return (file->trn->trid >= file->s->state.last_change_trn);
+
   /*
     If a concurrent INSERT has happened just before the currently processed
     SELECT statement, the total size of the table is unknown.
@@ -3267,6 +3291,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(sync_log_dir),
+  MYSQL_SYSVAR(used_for_temp_tables),
   NULL
 };
 

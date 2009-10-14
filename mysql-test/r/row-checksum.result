@@ -72,6 +72,8 @@ Table	Checksum
 test.t1	3885665021
 drop table if exists t1;
 create table t1 (a int null, v varchar(100)) engine=innodb checksum=0 row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 insert into t1 values(null, null), (1, "hello");
 checksum table t1;
 Table	Checksum

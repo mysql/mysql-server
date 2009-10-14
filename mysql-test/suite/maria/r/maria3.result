@@ -17,12 +17,12 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
-Warning	1071	Specified key was too long; max key length is 1112 bytes
+Warning	1071	Specified key was too long; max key length is 1208 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
-  KEY `a` (`a`(1112)) KEY_BLOCK_SIZE=8192
+  KEY `a` (`a`(1208)) KEY_BLOCK_SIZE=8192
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
@@ -123,7 +123,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 alter table t1 row_format=DYNAMIC;
 show create table t1;
 Table	Create Table
@@ -150,6 +150,48 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+alter table t1 transactional=1;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+drop table t1;
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+alter table t1 transactional=1;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
 drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,
@@ -276,6 +318,7 @@ maria_repair_threads	1
 maria_sort_buffer_size	8388608
 maria_stats_method	nulls_unequal
 maria_sync_log_dir	NEWFILE
+maria_used_for_temp_tables	ON
 show status like 'maria%';
 Variable_name	Value
 Maria_pagecache_blocks_not_flushed	#

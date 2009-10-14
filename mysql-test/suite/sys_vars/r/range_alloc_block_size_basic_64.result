@@ -71,7 +71,7 @@ SELECT @@global.range_alloc_block_size;
 4096
 SET @@global.range_alloc_block_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect range_alloc_block_size value: '0'
+Warning	1292	Truncated incorrect range_alloc_block_size value: '-1024'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4096
@@ -97,7 +97,7 @@ SELECT @@session.range_alloc_block_size;
 4096
 SET @@session.range_alloc_block_size = -2;
 Warnings:
-Warning	1292	Truncated incorrect range_alloc_block_size value: '0'
+Warning	1292	Truncated incorrect range_alloc_block_size value: '-2'
 SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4096

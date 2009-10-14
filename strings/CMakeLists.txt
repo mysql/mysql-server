@@ -23,7 +23,7 @@ SET(STRINGS_SOURCES bchange.c bcmp.c bfill.c bmove512.c bmove_upp.c ctype-big5.c
                 ctype-latin1.c ctype-mb.c ctype-simple.c ctype-sjis.c ctype-tis620.c ctype-uca.c
                 ctype-ucs2.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c ctype.c decimal.c int2str.c
                 is_prefix.c llstr.c longlong2str.c my_strtoll10.c my_vsnprintf.c r_strinstr.c
-                str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strnmov.c 
+                str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strmov_overlapp.c strnmov.c 
                 strtod.c strtol.c strtoll.c strtoul.c strtoull.c strxmov.c strxnmov.c xml.c
                 my_strchr.c strcont.c strinstr.c strnlen.c
                 strappend.c)

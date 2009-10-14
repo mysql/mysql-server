@@ -41,7 +41,7 @@ extern "C" {
 */
 
 #define HA_MAX_KEY_LENGTH           1000        /* Max length in bytes */
-#define HA_MAX_KEY_SEG              16          /* Max segments for key */
+#define HA_MAX_KEY_SEG              32          /* Max segments for key */
 
 #define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6) 
 #define HA_MAX_KEY_BUFF  (HA_MAX_KEY_LENGTH+HA_MAX_KEY_SEG*6+8+8)

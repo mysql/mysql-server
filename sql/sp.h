@@ -17,6 +17,9 @@
 #ifndef _SP_H_
 #define _SP_H_
 
+/* Tells what SP_DEFAULT_ACCESS should be mapped to */
+#define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
+
 // Return codes from sp_create_*, sp_drop_*, and sp_show_*:
 #define SP_OK                 0
 #define SP_KEY_NOT_FOUND     -1
@@ -39,8 +42,8 @@ sp_head *
 sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
-int
-sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
+bool
+sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
 int
 sp_routine_exists_in_table(THD *thd, int type, sp_name *name);

@@ -153,7 +153,7 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
-base_configs="$base_configs --with-plugin-maria --with-maria-tmp-tables"
+base_configs="$base_configs --with-plugin-maria --with-maria-tmp-tables --without-plugin-innodb_plugin"
 
 if test -d "$path/../cmd-line-utils/readline"
 then
@@ -172,8 +172,9 @@ local_infile_configs="--enable-local-infile"
 
 
 max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
+max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"
 max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server --with-libevent"
-max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server -with-libevent"
+max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server --with-libevent"
 # Disable NDB in maria max builds
 max_configs=$max_no_ndb_configs
 

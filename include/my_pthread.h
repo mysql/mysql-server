@@ -687,15 +687,11 @@ extern void my_mutex_end();
 
 #define THREAD_NAME_SIZE 10
 #ifndef DEFAULT_THREAD_STACK
-#if SIZEOF_CHARP > 4
 /*
-  MySQL can survive with 32K, but some glibc libraries require > 128K stack
-  To resolve hostnames. Also recursive stored procedures needs stack.
+  We need to have at least 256K stack to handle calls to myisamchk_init()
+  with the current number of keys and key parts.
 */
-#define DEFAULT_THREAD_STACK	(256*1024L)
-#else
-#define DEFAULT_THREAD_STACK	(192*1024)
-#endif
+#define DEFAULT_THREAD_STACK	(288*1024L)
 #endif
 
 #define MY_PTHREAD_LOCK_READ 0

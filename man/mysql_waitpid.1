@@ -1,0 +1,136 @@
+'\" t
+.\"     Title: \fBmysql_waitpid\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_WAITPID\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_waitpid
+.SH "NAME"
+mysql_waitpid \- kill process and wait for its termination
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_waitpid\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIpid\fR\fR\fB\ \fR\fB\fIwait_time\fR\fR\ 'u
+\fBmysql_waitpid [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpid\fR\fR\fB \fR\fB\fIwait_time\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_waitpid\fR
+signals a process to terminate and waits for the process to exit\&. It uses the
+kill()
+system call and Unix signals, so it runs on Unix and Unix\-like systems\&.
+.PP
+Invoke
+\fBmysql_waitpid\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_waitpid [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpid\fR\fR\fB \fR\fB\fIwait_time\fR\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysql_waitpid\fR
+sends signal 0 to the process identified by
+\fIpid\fR
+and waits up to
+\fIwait_time\fR
+seconds for the process to terminate\&.
+\fIpid\fR
+and
+\fIwait_time\fR
+must be positive integers\&.
+.PP
+If process termination occurs within the wait time or the process does not exist,
+\fBmysql_waitpid\fR
+returns 0\&. Otherwise, it returns 1\&.
+.PP
+If the
+kill()
+system call cannot handle signal 0,
+\fBmysql_waitpid()\fR
+uses signal 1 instead\&.
+.PP
+\fBmysql_waitpid\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_waitpid: help option
+.\" help option: mysql_waitpid
+\fB\-\-help\fR,
+\fB\-?\fR,
+\fB\-I\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_waitpid: verbose option
+.\" verbose option: mysql_waitpid
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.sp
+Verbose mode\&. Display a warning if signal 0 could not be used and signal 1 is used instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_waitpid: version option
+.\" version option: mysql_waitpid
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

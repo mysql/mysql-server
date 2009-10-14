@@ -9,8 +9,13 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.35-maria-beta2)
+# in mysqlbinlog.cc / check_master_version().
+#
+# When merging new MySQL releases, update the version number to match the
+# MySQL version number.
+#
+# Note: the following line must be parseable by win/configure.js:GetVersion()
+AM_INIT_AUTOMAKE(mysql, 5.1.38-maria-beta)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -602,10 +607,11 @@ AC_SUBST(NOINST_LDFLAGS)
 # Check if we are using Linux and a glibc compiled with static nss
 # (this is true on the MySQL build machines to avoid NSS problems)
 #
+AC_CHECK_TOOL([NM], [nm]) 
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`nm /usr/lib*/libc.a  | grep _nss_files_getaliasent_r`
+  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a | grep _nss_files_getaliasent_r1`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
@@ -1623,7 +1629,7 @@ esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
-if test "$ac_cv_prog_gcc" = "yes"
+if test "$GCC" = "yes"
 then
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC="-O"
@@ -1631,9 +1637,16 @@ then
 else
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC=""
-  OPTIMIZE_CFLAGS="-O"
+  case $SYSTEM_TYPE in                               
+    *solaris*)
+      OPTIMIZE_CFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CFLAGS="-O"
+      ;;
+  esac
 fi
-if test "$ac_cv_prog_cxx_g" = "yes"
+if test "$GXX" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
@@ -1641,7 +1654,14 @@ then
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
-  OPTIMIZE_CXXFLAGS="-O"
+  case $SYSTEM_TYPE in
+    *solaris*)
+      OPTIMIZE_CXXFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CXXFLAGS="-O"
+      ;;
+  esac
 fi
 
 case $SYSTEM_TYPE in
@@ -1726,6 +1746,30 @@ then
   fi
 fi
 
+AC_CACHE_CHECK([whether the compiler provides atomic builtins],
+	       [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
+  int main()
+  {
+    int foo= -10; int bar= 10;
+    if (!__sync_fetch_and_add(&foo, bar) || foo)
+      return -1;
+    bar= __sync_lock_test_and_set(&foo, bar);
+    if (bar || foo != 10)
+      return -1;
+    bar= __sync_val_compare_and_swap(&bar, foo, 15);
+    if (bar)
+      return -1;
+    return 0;
+  }
+], [mysql_cv_gcc_atomic_builtins=yes],
+   [mysql_cv_gcc_atomic_builtins=no],
+   [mysql_cv_gcc_atomic_builtins=no])])
+
+if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
+  AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
+	    [Define to 1 if compiler provides atomic builtins.])
+fi
+
 AC_ARG_WITH([atomic-ops],
 	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
 	    [Implement atomic operations using pthread rwlocks or atomic CPU
@@ -1739,28 +1783,9 @@ case "$with_atomic_ops" in
                   [Use pthread rwlocks for atomic ops]) ;;
   "smp") ;;
   "")
-    AC_CACHE_CHECK([whether the compiler provides atomic builtins],
-                   [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
-      int main()
-      {
-        int foo= -10; int bar= 10;
-        if (!__sync_fetch_and_add(&foo, bar) || foo)
-          return -1;
-        bar= __sync_lock_test_and_set(&foo, bar);
-        if (bar || foo != 10)
-          return -1;
-        bar= __sync_val_compare_and_swap(&bar, foo, 15);
-        if (bar)
-          return -1;
-        return 0;
-      }
-    ], [mysql_cv_gcc_atomic_builtins=yes_but_disabled],
-       [mysql_cv_gcc_atomic_builtins=no],
-       [mysql_cv_gcc_atomic_builtins=no])])
-
-    if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
-      AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
-                [Define to 1 if compiler provides atomic builtins.])
+    if test "x$mysql_cv_gcc_atomic_builtins" = xyes_but_disabled; then
+      AC_DEFINE([MY_ATOMIC_MODE_GCC_BUILTINS], [1],
+                [Use GCC atomic builtins for atomic ops])
     fi
    ;;
    *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
@@ -2080,6 +2105,25 @@ case "$mysql_cv_sys_os" in
         # unsupported priority values are passed to pthread_setschedprio.
         # Since the only supported value is 1, treat it as inexistent.
     ;;
+ SunOS) # Bug#42599 error: `pthread_setschedprio' was not declared in this scope
+        # In some installations, the pthread.h header used by GCC does not
+        # declare the pthread_setscheprio prototype, but the function is
+        # implemented. Since the function is used in C++ code, ensure that
+        # the function prototype is present.
+     AC_MSG_CHECKING([whether pthread_setschedprio is declared])
+     AC_LANG_PUSH([C++])
+     AC_COMPILE_IFELSE([
+       AC_LANG_PROGRAM([#include <pthread.h>],
+                      [(void)(pthread_setschedprio);])],
+       [ac_cv_func_pthread_setschedprio=yes],
+       [ac_cv_func_pthread_setschedprio=no])
+     AC_LANG_POP([C++])
+     AC_MSG_RESULT([$ac_cv_func_pthread_setschedprio])
+     if test "$ac_cv_func_pthread_setschedprio" = yes; then
+       AC_DEFINE(HAVE_PTHREAD_SETSCHEDPRIO, 1,
+                 [Define to 1 if you have the `pthread_setschedprio' function.])
+     fi
+    ;;
  *) AC_CHECK_FUNCS(pthread_setschedprio)
     ;;
 esac
@@ -2089,6 +2133,27 @@ esac
 AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
   AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() is safe to use in C code)
+  AC_TRY_RUN([
+#include <math.h>
+int main()
+{
+  double a= 10.0;
+  double b= 1e308;
+
+  return !isinf(a * b);
+}
+],
+  [AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)
+   AC_DEFINE([HAVE_BROKEN_ISINF], [1],
+             [Define to 1 if isinf() uses 80-bit register for intermediate values])
+  ],
+  [
+# Let's be optimistic when cross-compiling, since the only compiler known
+# to be affected by this isinf() bug is GCC 4.3 on 32-bit x86.
+   AC_MSG_RESULT([[cross-compiling, assuming 'yes']])
+  ])
   AC_MSG_CHECKING(whether isinf() can be used in C++ code)
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS
@@ -2634,7 +2699,7 @@ case $SYSTEM_TYPE in
     fi
 
     # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
     then
 	AC_MSG_ERROR([This commercially licensed MySQL source package can't
 	      be built with libreadline. Please use --with-libedit to use

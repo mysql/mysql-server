@@ -101,7 +101,8 @@ extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
-extern char *master_info_file, *relay_log_info_file;
+extern char *master_info_file;
+extern MYSQL_PLUGIN_IMPORT char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
@@ -171,10 +172,10 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
 bool rpl_master_erroneous_autoinc(THD* thd);
 
 const char *print_slave_db_safe(const char *db);
-int check_expected_error(THD* thd, Relay_log_info const *rli, int error_code);
 void skip_load_data_infile(NET* net);
 
-void end_slave(); /* clean up */
+void end_slave(); /* release slave threads */
+void close_active_mi(); /* clean up slave threads data */
 void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
 void end_relay_log_info(Relay_log_info* rli);
@@ -205,7 +206,7 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 /* the master variables are defaults read from my.cnf or command line */
 extern uint master_port, master_connect_retry, report_port;
 extern char * master_user, *master_password, *master_host;
-extern char *master_info_file, *relay_log_info_file, *report_user;
+extern char *master_info_file, *report_user;
 extern char *report_host, *report_password;
 
 extern my_bool master_ssl;

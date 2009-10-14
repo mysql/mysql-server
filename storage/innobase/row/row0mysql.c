@@ -1476,12 +1476,9 @@ row_unlock_for_mysql(
 					and clust_pcur, and we do not need to
 					reposition the cursors. */
 {
-	dict_index_t*	index;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
-	rec_t*		rec;
-	mtr_t		mtr;
 
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1501,9 +1498,12 @@ row_unlock_for_mysql(
 
 	trx->op_info = "unlock_row";
 
-	index = btr_pcur_get_btr_cur(pcur)->index;
+	if (prebuilt->new_rec_locks >= 1) {
 
-	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
+		rec_t*		rec;
+		dict_index_t*	index;
+		dulint		rec_trx_id;
+		mtr_t		mtr;
 
 		mtr_start(&mtr);
 
@@ -1514,43 +1514,69 @@ row_unlock_for_mysql(
 		}
 
 		rec = btr_pcur_get_rec(pcur);
+		index = btr_pcur_get_btr_cur(pcur)->index;
 
-		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
+		if (prebuilt->new_rec_locks >= 2) {
+			/* Restore the cursor position and find the record
+			in the clustered index. */
 
-		mtr_commit(&mtr);
+			if (!has_latches_on_recs) {
+				btr_pcur_restore_position(BTR_SEARCH_LEAF,
+							  clust_pcur, &mtr);
+			}
 
-		/* If the search was done through the clustered index, then
-		we have not used clust_pcur at all, and we must NOT try to
-		reset locks on clust_pcur. The values in clust_pcur may be
-		garbage! */
-
-		if (index->type & DICT_CLUSTERED) {
-
-			goto func_exit;
-		}
-	}
-
-	index = btr_pcur_get_btr_cur(clust_pcur)->index;
-
-	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
-
-		mtr_start(&mtr);
-
-		/* Restore the cursor position and find the record */
-
-		if (!has_latches_on_recs) {
-			btr_pcur_restore_position(BTR_SEARCH_LEAF, clust_pcur,
-						  &mtr);
+			rec = btr_pcur_get_rec(clust_pcur);
+			index = btr_pcur_get_btr_cur(clust_pcur)->index;
 		}
 
-		rec = btr_pcur_get_rec(clust_pcur);
+		if (UNIV_UNLIKELY(!(index->type & DICT_CLUSTERED))) {
+			/* This is not a clustered index record.  We
+			do not know how to unlock the record. */
+			goto no_unlock;
+		}
 
-		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
+		/* If the record has been modified by this
+		transaction, do not unlock it. */
 
+		if (index->trx_id_offset) {
+			rec_trx_id = trx_read_trx_id(rec
+						     + index->trx_id_offset);
+		} else {
+			mem_heap_t*	heap			= NULL;
+			ulint	offsets_[REC_OFFS_NORMAL_SIZE];
+			ulint*	offsets				= offsets_;
+
+			*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+			offsets = rec_get_offsets(rec, index, offsets,
+						  ULINT_UNDEFINED, &heap);
+
+			rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+		}
+
+		if (ut_dulint_cmp(rec_trx_id, trx->id) != 0) {
+			/* We did not update the record: unlock it */
+
+			rec = btr_pcur_get_rec(pcur);
+			index = btr_pcur_get_btr_cur(pcur)->index;
+
+			lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
+
+			if (prebuilt->new_rec_locks >= 2) {
+				rec = btr_pcur_get_rec(clust_pcur);
+				index = btr_pcur_get_btr_cur(clust_pcur)->index;
+
+				lock_rec_unlock(trx, rec,
+						prebuilt->select_lock_type);
+			}
+		}
+no_unlock:
 		mtr_commit(&mtr);
 	}
 
-func_exit:
 	trx->op_info = "";
 
 	return(DB_SUCCESS);

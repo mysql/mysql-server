@@ -3,4 +3,4 @@ MASTER_CONNECT_RETRY=1,
 MASTER_HOST='127.0.0.1',
 MASTER_PORT=MASTER_MYPORT;
 START SLAVE;
-Unable to use slave's temporary directory ../../../error - Can't read dir of '../../../error' (Errcode: 2)
+12

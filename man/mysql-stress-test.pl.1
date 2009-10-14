@@ -1,0 +1,519 @@
+'\" t
+.\"     Title: \fBmysql-stress-test.pl\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/08/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL
+.\"  Language: English
+.\"
+.TH "\FBMYSQL\-STRESS\-TE" "1" "08/08/2009" "MySQL" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql-stress-test.pl
+.SH "NAME"
+mysql-stress-test.pl \- server stress test program
+.SH "SYNOPSIS"
+.HP \w'\fBmysql\-stress\-test\&.pl\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
+\fBmysql\-stress\-test\&.pl [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+The
+\fBmysql\-stress\-test\&.pl\fR
+Perl script performs stress\-testing of the MySQL server\&. (MySQL 5\&.0 and up only)
+.PP
+\fBmysql\-stress\-test\&.pl\fR
+requires a version of Perl that has been built with threads support\&.
+.PP
+Invoke
+\fBmysql\-stress\-test\&.pl\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql\-stress\-test\&.pl [\fR\fB\fIoptions\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysql\-stress\-test\&.pl\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: help option
+.\" help option: mysql-stress-test.pl
+\fB\-\-help\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: abort-on-error option
+.\" abort-on-error option: mysql-stress-test.pl
+\fB\-\-abort\-on\-error\fR
+.sp
+Unknown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: check-tests-file option
+.\" check-tests-file option: mysql-stress-test.pl
+\fB\-\-check\-tests\-file\fR
+.sp
+Periodically check the file that lists the tests to be run\&. If it has been modified, reread the file\&. This can be useful if you update the list of tests to be run during a stress test\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: cleanup option
+.\" cleanup option: mysql-stress-test.pl
+\fB\-\-cleanup\fR
+.sp
+Force cleanup of the working directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: log-error-details option
+.\" log-error-details option: mysql-stress-test.pl
+\fB\-\-log\-error\-details\fR
+.sp
+Log error details in the global error log file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: loop-count option
+.\" loop-count option: mysql-stress-test.pl
+\fB\-\-loop\-count=\fR\fB\fIN\fR\fR
+.sp
+In sequential test mode, the number of loops to execute before exiting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: mysqltest option
+.\" mysqltest option: mysql-stress-test.pl
+\fB\-\-mysqltest=\fR\fB\fIpath\fR\fR
+.sp
+The path name to the
+\fBmysqltest\fR
+program\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-database option
+.\" server-database option: mysql-stress-test.pl
+\fB\-\-server\-database=\fR\fB\fIdb_name\fR\fR
+.sp
+The database to use for the tests\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-host option
+.\" server-host option: mysql-stress-test.pl
+\fB\-\-server\-host=\fR\fB\fIhost_name\fR\fR
+.sp
+The host name of the local host to use for making a TCP/IP connection to the local server\&. By default, the connection is made to
+localhost
+using a Unix socket file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-logs-dir option
+.\" server-logs-dir option: mysql-stress-test.pl
+\fB\-\-server\-logs\-dir=\fR\fB\fIpath\fR\fR
+.sp
+This option is required\&.
+\fIpath\fR
+is the directory where all client session logs will be stored\&. Usually this is the shared directory that is associated with the server used for testing\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-password option
+.\" server-password option: mysql-stress-test.pl
+\fB\-\-server\-password=\fR\fB\fIpassword\fR\fR
+.sp
+The password to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-port option
+.\" server-port option: mysql-stress-test.pl
+\fB\-\-server\-port=\fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use for connecting to the server\&. The default is 3306\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-socket option
+.\" server-socket option: mysql-stress-test.pl
+\fB\-\-server\-socket=\fR\fB\fIfile_name\fR\fR
+.sp
+For connections to
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&. The default if
+/tmp/mysql\&.sock\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: server-user option
+.\" server-user option: mysql-stress-test.pl
+\fB\-\-server\-user=\fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&. The default is
+root\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: sleep-time option
+.\" sleep-time option: mysql-stress-test.pl
+\fB\-\-sleep\-time=\fR\fB\fIN\fR\fR
+.sp
+The delay in seconds between test executions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-basedir option
+.\" stress-basedir option: mysql-stress-test.pl
+\fB\-\-stress\-basedir=\fR\fB\fIpath\fR\fR
+.sp
+This option is required\&.
+\fIpath\fR
+is the working directory for the test run\&. It is used as the temporary location for result tracking during testing\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-datadir option
+.\" stress-datadir option: mysql-stress-test.pl
+\fB\-\-stress\-datadir=\fR\fB\fIpath\fR\fR
+.sp
+The directory of data files to be used during testing\&. The default location is the
+data
+directory under the location given by the
+\fB\-\-stress\-suite\-basedir\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-init-file option
+.\" stress-init-file option: mysql-stress-test.pl
+\fB\-\-stress\-init\-file[=\fR\fB\fIpath\fR\fR\fB]\fR
+.sp
+\fIfile_name\fR
+is the location of the file that contains the list of tests\&. If missing, the default file is
+stress_init\&.txt
+in the test suite directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-mode option
+.\" stress-mode option: mysql-stress-test.pl
+\fB\-\-stress\-mode=\fR\fB\fImode\fR\fR
+.sp
+This option indicates the test order in stress\-test mode\&. The
+\fImode\fR
+value is either
+random
+to select tests in random order or
+seq
+to run tests in each thread in the order specified in the test list file\&. The default mode is
+random\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-suite-basedir option
+.\" stress-suite-basedir option: mysql-stress-test.pl
+\fB\-\-stress\-suite\-basedir=\fR\fB\fIpath\fR\fR
+.sp
+This option is required\&.
+\fIpath\fR
+is the directory that has the
+t
+and
+\fIr\fR
+subdirectories containing the test case and result files\&. This directory is also the default location of the
+stress\-test\&.txt
+file that contains the list of tests\&. (A different location can be specified with the
+\fB\-\-stress\-tests\-file\fR
+option\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: stress-tests-file option
+.\" stress-tests-file option: mysql-stress-test.pl
+\fB\-\-stress\-tests\-file[=\fR\fB\fIfile_name\fR\fR\fB]\fR
+.sp
+Use this option to run the stress tests\&.
+\fIfile_name\fR
+is the location of the file that contains the list of tests\&. If
+\fIfile_name\fR
+is omitted, the default file is
+stress\-test\&.txt
+in the stress suite directory\&. (See
+\fB\-\-stress\-suite\-basedir\fR\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: suite option
+.\" suite option: mysql-stress-test.pl
+\fB\-\-suite=\fR\fB\fIsuite_name\fR\fR
+.sp
+Run the named test suite\&. The default name is
+main
+(the regular test suite located in the
+mysql\-test
+directory)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: test-count option
+.\" test-count option: mysql-stress-test.pl
+\fB\-\-test\-count=\fR\fB\fIN\fR\fR
+.sp
+The number of tests to execute before exiting\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: test-duration option
+.\" test-duration option: mysql-stress-test.pl
+\fB\-\-test\-duration=\fR\fB\fIN\fR\fR
+.sp
+The duration of stress testing in seconds\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: test-suffix option
+.\" test-suffix option: mysql-stress-test.pl
+\fB\-\-test\-suffix=\fR\fB\fIstr\fR\fR
+.sp
+Unknown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: threads option
+.\" threads option: mysql-stress-test.pl
+\fB\-\-threads=\fR\fB\fIN\fR\fR
+.sp
+The number of threads\&. The default is 1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-stress-test.pl: verbose option
+.\" verbose option: mysql-stress-test.pl
+\fB\-\-verbose\fR
+.sp
+Verbose mode\&. Print more information about what the program does\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

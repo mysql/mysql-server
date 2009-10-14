@@ -107,7 +107,21 @@ Database: information_schema
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
+| INNODB_CMP                            |
+| INNODB_RSEG                           |
+| XTRADB_ENHANCEMENTS                   |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_INDEX_STATS                    |
+| INNODB_TRX                            |
+| INNODB_CMP_RESET                      |
+| INNODB_LOCK_WAITS                     |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_LOCKS                          |
+| INNODB_CMPMEM                         |
+| INNODB_TABLE_STATS                    |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -141,7 +155,21 @@ Database: INFORMATION_SCHEMA
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
+| INNODB_CMP                            |
+| INNODB_RSEG                           |
+| XTRADB_ENHANCEMENTS                   |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_INDEX_STATS                    |
+| INNODB_TRX                            |
+| INNODB_CMP_RESET                      |
+| INNODB_LOCK_WAITS                     |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_LOCKS                          |
+| INNODB_CMPMEM                         |
+| INNODB_TABLE_STATS                    |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

@@ -38,6 +38,12 @@ typedef struct st_key_part {
 } KEY_PART;
 
 
+/*
+  A "MIN_TUPLE < tbl.key_tuple < MAX_TUPLE" interval. 
+  
+  One of endpoints may be absent. 'flags' member has flags which tell whether
+  the endpoints are '<' or '<='.
+*/
 class QUICK_RANGE :public Sql_alloc {
  public:
   uchar *min_key,*max_key;

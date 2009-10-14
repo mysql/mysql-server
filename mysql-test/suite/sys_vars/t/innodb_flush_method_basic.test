@@ -29,7 +29,7 @@
 #   Displaying default value                                       #
 ####################################################################
 SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 1 Expected
+--echo 0 Expected
 
 
 --echo '#---------------------BS_STVARS_029_02----------------------#'
@@ -42,7 +42,7 @@ SET @@GLOBAL.innodb_flush_method=1;
 --echo Expected error 'Read only variable'
 
 SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 1 Expected
+--echo 0 Expected
 
 
 
@@ -58,7 +58,7 @@ WHERE VARIABLE_NAME='innodb_flush_method';
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 1 Expected
+--echo 0 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -82,7 +82,7 @@ SELECT @@innodb_flush_method = @@GLOBAL.innodb_flush_method;
 ################################################################################
 
 SELECT COUNT(@@innodb_flush_method);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_flush_method);
@@ -93,7 +93,7 @@ SELECT COUNT(@@SESSION.innodb_flush_method);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_flush_method);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_flush_method = @@SESSION.innodb_flush_method;

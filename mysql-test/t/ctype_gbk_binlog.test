@@ -1,0 +1,37 @@
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_gbk.inc
+
+RESET MASTER;
+SET NAMES gbk;
+--character_set gbk
+
+CREATE TABLE t1 (
+  f1 BLOB
+) ENGINE=MyISAM DEFAULT CHARSET=gbk;
+
+delimiter |;
+CREATE PROCEDURE p1(IN val BLOB)
+BEGIN
+     SET @tval = val;
+     SET @sql_cmd = CONCAT_WS(' ', 'insert into t1(f1) values(?)');
+     PREPARE stmt FROM @sql_cmd;
+     EXECUTE stmt USING @tval;
+     DEALLOCATE PREPARE stmt;
+END|
+delimiter ;|
+
+SET @`tcontent`:=_binary 0x50434B000900000000000000E9000000 COLLATE `binary`/*!*/;
+CALL p1(@`tcontent`);
+
+FLUSH LOGS;
+DROP PROCEDURE p1;
+RENAME TABLE t1 to t2;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
+SELECT hex(f1) FROM t2;
+SELECT hex(f1) FROM t1;
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP TABLE t2;

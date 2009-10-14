@@ -113,4 +113,36 @@ ERROR HY000: Incorrect arguments to EXECUTE
 End of 5.0 tests
 select 1 as a limit 4294967296,10;
 a
+CREATE TABLE t1 (a int PRIMARY KEY auto_increment);
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
+SELECT a FROM t1 ORDER BY a LIMIT 10 OFFSET 1;
+a
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+SELECT a FROM t1 ORDER BY a LIMIT 10 OFFSET 10;
+a
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+SELECT a FROM t1 ORDER BY a LIMIT 2 OFFSET 14;
+a
+15
+16
+DROP TABLE t1;
 End of 5.1 tests

@@ -19,10 +19,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Query	1	#	COMMIT
 **** On Slave ****
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -68,9 +68,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 slave-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
-slave-bin.000001	#	Query	1	#	use `test`; BEGIN
+slave-bin.000001	#	Query	1	#	BEGIN
 slave-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	1	#	use `test`; COMMIT
+slave-bin.000001	#	Query	1	#	COMMIT
 DROP TABLE IF EXISTS t1;
 SET @@global.binlog_format= @old_binlog_format;

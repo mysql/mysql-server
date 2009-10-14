@@ -1,4 +1,7 @@
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 source include/master-slave.inc;
+source include/have_innodb.inc;
 
 #
 # Bug#6148 ()
@@ -35,4 +38,88 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
-# End of 4.1 tests
+
+#
+# Bug#38205 Row-based Replication (RBR) causes inconsistencies...
+# Bug#319   if while a non-transactional slave is replicating a transaction...
+#
+# Verifying that STOP SLAVE does not interrupt excution of a group
+# execution of events if the group can not roll back.
+# Killing the sql thread continues to provide a "hard" stop (the
+# part II, moved to the bugs suite as it's hard to make it
+# deterministic with KILL).
+#
+
+#
+# Part I. The being stopped sql thread finishes first the current group of 
+#         events if the group contains an event on a non-transaction table.
+
+connection master;
+create table t1i(n int primary key) engine=innodb;
+create table t2m(n int primary key) engine=myisam;
+begin;
+insert into t1i values (1);
+insert into t1i values (2);
+insert into t1i values (3);
+commit;
+
+sync_slave_with_master;
+connection slave;
+begin;
+insert into t1i values (5);
+
+connection master;
+let $pos0_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+begin;
+insert into t1i values (4);
+insert into t2m values (1); # non-ta update to process
+insert into t1i values (5); # to block at. to be played with stopped
+commit;
+
+connection slave;
+# slave sql thread must be locked out by the conn `slave' explicit lock
+let $pos0_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+--disable_query_log
+eval select $pos0_master - $pos0_slave as zero;
+--enable_query_log
+
+connection slave1;
+let $count= 1;
+let $table= t2m;
+source include/wait_until_rows_count.inc;
+send stop slave;
+
+connection slave;
+rollback; # release the sql thread
+
+connection slave1;
+reap;
+source include/wait_for_slave_to_stop.inc;
+let $sql_status= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
+--echo *** sql thread is *not* running: $sql_status ***
+
+
+connection master;
+let $pos1_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+connection slave;
+
+let $pos1_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+--echo *** the prove: the stopped slave has finished the current transaction ***
+
+--disable_query_log
+select count(*) as five from t1i;
+eval select $pos1_master - $pos1_slave as zero;
+eval select $pos1_slave > $pos0_slave as one;
+--enable_query_log
+
+source include/start_slave.inc;
+
+# clean-up
+connection master;
+drop table t1i, t2m;
+
+sync_slave_with_master;
+
+# End of tests

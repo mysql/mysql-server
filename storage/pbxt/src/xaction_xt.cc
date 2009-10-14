@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #include <time.h>
 #include <signal.h>
 
@@ -48,7 +52,7 @@
 #endif
 
 static void xn_sw_wait_for_xact(XTThreadPtr self, XTDatabaseHPtr db, u_int hsecs);
-static xtBool xn_get_xact_details(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)), int *flags, xtXactID *start, xtXactID *end, xtThreadID *thd_id);
+static xtBool xn_get_xact_details(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr XT_UNUSED(thread), int *flags, xtXactID *start, xtXactID *end, xtThreadID *thd_id);
 static xtBool xn_get_xact_pointer(XTDatabaseHPtr db, xtXactID xn_id, XTXactDataPtr *xact_ptr);
 
 /* ============================================================================================== */
@@ -203,7 +207,7 @@ typedef struct XNWaitFor {
 	xtXactID				wf_for_me_xn_id;		/* The transaction we are waiting for. */
 } XNWaitForRec, *XNWaitForPtr;
 
-static int xn_compare_wait_for(XTThreadPtr XT_UNUSED(self), register const void XT_UNUSED(*thunk), register const void *a, register const void *b)
+static int xn_compare_wait_for(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtXactID		*x = (xtXactID *) a;
 	XNWaitForPtr	y = (XNWaitForPtr) b;
@@ -215,7 +219,7 @@ static int xn_compare_wait_for(XTThreadPtr XT_UNUSED(self), register const void 
 	return 1;
 }
 
-static void xn_free_wait_for(XTThreadPtr XT_UNUSED(self), void XT_UNUSED(*thunk), void XT_UNUSED(*item))
+static void xn_free_wait_for(XTThreadPtr XT_UNUSED(self), void *XT_UNUSED(thunk), void *XT_UNUSED(item))
 {
 }
 
@@ -446,7 +450,9 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 			xt_timed_wait_cond_ns(&my_wt->wt_cond, &my_wt->wt_lock, WAIT_FOR_XACT_TIME);
 		}
 
+		/* Unreachable
 		xt_unlock_mutex_ns(&my_wt->wt_lock);
+		*/
 	}
 
 	if (xw) {
@@ -753,12 +759,13 @@ xtPublic xtXactID xt_xn_get_curr_id(XTDatabaseHPtr db)
 	return curr_xn_id;
 }
 
-xtPublic XTXactDataPtr xt_xn_add_old_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)))
+xtPublic XTXactDataPtr xt_xn_add_old_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread)
 {
 	register XTXactDataPtr	xact;
 	register XTXactSegPtr 	seg;
 	register XTXactDataPtr	*hash;
 
+	(void) thread;
 	seg = &db->db_xn_idx[xn_id & XT_XN_SEGMENT_MASK];
 	XT_XACT_WRITE_LOCK(&seg->xs_tab_lock, thread);
 	hash = &seg->xs_table[(xn_id >> XT_XN_SEGMENT_SHIFTS) % XT_XN_HASH_TABLE_SIZE];
@@ -778,7 +785,7 @@ xtPublic XTXactDataPtr xt_xn_add_old_xact(XTDatabaseHPtr db, xtXactID xn_id, XTT
 		 */
 		db->db_sw_faster |= XT_SW_NO_MORE_XACT_SLOTS;
 		if (!(xact = (XTXactDataPtr) xt_malloc_ns(sizeof(XTXactDataRec)))) {
-			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 			return NULL;
 		}
 	}
@@ -797,7 +804,7 @@ xtPublic XTXactDataPtr xt_xn_add_old_xact(XTDatabaseHPtr db, xtXactID xn_id, XTT
 		seg->xs_last_xn_id = xn_id;
 
 	done_ok:
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 #ifdef HIGH_X
 	tot_alloced++;
 	if (tot_alloced > high_alloced)
@@ -806,12 +813,13 @@ xtPublic XTXactDataPtr xt_xn_add_old_xact(XTDatabaseHPtr db, xtXactID xn_id, XTT
 	return xact;
 }
 
-static XTXactDataPtr xn_add_new_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)))
+static XTXactDataPtr xn_add_new_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread)
 {
 	register XTXactDataPtr	xact;
 	register XTXactSegPtr 	seg;
 	register XTXactDataPtr	*hash;
 
+	(void) thread;
 	seg = &db->db_xn_idx[xn_id & XT_XN_SEGMENT_MASK];
 	XT_XACT_WRITE_LOCK(&seg->xs_tab_lock, thread);
 	hash = &seg->xs_table[(xn_id >> XT_XN_SEGMENT_SHIFTS) % XT_XN_HASH_TABLE_SIZE];
@@ -825,7 +833,7 @@ static XTXactDataPtr xn_add_new_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThread
 		 */
 		db->db_sw_faster |= XT_SW_NO_MORE_XACT_SLOTS;
 		if (!(xact = (XTXactDataPtr) xt_malloc_ns(sizeof(XTXactDataRec)))) {
-			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 			return NULL;
 		}
 	}
@@ -841,7 +849,7 @@ static XTXactDataPtr xn_add_new_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThread
 	xact->xd_flags = 0;
 
 	seg->xs_last_xn_id = xn_id;
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 #ifdef HIGH_X
 	tot_alloced++;
 	if (tot_alloced > high_alloced)
@@ -850,7 +858,7 @@ static XTXactDataPtr xn_add_new_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThread
 	return xact;
 }
 
-static xtBool xn_get_xact_details(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)), int *flags, xtXactID *start, xtWord4 *end, xtThreadID *thd_id)
+static xtBool xn_get_xact_details(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr XT_UNUSED(thread), int *flags, xtXactID *start, xtWord4 *end, xtThreadID *thd_id)
 {
 	register XTXactSegPtr 	seg;
 	register XTXactDataPtr	xact;
@@ -874,7 +882,7 @@ static xtBool xn_get_xact_details(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr
 		}
 		xact = xact->xd_next_xact;
 	}
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, FALSE);
 	return found;
 }
 
@@ -900,11 +908,11 @@ static xtBool xn_get_xact_pointer(XTDatabaseHPtr db, xtXactID xn_id, XTXactDataP
 		}
 		xact = xact->xd_next_xact;
 	}
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, FALSE);
 	return found;
 }
 
-static xtBool xn_get_xact_start(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)), xtLogID *log_id, xtLogOffset *log_offset)
+static xtBool xn_get_xact_start(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr XT_UNUSED(thread), xtLogID *log_id, xtLogOffset *log_offset)
 {
 	register XTXactSegPtr 	seg;
 	register XTXactDataPtr	xact;
@@ -922,12 +930,12 @@ static xtBool xn_get_xact_start(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr t
 		}
 		xact = xact->xd_next_xact;
 	}
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, FALSE);
 	return found;
 }
 
 /* NOTE: this function may only be used by the sweeper or the recovery process. */
-xtPublic XTXactDataPtr xt_xn_get_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)))
+xtPublic XTXactDataPtr xt_xn_get_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr XT_UNUSED(thread))
 {
 	register XTXactSegPtr 	seg;
 	register XTXactDataPtr	xact;
@@ -940,7 +948,7 @@ xtPublic XTXactDataPtr xt_xn_get_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThrea
 			break;
 		xact = xact->xd_next_xact;
 	}
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, FALSE);
 	return xact;
 }
 
@@ -948,11 +956,12 @@ xtPublic XTXactDataPtr xt_xn_get_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThrea
  * Delete a transaction, return TRUE if the transaction
  * was found.
  */
-xtPublic xtBool xt_xn_delete_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread __attribute__((unused)))
+xtPublic xtBool xt_xn_delete_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr thread)
 {
 	XTXactDataPtr	xact, pxact = NULL;
 	XTXactSegPtr 	seg;
 
+	(void) thread;
 	seg = &db->db_xn_idx[xn_id & XT_XN_SEGMENT_MASK];
 	XT_XACT_WRITE_LOCK(&seg->xs_tab_lock, thread);
 	xact = seg->xs_table[(xn_id >> XT_XN_SEGMENT_SHIFTS) % XT_XN_HASH_TABLE_SIZE];
@@ -963,13 +972,13 @@ xtPublic xtBool xt_xn_delete_xact(XTDatabaseHPtr db, xtXactID xn_id, XTThreadPtr
 			else
 				 seg->xs_table[(xn_id >> XT_XN_SEGMENT_SHIFTS) % XT_XN_HASH_TABLE_SIZE] = xact->xd_next_xact;
 			xn_free_xact(db, seg, xact);
-			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+			XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 			return TRUE;
 		}
 		pxact = xact;
 		xact = xact->xd_next_xact;
 	}
-	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread);
+	XT_XACT_UNLOCK(&seg->xs_tab_lock, thread, TRUE);
 	return FALSE;
 }
 
@@ -1253,6 +1262,10 @@ xtPublic xtBool xt_xn_begin(XTThreadPtr self)
 #ifdef TRACE_TRANSACTION
 	xt_ttracef(self, "BEGIN T%lu\n", (u_long) self->st_xact_data->xd_start_xn_id);
 #endif
+#ifdef XT_TRACK_CONNECTIONS
+	xt_track_conn_info[self->t_id].ci_curr_xact_id = self->st_xact_data->xd_start_xn_id;
+	xt_track_conn_info[self->t_id].ci_xact_start = xt_trace_clock();
+#endif
 	return OK;
 }
 
@@ -1375,6 +1388,13 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 
 		thread->st_xact_data = NULL;
 
+#ifdef XT_TRACK_CONNECTIONS
+		xt_track_conn_info[thread->t_id].ci_prev_xact_id = xt_track_conn_info[thread->t_id].ci_curr_xact_id;
+		xt_track_conn_info[thread->t_id].ci_prev_xact_time = xt_trace_clock() - xt_track_conn_info[thread->t_id].ci_xact_start;
+		xt_track_conn_info[thread->t_id].ci_curr_xact_id = 0;
+		xt_track_conn_info[thread->t_id].ci_xact_start = 0;
+#endif
+
 		xt_xn_wakeup_waiting_threads(thread);
 
 		/* {WAKE-SW} Waking the sweeper
@@ -1401,6 +1421,19 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 
 		/* Don't get too far ahead of the sweeper! */
 		if (writer) {
+#ifdef XT_WAIT_FOR_CLEANUP
+			xtXactID	wait_xn_id;
+			
+			/* This is the transaction that was committed 3 transactions ago: */
+			wait_xn_id = thread->st_prev_xact[thread->st_last_xact];
+			thread->st_prev_xact[thread->st_last_xact] = xn_id;
+			/* This works because XT_MAX_XACT_BEHIND == 2! */
+			ASSERT_NS((thread->st_last_xact + 1) % XT_MAX_XACT_BEHIND == thread->st_last_xact ^ 1);
+			thread->st_last_xact ^= 1;
+			while (xt_xn_is_before(db->db_xn_to_clean_id, wait_xn_id) && (db->db_sw_faster & XT_SW_TOO_FAR_BEHIND)) {
+				xt_critical_wait();
+			}
+#else
 			if ((db->db_sw_faster & XT_SW_TOO_FAR_BEHIND) != 0) {
 				xtWord8	then = xt_trace_clock() + (xtWord8) 20000;
 
@@ -1412,6 +1445,7 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 						break;
 				}
 			}
+#endif
 		}
 	}
 	return ok;
@@ -1854,7 +1888,7 @@ static xtBool xn_sw_cleanup_done(XTThreadPtr self, XTOpenTablePtr ot, xtRecordID
 	return FALSE;
 }
 
-static void xn_sw_clean_indices(XTThreadPtr self __attribute__((unused)), XTOpenTablePtr ot, xtRecordID rec_id, xtRowID row_id, xtWord1 *rec_data, xtWord1 *rec_buffer)
+static void xn_sw_clean_indices(XTThreadPtr XT_NDEBUG_UNUSED(self), XTOpenTablePtr ot, xtRecordID rec_id, xtRowID row_id, xtWord1 *rec_data, xtWord1 *rec_buffer)
 {
 	XTTableHPtr	tab = ot->ot_table;
 	u_int		cols_req;
@@ -2495,7 +2529,8 @@ static void *xn_sw_run_thread(XTThreadPtr self)
 	int				count;
 	void			*mysql_thread;
 
-	mysql_thread = myxt_create_thread();
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
 
 	while (!self->t_quit) {
 		try_(a) {
@@ -2552,7 +2587,10 @@ static void *xn_sw_run_thread(XTThreadPtr self)
 		db->db_sw_idle = XT_THREAD_BUSY;
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 
@@ -2599,7 +2637,13 @@ xtPublic void xt_wait_for_sweeper(XTThreadPtr self, XTDatabaseHPtr db, int abort
 
 	if (db->db_sw_thread) {
 		then = time(NULL);
-		while (!xt_xn_is_before(xt_xn_get_curr_id(db), db->db_xn_to_clean_id)) { // was db->db_xn_to_clean_id <= xt_xn_get_curr_id(db)
+		/* Changed xt_xn_get_curr_id(db) to db->db_xn_curr_id,
+		 * This should work because we are not concerned about the difference
+		 * between xt_xn_get_curr_id(db) and db->db_xn_curr_id,
+		 * Which is just a matter of when transactions we can expect ot find
+		 * in memory (see {GAP-INC-ADD-XACT})
+		 */
+		while (!xt_xn_is_before(db->db_xn_curr_id, db->db_xn_to_clean_id)) { // was db->db_xn_to_clean_id <= xt_xn_get_curr_id(db)
 			xt_lock_mutex(self, &db->db_sw_lock);
 			pushr_(xt_unlock_mutex, &db->db_sw_lock);
 			xt_wakeup_sweeper(db);

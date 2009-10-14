@@ -38,6 +38,7 @@
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
+#include <mysqld_error.h>
 #include <mysys_err.h>
 
 #ifdef HAVE_REPLICATION
@@ -128,6 +129,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
 static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
+static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
                           bool suppress_warnings);
@@ -142,8 +144,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
-                                  pthread_mutex_t* term_lock,
-                                  pthread_cond_t* term_cond,
+                                  pthread_mutex_t *term_lock,
+                                  pthread_cond_t *term_cond,
                                   volatile uint *slave_running,
                                   bool skip_lock);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
@@ -232,6 +234,15 @@ int init_slave()
   active_mi= new Master_info;
 
   /*
+    If --slave-skip-errors=... was not used, the string value for the
+    system variable has not been set up yet. Do it now.
+  */
+  if (!use_slave_mask)
+  {
+    print_slave_skip_errors();
+  }
+
+  /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
     exists.
@@ -311,7 +322,7 @@ static void print_slave_skip_errors(void)
     char *bend= buff + sizeof(slave_skip_error_names);
     int  errnum;
 
-    for (errnum= 1; errnum < MAX_SLAVE_ERROR; errnum++)
+    for (errnum= 0; errnum < MAX_SLAVE_ERROR; errnum++)
     {
       if (bitmap_is_set(&slave_error_mask, errnum))
       {
@@ -361,6 +372,7 @@ void init_slave_skip_errors(const char* arg)
   if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
   {
     bitmap_set_all(&slave_error_mask);
+    print_slave_skip_errors();
     DBUG_VOID_RETURN;
   }
   for (p= arg ; *p; )
@@ -378,6 +390,13 @@ void init_slave_skip_errors(const char* arg)
   DBUG_VOID_RETURN;
 }
 
+static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
+{
+  TABLE *table;
+
+  for (table= rli->save_temporary_tables ; table ; table= table->next)
+    table->in_use= rli->sql_thd;
+}
 
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 {
@@ -388,22 +407,22 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
 
-  if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd,io_lock,
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
   }
-  if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli.abort_slave=1;
-    if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
+    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
                                       &mi->rli.stop_cond,
                                       &mi->rli.slave_running,
                                       skip_lock)) &&
@@ -441,29 +460,44 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK
+   @retval 0 All OK ER_SLAVE_NOT_RUNNING otherwise.
+
+   @note  If the executing thread has to acquire term_lock (skip_lock
+          is false), the negative running status does not represent
+          any issue therefore no error is reported.
+
  */
 static int
 terminate_slave_thread(THD *thd,
-                       pthread_mutex_t* term_lock,
-                       pthread_cond_t* term_cond,
+                       pthread_mutex_t *term_lock,
+                       pthread_cond_t *term_cond,
                        volatile uint *slave_running,
                        bool skip_lock)
 {
-  int error;
-
   DBUG_ENTER("terminate_slave_thread");
-
   if (!skip_lock)
+  {
     pthread_mutex_lock(term_lock);
-
-  safe_mutex_assert_owner(term_lock);
-
+  }
+  else
+  {
+    safe_mutex_assert_owner(term_lock);
+  }
   if (!*slave_running)
   {
     if (!skip_lock)
+    {
+      /*
+        if run_lock (term_lock) is acquired locally then either
+        slave_running status is fine
+      */
       pthread_mutex_unlock(term_lock);
-    DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+    }
   }
   DBUG_ASSERT(thd != 0);
   THD_CHECK_SENTRY(thd);
@@ -475,9 +509,10 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
+    int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
-    pthread_mutex_lock(&thd->LOCK_delete);
+    pthread_mutex_lock(&thd->LOCK_thd_data);
 #ifndef DONT_USE_THR_ALARM
     /*
       Error codes from pthread_kill are:
@@ -488,7 +523,7 @@ terminate_slave_thread(THD *thd,
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
-    pthread_mutex_unlock(&thd->LOCK_delete);
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
 
     /*
       There is a small chance that slave thread might miss the first
@@ -616,7 +651,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
                              &mi->rli.slave_running, &mi->rli.slave_run_id,
                              mi, 0);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }
   DBUG_RETURN(error);
 }
@@ -634,7 +669,7 @@ static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
 
 
 /*
-  Free all resources used by slave
+  Release slave threads at time of executing shutdown.
 
   SYNOPSIS
     end_slave()
@@ -660,14 +695,31 @@ void end_slave()
       once multi-master code is ready.
     */
     terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-    end_master_info(active_mi);
-    delete active_mi;
-    active_mi= 0;
   }
   pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
 }
 
+/**
+   Free all resources used by slave threads at time of executing shutdown.
+   The routine must be called after all possible users of @c active_mi
+   have left.
+
+   SYNOPSIS
+     close_active_mi()
+
+*/
+void close_active_mi()
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    end_master_info(active_mi);
+    delete active_mi;
+    active_mi= 0;
+  }
+  pthread_mutex_unlock(&LOCK_active_mi);
+}
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
 {
@@ -687,6 +739,9 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
+    if (rli->abort_slave && rli->is_in_group() &&
+        thd->transaction.all.modified_non_trans_table)
+      DBUG_RETURN(0);
     /*
       If we are in an unsafe situation (stopping could corrupt replication),
       we give one minute to the slave SQL thread of grace before really
@@ -755,56 +810,28 @@ const char *print_slave_db_safe(const char* db)
   DBUG_RETURN((db ? db : ""));
 }
 
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-                                 const char *default_val)
-{
-  uint length;
-  DBUG_ENTER("init_strvar_from_file");
 
-  if ((length=my_b_gets(f,var, max_size)))
-  {
-    char* last_p = var + length -1;
-    if (*last_p == '\n')
-      *last_p = 0; // if we stopped on newline, kill it
-    else
-    {
-      /*
-        If we truncated a line or stopped on last char, remove all chars
-        up to and including newline.
-      */
-      int c;
-      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF))
-        ;
-    }
-    DBUG_RETURN(0);
-  }
-  else if (default_val)
-  {
-    strmake(var,  default_val, max_size-1);
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(1);
+/*
+  Check if the error is caused by network.
+  @param[in]   errorno   Number of the error.
+  RETURNS:
+  TRUE         network error
+  FALSE        not network error
+*/
+
+bool is_network_error(uint errorno)
+{ 
+  if (errorno == CR_CONNECTION_ERROR || 
+      errorno == CR_CONN_HOST_ERROR ||
+      errorno == CR_SERVER_GONE_ERROR ||
+      errorno == CR_SERVER_LOST ||
+      errorno == ER_CON_COUNT_ERROR ||
+      errorno == ER_SERVER_SHUTDOWN)
+    return TRUE;
+
+  return FALSE;   
 }
 
-
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
-{
-  char buf[32];
-  DBUG_ENTER("init_intvar_from_file");
-
-
-  if (my_b_gets(f, buf, sizeof(buf)))
-  {
-    *var = atoi(buf);
-    DBUG_RETURN(0);
-  }
-  else if (default_val)
-  {
-    *var = default_val;
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(1);
-}
 
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
@@ -818,6 +845,7 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   RETURNS
   0       ok
   1       error
+  2       transient network problem, the caller should try to reconnect
 */
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
@@ -903,6 +931,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
 
+  DBUG_SYNC_POINT("debug_lock.before_get_UNIX_TIMESTAMP", 10);
+  master_res= NULL;
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -910,7 +940,13 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
   }
-  else if (!check_io_slave_killed(mi->io_thd, mi, NULL))
+  else if (is_network_error(mysql_errno(mysql)))
+  {
+    mi->report(WARNING_LEVEL, mysql_errno(mysql),
+               "Get master clock failed with error: %s", mysql_error(mysql));
+    goto network_err;
+  }
+  else 
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
     sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
@@ -919,7 +955,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                       mysql_error(mysql), mysql_errno(mysql));
   }
   if (master_res)
+  {
     mysql_free_result(master_res);
+    master_res= NULL;
+  }
 
   /*
     Check that the master's server id and ours are different. Because if they
@@ -931,12 +970,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
+  DBUG_SYNC_POINT("debug_lock.before_get_SERVER_ID", 10);
+  master_res= NULL;
+  master_row= NULL;
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
-      (master_res= mysql_store_result(mysql)))
+      (master_res= mysql_store_result(mysql)) &&
+      (master_row= mysql_fetch_row(master_res)))
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        (::server_id == strtoul(master_row[1], 0, 10)) &&
+    if ((::server_id == strtoul(master_row[1], 0, 10)) &&
         !mi->rli.replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal \
@@ -945,10 +987,34 @@ the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
       err_code= ER_SLAVE_FATAL_ERROR;
       sprintf(err_buff, ER(err_code), errmsg);
-    }
-    mysql_free_result(master_res);
-    if (errmsg)
       goto err;
+    }
+  }
+  else if (mysql_errno(mysql))
+  {
+    if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master SERVER_ID failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    }
+    /* Fatal error */
+    errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of SERVER_ID variable from master.";
+    err_code= mysql_errno(mysql);
+    sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+    goto err;
+  }
+  else if (!master_row && master_res)
+  {
+    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+               "Unknown system variable 'SERVER_ID' on master, \
+maybe it is a *VERY OLD MASTER*.");
+  }
+  if (master_res)
+  {
+    mysql_free_result(master_res);
+    master_res= NULL;
   }
 
   /*
@@ -972,23 +1038,50 @@ not always make sense; please check the manual before using it).";
   if (*mysql->server_version == '3')
     goto err;
 
-  if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql,
-                        STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
-      (master_res= mysql_store_result(mysql)))
+  if (*mysql->server_version == '4')
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        strcmp(master_row[0], global_system_variables.collation_server->name))
+    master_res= NULL;
+    if (!mysql_real_query(mysql,
+                          STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
+        (master_res= mysql_store_result(mysql)) &&
+        (master_row= mysql_fetch_row(master_res)))
     {
-      errmsg= "The slave I/O thread stops because master and slave have \
+      if (strcmp(master_row[0], global_system_variables.collation_server->name))
+      {
+        errmsg= "The slave I/O thread stops because master and slave have \
 different values for the COLLATION_SERVER global variable. The values must \
-be equal for replication to work";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER(err_code), errmsg);
+be equal for the Statement-format replication to work";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
+        goto err;
+      }
     }
-    mysql_free_result(master_res);
-    if (errmsg)
+    else if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master COLLATION_SERVER failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    }
+    else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of COLLATION_SERVER global variable from master.";
+      err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
+    }
+    else
+      mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+                 "Unknown system variable 'COLLATION_SERVER' on master, \
+maybe it is a *VERY OLD MASTER*. *NOTE*: slave may experience \
+inconsistency if replicated data deals with collation.");
+
+    if (master_res)
+    {
+      mysql_free_result(master_res);
+      master_res= NULL;
+    }
   }
 
   /*
@@ -1006,35 +1099,62 @@ be equal for replication to work";
     This check is only necessary for 4.x masters (and < 5.0.4 masters but
     those were alpha).
   */
-  if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
-      (master_res= mysql_store_result(mysql)))
+  if (*mysql->server_version == '4')
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        strcmp(master_row[0],
-               global_system_variables.time_zone->get_name()->ptr()))
+    master_res= NULL;
+    if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
+        (master_res= mysql_store_result(mysql)) &&
+        (master_row= mysql_fetch_row(master_res)))
     {
-      errmsg= "The slave I/O thread stops because master and slave have \
+      if (strcmp(master_row[0],
+                 global_system_variables.time_zone->get_name()->ptr()))
+      {
+        errmsg= "The slave I/O thread stops because master and slave have \
 different values for the TIME_ZONE global variable. The values must \
-be equal for replication to work";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER(err_code), errmsg);
+be equal for the Statement-format replication to work";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
+        goto err;
+      }
     }
-    mysql_free_result(master_res);
-
-    if (errmsg)
+    else if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    } 
+    else
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of TIME_ZONE global variable from master.";
+      err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
+    }
+    if (master_res)
+    {
+      mysql_free_result(master_res);
+      master_res= NULL;
+    }
   }
 
 err:
   if (errmsg)
   {
+    if (master_res)
+      mysql_free_result(master_res);
     DBUG_ASSERT(err_code != 0);
     mi->report(ERROR_LEVEL, err_code, err_buff);
     DBUG_RETURN(1);
   }
 
   DBUG_RETURN(0);
+
+network_err:
+  if (master_res)
+    mysql_free_result(master_res);
+  DBUG_RETURN(2);
 }
 
 /*
@@ -1080,15 +1200,13 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
-  thd->query_length= packet_len;
-  /* Note that we should not set thd->query until the area is initalized */
   if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     my_message(ER_GET_ERRNO, "Out of memory", MYF(0));
     DBUG_RETURN(1);
   }
-  thd->query= query;
+  thd->set_query(query, packet_len);
   thd->is_slave_error = 0;
 
   bzero((char*) &tables,sizeof(tables));
@@ -1457,6 +1575,8 @@ bool show_master_info(THD* thd, Master_info* mi)
 
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
+    pthread_mutex_lock(&mi->err_lock);
+    pthread_mutex_lock(&mi->rli.err_lock);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -1556,6 +1676,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
 
+    pthread_mutex_unlock(&mi->rli.err_lock);
+    pthread_mutex_unlock(&mi->err_lock);
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
 
@@ -1634,6 +1756,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
+  thd->variables.log_slow_filter= global_system_variables.log_slow_filter;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   pthread_mutex_lock(&LOCK_thread_count);
@@ -1826,25 +1949,6 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
                       len, mysql->net.read_pos[4]));
   DBUG_RETURN(len - 1);
 }
-
-
-int check_expected_error(THD* thd, Relay_log_info const *rli,
-                         int expected_error)
-{
-  DBUG_ENTER("check_expected_error");
-
-  switch (expected_error) {
-  case ER_NET_READ_ERROR:
-  case ER_NET_ERROR_ON_WRITE:
-  case ER_QUERY_INTERRUPTED:
-  case ER_SERVER_SHUTDOWN:
-  case ER_NEW_ABORTING_CONNECTION:
-    DBUG_RETURN(1);
-  default:
-    DBUG_RETURN(0);
-  }
-}
-
 
 /*
   Check if the current error is of temporary nature of not.
@@ -2336,6 +2440,7 @@ pthread_handler_t handle_slave_io(void *arg)
   char llbuff[22];
   uint retry_count;
   bool suppress_warnings;
+  int ret;
 #ifndef DBUG_OFF
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
@@ -2361,6 +2466,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
+  mi->clear_error();
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -2415,8 +2521,23 @@ connected:
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
   thd_proc_info(thd, "Checking master version");
-  if (get_master_version_and_clock(mysql, mi))
+  ret= get_master_version_and_clock(mysql, mi);
+  if (ret == 1)
+    /* Fatal error */
     goto err;
+  
+  if (ret == 2) 
+  { 
+    if (check_io_slave_killed(mi->io_thd, mi, "Slave I/O thread killed"
+                              "while calling get_master_version_and_clock(...)"))
+      goto err;
+    suppress_warnings= FALSE;
+    /* Try to reconnect because the error was caused by a transient network problem */
+    if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                             reconnect_messages[SLAVE_RECON_ACT_REG]))
+      goto err;
+    goto connected;
+  } 
 
   if (mi->rli.relay_log.description_event_for_queue->binlog_version > 1)
   {
@@ -2475,6 +2596,7 @@ requesting master dump") ||
         goto connected;
       });
 
+    DBUG_ASSERT(mi->last_error().number == 0);
     while (!io_slave_killed(thd,mi))
     {
       ulong event_len;
@@ -2582,10 +2704,8 @@ err:
   // print the current replication position
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query = thd->db = 0; // extra safety
-  thd->query_length= thd->db_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->set_query(NULL, 0);
+  thd->reset_db(NULL, 0);
   if (mysql)
   {
     /*
@@ -2627,6 +2747,7 @@ err:
     delete the mi structure leading to a crash! (see BUG#25306 for details)
    */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
   my_thread_end();
   pthread_exit(0);
@@ -2638,12 +2759,19 @@ err:
   LOAD DATA INFILE.
  */
 static 
-int check_temp_dir(char* tmp_dir, char *tmp_file)
+int check_temp_dir(char* tmp_file)
 {
   int fd;
   MY_DIR *dirp;
+  char tmp_dir[FN_REFLEN];
+  size_t tmp_dir_size;
 
   DBUG_ENTER("check_temp_dir");
+
+  /*
+    Get the directory from the temporary file.
+  */
+  dirname_part(tmp_dir, tmp_file, &tmp_dir_size);
 
   /*
     Check if the directory exists.
@@ -2714,11 +2842,13 @@ pthread_handler_t handle_slave_sql(void *arg)
     */
     pthread_cond_broadcast(&rli->start_cond);
     pthread_mutex_unlock(&rli->run_lock);
-    sql_print_error("Failed during slave thread initialization");
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Failed during slave thread initialization");
     goto err;
   }
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
+  set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2758,9 +2888,9 @@ pthread_handler_t handle_slave_sql(void *arg)
                          rli->group_relay_log_pos,
                          1 /*need data lock*/, &errmsg,
                          1 /*look for a description_event*/))
-  {
-    sql_print_error("Error initializing relay log position: %s",
-                    errmsg);
+  { 
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Error initializing relay log position: %s", errmsg);
     goto err;
   }
   THD_CHECK_SENTRY(thd);
@@ -2799,7 +2929,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
-  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  if (check_temp_dir(rli->slave_patternload_file))
   {
     rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
@@ -2813,8 +2943,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      sql_print_error("\
-Slave SQL thread aborted. Can't execute init_slave query");
+      rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+                  "Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
@@ -2864,10 +2994,20 @@ Slave SQL thread aborted. Can't execute init_slave query");
                       thd->main_da.sql_errno(), last_errno));
           if (last_errno == 0)
           {
+            /*
+ 	      This function is reporting an error which was not reported
+ 	      while executing exec_relay_log_event().
+ 	    */ 
             rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), errmsg);
           }
           else if (last_errno != thd->main_da.sql_errno())
           {
+            /*
+             * An error was reported while executing exec_relay_log_event()
+             * however the error code differs from what is in the thread.
+             * This function prints out more information to help finding
+             * what caused the problem.
+             */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
                             errmsg, thd->main_da.sql_errno());
           }
@@ -2917,15 +3057,14 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     must "proactively" clear playgrounds:
   */
   rli->cleanup_context(thd, 1);
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   /*
     Some extra safety, which should not been needed (normally, event deletion
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->query= thd->db= thd->catalog= 0;
-  thd->query_length= thd->db_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->catalog= 0;
+  thd->set_query(NULL, 0);
+  thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
@@ -2955,6 +3094,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->sql_thd == thd);
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
+  set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -2965,6 +3105,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   delete the mi structure leading to a crash! (see BUG#25306 for details)
  */ 
   pthread_cond_broadcast(&rli->stop_cond);
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
   
   my_thread_end();
@@ -3652,6 +3793,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 
   if (!slave_was_killed)
   {
+    mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
       if (!suppress_warnings && global_system_variables.log_warnings)

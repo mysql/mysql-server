@@ -1,0 +1,25 @@
+This directory contains patches that need to be applied to the MySQL
+source tree in order to build the dynamic plugin on Windows --
+HA_INNODB.DLL. Please note the followings when adding the patches:
+
+* The patch must be applied from the mysql top-level source directory.
+  patch -p0 < win-plugin.diff
+* The patch filenames end in ".diff".
+* All patches here are expected to apply cleanly to the latest MySQL 5.1
+  tree when storage/innobase is replaced with this InnoDB branch.
+
+When applying the patch, the following files will be modified:
+
+  * CMakeLists.txt
+  * sql/CMakeLists.txt
+  * win/configure.js
+  * win/build-vs71.bat
+  * win/build-vs8.bat
+  * win/build-vs8_x64.bat
+
+Also, two new files will be added:
+
+  * sql/mysqld.def
+  * sql/mysqld_x64.def
+
+You can get "patch" utility for Windows from http://unxutils.sourceforge.net/

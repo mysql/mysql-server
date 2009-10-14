@@ -1,0 +1,336 @@
+'\" t
+.\"     Title: \fBmysql_client_test\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/08/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_CLIENT_TEST" "1" "08/08/2009" "MySQL" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_client_test
+.\" mysql_client_test_embedded
+.SH "NAME"
+mysql_client_test \- test client API
+.br
+mysql_client_test_embedded \- test client API for embedded server
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_client_test\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fItest_name\fR\fR\fB]\ \&.\&.\&.\fR\ 'u
+\fBmysql_client_test [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fItest_name\fR\fR\fB] \&.\&.\&.\fR
+.HP \w'\fBmysql_client_test_embedded\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fItest_name\fR\fR\fB]\ \&.\&.\&.\fR\ 'u
+\fBmysql_client_test_embedded [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fItest_name\fR\fR\fB] \&.\&.\&.\fR
+.SH "DESCRIPTION"
+.PP
+The
+\fBmysql_client_test\fR
+program is used for testing aspects of the MySQL client API that cannot be tested using
+\fBmysqltest\fR
+and its test language\&.
+\fBmysql_client_test_embedded\fR
+is similar but used for testing the embedded server\&. Both programs are run as part of the test suite\&.
+.PP
+The source code for the programs can be found in in
+test/mysql_client_test\&.c
+in a source distribution\&. The program serves as a good source of examples illustrating how to use various features of the client API\&.
+.PP
+\fBmysql_client_test\fR
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: help option
+.\" help option: mysql_client_test
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-b \fR\fB\fIdir_name\fR\fR,
+.\" mysql_client_test: basedir option
+.\" basedir option: mysql_client_test
+\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
+.sp
+The base directory for the tests\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-t \fR\fB\fIcount\fR\fR,
+.\" mysql_client_test: count option
+.\" count option: mysql_client_test
+\fB\-\-count=\fR\fB\fIcount\fR\fR
+.sp
+The number of times to execute the tests\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: database option
+.\" database option: mysql_client_test
+\fB\-\-database=\fR\fB\fIdb_name\fR\fR,
+\fB\-D \fR\fB\fIdb_name\fR\fR
+.sp
+The database to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: debug option
+.\" debug option: mysql_client_test
+\fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
+\fB\-#[\fR\fB\fIdebug_options\fR\fR\fB]\fR
+.sp
+Write a debugging log if MySQL is built with debugging support\&. The default
+\fIdebug_options\fR
+value is
+\'d:t:o,/tmp/mysql_client_test\&.trace\'\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-g \fR\fB\fIoption\fR\fR,
+.\" mysql_client_test: getopt-ll-test option
+.\" getopt-ll-test option: mysql_client_test
+\fB\-\-getopt\-ll\-test=\fR\fB\fIoption\fR\fR
+.sp
+Option to use for testing bugs in the
+getopt
+library\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: host option
+.\" host option: mysql_client_test
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+\fB\-h \fR\fB\fIhost_name\fR\fR
+.sp
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: password option
+.\" password option: mysql_client_test
+\fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
+\fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
+.sp
+The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
+\fIcannot\fR
+have a space between the option and the password\&. If you omit the
+\fIpassword\fR
+value following the
+.\" mysql_client_test: password option
+.\" password option: mysql_client_test
+\fB\-\-password\fR
+or
+\fB\-p\fR
+option on the command line, you are prompted for one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: port option
+.\" port option: mysql_client_test
+\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-P \fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-A \fR\fB\fIarg\fR\fR,
+.\" mysql_client_test: server-arg option
+.\" server-arg option: mysql_client_test
+\fB\-\-server\-arg=\fR\fB\fIarg\fR\fR
+.sp
+Argument to send to the embedded server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-T\fR,
+\fB\-\-show\-tests\fR
+.sp
+Show all test names\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: silent option
+.\" silent option: mysql_client_test
+\fB\-\-silent\fR,
+\fB\-s\fR
+.sp
+Be more silent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: socket option
+.\" socket option: mysql_client_test
+\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+\fB\-S \fR\fB\fIpath\fR\fR
+.sp
+The socket file to use when connecting to
+localhost
+(which is the default host)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-c\fR,
+\fB\-\-testcase\fR
+.sp
+The option may disable some code when run as a
+\fBmysql\-test\-run\&.pl\fR
+test case\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_client_test: user option
+.\" user option: mysql_client_test
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-v \fR\fB\fIdir_name\fR\fR,
+.\" mysql_client_test: vardir option
+.\" vardir option: mysql_client_test
+\fB\-\-vardir=\fR\fB\fIdir_name\fR\fR
+.sp
+The data directory for tests\&. The default is
+mysql\-test/var\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

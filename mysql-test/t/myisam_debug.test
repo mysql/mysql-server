@@ -1,0 +1,57 @@
+--source include/have_debug.inc
+
+# We disable this test in embedded mode because of BUG#43733
+--source include/not_embedded.inc
+
+--echo #
+--echo # BUG#40827 - Killing insert-select to MyISAM can cause table corruption
+--echo #
+
+CONNECT (insertConn, localhost, root,,);
+
+CREATE TABLE `t1` (
+`id` BIGINT(20) ,
+`id1` BIGINT(20) AUTO_INCREMENT,
+ KEY(id1), KEY(id)
+) ENGINE=MyISAM;
+
+CREATE TABLE `t2` (
+`id` BIGINT(20) ,
+`id1` BIGINT(20) AUTO_INCREMENT,
+ KEY (id1), KEY(id)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 (id) VALUES (123);
+
+let $i = 10; 
+while ($i)
+{
+  INSERT INTO t2 (id) SELECT id  FROM t2; 
+  dec $i; 
+}
+
+--echo # Switch to insert Connection
+CONNECTION insertConn;
+SET SESSION debug='+d,wait_in_enable_indexes';
+--echo # Send insert data
+SEND INSERT INTO t1(id) SELECT id  FROM t2; 
+
+--echo # Switch to default Connection
+CONNECTION default;
+--echo # Wait for insert data to reach the debug point
+
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE STATE = "wait_in_enable_indexes" AND 
+  INFO = "INSERT INTO t1(id) SELECT id  FROM t2";
+--source include/wait_condition.inc
+
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE STATE = 'wait_in_enable_indexes' AND 
+INFO = "INSERT INTO t1(id) SELECT id  FROM t2" 
+INTO @thread_id;
+
+KILL QUERY @thread_id;
+CHECK TABLE t1; 
+DROP TABLE t1,t2;
+DISCONNECT insertConn;

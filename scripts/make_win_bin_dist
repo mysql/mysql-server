@@ -126,7 +126,7 @@ if [ -e $DESTDIR ] ; then
   usage
 fi
 
-trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+trap 'echo "Cleaning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 
 # ----------------------------------------------------------------------
 # Adjust target name if needed, release with debug info has another name
@@ -140,12 +140,24 @@ fi
 # ----------------------------------------------------------------------
 # Copy executables, and client DLL
 # ----------------------------------------------------------------------
-
+MYISAM_BINARIES="myisamchk myisamlog myisampack myisam_ftdump"
+MARIA_BINARIES="maria_chk maria_dump_log maria_ftdump maria_pack maria_read_log"
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
 cp client/$TARGET/*.exe                                  $DESTDIR/bin/
 cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
-cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+
+# MyISAM
+#cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+for eng in $MYISAM_BINARIES ; do 
+  cp storage/myisam/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
+# Maria
+for eng in $MARIA_BINARIES ; do 
+  cp storage/maria/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
 cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
@@ -279,6 +291,8 @@ cp include/mysql/plugin.h $DESTDIR/include/mysql/
 # ----------------------------------------------------------------------
 
 mkdir -p $DESTDIR/lib/opt
+mkdir -p $DESTDIR/lib/plugin
+cp sql/$TARGET/mysqld.lib $DESTDIR/lib/
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
    libmysql/$TARGET/mysqlclient.lib \
@@ -286,6 +300,10 @@ cp libmysql/$TARGET/libmysql.dll \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
+if [ -d storage/innodb_plugin ]; then
+  cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.dll \
+     $DESTDIR/lib/plugin/
+fi
 
 if [ x"$TARGET" != x"release" ] ; then
   cp libmysql/$TARGET/libmysql.pdb \
@@ -294,11 +312,17 @@ if [ x"$TARGET" != x"release" ] ; then
      regex/$TARGET/regex.pdb \
      strings/$TARGET/strings.pdb \
      zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
+  if [ -d storage/innodb_plugin ]; then
+    cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.pdb \
+       $DESTDIR/lib/plugin/
+  fi
 fi
+
 
 if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      x"$PACK_DEBUG" = x"yes" ] ; then
   mkdir -p $DESTDIR/lib/debug
+  mkdir -p $DESTDIR/lib/plugin/debug
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
      libmysql/debug/libmysql.pdb \
@@ -312,6 +336,12 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      strings/debug/strings.pdb \
      zlib/debug/zlib.lib \
      zlib/debug/zlib.pdb $DESTDIR/lib/debug/
+  if [ -d storage/innodb_plugin ]; then
+    cp storage/innodb_plugin/debug/ha_innodb_plugin.dll \
+       storage/innodb_plugin/debug/ha_innodb_plugin.lib \
+       storage/innodb_plugin/debug/ha_innodb_plugin.pdb \
+       $DESTDIR/lib/plugin/debug/
+  fi
 fi
 
 # ----------------------------------------------------------------------
@@ -322,6 +352,11 @@ mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
 cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
+
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_kill.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_process.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/{Debug,RelWithDebInfo}/*.{ilk,idb,map}
+
 
 # Note that this will not copy "extra" if a soft link
 if [ -d mysql-test/extra ] ; then
@@ -361,7 +396,7 @@ cp scripts/*.sql $DESTDIR/share/
 # Clean up from possibly copied SCCS directories
 # ----------------------------------------------------------------------
 
-rm -rf `find $DISTDIR -type d -name SCCS -print`
+rm -rf `/bin/find $DISTDIR -type d -name SCCS -print`
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE

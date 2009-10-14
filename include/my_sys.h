@@ -229,8 +229,8 @@ extern uint    my_large_page_size;
 #endif
 
 /* charsets */
-extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *all_charsets[256];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -245,8 +245,8 @@ extern void (*my_sigtstp_cleanup)(void),
 	    (*my_sigtstp_restart)(void),
 	    (*my_abort_hook)(int);
 					/* Executed when comming from shell */
-extern int NEAR my_umask,		/* Default creation mask  */
-	   NEAR my_umask_dir,
+extern MYSQL_PLUGIN_IMPORT int NEAR my_umask;		/* Default creation mask  */
+extern int NEAR my_umask_dir,
 	   NEAR my_recived_signals,	/* Signals we have got */
 	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   NEAR my_dont_interrupt;	/* call remember_intr when set */
@@ -525,7 +525,7 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
  ((info)->write_pos + (Count) <=(info)->write_end ?\
   (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
    ((info)->write_pos+=(Count)),0) : \
-   (*(info)->write_function)((info),(Buffer),(Count)))
+   (*(info)->write_function)((info),(uchar *)(Buffer),(Count)))
 
 #define my_b_get(info) \
   ((info)->read_pos != (info)->read_end ?\
@@ -791,6 +791,9 @@ extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
+extern int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                                 const char *default_val);
+extern int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
 				 myf cache_myflags);
@@ -879,6 +882,10 @@ extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
+extern void *my_az_allocator(void *dummy, unsigned int items, unsigned int size);
+extern void my_az_free(void *dummy, void *address);
+extern int my_compress_buffer(uchar *dest, size_t *destLen,
+                              const uchar *source, size_t sourceLen);
 extern int packfrm(uchar *, size_t, uchar **, size_t *);
 extern int unpackfrm(uchar **, size_t *, const uchar *);
 

@@ -87,70 +87,13 @@ FOREACH(rpath ${VIO_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../vio/${rpath})
 ENDFOREACH(rpath)
 
-# Engines
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/heap/CMakeLists.txt)
-FOREACH(rpath ${HEAP_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/heap/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisam/CMakeLists.txt)
-FOREACH(rpath ${MYISAM_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisam/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisammrg/CMakeLists.txt)
-FOREACH(rpath ${MYISAMMRG_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisammrg/${rpath})
-ENDFOREACH(rpath)
-
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/archive/CMakeLists.txt)
-  FOREACH(rpath ${ARCHIVE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/archive/${rpath})
+FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/${plugin_dir_${ENGINE_LIB}}/CMakeLists.txt)
+  STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
+  FOREACH(rpath ${${ENGINE_LIB_UPPER}_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ${CMAKE_SOURCE_DIR}/storage/${plugin_dir_${ENGINE_LIB}}/${rpath})
   ENDFOREACH(rpath)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/blackhole/CMakeLists.txt)
-  FOREACH(rpath ${BLACKHOLE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/blackhole/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/example/CMakeLists.txt)
-  FOREACH(rpath ${EXAMPLE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/example/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/federated/CMakeLists.txt)
-  FOREACH(rpath ${FEDERATED_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/federated/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/CMakeLists.txt)
-  FOREACH(rpath ${INNOBASE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/innobase/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-
-IF(WITH_CSV_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/csv/CMakeLists.txt)
-  FOREACH(rpath ${CSV_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/csv/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-
-IF(WITH_MARIA_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/maria/CMakeLists.txt)
-  FOREACH(rpath ${MARIA_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/maria/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_MARIA_STORAGE_ENGINE)
+ENDFOREACH(ENGINE_LIB)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
@@ -169,6 +112,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/item_xmlfunc.cc ../sql/key.cc ../sql/lock.cc ../sql/log.cc 
            ../sql/log_event.cc ../sql/mf_iocache.cc ../sql/my_decimal.cc 
            ../sql/net_serv.cc ../sql/opt_range.cc ../sql/opt_sum.cc 
+	   ../sql/opt_table_elimination.cc
            ../sql/parse_file.cc ../sql/procedure.cc ../sql/protocol.cc 
            ../sql/records.cc ../sql/repl_failsafe.cc ../sql/rpl_filter.cc
            ../sql/rpl_record.cc

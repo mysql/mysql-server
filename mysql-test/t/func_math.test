@@ -269,6 +269,15 @@ SELECT a, ROUND(a) FROM t1;
 
 DROP TABLE t1;
 
+#
+# Bug#45152 crash with round() function on longtext column in a derived table
+#
+CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+INSERT INTO t1 VALUES ('a');
+SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
+SELECT 1 FROM (SELECT ROUND(f1, f1) AS a FROM t1) AS s WHERE a LIKE 'a';
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #
@@ -281,5 +290,23 @@ SELECT 1e300 * 1e300;
 SELECT 1e300 / 1e-300;
 SELECT EXP(750);
 SELECT POW(10, 309);
+
+--echo #
+--echo # Bug #44768: SIGFPE crash when selecting rand from a view
+--echo #             containing null
+--echo #
+
+CREATE OR REPLACE VIEW v1 AS SELECT NULL AS a;
+SELECT RAND(a) FROM v1;
+DROP VIEW v1;
+
+SELECT RAND(a) FROM (SELECT NULL AS a) b;
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (NULL);
+SELECT RAND(i) FROM t1;
+DROP TABLE t1;
+
+--echo #
 
 --echo End of 5.1 tests

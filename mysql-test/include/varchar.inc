@@ -86,6 +86,8 @@ explain select count(*) from t1 where v between 'a' and 'a ';
 --replace_column 9 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 
+# Which duplicate entry triggers error is not deterministic.
+--replace_regex /Duplicate entry '[^']+' for key/Duplicate entry '{ ' for key/
 --error ER_DUP_ENTRY
 alter table t1 add unique(v);
 alter table t1 add key(v);

@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define DEFINE_VARIABLES_LOG_SLOW          // Declare variables in log_slow.h
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -297,9 +298,14 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 
 static const char *optimizer_switch_names[]=
 {
-  "index_merge","index_merge_union","index_merge_sort_union", 
-  "index_merge_intersection", "default", NullS
+  "index_merge","index_merge_union","index_merge_sort_union",
+  "index_merge_intersection",
+#ifndef DBUG_OFF
+  "table_elimination",
+#endif
+  "default", NullS
 };
+
 /* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
 static const unsigned int optimizer_switch_names_len[]=
 {
@@ -307,6 +313,9 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_union") - 1,
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
+#ifndef DBUG_OFF
+  sizeof("table_elimination") - 1,
+#endif
   sizeof("default") - 1
 };
 TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
@@ -382,7 +391,12 @@ static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
-                                        "index_merge_intersection=on";
+                                        "index_merge_intersection=on"
+#ifndef DBUG_OFF                                        
+                                        ",table_elimination=on";
+#else
+                                        ;
+#endif
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -413,6 +427,21 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+/*
+  True if the bootstrap thread is running. Protected by LOCK_thread_count,
+  just like thread_count.
+  Used in bootstrap() function to determine if the bootstrap thread
+  has completed. Note, that we can't use 'thread_count' instead,
+  since in 5.1, in presence of the Event Scheduler, there may be
+  event threads running in parallel, so it's impossible to know
+  what value of 'thread_count' is a sign of completion of the
+  bootstrap thread.
+
+  At the same time, we can't start the event scheduler after
+  bootstrap either, since we want to be able to process event-related
+  SQL commands in the init file and in --bootstrap mode.
+*/
+bool in_bootstrap= FALSE;
 /**
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
@@ -505,7 +534,8 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
-ulong binlog_cache_size=0, max_binlog_cache_size=0;
+ulong binlog_cache_size=0;
+ulonglong  max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -618,7 +648,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
                 LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count;
+                LOCK_connection_count, LOCK_uuid_generator;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -647,7 +677,8 @@ uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
 ulong master_retry_count=0;
 char *master_user, *master_password, *master_host, *master_info_file;
-char *relay_log_info_file, *report_user, *report_password, *report_host;
+char *relay_log_info_file;
+char *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 my_bool master_ssl;
 char *master_ssl_key, *master_ssl_cert;
@@ -997,11 +1028,13 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
 
 
+#ifdef HAVE_CLOSE_SERVER_SOCK
 static void close_socket(my_socket sock, const char *info)
 {
   DBUG_ENTER("close_socket");
@@ -1021,6 +1054,7 @@ static void close_socket(my_socket sock, const char *info)
   }
   DBUG_VOID_RETURN;
 }
+#endif
 
 
 static void close_server_sock()
@@ -1340,7 +1374,6 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  my_uuid_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1414,7 +1447,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
-  (void) pthread_mutex_destroy(&LOCK_uuid_short);
+  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -1725,7 +1758,6 @@ static void network_init(void)
       opt_enable_named_pipe)
   {
 
-    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
     bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
@@ -2162,15 +2194,14 @@ static void init_signals(void)
   win_install_sigabrt_handler();
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
-  else
-  {
+
     /* Avoid MessageBox()es*/
-   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 
    /*
      Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
@@ -2179,8 +2210,8 @@ static void init_signals(void)
      exception filter is not guaranteed to work in all situation
      (like heap corruption or stack overflow)
    */
-   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
-  }
+  SetErrorMode(SetErrorMode(0) | SEM_FAILCRITICALERRORS
+                               | SEM_NOOPENFILEERRORBOX);
   SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
@@ -3591,7 +3622,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open, NULL);
+  (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -3609,7 +3640,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_uuid_short, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -3739,14 +3770,17 @@ static void init_ssl()
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher);
+					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
+      sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -3986,9 +4020,6 @@ server.");
     plugins_are_initialized= TRUE;  /* Don't separate from init function */
   }
 
-  if (opt_help)
-    unireg_abort(0);
-
   /* we do want to exit if there are any other unknown options */
   if (defaults_argc > 1)
   {
@@ -4013,12 +4044,14 @@ server.");
 
     if (defaults_argc)
     {
-      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n"
-              "Use --verbose --help to get a list of available options\n",
+      fprintf(stderr, "%s: Too many arguments (first extra is '%s').\n",
               my_progname, *tmp_argv);
       unireg_abort(1);
     }
   }
+
+  if (opt_help)
+    unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!errmesg[0][0])
@@ -4396,7 +4429,6 @@ int main(int argc, char **argv)
 
   select_thread=pthread_self();
   select_thread_in_use=1;
-  init_ssl();
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -4451,6 +4483,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     unireg_abort(1);
 
+  init_ssl();
   network_init();
 
 #ifdef __WIN__
@@ -4518,6 +4551,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     unireg_abort(1);
   }
 
+  execute_ddl_log_recovery();
+
+  if (Events::init(opt_noacl || opt_bootstrap))
+    unireg_abort(1);
+
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
@@ -4529,13 +4567,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     if (read_init_file(opt_init_file))
       unireg_abort(1);
   }
-  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   start_handle_manager();
-
-  if (Events::init(opt_noacl))
-    unireg_abort(1);
 
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
@@ -4662,15 +4696,28 @@ default_service_handling(char **argv,
 			 const char *account_name)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
+  const char *opt_delim;
   end= path_and_service + sizeof(path_and_service)-3;
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
   if (*extra_opt)
   {
-    /* Add (possible quoted) option after file_path */
+    /* 
+     Add option after file_path. There will be zero or one extra option.  It's 
+     assumed to be --defaults-file=file but isn't checked.  The variable (not
+     the option name) should be quoted if it contains a string.  
+    */
     *pos++= ' ';
-    pos= add_quoted_string(pos, extra_opt, end);
+    if (opt_delim= strchr(extra_opt, '='))
+    {
+      size_t length= ++opt_delim - extra_opt;
+      strnmov(pos, extra_opt, length);
+    }
+    else
+      opt_delim= extra_opt;
+    
+    pos= add_quoted_string(pos, opt_delim, end);
   }
   /* We must have servicename last */
   *pos++= ' ';
@@ -4816,6 +4863,7 @@ static void bootstrap(FILE *file)
   thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thread_count++;
+  in_bootstrap= TRUE;
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
@@ -4828,7 +4876,7 @@ static void bootstrap(FILE *file)
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  while (thread_count)
+  while (in_bootstrap)
   {
     (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
@@ -4873,9 +4921,10 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  thd->connect_utime= my_micro_time();
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-  handle_one_connection((void*) thd);
+  thd->start_utime= my_micro_time();
+  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->start_utime= my_micro_time();
+  handle_one_connection(thd);
 }
 
 
@@ -4900,7 +4949,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->connect_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -5758,6 +5807,9 @@ enum options_mysqld
   OPT_DEADLOCK_SEARCH_DEPTH_LONG,
   OPT_DEADLOCK_TIMEOUT_SHORT,
   OPT_DEADLOCK_TIMEOUT_LONG,
+  OPT_LOG_SLOW_RATE_LIMIT, 
+  OPT_LOG_SLOW_VERBOSITY, 
+  OPT_LOG_SLOW_FILTER, 
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB
@@ -6100,7 +6152,7 @@ Disable with --skip-large-pages.",
    (uchar**) &opt_log_slave_updates, (uchar**) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to the slow log if it is open.",
+   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to the slow log if it is open. .  Please note that this option is deprecated; see --log-slow-filter for filtering slow query log output",
    (uchar**) &opt_log_slow_admin_statements,
    (uchar**) &opt_log_slow_admin_statements,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6109,15 +6161,15 @@ Disable with --skip-large-pages.",
   (uchar**) &opt_log_slow_slave_statements,
   (uchar**) &opt_log_slow_slave_statements,
   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log_slow_queries", OPT_SLOW_QUERY_LOG,
+  {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
     "Must be enabled to activate other slow log options. "
     "(deprecated option, use --slow_query_log/--slow_query_log_file instead)",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
-  {"slow_query_log_file", OPT_SLOW_QUERY_LOG_FILE,
-    "Log slow queries to given log file. Defaults logging to hostname-slow.log. Must be enabled to activate other slow log options.",
+  {"slow-query-log-file", OPT_SLOW_QUERY_LOG_FILE,
+    "Log slow queries to given log file. Defaults logging to hostname-slow.log.",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", OPT_LOG_TC,
@@ -6737,7 +6789,27 @@ log and this option does nothing anymore.",
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
+  {"log-slow-filter", OPT_LOG_SLOW_FILTER,
+   "Log only the queries that followed certain execution plan. Multiple flags allowed in a comma-separated string. [admin, filesort, filesort_on_disk, full_join, full_scan, query_cache, query_cache_miss, tmp_table, tmp_table_on_disk]. Sets log-slow-admin-command to ON",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, QPLAN_ALWAYS_SET, 0, 0},
+  {"log-slow-rate_limit", OPT_LOG_SLOW_RATE_LIMIT,
+   "If set, only write to slow log every 'log_slow_rate_limit' query (use this to reduce output on slow query log)",
+   (uchar**) &global_system_variables.log_slow_rate_limit,
+   (uchar**) &max_system_variables.log_slow_rate_limit, 0, GET_ULONG,
+   REQUIRED_ARG, 1, 1, ~0L, 0, 1L, 0},
+  {"log-slow-verbosity", OPT_LOG_SLOW_VERBOSITY,
+   "Choose how verbose the messages to your slow log will be. Multiple flags allowed in a comma-separated string. [query_plan, innodb]",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"log-slow-file", OPT_SLOW_QUERY_LOG_FILE,
+    "Log slow queries to given log file. Defaults logging to hostname-slow.log",
+   (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
+   "Log all queries that have taken more than long_query_time seconds to execute to file. "
+   "The argument will be treated as a decimal value with microsecond precission.",
+   (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"log-slow-time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file. "
    "The argument will be treated as a decimal value with microsecond precission.",
    (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
@@ -6760,8 +6832,7 @@ log and this option does nothing anymore.",
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (uchar**) &max_binlog_cache_size, (uchar**) &max_binlog_cache_size, 0,
-   GET_ULONG, REQUIRED_ARG, (longlong) ULONG_MAX, IO_SIZE,
-   (longlong) ULONG_MAX, 0, IO_SIZE, 0},
+   GET_ULL, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULONGLONG_MAX, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
    "Binary log will be rotated automatically when the size exceeds this \
 value. Will also apply to relay logs if max_relay_log_size is 0. \
@@ -6929,8 +7000,11 @@ The minimum value for this variable is 4096.",
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
-   "index_merge_union, index_merge_sort_union, index_merge_intersection} and "
-   "val={on, off, default}.",
+   "index_merge_union, index_merge_sort_union, index_merge_intersection"
+#ifndef DBUG_OFF
+   ", table_elimination"
+#endif 
+   "} and val={on, off, default}.",
    (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
    /*OPTIMIZER_SWITCH_DEFAULT*/0,
    0, 0, 0, 0, 0},
@@ -6939,7 +7013,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
-   "Optional colon-separated list of plugins to load, where each plugin is "
+   "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
@@ -7809,7 +7883,7 @@ static int mysql_init_variables(void)
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
-  strmake(mysql_real_data_home, get_relative_path(DATADIR),
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;
@@ -7843,6 +7917,9 @@ static int mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+  global_system_variables.log_slow_verbosity= LOG_SLOW_VERBOSITY_INIT;
+  global_system_variables.log_slow_filter=    QPLAN_ALWAYS_SET;
+  
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -8197,7 +8274,7 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--slow_query_log_file'");
+    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--log-slow-file'");
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
@@ -8349,6 +8426,25 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
+    break;
+  case OPT_LOG_SLOW_FILTER:
+    global_system_variables.log_slow_filter=
+      find_bit_type_or_exit(argument, &log_slow_filter_typelib,
+                            opt->name, &error);
+    /*
+      If we are using filters, we set opt_slow_admin_statements to be always
+      true so we can maintain everything with filters
+    */
+    opt_log_slow_admin_statements= 1;
+    if (error)
+      return 1;
+    break;
+  case OPT_LOG_SLOW_VERBOSITY:
+    global_system_variables.log_slow_verbosity=
+      find_bit_type_or_exit(argument, &log_slow_verbosity_typelib,
+                            opt->name, &error);
+    if (error)
+      return 1;
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
@@ -8658,6 +8754,8 @@ static int get_options(int *argc,char **argv)
   /* Set global slave_exec_mode from its option */
   fix_slave_exec_mode(OPT_GLOBAL);
 
+  global_system_variables.log_slow_filter=
+    fix_log_slow_filter(global_system_variables.log_slow_filter);
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)
     set_root(mysqld_chroot);

@@ -2251,4 +2251,36 @@ checksum table t3;
 Table	Checksum
 test.t3	326284887
 drop table t1,t2,t3;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32)) engine=myisam;
+drop table t1;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int, a33 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33)) engine=myisam;
+ERROR 42000: Too many key parts specified; max 32 parts allowed
+CREATE TABLE t1 (
+c INT,
+d bit(1),
+e INT,
+f VARCHAR(1),
+g BIT(1),
+h BIT(1),
+KEY (h, d, e, g)
+);
+INSERT INTO t1 VALUES
+(  3, 1, 1, 'a', 0, 0 ),
+(  3, 1, 5, 'a', 0, 0 ),
+( 10, 1, 2, 'a', 0, 1 ),
+( 10, 1, 3, 'a', 0, 1 ),
+( 10, 1, 4, 'a', 0, 1 );
+SELECT f FROM t1 WHERE d = 1 AND e = 2 AND g = 0 AND h = 1;
+f
+a
+SELECT h+0, d + 0, e, g + 0 FROM t1;
+h+0	d + 0	e	g + 0
+0	1	1	0
+0	1	5	0
+1	1	2	0
+1	1	3	0
+1	1	4	0
+DROP TABLE t1;
 End of 5.1 tests

@@ -2,16 +2,45 @@
 # Test of update statement that uses many tables.
 #
 
-# This is a big test.
---source include/big_test.inc
+#
+# If we are running with
+# - Valgrind           -> $VALGRIND_TEST <> 0
+# - debug tracing      -> @@session.debug LIKE '%trace%'
+# the resource consumption (storage space needed, runtime) will be extreme.
+# Therefore we require that the option "--big-test" is also set.
+#
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
+let $need_big= 0;
+--disable_query_log
+--error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET @aux = @@session.debug;
+if (!$mysql_errno)
+{
+  # We have returncode 0 = the server system variable @@session.debug exists.
+  # But we only need "--big-test" in case of tracing.
+  if (`SELECT @@session.debug LIKE '%trace%'`)
+  {
+    let $need_big= 1;
+  }
+}
+--enable_query_log
+if ($VALGRIND_TEST)
+{
+  # We are running with Valgrind
+  inc $need_big;
+}
+if (`SELECT '$BIG_TEST' = '' AND $need_big = 1`)
+{
+  --skip Need "--big-test" when running with the option "--debug" or "--valgrind"
+}
 
 #
 # Bug#1820 Rows not deleted from second table on multi-table delete
 #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
 
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL) ;
 --echo # The protocolling of many inserts into t1 is suppressed.

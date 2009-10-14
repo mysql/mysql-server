@@ -73,13 +73,13 @@ SELECT @@session.max_heap_table_size;
 '#------------------FN_DYNVARS_077_05-----------------------#'
 SET @@global.max_heap_table_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16384
 SET @@global.max_heap_table_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1024'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16384
@@ -111,7 +111,7 @@ SELECT @@global.max_heap_table_size;
 4294967296
 SET @@session.max_heap_table_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 16384

@@ -1,86 +1,35 @@
-This file should contain all know fatal bugs in the Maria storage
-engine for the last source or binary release.  Minor bugs, extensions
-and feature request and bugs found since this release can be find in the
-MySQL bugs databases at: http://bugs.mysql.com/ (category "Maria
-storage engine").
+This file should contain all know fatal bugs in the Mariadb and the
+Maria storage engine for the last source or binary release.  Minor
+bugs, extensions and feature request and bugs found since this release
+can be find in the MariaDB bugs database at:
+https://bugs.launchpad.net/maria and in the MySQL bugs databases at:
+http://bugs.mysql.com/ (category "Maria storage engine").
 
 There shouldn't normally be any bugs that affects normal operations in
-any Maria release.  Still, there are always exceptions and edge cases
+any MariaDB release.  Still, there are always exceptions and edge cases
 and that's what this file is for.
 
-For the first few Alpha releases of Maria there may be some edge cases
-that crashes during recovery; We don't like that but we think it's
-better to get the Maria alpha out early to get things tested and get
-more developers on the code early than wait until these are fixed.  We
-do however think that the bugs are not seriously enough to stop anyone
-from starting to test and even use Maria for real (as long as they are
-prepared to upgrade to next MySQL-Maria release ASAP).
-
 If you have found a bug that is not listed here, please add it to
-http://bugs.mysql.com/ so that we can either fix it for next release
-or in the worst case add it here for others to know!
+http://bugs.launchpad.net/maria so that we can either fix it for next
+release or in the worst case add it here for others to know!
 
 IMPORTANT:
 
-If you have been using a MySQL-5.1-Maria-alpha build and upgrading to
-MySQL-5.1-Maria-beta you MUST run maria_chk --recover on all your
-Maria tables.  This is because we made an incompatible change of how
-transaction id is stored and old transaction id's must be reset!
+If you have been using the Maria storage engine with
+MySQL-5.1-Maria-alpha build and upgrading to a newer MariaDB you MUST
+run maria_chk --recover on all your Maria tables.  This is because we
+made an incompatible change of how transaction id is stored and old
+transaction id's must be reset!
 
 cd mysql-data-directory
 maria_chk --recover */*.MAI
 
-As the Maria-1.5 engine is now in beta we will do our best to not
+As the Maria storage engine is now in beta we will do our best to not
 introduce any incompatible changes in the data format for the Maria
 tables; If this would be ever be needed, we will, if possible, support
 both the old and the new version to make upgrades as easy as possible.
 
-Known bugs that we are working on and will be fixed shortly
-===========================================================
-
-- We have some time ago some instabilities in log writing that is was 
-  under investigation but we haven't been able to repeat in a while.
-  This causes mainly assert to triggers in the code and sometimes
-  the log handler doesn't start up after restart.
-  Most of this should now be fixed.
-
-- INSERT on a duplicate key against a key inserted by another connection
-  that has not yet ended will give a duplicate key error instead of
-  waiting for the other statement to end.
-
-
-Known bugs that are planned to be fixed before Gamma/RC
-=======================================================
-
-- If we get a write failure on disk (disk full or disk error) for the
-  log, we should stop all usage of transactional tables and mark all
-  transactional tables that are changed as crashed.
-  For the moment, if this happens, you have to take down mysqld,
-  remove all logs, restart mysqld and repair your tables.
-
-  If you get the related error:
-  "Disk is full writing '/usr/local/mysql/var/maria_log.????????' (Errcode: 28)
-   Waiting for someone to free space..."
-  you should either free disk space, in which Maria will continue as before
-  or kill mysqld, remove logs and repair tables.
-
-
-Known bugs that are planned to be fixed later
-=============================================
-
-LOCK TABLES .. WRITE CONCURRENT is mainly done for testing MVCC.  Don't
-use this in production.
-
-Missing features that is planned to fix before Beta
-===================================================
-
-None
-
-Features planned for future releases
-====================================
-
-Most notable is full transaction support and multiple reader/writers
-in Maria 2.0
-
-http://forge.mysql.com/worklog/
-(you can enter "maria" in the "quick search" field there).
+Note that for the MariaDB 5.1 release the Maria storage engine is
+classified as 'beta'; It should work, but use it with caution.  Please
+report all bugs to https://bugs.launchpad.net/maria so that we can fix
+them!
