@@ -51,6 +51,11 @@ CREATE TABLE t_self_logging (a VARCHAR(100)) ENGINE = NDB;
 CREATE TABLE t_row (a VARCHAR(100)) ENGINE = INNODB;
 CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
 CREATE TABLE t_slave_stmt (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TABLE t_double_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+
+--eval CREATE TRIGGER trig_autoinc BEFORE INSERT ON t_autoinc FOR EACH ROW BEGIN INSERT INTO t_stmt VALUES ('x'); END
+--eval CREATE TRIGGER trig_double_autoinc BEFORE INSERT ON t_double_autoinc FOR EACH ROW BEGIN INSERT INTO t_autoinc VALUES (NULL); END
 
 CREATE DATABASE other;
 
@@ -127,8 +132,14 @@ SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 
 --echo * Unsafe statement and stmt-only engine
-# This will give a warning.
+--error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (UUID());
+
+# Concatenate three unsafe values, and then concatenate NULL to
+# that so that the result is NULL and we instead use autoinc.
+--echo * Multi-unsafe statement and stmt-only engine
+--error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
 
 
 --echo ---- binlog_format=statement ----
@@ -213,7 +224,7 @@ INSERT INTO t VALUES (UUID());
 
 --echo ==== Clean up ====
 
-DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt;
+DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
 DROP DATABASE other;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;

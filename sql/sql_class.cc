@@ -3282,8 +3282,8 @@ void xid_cache_delete(XID_STATE *xid_state)
 
      binlog_format      * SMRSMRSMR SMRSMRSMR SMRSMRSMR
 
-     Logged format      - SS-SS---- -RR-RR-RR SRRSRR-RR
-     Warning/Error      1 --2332444 5--5--6-- ---7--6--
+     Logged format      - SS-S----- -RR-RR-RR SRRSRR-RR
+     Warning/Error      1 --2732444 5--5--6-- ---7--6--
 
   Legend
   ------
@@ -3303,8 +3303,9 @@ void xid_cache_delete(XID_STATE *xid_state)
      BINLOG_FORMAT = ROW and at least one table uses a storage engine
      limited to statement-logging.
 
-  3. Warning: Unsafe statement binlogged as statement since storage
-     engine is limited to statement-logging.
+  3. Error: Cannot execute statement: binlogging of unsafe statement
+     is impossible when storage engine is limited to statement-logging
+     and BINLOG_FORMAT = MIXED.
 
   4. Error: Cannot execute row injection: binlogging impossible since
      at least one table uses a storage engine limited to
@@ -3457,17 +3458,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
       {
         /*
-          3. Warning: Unsafe statement binlogged as statement since
-             storage engine is limited to statement-logging.
+          3. Error: Cannot execute statement: binlogging of unsafe
+             statement is impossible when storage engine is limited to
+             statement-logging and BINLOG_FORMAT = MIXED.
         */
-        binlog_unsafe_warning_flags|=
-          (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE) |
-          (unsafe_flags << BINLOG_STMT_WARNING_COUNT);
-        DBUG_PRINT("info", ("Scheduling warning to be issued by "
-                            "binlog_query: %s",
-                            ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE)));
-        DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
-                            binlog_unsafe_warning_flags));
+        for (int unsafe_type= 0;
+             unsafe_type < LEX::BINLOG_STMT_UNSAFE_COUNT;
+             unsafe_type++)
+          if (unsafe_flags & (1 << unsafe_type))
+            my_error((error= ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
+                     ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       }
       /* log in statement format! */
     }
@@ -3499,13 +3499,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
             7. Warning: Unsafe statement logged as statement due to
                binlog_format = STATEMENT
           */
-          binlog_unsafe_warning_flags|=
-            (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE) |
-            (unsafe_flags << BINLOG_STMT_WARNING_COUNT);
+          binlog_unsafe_warning_flags|= unsafe_flags;
           DBUG_PRINT("info", ("Scheduling warning to be issued by "
                               "binlog_query: '%s'",
                               ER(ER_BINLOG_UNSAFE_STATEMENT)));
-          DBUG_PRINT("info", ("binlog_stmt_flags: 0x%x",
+          DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
                               binlog_unsafe_warning_flags));
         }
         /* log in statement format! */
@@ -3536,7 +3534,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
                         "and (options & OPTION_BIN_LOG) = 0x%llx "
-                        "and binlog_format = %d "
+                        "and binlog_format = %ld "
                         "and binlog_filter->db_ok(db) = %d",
                         mysql_bin_log.is_open(),
                         (options & OPTION_BIN_LOG),
@@ -4037,31 +4035,11 @@ void THD::issue_unsafe_warnings()
     Ensure that binlog_unsafe_warning_flags is big enough to hold all
     bits.  This is actually a constant expression.
   */
-  DBUG_ASSERT(BINLOG_STMT_WARNING_COUNT + 2 * LEX::BINLOG_STMT_UNSAFE_COUNT <=
+  DBUG_ASSERT(2 * LEX::BINLOG_STMT_UNSAFE_COUNT <=
               sizeof(binlog_unsafe_warning_flags) * CHAR_BIT);
 
-  /**
-    @note The order of the elements of this array must correspond to
-    the order of elements in enum_binlog_stmt_unsafe.
-  */
-  static const int explanations[LEX::BINLOG_STMT_UNSAFE_COUNT] =
-  {
-    ER_BINLOG_UNSAFE_LIMIT,
-    ER_BINLOG_UNSAFE_INSERT_DELAYED,
-    ER_BINLOG_UNSAFE_SYSTEM_TABLE,
-    ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS,
-    ER_BINLOG_UNSAFE_UDF,
-    ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
-    ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
-  };
-  uint32 flags= binlog_unsafe_warning_flags;
-  /* No warnings (yet) for this statement. */
-  if (flags == 0)
-    DBUG_VOID_RETURN;
+  uint32 unsafe_type_flags= binlog_unsafe_warning_flags;
 
-  /* Get the types of unsafeness that affect the current statement. */
-  uint32 unsafe_type_flags= flags >> BINLOG_STMT_WARNING_COUNT;
-  DBUG_ASSERT((unsafe_type_flags & LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS) != 0);
   /*
     Clear: (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
     warnings that have been printed already.
@@ -4072,18 +4050,7 @@ void THD::issue_unsafe_warnings()
   if (unsafe_type_flags == 0)
     DBUG_VOID_RETURN;
 
-  /* Figure out which error code to issue. */
-  int err;
-  if (binlog_unsafe_warning_flags &
-      (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE))
-    err= ER_BINLOG_UNSAFE_AND_STMT_ENGINE;
-  else {
-    DBUG_ASSERT(binlog_unsafe_warning_flags &
-                (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE));
-    err= ER_BINLOG_UNSAFE_STATEMENT;
-  }
-
-  DBUG_PRINT("info", ("flags: 0x%x  err: %d", unsafe_type_flags, err));
+  DBUG_PRINT("info", ("unsafe_type_flags: 0x%x", unsafe_type_flags));
 
   /*
     For each unsafe_type, check if the statement is unsafe in this way
@@ -4095,20 +4062,25 @@ void THD::issue_unsafe_warnings()
   {
     if ((unsafe_type_flags & (1 << unsafe_type)) != 0)
     {
-      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE, err,
-                          ER(ER_BINLOG_UNSAFE_WARNING_SHORT),
-                          ER(err), ER(explanations[unsafe_type]));
+      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_BINLOG_UNSAFE_STATEMENT,
+                          ER(ER_BINLOG_UNSAFE_STATEMENT),
+                          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       if (global_system_variables.log_warnings)
-        sql_print_warning(ER(ER_BINLOG_UNSAFE_WARNING_LONG),
-                          ER(err), ER(explanations[unsafe_type]), query);
+      {
+        char buf[MYSQL_ERRMSG_SIZE * 2];
+        sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
+                ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+        sql_print_warning(ER(ER_MESSAGE_AND_STATEMENT), buf, query);
+      }
     }
   }
   /*
     Mark these unsafe types as already printed, to avoid printing
     warnings for them again.
   */
-  binlog_unsafe_warning_flags|= unsafe_type_flags <<
-    (BINLOG_STMT_WARNING_COUNT + LEX::BINLOG_STMT_UNSAFE_COUNT);
+  binlog_unsafe_warning_flags|=
+    unsafe_type_flags << LEX::BINLOG_STMT_UNSAFE_COUNT;
   DBUG_VOID_RETURN;
 }
 

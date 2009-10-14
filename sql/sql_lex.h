@@ -1100,6 +1100,11 @@ public:
     ((1 << BINLOG_STMT_UNSAFE_COUNT) - 1);
 
   /**
+    Maps elements of enum_binlog_stmt_unsafe to error codes.
+  */
+  static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
+
+  /**
     Determine if this statement is marked as unsafe.
 
     @retval 0 if the statement is not marked as unsafe.
