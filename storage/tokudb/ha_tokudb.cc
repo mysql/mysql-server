@@ -1484,7 +1484,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             );
         if (ret_val) {
             free_share(share, 1);
-            pthread_mutex_unlock(&share->mutex);
             goto exit;            
         }
     }
