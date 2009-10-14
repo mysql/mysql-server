@@ -16,6 +16,10 @@ CREATE TABLE t_self_logging (a VARCHAR(100)) ENGINE = NDB;
 CREATE TABLE t_row (a VARCHAR(100)) ENGINE = INNODB;
 CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
 CREATE TABLE t_slave_stmt (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TABLE t_double_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TRIGGER trig_autoinc BEFORE INSERT ON t_autoinc FOR EACH ROW BEGIN INSERT INTO t_stmt VALUES ('x'); END;
+CREATE TRIGGER trig_double_autoinc BEFORE INSERT ON t_double_autoinc FOR EACH ROW BEGIN INSERT INTO t_autoinc VALUES (NULL); END;
 CREATE DATABASE other;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 [on slave]
@@ -64,8 +68,10 @@ SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 * Unsafe statement and stmt-only engine
 INSERT INTO t_stmt VALUES (UUID());
-Warnings:
-Note	1641	Unsafe statement binlogged as statement since storage engine is limited to statement-logging. Reason: Statement uses a system function whose value may differ on slave.
+ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+* Multi-unsafe statement and stmt-only engine
+INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
+ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 ---- binlog_format=statement ----
 [on slave]
 include/stop_slave.inc
@@ -102,7 +108,7 @@ USE test;
 * Unsafe statement and binlog_format=statement
 INSERT INTO t VALUES (UUID());
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 * Same statement, but db filtered out - no message
 USE other;
 INSERT INTO test.t VALUES (UUID());
@@ -119,7 +125,7 @@ set global sql_slave_skip_counter=1;
 include/start_slave.inc
 [on master]
 ==== Clean up ====
-DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt;
+DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
 DROP DATABASE other;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;

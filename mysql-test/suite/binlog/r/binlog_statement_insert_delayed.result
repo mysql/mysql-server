@@ -13,10 +13,10 @@ master-bin.000001	#	Query	#	#	use `test`; insert delayed into t1 values (300)
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 insert delayed into t1 values (null),(null),(null),(null);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
 insert delayed into t1 values (null),(null),(400),(null);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
 select * from t1;
 a
 207

@@ -1450,41 +1450,20 @@ private:
   enum_binlog_format current_stmt_binlog_format;
 
   /**
-    Enumeration listing binlog-related warnings that a statement can
-    cause.
-  */
-  enum enum_binlog_stmt_warning {
-
-    /* ER_BINLOG_UNSAFE_AND_STMT_ENGINE affects current stmt */
-    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE= 0,
-
-    /* ER_BINLOG_UNSAFE_STATEMENT affects current stmt */
-    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE,
-
-    /** The last element of this enumeration type. */
-    BINLOG_STMT_WARNING_COUNT
-  };
-
-  /**
     Bit field for the state of binlog warnings.
 
-    There are three groups of bits:
+    There are two groups of bits:
 
-    - The low BINLOG_STMT_WARNING_COUNT bits indicate the type of
-      warning that the current (top-level) statement will issue.  At
-      most one of these bits should be set (this is ensured by the
-      logic in decide_logging_format).
-
-    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
-      of unsafeness that the current statement has.
+    - The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
+      unsafeness that the current statement has.
 
     - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
       of unsafeness that the current statement has issued warnings
       for.
 
     Hence, this variable must be big enough to hold
-    BINLOG_STMT_WARNING_COUNT + 2 * Lex::BINLOG_STMT_UNSAFE_COUNT
-    bits.  This is asserted in @c issue_unsafe_warnings().
+    2*Lex::BINLOG_STMT_UNSAFE_COUNT bits.  This is asserted in @c
+    issue_unsafe_warnings().
 
     The first and second groups of bits are set by @c
     decide_logging_format() when it detects that a warning should be
