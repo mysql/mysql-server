@@ -2156,7 +2156,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
       We delay real initialization of hash (and therefore related
       memory allocation) until first insertion into this hash.
     */
-    hash_clear(&sroutines);
+    my_hash_clear(&sroutines);
   }
   else if (sroutines.records)
   {
@@ -2179,7 +2179,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
 
 void Query_tables_list::destroy_query_tables_list()
 {
-  hash_free(&sroutines);
+  my_hash_free(&sroutines);
 }
 
 

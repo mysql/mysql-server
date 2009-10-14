@@ -90,9 +90,9 @@ private:
 
   entry *find_entry(ulong table_id)
   {
-    return (entry *)hash_search(&m_table_ids,
-				(uchar*)&table_id,
-				sizeof(table_id));
+    return (entry *) my_hash_search(&m_table_ids,
+                                    (uchar*)&table_id,
+                                    sizeof(table_id));
   }
   int expand();
 

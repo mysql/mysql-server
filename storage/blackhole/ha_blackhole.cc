@@ -319,8 +319,9 @@ static st_blackhole_share *get_share(const char *table_name)
   length= (uint) strlen(table_name);
   pthread_mutex_lock(&blackhole_mutex);
     
-  if (!(share= (st_blackhole_share*) hash_search(&blackhole_open_tables,
-                                                 (uchar*) table_name, length)))
+  if (!(share= (st_blackhole_share*)
+        my_hash_search(&blackhole_open_tables,
+                       (uchar*) table_name, length)))
   {
     if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
                                                  length,
@@ -350,7 +351,7 @@ static void free_share(st_blackhole_share *share)
 {
   pthread_mutex_lock(&blackhole_mutex);
   if (!--share->use_count)
-    hash_delete(&blackhole_open_tables, (uchar*) share);
+    my_hash_delete(&blackhole_open_tables, (uchar*) share);
   pthread_mutex_unlock(&blackhole_mutex);
 }
 
@@ -377,16 +378,16 @@ static int blackhole_init(void *p)
   blackhole_hton->flags= HTON_CAN_RECREATE;
   
   VOID(pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST));
-  (void) hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
-                   (hash_get_key) blackhole_get_key,
-                   (hash_free_key) blackhole_free_key, 0);
+  (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
+                      (my_hash_get_key) blackhole_get_key,
+                      (my_hash_free_key) blackhole_free_key, 0);
 
   return 0;
 }
 
 static int blackhole_fini(void *p)
 {
-  hash_free(&blackhole_open_tables);
+  my_hash_free(&blackhole_open_tables);
   pthread_mutex_destroy(&blackhole_mutex);
 
   return 0;
