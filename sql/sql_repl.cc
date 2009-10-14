@@ -427,7 +427,6 @@ static int send_heartbeat_event(NET* net, String* packet,
   {
     DBUG_RETURN(-1);
   }
-  packet->set("\0", 1, &my_charset_bin);
   DBUG_RETURN(0);
 }
 
@@ -689,7 +688,7 @@ impossible position";
         log's filename does not change while it's active
       */
       if (coord)
-        coord->pos= uint4korr(packet->ptr() + 1 + LOG_POS_OFFSET);
+        coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
 
       event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
       if (event_type == FORMAT_DESCRIPTION_EVENT)
@@ -849,6 +848,9 @@ impossible position";
                   sql_print_information("the rest of heartbeat info skipped ...");
               }
 #endif
+              /* reset transmit packet for the heartbeat event */
+              if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
+                goto err;
               if (send_heartbeat_event(net, packet, coord))
               {
                 errmsg = "Failed on my_net_write()";
