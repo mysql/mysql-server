@@ -222,6 +222,13 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     signal->theData[0] = 7025;
     EXECUTE_DIRECT(DBDIH, GSN_DUMP_STATE_ORD, signal, 1);
     jamEntry();
+
+    {
+      signal->theData[0] = 12002;
+      EXECUTE_DIRECT(LGMAN, GSN_DUMP_STATE_ORD, signal, 1, 0);
+    }
+
+    jamEntry();
     break;
   }
   case SystemError::CopyFragRefError:
