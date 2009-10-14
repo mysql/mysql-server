@@ -2729,6 +2729,12 @@ bool Delayed_insert::handle_inserts(void)
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
     pthread_mutex_lock(&mutex);
 
+    /*
+      Reset the table->auto_increment_field_not_null as it is valid for
+      only one row.
+    */
+    table->auto_increment_field_not_null= FALSE;
+
     delete row;
     /*
       Let READ clients do something once in a while
