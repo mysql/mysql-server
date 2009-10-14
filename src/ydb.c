@@ -357,7 +357,7 @@ static int needs_recovery (DB_ENV *env) {
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
-    BOOL recovery_needed = tokudb_needs_recovery(logdir, TRUE);
+    BOOL recovery_needed = (BOOL) tokudb_needs_recovery(logdir, TRUE);
     toku_free(logdir);
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
@@ -449,7 +449,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         char* full_dir = NULL;
         if (env->i->lg_dir) full_dir = construct_full_name(2, env->i->dir, env->i->lg_dir);
 	assert(env->i->logger);
-        toku_logger_write_log_files(env->i->logger, (flags & DB_INIT_LOG) != 0);
+        toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
         r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
         if (full_dir) toku_free(full_dir);
 	if (r!=0) {

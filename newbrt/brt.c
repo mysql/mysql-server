@@ -3087,7 +3087,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         }
         else toku_free(t->temp_descriptor.dbt.data);
         t->temp_descriptor.dbt.data = NULL;
-        t->did_set_descriptor = 0;
+        t->did_set_descriptor = FALSE;
     }
 
     r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
@@ -3117,7 +3117,7 @@ int toku_brt_get_fd(BRT brt, int *fdp) {
 }
 
 int toku_brt_set_flags(BRT brt, unsigned int flags) {
-    brt->did_set_flags = 1;
+    brt->did_set_flags = TRUE;
     brt->flags = flags;
     return 0;
 }
@@ -3406,7 +3406,7 @@ toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_d
             toku_fill_dbt(&t->temp_descriptor.dbt, copy, descriptor->size);
             assert(!t->dbt_userformat_upgrade);
             t->dbt_userformat_upgrade = dbt_userformat_upgrade;
-            t->did_set_descriptor = 1;
+            t->did_set_descriptor = TRUE;
             r = 0;
         }
     }
