@@ -2544,7 +2544,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     String str(buff, sizeof(buff), system_charset_info), *newval;
 
     newval= var->value->val_str(&str);
-    old_value= newval->c_ptr();
+    old_value= newval->c_ptr_safe();
     str_length= strlen(old_value);
   } 
   
