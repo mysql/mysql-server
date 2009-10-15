@@ -7086,31 +7086,22 @@ void Dblqh::execACCKEYREF(Signal* signal)
   ndbrequire(!LqhKeyReq::getNrCopyFlag(tcPtr->reqinfo));
   
   /**
-   * Only primary replica can get ZTUPLE_ALREADY_EXIST || ZNO_TUPLE_FOUND
+   * Not only primary replica can get ZTUPLE_ALREADY_EXIST || ZNO_TUPLE_FOUND
    *
-   * Unless it's a simple or dirty read
-   *
-   * NOT TRUE!
    * 1) op1 - primary insert ok
    * 2) op1 - backup insert fail (log full or what ever)
    * 3) op1 - delete ok @ primary
    * 4) op1 - delete fail @ backup
    *
    * -> ZNO_TUPLE_FOUND is possible
+   *
+   * 1) op1 primary delete ok
+   * 2) op1 backup delete fail (log full or what ever)
+   * 3) op2 insert ok @ primary
+   * 4) op2 insert fail @ backup
+   *
+   * -> ZTUPLE_ALREADY_EXIST
    */
-  if (unlikely(! (tcPtr->seqNoReplica == 0 ||
-                  errCode != ZTUPLE_ALREADY_EXIST ||
-                  (tcPtr->operation == ZREAD && 
-                   (tcPtr->dirtyOp || tcPtr->opSimple)))))
-  {
-    jamLine(Uint32(tcPtr->operation));
-    jamLine(Uint32(tcPtr->seqNoReplica));
-    jamLine(Uint32(errCode));
-    jamLine(Uint32(tcPtr->dirtyOp));
-    jamLine(Uint32(tcPtr->opSimple));
-    ndbrequire(false);
-  }
-  
   tcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
   abortCommonLab(signal);
   return;

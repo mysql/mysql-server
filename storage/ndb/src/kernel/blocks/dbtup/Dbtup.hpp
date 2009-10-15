@@ -472,6 +472,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   // Scan Lock
   struct ScanLock {
+    ScanLock() {}
     Uint32 m_accLockOp;
     union {
       Uint32 nextPool;
@@ -568,6 +569,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Page_request 
   {
+    Page_request() {}
     Local_key m_key;
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
@@ -1307,6 +1309,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    * Build index operation record.
    */
   struct BuildIndexRec {
+    BuildIndexRec() {}
     // request cannot use signal class due to extra members
     Uint32 m_request[BuildIndxReq::SignalLength];
     Uint8  m_build_vs;          // varsize pages
@@ -1714,6 +1717,7 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   // Ordered index related
   void execBUILDINDXREQ(Signal* signal);

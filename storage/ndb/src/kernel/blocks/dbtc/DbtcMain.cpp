@@ -1157,13 +1157,15 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       capiConnectClosing[nodeId]--;
       if (capiConnectClosing[nodeId] == 0) {
         jam();
+
         /********************************************************************/
         // No outstanding ABORT or COMMIT's of this failed API node. 
-        // We can respond with API_FAILCONF
+        // Perform SimulatedBlock level cleanup before sending
+        // API_FAILCONF
         /********************************************************************/
-        signal->theData[0] = nodeId;
-        signal->theData[1] = cownref;
-        sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+        Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                       nodeId};
+        simBlockNodeFailure(signal, nodeId, cb);
       }
       return;
     }
@@ -7335,22 +7337,24 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 
   cmasterNodeId = tnewMasterId;
   
+  HostRecordPtr myHostPtr;
+
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   for (i = 0; i < tnoOfNodes; i++) 
   {
     jam();
-    hostptr.i = cdata[i];
-    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+    myHostPtr.i = cdata[i];
+    ptrCheckGuard(myHostPtr, chostFilesize, hostRecord);
     
     /*------------------------------------------------------------*/
     /*       SET STATUS OF THE FAILED NODE TO DEAD SINCE IT HAS   */
     /*       FAILED.                                              */
     /*------------------------------------------------------------*/
-    hostptr.p->hostStatus = HS_DEAD;
-    hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
+    myHostPtr.p->hostStatus = HS_DEAD;
+    myHostPtr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
     c_ongoing_take_over_cnt++;
-    c_alive_nodes.clear(hostptr.i);
+    c_alive_nodes.clear(myHostPtr.i);
 
     if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
     {
@@ -7359,7 +7363,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       /*       THE CURRENT TAKE OVER CAN BE AFFECTED BY THIS NODE   */
       /*       FAILURE.                                             */
       /*------------------------------------------------------------*/
-      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) 
+      if (myHostPtr.p->lqhTransStatus == LTS_ACTIVE) 
       {
 	jam();
 	/*------------------------------------------------------------*/
@@ -7367,18 +7371,21 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 	/*       PROTOCOL FOR TC.                                     */
 	/*------------------------------------------------------------*/
 	signal->theData[0] = TcContinueB::ZNODE_TAKE_OVER_COMPLETED;
-	signal->theData[1] = hostptr.i;
+	signal->theData[1] = myHostPtr.i;
 	sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
       }//if
     }//if
     
     jam();
-    signal->theData[0] = hostptr.i;
+    signal->theData[0] = myHostPtr.i;
     sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
     
-    checkScanActiveInFailedLqh(signal, 0, hostptr.i);
-    checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
-    nodeFailCheckTransactions(signal, 0, hostptr.i);
+    checkScanActiveInFailedLqh(signal, 0, myHostPtr.i);
+    checkWaitDropTabFailedLqh(signal, myHostPtr.i, 0); // nodeid, tableid
+    nodeFailCheckTransactions(signal, 0, myHostPtr.i);
+    Callback cb = {safe_cast(&Dbtc::ndbdFailBlockCleanupCallback), 
+                  myHostPtr.i};
+    simBlockNodeFailure(signal, myHostPtr.i, cb);
   }
 }//Dbtc::execNODE_FAILREP()
 
@@ -7518,6 +7525,28 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   }
 }
 
+void
+Dbtc::ndbdFailBlockCleanupCallback(Signal* signal,
+                                   Uint32 failedNodeId,
+                                   Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  checkNodeFailComplete(signal, failedNodeId,
+                        HostRecord::NF_BLOCK_HANDLE);
+}
+
+void
+Dbtc::apiFailBlockCleanupCallback(Signal* signal,
+                                  Uint32 failedNodeId,
+                                  Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = cownref;
+  sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+}
 
 void
 Dbtc::checkScanFragList(Signal* signal,

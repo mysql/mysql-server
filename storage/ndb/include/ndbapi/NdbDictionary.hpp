@@ -1920,7 +1920,9 @@ public:
      * @return       -1 if error.
      *
      */
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
+#endif
     int listObjects(List & list,
 		    Object::Type type = Object::TypeUndefined) const;
 
@@ -1974,7 +1976,9 @@ public:
      * @param tableName  Name of table that index belongs to.
      * @return  0 if successful, otherwise -1
      */
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     int listIndexes(List & list, const char * tableName);
+#endif
     int listIndexes(List & list, const char * tableName) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -2019,7 +2023,9 @@ public:
      * @param list   List of events returned in the dictionary
      * @return 0 if successful otherwise -1.
      */
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     int listEvents(List & list);
+#endif
     int listEvents(List & list) const;
 
     /** @} *******************************************************************/

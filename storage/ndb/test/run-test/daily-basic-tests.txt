@@ -549,10 +549,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18414 T1
 
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug18612 T1
-
+#max-time: 1000
+#cmd: testNodeRestart
+#args: -n Bug18612 T1
+#
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18612SR T1
