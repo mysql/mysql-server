@@ -860,6 +860,19 @@ int mysql_update(THD *thd,
     */
     table->file->info(HA_STATUS_WRITTEN_ROWS);
     updated= table->file->stats.rows_updated;
+    /*
+      If we could compare the records then the records were
+      either found by reading the table or they were
+      constructed from the WHERE clause. In this case the
+      handler might not have been called to perform the update.
+      If we could not compare the records then the read was skipped
+      and we could not create a record to compare with from the
+      WHERE clause. In this case we cannot use the calculated value
+      of found, instead the number if found records must equal to number
+      of updated records.
+     */
+    if (!can_compare_record)
+      found= updated;
   }
 
   /* If LAST_INSERT_ID(X) was used, report X */
