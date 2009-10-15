@@ -3874,6 +3874,12 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
 bool ha_ndbcluster::start_bulk_update()
 {
   DBUG_ENTER("ha_ndbcluster::start_bulk_update");
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
