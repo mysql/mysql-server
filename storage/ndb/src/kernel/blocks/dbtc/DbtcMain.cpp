@@ -662,7 +662,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     return;
   case ZINTSPH2:
     jam();
-    intstartphase2x010Lab(signal);
+    ndbsttorry010Lab(signal);
     return;
   case ZINTSPH3:
     jam();
@@ -763,43 +763,6 @@ void Dbtc::intstartphase1x010Lab(Signal* signal)
   cfailure_nr = 0;
   ndbsttorry010Lab(signal);
 }//Dbtc::intstartphase1x010Lab()
-
-/*****************************************************************************/
-/*                         I N T S T A R T P H A S E 2 X                     */
-/*                          SET-UP LOCAL CONNECTIONS.                        */
-/*****************************************************************************/
-void Dbtc::intstartphase2x010Lab(Signal* signal) 
-{
-  tcConnectptr.i = cfirstfreeTcConnect;
-  intstartphase2x020Lab(signal);
-}//Dbtc::intstartphase2x010Lab()
-
-void Dbtc::intstartphase2x020Lab(Signal* signal) 
-{
-  if (tcConnectptr.i == RNIL) {
-    jam();
-    ndbsttorry010Lab(signal);
-    return;
-  }//if
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  tcConnectptr.p->tcConnectstate = OS_CONNECTING_DICT;
-/* ****************** */
-/*     DISEIZEREQ   < */
-/* ****************** */
-  signal->theData[0] = tcConnectptr.i;
-  signal->theData[1] = cownref;
-  sendSignal(cdihblockref, GSN_DISEIZEREQ, signal, 2, JBB);
-}//Dbtc::intstartphase2x020Lab()
-
-void Dbtc::execDISEIZECONF(Signal* signal) 
-{
-  jamEntry();
-  tcConnectptr.i = signal->theData[0];
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  tcConnectptr.p->dihConnectptr = signal->theData[1];
-  tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-  intstartphase2x020Lab(signal);
-}//Dbtc::execDISEIZECONF()
 
 /*****************************************************************************/
 /*                         I N T S T A R T P H A S E 3 X                     */

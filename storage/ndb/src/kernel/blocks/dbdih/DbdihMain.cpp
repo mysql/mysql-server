@@ -1252,11 +1252,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   initData();
 
+  cconnectFileSize = 256; // Only used for DDL
+
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
 					   &capiConnectFileSize),
-		NDBD_EXIT_INVALID_CONFIG);
-  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,
-					   &cconnectFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
@@ -6919,51 +6918,6 @@ void Dbdih::nodeFailCompletedCheckLab(Signal* signal,
   3.4   L O C A L  N O D E   S E I Z E  
   ************************************
   */
-/*
-  3.4.1   L O C A L  N O D E   S E I Z E   R E Q U E S T
-  ******************************************************
-  */
-void Dbdih::execDISEIZEREQ(Signal* signal) 
-{
-  ConnectRecordPtr connectPtr;
-  jamEntry();
-  Uint32 userPtr = signal->theData[0];
-  BlockReference userRef = signal->theData[1];
-  ndbrequire(cfirstconnect != RNIL);
-  connectPtr.i = cfirstconnect;
-  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  cfirstconnect = connectPtr.p->nextPool;
-  connectPtr.p->nextPool = RNIL;
-  connectPtr.p->userpointer = userPtr;
-  connectPtr.p->userblockref = userRef;
-  connectPtr.p->connectState = ConnectRecord::INUSE;
-  signal->theData[0] = connectPtr.p->userpointer;
-  signal->theData[1] = connectPtr.i;
-  sendSignal(userRef, GSN_DISEIZECONF, signal, 2, JBB);
-}//Dbdih::execDISEIZEREQ()
-
-/*
-  3.5   L O C A L  N O D E   R E L E A S E
-  ****************************************
-  */
-/*
-  3.5.1   L O C A L  N O D E   R E L E A S E   R E Q U E S T
-  *******************************************************=
-  */
-void Dbdih::execDIRELEASEREQ(Signal* signal) 
-{
-  ConnectRecordPtr connectPtr;
-  jamEntry();
-  connectPtr.i = signal->theData[0];
-  Uint32 userRef = signal->theData[2];
-  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  ndbrequire(connectPtr.p->connectState != ConnectRecord::FREE);
-  ndbrequire(connectPtr.p->userblockref == userRef);
-  signal->theData[0] = connectPtr.p->userpointer;
-  sendSignal(connectPtr.p->userblockref, GSN_DIRELEASECONF, signal, 1, JBB);
-  release_connect(connectPtr);
-}//Dbdih::execDIRELEASEREQ()
-
 /*
   3.7   A D D   T A B L E
   **********************=
