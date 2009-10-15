@@ -2310,12 +2310,10 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc), t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
@@ -2382,11 +2380,9 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
                                my_bool diff_if_only_endspace_difference)
 {
   int s_res, t_res, res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc),t_wc;
   const uchar *se= s+slen, *te= t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;

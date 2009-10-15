@@ -464,7 +464,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    char *query;
+    char *query, *res;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -481,7 +481,7 @@ pthread_handler_t handle_bootstrap(void *arg)
         break;
       }
       buff= (char*) thd->net.buff;
-      fgets(buff + length, thd->net.max_packet - length, file);
+      res= fgets(buff + length, thd->net.max_packet - length, file);
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }

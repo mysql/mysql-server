@@ -72,7 +72,7 @@ static void wait_for_kill_signal(THD *thd)
   @brief Helper function for explain_filename
 */
 static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, int errcode)
+                           const char* name, uint name_len, bool add_quotes)
 {
   uint res;
   uint errors;
@@ -92,18 +92,44 @@ static char* add_identifier(char *to_p, const char * end_p,
   res= strconvert(&my_charset_filename, conv_name, system_charset_info,
                   conv_string, FN_REFLEN, &errors);
   if (!res || errors)
+  {
+    DBUG_PRINT("error", ("strconvert of '%s' failed with %u (errors: %u)", conv_name, res, errors));
     conv_name= name;
+  }
   else
   {
     DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
     conv_name= conv_string;
   }
 
-  if (errcode)
-    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  if (add_quotes && (end_p - to_p > 2))
+  {
+    *(to_p++)= '`';
+    while (*conv_name && (end_p - to_p - 1) > 0)
+    {
+      uint length= my_mbcharlen(system_charset_info, *conv_name);
+      if (!length)
+        length= 1;
+      if (length == 1 && *conv_name == '`')
+      { 
+        if ((end_p - to_p) < 3)
+          break;
+        *(to_p++)= '`';
+        *(to_p++)= *(conv_name++);
+      }
+      else if (((long) length) < (end_p - to_p))
+      {
+        to_p= strnmov(to_p, conv_name, length);
+        conv_name+= length;
+      }
+      else
+        break;                               /* string already filled */
+    }
+    to_p= strnmov(to_p, "`", end_p - to_p);
+  }
   else
-    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
-  return to_p;
+    to_p= strnmov(to_p, conv_name, end_p - to_p);
+  DBUG_RETURN(to_p);
 }
 
 
@@ -135,6 +161,8 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
+                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
@@ -245,28 +273,39 @@ uint explain_filename(const char *from,
         part_name_len-= 5;
     }
   }
+  else
+    table_name_len= strlen(table_name);
   if (db_name)
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         ER_TABLE_NAME);
+  {
+    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+  }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -280,15 +319,22 @@ uint explain_filename(const char *from,
         to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
+    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    *(to_p++)= ' ';
     to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         ER_PARTITION_NAME);
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      *(to_p++)= ' ';
       to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           ER_SUBPARTITION_NAME);
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
@@ -3476,6 +3522,41 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 
 
 /*
+  Write CREATE TABLE binlog
+
+  SYNOPSIS
+    write_create_table_bin_log()
+    thd               Thread object
+    create_info       Create information
+    internal_tmp_table  Set to 1 if this is an internal temporary table
+
+  DESCRIPTION
+    This function only is called in mysql_create_table_no_lock and
+    mysql_create_table
+
+  RETURN VALUES
+    NONE
+ */
+static inline void write_create_table_bin_log(THD *thd,
+                                              const HA_CREATE_INFO *create_info,
+                                              bool internal_tmp_table)
+{
+  /*
+    Don't write statement if:
+    - It is an internal temporary table,
+    - Row-based logging is used and it we are creating a temporary table, or
+    - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
+   */
+  if (!internal_tmp_table &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3739,6 +3820,7 @@ bool mysql_create_table_no_lock(THD *thd,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
+      write_create_table_bin_log(thd, create_info, internal_tmp_table);
       goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -3866,18 +3948,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -3893,6 +3964,7 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   goto unlock_and_end;
 }
 
@@ -3944,6 +4016,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                             table_name);
         create_info->table_existed= 1;
         result= FALSE;
+        write_create_table_bin_log(thd, create_info, internal_tmp_table);
       }
       else
       {
@@ -5285,6 +5358,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;	    /* purecov: inspected */
   }
 
+goto binlog;
+
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(warn_buff, sizeof(warn_buff),
+		ER(ER_TABLE_EXISTS_ERROR), table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_TABLE_EXISTS_ERROR,warn_buff);
+  }
+  else
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+    goto err;
+  }
+
+binlog:
   DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
@@ -5348,20 +5439,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
-  goto err;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= FALSE;
-  }
-  else
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   if (name_lock)

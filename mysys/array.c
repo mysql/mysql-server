@@ -61,7 +61,7 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
   */
-  if (!(array->buffer= (char*) my_malloc_ci(element_size*init_alloc, MYF(0))))
+  if (!(array->buffer= (uchar*) my_malloc_ci(element_size*init_alloc, MYF(0))))
     array->max_element=0;
   DBUG_RETURN(FALSE);
 }

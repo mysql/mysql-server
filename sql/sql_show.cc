@@ -7095,8 +7095,6 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     /* Perform closing actions and return error status. */
   }
 
-  DBUG_ASSERT(num_tables == 1);
-
   Table_triggers_list *triggers= lst->table->triggers;
 
   if (!triggers)

@@ -358,9 +358,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   int subkeys=1;
   my_bool can_go_down;
   MI_INFO *info=ftb->info;
-  uint off, extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint UNINIT_VAR(off), extra=HA_FT_WLEN+info->s->base.rec_reflength;
   uchar *lastkey_buf=ftbw->word+ftbw->off;
-  LINT_INIT(off);
 
   if (ftbw->flags & FTB_FLAG_TRUNC)
     lastkey_buf+=ftbw->len;

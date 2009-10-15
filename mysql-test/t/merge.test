@@ -1628,6 +1628,17 @@ DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
 --error ER_NO_SUCH_TABLE
 SELECT 1 FROM m1; # Should not hang!
 
+--echo #
+--echo # Bug #46614: Assertion in show_create_trigger()
+--echo #
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int) ENGINE = MERGE UNION(t1, t2);
+CREATE TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo();
+SHOW CREATE TRIGGER tr1;
+DROP TRIGGER tr1;
+DROP TABLE t1, t2, t3;
+
 --echo End of 5.1 tests
 
 --disable_result_log

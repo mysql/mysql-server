@@ -75,7 +75,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
-ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
@@ -4383,6 +4383,34 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 DROP TABLE C;
 # End of test for bug#45061.
+#
+# Bug #46749: Segfault in add_key_fields() with outer subquery level 
+#   field references
+#
+CREATE TABLE t1 (
+a int,
+b int,
+UNIQUE (a), KEY (b)
+);
+INSERT INTO t1 VALUES (1,1), (2,1);
+CREATE TABLE st1 like t1;
+INSERT INTO st1 VALUES (1,1), (2,1);
+CREATE TABLE st2 like t1;
+INSERT INTO st2 VALUES (1,1), (2,1);
+EXPLAIN
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	st1	index	NULL	a	5	NULL	2	Using index
+2	DEPENDENT SUBQUERY	st2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+NULL	0
+DROP TABLE t1, st1, st2;
 End of 5.0 tests.
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);

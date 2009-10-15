@@ -115,7 +115,7 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
-  char **pos, **pos_end, *optend, *prev_found,
+  char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
   uchar* *value;
