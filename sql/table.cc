@@ -725,7 +725,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     share->avg_row_length= uint4korr(head+34);
     share->row_type= (row_type) head[40];
-    share->table_charset= get_charset((uint) head[38],MYF(0));
+    share->table_charset= get_charset((((uint) head[41]) << 8) + 
+                                        (uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
   if (!share->table_charset)
@@ -1184,12 +1185,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
       {
-        if (!strpos[14])
+        uint csid= strpos[14] + (((uint) strpos[11]) << 8);
+        if (!csid)
           charset= &my_charset_bin;
-        else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+        else if (!(charset= get_charset(csid, MYF(0))))
         {
           error= 5; // Unknown or unavailable charset
-          errarg= (int) strpos[14];
+          errarg= (int) csid;
           goto err;
         }
       }
@@ -2457,8 +2459,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length;
-    uint tmp;
+    uint key_length, tmp_key_length, tmp, csid;
     bzero((char*) fileinfo,64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2498,8 +2499,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
-    fileinfo[38]= (create_info->default_table_charset ?
-		   create_info->default_table_charset->number : 0);
+    csid= (create_info->default_table_charset ?
+           create_info->default_table_charset->number : 0);
+    fileinfo[38]= (uchar) csid;
     /*
       In future versions, we will store in fileinfo[39] the values of the
       TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
@@ -2507,7 +2509,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
-    fileinfo[41]= 0;
+    fileinfo[41]= (uchar) (csid >> 8);
     fileinfo[42]= 0;
     fileinfo[43]= 0;
     fileinfo[44]= 0;
