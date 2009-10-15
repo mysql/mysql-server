@@ -32,7 +32,7 @@ int unpack_row(Relay_log_info const *rli,
 
 // Fill table's record[0] with default values.
 int prepare_record(TABLE *const table, const MY_BITMAP *cols,
-                   const uint width, const bool check,
+                   const bool check,
                    const bool abort_on_warning= TRUE,
                    const bool first_row= TRUE);
 #endif
