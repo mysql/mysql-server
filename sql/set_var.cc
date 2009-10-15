@@ -2535,9 +2535,20 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 {
   MYSQL_QUERY_LOG *file_log;
   char buff[FN_REFLEN];
-  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  char *res= 0, *old_value= 0;
   bool result= 0;
-  uint str_length= (var ? var->value->str_value.length() : 0);
+  uint str_length= 0;
+
+  if (var) 
+  {
+    String str(buff, sizeof(buff), system_charset_info), *newval;
+
+    newval= var->value->val_str(&str);
+    old_value= newval->c_ptr();
+    str_length= strlen(old_value);
+  } 
+  
+
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
