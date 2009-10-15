@@ -1200,11 +1200,12 @@ public:
 };
 
 
-class sys_var_thd_lc_time_names :public sys_var_thd
+
+class sys_var_thd_lc: public sys_var_thd
 {
 public:
-  sys_var_thd_lc_time_names(sys_var_chain *chain, const char *name_arg,
-                            Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+  sys_var_thd_lc(sys_var_chain *chain, const char *name_arg,
+                 Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     : sys_var_thd(name_arg, NULL, binlog_status_arg)
   {
 #if MYSQL_VERSION_ID < 50000
@@ -1219,10 +1220,34 @@ public:
     return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
+};
+
+
+class sys_var_thd_lc_time_names :public sys_var_thd_lc
+{
+public:
+  sys_var_thd_lc_time_names(sys_var_chain *chain_arg, const char *name_arg,
+                            Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_thd_lc(chain_arg, name_arg, binlog_status_arg)
+  {}
   bool update(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  virtual void set_default(THD *thd, enum_var_type type);
+  void set_default(THD *thd, enum_var_type type);
 };
+
+
+class sys_var_thd_lc_messages :public sys_var_thd_lc
+{
+public:
+  sys_var_thd_lc_messages(sys_var_chain *chain_arg, const char *name_arg,
+                          Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_thd_lc(chain_arg, name_arg, binlog_status_arg)
+  {}
+  bool update(THD *thd, set_var *var);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  void set_default(THD *thd, enum_var_type type);
+};
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 class sys_var_event_scheduler :public sys_var_long_ptr
@@ -1306,8 +1331,8 @@ public:
     {
       Item_field *item= (Item_field*) value_arg;
       if (!(value=new Item_string(item->field_name, 
-                  (uint) strlen(item->field_name),
-				  item->collation.collation)))
+                                  (uint) strlen(item->field_name),
+				  system_charset_info)))
 	value=value_arg;			/* Give error message later */
     }
     else

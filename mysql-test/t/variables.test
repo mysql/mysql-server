@@ -948,15 +948,15 @@ SET @@global.init_file= 'x';
 #
 --echo #
 --replace_column 2 #
-SHOW VARIABLES like 'language';
+SHOW VARIABLES like 'lc_messages_dir';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT @@session.language;
+SELECT @@session.lc_messages_dir;
 --replace_column 1 #
-SELECT @@global.language;
+SELECT @@global.lc_messages_dir;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@session.language= 'x';
+SET @@session.lc_messages_dir= 'x';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@global.language= 'x';
+SET @@global.lc_messages_dir= 'x';
 #
 --echo #
 --replace_column 2 #
