@@ -257,8 +257,7 @@ enum enum_commands {
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
   Q_PING,		    Q_EVAL,
-  Q_RPL_PROBE,	    Q_ENABLE_RPL_PARSE,
-  Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
+  Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_WAIT_FOR_SLAVE_TO_STOP,
@@ -317,9 +316,6 @@ const char *command_names[]=
   "replace_column",
   "ping",
   "eval",
-  "rpl_probe",
-  "enable_rpl_parse",
-  "disable_rpl_parse",
   "eval_result",
   /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
@@ -659,14 +655,6 @@ public:
 LogFile log_file;
 LogFile progress_file;
 
-
-/* Disable functions that only exist in MySQL 4.0 */
-#if MYSQL_VERSION_ID < 40000
-void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
-my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
-#endif
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
@@ -3848,11 +3836,7 @@ int do_save_master_pos()
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
-  int rpl_parse;
   DBUG_ENTER("do_save_master_pos");
-
-  rpl_parse = mysql_rpl_parse_enabled(mysql);
-  mysql_disable_rpl_parse(mysql);
 
 #ifdef HAVE_NDB_BINLOG
   /*
@@ -4003,10 +3987,6 @@ int do_save_master_pos()
   strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res);
-
-  if (rpl_parse)
-    mysql_enable_rpl_parse(mysql);
-
   DBUG_RETURN(0);
 }
 
@@ -4066,29 +4046,6 @@ void do_let(struct st_command *command)
           (let_rhs_expr.str + let_rhs_expr.length));
   dynstr_free(&let_rhs_expr);
   DBUG_VOID_RETURN;
-}
-
-
-int do_rpl_probe(struct st_command *command __attribute__((unused)))
-{
-  DBUG_ENTER("do_rpl_probe");
-  if (mysql_rpl_probe(&cur_con->mysql))
-    die("Failed in mysql_rpl_probe(): '%s'", mysql_error(&cur_con->mysql));
-  DBUG_RETURN(0);
-}
-
-
-int do_enable_rpl_parse(struct st_command *command __attribute__((unused)))
-{
-  mysql_enable_rpl_parse(&cur_con->mysql);
-  return 0;
-}
-
-
-int do_disable_rpl_parse(struct st_command *command __attribute__((unused)))
-{
-  mysql_disable_rpl_parse(&cur_con->mysql);
-  return 0;
 }
 
 
@@ -7742,9 +7699,6 @@ int main(int argc, char **argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:
 	do_close_connection(command); break;
-      case Q_RPL_PROBE: do_rpl_probe(command); break;
-      case Q_ENABLE_RPL_PARSE:	 do_enable_rpl_parse(command); break;
-      case Q_DISABLE_RPL_PARSE:  do_disable_rpl_parse(command); break;
       case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
       case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
