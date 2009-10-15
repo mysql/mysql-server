@@ -2892,7 +2892,7 @@ int ha_federated::info(uint flag)
   }
 
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= mysql->last_used_con->insert_id;
+    stats.auto_increment_value= mysql->insert_id;
 
   mysql_free_result(result);
 

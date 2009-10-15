@@ -1036,7 +1036,6 @@ static const char *default_options[]=
   "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
-  "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation",
@@ -1214,24 +1213,11 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 22:
 	  options->client_flag&= ~CLIENT_LOCAL_FILES;
           break;
-	case 23:  /* replication probe */
-#ifndef TO_BE_DELETED
-	  options->rpl_probe= 1;
-#endif
-	  break;
-	case 24: /* enable-reads-from-master */
-	  options->no_master_reads= 0;
-	  break;
-	case 25: /* repl-parse-query */
-#ifndef TO_BE_DELETED
-	  options->rpl_parse= 1;
-#endif
-	  break;
-	case 27:
+	case 24: /* max-allowed-packet */
           if (opt_arg)
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
-        case 28:		/* protocol */
+        case 25: /* protocol */
           if ((options->protocol= find_type(opt_arg,
 					    &sql_protocol_typelib,0)) <= 0)
           {
@@ -1239,24 +1225,24 @@ void mysql_read_default_options(struct st_mysql_options *options,
             exit(1);
           }
           break;
-        case 29:		/* shared_memory_base_name */
+        case 26: /* shared_memory_base_name */
 #ifdef HAVE_SMEM
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
 #endif
           break;
-	case 30:
+	case 27: /* multi-results */
 	  options->client_flag|= CLIENT_MULTI_RESULTS;
 	  break;
-	case 31:
-	case 32:
+	case 28: /* multi-statements */
+	case 29: /* multi-queries */
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case 33: /* secure-auth */
+        case 30: /* secure-auth */
           options->secure_auth= TRUE;
           break;
-        case 34: /* report-data-truncation */
+        case 31: /* report-data-truncation */
           options->report_data_truncation= opt_arg ? test(atoi(opt_arg)) : 1;
           break;
 	default:
@@ -1583,16 +1569,8 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql), sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
-  mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
   mysql->charset=default_client_charset_info;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
-  /*
-    By default, we are a replication pivot. The caller must reset it
-    after we return if this is not the case.
-  */
-#ifndef TO_BE_DELETED
-  mysql->rpl_pivot = 1;
-#endif
 
   /*
     Only enable LOAD DATA INFILE by default if configured with
@@ -2533,11 +2511,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->reconnect=reconnect;
   }
 
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
-    goto error;
-#endif
-
   DBUG_PRINT("exit", ("Mysql handler: 0x%lx", (long) mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
@@ -2559,28 +2532,6 @@ error:
 }
 
 
-/* needed when we move MYSQL structure to a different address */
-
-#ifndef TO_BE_DELETED
-static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
-{
-  MYSQL *tmp, *tmp_prev;
-  if (mysql->master == old_mysql)
-    mysql->master= mysql;
-  if (mysql->last_used_con == old_mysql)
-    mysql->last_used_con= mysql;
-  if (mysql->last_used_slave == old_mysql)
-    mysql->last_used_slave= mysql;
-  for (tmp_prev = mysql, tmp = mysql->next_slave;
-       tmp != old_mysql;tmp = tmp->next_slave)
-  {
-    tmp_prev= tmp;
-  }
-  tmp_prev->next_slave= mysql;
-}
-#endif
-
-
 my_bool mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
@@ -2599,8 +2550,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql_init(&tmp_mysql);
   tmp_mysql.options= mysql->options;
   tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
-  tmp_mysql.rpl_pivot= mysql->rpl_pivot;
-  
+
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
@@ -2634,7 +2584,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
-  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
   net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -2812,23 +2761,6 @@ void STDCALL mysql_close(MYSQL *mysql)
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
-#ifndef TO_BE_DELETED
-    /* free/close slave list */
-    if (mysql->rpl_pivot)
-    {
-      MYSQL* tmp;
-      for (tmp = mysql->next_slave; tmp != mysql; )
-      {
-	/* trick to avoid following freed pointer */
-	MYSQL* tmp1 = tmp->next_slave;
-	mysql_close(tmp);
-	tmp = tmp1;
-      }
-      mysql->rpl_pivot=0;
-    }
-#endif
-    if (mysql != mysql->master)
-      mysql_close(mysql->master);
 #ifndef MYSQL_SERVER
     if (mysql->thd)
       (*mysql->methods->free_embedded_thd)(mysql);
@@ -2847,12 +2779,6 @@ static my_bool cli_read_query_result(MYSQL *mysql)
   MYSQL_DATA *fields;
   ulong length;
   DBUG_ENTER("cli_read_query_result");
-
-  /*
-    Read from the connection which we actually used, which
-    could differ from the original connection if we have slaves
-  */
-  mysql = mysql->last_used_con;
 
   if ((length = cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
@@ -2928,23 +2854,6 @@ int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   DBUG_ENTER("mysql_send_query");
-  DBUG_PRINT("enter",("rpl_parse: %d  rpl_pivot: %d",
-		      mysql->options.rpl_parse, mysql->rpl_pivot));
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_parse && mysql->rpl_pivot)
-  {
-    switch (mysql_rpl_query_type(query, length)) {
-    case MYSQL_RPL_MASTER:
-      DBUG_RETURN(mysql_master_send_query(mysql, query, length));
-    case MYSQL_RPL_SLAVE:
-      DBUG_RETURN(mysql_slave_send_query(mysql, query, length));
-    case MYSQL_RPL_ADMIN:
-      break;					/* fall through */
-    }
-  }
-  mysql->last_used_con = mysql;
-#endif
-
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
 }
 
@@ -2971,8 +2880,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
-  /* read from the actually used connection */
-  mysql = mysql->last_used_con;
+
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -3026,8 +2934,6 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("cli_use_result");
-
-  mysql = mysql->last_used_con;
 
   if (!mysql->fields)
     DBUG_RETURN(0);
