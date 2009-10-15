@@ -192,6 +192,7 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
 NDB_COMMAND(printSchemafile, 
 	    "printSchemafile", "printSchemafile", "Prints a schemafile", 16384)
 { 
+  ndb_init();
   progname = argv[0];
   int exitcode = 0;
 
