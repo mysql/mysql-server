@@ -1,3 +1,9 @@
+2009-10-15	The InnoDB Team
+
+	* include/page0page.ic:
+	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
+	cc/CC 5.10
+
 2009-10-01	The InnoDB Team
 
 	* fsp/fsp0fsp.c, row/row0merge.c:
