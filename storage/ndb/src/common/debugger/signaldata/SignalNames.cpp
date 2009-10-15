@@ -163,13 +163,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIH_RESTARTREF,         "DIH_RESTARTREF" }
   ,{ GSN_DIH_RESTARTREQ,         "DIH_RESTARTREQ" }
 
-  ,{ GSN_DIRELEASECONF,          "DIRELEASECONF" }
-  ,{ GSN_DIRELEASEREF,           "DIRELEASEREF" }
-  ,{ GSN_DIRELEASEREQ,           "DIRELEASEREQ" }
   ,{ GSN_DISCONNECT_REP,         "DISCONNECT_REP" }
-  ,{ GSN_DISEIZECONF,            "DISEIZECONF" }
-  ,{ GSN_DISEIZEREF,             "DISEIZEREF" }
-  ,{ GSN_DISEIZEREQ,             "DISEIZEREQ" }
   ,{ GSN_DIVERIFYCONF,           "DIVERIFYCONF" }
   ,{ GSN_DIVERIFYREF,            "DIVERIFYREF" }
   ,{ GSN_DIVERIFYREQ,            "DIVERIFYREQ" }

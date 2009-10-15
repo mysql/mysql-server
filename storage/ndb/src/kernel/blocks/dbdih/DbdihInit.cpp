@@ -204,8 +204,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_FRAGREF, &Dbdih::execCOPY_FRAGREF);
   addRecSignal(GSN_DIADDTABREQ, &Dbdih::execDIADDTABREQ);
   addRecSignal(GSN_DIGETNODESREQ, &Dbdih::execDIGETNODESREQ);
-  addRecSignal(GSN_DIRELEASEREQ, &Dbdih::execDIRELEASEREQ);
-  addRecSignal(GSN_DISEIZEREQ, &Dbdih::execDISEIZEREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
   addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
   addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);

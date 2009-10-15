@@ -334,13 +334,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 230 not unused */
 /* 231 not unused */
 
-#define GSN_DIRELEASECONF               232
-#define GSN_DIRELEASEREF                233
-#define GSN_DIRELEASEREQ                234
+/* 232 unused */
+/* 233 unused */
+/* 234 unused */
 #define GSN_DISCONNECT_REP              235
-#define GSN_DISEIZECONF                 236
-#define GSN_DISEIZEREF                  237
-#define GSN_DISEIZEREQ                  238
+/* 236 unused */
+/* 237 unused */
+/* 238 unused */
 #define GSN_DIVERIFYCONF                239
 #define GSN_DIVERIFYREF                 240
 #define GSN_DIVERIFYREQ                 241
