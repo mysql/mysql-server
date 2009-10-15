@@ -857,13 +857,22 @@ int mysql_update(THD *thd,
       also when using BEFORE UPDATE triggers on table and also quite
       hard checks on UPDATE statement. Still it is used very often with
       all those limitations.
-
-      Moreover, since there is no read before update, found == updated,
-      as there is no optimization to remove the update if the new data
-      should equal the old.
     */
     table->file->info(HA_STATUS_WRITTEN_ROWS);
-    found= updated= table->file->stats.rows_updated;
+    updated= table->file->stats.rows_updated;
+    /*
+      If we could compare the records then the records were
+      either found by reading the table or they were
+      constructed from the WHERE clause. In this case the
+      handler might not have been called to perform the update.
+      If we could not compare the records then the read was skipped
+      and we could not create a record to compare with from the
+      WHERE clause. In this case we cannot use the calculated value
+      of found, instead the number if found records must equal to number
+      of updated records.
+     */
+    if (!can_compare_record)
+      found= updated;
   }
 
   /* If LAST_INSERT_ID(X) was used, report X */
