@@ -4455,12 +4455,15 @@ void st_table::mark_columns_needed_for_delete()
     }
     file->column_bitmaps_signal();
   }
-  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE ||
+      mysql_bin_log.is_open() && in_use &&
+      in_use->current_stmt_binlog_row_based)
   {
     /*
-      If the handler has no cursor capabilites, we have to read either
-      the primary key, the hidden primary key or all columns to be
-      able to do an delete
+      If the handler has no cursor capabilites, or we have row-based
+      replication active for the current statement, we have to read
+      either the primary key, the hidden primary key or all columns to
+      be able to do an delete
     */
     if (s->primary_key == MAX_KEY)
       file->use_hidden_primary_key();
@@ -4508,10 +4511,13 @@ void st_table::mark_columns_needed_for_update()
     }
     file->column_bitmaps_signal();
   }
-  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE ||
+      mysql_bin_log.is_open() && in_use &&
+      in_use->current_stmt_binlog_row_based)
   {
     /*
-      If the handler has no cursor capabilites, we have to read either
+      If the handler has no cursor capabilites, or we have row-based
+      logging active for the current statement, we have to read either
       the primary key, the hidden primary key or all columns to be
       able to do an update
     */
