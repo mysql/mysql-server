@@ -8268,6 +8268,34 @@ DROP TABLE t1, t2;
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
 
+#
+# Bug#39255: Stored procedures: crash if function references nonexistent table
+#
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t_non_existing;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+   DECLARE v INT;
+   SELECT a INTO v FROM t_non_existing;
+   RETURN 1;
+END|
+delimiter ;|
+
+CREATE TABLE t1 (a INT) ENGINE = myisam;
+INSERT INTO t1 VALUES (1);
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1 WHERE a = f1();
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
 --echo #            strict SQL mode
