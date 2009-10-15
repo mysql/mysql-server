@@ -1538,11 +1538,14 @@ INSERT INTO t1 SELECT a+2560,b FROM t1;
 INSERT INTO t1 SELECT a+5120,b FROM t1;
 SET myisam_sort_buffer_size=4;
 REPAIR TABLE t1;
-SET myisam_repair_threads=2;
+
+# !!! Disabled until additional fix for BUG#47073 is pushed.
+#SET myisam_repair_threads=2;
 # May report different values depending on threads activity.
---replace_regex /changed from [0-9]+/changed from #/
-REPAIR TABLE t1;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
+#--replace_regex /changed from [0-9]+/changed from #/
+#REPAIR TABLE t1;
+#SET myisam_repair_threads=@@global.myisam_repair_threads;
+
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 
