@@ -20,6 +20,7 @@ ADD_LIBRARY(ndbdbdih STATIC
     DbdihInit.cpp
     DbdihMain.cpp)
 
-ADD_EXECUTABLE(ndbd_sysfile_reader
+ADD_EXECUTABLE(ndb_sysfile_reader
     printSysfile.cpp)
-TARGET_LINK_LIBRARIES(ndbd_sysfile_reader ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
+TARGET_LINK_LIBRARIES(ndb_sysfile_reader
+    ndbtrace ndblogger ndbgeneral ndberror ndbportlib)

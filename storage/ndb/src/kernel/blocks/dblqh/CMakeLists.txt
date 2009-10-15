@@ -22,7 +22,8 @@ ADD_LIBRARY(ndbdblqh STATIC
     DblqhProxy.cpp
     DblqhCommon.cpp)
 
-ADD_EXECUTABLE(ndbd_redo_log_reader
+ADD_EXECUTABLE(ndb_redo_log_reader
     redoLogReader/records.cpp
     redoLogReader/reader.cpp)
-TARGET_LINK_LIBRARIES(ndbd_redo_log_reader ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
+TARGET_LINK_LIBRARIES(ndb_redo_log_reader
+    ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
