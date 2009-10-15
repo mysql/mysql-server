@@ -218,8 +218,10 @@ unpack_row(Relay_log_info const *rli,
   {
     Field *const f= *field_ptr;
 
-    DBUG_PRINT("debug", ("field: %s; null mask: 0x%x; null bits: 0x%lx; row start: %p; null bytes: %d",
-                         f->field_name, null_mask, (ulong) null_bits, pack_ptr, master_null_byte_count));
+    DBUG_PRINT("debug", ("field: %s; null mask: 0x%x; null bits: 0x%lx;"
+                         " row start: %p; null bytes: %ld",
+                         f->field_name, null_mask, (ulong) null_bits,
+                         pack_ptr, (ulong) master_null_byte_count));
 
     /*
       No need to bother about columns that does not exist: they have
