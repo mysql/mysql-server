@@ -741,8 +741,6 @@ private:
   void execPREPARE_COPY_FRAG_CONF(Signal*);
   void execDIADDTABREQ(Signal *);
   void execDIGETNODESREQ(Signal *);
-  void execDIRELEASEREQ(Signal *);
-  void execDISEIZEREQ(Signal *);
   void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_REQ(Signal *);
   void execDIH_SCAN_GET_NODES_REQ(Signal *);

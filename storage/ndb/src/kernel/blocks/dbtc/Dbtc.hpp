@@ -172,7 +172,6 @@ public:
   };
 
   enum OperationState {
-    OS_CONNECTING_DICT = 0,
     OS_CONNECTED = 1,
     OS_OPERATING = 2,
     OS_PREPARED = 3,
@@ -848,7 +847,6 @@ public:
     // with indexes almost never used.
     //---------------------------------------------------
     UintR clientData;           /* SENDERS OPERATION POINTER              */
-    UintR dihConnectptr;        /* CONNECTION TO DIH BLOCK ON THIS NODE   */
     UintR prevTcConnect;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
     UintR savePointId;
 
@@ -1305,7 +1303,6 @@ private:
   void execDIGETNODESREF(Signal* signal);
   void execDIH_SCAN_GET_NODES_REF(Signal* signal);
   void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
-  void execDISEIZECONF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
   void execDIH_SCAN_TAB_REF(Signal* signal);
   void execDIH_SCAN_TAB_CONF(Signal* signal);
@@ -1611,7 +1608,6 @@ private:
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
   void diverify010Lab(Signal* signal);
-  void intstartphase2x010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
   void abortBeginErrorLab(Signal* signal);
@@ -1626,7 +1622,6 @@ private:
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
   void tckeyreq020Lab(Signal* signal);
-  void intstartphase2x020Lab(Signal* signal);
   void intstartphase1x010Lab(Signal* signal);
   void startphase1x010Lab(Signal* signal);
 
