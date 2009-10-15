@@ -333,34 +333,11 @@ typedef struct st_mysql_res {
   void *extension;
 } MYSQL_RES;
 
-#define MAX_MYSQL_MANAGER_ERR 256  
-#define MAX_MYSQL_MANAGER_MSG 256
-
-#define MANAGER_OK           200
-#define MANAGER_INFO         250
-#define MANAGER_ACCESS       401
-#define MANAGER_CLIENT_ERR   450
-#define MANAGER_INTERNAL_ERR 500
 
 #if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
 #define MYSQL_CLIENT
 #endif
 
-
-typedef struct st_mysql_manager
-{
-  NET net;
-  char *host, *user, *passwd;
-  char *net_buf, *net_buf_pos, *net_data_end;
-  unsigned int port;
-  int cmd_status;
-  int last_errno;
-  int net_buf_size;
-  my_bool free_me;
-  my_bool eof;
-  char last_error[MAX_MYSQL_MANAGER_ERR];
-  void *extension;
-} MYSQL_MANAGER;
 
 typedef struct st_mysql_parameters
 {
@@ -562,18 +539,6 @@ void		STDCALL mysql_debug(const char *debug);
 void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
 my_bool		STDCALL mysql_embedded(void);
-MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con);  
-MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
-					      const char* host,
-					      const char* user,
-					      const char* passwd,
-					      unsigned int port);
-void            STDCALL mysql_manager_close(MYSQL_MANAGER* con);
-int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
-						const char* cmd, int cmd_len);
-int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
-						  char* res_buf,
-						 int res_buf_size);
 my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
 
 

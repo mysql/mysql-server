@@ -31,7 +31,7 @@ pkglib_LTLIBRARIES =		$(target)
 noinst_PROGRAMS = conf_to_src
 
 
-target_sources = 	libmysql.c password.c manager.c \
+target_sources = 	libmysql.c password.c \
 			get_password.c errmsg.c
 
 mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
