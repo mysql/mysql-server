@@ -117,6 +117,27 @@ public:
       class table 
       {
       public:
+        class save_sets {
+        public:
+          save_sets(table const &tbl, MY_BITMAP const *new_rs, MY_BITMAP const *new_ws)
+            : m_table(tbl.get_table()),
+              save_read_set(m_table->read_set),
+              save_write_set(m_table->write_set)
+          {
+            m_table->column_bitmaps_set(const_cast<MY_BITMAP*>(new_rs),
+                                        const_cast<MY_BITMAP*>(new_ws));
+          }
+
+          ~save_sets() {
+            m_table->column_bitmaps_set(save_read_set, save_write_set);
+          }
+
+        private:
+          TABLE *m_table;
+          MY_BITMAP *save_read_set;
+          MY_BITMAP *save_write_set;
+        };
+
         table(TABLE *table, bool is_transactional) 
             : m_table(table), m_is_transactional(is_transactional)
         { 
