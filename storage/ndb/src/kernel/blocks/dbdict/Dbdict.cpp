@@ -3896,6 +3896,17 @@ Dbdict::restartDropObj_commit_complete_done(Signal* signal,
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
+void Dbdict::handleApiFailureCallback(Signal* signal, 
+                                      Uint32 failedNodeId,
+                                      Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = reference();
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+}
+
 /* ---------------------------------------------------------------- */
 // We receive a report of an API that failed.
 /* ---------------------------------------------------------------- */
@@ -3913,10 +3924,26 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
   }//if
 #endif
 
-  signal->theData[0] = failedApiNode;
-  signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+  ndbrequire(retRef == QMGR_REF); // As callback hard-codes QMGR_REF
+  Callback cb = { safe_cast(&Dbdict::handleApiFailureCallback),
+                  failedApiNode };
+  simBlockNodeFailure(signal, failedApiNode, cb);
 }//execAPI_FAILREQ()
+
+void Dbdict::handleNdbdFailureCallback(Signal* signal, 
+                                       Uint32 failedNodeId, 
+                                       Uint32 ignoredRc)
+{
+  jamEntry();
+
+  /* Node failure handling is complete */
+  NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
+  nfCompRep->blockNo      = DBDICT;
+  nfCompRep->nodeId       = getOwnNodeId();
+  nfCompRep->failedNodeId = failedNodeId;
+  sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
+             NFCompleteRep::SignalLength, JBB);
+}
 
 /* ---------------------------------------------------------------- */
 // We receive a report of one or more node failures of kernel nodes.
@@ -3981,14 +4008,12 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       c_nodes.getPtr(nodePtr, i);
 
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
-      NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
-      nfCompRep->blockNo      = DBDICT;
-      nfCompRep->nodeId       = getOwnNodeId();
-      nfCompRep->failedNodeId = nodePtr.i;
-      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
-		 NFCompleteRep::SignalLength, JBB);
-      
       c_aliveNodes.clear(i);
+
+      Callback cb = {safe_cast(&Dbdict::handleNdbdFailureCallback),
+                     i};
+
+      simBlockNodeFailure(signal, nodePtr.i, cb);
     }//if
   }//for
 
