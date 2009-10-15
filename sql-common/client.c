@@ -1181,7 +1181,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  my_free(options->ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_capath = my_strdup(opt_arg, MYF(MY_WME));
           break;
-        case 26:			/* ssl_cipher */
+        case 23:			/* ssl_cipher */
           my_free(options->ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
@@ -1190,7 +1190,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 14:
 	case 15:
 	case 16:
-        case 26:
+        case 23:
 	  break;
 #endif /* HAVE_OPENSSL */
 	case 17:			/* charset-lib */
