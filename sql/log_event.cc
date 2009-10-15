@@ -7476,7 +7476,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
       if (!m_curr_row_end && !error)
-        error= unpack_current_row(rli);
+        error= unpack_current_row(rli, &m_cols);
   
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
@@ -8238,9 +8238,8 @@ void Table_map_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 #if !defined(MYSQL_CLIENT)
 Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                            ulong tid_arg,
-                                           MY_BITMAP const *cols,
                                            bool is_transactional)
-  : Rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
+  : Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional)
 {
 }
 #endif
@@ -8444,13 +8443,13 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   /* fill table->record[0] with default values */
   bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
-  if ((error= prepare_record(table, m_width,
+  if ((error= prepare_record(table, &m_cols,
                              table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
                              abort_on_warnings, m_curr_row == m_rows_buf)))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
-  if ((error= unpack_current_row(rli, abort_on_warnings)))
+  if ((error= unpack_current_row(rli, &m_cols, abort_on_warnings)))
     DBUG_RETURN(error);
 
   if (m_curr_row == m_rows_buf)
@@ -8567,7 +8566,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     if (!get_flags(COMPLETE_ROWS_F))
     {
       restore_record(table,record[1]);
-      error= unpack_current_row(rli);
+      error= unpack_current_row(rli, &m_cols);
     }
 
 #ifndef DBUG_OFF
@@ -8787,8 +8786,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     Todo: fix wl3228 hld that requires defauls for all types of events
   */
   
-  prepare_record(table, m_width, FALSE);
-  error= unpack_current_row(rli);
+  prepare_record(table, &m_cols, FALSE);
+  error= unpack_current_row(rli, &m_cols);
 
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("looking for the following record"));
@@ -9041,9 +9040,9 @@ err:
 
 #ifndef MYSQL_CLIENT
 Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             ulong tid, MY_BITMAP const *cols,
+                                             ulong tid,
                                              bool is_transactional)
-  : Rows_log_event(thd_arg, tbl_arg, tid, cols, is_transactional)
+  : Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional)
 {
 }
 #endif /* #if !defined(MYSQL_CLIENT) */
@@ -9081,6 +9080,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     if (!m_key)
       return HA_ERR_OUT_OF_MEM;
   }
+
   return 0;
 }
 
@@ -9132,21 +9132,10 @@ void Delete_rows_log_event::print(FILE *file,
 #if !defined(MYSQL_CLIENT)
 Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              ulong tid,
-                                             MY_BITMAP const *cols_bi,
-                                             MY_BITMAP const *cols_ai,
                                              bool is_transactional)
-: Rows_log_event(thd_arg, tbl_arg, tid, cols_bi, is_transactional)
+: Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional)
 {
-  init(cols_ai);
-}
-
-Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             ulong tid,
-                                             MY_BITMAP const *cols,
-                                             bool is_transactional)
-: Rows_log_event(thd_arg, tbl_arg, tid, cols, is_transactional)
-{
-  init(cols);
+  init(tbl_arg->write_set);
 }
 
 void Update_rows_log_event::init(MY_BITMAP const *cols)
@@ -9232,7 +9221,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
       able to skip to the next pair of updates
     */
     m_curr_row= m_curr_row_end;
-    unpack_current_row(rli);
+    unpack_current_row(rli, &m_cols_ai);
     return error;
   }
 
@@ -9253,7 +9242,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
                            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */
-  if ((error= unpack_current_row(rli, abort_on_warnings)))
+  if ((error= unpack_current_row(rli, &m_cols_ai, abort_on_warnings)))
     return error;
 
   /*
