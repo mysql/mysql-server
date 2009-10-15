@@ -294,18 +294,25 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   }
 
   /*
-    Push the NDB error message as warning
-    - Used to be able to use SHOW WARNINGS toget more info on what the error is
-    - Used by replication to see if the error was temporary
-  */
-  if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
-  else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
+    If we don't abort directly on warnings push a warning
+    with the internal error information
+   */
+  if (!current_thd->abort_on_warning)
+  {
+    /*
+      Push the NDB error message as warning
+      - Used to be able to use SHOW WARNINGS toget more info on what the error is
+      - Used by replication to see if the error was temporary
+    */
+    if (ndberr->status == NdbError::TemporaryError)
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+    else
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+  }
   return error;
 }
 
@@ -3889,6 +3896,12 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
 bool ha_ndbcluster::start_bulk_update()
 {
   DBUG_ENTER("ha_ndbcluster::start_bulk_update");
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -6677,7 +6690,48 @@ static int create_ndb_column(THD *thd,
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("update_create_info");
+  THD *thd= current_thd;
   TABLE_SHARE *share= table->s;
+  const NDBTAB *ndbtab= m_table;
+  Ndb *ndb= check_ndb_in_thd(thd);
+
+  /*
+    Find any initial auto_increment value
+   */
+  for (uint i= 0; i < table->s->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if (field->flags & AUTO_INCREMENT_FLAG)
+    {
+      ulonglong auto_value;
+      uint retries= NDB_AUTO_INCREMENT_RETRIES;
+      int retry_sleep= 30; /* 30 milliseconds, transaction */
+      for (;;)
+      {
+        Ndb_tuple_id_range_guard g(m_share);
+        if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
+        {
+          if (--retries && !thd->killed &&
+              ndb->getNdbError().status == NdbError::TemporaryError)
+          {
+            do_retry_sleep(retry_sleep);
+            continue;
+          }
+          const NdbError err= ndb->getNdbError();
+          sql_print_error("Error %lu in ::update_create_info(): %s",
+                          (ulong) err.code, err.message);
+          DBUG_VOID_RETURN;
+        }
+        break;
+      }
+      if (auto_value > 1)
+      {
+        create_info->auto_increment_value= auto_value;
+      }
+      break;
+    }
+  }
+
   if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
   {
      DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
@@ -6685,13 +6739,10 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
      if (!create_info->tablespace && !share->tablespace)
      {
        DBUG_PRINT("info", ("Checking for tablespace in ndb"));
-       THD *thd= current_thd;
-       Ndb *ndb= check_ndb_in_thd(thd);
        NDBDICT *ndbdict= ndb->getDictionary();
        NdbError ndberr;
        Uint32 id;
        ndb->setDatabaseName(m_dbname);
-       const NDBTAB *ndbtab= m_table;
        DBUG_ASSERT(ndbtab != NULL);
        if (!ndbtab->getTablespace(&id))
        {

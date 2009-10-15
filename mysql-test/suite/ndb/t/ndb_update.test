@@ -28,6 +28,12 @@ select * from t1 order by pk1;
 UPDATE t1 set pk1 = 4 where pk1 = 2;
 UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
 select * from t1 order by pk1;
+--enable_info
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+--disable_info
+--error ER_DUP_ENTRY
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 --error ER_DUP_ENTRY
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
