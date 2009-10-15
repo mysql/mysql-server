@@ -419,6 +419,7 @@ struct TABLE_SHARE
 
   /** place to store storage engine specific data */
   void *ha_data;
+  void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
 
 
   /*
