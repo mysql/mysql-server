@@ -4112,8 +4112,7 @@ static void create_shutdown_thread()
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
-  if (pthread_create(&hThread,&connection_attrib, 
-                     handle_connections_sockets_thread, 0))
+  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 
   // On "Stop Service" we have to do regular shutdown
