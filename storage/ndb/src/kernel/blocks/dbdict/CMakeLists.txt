@@ -16,17 +16,10 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-LINK_LIBRARIES(ndbgeneral
-               ndbportlib
-               dbug
-               mysys
-               strings)
-IF(WIN32)
-LINK_LIBRARIES(wsock32)
-ENDIF(WIN32)
-
 ADD_LIBRARY(ndbdbdict STATIC
             Dbdict.cpp)
 
-ADD_EXECUTABLE(printSchemaFile
+ADD_EXECUTABLE(ndb_print_schema_file
                printSchemaFile.cpp)
+TARGET_LINK_LIBRARIES(ndb_print_schema_file
+    ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
