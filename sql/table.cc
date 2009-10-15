@@ -1601,6 +1601,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
+  if (share->ha_data_destroy)
+    share->ha_data_destroy(share->ha_data);
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
