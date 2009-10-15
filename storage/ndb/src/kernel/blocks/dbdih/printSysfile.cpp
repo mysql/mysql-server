@@ -122,6 +122,7 @@ print(const char * filename, const Sysfile * sysfile){
 
 NDB_COMMAND(printSysfile, 
 	    "printSysfile", "printSysfile", "Prints a sysfile", 16384){ 
+  ndb_init();
   if(argc < 2){
     usage(argv[0]);
     return 0;
