@@ -39,7 +39,11 @@
 #define PLUGINDIR	"lib/plugin"
 #endif
 
-#define ER(X) errmesg[(X) - ER_ERROR_FIRST]
+#define CURRENT_THD_ERRMSGS current_thd->variables.lc_messages->errmsgs->errmsgs
+#define DEFAULT_ERRMSGS     my_default_lc_messages->errmsgs->errmsgs
+
+#define ER(X)         CURRENT_THD_ERRMSGS[(X) - ER_ERROR_FIRST]
+#define ER_DEFAULT(X) DEFAULT_ERRMSGS[(X) - ER_ERROR_FIRST]
 #define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? ER(X) : "Invalid error code")
 
 

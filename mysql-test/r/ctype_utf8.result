@@ -363,9 +363,9 @@ create table t1 (c varchar(30) character set utf8, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values ('aaaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
 c1
@@ -396,9 +396,9 @@ create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values ('aaaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
 c1
@@ -430,19 +430,19 @@ insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'c'
+ERROR 23000: Duplicate entry 'aa' for key 'c'
 insert into t1 values ('b');
 insert into t1 values ('bb');
 insert into t1 values ('bbb');
-ERROR 23000: Duplicate entry 'bbb' for key 'c'
+ERROR 23000: Duplicate entry 'bb' for key 'c'
 insert into t1 values ('а');
 insert into t1 values ('аа');
 insert into t1 values ('ааа');
-ERROR 23000: Duplicate entry 'ааа' for key 'c'
+ERROR 23000: Duplicate entry 'аа' for key 'c'
 insert into t1 values ('б');
 insert into t1 values ('бб');
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'ббб' for key 'c'
+ERROR 23000: Duplicate entry 'бб' for key 'c'
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
 insert into t1 values ('ꪪꪪꪪ');
@@ -453,19 +453,19 @@ insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'c'
+ERROR 23000: Duplicate entry 'aa' for key 'c'
 insert into t1 values ('b');
 insert into t1 values ('bb');
 insert into t1 values ('bbb');
-ERROR 23000: Duplicate entry 'bbb' for key 'c'
+ERROR 23000: Duplicate entry 'bb' for key 'c'
 insert into t1 values ('а');
 insert into t1 values ('аа');
 insert into t1 values ('ааа');
-ERROR 23000: Duplicate entry 'ааа' for key 'c'
+ERROR 23000: Duplicate entry 'аа' for key 'c'
 insert into t1 values ('б');
 insert into t1 values ('бб');
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'ббб' for key 'c'
+ERROR 23000: Duplicate entry 'бб' for key 'c'
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
 insert into t1 values ('ꪪꪪꪪ');
@@ -483,14 +483,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a
@@ -519,14 +519,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a
@@ -549,14 +549,14 @@ unique key a (c(1))
 ) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a
@@ -577,9 +577,9 @@ create table t1 (c varchar(30) character set utf8 collate utf8_bin, unique(c(10)
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values ('aaaaaaaaaaaa');
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaa' for key 'c'
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
 c1
@@ -611,19 +611,19 @@ insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'c'
+ERROR 23000: Duplicate entry 'aa' for key 'c'
 insert into t1 values ('b');
 insert into t1 values ('bb');
 insert into t1 values ('bbb');
-ERROR 23000: Duplicate entry 'bbb' for key 'c'
+ERROR 23000: Duplicate entry 'bb' for key 'c'
 insert into t1 values ('а');
 insert into t1 values ('аа');
 insert into t1 values ('ааа');
-ERROR 23000: Duplicate entry 'ааа' for key 'c'
+ERROR 23000: Duplicate entry 'аа' for key 'c'
 insert into t1 values ('б');
 insert into t1 values ('бб');
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'ббб' for key 'c'
+ERROR 23000: Duplicate entry 'бб' for key 'c'
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
 insert into t1 values ('ꪪꪪꪪ');
@@ -641,14 +641,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a
@@ -677,14 +677,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a
@@ -707,14 +707,14 @@ unique key a (c(1))
 ) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
-ERROR 23000: Duplicate entry 'aa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 'a'
+ERROR 23000: Duplicate entry 'a' for key 'a'
 insert into t1 values ('б');
 insert into t1 values ('бб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 insert into t1 values ('ббб');
-ERROR 23000: Duplicate entry 'б�' for key 'a'
+ERROR 23000: Duplicate entry 'б' for key 'a'
 select c as c_all from t1 order by c;
 c_all
 a

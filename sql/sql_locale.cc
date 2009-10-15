@@ -23,6 +23,43 @@
 #include "mysql_priv.h"
 
 
+enum err_msgs_index
+{
+  en_US= 0, cs_CZ, da_DK, nl_NL, et_EE, fr_FR, de_DE, el_GR, hu_HU, it_IT,
+  ja_JP, ko_KR, no_NO, nn_NO, pl_PL, pt_PT, ro_RO, ru_RU, sr_CS,  sk_SK,
+  es_ES, sv_SE, uk_UA
+} ERR_MSGS_INDEX;
+
+
+MY_LOCALE_ERRMSGS global_errmsgs[]=
+{
+  {"english", NULL},
+  {"czech", NULL},
+  {"danish", NULL},
+  {"dutch", NULL},
+  {"estonian", NULL},
+  {"french", NULL},
+  {"german", NULL},
+  {"greek", NULL},
+  {"hungarian", NULL},
+  {"italian", NULL},
+  {"japanese", NULL},
+  {"korean", NULL},
+  {"norwegian", NULL},
+  {"norwegian-ny", NULL},
+  {"polish", NULL},
+  {"portuguese", NULL},
+  {"romanian", NULL},
+  {"russian", NULL},
+  {"serbian", NULL},
+  {"slovak", NULL},
+  {"spanish", NULL},
+  {"swedish", NULL},
+  {"ukrainian", NULL},
+  {NULL, NULL}
+};
+
+
 /***** LOCALE BEGIN ar_AE: Arabic - United Arab Emirates *****/
 static const char *my_locale_month_names_ar_AE[13] = 
  {"يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر", NullS };
@@ -54,7 +91,8 @@ MY_LOCALE my_locale_ar_AE
   8,
   '.',        /* decimal point ar_AE */
   ',',        /* thousands_sep ar_AE */
-  "\x03"      /* grouping      ar_AE */
+  "\x03",     /* grouping      ar_AE */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_AE *****/
 
@@ -89,7 +127,8 @@ MY_LOCALE my_locale_ar_BH
   8,
   '.',        /* decimal point ar_BH */
   ',',        /* thousands_sep ar_BH */
-  "\x03"      /* grouping      ar_BH */
+  "\x03",     /* grouping      ar_BH */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_BH *****/
 
@@ -124,7 +163,8 @@ MY_LOCALE my_locale_ar_JO
   8,
   '.',        /* decimal point ar_JO */
   ',',        /* thousands_sep ar_JO */
-  "\x03"      /* grouping      ar_JO */
+  "\x03",     /* grouping      ar_JO */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_JO *****/
 
@@ -159,7 +199,8 @@ MY_LOCALE my_locale_ar_SA
   8,
   '.',        /* decimal point ar_SA */
   '\0',       /* thousands_sep ar_SA */
-  "\x80"      /* grouping      ar_SA */
+  "\x80",     /* grouping      ar_SA */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_SA *****/
 
@@ -194,7 +235,8 @@ MY_LOCALE my_locale_ar_SY
   8,
   '.',        /* decimal point ar_SY */
   ',',        /* thousands_sep ar_SY */
-  "\x03"      /* grouping      ar_SY */
+  "\x03",     /* grouping      ar_SY */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_SY *****/
 
@@ -229,7 +271,8 @@ MY_LOCALE my_locale_be_BY
   10,
   ',',        /* decimal point be_BY */
   '.',        /* thousands_sep be_BY */
-  "\x03\x03"  /* grouping      be_BY */
+  "\x03\x03", /* grouping      be_BY */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END be_BY *****/
 
@@ -264,7 +307,8 @@ MY_LOCALE my_locale_bg_BG
   10,
   ',',        /* decimal point bg_BG */
   '\0',       /* thousands_sep bg_BG */
-  "\x03\x03"  /* grouping      bg_BG */
+  "\x03\x03", /* grouping      bg_BG */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END bg_BG *****/
 
@@ -299,8 +343,8 @@ MY_LOCALE my_locale_ca_ES
   9,
   ',',        /* decimal point ca_ES */
   '\0',       /* thousands_sep ca_ES */
-  "\x80\x80"  /* grouping      ca_ES */
-
+  "\x80\x80", /* grouping      ca_ES */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ca_ES *****/
 
@@ -335,7 +379,8 @@ MY_LOCALE my_locale_cs_CZ
   7,
   ',',        /* decimal point cs_CZ */
   ' ',        /* thousands_sep cs_CZ */
-  "\x03\x03"  /* grouping      cs_CZ */
+  "\x03\x03", /* grouping      cs_CZ */
+  &global_errmsgs[cs_CZ]
 );
 /***** LOCALE END cs_CZ *****/
 
@@ -370,7 +415,8 @@ MY_LOCALE my_locale_da_DK
   7,
   ',',        /* decimal point da_DK */
   '.',        /* thousands_sep da_DK */
-  "\x03\x03"  /* grouping      da_DK */
+  "\x03\x03", /* grouping      da_DK */
+  &global_errmsgs[da_DK]
 );
 /***** LOCALE END da_DK *****/
 
@@ -405,7 +451,8 @@ MY_LOCALE my_locale_de_AT
   10,
   ',',        /* decimal point de_AT */
   '\0',       /* thousands_sep de_AT */
-  "\x80\x80"  /* grouping      de_AT */
+  "\x80\x80", /* grouping      de_AT */
+  &global_errmsgs[de_DE]
 );
 /***** LOCALE END de_AT *****/
 
@@ -440,7 +487,8 @@ MY_LOCALE my_locale_de_DE
   10,
   ',',        /* decimal point de_DE */
   '.',        /* thousands_sep de_DE */
-  "\x03\x03"  /* grouping      de_DE */
+  "\x03\x03", /* grouping      de_DE */
+  &global_errmsgs[de_DE]
 );
 /***** LOCALE END de_DE *****/
 
@@ -475,7 +523,8 @@ MY_LOCALE my_locale_en_US
   9,
   '.',        /* decimal point en_US */
   ',',        /* thousands_sep en_US */
-  "\x03\x03"  /* grouping      en_US */
+  "\x03\x03", /* grouping      en_US */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_US *****/
 
@@ -510,7 +559,8 @@ MY_LOCALE my_locale_es_ES
   9,
   ',',        /* decimal point es_ES */
   '\0',       /* thousands_sep es_ES */
-  "\x80\x80"  /* grouping      es_ES */
+  "\x80\x80", /* grouping      es_ES */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_ES *****/
 
@@ -545,7 +595,8 @@ MY_LOCALE my_locale_et_EE
   9,
   ',',        /* decimal point et_EE */
   ' ',        /* thousands_sep et_EE */
-  "\x03\x03"  /* grouping      et_EE */
+  "\x03\x03", /* grouping      et_EE */
+  &global_errmsgs[et_EE]
 );
 /***** LOCALE END et_EE *****/
 
@@ -580,7 +631,8 @@ MY_LOCALE my_locale_eu_ES
   10,
   ',',        /* decimal point eu_ES */
   '\0',       /* thousands_sep eu_ES */
-  "\x80\x80"  /* grouping      eu_ES */
+  "\x80\x80", /* grouping      eu_ES */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END eu_ES *****/
 
@@ -615,7 +667,8 @@ MY_LOCALE my_locale_fi_FI
   11,
   ',',        /* decimal point fi_FI */
   ' ',        /* thousands_sep fi_FI */
-  "\x03\x03"  /* grouping      fi_FI */
+  "\x03\x03", /* grouping      fi_FI */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END fi_FI *****/
 
@@ -650,7 +703,8 @@ MY_LOCALE my_locale_fo_FO
   12,
   ',',        /* decimal point fo_FO */
   '.',        /* thousands_sep fo_FO */
-  "\x03\x03"  /* grouping      fo_FO */
+  "\x03\x03", /* grouping      fo_FO */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END fo_FO *****/
 
@@ -685,7 +739,8 @@ MY_LOCALE my_locale_fr_FR
   8,
   ',',        /* decimal point fr_FR */
   '\0',       /* thousands_sep fr_FR */
-  "\x80\x80"  /* grouping      fr_FR */
+  "\x80\x80", /* grouping      fr_FR */
+  &global_errmsgs[fr_FR]
 );
 /***** LOCALE END fr_FR *****/
 
@@ -720,7 +775,8 @@ MY_LOCALE my_locale_gl_ES
   8,
   ',',        /* decimal point gl_ES */
   '\0',       /* thousands_sep gl_ES */
-  "\x80\x80"  /* grouping      gl_ES */
+  "\x80\x80", /* grouping      gl_ES */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END gl_ES *****/
 
@@ -755,7 +811,8 @@ MY_LOCALE my_locale_gu_IN
   8,
   '.',        /* decimal point gu_IN */
   ',',        /* thousands_sep gu_IN */
-  "\x03"      /* grouping      gu_IN */
+  "\x03",     /* grouping      gu_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END gu_IN *****/
 
@@ -790,7 +847,8 @@ MY_LOCALE my_locale_he_IL
   5,
   '.',        /* decimal point he_IL */
   ',',        /* thousands_sep he_IL */
-  "\x03\x03"  /* grouping      he_IL */
+  "\x03\x03", /* grouping      he_IL */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END he_IL *****/
 
@@ -825,7 +883,8 @@ MY_LOCALE my_locale_hi_IN
   9,
   '.',        /* decimal point hi_IN */
   ',',        /* thousands_sep hi_IN */
-  "\x03"      /* grouping      hi_IN */
+  "\x03",     /* grouping      hi_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END hi_IN *****/
 
@@ -860,7 +919,8 @@ MY_LOCALE my_locale_hr_HR
   11,
   ',',        /* decimal point hr_HR */
   '\0',       /* thousands_sep hr_HR */
-  "\x80\x80"  /* grouping      hr_HR */
+  "\x80\x80", /* grouping      hr_HR */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END hr_HR *****/
 
@@ -895,7 +955,8 @@ MY_LOCALE my_locale_hu_HU
   9,
   ',',        /* decimal point hu_HU */
   '.',        /* thousands_sep hu_HU */
-  "\x03\x03"  /* grouping      hu_HU */
+  "\x03\x03", /* grouping      hu_HU */
+  &global_errmsgs[hu_HU]
 );
 /***** LOCALE END hu_HU *****/
 
@@ -930,7 +991,8 @@ MY_LOCALE my_locale_id_ID
   6,
   ',',        /* decimal point id_ID */
   '.',        /* thousands_sep id_ID */
-  "\x03\x03"  /* grouping      id_ID */
+  "\x03\x03", /* grouping      id_ID */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END id_ID *****/
 
@@ -965,7 +1027,8 @@ MY_LOCALE my_locale_is_IS
   12,
   ',',        /* decimal point is_IS */
   '.',        /* thousands_sep is_IS */
-  "\x03\x03"  /* grouping      is_IS */
+  "\x03\x03", /* grouping      is_IS */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END is_IS *****/
 
@@ -1000,7 +1063,8 @@ MY_LOCALE my_locale_it_CH
   9,
   ',',        /* decimal point it_CH */
   '\'',       /* thousands_sep it_CH */
-  "\x03\x03"  /* grouping      it_CH */
+  "\x03\x03", /* grouping      it_CH */
+  &global_errmsgs[it_IT]
 );
 /***** LOCALE END it_CH *****/
 
@@ -1035,7 +1099,8 @@ MY_LOCALE my_locale_ja_JP
   3,
   '.',        /* decimal point ja_JP */
   ',',        /* thousands_sep ja_JP */
-  "\x03"      /* grouping      ja_JP */
+  "\x03",     /* grouping      ja_JP */
+  &global_errmsgs[ja_JP]
 );
 /***** LOCALE END ja_JP *****/
 
@@ -1070,7 +1135,8 @@ MY_LOCALE my_locale_ko_KR
   3,
   '.',        /* decimal point ko_KR */
   ',',        /* thousands_sep ko_KR */
-  "\x03\x03"  /* grouping      ko_KR */
+  "\x03\x03", /* grouping      ko_KR */
+  &global_errmsgs[ko_KR]
 );
 /***** LOCALE END ko_KR *****/
 
@@ -1105,7 +1171,8 @@ MY_LOCALE my_locale_lt_LT
   14,
   ',',        /* decimal point lt_LT */
   '.',        /* thousands_sep lt_LT */
-  "\x03\x03"  /* grouping      lt_LT */
+  "\x03\x03", /* grouping      lt_LT */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END lt_LT *****/
 
@@ -1140,7 +1207,8 @@ MY_LOCALE my_locale_lv_LV
   11,
   ',',        /* decimal point lv_LV */
   ' ',        /* thousands_sep lv_LV */
-  "\x03\x03"  /* grouping      lv_LV */
+  "\x03\x03", /* grouping      lv_LV */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END lv_LV *****/
 
@@ -1175,7 +1243,8 @@ MY_LOCALE my_locale_mk_MK
   10,
   ',',        /* decimal point mk_MK */
   ' ',        /* thousands_sep mk_MK */
-  "\x03\x03"  /* grouping      mk_MK */
+  "\x03\x03", /* grouping      mk_MK */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END mk_MK *****/
 
@@ -1210,7 +1279,8 @@ MY_LOCALE my_locale_mn_MN
   6,
   ',',        /* decimal point mn_MN */
   '.',        /* thousands_sep mn_MN */
-  "\x03\x03"  /* grouping      mn_MN */
+  "\x03\x03", /* grouping      mn_MN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END mn_MN *****/
 
@@ -1245,7 +1315,8 @@ MY_LOCALE my_locale_ms_MY
   6,
   '.',        /* decimal point ms_MY */
   ',',        /* thousands_sep ms_MY */
-  "\x03"      /* grouping      ms_MY */
+  "\x03",     /* grouping      ms_MY */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ms_MY *****/
 
@@ -1280,7 +1351,8 @@ MY_LOCALE my_locale_nb_NO
   7,
   ',',        /* decimal point nb_NO */
   '.',        /* thousands_sep nb_NO */
-  "\x03\x03"  /* grouping      nb_NO */
+  "\x03\x03", /* grouping      nb_NO */
+  &global_errmsgs[no_NO]
 );
 /***** LOCALE END nb_NO *****/
 
@@ -1315,7 +1387,8 @@ MY_LOCALE my_locale_nl_NL
   9,
   ',',        /* decimal point nl_NL */
   '\0',       /* thousands_sep nl_NL */
-  "\x80\x80"  /* grouping      nl_NL */
+  "\x80\x80", /* grouping      nl_NL */
+  &global_errmsgs[nl_NL]
 );
 /***** LOCALE END nl_NL *****/
 
@@ -1350,7 +1423,8 @@ MY_LOCALE my_locale_pl_PL
   12,
   ',',        /* decimal point pl_PL */
   '\0',       /* thousands_sep pl_PL */
-  "\x80\x80"  /* grouping      pl_PL */
+  "\x80\x80", /* grouping      pl_PL */
+  &global_errmsgs[pl_PL]
 );
 /***** LOCALE END pl_PL *****/
 
@@ -1385,7 +1459,8 @@ MY_LOCALE my_locale_pt_BR
   7,
   ',',        /* decimal point pt_BR */
   '\0',       /* thousands_sep pt_BR */
-  "\x80\x80"  /* grouping      pt_BR */
+  "\x80\x80", /* grouping      pt_BR */
+  &global_errmsgs[pt_PT]
 );
 /***** LOCALE END pt_BR *****/
 
@@ -1420,7 +1495,8 @@ MY_LOCALE my_locale_pt_PT
   7,
   ',',        /* decimal point pt_PT */
   '\0',       /* thousands_sep pt_PT */
-  "\x80\x80"  /* grouping      pt_PT */
+  "\x80\x80", /* grouping      pt_PT */
+  &global_errmsgs[pt_PT]
 );
 /***** LOCALE END pt_PT *****/
 
@@ -1455,7 +1531,8 @@ MY_LOCALE my_locale_ro_RO
   8,
   ',',        /* decimal point ro_RO */
   '.',        /* thousands_sep ro_RO */
-  "\x03\x03"  /* grouping      ro_RO */
+  "\x03\x03", /* grouping      ro_RO */
+  &global_errmsgs[ro_RO]
 );
 /***** LOCALE END ro_RO *****/
 
@@ -1490,7 +1567,8 @@ MY_LOCALE my_locale_ru_RU
   11,
   ',',        /* decimal point ru_RU */
   ' ',        /* thousands_sep ru_RU */
-  "\x03\x03"  /* grouping      ru_RU */
+  "\x03\x03", /* grouping      ru_RU */
+  &global_errmsgs[ru_RU]
 );
 /***** LOCALE END ru_RU *****/
 
@@ -1525,7 +1603,8 @@ MY_LOCALE my_locale_ru_UA
   11,
   ',',        /* decimal point ru_UA */
   '.',        /* thousands_sep ru_UA */
-  "\x03\x03"  /* grouping      ru_UA */
+  "\x03\x03", /* grouping      ru_UA */
+  &global_errmsgs[ru_RU]
 );
 /***** LOCALE END ru_UA *****/
 
@@ -1560,7 +1639,8 @@ MY_LOCALE my_locale_sk_SK
   8,
   ',',        /* decimal point sk_SK */
   ' ',        /* thousands_sep sk_SK */
-  "\x03\x03"  /* grouping      sk_SK */
+  "\x03\x03", /* grouping      sk_SK */
+  &global_errmsgs[sk_SK]
 );
 /***** LOCALE END sk_SK *****/
 
@@ -1595,7 +1675,8 @@ MY_LOCALE my_locale_sl_SI
   10,
   ',',        /* decimal point sl_SI */
   ' ',        /* thousands_sep sl_SI */
-  "\x80\x80"  /* grouping      sl_SI */
+  "\x80\x80", /* grouping      sl_SI */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END sl_SI *****/
 
@@ -1630,7 +1711,8 @@ MY_LOCALE my_locale_sq_AL
   10,
   ',',        /* decimal point sq_AL */
   '.',        /* thousands_sep sq_AL */
-  "\x03"      /* grouping      sq_AL */
+  "\x03",     /* grouping      sq_AL */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END sq_AL *****/
 
@@ -1665,7 +1747,8 @@ MY_LOCALE my_locale_sr_YU
   10,
   '.',        /* decimal point sr_YU */
   '\0',       /* thousands_sep sr_YU */
-  "\x80"      /* grouping      sr_YU */
+  "\x80",     /* grouping      sr_YU */
+  &global_errmsgs[sr_CS]
 );
 /***** LOCALE END sr_YU *****/
 
@@ -1700,7 +1783,8 @@ MY_LOCALE my_locale_sv_SE
   7,
   ',',        /* decimal point sv_SE */
   ' ',        /* thousands_sep sv_SE */
-  "\x03\x03"  /* grouping      sv_SE */
+  "\x03\x03", /* grouping      sv_SE */
+  &global_errmsgs[sv_SE]
 );
 /***** LOCALE END sv_SE *****/
 
@@ -1735,7 +1819,8 @@ MY_LOCALE my_locale_ta_IN
   8,
   '.',        /* decimal point ta_IN */
   ',',        /* thousands_sep ta_IN */
-  "\x03\x02"  /* grouping      ta_IN */
+  "\x03\x02", /* grouping      ta_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ta_IN *****/
 
@@ -1770,7 +1855,8 @@ MY_LOCALE my_locale_te_IN
   9,
   '.',        /* decimal point te_IN */
   ',',        /* thousands_sep te_IN */
-  "\x03\x02"  /* grouping      te_IN */
+  "\x03\x02", /* grouping      te_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END te_IN *****/
 
@@ -1805,7 +1891,8 @@ MY_LOCALE my_locale_th_TH
   8,
   '.',        /* decimal point th_TH */
   ',',        /* thousands_sep th_TH */
-  "\x03"      /* grouping      th_TH */
+  "\x03",     /* grouping      th_TH */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END th_TH *****/
 
@@ -1840,7 +1927,8 @@ MY_LOCALE my_locale_tr_TR
   9,
   ',',        /* decimal point tr_TR */
   '.',        /* thousands_sep tr_TR */
-  "\x03\x03"  /* grouping      tr_TR */
+  "\x03\x03", /* grouping      tr_TR */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END tr_TR *****/
 
@@ -1875,7 +1963,8 @@ MY_LOCALE my_locale_uk_UA
   9,
   ',',        /* decimal point uk_UA */
   '.',        /* thousands_sep uk_UA */
-  "\x03\x03"  /* grouping      uk_UA */
+  "\x03\x03", /* grouping      uk_UA */
+  &global_errmsgs[uk_UA]
 );
 /***** LOCALE END uk_UA *****/
 
@@ -1910,7 +1999,8 @@ MY_LOCALE my_locale_ur_PK
   6,
   '.',        /* decimal point ur_PK */
   ',',        /* thousands_sep ur_PK */
-  "\x03\x03"  /* grouping      ur_PK */
+  "\x03\x03", /* grouping      ur_PK */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ur_PK *****/
 
@@ -1945,7 +2035,8 @@ MY_LOCALE my_locale_vi_VN
   11,
   ',',        /* decimal point vi_VN */
   '.',        /* thousands_sep vi_VN */
-  "\x03\x03"  /* grouping      vi_VN */
+  "\x03\x03", /* grouping      vi_VN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END vi_VN *****/
 
@@ -1980,7 +2071,8 @@ MY_LOCALE my_locale_zh_CN
   3,
   '.',        /* decimal point zh_CN */
   ',',        /* thousands_sep zh_CN */
-  "\x03"      /* grouping      zh_CN */
+  "\x03",     /* grouping      zh_CN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END zh_CN *****/
 
@@ -2015,7 +2107,8 @@ MY_LOCALE my_locale_zh_TW
   2,
   '.',        /* decimal point zh_TW */
   ',',        /* thousands_sep zh_TW */
-  "\x03"      /* grouping      zh_TW */
+  "\x03",     /* grouping      zh_TW */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END zh_TW *****/
 
@@ -2034,7 +2127,8 @@ MY_LOCALE my_locale_ar_DZ
   8,
   '.',        /* decimal point ar_DZ */
   ',',        /* thousands_sep ar_DZ */
-  "\x03"      /* grouping      ar_DZ */
+  "\x03",     /* grouping      ar_DZ */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_DZ *****/
 
@@ -2053,7 +2147,8 @@ MY_LOCALE my_locale_ar_EG
   8,
   '.',        /* decimal point ar_EG */
   ',',        /* thousands_sep ar_EG */
-  "\x03"      /* grouping      ar_EG */
+  "\x03",     /* grouping      ar_EG */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_EG *****/
 
@@ -2072,7 +2167,8 @@ MY_LOCALE my_locale_ar_IN
   8,
   '.',        /* decimal point ar_IN */
   ',',        /* thousands_sep ar_IN */
-  "\x03"      /* grouping      ar_IN */
+  "\x03",     /* grouping      ar_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_IN *****/
 
@@ -2091,7 +2187,8 @@ MY_LOCALE my_locale_ar_IQ
   8,
   '.',        /* decimal point ar_IQ */
   ',',        /* thousands_sep ar_IQ */
-  "\x03"      /* grouping      ar_IQ */
+  "\x03",     /* grouping      ar_IQ */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_IQ *****/
 
@@ -2110,7 +2207,8 @@ MY_LOCALE my_locale_ar_KW
   8,
   '.',        /* decimal point ar_KW */
   ',',        /* thousands_sep ar_KW */
-  "\x03"      /* grouping      ar_KW */
+  "\x03",     /* grouping      ar_KW */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_KW *****/
 
@@ -2129,7 +2227,8 @@ MY_LOCALE my_locale_ar_LB
   8,
   '.',        /* decimal point ar_LB */
   ',',        /* thousands_sep ar_LB */
-  "\x03"      /* grouping      ar_LB */
+  "\x03",     /* grouping      ar_LB */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_LB *****/
 
@@ -2148,7 +2247,8 @@ MY_LOCALE my_locale_ar_LY
   8,
   '.',        /* decimal point ar_LY */
   ',',        /* thousands_sep ar_LY */
-  "\x03"      /* grouping      ar_LY */
+  "\x03",     /* grouping      ar_LY */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_LY *****/
 
@@ -2167,7 +2267,8 @@ MY_LOCALE my_locale_ar_MA
   8,
   '.',        /* decimal point ar_MA */
   ',',        /* thousands_sep ar_MA */
-  "\x03"      /* grouping      ar_MA */
+  "\x03",     /* grouping      ar_MA */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_MA *****/
 
@@ -2186,7 +2287,8 @@ MY_LOCALE my_locale_ar_OM
   8,
   '.',        /* decimal point ar_OM */
   ',',        /* thousands_sep ar_OM */
-  "\x03"      /* grouping      ar_OM */
+  "\x03",     /* grouping      ar_OM */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_OM *****/
 
@@ -2205,7 +2307,8 @@ MY_LOCALE my_locale_ar_QA
   8,
   '.',        /* decimal point ar_QA */
   ',',        /* thousands_sep ar_QA */
-  "\x03"      /* grouping      ar_QA */
+  "\x03",     /* grouping      ar_QA */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_QA *****/
 
@@ -2224,7 +2327,8 @@ MY_LOCALE my_locale_ar_SD
   8,
   '.',        /* decimal point ar_SD */
   ',',        /* thousands_sep ar_SD */
-  "\x03"      /* grouping      ar_SD */
+  "\x03",     /* grouping      ar_SD */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_SD *****/
 
@@ -2243,7 +2347,8 @@ MY_LOCALE my_locale_ar_TN
   8,
   '.',        /* decimal point ar_TN */
   ',',        /* thousands_sep ar_TN */
-  "\x03"      /* grouping      ar_TN */
+  "\x03",     /* grouping      ar_TN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_TN *****/
 
@@ -2262,7 +2367,8 @@ MY_LOCALE my_locale_ar_YE
   8,
   '.',        /* decimal point ar_YE */
   ',',        /* thousands_sep ar_YE */
-  "\x03"      /* grouping      ar_YE */
+  "\x03",     /* grouping      ar_YE */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END ar_YE *****/
 
@@ -2281,7 +2387,8 @@ MY_LOCALE my_locale_de_BE
   10,
   ',',        /* decimal point de_BE */
   '.',        /* thousands_sep de_BE */
-  "\x03\x03"  /* grouping    de_BE */
+  "\x03\x03", /* grouping    de_BE */
+  &global_errmsgs[de_DE]
 );
 /***** LOCALE END de_BE *****/
 
@@ -2300,7 +2407,8 @@ MY_LOCALE my_locale_de_CH
   10,
   '.',        /* decimal point de_CH */
   '\'',       /* thousands_sep de_CH */
-  "\x03\x03"  /* grouping      de_CH */
+  "\x03\x03", /* grouping      de_CH */
+  &global_errmsgs[de_DE]
 );
 /***** LOCALE END de_CH *****/
 
@@ -2319,7 +2427,8 @@ MY_LOCALE my_locale_de_LU
   10,
   ',',        /* decimal point de_LU */
   '.',        /* thousands_sep de_LU */
-  "\x03\x03"  /* grouping      de_LU */
+  "\x03\x03", /* grouping      de_LU */
+  &global_errmsgs[de_DE]
 );
 /***** LOCALE END de_LU *****/
 
@@ -2338,7 +2447,8 @@ MY_LOCALE my_locale_en_AU
   9,
   '.',        /* decimal point en_AU */
   ',',        /* thousands_sep en_AU */
-  "\x03\x03"  /* grouping      en_AU */
+  "\x03\x03", /* grouping      en_AU */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_AU *****/
 
@@ -2357,7 +2467,8 @@ MY_LOCALE my_locale_en_CA
   9,
   '.',        /* decimal point en_CA */
   ',',        /* thousands_sep en_CA */
-  "\x03\x03"  /* grouping      en_CA */
+  "\x03\x03", /* grouping      en_CA */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_CA *****/
 
@@ -2376,7 +2487,8 @@ MY_LOCALE my_locale_en_GB
   9,
   '.',        /* decimal point en_GB */
   ',',        /* thousands_sep en_GB */
-  "\x03\x03"      /* grouping  en_GB */
+  "\x03\x03", /* grouping      en_GB */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_GB *****/
 
@@ -2395,7 +2507,8 @@ MY_LOCALE my_locale_en_IN
   9,
   '.',        /* decimal point en_IN */
   ',',        /* thousands_sep en_IN */
-  "\x03\x02"      /* grouping  en_IN */
+  "\x03\x02", /* grouping      en_IN */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_IN *****/
 
@@ -2414,7 +2527,8 @@ MY_LOCALE my_locale_en_NZ
   9,
   '.',        /* decimal point en_NZ */
   ',',        /* thousands_sep en_NZ */
-  "\x03\x03"      /* grouping  en_NZ */
+  "\x03\x03", /* grouping      en_NZ */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_NZ *****/
 
@@ -2433,7 +2547,8 @@ MY_LOCALE my_locale_en_PH
   9,
   '.',        /* decimal point en_PH */
   ',',        /* thousands_sep en_PH */
-  "\x03"      /* grouping      en_PH */
+  "\x03",     /* grouping      en_PH */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_PH *****/
 
@@ -2452,7 +2567,8 @@ MY_LOCALE my_locale_en_ZA
   9,
   '.',        /* decimal point en_ZA */
   ',',        /* thousands_sep en_ZA */
-  "\x03\x03"  /* grouping      en_ZA */
+  "\x03\x03", /* grouping      en_ZA */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_ZA *****/
 
@@ -2471,7 +2587,8 @@ MY_LOCALE my_locale_en_ZW
   9,
   '.',        /* decimal point en_ZW */
   ',',        /* thousands_sep en_ZW */
-  "\x03\x03"      /* grouping  en_ZW */
+  "\x03\x03", /* grouping      en_ZW */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END en_ZW *****/
 
@@ -2490,7 +2607,8 @@ MY_LOCALE my_locale_es_AR
   9,
   ',',        /* decimal point es_AR */
   '.',        /* thousands_sep es_AR */
-  "\x03\x03"  /* grouping      es_AR */
+  "\x03\x03", /* grouping      es_AR */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_AR *****/
 
@@ -2509,7 +2627,8 @@ MY_LOCALE my_locale_es_BO
   9,
   ',',        /* decimal point es_BO */
   '\0',       /* thousands_sep es_BO */
-  "\x80\x80"  /* grouping      es_BO */
+  "\x80\x80", /* grouping      es_BO */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_BO *****/
 
@@ -2528,7 +2647,8 @@ MY_LOCALE my_locale_es_CL
   9,
   ',',        /* decimal point es_CL */
   '\0',       /* thousands_sep es_CL */
-  "\x80\x80"  /* grouping      es_CL */
+  "\x80\x80", /* grouping      es_CL */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_CL *****/
 
@@ -2547,7 +2667,8 @@ MY_LOCALE my_locale_es_CO
   9,
   ',',        /* decimal point es_CO */
   '\0',       /* thousands_sep es_CO */
-  "\x80\x80"  /* grouping      es_CO */
+  "\x80\x80", /* grouping      es_CO */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_CO *****/
 
@@ -2566,7 +2687,8 @@ MY_LOCALE my_locale_es_CR
   9,
   '.',        /* decimal point es_CR */
   '\0',       /* thousands_sep es_CR */
-  "\x80\x80"  /* grouping      es_CR */
+  "\x80\x80", /* grouping      es_CR */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_CR *****/
 
@@ -2585,7 +2707,8 @@ MY_LOCALE my_locale_es_DO
   9,
   '.',        /* decimal point es_DO */
   '\0',       /* thousands_sep es_DO */
-  "\x80\x80"  /* grouping      es_DO */
+  "\x80\x80", /* grouping      es_DO */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_DO *****/
 
@@ -2604,7 +2727,8 @@ MY_LOCALE my_locale_es_EC
   9,
   ',',        /* decimal point es_EC */
   '\0',       /* thousands_sep es_EC */
-  "\x80\x80"  /* grouping      es_EC */
+  "\x80\x80", /* grouping      es_EC */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_EC *****/
 
@@ -2623,7 +2747,8 @@ MY_LOCALE my_locale_es_GT
   9,
   '.',        /* decimal point es_GT */
   '\0',       /* thousands_sep es_GT */
-  "\x80\x80"  /* grouping      es_GT */
+  "\x80\x80", /* grouping      es_GT */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_GT *****/
 
@@ -2642,7 +2767,8 @@ MY_LOCALE my_locale_es_HN
   9,
   '.',        /* decimal point es_HN */
   '\0',       /* thousands_sep es_HN */
-  "\x80\x80"  /* grouping      es_HN */
+  "\x80\x80", /* grouping      es_HN */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_HN *****/
 
@@ -2661,7 +2787,8 @@ MY_LOCALE my_locale_es_MX
   9,
   '.',        /* decimal point es_MX */
   '\0',       /* thousands_sep es_MX */
-  "\x80\x80"  /* grouping      es_MX */
+  "\x80\x80", /* grouping      es_MX */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_MX *****/
 
@@ -2680,7 +2807,8 @@ MY_LOCALE my_locale_es_NI
   9,
   '.',        /* decimal point es_NI */
   '\0',       /* thousands_sep es_NI */
-  "\x80\x80"  /* grouping      es_NI */
+  "\x80\x80", /* grouping      es_NI */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_NI *****/
 
@@ -2699,7 +2827,8 @@ MY_LOCALE my_locale_es_PA
   9,
   '.',        /* decimal point es_PA */
   '\0',       /* thousands_sep es_PA */
-  "\x80\x80"  /* grouping      es_PA */
+  "\x80\x80", /* grouping      es_PA */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_PA *****/
 
@@ -2718,7 +2847,8 @@ MY_LOCALE my_locale_es_PE
   9,
   '.',        /* decimal point es_PE */
   '\0',       /* thousands_sep es_PE */
-  "\x80\x80"  /* grouping      es_PE */
+  "\x80\x80", /* grouping      es_PE */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_PE *****/
 
@@ -2737,7 +2867,8 @@ MY_LOCALE my_locale_es_PR
   9,
   '.',        /* decimal point es_PR */
   '\0',       /* thousands_sep es_PR */
-  "\x80\x80"  /* grouping      es_PR */
+  "\x80\x80", /* grouping      es_PR */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_PR *****/
 
@@ -2756,7 +2887,8 @@ MY_LOCALE my_locale_es_PY
   9,
   ',',        /* decimal point es_PY */
   '\0',       /* thousands_sep es_PY */
-  "\x80\x80"  /* grouping      es_PY */
+  "\x80\x80", /* grouping      es_PY */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_PY *****/
 
@@ -2775,7 +2907,8 @@ MY_LOCALE my_locale_es_SV
   9,
   '.',        /* decimal point es_SV */
   '\0',       /* thousands_sep es_SV */
-  "\x80\x80"  /* grouping      es_SV */
+  "\x80\x80", /* grouping      es_SV */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_SV *****/
 
@@ -2794,7 +2927,8 @@ MY_LOCALE my_locale_es_US
   9,
   '.',        /* decimal point es_US */
   ',',        /* thousands_sep es_US */
-  "\x03\x03"  /* grouping      es_US */
+  "\x03\x03", /* grouping      es_US */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_US *****/
 
@@ -2813,7 +2947,8 @@ MY_LOCALE my_locale_es_UY
   9,
   ',',        /* decimal point es_UY */
   '\0',       /* thousands_sep es_UY */
-  "\x80\x80"  /* grouping      es_UY */
+  "\x80\x80", /* grouping      es_UY */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_UY *****/
 
@@ -2832,7 +2967,8 @@ MY_LOCALE my_locale_es_VE
   9,
   ',',        /* decimal point es_VE */
   '\0',       /* thousands_sep es_VE */
-  "\x80\x80"  /* grouping      es_VE */
+  "\x80\x80", /* grouping      es_VE */
+  &global_errmsgs[es_ES]
 );
 /***** LOCALE END es_VE *****/
 
@@ -2851,7 +2987,8 @@ MY_LOCALE my_locale_fr_BE
   8,
   ',',        /* decimal point fr_BE */
   '.',        /* thousands_sep fr_BE */
-  "\x80\x80"  /* grouping      fr_BE */
+  "\x80\x80", /* grouping      fr_BE */
+  &global_errmsgs[fr_FR]
 );
 /***** LOCALE END fr_BE *****/
 
@@ -2870,7 +3007,8 @@ MY_LOCALE my_locale_fr_CA
   8,
   ',',        /* decimal point fr_CA */
   ' ',        /* thousands_sep fr_CA */
-  "\x80\x80"  /* grouping      fr_CA */
+  "\x80\x80", /* grouping      fr_CA */
+  &global_errmsgs[fr_FR]
 );
 /***** LOCALE END fr_CA *****/
 
@@ -2889,7 +3027,8 @@ MY_LOCALE my_locale_fr_CH
   8,
   ',',        /* decimal point fr_CH */
   '\0',       /* thousands_sep fr_CH */
-  "\x80\x80"  /* grouping      fr_CH */
+  "\x80\x80", /* grouping      fr_CH */
+  &global_errmsgs[fr_FR]
 );
 /***** LOCALE END fr_CH *****/
 
@@ -2908,7 +3047,8 @@ MY_LOCALE my_locale_fr_LU
   8,
   ',',        /* decimal point fr_LU */
   '\0',       /* thousands_sep fr_LU */
-  "\x80\x80"  /* grouping      fr_LU */
+  "\x80\x80", /* grouping      fr_LU */
+  &global_errmsgs[fr_FR]
 );
 /***** LOCALE END fr_LU *****/
 
@@ -2927,7 +3067,8 @@ MY_LOCALE my_locale_it_IT
   9,
   ',',        /* decimal point it_IT */
   '\0',       /* thousands_sep it_IT */
-  "\x80\x80"  /* grouping      it_IT */
+  "\x80\x80", /* grouping      it_IT */
+  &global_errmsgs[it_IT]
 );
 /***** LOCALE END it_IT *****/
 
@@ -2946,7 +3087,8 @@ MY_LOCALE my_locale_nl_BE
   9,
   ',',        /* decimal point nl_BE */
   '.',        /* thousands_sep nl_BE */
-  "\x80\x80"  /* grouping      nl_BE */
+  "\x80\x80", /* grouping      nl_BE */
+  &global_errmsgs[nl_NL]
 );
 /***** LOCALE END nl_BE *****/
 
@@ -2965,7 +3107,8 @@ MY_LOCALE my_locale_no_NO
   7,
   ',',        /* decimal point no_NO */
   '.',        /* thousands_sep no_NO */
-  "\x03\x03"  /* grouping      no_NO */
+  "\x03\x03", /* grouping      no_NO */
+  &global_errmsgs[no_NO]
 );
 /***** LOCALE END no_NO *****/
 
@@ -2984,7 +3127,8 @@ MY_LOCALE my_locale_sv_FI
   7,
   ',',        /* decimal point sv_FI */
   ' ',        /* thousands_sep sv_FI */
-  "\x03\x03"  /* grouping      sv_FI */
+  "\x03\x03", /* grouping      sv_FI */
+  &global_errmsgs[sv_SE]
 );
 /***** LOCALE END sv_FI *****/
 
@@ -3003,8 +3147,8 @@ MY_LOCALE my_locale_zh_HK
   3,
   '.',        /* decimal point zh_HK */
   ',',        /* thousands_sep zh_HK */
-  "\x03"      /* grouping      zh_HK */
-
+  "\x03",     /* grouping      zh_HK */
+  &global_errmsgs[en_US]
 );
 /***** LOCALE END zh_HK *****/
 
@@ -3076,7 +3220,8 @@ MY_LOCALE my_locale_el_GR
   9,          /* max day name length */
   ',',        /* decimal point el_GR */
   '.',        /* thousands_sep el_GR */
-  "\x80"      /* grouping      el_GR */
+  "\x80",     /* grouping      el_GR */
+  &global_errmsgs[el_GR]
 );
 /***** LOCALE END el_GR *****/
 
@@ -3227,4 +3372,13 @@ MY_LOCALE *my_locale_by_name(const char *name)
     }
   }
   return NULL;
+}
+
+
+void cleanup_errmsgs()
+{
+  for (MY_LOCALE_ERRMSGS *msgs= global_errmsgs; msgs->language; msgs++)
+  {
+    my_free(msgs->errmsgs, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+  }
 }
