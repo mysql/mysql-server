@@ -1922,3 +1922,37 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # -- End of Bug#45829
 
 End of 5.1 tests
+
+# --
+# -- Bug #43054 	Assertion `!table->auto_increment_field_not_null' 
+# --       failed when redefining trigger
+
+CREATE TABLE B (
+pk INTEGER AUTO_INCREMENT,
+int_key INTEGER NOT NULL,
+PRIMARY KEY (pk),
+KEY (int_key)
+);
+INSERT IGNORE INTO B VALUES ('9', '9');
+CREATE TABLE IF NOT EXISTS t1 ( 
+`pk` INTEGER NOT NULL AUTO_INCREMENT , 
+`int` INTEGER ,
+PRIMARY KEY ( `pk` ) 
+) SELECT `pk` , `int_key` FROM B ;
+CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN 
+INSERT INTO t1 ( `int` ) VALUES (4 ),( 8 ),( 2 ) ; 
+END ; |
+CREATE TABLE IF NOT EXISTS t1 ( 
+`pk` INTEGER NOT NULL AUTO_INCREMENT , 
+`int` INTEGER ,
+PRIMARY KEY ( `pk` ) 
+) SELECT `pk` , `int_key` FROM B ;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN 
+UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
+END ;|
+ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+DROP TABLE t1;
+DROP TABLE B;
