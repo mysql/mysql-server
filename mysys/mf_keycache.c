@@ -1742,7 +1742,7 @@ restart:
       - block assigned but not yet read from file (invalid data).
   */
 
-#if THREAD
+#ifdef THREAD
   if (keycache->in_resize)
   {
     /* This is a request during a resize operation */
