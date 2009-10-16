@@ -1157,7 +1157,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
-        opt_global
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -1695,12 +1694,12 @@ create:
                                   $5->table.str);
             }
           }
-        | CREATE opt_global opt_unique_or_fulltext INDEX_SYM ident key_alg ON
+        | CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
           table_ident
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_CREATE_INDEX;
-            if (!lex->current_select->add_table_to_list(lex->thd, $8,
+            if (!lex->current_select->add_table_to_list(lex->thd, $7,
                                                         NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
@@ -1708,7 +1707,6 @@ create:
             lex->alter_info.flags= ALTER_ADD_INDEX;
             lex->col_list.empty();
             lex->change=NullS;
-            lex->global_flag= $2;
           }
           '(' key_list ')' key_options
           {
@@ -1719,21 +1717,12 @@ create:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            key= new Key($3, $5.str, &lex->key_create_info, 0,
+            key= new Key($2, $4.str, &lex->key_create_info, 0,
                          lex->col_list);
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
             lex->col_list.empty();
-          }
-          opt_partitioning
-          {
-            LEX *lex= Lex;
-            if (!lex->global_flag && lex->part_info)
-            {
-              my_error(ER_GLOBAL_PARTITION_INDEX_ERROR, MYF(0));
-              YYABORT;
-            }
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -4452,11 +4441,6 @@ opt_part_option:
           { Lex->part_info->curr_part_elem->index_file_name= $4.str; }
         | COMMENT_SYM opt_equal TEXT_STRING_sys
           { Lex->part_info->curr_part_elem->part_comment= $3.str; }
-        ;
-
-opt_global:
-        /* empty */ { $$= FALSE;}
-        | GLOBAL_SYM { $$= TRUE; }
         ;
 
 /*

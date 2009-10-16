@@ -6182,8 +6182,6 @@ ER_TOO_LONG_FIELD_COMMENT
 
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
-ER_GLOBAL_PARTITION_INDEX_ERROR
-  eng "Partitioning of indexes only supported for global indexes"
 ER_PARTITION_COLUMN_LIST_ERROR
   eng "Inconsistency in usage of column lists for partitioning"
 ER_WRONG_TYPE_COLUMN_VALUE_ERROR
