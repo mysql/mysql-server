@@ -35,6 +35,18 @@
 #include "log_event.h"
 #include "sql_common.h"
 
+/* Needed for Rlp_filter */
+struct TABLE_LIST;
+
+/* Needed for Rpl_filter */
+CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
+
+#include "../sql/sql_string.h"  // needed for Rpl_filter
+#include "sql_list.h"           // needed for Rpl_filter
+#include "rpl_filter.h"
+
+Rpl_filter *binlog_filter;
+
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
@@ -1986,6 +1998,8 @@ end:
   return retval;
 }
 
+/* Used in sql_alloc(). Inited and freed in main() */
+MEM_ROOT s_mem_root;
 
 int main(int argc, char** argv)
 {
@@ -1997,6 +2011,13 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
+
+  init_alloc_root(&s_mem_root, 16384, 0);
+  if (!(binlog_filter= new Rpl_filter))
+  {
+    error("Failed to create Rpl_filter");
+    exit(1);
+  }
 
   parse_args(&argc, (char***)&argv);
   defaults_argv=argv;
@@ -2084,6 +2105,8 @@ int main(int argc, char** argv)
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   cleanup();
+  delete binlog_filter;
+  free_root(&s_mem_root, MYF(0));
   free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
@@ -2093,6 +2116,21 @@ int main(int argc, char** argv)
   exit(retval == ERROR_STOP ? 1 : 0);
   /* Keep compilers happy. */
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
+}
+
+/* Redefinition for Rpl_filter::tables_ok() */
+struct TABLE_LIST
+{
+  TABLE_LIST() {}
+  TABLE_LIST *next_global, **prev_global;
+  bool  updating;
+  char* db;
+  char* table_name;
+};
+
+void *sql_alloc(size_t size)
+{
+  return alloc_root(&s_mem_root, size);
 }
 
 /*
@@ -2105,4 +2143,7 @@ int main(int argc, char** argv)
 #include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
+#include "../sql/sql_string.cc"
+#include "sql_list.cc"
+#include "rpl_filter.cc"
 
