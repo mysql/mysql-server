@@ -151,12 +151,16 @@ public:
         Uint32 m_org_totalfragments;
         Uint32 m_new_map_ptr_i;
       } m_alter;
+      struct {
+        Uint32 m_map_ptr_i;
+      } m_create;
     };
     ConnectState connectState;
     Uint32 nextPool;
     Uint32 table;
     Uint32 userpointer;
     BlockReference userblockref;
+    Callback m_callback;
   };
   typedef Ptr<ConnectRecord> ConnectRecordPtr;
 
@@ -448,7 +452,9 @@ public:
       CS_COPY_NODE_STATE,
       CS_ADD_TABLE_MASTER,
       CS_ADD_TABLE_SLAVE,
-      CS_INVALIDATE_NODE_LCP
+      CS_INVALIDATE_NODE_LCP,
+      CS_ALTER_TABLE,
+      CS_COPY_TO_SAVE
     };
     /**
      * State for copying pages to disk
@@ -460,7 +466,8 @@ public:
       US_COPY_TAB_REQ,
       US_ADD_TABLE_MASTER,
       US_ADD_TABLE_SLAVE,
-      US_INVALIDATE_NODE_LCP
+      US_INVALIDATE_NODE_LCP,
+      US_CALLBACK
     };
     enum TabLcpStatus {
       TLS_ACTIVE = 1,
@@ -625,6 +632,7 @@ public:
     Uint32 fragId;
     TabRecordPtr rwfTabPtr;
     PageRecordPtr rwfPageptr;
+    Uint32 totalfragments;
   };
   struct CopyTableNode {
     Uint32 pageIndex;
@@ -1142,8 +1150,11 @@ private:
 
   void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
   void release_fragment_from_table(Ptr<TabRecord>, Uint32 fragId);
-  void send_alter_tab_ref(Signal*, Ptr<ConnectRecord>, Uint32);
+  void send_alter_tab_ref(Signal*, Ptr<TabRecord>,Ptr<ConnectRecord>, Uint32);
   void send_alter_tab_conf(Signal*, Ptr<ConnectRecord>);
+  void alter_table_writeTable_conf(Signal* signal, Uint32 ptrI, Uint32 err);
+  void saveTableFile(Signal*, Ptr<ConnectRecord>, Ptr<TabRecord>,
+                     TabRecord::CopyStatus, Callback&);
 
 //------------------------------------
 // Page Record specific methods
