@@ -1,0 +1,9 @@
+CREATE TABLE bug44571 (foo INT) ENGINE=InnoDB;
+ALTER TABLE bug44571 CHANGE foo bar INT;
+ALTER TABLE bug44571 ADD INDEX bug44571b (foo);
+ERROR 42000: Key column 'foo' doesn't exist in table
+ALTER TABLE bug44571 ADD INDEX bug44571b (bar);
+ERROR HY000: Incorrect key file for table 'bug44571'; try to repair it
+CREATE INDEX bug44571b ON bug44571 (bar);
+ERROR HY000: Incorrect key file for table 'bug44571'; try to repair it
+DROP TABLE bug44571;
