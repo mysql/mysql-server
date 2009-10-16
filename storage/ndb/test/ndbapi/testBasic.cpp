@@ -1526,6 +1526,71 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
 }
 
+
+int
+runDDInsertFailUpdateBatch(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  
+  const NdbDictionary::Table * tab = ctx->getTab();
+  
+  {
+    bool tabHasDD = false;
+    
+    for(int i = 0; i<tab->getNoOfColumns(); i++)
+    {
+      tabHasDD |= (tab->getColumn(i)->getStorageType() == 
+                   NdbDictionary::Column::StorageTypeDisk);
+    }
+    
+    if (!tabHasDD)
+    {
+      ndbout_c("Table %s has no disk attributes, skipping",
+               tab->getName());
+      return NDBT_OK;
+    }
+  }
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  /* Error Insert 4021 - DD tuple insert will fail in disk
+   * space preallocation step
+   */
+  restarter.insertErrorInAllNodes(4021);
+
+  int result = NDBT_OK;
+  
+  for (Uint32 loop = 0; loop < 100; loop ++)
+  {
+    CHECK(hugoOps.startTransaction(pNdb) == 0);
+    
+    /* Create batch with insert op (which will fail due to disk allocation issue)
+     * followed by update op on same pk
+     * Transaction will abort due to insert failure, and reason should be
+     * disk space exhaustion, not any issue with the update.
+     */
+    CHECK(hugoOps.pkInsertRecord(pNdb, loop, 1, 0) == 0);
+    
+    /* Add up to 16 updates after the insert */
+    Uint32 numUpdates = 1 + (loop % 15);
+    for (Uint32 updateCnt = 0; updateCnt < numUpdates; updateCnt++)
+      CHECK(hugoOps.pkUpdateRecord(pNdb, loop, 1, 1+updateCnt) == 0);
+    
+    CHECK(hugoOps.execute_Commit(pNdb) != 0); /* Expect failure */
+    
+    NdbError err= hugoOps.getTransaction()->getNdbError();
+    
+    CHECK(err.code == 1601); // Disk prealloc error
+    
+    hugoOps.closeTransaction(pNdb);
+  }  
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return result;
+}
+
 template class Vector<NdbRecAttr*>;
 
 NDBT_TESTSUITE(testBasic);
@@ -1822,6 +1887,10 @@ TESTCASE("Bug28073",
 TESTCASE("Bug20535", 
 	 "Verify what happens when we fill the db" ){
   STEP(runBug20535);
+}
+TESTCASE("DDInsertFailUpdateBatch",
+         "Verify DD insert failure effect on other ops in batch on same PK"){
+  STEP(runDDInsertFailUpdateBatch);
 }
 NDBT_TESTSUITE_END(testBasic);
 
