@@ -24,8 +24,8 @@ data directory='/not/existing'
   index directory='/not/existing'
 );
 Warnings:
-Warning	1618	<DATA DIRECTORY> option ignored
-Warning	1618	<INDEX DIRECTORY> option ignored
+Warning	1619	<DATA DIRECTORY> option ignored
+Warning	1619	<INDEX DIRECTORY> option ignored
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
