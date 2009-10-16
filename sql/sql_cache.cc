@@ -2114,10 +2114,10 @@ ulong Query_cache::init_cache()
     file system) and so should use case insensitive collation for
     comparison.
   */
-  VOID(hash_init(&tables,
-		 lower_case_table_names ? &my_charset_bin :
-		 files_charset_info,
-		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
+  VOID(my_hash_init(&tables,
+                    lower_case_table_names ? &my_charset_bin :
+                    files_charset_info,
+                    def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 
   queries_in_cache = 0;
