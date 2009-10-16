@@ -1350,6 +1350,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
+int update_virtual_fields(TABLE *table, bool ignore_stored= FALSE);
 
 #endif /* MYSQL_SERVER */
 
@@ -1470,14 +1471,16 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
-		       uint uint_geom_type);
+		       uint uint_geom_type,
+                       Virtual_column_info *vcol_info);
 Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
 				uint type_modifier, 
 				Item *default_value, Item *on_update_value,
 				LEX_STRING *comment, char *change, 
 				List<String> *interval_list, CHARSET_INFO *cs,
-				uint uint_geom_type);
+				uint uint_geom_type,
+				Virtual_column_info *vcol_info);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
 bool push_new_name_resolution_context(THD *thd,

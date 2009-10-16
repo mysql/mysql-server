@@ -2577,12 +2577,12 @@ ha_innobase::open(
 	}
 
 	/* Create buffers for packing the fields of a record. Why
-	table->reclength did not work here? Obviously, because char
+	table->stored_rec_length did not work here? Obviously, because char
 	fields when packed actually became 1 byte longer, when we also
 	stored the string length as the first byte. */
 
 	upd_and_key_val_buff_len =
-				table->s->reclength + table->s->max_key_length
+				table->s->stored_rec_length + table->s->max_key_length
 							+ MAX_REF_PARTS * 3;
 	if (!(uchar*) my_multi_malloc(MYF(MY_WME),
 			&upd_buff, upd_and_key_val_buff_len,
@@ -2657,7 +2657,7 @@ retry:
 
 	prebuilt = row_create_prebuilt(ib_table);
 
-	prebuilt->mysql_row_len = table->s->reclength;
+	prebuilt->mysql_row_len = table->s->stored_rec_length;;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
@@ -3360,11 +3360,11 @@ build_template(
 	dict_index_t*	clust_index;
 	mysql_row_templ_t* templ;
 	Field*		field;
-	ulint		n_fields;
+	ulint		n_fields, n_stored_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
-	ulint		i;
+	ulint		i, sql_idx, innodb_idx=0;
 	/* byte offset of the end of last requested column */
 	ulint		mysql_prefix_len	= 0;
 
@@ -3425,11 +3425,12 @@ build_template(
 	}
 
 	n_fields = (ulint)table->s->fields; /* number of columns */
+	n_stored_fields= (ulint)table->s->stored_fields; /* number of stored columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
 						mem_alloc_noninline(
-					n_fields * sizeof(mysql_row_templ_t));
+					n_stored_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = templ_type;
@@ -3439,15 +3440,17 @@ build_template(
 
 	/* Note that in InnoDB, i is the column number. MySQL calls columns
 	'fields'. */
-	for (i = 0; i < n_fields; i++) {
+	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
-		field = table->field[i];
+		field = table->field[sql_idx];
+		if (!field->stored_in_db)
+		  goto skip_field;
 
 		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
 			/* Decide which columns we should fetch
 			and which we can skip. */
 			register const ibool	index_contains_field =
-				dict_index_contains_col_or_prefix(index, i);
+				dict_index_contains_col_or_prefix(index, innodb_idx);
 
 			if (!index_contains_field && prebuilt->read_just_key) {
 				/* If this is a 'key read', we do not need
@@ -3462,8 +3465,8 @@ build_template(
 				goto include_field;
 			}
 
-			if (bitmap_is_set(table->read_set, i) ||
-			    bitmap_is_set(table->write_set, i)) {
+			if (bitmap_is_set(table->read_set, sql_idx) ||
+			    bitmap_is_set(table->write_set, sql_idx)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3471,7 +3474,7 @@ build_template(
 
 			if (fetch_primary_key_cols
 				&& dict_table_col_in_clustered_key(
-					index->table, i)) {
+					index->table, innodb_idx)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3484,14 +3487,14 @@ build_template(
 include_field:
 		n_requested_fields++;
 
-		templ->col_no = i;
+		templ->col_no = innodb_idx;
 
 		if (index == clust_index) {
 			templ->rec_field_no = dict_col_get_clust_pos_noninline(
-				&index->table->cols[i], index);
+				&index->table->cols[innodb_idx], index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
-								index, i);
+								index, innodb_idx);
 		}
 
 		if (templ->rec_field_no == ULINT_UNDEFINED) {
@@ -3517,7 +3520,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[i].mtype;
+		templ->type = index->table->cols[innodb_idx].mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -3526,16 +3529,18 @@ include_field:
 		}
 
 		templ->charset = dtype_get_charset_coll_noninline(
-				index->table->cols[i].prtype);
-		templ->mbminlen = index->table->cols[i].mbminlen;
-		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
-		templ->is_unsigned = index->table->cols[i].prtype
+				index->table->cols[innodb_idx].prtype);
+		templ->mbminlen = index->table->cols[innodb_idx].mbminlen;
+		templ->mbmaxlen = index->table->cols[innodb_idx].mbmaxlen;
+		templ->is_unsigned = index->table->cols[innodb_idx].prtype
 							& DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
 		}
 skip_field:
-		;
+                if (field->stored_in_db) {
+                    innodb_idx++;
+                }
 	}
 
 	prebuilt->n_template = n_requested_fields;
@@ -3998,7 +4003,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-	uint		i;
+	uint		sql_idx, innodb_idx= 0;
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
@@ -4006,8 +4011,10 @@ calc_row_difference(
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
 
-	for (i = 0; i < n_fields; i++) {
-		field = table->field[i];
+	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
+		field = table->field[sql_idx];
+		if (!field->stored_in_db)
+		  continue;
 
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
@@ -4025,7 +4032,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 
-		col_type = prebuilt->table->cols[i].mtype;
+		col_type = prebuilt->table->cols[innodb_idx].mtype;
 
 		switch (col_type) {
 
@@ -4080,7 +4087,7 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type_noninline(prebuilt->table->cols + i,
+			dict_col_copy_type_noninline(prebuilt->table->cols + innodb_idx,
 						     &dfield.type);
 
 			if (n_len != UNIV_SQL_NULL) {
@@ -4101,9 +4108,11 @@ calc_row_difference(
 
 			ufield->exp = NULL;
 			ufield->field_no = dict_col_get_clust_pos_noninline(
-				&prebuilt->table->cols[i], clust_index);
+				&prebuilt->table->cols[innodb_idx], clust_index);
 			n_changed++;
 		}
+                if (field->stored_in_db)
+                  innodb_idx++;
 	}
 
 	uvect->n_fields = n_changed;
@@ -5088,7 +5097,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, n_cols, flags);
+	table = dict_mem_table_create(table_name, 0, form->s->stored_fields, flags);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -5097,6 +5106,8 @@ create_table_def(
 
 	for (i = 0; i < n_cols; i++) {
 		field = form->field[i];
+		if (!field->stored_in_db)
+		  continue;
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
 									field);
@@ -5385,7 +5396,7 @@ ha_innobase::create(
 	}
 #endif
 
-	if (form->s->fields > 1000) {
+	if (form->s->stored_fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
@@ -5895,10 +5906,10 @@ ha_innobase::records_in_range(
 	KEY*		key;
 	dict_index_t*	index;
 	uchar*		key_val_buff2	= (uchar*) my_malloc(
-						  table->s->reclength
+						  table->s->stored_rec_length
 					+ table->s->max_key_length + 100,
 								MYF(MY_FAE));
-	ulint		buff2_len = table->s->reclength
+	ulint		buff2_len = table->s->stored_rec_length
 					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;

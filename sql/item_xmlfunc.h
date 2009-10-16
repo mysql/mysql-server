@@ -40,6 +40,10 @@ public:
   }
   void fix_length_and_dec();
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 

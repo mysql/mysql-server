@@ -67,7 +67,8 @@ enum enum_server_command
   COM_END
 };
 
-
+/* sql type stored in .frm files for virtual fields */
+#define MYSQL_TYPE_VIRTUAL 245
 /*
   Length of random string sent by server on handshake; this is also length of
   obfuscated password, recieved from client

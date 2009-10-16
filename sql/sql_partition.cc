@@ -975,7 +975,8 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   thd->lex->use_only_table_context= TRUE;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
   
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+  if (!(error= func_expr->fix_fields(thd, (Item**)&func_expr)))
+    func_expr->walk(&Item::vcol_in_partition_func_processor, 0, NULL);
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 

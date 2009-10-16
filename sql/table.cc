@@ -33,6 +33,12 @@ LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
 /* SLOW_LOG name */
 LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
 
+/* 
+  Keyword added as a prefix when parsing the defining expression for a
+  virtual column read from the column definition saved in the frm file
+*/
+LEX_STRING parse_vcol_keyword= { C_STRING_WITH_LEN("PARSE_VCOL_EXPR ") };
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -663,10 +669,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint interval_count, interval_parts, read_length, int_length;
   uint db_create_options, keys, key_parts, n_length;
   uint key_info_length, com_length, null_bit_pos;
+  uint vcol_screen_length;
   uint extra_rec_buf_length;
   uint i,j;
   bool use_hash;
-  char *keynames, *names, *comment_pos;
+  char *keynames, *names, *comment_pos, *vcol_screen_pos;
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
@@ -836,6 +843,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
 
   share->reclength = uint2korr((head+16));
+  share->stored_rec_length= share->reclength;
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
 #ifdef HAVE_CRYPTED_FRM
@@ -1040,24 +1048,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   int_length= uint2korr(head+274);
   share->null_fields= uint2korr(head+282);
   com_length= uint2korr(head+284);
+  vcol_screen_length= uint2korr(head+286);
+  share->vfields= 0;
+  share->stored_fields= share->fields;
   share->comment.length=  (int) (head[46]);
   share->comment.str= strmake_root(&share->mem_root, (char*) head+47,
                                    share->comment.length);
 
-  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
-
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, vcol_screen_length));
   if (!(field_ptr = (Field **)
 	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
 			   interval_count*sizeof(TYPELIB)+
 			   (share->fields+interval_parts+
 			    keys+3)*sizeof(char *)+
-			   (n_length+int_length+com_length)))))
+			   (n_length+int_length+com_length+
+			       vcol_screen_length)))))
     goto err;                                   /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
-		      pos+ (uint) (n_length+int_length+com_length));
+		      pos+ (uint) (n_length+int_length+com_length+
+		                   vcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
@@ -1078,7 +1090,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   memcpy((char*) names, strpos+(share->fields*field_pack_length),
 	 (uint) (n_length+int_length));
   comment_pos= names+(n_length+int_length);
-  memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
+  memcpy(comment_pos, disk_buff+read_length-com_length-vcol_screen_length, 
+         com_length);
+  vcol_screen_pos= names+(n_length+int_length+com_length);
+  memcpy(vcol_screen_pos, disk_buff+read_length-vcol_screen_length, 
+         vcol_screen_length);
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
@@ -1146,10 +1162,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
+    uint vcol_info_length=0;
+    uint vcol_expr_length=0;
     enum_field_types field_type;
     CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
+    Virtual_column_info *vcol_info= 0;
+    bool fld_stored_in_db= TRUE;
 
     if (new_frm_ver >= 3)
     {
@@ -1184,6 +1204,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
       }
+
+      if ((uchar)field_type == (uchar)MYSQL_TYPE_VIRTUAL)
+      {
+        DBUG_ASSERT(interval_nr); // Expect non-null expression
+        /* 
+          The interval_id byte in the .frm file stores the length of the
+          expression statement for a virtual column.
+        */
+        vcol_info_length= interval_nr;
+        interval_nr= 0;
+      }
+
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -1194,6 +1226,34 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	comment.str=    (char*) comment_pos;
 	comment.length= comment_length;
 	comment_pos+=   comment_length;
+      }
+
+      if (vcol_info_length)
+      {
+        /*
+          Get virtual column data stored in the .frm file as follows:
+          byte 1      = 1 (always 1 to allow for future extensions)
+          byte 2      = sql_type
+          byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
+          byte 4-...  = virtual column expression (text data)
+        */
+        vcol_info= new Virtual_column_info();
+        if ((uint)vcol_screen_pos[0] != 1)
+        {
+          error= 4;
+          goto err;
+        }
+        field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
+        fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
+        vcol_expr_length= vcol_info_length-(uint)FRM_VCOL_HEADER_SIZE;
+        if (!(vcol_info->expr_str.str=
+              (char *)memdup_root(&share->mem_root,
+                                  vcol_screen_pos+(uint)FRM_VCOL_HEADER_SIZE,
+                                  vcol_expr_length)))
+          goto err;        
+        vcol_info->expr_str.length= vcol_expr_length;
+        vcol_screen_pos+= vcol_info_length;
+        share->vfields++;
       }
     }
     else
@@ -1285,6 +1345,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     reg_field->field_index= i;
     reg_field->comment=comment;
+    reg_field->vcol_info= vcol_info;
+    reg_field->stored_in_db= fld_stored_in_db;
     if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
       if ((null_bit_pos+= field_length & 7) > 7)
@@ -1309,8 +1371,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (use_hash)
       (void) my_hash_insert(&share->name_hash,
                             (uchar*) field_ptr); // never fail
+    if (!reg_field->stored_in_db)
+    {
+      share->stored_fields--;
+      if (share->stored_rec_length>=recpos)
+        share->stored_rec_length= recpos-1;
+    }
   }
   *field_ptr=0;					// End marker
+  /* Sanity checks: */
+  DBUG_ASSERT(share->fields>=share->stored_fields);
+  DBUG_ASSERT(share->reclength>=share->stored_rec_length);
 
   /* Fix key->name and key_part->field */
   if (key_parts)
@@ -1597,6 +1668,297 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
+/*
+  @brief
+    Clear GET_FIXED_FIELDS_FLAG in all fields of a table
+
+  @param
+    table     The table for whose fields the flags are to be cleared
+
+  @note
+    This routine is used for error handling purposes.
+
+  @return
+    none
+*/
+
+static void clear_field_flag(TABLE *table)
+{
+  Field **ptr;
+  DBUG_ENTER("clear_field_flag");
+
+  for (ptr= table->field; *ptr; ptr++)
+    (*ptr)->flags&= (~GET_FIXED_FIELDS_FLAG);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  @brief 
+    Perform semantic analysis of the defining expression for a virtual column
+
+  @param
+    thd           The thread object
+  @param
+    table         The table containing the virtual column
+  @param
+    vcol_field    The virtual field whose defining expression is to be analyzed
+
+  @details
+    The function performs semantic analysis of the defining expression for
+    the virtual column vcol_field. The expression is used to compute the
+    values of this column.
+
+  @note
+   The function exploits the fact  that the fix_fields method sets the flag 
+   GET_FIXED_FIELDS_FLAG for all fields in the item tree.
+   This flag must always be unset before returning from this function
+   since it is used for other purposes as well.
+ 
+  @retval
+    TRUE           An error occurred, something was wrong with the function
+  @retval
+    FALSE          Otherwise
+*/
+
+bool fix_vcol_expr(THD *thd,
+                   TABLE *table,
+                   Field *vcol_field)
+{
+  Virtual_column_info *vcol_info= vcol_field->vcol_info;
+  Item* func_expr= vcol_info->expr_item;
+  uint dir_length, home_dir_length;
+  bool result= TRUE;
+  TABLE_LIST tables;
+  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
+  int error;
+  Name_resolution_context *context;
+  const char *save_where;
+  char* db_name;
+  char db_name_string[FN_REFLEN];
+  bool save_use_only_table_context;
+  Field **ptr, *field;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  DBUG_ASSERT(func_expr);
+  DBUG_ENTER("fix_vcol_expr");
+
+  /*
+    Set-up the TABLE_LIST object to be a list with a single table
+    Set the object to zero to create NULL pointers and set alias
+    and real name to table name and get database name from file name.
+  */
+
+  bzero((void*)&tables, sizeof(TABLE_LIST));
+  tables.alias= tables.table_name= (char*) table->s->table_name.str;
+  tables.table= table;
+  tables.next_local= 0;
+  tables.next_name_resolution_table= 0;
+  strmov(db_name_string, table->s->normalized_path.str);
+  dir_length= dirname_length(db_name_string);
+  db_name_string[dir_length - 1]= 0;
+  home_dir_length= dirname_length(db_name_string);
+  db_name= &db_name_string[home_dir_length];
+  tables.db= db_name;
+
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
+
+  context= thd->lex->current_context();
+  table->map= 1; //To ensure correct calculation of const item
+  table->get_fields_in_item_tree= TRUE;
+  save_table_list= context->table_list;
+  save_first_table= context->first_name_resolution_table;
+  save_last_table= context->last_name_resolution_table;
+  context->table_list= &tables;
+  context->first_name_resolution_table= &tables;
+  context->last_name_resolution_table= NULL;
+  func_expr->walk(&Item::change_context_processor, 0, (uchar*) context);
+  save_where= thd->where;
+  thd->where= "virtual column function";
+
+  /* Save the context before fixing the fields*/
+  save_use_only_table_context= thd->lex->use_only_table_context;
+  thd->lex->use_only_table_context= TRUE;
+  /* Fix fields referenced to by the virtual column function */
+  error= func_expr->fix_fields(thd, (Item**)0);
+  /* Restore the original context*/
+  thd->lex->use_only_table_context= save_use_only_table_context;
+  context->table_list= save_table_list;
+  context->first_name_resolution_table= save_first_table;
+  context->last_name_resolution_table= save_last_table;
+
+  if (unlikely(error))
+  {
+    DBUG_PRINT("info", 
+    ("Field in virtual column expression does not belong to the table"));
+    goto end;
+  }
+  thd->where= save_where;
+#ifdef PARANOID
+  /*
+    Walk through the Item tree checking if all items are valid
+   to be part of the virtual column
+  */
+  error= func_expr->walk(&Item::check_vcol_func_processor, 0, NULL);
+  if (error)
+  {
+    my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    goto end;
+  }
+#endif
+  if (unlikely(func_expr->const_item()))
+  {
+    my_error(ER_CONST_EXPR_IN_VCOL, MYF(0));
+    goto end;
+  }
+  /* Ensure that this virtual column is not based on another virtual field. */
+  ptr= table->field;
+  while ((field= *(ptr++))) 
+  {
+    if ((field->flags & GET_FIXED_FIELDS_FLAG) &&
+        (field->vcol_info))
+    {
+      my_error(ER_VCOL_BASED_ON_VCOL, MYF(0));
+      goto end;
+    }
+  }
+  result= FALSE;
+
+end:
+
+  /* Clear GET_FIXED_FIELDS_FLAG for the fields of the table */
+  clear_field_flag(table);
+
+  table->get_fields_in_item_tree= FALSE;
+  thd->mark_used_columns= save_mark_used_columns;
+  table->map= 0; //Restore old value
+ 
+ DBUG_RETURN(result);
+}
+
+/*
+  @brief
+    Unpack the definition of a virtual column from its linear representation
+
+  @parm
+    thd                  The thread object
+  @param
+    table                The table containing the virtual column
+  @param
+    field                The field for the virtual
+  @param  
+    vcol_expr            The string representation of the defining expression
+  @param[out]
+    error_reported       The flag to inform the caller that no other error
+                         messages are to be generated
+
+  @details
+    The function takes string representation 'vcol_expr' of the defining
+    expression for the virtual field 'field' of the table 'table' and
+    parses it, building an item object for it. The pointer to this item is
+    placed into in field->vcol_info.expr_item. After this the function performs
+    semantic analysis of the item by calling the the function fix_vcol_expr.
+    Since the defining expression is part of the table definition the item
+    for it is created in table->memroot within a separate Query_arena.
+    The free_list of this arena is saved in field->vcol_info.item_free_list
+    to be freed when the table defition is removed from the TABLE_SHARE cache.
+
+  @note
+    Before passing 'vcol_expr" to the parser the function embraces it in 
+    parenthesis and prepands it a special keyword.
+  
+   @retval
+    FALSE           If a success
+   @retval
+    TRUE            Otherwise
+*/
+bool unpack_vcol_info_from_frm(THD *thd,
+                               TABLE *table,
+                               Field *field,
+                               LEX_STRING *vcol_expr,
+                               bool *error_reported)
+{
+  bool rc= FALSE;
+  DBUG_ENTER("unpack_vcol_info_from_frm");
+  DBUG_ASSERT(vcol_expr);
+
+  /* 
+    Step 1: Construct the input string for the parser.
+    The string to be parsed has to be of the following format:
+    "PARSE_VCOL_EXPR (<expr_string_from_frm>)".
+  */
+  char *vcol_expr_str;
+  int str_len= 0;
+  CHARSET_INFO *old_character_set_client;
+  
+  if (!(vcol_expr_str= (char*) alloc_root(&table->mem_root,
+                                          vcol_expr->length + 
+                                            parse_vcol_keyword.length + 3)))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  memcpy(vcol_expr_str,
+         (char*) parse_vcol_keyword.str,
+         parse_vcol_keyword.length);
+  str_len= parse_vcol_keyword.length;
+  memcpy(vcol_expr_str + str_len, "(", 1);
+  str_len++;
+  memcpy(vcol_expr_str + str_len, 
+         (char*) vcol_expr->str, 
+         vcol_expr->length);
+  str_len+= vcol_expr->length;
+  memcpy(vcol_expr_str + str_len, ")", 1);
+  str_len++;
+  memcpy(vcol_expr_str + str_len, "\0", 1);
+  str_len++;
+  Parser_state parser_state(thd, vcol_expr_str, str_len);
+
+  /* 
+    Step 2: Setup thd for parsing.
+  */
+  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+  Query_arena backup_arena;
+  Query_arena vcol_arena(&table->mem_root, Query_arena::INITIALIZED);
+  thd->set_n_backup_active_arena(&vcol_arena, &backup_arena);
+  thd->stmt_arena= &vcol_arena;
+
+  thd->lex->parse_vcol_expr= TRUE;
+  old_character_set_client= thd->variables.character_set_client;
+
+  /* 
+    Step 3: Use the parser to build an Item object from vcol_expr_str.
+  */
+  if (parse_sql(thd, &parser_state, NULL))
+  {
+    goto err;
+  }
+  /* From now on use vcol_info generated by the parser. */
+  field->vcol_info= thd->lex->vcol_info;
+
+  /* Validate the Item tree. */
+  if (fix_vcol_expr(thd, table, field))
+  {
+    *error_reported= TRUE;
+    field->vcol_info= 0;
+    goto err;
+  }
+  field->vcol_info->item_free_list= thd->free_list;
+  goto end;
+
+err:
+  rc= TRUE;
+  thd->lex->parse_vcol_expr= FALSE;
+  thd->free_items();
+end:
+  thd->stmt_arena= backup_stmt_arena_ptr;
+  thd->restore_active_arena(&vcol_arena, &backup_arena);
+  thd->variables.character_set_client= old_character_set_client;
+
+  DBUG_RETURN(rc);
+}
+
+/*
+  Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
+*/
 
 /*
   Open a table based on a TABLE_SHARE
@@ -1631,7 +1993,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
-  Field **field_ptr;
+  Field **field_ptr, **vfield_ptr;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -1785,6 +2147,34 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
+  /*
+    Process virtual columns, if any.
+  */
+  if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                          (uint) ((share->vfields+1)*
+                                                  sizeof(Field*)))))
+    goto err;
+
+  outparam->vfield= vfield_ptr;
+  
+  for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+  {
+    if ((*field_ptr)->vcol_info)
+    {
+      if (unpack_vcol_info_from_frm(thd,
+                                    outparam,
+                                    *field_ptr,
+                                    &(*field_ptr)->vcol_info->expr_str,
+                                    &error_reported))
+      {
+        error= 4; // in case no error is reported
+        goto err;
+      }
+      *(vfield_ptr++)= *field_ptr;
+    }
+  }
+  *vfield_ptr= 0;                              // End marker
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_len && outparam->file)
   {
@@ -1852,10 +2242,24 @@ partititon_err:
   }
 #endif
 
+  /* Check virtual columns against table's storage engine. */
+  if (share->vfields && 
+        ((outparam->file && 
+          !outparam->file->check_if_supported_virtual_columns()) ||
+	 (!outparam->file && share->db_type() && 
+	   share->db_type()->db_type == DB_TYPE_CSV_DB))) // Workaround for CSV
+  {
+    my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+             MYF(0), 
+             "Specified storage engine");
+    error_reported= TRUE;
+    goto err;
+  }
+
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*4)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -1863,6 +2267,8 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->vcol_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -1966,7 +2372,11 @@ int closefrm(register TABLE *table, bool free_share)
   if (table->field)
   {
     for (Field **ptr=table->field ; *ptr ; ptr++)
+    {
+      if ((*ptr)->vcol_info)
+        free_items((*ptr)->vcol_info->item_free_list);
       delete *ptr;
+    }
     table->field= 0;
   }
   delete table->file;
@@ -4302,6 +4712,7 @@ void st_table::clear_column_bitmaps()
     bitmap_clear_all(&table->def_write_set);
   */
   bzero((char*) def_read_set.bitmap, s->column_bitmap_size*2);
+  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*4);
   column_bitmaps_set(&def_read_set, &def_write_set);
 }
 
@@ -4387,7 +4798,14 @@ void st_table::mark_columns_used_by_index_no_reset(uint index,
   KEY_PART_INFO *key_part_end= (key_part +
                                 key_info[index].key_parts);
   for (;key_part != key_part_end; key_part++)
+  {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
+    if (key_part->field->vcol_info &&
+        key_part->field->vcol_info->expr_item)
+      key_part->field->vcol_info->
+               expr_item->walk(&Item::register_field_in_bitmap, 
+                               1, (uchar *) bitmap);
+  }
 }
 
 
@@ -4514,6 +4932,8 @@ void st_table::mark_columns_needed_for_update()
       file->column_bitmaps_signal();
     }
   }
+  /* Mark all virtual columns needed for update */
+  mark_virtual_columns_for_write();
   DBUG_VOID_RETURN;
 }
 
@@ -4540,8 +4960,99 @@ void st_table::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
+  /* Mark virtual columns for insert */
+  mark_virtual_columns_for_write();
 }
 
+
+/*
+   @brief Mark a column as virtual used by the query
+
+   @param field           the field for the column to be marked
+
+   @details
+     The function marks the column for 'field' as virtual (computed)
+     in the bitmap vcol_set.
+     If the column is marked for the first time the expression to compute
+     the column is traversed and all columns that are occurred there are
+     marked in the read_set of the table.
+
+   @retval
+     TRUE       if column is marked for the first time
+   @retval
+     FALSE      otherwise
+*/
+
+bool st_table::mark_virtual_col(Field *field)
+{
+  bool res;
+  DBUG_ASSERT(field->vcol_info);
+  if (!(res= bitmap_fast_test_and_set(&vcol_set, field->field_index)))
+  {
+    Item *vcol_item= field->vcol_info->expr_item;
+    DBUG_ASSERT(vcol_item);
+    vcol_item->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+  }
+  return res;
+}
+
+
+/* 
+  @brief Mark virtual columns for update/insert commands
+
+  @details
+    The function marks virtual columns used in a update/insert commands
+    in the vcol_set bitmap.
+    If a virtual column is from  write_set it is always marked in vcol_set.
+    If a stored virtual column is not from write_set but it is computed
+    through columns from write_set it is also marked in vcol_set, and,
+    besides, it is added to write_set. 
+
+  @return       void
+
+  @note
+    Let table t1 have columns a,b,c and let column c be a stored virtual 
+    column computed through columns a and b. Then for the query
+      UPDATE t1 SET a=1
+    column c will be placed into vcol_set and into write_set while
+    column b will be placed into read_set.
+    If column c was a virtual column, but not a stored virtual column
+    then it would not be added to any of the sets. Column b would not
+    be added to read_set either.           
+*/
+
+void st_table::mark_virtual_columns_for_write(void)
+{
+  Field **vfield_ptr, *tmp_vfield;
+  bool bitmap_updated= FALSE;
+
+  for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    tmp_vfield= *vfield_ptr;
+    if (bitmap_is_set(write_set, tmp_vfield->field_index))
+      bitmap_updated= mark_virtual_col(tmp_vfield);
+    else if (tmp_vfield->stored_in_db)
+    {
+      MY_BITMAP *save_read_set;
+      Item *vcol_item= tmp_vfield->vcol_info->expr_item;
+      DBUG_ASSERT(vcol_item);
+      bitmap_clear_all(&tmp_set);
+      save_read_set= read_set;
+      read_set= &tmp_set;
+      vcol_item->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+      read_set= save_read_set;
+      bitmap_intersect(&tmp_set, write_set);
+      if (!bitmap_is_clear_all(&tmp_set))
+      {
+        bitmap_set_bit(write_set, tmp_vfield->field_index);
+        mark_virtual_col(tmp_vfield);
+        bitmap_updated= TRUE;
+      }
+    } 
+  }
+  if (bitmap_updated)
+    file->column_bitmaps_signal();
+}
 
 /**
   @brief Check if this is part of a MERGE table with attached children.
@@ -4550,7 +5061,7 @@ void st_table::mark_columns_needed_for_insert()
     @retval     TRUE            children are attached
     @retval     FALSE           no MERGE part or children not attached
 
-  @detail
+  @details
     A MERGE table consists of a parent TABLE and zero or more child
     TABLEs. Each of these TABLEs is called a part of a MERGE table.
 */
@@ -4794,6 +5305,54 @@ size_t max_row_length(TABLE *table, const uchar *data)
       HA_KEY_BLOB_LENGTH;
   }
   return length;
+}
+
+/*
+  @brief Compute values for virtual columns used in query
+
+  @param  table            The TABLE object
+  @param  for_write        Requests to compute only fields needed for write   
+  
+  @details
+    The function computes the values of the virtual columns of the table and
+    stores them in the table record buffer.
+    Only fields from vcol_set are computed, and, when the flag for_write is not
+    set to TRUE, a virtual field is computed only if it's not stored.
+    The flag for_write is set to TRUE for row insert/update operations. 
+ 
+  @retval
+    0    Success
+  @retval
+    >0   Error occurred when storing a virtual field value
+*/
+
+int update_virtual_fields(TABLE *table, bool for_write)
+{
+  DBUG_ENTER("update_virtual_fields");
+  Field **vfield_ptr, *vfield;
+  int error= 0;
+  if (!table || !table->vfield)
+    DBUG_RETURN(0);
+
+  /* Iterate over virtual fields in the table */
+  for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    vfield= (*vfield_ptr);
+    DBUG_ASSERT(vfield->vcol_info && vfield->vcol_info->expr_item);
+    /* Only update those fields that are marked in the vcol_set bitmap */
+    if (bitmap_is_set(&table->vcol_set, vfield->field_index) &&
+        (for_write || !vfield->stored_in_db))
+    {
+      /* Compute the actual value of the virtual fields */
+      error= vfield->vcol_info->expr_item->save_in_field(vfield, 0);
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+    }
+    else
+    {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************************

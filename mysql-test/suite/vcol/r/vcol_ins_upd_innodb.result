@@ -1,0 +1,427 @@
+SET @@session.storage_engine = 'InnoDB';
+create table t1 (a int, 
+b int as (-a),
+c int as (-a) persistent);
+set sql_warnings = 1;
+#
+# *** INSERT ***
+#
+# INSERT INTO tbl_name VALUES... DEFAULT is specified against vcols
+insert into t1 values (1,default,default);
+select * from t1;
+a	b	c
+1	-1	-1
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name VALUES... NULL is specified against vcols
+insert into t1 values (1,null,null);
+select * from t1;
+a	b	c
+1	-1	-1
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name VALUES... a non-NULL value is specified against vcols
+insert into t1 values (1,2,3);
+Warnings:
+Warning	1645	The value specified for computed column 'b' in table 't1' ignored.
+Warning	1645	The value specified for computed column 'c' in table 't1' ignored.
+select * from t1;
+a	b	c
+1	-1	-1
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<non_vcol_list>) VALUES...
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+vcols>) VALUES... DEFAULT is specified 
+# against vcols
+insert into t1 (a,b) values (1,default), (2,default);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+vcols>) VALUES... NULL is specified against vcols
+insert into t1 (a,b) values (1,null), (2,null);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+vcols>) VALUES... a non-NULL value is specified 
+# against vcols
+insert into t1 (a,b) values (1,3), (2,4);
+Warnings:
+Warning	1645	The value specified for computed column 'b' in table 't1' ignored.
+Warning	1645	The value specified for computed column 'b' in table 't1' ignored.
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+drop table t1;
+# Table with UNIQUE non-vcol field. INSERT INTO tbl_name VALUES... ON DUPLICATE 
+# KEY UPDATE <non_vcol>=expr, <vcol>=expr
+create table t1 (a int unique, 
+b int as (-a),
+c int as (-a) persistent);
+insert into t1 values (1,default,default);
+insert into t1 values (1,default,default) 
+on duplicate key update a=2, b=default;
+select a,b,c from t1;
+a	b	c
+2	-2	-2
+delete from t1 where b in (1,2);
+select * from t1;
+a	b	c
+2	-2	-2
+drop table t1;
+# Table with UNIQUE vcol field. INSERT INTO tbl_name VALUES... ON DUPLICATE 
+# KEY UPDATE <non_vcol>=expr, <vcol>=expr
+create table t1 (a int, 
+b int as (-a),
+c int as (-a) persistent unique);
+insert into t1 values (1,default,default);
+insert into t1 values (1,default,default) 
+on duplicate key update a=2, b=default;
+select a,b,c from t1;
+a	b	c
+2	-2	-2
+# CREATE new_table ... LIKE old_table
+# INSERT INTO new_table SELECT * from old_table
+create table t2 like t1;
+insert into t2 select * from t1;
+Warnings:
+Warning	1645	The value specified for computed column 'b' in table 't2' ignored.
+Warning	1645	The value specified for computed column 'c' in table 't2' ignored.
+select * from t1;
+a	b	c
+2	-2	-2
+drop table t2;
+# CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-vcols>, <vcols>) 
+# SELECT <non-vcols>, <vcols> from old_table
+insert into t1 values (1,default,default);
+select * from t1;
+a	b	c
+2	-2	-2
+1	-1	-1
+create table t2 like t1;
+insert into t2 (a,b) select a,b from t1;
+Warnings:
+Warning	1645	The value specified for computed column 'b' in table 't2' ignored.
+Warning	1645	The value specified for computed column 'b' in table 't2' ignored.
+select * from t2;
+a	b	c
+2	-2	-2
+1	-1	-1
+drop table t2;
+drop table t1;
+#
+# *** UPDATE ***
+#
+# UPDATE tbl_name SET non-vcol=expr WHERE non-vcol=expr
+create table t1 (a int, 
+b int as (-a),
+c int as (-a) persistent);
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where a=2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET vcol=expr WHERE non-vcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set c=3 where a=2;
+Warnings:
+Warning	1645	The value specified for computed column 'c' in table 't1' ignored.
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET non-vcol=expr WHERE vcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where b=-2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET vcol=expr WHERE vcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set c=3 where b=-2;
+Warnings:
+Warning	1645	The value specified for computed column 'c' in table 't1' ignored.
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+drop table t1;
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr WHERE vcol=const
+create table t1 (a int, 
+b int as (-a),
+c int as (-a) persistent unique);
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where c=-2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr WHERE vcol=between const1 and const2
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where c between -3 and -2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# No INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr WHERE vcol=between const1 and const2
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where b between -3 and -2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr 
+# WHERE vcol=between const1 and const2 ORDER BY vcol
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where c between -1 and 0
+order by c;
+select * from t1;
+a	b	c
+6	-6	-6
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+delete from t1 where c between -6 and 0;
+select * from t1;
+a	b	c
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr 
+# WHERE vcol=between const1 and const2 ORDER BY vcol LIMIT 2
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where c between -1 and 0
+order by c limit 2;
+select * from t1;
+a	b	c
+6	-6	-6
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+delete from t1 where c between -2 and 0 order by c;
+select * from t1;
+a	b	c
+6	-6	-6
+3	-3	-3
+4	-4	-4
+5	-5	-5
+delete from t1;
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr
+# WHERE indexed vcol=between const1 and const2 and non-indexed vcol=const3
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where (c between -2 and 0) and (b=-1);
+select * from t1;
+a	b	c
+6	-6	-6
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+delete from t1;
+# INDEX created on vcol 
+# UPDATE tbl_name SET non-vcol=expr
+# WHERE indexed vcol=between const1 and const2 and non-indexed vcol=const3
+# ORDER BY indexed vcol
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
+select * from t1;
+a	b	c
+6	-6	-6
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+delete from t1;
+drop table t1;
+#
+# Verify ON UPDATE/DELETE actions of FOREIGN KEYs
+create table t2 (a int primary key, name varchar(10));
+create table t1 (a int primary key, b int as (a % 10) persistent);
+insert into t2 values (1, 'value1'), (2,'value2'), (3,'value3');
+insert into t1 (a) values (1),(2),(3);
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+select * from t2;
+a	name
+1	value1
+2	value2
+3	value3
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+a	b	name
+1	1	value1
+2	2	value2
+3	3	value3
+#  - ON UPDATE RESTRICT
+alter table t1 add foreign key (b) references t2(a) on update restrict;
+insert into t1 (a) values (4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+update t2 set a=4 where a=3;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+a	b	name
+1	1	value1
+2	2	value2
+3	3	value3
+alter table t1 drop foreign key t1_ibfk_1;
+#  - ON DELETE RESTRICT
+alter table t1 add foreign key (b) references t2(a) on delete restrict;
+delete from t2 where a=3;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+a	b	name
+1	1	value1
+2	2	value2
+3	3	value3
+select t1.a, t1.b, t2.name from t1 left outer join t2 on (t1.b=t2.a);
+a	b	name
+1	1	value1
+2	2	value2
+3	3	value3
+alter table t1 drop foreign key t1_ibfk_1;
+#  - ON DELETE CASCADE
+alter table t1 add foreign key (b) references t2(a) on delete cascade;
+delete from t2 where a=3;
+select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
+a	b	name
+1	1	value1
+2	2	value2
+select t1.a, t1.b, t2.name from t1 left outer join t2 on (t1.b=t2.a);
+a	b	name
+1	1	value1
+2	2	value2
+alter table t1 drop foreign key t1_ibfk_1;
+drop table t1;
+drop table t2;
+#
+# *** REPLACE ***
+#
+# UNIQUE INDEX on vcol
+# REPLACE tbl_name (non-vcols) VALUES (non-vcols);
+create table t1 (a int, 
+b int as (-a),
+c int as (-a) persistent unique,
+d varchar(16));
+insert into t1 (a,d) values (1,'a'), (2,'b');
+select * from t1;
+a	b	c	d
+1	-1	-1	a
+2	-2	-2	b
+replace t1 (a,d) values (1,'c');
+select * from t1;
+a	b	c	d
+1	-1	-1	c
+2	-2	-2	b
+delete from t1;
+select * from t1;
+a	b	c	d
+set sql_warnings = 0;
+drop table t1;

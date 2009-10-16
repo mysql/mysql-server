@@ -42,7 +42,11 @@ public:
   {
     init_make_field(tmp_field,field_type());
   }
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("proc"); 
+  }
 };
 
 class Item_proc_real :public Item_proc

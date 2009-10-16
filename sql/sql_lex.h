@@ -1544,6 +1544,7 @@ typedef struct st_lex : public Query_tables_list
   LEX_USER *grant_user;
   XID *xid;
   THD *thd;
+  Virtual_column_info *vcol_info;
 
   /* maintain a list of used plugins for this LEX */
   DYNAMIC_ARRAY plugins;
@@ -1626,6 +1627,14 @@ typedef struct st_lex : public Query_tables_list
     syntax error back.
   */
   bool expr_allows_subselect;
+  /*
+    A special command "PARSE_VCOL_EXPR" is defined for the parser 
+    to translate a defining expression of a virtual column into an 
+    Item object.
+    The following flag is used to prevent other applications to use 
+    this command.
+  */
+  bool parse_vcol_expr;
 
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */

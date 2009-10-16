@@ -1,0 +1,75 @@
+SET @@session.storage_engine = 'MyISAM';
+drop table if exists t1;
+# Case 1. Partitioning by RANGE based on a non-stored virtual column.
+CREATE TABLE t1 (
+a DATE NOT NULL,
+b int as (year(a))
+)
+PARTITION BY RANGE( b ) (
+PARTITION p0 VALUES LESS THAN (2006),
+PARTITION p2 VALUES LESS THAN (2008)
+);
+insert into t1 values ('2006-01-01',default);
+insert into t1 values ('2007-01-01',default);
+insert into t1 values ('2005-01-01',default);
+select * from t1;
+a	b
+2005-01-01	2005
+2006-01-01	2006
+2007-01-01	2007
+# Check how data is physically partitioned.
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p0.MYD
+14	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p2.MYD
+# Modify the expression of virtual column b
+ALTER TABLE t1 modify b int as (year(a)-1);
+select * from t1;
+a	b
+2005-01-01	2004
+2006-01-01	2005
+2007-01-01	2006
+# Check how data is physically partitioned.
+14	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p0.MYD
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p2.MYD
+drop table t1;
+# Case 2. Partitioning by LIST based on a stored virtual column.
+CREATE TABLE t1 (a int, b int as (a % 3 ) persistent)
+PARTITION BY LIST (a+1)
+(PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
+insert into t1 values (1,default);
+# Check how data is physically partitioned.
+0	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p1.MYD
+9	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p2.MYD
+select * from t1;
+a	b
+1	1
+select * from t1;
+a	b
+1	1
+drop table t1;
+# Case 3. Partitioning by HASH based on a non-stored virtual column.
+CREATE TABLE t1 (
+a DATE NOT NULL,
+b int as (year(a))
+)
+PARTITION BY HASH( b % 3 ) PARTITIONS 3;
+insert into t1 values ('2005-01-01',default);
+insert into t1 values ('2006-01-01',default);
+select * from t1;
+a	b
+2005-01-01	2005
+2006-01-01	2006
+# Check how data is physically partitioned.
+0	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p0.MYD
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p1.MYD
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p2.MYD
+# Modify the expression of virtual column b
+ALTER TABLE t1 modify b int as (year(a)-1);
+select * from t1;
+a	b
+2005-01-01	2004
+2006-01-01	2005
+# Check how data is physically partitioned.
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p0.MYD
+7	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p1.MYD
+0	MYSQLTEST_VARDIR/mysqld.1/data/test/t1#P#p2.MYD
+drop table t1;

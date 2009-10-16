@@ -9761,6 +9761,10 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   bitmap_init(&table->tmp_set,
               (my_bitmap_map*) (bitmaps+ bitmap_buffer_size(field_count)),
               field_count, FALSE);
+  bitmap_init(&table->vcol_set,
+              (my_bitmap_map*) (bitmaps+ 2+bitmap_buffer_size(field_count)),
+              field_count, FALSE);
+
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
   table->s->all_set= table->def_read_set;
@@ -9908,7 +9912,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count)*3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -10512,7 +10516,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count)*3,
                         NullS))
     return 0;
 
@@ -11475,6 +11479,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     return NESTED_LOOP_KILLED;               /* purecov: inspected */
   }
   DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
+  update_virtual_fields(join_tab->table);     
   if (!select_cond || select_cond->val_int())
   {
     /*
@@ -11684,6 +11689,8 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
+    if (rc == NESTED_LOOP_OK)
+      update_virtual_fields(join_tab->table);
     if (rc == NESTED_LOOP_OK &&
         (!join_tab->cache.select || !join_tab->cache.select->skip_record()))
     {
@@ -11867,6 +11874,7 @@ join_read_system(JOIN_TAB *tab)
       empty_record(table);			// Make empty record
       return -1;
     }
+    update_virtual_fields(table);
     store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
@@ -11915,6 +11923,7 @@ join_read_const(JOIN_TAB *tab)
 	return report_error(table, error);
       return -1;
     }
+    update_virtual_fields(table);
     store_record(table,record[1]);
   }
   else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
@@ -12174,6 +12183,7 @@ join_read_next(READ_RECORD *info)
   int error;
   if ((error=info->file->index_next(info->record)))
     return report_error(info->table, error);
+
   return 0;
 }
 
@@ -12201,6 +12211,7 @@ join_read_last(JOIN_TAB *tab)
     error= table->file->prepare_index_scan();
   if (error || (error= tab->table->file->index_last(tab->table->record[0])))
     return report_error(table, error);
+
   return 0;
 }
 

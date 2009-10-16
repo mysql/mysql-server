@@ -681,9 +681,24 @@ bool Item_field::register_field_in_read_map(uchar *arg)
   TABLE *table= (TABLE *) arg;
   if (field->table == table || !table)
     bitmap_set_bit(field->table->read_set, field->field_index);
+  if (field->vcol_info && field->vcol_info->expr_item)
+    return field->vcol_info->expr_item->walk(&Item::register_field_in_read_map, 
+                                             1, arg);
   return 0;
 }
 
+/*
+  @brief
+  Mark field in bitmap supplied as *arg
+*/
+
+bool Item_field::register_field_in_bitmap(uchar *arg)
+{
+  MY_BITMAP *bitmap= (MY_BITMAP *) arg;
+  DBUG_ASSERT(bitmap);
+  bitmap_set_bit(bitmap, field->field_index);
+  return 0;
+}
 
 bool Item::check_cols(uint c)
 {
@@ -4451,6 +4466,21 @@ mark_non_agg_field:
 error:
   context->process_error(thd);
   return TRUE;
+}
+
+/*
+  @brief
+  Mark virtual columns as used in a partitioning expression 
+*/
+
+bool Item_field::vcol_in_partition_func_processor(uchar *int_arg)
+{
+  DBUG_ASSERT(fixed);
+  if (field->vcol_info)
+  {
+    field->vcol_info->mark_as_in_partitioning_expr();
+  }
+  return FALSE;
 }
 
 

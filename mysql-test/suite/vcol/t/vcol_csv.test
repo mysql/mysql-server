@@ -1,0 +1,54 @@
+################################################################################
+# t/vcol_csv.test                                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#        CSV branch                                                            #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-02                                                    #
+# Change Author: Oleksandr Byelkin (Monty program Ab)
+# Date: 2009-03-24 
+# Change: Syntax changed
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/vcol/inc/vcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/vcol/inc/vcol_cleanup.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+--source include/have_csv.inc
+SET @@session.storage_engine = 'CSV';
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+--error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
+create table t1 (a int, b int as (a+1));
+create table t1 (a int not null);
+--error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
+alter table t1 add column b int as (a+1);
+drop table t1;
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/vcol/inc/vcol_cleanup.inc

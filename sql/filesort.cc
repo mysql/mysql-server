@@ -565,6 +565,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     {
       if ((error= select->quick->get_next()))
         break;
+      if (!error)
+        update_virtual_fields(sort_form);
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
@@ -582,6 +584,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       else
       {
 	error=file->rnd_next(sort_form->record[0]);
+	if (!error)
+	  update_virtual_fields(sort_form);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row

@@ -1,0 +1,243 @@
+SET @@session.storage_engine = 'InnoDB';
+# RAND()
+create table t1 (b double as (rand()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# LOAD_FILE()
+create table t1 (a varchar(64), b varchar(1024) as (load_file(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# CURDATE()
+create table t1 (a datetime as (curdate()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# CURRENT_DATE(), CURRENT_DATE
+create table t1 (a datetime as (current_date));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+create table t1 (a datetime as (current_date()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# CURRENT_TIME(), CURRENT_TIME
+create table t1 (a datetime as (current_time));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+create table t1 (a datetime as (current_time()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP
+create table t1 (a datetime as (current_timestamp()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+create table t1 (a datetime as (current_timestamp));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# CURTIME()
+create table t1 (a datetime as (curtime()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# LOCALTIME(), LOCALTIME
+create table t1 (a datetime, b varchar(10) as (localtime()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+create table t1 (a datetime, b varchar(10) as (localtime));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# LOCALTIMESTAMP, LOCALTIMESTAMP()(v4.0.6)
+create table t1 (a datetime, b varchar(10) as (localtimestamp()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+create table t1 (a datetime, b varchar(10) as (localtimestamp));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# NOW()
+create table t1 (a datetime, b varchar(10) as (now()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# SYSDATE()
+create table t1 (a int, b varchar(10) as (sysdate()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UNIX_TIMESTAMP()
+create table t1 (a datetime, b datetime as (unix_timestamp()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UTC_DATE()
+create table t1 (a datetime, b datetime as (utc_date()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UTC_TIME()
+create table t1 (a datetime, b datetime as (utc_time()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UTC_TIMESTAMP()
+create table t1 (a datetime, b datetime as (utc_timestamp()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# MATCH()
+# BENCHMARK()
+create table t1 (a varchar(1024), b varchar(1024) as (benchmark(a,3)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# CONNECTION_ID()
+create table t1 (a int as (connection_id()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# CURRENT_USER(), CURRENT_USER
+create table t1 (a varchar(32) as (current_user()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+create table t1 (a varchar(32) as (current_user));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# DATABASE()
+create table t1 (a varchar(1024), b varchar(1024) as (database()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# FOUND_ROWS()
+create table t1 (a varchar(1024), b varchar(1024) as (found_rows()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# GET_LOCK()
+create table t1 (a varchar(1024), b varchar(1024) as (get_lock(a,10)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# IS_FREE_LOCK()
+create table t1 (a varchar(1024), b varchar(1024) as (is_free_lock(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# IS_USED_LOCK()
+create table t1 (a varchar(1024), b varchar(1024) as (is_used_lock(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# LAST_INSERT_ID()
+create table t1 (a int as (last_insert_id()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# MASTER_POS_WAIT()
+create table t1 (a varchar(32), b int as (master_pos_wait(a,0,2)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# NAME_CONST()
+create table t1 (a varchar(32) as (name_const('test',1)));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# RELEASE_LOCK()
+create table t1 (a varchar(32), b int as (release_lock(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# ROW_COUNT()
+create table t1 (a int as (row_count()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# SCHEMA()
+create table t1 (a varchar(32) as (schema()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# SESSION_USER()
+create table t1 (a varchar(32) as (session_user()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# SLEEP()
+create table t1 (a int, b int as (sleep(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# SYSTEM_USER()
+create table t1 (a varchar(32) as (system_user()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# USER()
+create table t1 (a varchar(1024), b varchar(1024) as (user()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UUID_SHORT()
+create table t1 (a varchar(1024) as (uuid_short()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# UUID()
+create table t1 (a varchar(1024) as (uuid()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+# VALUES()
+create table t1 (a varchar(1024), b varchar(1024) as (values(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# VERSION()
+create table t1 (a varchar(1024), b varchar(1024) as (version()));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# ENCRYPT()
+create table t1 (a varchar(1024), b varchar(1024) as (encrypt(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# Stored procedures
+create procedure p1()
+begin
+select current_user();
+end //
+create function f1()
+returns int
+begin
+return 1;
+end //
+create table t1 (a int as (p1()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+create table t1 (a int as (f1()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+drop procedure p1;
+drop function f1;
+# Unknown functions
+create table t1 (a int as (f1()));
+ERROR HY000: Function or expression is not allowed for column 'a'.
+#
+# GROUP BY FUNCTIONS
+#
+# AVG()
+create table t1 (a int, b int as (avg(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# BIT_AND()
+create table t1 (a int, b int as (bit_and(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# BIT_OR()
+create table t1 (a int, b int as (bit_or(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# BIT_XOR()
+create table t1 (a int, b int as (bit_xor(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# COUNT(DISTINCT)
+create table t1 (a int, b int as (count(distinct a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# COUNT()
+create table t1 (a int, b int as (count(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# GROUP_CONCAT()
+create table t1 (a varchar(32), b int as (group_concat(a,'')));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# MAX()
+create table t1 (a int, b int as (max(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# MIN()
+create table t1 (a int, b int as (min(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# STD()
+create table t1 (a int, b int as (std(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# STDDEV_POP()
+create table t1 (a int, b int as (stddev_pop(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# STDDEV_SAMP()
+create table t1 (a int, b int as (stddev_samp(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# STDDEV()
+create table t1 (a int, b int as (stddev(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# SUM()
+create table t1 (a int, b int as (sum(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# VAR_POP()
+create table t1 (a int, b int as (var_pop(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# VAR_SAMP()
+create table t1 (a int, b int as (var_samp(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# VARIANCE()
+create table t1 (a int, b int as (variance(a)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+#
+# XML FUNCTIONS
+#
+# ExtractValue()
+create table t1 (a varchar(1024), b varchar(1024) as (ExtractValue(a,'//b[$@j]')));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+# UpdateXML()
+create table t1 (a varchar(1024), b varchar(1024) as (UpdateXML(a,'/a','<e>fff</e>')));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+#
+# Sub-selects
+#
+create table t1 (a int);
+create table t2 (a int, b int as (select count(*) from t1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select count(*) from t1))' at line 1
+drop table t1;
+create table t1 (a int, b int as ((select 1)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+create table t1 (a int, b int as (a+(select 1)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+#
+# SP functions
+#
+drop function if exists sub1;
+create function sub1(i int) returns int deterministic
+return i+1;
+select sub1(1);
+sub1(1)
+2
+create table t1 (a int, b int as (a+sub3(1)));
+ERROR HY000: Function or expression is not allowed for column 'b'.
+drop function sub1;
+#
+# Long expression
+create table t1 (a int, b varchar(300) as (concat(a,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')));
+drop table t1;
+create table t1 (a int, b varchar(300) as (concat(a,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')));
+ERROR HY000: String 'concat(a,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long for VIRTUAL COLUMN EXPRESSION (should be no longer than 252)
+#
+# Constant expression
+create table t1 (a int as (PI()));
+ERROR HY000: Constant expression in computed column function is not allowed.

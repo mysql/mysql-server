@@ -1,0 +1,264 @@
+SET @@session.storage_engine = 'MyISAM';
+create table t1 (a int,
+b int as (-a),
+c int as (-a) persistent,
+index (c));
+insert into t1 (a) values (2), (1), (1), (3), (NULL);
+create table t2 like t1;
+insert into t2 (a) values (1);
+create table t3 (a int primary key, 
+b int as (-a),
+c int as (-a) persistent unique);
+insert into t3 (a) values (2),(1),(3);
+# select_type=SIMPLE, type=system
+select * from t2;
+a	b	c
+1	-1	-1
+explain select * from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+select * from t2 where c=-1;
+a	b	c
+1	-1	-1
+explain select * from t2 where c=-1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	c	NULL	NULL	NULL	1	
+# select_type=SIMPLE, type=ALL
+select * from t1 where b=-1;
+a	b	c
+1	-1	-1
+1	-1	-1
+explain select * from t1 where b=-1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+# select_type=SIMPLE, type=const
+select * from t3 where a=1;
+a	b	c
+1	-1	-1
+explain select * from t3 where a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	const	PRIMARY	PRIMARY	4	const	1	
+# select_type=SIMPLE, type=range
+select * from t3 where c>=-1;
+a	b	c
+1	-1	-1
+explain select * from t3 where c>=-1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	2	Using where
+# select_type=SIMPLE, type=ref
+select * from t1,t3 where t1.c=t3.c and t3.c=-1;
+a	b	c	a	b	c
+1	-1	-1	1	-1	-1
+1	-1	-1	1	-1	-1
+explain select * from t1,t3 where t1.c=t3.c and t3.c=-1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	const	c	c	5	const	1	
+1	SIMPLE	t1	ref	c	c	5	const	2	Using where
+# select_type=PRIMARY, type=index,ALL
+select * from t1 where b in (select c from t3);
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+3	-3	-3
+explain select * from t1 where b in (select c from t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	5	func	2	Using index; Using where
+# select_type=PRIMARY, type=range,ref
+select * from t1 where c in (select c from t3 where c between -2 and -1);
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+explain select * from t1 where c in (select c from t3 where c between -2 and -1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	5	func	2	Using index; Using where
+# select_type=UNION, type=system
+# select_type=UNION RESULT, type=<union1,2>
+select * from t1 union select * from t2;
+a	b	c
+2	-2	-2
+1	-1	-1
+3	-3	-3
+NULL	NULL	NULL
+explain select * from t1 union select * from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+2	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+# select_type=DERIVED, type=system
+select * from (select a,b,c from t1) as t11;
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+3	-3	-3
+NULL	NULL	NULL
+explain select * from (select a,b,c from t1) as t11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+###
+### Using aggregate functions with/without DISTINCT
+###
+# SELECT COUNT(*) FROM tbl_name
+select count(*) from t1;
+count(*)
+5
+explain select count(*) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+# SELECT COUNT(DISTINCT <non-vcol>) FROM tbl_name
+select count(distinct a) from t1;
+count(distinct a)
+3
+explain select count(distinct a) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+# SELECT COUNT(DISTINCT <non-stored vcol>) FROM tbl_name
+select count(distinct b) from t1;
+count(distinct b)
+3
+explain select count(distinct b) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+# SELECT COUNT(DISTINCT <stored vcol>) FROM tbl_name
+select count(distinct c) from t1;
+count(distinct c)
+3
+explain select count(distinct c) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	5	NULL	5	Using index
+###
+### filesort & range-based utils
+###
+# SELECT * FROM tbl_name WHERE <vcol expr>
+select * from t3 where c >= -2;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c >= -2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	2	Using where
+# SELECT * FROM tbl_name WHERE <non-vcol expr>
+select * from t3 where a between 1 and 2;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where a between 1 and 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	1	Using where
+# SELECT * FROM tbl_name WHERE <non-indexed vcol expr>
+select * from t3 where b between -2 and -1;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+# SELECT * FROM tbl_name WHERE <indexed vcol expr>
+select * from t3 where c between -2 and -1;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using where
+# SELECT * FROM tbl_name WHERE <non-vcol expr> ORDER BY <indexed vcol>
+select * from t3 where a between 1 and 2 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where a between 1 and 2 order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <non-indexed vcol expr> ORDER BY <non-vcol>
+select * from t3 where b between -2 and -1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where b between -2 and -1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <indexed vcol expr> ORDER BY <non-vcol>
+select * from t3 where c between -2 and -1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where c between -2 and -1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <non-indexed vcol expr> ORDER BY <non-indexed vcol>
+select * from t3 where b between -2 and -1 order by b;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <indexed vcol expr> ORDER BY <non-indexed vcol>
+select * from t3 where c between -2 and -1 order by b;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <non-indexed vcol expr> ORDER BY <indexed vcol>
+select * from t3 where b between -2 and -1 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1 order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+# SELECT * FROM tbl_name WHERE <indexed vcol expr> ORDER BY <indexed vcol>
+select * from t3 where c between -2 and -1 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1 order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using where
+# SELECT sum(<non-indexed vcol>) FROM tbl_name GROUP BY <non-indexed vcol>
+select sum(b) from t1 group by b;
+sum(b)
+NULL
+-3
+-2
+-2
+explain select sum(b) from t1 group by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+# SELECT sum(<indexed vcol>) FROM tbl_name GROUP BY <indexed vcol>
+select sum(c) from t1 group by c;
+sum(c)
+NULL
+-3
+-2
+-2
+explain select sum(c) from t1 group by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	5	NULL	5	Using index
+# SELECT sum(<non-indexed vcol>) FROM tbl_name GROUP BY <indexed vcol>
+select sum(b) from t1 group by c;
+sum(b)
+NULL
+-3
+-2
+-2
+explain select sum(b) from t1 group by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+# SELECT sum(<indexed vcol>) FROM tbl_name GROUP BY <non-indexed vcol>
+select sum(c) from t1 group by b;
+sum(c)
+NULL
+-3
+-2
+-2
+explain select sum(c) from t1 group by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort

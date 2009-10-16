@@ -5594,6 +5594,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     table->covering_keys.intersect(field->part_of_key);
     table->merge_keys.merge(field->part_of_key);
 
+    if (field->vcol_info)
+      table->mark_virtual_col(field);
+
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
       current_bitmap= table->read_set;
     else
@@ -7887,6 +7890,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       {
         /* Mark fields as used to allow storage engine to optimze access */
         bitmap_set_bit(field->table->read_set, field->field_index);
+        /*
+          Mark virtual fields for write and others that the virtual fields
+          depend on for read.
+        */
+        if (field->vcol_info)
+          field->table->mark_virtual_col(field);
         if (table)
         {
           table->covering_keys.intersect(field->part_of_key);
@@ -8098,7 +8107,10 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
+  List<TABLE> tbl_list;
+  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
+  tbl_list.empty();
 
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
@@ -8132,14 +8144,54 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    if (rfield->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          rfield->field_name, table->s->table_name.str);
+      thd->abort_on_warning= abort_on_warning_saved;
+    }
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
+    tbl_list.push_back(table);
   }
+  /* Update virtual fields*/
+  thd->abort_on_warning= FALSE;
+  if (tbl_list.head())
+  {
+    List_iterator_fast<TABLE> it(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= it++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields(table, TRUE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 err:
+  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -8175,9 +8227,31 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, fields, values, ignore_errors) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                  TRG_ACTION_BEFORE, TRUE)));
+  bool result;
+  result= (fill_record(thd, fields, values, ignore_errors) ||
+           (triggers && triggers->process_triggers(thd, event,
+                                                   TRG_ACTION_BEFORE, TRUE)));
+  /*
+    Re-calculate virtual fields to cater for cases when base columns are
+    updated by the triggers.
+  */
+  if (!result && triggers)
+  {
+    TABLE *table= 0;
+    List_iterator_fast<Item> f(fields);
+    Item *fld;
+    Item_field *item_field;
+    if (fields.elements)
+    {
+      fld= (Item_field*)f++;
+      item_field= fld->filed_for_view_update();
+      if (item_field && item_field->field &&
+          (table= item_field->field->table) &&
+        table->vfield)
+        result= update_virtual_fields(table, TRUE);
+    }
+  }
+  return result;
 }
 
 
@@ -8205,11 +8279,14 @@ bool
 fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
+  List<TABLE> tbl_list;
   Item *value;
   TABLE *table= 0;
+  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
 
   Field *field;
+  tbl_list.empty();
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -8229,12 +8306,52 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    if (field->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          field->field_name, table->s->table_name.str);
+      thd->abort_on_warning= abort_on_warning_saved;
+    }
     if (value->save_in_field(field, 0) < 0)
       goto err;
+    tbl_list.push_back(table);
   }
+  /* Update virtual fields*/
+  thd->abort_on_warning= FALSE;
+  if (tbl_list.head())
+  {
+    List_iterator_fast<TABLE> t(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= t++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields(table, TRUE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 
 err:
+  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -8270,9 +8387,22 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, ptr, values, ignore_errors) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                  TRG_ACTION_BEFORE, TRUE)));
+  bool result;
+  result= (fill_record(thd, ptr, values, ignore_errors) ||
+           (triggers && triggers->process_triggers(thd, event,
+                                                   TRG_ACTION_BEFORE, TRUE)));
+  /*
+    Re-calculate virtual fields to cater for cases when base columns are
+    updated by the triggers.
+  */
+  if (!result && triggers && *ptr)
+  {
+    TABLE *table= (*ptr)->table;
+    if (table->vfield)
+      result= update_virtual_fields(table, TRUE);
+  }
+  return result;
+
 }
 
 

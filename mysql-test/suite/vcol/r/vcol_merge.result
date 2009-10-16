@@ -1,0 +1,8 @@
+drop table if exists t1, t2, t3;
+create table t1 (a int, b int as (a % 10));
+create table t2 (a int, b int as (a % 10));
+insert into t1 values (1,default);
+insert into t2 values (2,default);
+create table t3 (a int, b int as (a % 10)) engine=MERGE UNION=(t1,t2);
+ERROR HY000: 'Specified storage engine' is not yet supported for computed columns.
+drop table t1,t2;

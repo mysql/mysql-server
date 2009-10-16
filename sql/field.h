@@ -45,6 +45,80 @@ inline uint get_set_pack_length(int elements)
   return len > 4 ? 8 : len;
 }
 
+/*
+  Virtual_column_info is the class to contain additional
+  characteristics that is specific for a virtual/computed
+  field such as:
+   - the defining expression that is evaluated to compute the value
+  of the field 
+  - whether the field is to be stored in the database
+  - whether the field is used in a partitioning expression
+*/
+
+class Virtual_column_info: public Sql_alloc
+{
+private:
+  /*
+    The following data is only updated by the parser and read
+    when a Create_field object is created/initialized.
+  */
+  enum_field_types field_type;   /* Real field type*/
+  /* Flag indicating  that the field is physically stored in the database */
+  my_bool stored_in_db;
+  /* Flag indicating that the field used in a partitioning expression */
+  my_bool in_partitioning_expr;
+
+public:
+  /* The expression to compute the value of the virtual column */
+  Item *expr_item;
+  /* Text representation of the defining expression */
+  LEX_STRING expr_str;
+  /*
+    The list of items created when the defining expression for the virtual
+    column is being parsed and validated. These items are freed in the closefrm
+    function when the table containing this virtual column is removed from
+    the TABLE cache.
+    TODO. Items for all different virtual columns of a table should be put into
+    one list attached to the TABLE structure.    
+  */
+  Item *item_free_list;
+
+  Virtual_column_info()
+  : field_type((enum enum_field_types)MYSQL_TYPE_VIRTUAL),
+    stored_in_db(FALSE), in_partitioning_expr(FALSE), 
+    expr_item(NULL), item_free_list(NULL)
+  {
+    expr_str.str= NULL;
+    expr_str.length= 0;
+  };
+  ~Virtual_column_info() {}
+  enum_field_types get_real_type()
+  {
+    return field_type;
+  }
+  void set_field_type(enum_field_types fld_type)
+  {
+    /* Calling this function can only be done once. */
+    field_type= fld_type;
+  }
+  bool is_stored()
+  {
+    return stored_in_db;
+  }
+  void set_stored_in_db_flag(bool stored)
+  {
+    stored_in_db= stored;
+  }
+  bool is_in_partitioning_expr()
+  {
+    return in_partitioning_expr;
+  }
+  void mark_as_in_partitioning_expr()
+  {
+    in_partitioning_expr= TRUE;
+  }
+};
+
 class Field
 {
   Field(const Item &);				/* Prevent use of these */
@@ -57,7 +131,7 @@ public:
   uchar		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
   /*
-    Note that you can use table->in_use as replacement for current_thd member 
+    Note that you can use table->in_use as replacement for current_thd member
     only inside of val_*() and store() members (e.g. you can't use it in cons)
   */
   struct st_table *table;		// Pointer for table
@@ -67,10 +141,10 @@ public:
   /* Field is part of the following keys */
   key_map	key_start, part_of_key, part_of_key_not_clustered;
   key_map       part_of_sortkey;
-  /* 
-    We use three additional unireg types for TIMESTAMP to overcome limitation 
-    of current binary format of .frm file. We'd like to be able to support 
-    NOW() as default and on update value for such fields but unable to hold 
+  /*
+    We use three additional unireg types for TIMESTAMP to overcome limitation
+    of current binary format of .frm file. We'd like to be able to support
+    NOW() as default and on update value for such fields but unable to hold
     this info anywhere except unireg_check field. This issue will be resolved
     in more clean way with transition to new text based .frm format.
     See also comment for Field_timestamp::Field_timestamp().
@@ -102,6 +176,19 @@ public:
 
    */
   bool is_created_from_null_item;
+
+  /* 
+    This is additional data provided for any computed(virtual) field.
+    In particular it includes a pointer to the item by  which this field
+    can be computed from other fields.
+  */
+  Virtual_column_info *vcol_info;
+  /*
+    Flag indicating that the field is physically stored in tables
+    rather than just computed from other fields.
+    As of now, FALSE can be set only for computed virtual columns.
+  */
+  bool stored_in_db;
 
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
@@ -2044,6 +2131,20 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+
+    /* 
+    This is additinal data provided for any computed(virtual) field.
+    In particular it includes a pointer to the item by  which this field
+    can be computed from other fields.
+  */
+  Virtual_column_info *vcol_info;
+  /*
+    Flag indicating that the field is physically stored in tables
+    rather than just computed from other fields.
+    As of now, FALSE can be set only for computed virtual columns.
+  */
+  bool stored_in_db;
+
   Create_field() :after(0) {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
@@ -2060,7 +2161,8 @@ public:
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
-            uint uint_geom_type);
+            uint uint_geom_type,
+	    Virtual_column_info *vcol_info);
 };
 
 

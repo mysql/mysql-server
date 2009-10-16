@@ -199,6 +199,7 @@ class ha_innobase: public handler
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
+	bool check_if_supported_virtual_columns(void) { return TRUE;}
 };
 
 /* Some accessor functions which the InnoDB plugin needs, but which
