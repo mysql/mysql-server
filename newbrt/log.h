@@ -14,15 +14,6 @@
 #include "bread.h"
 #include "x1764.h"
 
-struct logbytes {
-    struct logbytes *next;
-    int nbytes;
-    LSN lsn;
-    char bytes[1];
-};
-
-#define MALLOC_LOGBYTES(n) toku_malloc(sizeof(struct logbytes)+n -1)
-
 typedef void(*voidfp)(void);
 typedef void(*YIELDF)(voidfp, void*);
 struct roll_entry;

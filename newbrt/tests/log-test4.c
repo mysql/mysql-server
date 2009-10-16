@@ -15,25 +15,22 @@ test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
     system(rmrf);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    r = toku_os_mkdir(dname, S_IRWXU);                               assert(r==0);
     TOKULOGGER logger;
-    r = toku_logger_create(&logger);
-    assert(r == 0);
-    r = toku_logger_open(dname, logger);
-    assert(r == 0);
+    r = toku_logger_create(&logger);                                 assert(r == 0);
+    r = toku_logger_open(dname, logger);                             assert(r == 0);
+
     {
-	struct logbytes *b = MALLOC_LOGBYTES(5);
-	b->nbytes=5;
-	memcpy(b->bytes, "a1234", 5);
-	b->lsn=(LSN){0};
-	r = ml_lock(&logger->input_lock);
-	assert(r==0);
-	r = toku_logger_log_bytes(logger, b, 0);
-	assert(r==0);
-	assert(logger->input_lock.is_locked==0);
+	r = ml_lock(&logger->input_lock);                                assert(r == 0);
+	r = toku_logger_make_space_in_inbuf(logger, 5);                  assert(r == 0);
+	snprintf(logger->inbuf.buf+logger->inbuf.n_in_buf, 5, "a1234");
+	logger->inbuf.n_in_buf+=5;
+	logger->lsn.lsn++;
+	logger->inbuf.max_lsn_in_buf = logger->lsn;
+	r = ml_unlock(&logger->input_lock);                              assert(r == 0);
     }
-    r = toku_logger_close(&logger);
-    assert(r == 0);
+
+    r = toku_logger_close(&logger);                                  assert(r == 0);
     {
 	toku_struct_stat statbuf;
 	r = toku_stat(dname "/log000000000000.tokulog", &statbuf);

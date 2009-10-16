@@ -25,6 +25,7 @@ static int do_mysql = 0;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
 static int verbose = 0;
+static const char *log_dir = NULL;
 
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
@@ -40,6 +41,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
     fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
+    fprintf(stderr, "  --log_dir LOGDIR    put the logs in LOGDIR\n");
     return 1;
 }
 
@@ -103,6 +105,10 @@ static void parse_args (int argc, const char *argv[]) {
             argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
 	    dbdir = *argv;
+	} else if (strcmp(*argv, "--log_dir") == 0) {
+            argc--; argv++;
+	    if (argc==0) exit(print_usage(pname));
+	    log_dir = *argv;
         } else if (strcmp(*argv, "--mysql") == 0) {
             do_mysql = 1;
         } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
@@ -155,6 +161,9 @@ static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
+    if (log_dir) {
+        r = env->set_lg_dir(env, log_dir);                                                assert(r==0);
+    }
     double tstart = gettime();
     r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);   assert(r==0);
     double tend = gettime();

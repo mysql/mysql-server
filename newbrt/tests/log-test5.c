@@ -31,16 +31,16 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
     int i;
     for (i=0; i<1000; i++) {
-	r = ml_lock(&logger->input_lock);
-	assert(r==0);
+	r = ml_lock(&logger->input_lock);                                                    assert(r==0);
 
 	int ilen=3+random()%5;
-	struct logbytes *b = MALLOC_LOGBYTES(ilen+1);
-	b->nbytes=ilen+1;
-	snprintf(b->bytes, ilen+1, "a%0*d ", (int)ilen, i); // skip the trailing nul
-	b->lsn=(LSN){23+i};
-	r = toku_logger_log_bytes(logger, b, 0);
-	assert(r==0);
+	r = toku_logger_make_space_in_inbuf(logger, ilen+1);                                 assert(r==0);
+	snprintf(logger->inbuf.buf+logger->inbuf.n_in_buf, ilen+1, "a%0*d ", (int)ilen, i);
+	logger->inbuf.n_in_buf+=(ilen+1);
+	logger->lsn.lsn++;
+	logger->inbuf.max_lsn_in_buf = logger->lsn;
+	r = ml_unlock(&logger->input_lock);                                                  assert(r == 0);
+	r = toku_logger_fsync(logger);                                                      assert(r == 0);
     }
     r = toku_logger_close(&logger);
     assert(r == 0);
@@ -56,7 +56,7 @@ test_main (int argc __attribute__((__unused__)),
 	    toku_struct_stat statbuf;
 	    r = toku_stat(fname, &statbuf);
 	    assert(r==0);
-	    assert(statbuf.st_size<=LSIZE);
+	    assert(statbuf.st_size<=LSIZE+10);
 	}
 	r = closedir(dir);
 	assert(r==0);

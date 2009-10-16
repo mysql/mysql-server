@@ -22,7 +22,7 @@
 //  If the buf would overflow, then grab the file lock, swap file&buf, release buf lock, write the file, write the entry, release the file lock
 //  else append to buf & release lock
 
-#define LOGGER_BUF_SIZE (1<<24)
+#define LOGGER_MIN_BUF_SIZE (1<<24)
 
 struct mylock {
     toku_pthread_mutex_t lock;
@@ -50,12 +50,18 @@ static inline int ml_destroy(struct mylock *l) {
     return toku_pthread_mutex_destroy(&l->lock);
 }
 
+struct logbuf {
+    int n_in_buf;
+    int buf_size;
+    char *buf;
+    LSN  max_lsn_in_buf;
+};
 
 struct tokulogger {
     enum typ_tag tag; // must be first
     struct mylock  input_lock, output_lock; // acquired in that order
-    int is_open;
-    int is_panicked;
+    BOOL is_open;
+    BOOL is_panicked;
     BOOL write_log_files;
     BOOL trim_log_files; // for test purposes
     int panic_errno;
@@ -65,18 +71,17 @@ struct tokulogger {
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
 
     // To access these, you must have the input lock
-    struct logbytes *head,*tail;
     LSN lsn; // the next available lsn
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
-    int n_in_buf;
+    struct logbuf inbuf; // data being accumulated for the write
 
     // To access these, you must have the output lock
     LSN written_lsn; // the last lsn written
     LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry
     LSN checkpoint_lsn;     // What is the LSN of the most recent completed checkpoint.
     long long next_log_file_number;
-    char buf[LOGGER_BUF_SIZE]; // used to marshall logbytes so we can use only a single write
-    int n_in_file;
+    struct logbuf outbuf; // data being written to the file
+    int  n_in_file; // The amount of data in the current file
 
     TOKULOGFILEMGR logfilemgr;
 
@@ -111,8 +116,6 @@ struct tokutxn {
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
     XIDS       xids;      //Represents the xid list
 };
-
-int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync);
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
     return 1;

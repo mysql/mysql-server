@@ -12,8 +12,8 @@ static u_int32_t logger_lock_ctr = 0;	// useful for debug at a live installation
 
 static int (*toku_os_fsync_function)(int)=fsync;
 static int open_logfile (TOKULOGGER logger);
+static int toku_logger_write_buffer (TOKULOGGER logger, int do_fsync);
 static int delete_logfile(TOKULOGGER logger, long long index);
-static int do_write (TOKULOGGER logger, int do_fsync);
 
 u_int32_t toku_logger_get_lock_ctr(void) {
     return logger_lock_ctr;
@@ -23,32 +23,34 @@ int toku_logger_create (TOKULOGGER *resultp) {
     int r;
     TAGMALLOC(TOKULOGGER, result);
     if (result==0) return errno;
-    result->is_open=0;
-    result->is_panicked=0;
+    result->is_open=FALSE;
+    result->is_panicked=FALSE;
+    result->panic_errno = 0;
     result->write_log_files = TRUE;
     result->trim_log_files = TRUE;
-    result->lg_max = 100<<20; // 100MB default
-    result->head = result->tail = 0;
-    result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
-    r = toku_omt_create(&result->live_txns); if (r!=0) goto died0;
-    result->n_in_buf=0;
-    result->n_in_file=0;
     result->directory=0;
-    result->checkpoint_lsn=(LSN){0};
-    result->oldest_living_xid = TXNID_NONE_LIVING;
+    // fd is uninitialized on purpose
+    // ct is uninitialized on purpose
+    result->lg_max = 100<<20; // 100MB default
+    // lsn is uninitialized
+    r = toku_omt_create(&result->live_txns); if (r!=0) goto panic;
+    result->inbuf  = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
+    result->outbuf = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
+    // written_lsn is uninitialized
+    // fsynced_lsn is uninitialized
+    result->checkpoint_lsn = ZERO_LSN;
+    // next_log_file_number is uninitialized
+    // n_in_file is uninitialized
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
+    result->oldest_living_xid = TXNID_NONE_LIVING;
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
-    r = ml_init(&result->input_lock); if (r!=0) goto died1;
-    r = ml_init(&result->output_lock); if (r!=0) goto died2;
+    r = ml_init(&result->input_lock);  if (r!=0) goto panic;
+    r = ml_init(&result->output_lock); if (r!=0) goto panic;
     return 0;
 
- died2:
-    ml_destroy(&result->input_lock);
- died1:
-    toku_omt_destroy(&result->live_txns);
- died0:
-    toku_free(result);
+ panic:
+    toku_logger_panic(result, r);
     return r;
 }
 
@@ -61,9 +63,10 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if ( r!=0 ) 
         return r;
     logger->lsn = toku_logfilemgr_get_last_lsn(logger->logfilemgr);
-    //printf("starting after LSN=%lu\n", logger->lsn.lsn);
     logger->written_lsn = logger->lsn;
     logger->fsynced_lsn = logger->lsn;
+    logger->inbuf.max_lsn_in_buf  = logger->lsn;
+    logger->outbuf.max_lsn_in_buf = logger->lsn;
 
     long long nexti;
     r = toku_logger_find_next_unused_log_file(directory, &nexti);
@@ -89,50 +92,9 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     return 0;
 }
 
-// enter holding input_lock
-// exit holding no locks
-int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsync) {
-    int r;
-    if (logger->is_panicked) return EINVAL;
-    logger->n_in_buf += bytes->nbytes;
-    if (logger->tail) {
-	logger->tail->next=bytes;
-    } else {
-	logger->head = bytes;
-    }
-    logger->tail = bytes;
-    bytes->next = 0;
-    if (logger->n_in_buf >= LOGGER_BUF_SIZE || do_fsync) {
-	// We must flush it
-	r=ml_unlock(&logger->input_lock); if (r!=0) goto panic;
-	r=ml_lock(&logger->output_lock);  if (r!=0) goto panic;
-	if (logger->written_lsn.lsn < bytes->lsn.lsn) {
-	    // We found that our record has not yet been written, so we must write it, and everything else
-	    r=ml_lock(&logger->input_lock);  if (r!=0) goto panic;
-	    r=do_write(logger, do_fsync);    if (r!=0) goto panic;
-	} else {
-	    /* Our LSN has been written.  We have the output lock */
-	    if (do_fsync && logger->fsynced_lsn.lsn > bytes->lsn.lsn) {
-		/* But we need to fsync it. */
-		if (logger->write_log_files) {
-                    r = toku_os_fsync_function(logger->fd); assert(r == 0);
-                }
-		logger->fsynced_lsn = logger->written_lsn;
-	    }
-	}
-	r=ml_unlock(&logger->output_lock);	if (r!=0) goto panic;
-    } else {
-	r=ml_unlock(&logger->input_lock);	if (r!=0) goto panic;
-    }
-    return 0;
- panic:
-    toku_logger_panic(logger, r);
-    return r;
-}
-
 // No locks held on entry
 // No locks held on exit.
-// No locks are needed, since you cannot legally close the log concurrently with doing anything else.
+// Perhaps no locks are needed, since you cannot legally close the log concurrently with doing anything else.
 // But grab the locks just to be careful, including one to prevent access
 // between unlocking and destroying.
 int toku_logger_close(TOKULOGGER *loggerp) {
@@ -146,7 +108,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     r = toku_pthread_mutex_lock(&logger_mutex); if (r!=0) goto panic;
     logger_lock_ctr++;
     locked_logger = 1;
-    r = do_write(logger, 1);           if (r!=0) goto panic; //Releases the input lock
+    r = toku_logger_write_buffer(logger, 1);           if (r!=0) goto panic; //Releases the input lock
     if (logger->fd!=-1) {
 	r = close(logger->fd);         if (r!=0) { r=errno; goto panic; }
     }
@@ -154,6 +116,8 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 
     r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
  is_closed:
+    toku_free(logger->inbuf.buf);
+    toku_free(logger->outbuf.buf);
     r = ml_destroy(&logger->output_lock); if (r!=0) goto panic;
     r = ml_destroy(&logger->input_lock);  if (r!=0) goto panic;
     logger->is_panicked=1; // Just in case this might help.
@@ -181,16 +145,91 @@ int toku_logger_shutdown(TOKULOGGER logger) {
     return r;
 }
 
-#if 0
-int toku_logger_log_checkpoint (TOKULOGGER logger) {
-    if (logger->is_panicked) return EINVAL;
-    int r = toku_cachetable_checkpoint(logger->ct);
-    if (r!=0) return r;
-    logger->checkpoint_lsns[1]=logger->checkpoint_lsns[0];
-    logger->checkpoint_lsns[0]=logger->lsn;
-    return toku_log_checkpoint(logger, (LSN*)0, 1);
+// Write data to a file.  Keep trying even if partial writes occur.
+// On error: Return negative with errno set.
+// On success return nbytes.
+static int write_it (int fd, const void *bufv, int nbytes) {
+    int org_nbytes=nbytes;
+    const char *buf=bufv;
+    while (nbytes>0) {
+	int r = write(fd, buf, nbytes);
+	if (r<0 || errno!=EAGAIN) return r;
+	buf+=r;
+	nbytes-=r;
+    }
+    return org_nbytes;
 }
-#endif
+
+// close the current file, and open the next one.
+// Entry: The output lock is held.
+// Exit:  The output lock is stlil held.
+static int close_and_open_logfile (TOKULOGGER logger) {
+    int r;
+    if (logger->write_log_files) {
+        r = toku_os_fsync_function(logger->fd);          if (r!=0) return errno;
+	assert(logger->fsynced_lsn.lsn <= logger->written_lsn.lsn);
+	logger->fsynced_lsn = logger->written_lsn;
+    }
+    r = close(logger->fd);                               if (r!=0) return errno;
+    return open_logfile(logger);
+}
+
+static int
+max (int a, int b)
+{
+    if (a>b) return a;
+    return b;
+}
+
+int
+toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
+// Entry: Holds the inlock
+// Exit:  Holds the inlock
+// Effect: Upon exit, the inlock is held and there are at least n_bytes_needed in the buffer.
+//  May release the inlock, so this is not atomic.
+// Implementation: Makes space in the inbuf, possibly by writing the inbuf to disk or increasing the size of the inbuf.  There is no fsync.
+// Arguments:  logger:         the logger (side effects)
+//             n_bytes_needed: how many bytes to make space for.
+{
+    int r;
+    if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) return 0;
+    r = ml_unlock(&logger->input_lock);  if (r!=0) goto panic;
+    r = ml_lock(&logger->output_lock);   if (r!=0) goto panic;
+    r = ml_lock(&logger->input_lock);    if (r!=0) goto panic;
+    // Some other thread may have written the log out while we didn't have the lock.  If we can squeeze it in now, then be happy
+    if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) return 0;
+    if (logger->inbuf.n_in_buf > 0) {
+	// There isn't enough space, and there is something in the buffer, so write the inbuf.
+	{
+	    struct logbuf tmp = logger->inbuf;
+	    logger->inbuf = logger->outbuf;
+	    logger->outbuf = tmp;
+	    assert(logger->inbuf.n_in_buf == 0);
+	}
+	r = write_it(logger->fd, logger->outbuf.buf, logger->outbuf.n_in_buf);
+	if (r!=logger->outbuf.n_in_buf) { r = errno; goto panic; }
+	assert(logger->outbuf.max_lsn_in_buf.lsn > logger->written_lsn.lsn); // since there is something in the buffer, its LSN must be bigger than what's previously written.
+	logger->written_lsn =  logger->outbuf.max_lsn_in_buf;
+	logger->n_in_file   += logger->outbuf.n_in_buf;
+	logger->outbuf.n_in_buf = 0;
+	if (logger->n_in_file > logger->lg_max) {
+	    r = close_and_open_logfile(logger);  if (r!=0) goto panic; // set
+	}
+    }
+    // the inbuf is empty.  Is it big enough?
+    if (n_bytes_needed > logger->inbuf.buf_size) {
+	assert(n_bytes_needed < (1<<30)); // it seems unlikely to work if a logentry gets that big.
+	int new_size = max(logger->inbuf.buf_size * 2, n_bytes_needed); // make it at least twice as big, and big enough for n_bytes
+	assert(new_size < (1<<30));
+	XREALLOC_N(new_size, logger->inbuf.buf);
+	logger->inbuf.buf_size = new_size;
+    }
+    r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
+    return 0;
+  panic:
+    toku_logger_panic(logger, r);
+    return r;
+}
 
 // Entry: Holds no locks
 // Exit: Holds no locks
@@ -198,17 +237,15 @@ int toku_logger_log_checkpoint (TOKULOGGER logger) {
 int toku_logger_fsync (TOKULOGGER logger) {
     int r;
     if (logger->is_panicked) return EINVAL;
-    r = ml_lock(&logger->output_lock);   if (r!=0) goto panic;
-    r = ml_lock(&logger->input_lock);   if (r!=0)  goto panic;
-    r = do_write(logger, 1);
-    r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
+    r = ml_lock(&logger->output_lock);       if (r!=0) goto panic;
+    r = ml_lock(&logger->input_lock);        if (r!=0) goto panic;
+    r = toku_logger_write_buffer(logger, 1); if (r!=0) goto panic;
+    r = ml_unlock(&logger->output_lock);     if (r!=0) goto panic;
     return 0;
  panic:
     toku_logger_panic(logger, r);
     return r;
 }
-
-
 
 void toku_logger_panic (TOKULOGGER logger, int err) {
     logger->panic_errno=err;
@@ -240,7 +277,6 @@ int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
     if (logger->is_panicked) return EINVAL;
     *lg_maxp = logger->lg_max;
     return 0;
-
 }
 
 int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize) {
@@ -267,16 +303,16 @@ int toku_logger_lock_destroy(void) {
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result) {
     DIR *d=opendir(directory);
-    long long max=-1; *result = max;
+    long long maxf=-1; *result = maxf;
     struct dirent *de;
     if (d==0) return errno;
     while ((de=readdir(d))) {
 	if (de==0) return errno;
 	long long thisl;
 	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
-	if (r==1 && thisl>max) max=thisl;
+	if (r==1 && thisl>maxf) maxf=thisl;
     }
-    *result=max+1;
+    *result=maxf+1;
     int r = closedir(d);
     return r;
 }
@@ -324,21 +360,6 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     *n_logfiles = n_results;
     result[n_results]=0; // make a trailing null
     return d ? closedir(d) : 0;
-}
-
-// Write something out.  Keep trying even if partial writes occur.
-// On error: Return negative with errno set.
-// On success return nbytes.
-static int write_it (int fd, const void *bufv, int nbytes) {
-    int org_nbytes=nbytes;
-    const char *buf=bufv;
-    while (nbytes>0) {
-	int r = write(fd, buf, nbytes);
-	if (r<0 || errno!=EAGAIN) return r;
-	buf+=r;
-	nbytes-=r;
-    }
-    return org_nbytes;
 }
 
 static int open_logfile (TOKULOGGER logger) {
@@ -407,15 +428,6 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn) {
     return r;
 }
 
-static int close_and_open_logfile (TOKULOGGER logger) {
-    int r;
-    if (logger->write_log_files) {
-        r = toku_os_fsync_function(logger->fd);          if (r!=0) return errno;
-    }
-    r = close(logger->fd);                               if (r!=0) return errno;
-    return open_logfile(logger);
-}
-
 void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files) {
     assert(!logger->is_open);
     logger->write_log_files = write_log_files;
@@ -426,55 +438,55 @@ void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files) {
     logger->trim_log_files = trim_log_files;
 }
 
-// Enter holding both locks
-// Exit holding only the output_lock
-static int do_write (TOKULOGGER logger, int do_fsync) {
+int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
+// Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
+// Entry: Holds input lock.
+// Exit:  Holds no locks.
+// The input lock may be released and then reacquired.  Thus this function does not run atomically.
+{
     int r;
-    struct logbytes *list = logger->head;
-    logger->head=logger->tail=0;
-    logger->n_in_buf=0;
-    while (list) {
-	if (logger->n_in_file + list->nbytes <= logger->lg_max) {
-	    if (logger->n_in_buf + list->nbytes <= LOGGER_BUF_SIZE) {
-		memcpy(logger->buf+logger->n_in_buf, list->bytes, list->nbytes);
-		logger->n_in_buf+=list->nbytes;
-		logger->n_in_file+=list->nbytes;
-		logger->written_lsn = list->lsn;
-		struct logbytes *next=list->next;
-		toku_free(list);
-		list=next;
-	    } else {
-		// it doesn't fit in the buffer, but it does fit in the file.  So flush the buffer
-		r=write_it(logger->fd, logger->buf, logger->n_in_buf);
-		if (r!=logger->n_in_buf) { r=errno; goto panic; }
-		logger->n_in_buf=0;
-		// Special case for a log entry that's too big to fit in the buffer.
-		if (list->nbytes > LOGGER_BUF_SIZE) {
-		    r=write_it(logger->fd, list->bytes, list->nbytes);
-		    if (r!=list->nbytes) { r=errno; goto panic; }
-		    logger->n_in_file+=list->nbytes;
-		    logger->written_lsn = list->lsn;
-		    struct logbytes *next=list->next;
-		    toku_free(list);
-		    list=next;
-		}
+    BOOL have_input_lock = TRUE;
+    if (do_fsync && logger->fsynced_lsn.lsn < lsn.lsn) {
+	// need to fsync and not enough is done
+	// reacquire the locks (acquire output lock first)
+	r = ml_unlock(&logger->input_lock);    if (r!=0) goto panic;
+	r = ml_lock(&logger->output_lock);     if (r!=0) goto panic;
+	r = ml_lock(&logger->input_lock);      if (r!=0) goto panic;
+
+    
+	// it's possible that the written lsn is now written enough that we are happy.   If not then do the I/O
+	if (logger->fsynced_lsn.lsn < lsn.lsn) {
+	    // now we actually do the I/O
+	    struct logbuf tmp = logger->inbuf;
+	    logger->inbuf = logger->outbuf;
+	    logger->outbuf = tmp;
+	    r = ml_unlock(&logger->input_lock); // release the input lock now, so group commit can operate
+	    if (r!=0) goto panic;
+	    have_input_lock = FALSE;
+	    if (logger->outbuf.n_in_buf>0) {
+		r = write_it(logger->fd, logger->outbuf.buf, logger->outbuf.n_in_buf);
+		if (r!=logger->outbuf.n_in_buf) { r = errno; goto panic; }
+		assert(logger->outbuf.max_lsn_in_buf.lsn > logger->written_lsn.lsn); // since there is something in the buffer, its LSN must be bigger than what's previously written.
+		logger->written_lsn = logger->outbuf.max_lsn_in_buf;
+		logger->n_in_file += logger->outbuf.n_in_buf;
+		logger->outbuf.n_in_buf = 0;
 	    }
-	} else {
-	    // The new item doesn't fit in the file, so write the buffer, reopen the file, and try again
-	    r=write_it(logger->fd, logger->buf, logger->n_in_buf);
-	    logger->n_in_buf=0;
-	    r=close_and_open_logfile(logger);   if (r!=0) goto panic;
+	    if (logger->n_in_file > logger->lg_max) {
+		r = close_and_open_logfile(logger);  if (r!=0) goto panic;
+		logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
+	    } else {
+		assert(logger->fsynced_lsn.lsn < logger->written_lsn.lsn); // the fsynced_lsn was less than lsn, but not less than the written lsn?
+		r = toku_os_fsync_function(logger->fd);
+		if (r!=0) { r = errno; goto panic; }
+		logger->fsynced_lsn = logger->written_lsn;
+	    }
 	}
+	r = ml_unlock(&logger->output_lock);
+	if (r!=0) goto panic;
     }
-    r=write_it(logger->fd, logger->buf, logger->n_in_buf);
-    if (r!=logger->n_in_buf) { r=errno; goto panic; }
-    logger->n_in_buf=0;
-    r=ml_unlock(&logger->input_lock); if (r!=0) goto panic2;
-    if (do_fsync) {
-        if (logger->write_log_files) {
-            r = toku_os_fsync_function(logger->fd); assert(r == 0);
-        }
-	logger->fsynced_lsn = logger->written_lsn;
+    if (have_input_lock) {
+	r = ml_unlock(&logger->input_lock);
+	if (r!=0) goto panic2;
     }
     if ( logger->write_log_files ) 
         toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
@@ -486,13 +498,55 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
     return r;
 }
 
+static int
+toku_logger_write_buffer (TOKULOGGER logger, int do_fsync) 
+// Entry:  Holds both locks.
+// Exit:   Holds only the output lock.
+// Effect:  Write the buffers to the output.  If DO_FSYNC is true, then fsync.
+{
+    int r;
+    {
+	struct logbuf tmp = logger->inbuf;
+	logger->inbuf = logger->outbuf;
+	logger->outbuf = tmp;
+	assert(logger->inbuf.n_in_buf == 0);
+    }
+    r = ml_unlock(&logger->input_lock);
+    if (r!=0)
+	goto panic;
+    if (logger->outbuf.n_in_buf > 0) {
+	r = write_it(logger->fd, logger->outbuf.buf, logger->outbuf.n_in_buf);
+	if (r != logger->outbuf.n_in_buf) {
+	    r = errno;
+	    goto panic;
+	}
+	assert(logger->outbuf.max_lsn_in_buf.lsn > logger->written_lsn.lsn); // since there is something in the buffer, its LSN must be bigger than what's previously written.
+	logger->written_lsn = logger->outbuf.max_lsn_in_buf;
+	logger->n_in_file += logger->outbuf.n_in_buf;
+	logger->outbuf.n_in_buf = 0;
+	if (logger->n_in_file > logger->lg_max) {
+	    r = close_and_open_logfile(logger);  if (r!=0) goto panic;
+	    logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
+	} else if (do_fsync) {
+	    r = toku_os_fsync_function(logger->fd);
+	    logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
+	} else {
+	    /* nothing */
+	}
+    }
+    return 0;
+ panic:
+    toku_logger_panic(logger, r);
+    return r;
+}
+
 int toku_logger_restart(TOKULOGGER logger, LSN lastlsn) {
     int r;
 
     // flush out the log buffer
     r = ml_lock(&logger->output_lock); assert(r == 0);
     r = ml_lock(&logger->input_lock); assert(r == 0);
-    r = do_write(logger, TRUE); assert(r == 0);
+    r = toku_logger_write_buffer(logger, TRUE); assert(r == 0);
     r = ml_unlock(&logger->output_lock); assert(r == 0);
 
     // close the log file

@@ -61,6 +61,7 @@ double compressibility = -1; // -1 means make it very compressible.  1 means use
 int do_append = 0;
 int do_checkpoint_period = 0;
 u_int32_t checkpoint_period = 0;
+static const char *log_dir = NULL;
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -119,10 +120,14 @@ static void benchmark_setup (void) {
         if (r != 0) 
             printf("WARNING: set_cachesize %d\n", r);
     }
-    {
-	r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-	assert(r == 0);
+
+    if (log_dir) {
+        r = dbenv->set_lg_dir(dbenv, log_dir);
+        assert(r == 0);
     }
+
+    r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    assert(r == 0);
 
 #if defined(TOKUDB)
     if (do_checkpoint_period) {
@@ -364,12 +369,13 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
     fprintf(stderr, "    --nolog               If transactions are used, then don't write the recovery log\n");
+    fprintf(stderr, "    --log_dir LOGDIR      Put the logs in LOGDIR\n");
+    fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
-    fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
@@ -515,6 +521,9 @@ int main (int argc, const char *argv[]) {
                 put_flags = DB_NOOVERWRITE;
             else
                 put_flags = DB_YESOVERWRITE;
+        } else if (strcmp(arg, "--log_dir") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            log_dir = argv[++i];
         } else {
 	    return print_usage(argv[0]);
 	}

@@ -67,16 +67,6 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     return;
 }
 
-// wbuf points into logbytes
-int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync) {
-    if (logger->is_panicked) return EINVAL;
-    u_int32_t checksum = x1764_finish(&wbuf->checksum);
-    wbuf_int(wbuf, checksum);
-    wbuf_int(wbuf, 4+wbuf->ndone);
-    logbytes->nbytes=wbuf->ndone;
-    return toku_logger_log_bytes(logger, logbytes, do_fsync);
-}
-
 void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {
     return malloc_in_memarena(txn->rollentry_arena, size);
 }

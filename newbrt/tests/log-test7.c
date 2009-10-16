@@ -17,8 +17,8 @@ TOKULOGGER logger[NUM_LOGGERS];
 static void setup_logger(int which) {
     char dnamewhich[200];
     int r;
-    sprintf(dnamewhich, "%s_%d", dname, which);
-    r = toku_os_mkdir(dnamewhich, S_IRWXU);    assert(r==0);
+    snprintf(dnamewhich, sizeof(dnamewhich), "%s_%d", dname, which);
+    r = toku_os_mkdir(dnamewhich, S_IRWXU);    if (r!=0) printf("file %s error (%d) %s\n", dnamewhich, errno, strerror(errno)); assert(r==0);
     r = toku_logger_create(&logger[which]);
     assert(r == 0);
     r = toku_logger_set_lg_max(logger[which], LSIZE);
@@ -34,28 +34,24 @@ static void setup_logger(int which) {
 static void play_with_logger(int which) {
     int r;
     {
-	r = ml_lock(&logger[which]->input_lock);
-	assert(r==0);
-
+	r = ml_lock(&logger[which]->input_lock);	                 assert(r==0);
 	int lsize=LSIZE-12-2;
-	struct logbytes *b = MALLOC_LOGBYTES(lsize);
-	b->nbytes=lsize;
-	snprintf(b->bytes, lsize, "a%*d", LSIZE-12-2, 0);
-	b->lsn=(LSN){23};
-	r = toku_logger_log_bytes(logger[which], b, 0);
-	assert(r==0);
+	r = toku_logger_make_space_in_inbuf(logger[which], lsize);       assert(r==0); 
+	snprintf(logger[which]->inbuf.buf+logger[which]->inbuf.n_in_buf, lsize, "a%*d", lsize-1, 0);
+	logger[which]->inbuf.n_in_buf += lsize;
+	logger[which]->lsn.lsn++;
+	logger[which]->inbuf.max_lsn_in_buf = logger[which]->lsn;
+	r = ml_unlock(&logger[which]->input_lock);                       assert(r == 0);
     }
 
     {
-	r = ml_lock(&logger[which]->input_lock);
-	assert(r==0);
-
-	struct logbytes *b = MALLOC_LOGBYTES(2);
-	b->lsn=(LSN){24};
-	b->nbytes=2;
-	memcpy(b->bytes, "b1", 2);
-	r = toku_logger_log_bytes(logger[which], b, 0);
-	assert(r==0);
+	r = ml_lock(&logger[which]->input_lock);                         assert(r==0);
+	r = toku_logger_make_space_in_inbuf(logger[which], 2);           assert(r==0);
+	memcpy(logger[which]->inbuf.buf+logger[which]->inbuf.n_in_buf, "b1", 2);
+	logger[which]->inbuf.n_in_buf += 2;
+	logger[which]->lsn.lsn++;
+	logger[which]->inbuf.max_lsn_in_buf = logger[which]->lsn;
+	r = ml_unlock(&logger[which]->input_lock);                       assert(r == 0);
     }
 }
 
