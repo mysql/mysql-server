@@ -64,15 +64,15 @@ create table t1 (a int, b char(20))
 partition by range column_list(a,b)
 (partition p0 values less than (1));
 
---error ER_PARTITION_COLUMN_LIST_ERROR
+--error ER_TOO_MANY_VALUES_ERROR
 create table t1 (a int, b char(20))
 partition by range(a)
-(partition p0 values less than (column_list(1,"b")));
+(partition p0 values less than (1,"b"));
 
---error ER_PARTITION_COLUMN_LIST_ERROR
+--error ER_TOO_MANY_VALUES_ERROR
 create table t1 (a int, b char(20))
 partition by range(a)
-(partition p0 values less than (column_list(1,"b")));
+(partition p0 values less than (1,"b"));
 
 create table t1 (a int, b char(20));
 create global index inx on t1 (a,b)
@@ -82,7 +82,7 @@ drop table t1;
 
 create table t1 (a int, b char(20))
 partition by range column_list(b)
-(partition p0 values less than (column_list("b")));
+(partition p0 values less than ("b"));
 drop table t1;
 
 #

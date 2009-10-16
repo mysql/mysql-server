@@ -11,8 +11,8 @@ drop table if exists t1;
 create table t1 (a varchar(5))
 engine=memory
 partition by range column_list(a)
-( partition p0 values less than (column_list('m')),
-  partition p1 values less than (column_list('za')));
+( partition p0 values less than ('m'),
+  partition p1 values less than ('za'));
 insert into t1 values  ('j');
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;
@@ -20,8 +20,8 @@ drop table t1;
 create table t1 (a varchar(5))
 engine=myisam
 partition by range column_list(a)
-( partition p0 values less than (column_list('m')),
-  partition p1 values less than (column_list('za')));
+( partition p0 values less than ('m'),
+  partition p1 values less than ('za'));
 insert into t1 values  ('j');
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;
@@ -29,8 +29,8 @@ drop table t1;
 create table t1 (a varchar(5))
 engine=innodb
 partition by range column_list(a)
-( partition p0 values less than (column_list('m')),
-  partition p1 values less than (column_list('za')));
+( partition p0 values less than ('m'),
+  partition p1 values less than ('za'));
 insert into t1 values  ('j');
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;

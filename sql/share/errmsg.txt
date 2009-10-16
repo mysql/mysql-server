@@ -5822,8 +5822,6 @@ ER_SAME_NAME_PARTITION
         eng "Duplicate partition name %-.192s"
         ger "Doppelter Partitionsname: %-.192s"
         swe "Duplicerat partitionsnamn %-.192s"
-ER_SAME_NAME_PARTITION_FIELD
-        eng "Duplicate partition field name %-.192s"
 ER_NO_BINLOG_ERROR
         eng "It is not allowed to shut off binlog on this command"
         ger "Es es nicht erlaubt, bei diesem Befehl binlog abzuschalten"
@@ -6192,6 +6190,12 @@ ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
   eng "Too many fields in '%s'"
 ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
   eng "Cannot use MAXVALUE as value in List partitioning"
+ER_TOO_MANY_VALUES_ERROR
+  eng "Cannot have more than one value for this type of %-.64s partitioning"
+ER_SAME_NAME_PARTITION_FIELD
+        eng "Duplicate partition field name %-.192s"
+ER_ROW_SINGLE_PARTITION_FIELD_ERROR
+        eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
 
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
