@@ -3023,7 +3023,8 @@ test case was executed:\n";
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
 	"The server $proc crashed while running ".
-	"'check testcase $mode test'";
+	"'check testcase $mode test'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
@@ -3141,7 +3142,8 @@ sub run_on_all($$)
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}.=
-	"The server $proc crashed while running '$run'";
+	"The server $proc crashed while running '$run'".
+	get_log_from_proc($proc, $tinfo->{name});
     }
 
     # Kill any check processes still running
@@ -3541,7 +3543,8 @@ sub run_testcase ($) {
     {
       # Server failed, probably crashed
       $tinfo->{comment}=
-	"Server $proc failed during test run";
+	"Server $proc failed during test run" .
+	get_log_from_proc($proc, $tinfo->{name});
 
       # ----------------------------------------------------
       # It's not mysqltest that has exited, kill it
@@ -3596,12 +3599,11 @@ sub run_testcase ($) {
 }
 
 
+# Extract server log from after the last occurrence of named test
+# Return as an array of lines
 #
-# Perform a rough examination of the servers
-# error log and write all lines that look
-# suspicious into $error_log.warnings
-#
-sub extract_warning_lines ($$) {
+
+sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
@@ -3653,8 +3655,37 @@ sub extract_warning_lines ($$) {
       }
     }
   }
+  return @lines;
+}
 
-  # Write all suspicious lines to $error_log.warnings file
+# Get log from server identified from its $proc object, from named test
+# Return as a single string
+#
+
+sub get_log_from_proc ($$) {
+  my ($proc, $name)= @_;
+  my $srv_log= "";
+
+  foreach my $mysqld (mysqlds()) {
+    if ($mysqld->{proc} eq $proc) {
+      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      last;
+    }
+  }
+  return $srv_log;
+}
+
+# Perform a rough examination of the servers
+# error log and write all lines that look
+# suspicious into $error_log.warnings
+#
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
+
+  my @lines= extract_server_log($error_log, $tname);
+
+# Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
   my $Fwarn = IO::File->new($warning_log, "w")
     or die("Could not open file '$warning_log' for writing: $!");
@@ -3837,7 +3868,8 @@ sub check_warnings ($) {
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
-	"The server $proc crashed while running 'check warnings'";
+	"The server $proc crashed while running 'check warnings'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
