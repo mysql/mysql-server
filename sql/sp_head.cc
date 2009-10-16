@@ -2826,8 +2826,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  query= thd->query;
-  query_length= thd->query_length;
+  query= thd->query();
+  query_length= thd->query_length();
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -2840,10 +2840,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd,
-					  thd->query, thd->query_length) <= 0)
+          thd->query(), 
+          thd->query_length()) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 

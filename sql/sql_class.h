@@ -642,9 +642,12 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  char *query;
-  uint32 query_length;                          // current query length
+  LEX_STRING query_string;
   Server_side_cursor *cursor;
+
+  inline char *query() { return query_string.str; }
+  inline uint32 query_length() { return query_string.length; }
+  void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
     Name of the current (default) database.
