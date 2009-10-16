@@ -639,3 +639,43 @@ CREATE TABLE t2(f1 CHAR(1));
 INSERT INTO t2 SELECT f1 FROM t1;
 DROP TABLE t1, t2;
 End of 5.0 tests.
+#
+# Bug#34898 "mysql_info() reports 0 warnings while
+# mysql_warning_count() reports 1"
+# Check that the number of warnings reported by
+# mysql_info() is correct.
+#
+drop table if exists t1;
+create table t1 (data varchar(4) not null);
+set sql_mode='error_for_division_by_zero';
+#
+# Demonstrate that the number of warnings matches
+# the information in mysql_info().
+#
+insert t1 (data) values ('letter'), (1/0);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 3
+Warnings:
+Warning	1265	Data truncated for column 'data' at row 1
+Warning	1365	Division by 0
+Warning	1048	Column 'data' cannot be null
+update t1 set data='envelope' where 1/0 or 1;
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 3
+Warnings:
+Warning	1365	Division by 0
+Warning	1265	Data truncated for column 'data' at row 1
+Warning	1265	Data truncated for column 'data' at row 2
+insert t1 (data) values (default), (1/0), ('dead beef');
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 4
+Warnings:
+Warning	1364	Field 'data' doesn't have a default value
+Warning	1365	Division by 0
+Warning	1048	Column 'data' cannot be null
+Warning	1265	Data truncated for column 'data' at row 3
+set sql_mode=default;
+drop table t1;
+#
+# End of 5.4 tests
+#

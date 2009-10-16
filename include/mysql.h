@@ -188,24 +188,10 @@ struct st_mysql_options {
   unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
- /*
-   On connect, find out the replication role of the server, and
-   establish connections to all the peers
- */
-  my_bool rpl_probe;
- /*
-   Each call to mysql_real_query() will parse it to tell if it is a read
-   or a write, and direct it to the slave or the master
- */
-  my_bool rpl_parse;
- /*
-   If set, never read from a master, only from slave, when doing
-   a read that is replication-aware
- */
-  my_bool no_master_reads;
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
-  my_bool separate_thread;
-#endif
+  my_bool unused1;
+  my_bool unused2;
+  my_bool unused3;
+  my_bool unused4;
   enum mysql_option methods_to_use;
   char *client_ip;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
@@ -231,15 +217,6 @@ enum mysql_protocol_type
 {
   MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
   MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
-};
-/*
-  There are three types of queries - the ones that have to go to
-  the master, the ones that go to a slave, and the adminstrative
-  type which must happen on the pivot connectioin
-*/
-enum mysql_rpl_type 
-{
-  MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
 typedef struct character_set
@@ -285,21 +262,8 @@ typedef struct st_mysql
 
   /* session-wide random string */
   char	        scramble[SCRAMBLE_LENGTH+1];
-
- /*
-   Set if this is the original connection, not a master or a slave we have
-   added though mysql_rpl_probe() or mysql_set_master()/ mysql_add_slave()
- */
-  my_bool rpl_pivot;
-  /*
-    Pointers to the master, and the next slave connections, points to
-    itself if lone connection.
-  */
-  struct st_mysql* master, *next_slave;
-
-  struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
- /* needed for send/read/store/use result to work correctly with replication */
-  struct st_mysql* last_used_con;
+  my_bool unused1;
+  void *unused2, *unused3, *unused4, *unused5;
 
   LIST  *stmts;                     /* list of all statements */
   const struct st_mysql_methods *methods;
@@ -333,34 +297,11 @@ typedef struct st_mysql_res {
   void *extension;
 } MYSQL_RES;
 
-#define MAX_MYSQL_MANAGER_ERR 256  
-#define MAX_MYSQL_MANAGER_MSG 256
-
-#define MANAGER_OK           200
-#define MANAGER_INFO         250
-#define MANAGER_ACCESS       401
-#define MANAGER_CLIENT_ERR   450
-#define MANAGER_INTERNAL_ERR 500
 
 #if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
 #define MYSQL_CLIENT
 #endif
 
-
-typedef struct st_mysql_manager
-{
-  NET net;
-  char *host, *user, *passwd;
-  char *net_buf, *net_buf_pos, *net_data_end;
-  unsigned int port;
-  int cmd_status;
-  int last_errno;
-  int net_buf_size;
-  my_bool free_me;
-  my_bool eof;
-  char last_error[MAX_MYSQL_MANAGER_ERR];
-  void *extension;
-} MYSQL_MANAGER;
 
 typedef struct st_mysql_parameters
 {
@@ -454,16 +395,6 @@ int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 
-/* perform query on master */
-my_bool		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
-					   unsigned long length);
-my_bool		STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
-						unsigned long length);
-/* perform query on slave */  
-my_bool		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
-					  unsigned long length);
-my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
-					       unsigned long length);
 void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
 
@@ -484,37 +415,6 @@ mysql_set_local_infile_handler(MYSQL *mysql,
 
 void
 mysql_set_local_infile_default(MYSQL *mysql);
-
-
-/*
-  enable/disable parsing of all queries to decide if they go on master or
-  slave
-*/
-void            STDCALL mysql_enable_rpl_parse(MYSQL* mysql);
-void            STDCALL mysql_disable_rpl_parse(MYSQL* mysql);
-/* get the value of the parse flag */  
-int             STDCALL mysql_rpl_parse_enabled(MYSQL* mysql);
-
-/*  enable/disable reads from master */
-void            STDCALL mysql_enable_reads_from_master(MYSQL* mysql);
-void            STDCALL mysql_disable_reads_from_master(MYSQL* mysql);
-/* get the value of the master read flag */  
-my_bool		STDCALL mysql_reads_from_master_enabled(MYSQL* mysql);
-
-enum mysql_rpl_type     STDCALL mysql_rpl_query_type(const char* q, int len);  
-
-/* discover the master and its slaves */  
-my_bool		STDCALL mysql_rpl_probe(MYSQL* mysql);
-
-/* set the master, close/free the old one, if it is not a pivot */
-int             STDCALL mysql_set_master(MYSQL* mysql, const char* host,
-					 unsigned int port,
-					 const char* user,
-					 const char* passwd);
-int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
-					unsigned int port,
-					const char* user,
-					const char* passwd);
 
 int		STDCALL mysql_shutdown(MYSQL *mysql,
                                        enum mysql_enum_shutdown_level
@@ -562,18 +462,6 @@ void		STDCALL mysql_debug(const char *debug);
 void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
 my_bool		STDCALL mysql_embedded(void);
-MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con);  
-MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
-					      const char* host,
-					      const char* user,
-					      const char* passwd,
-					      unsigned int port);
-void            STDCALL mysql_manager_close(MYSQL_MANAGER* con);
-int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
-						const char* cmd, int cmd_len);
-int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
-						  char* res_buf,
-						 int res_buf_size);
 my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
 
 
@@ -842,7 +730,6 @@ MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
 				      const char *user, const char *passwd);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
-#define	 mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 #endif
 #define HAVE_MYSQL_REAL_CONNECT
 
