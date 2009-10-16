@@ -74,12 +74,6 @@ create table t1 (a int, b char(20))
 partition by range(a)
 (partition p0 values less than (1,"b"));
 
-create table t1 (a int, b char(20));
-create global index inx on t1 (a,b)
-partition by range (a)
-(partition p0 values less than (1));
-drop table t1;
-
 create table t1 (a int, b char(20))
 partition by range column_list(b)
 (partition p0 values less than ("b"));
