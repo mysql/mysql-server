@@ -59,11 +59,13 @@ void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 }
 
 
+#ifndef MYSQL_CLIENT
 void *sql_alloc(size_t Size)
 {
   MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
   return alloc_root(root,Size);
 }
+#endif
 
 
 void *sql_calloc(size_t size)

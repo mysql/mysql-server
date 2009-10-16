@@ -1,3 +1,5 @@
+#ifndef MYSQL_SQL_STRING_H_INCLUDED
+#define MYSQL_SQL_STRING_H_INCLUDED
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -394,3 +396,5 @@ static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str,
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
+
+#endif // MYSQL_SQL_STRING_H_INCLUDED
