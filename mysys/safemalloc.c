@@ -272,6 +272,9 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   irem= (struct st_irem *) ((char*) ptr- ALIGN_SIZE(sizeof(struct st_irem))-
 			    sf_malloc_prehunc);
 
+  if (sf_malloc_quick)
+    (void) _checkchunk(irem, filename, lineno);
+
   /*
     Check to make sure that we have a real remember structure.
     Note: this test could fail for four reasons:
