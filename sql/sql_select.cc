@@ -991,13 +991,13 @@ JOIN::optimize()
   }
   if (const_tables && !thd->locked_tables &&
       !(select_options & SELECT_NO_UNLOCK))
-    mysql_unlock_some_tables(thd, table, const_tables);
+    mysql_unlock_some_tables(thd, all_tables, const_tables);
   if (!conds && outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
     conds=new Item_int((longlong) 1,1);	// Always true
   }
-  select= make_select(*table, const_table_map,
+  select= make_select(*all_tables, const_table_map,
                       const_table_map, conds, 1, &error);
   if (error)
   {						/* purecov: inspected */
@@ -2905,7 +2905,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
   join->join_tab=stat;
   join->map2table=stat_ref;
-  join->table= join->all_tables=table_vector;
+  join->all_tables= table_vector;
   join->const_tables=const_count;
   join->found_const_table_map=found_const_table_map;
 
@@ -5595,7 +5595,7 @@ get_best_combination(JOIN *join)
   {
     TABLE *form;
     *j= *join->best_positions[tablenr].table;
-    form=join->table[tablenr]=j->table;
+    form=join->all_tables[tablenr]=j->table;
     used_tables|= form->map;
     form->reginfo.join_tab=j;
     if (!*j->on_expr_ref)
@@ -5867,7 +5867,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
     DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
-  table= &parent->table_reexec[0]; parent->table_reexec[0]= tmp_table;
+  parent->table_reexec[0]= tmp_table;
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
@@ -6899,24 +6899,23 @@ void JOIN::cleanup(bool full)
 {
   DBUG_ENTER("JOIN::cleanup");
 
-  if (table)
+  if (all_tables)
   {
     JOIN_TAB *tab,*end;
     /*
       Only a sorted table may be cached.  This sorted table is always the
-      first non const table in join->table
+      first non const table in join->all_tables
     */
     if (tables > const_tables) // Test for not-const tables
     {
-      free_io_cache(table[const_tables]);
-      filesort_free_buffers(table[const_tables],full);
+      free_io_cache(all_tables[const_tables]);
+      filesort_free_buffers(all_tables[const_tables],full);
     }
 
     if (full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
-      table= 0;
     }
     else
     {
@@ -7245,7 +7244,7 @@ static void clear_tables(JOIN *join)
     are not re-calculated.
   */
   for (uint i=join->const_tables ; i < join->tables ; i++)
-    mark_as_null_row(join->table[i]);		// All fields are NULL
+    mark_as_null_row(join->all_tables[i]);		// All fields are NULL
 }
 
 /*****************************************************************************
@@ -10995,26 +10994,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (error == NESTED_LOOP_NO_MORE_ROWS)
     error= NESTED_LOOP_OK;
 
-  if (error == NESTED_LOOP_OK)
-  {
-    /*
-      Sic: this branch works even if rc != 0, e.g. when
-      send_data above returns an error.
-    */
-    if (!table)					// If sending data to client
-    {
-      /*
-	The following will unlock all cursors if the command wasn't an
-	update command
-      */
-      join->join_free();			// Unlock all cursors
-      if (join->result->send_eof())
-	rc= 1;                                  // Don't send error
-    }
-    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
-  }
-  else
-    rc= -1;
+
   if (table)
   {
     int tmp, new_errno= 0;
@@ -11031,6 +11011,29 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (new_errno)
       table->file->print_error(new_errno,MYF(0));
   }
+  else
+  {
+    /*
+      The following will unlock all cursors if the command wasn't an
+      update command
+    */
+    join->join_free();			// Unlock all cursors
+  }
+  if (error == NESTED_LOOP_OK)
+  {
+    /*
+      Sic: this branch works even if rc != 0, e.g. when
+      send_data above returns an error.
+    */
+    if (!table)					// If sending data to client
+    {
+      if (join->result->send_eof())
+	rc= 1;                                  // Don't send error
+    }
+    DBUG_PRINT("info",("%ld records output", (long) join->send_records));
+  }
+  else
+    rc= -1;
 #ifndef DBUG_OFF
   if (rc)
   {

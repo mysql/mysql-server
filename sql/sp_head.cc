@@ -1958,15 +1958,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
     }
 
-    /* 
-      Okay, got values for all arguments. Close tables that might be used by 
-      arguments evaluation. If arguments evaluation required prelocking mode, 
+    /*
+      Okay, got values for all arguments. Close tables that might be used by
+      arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
     {
       thd->lex->unit.cleanup();
-      close_thread_tables(thd);            
+
+      thd_proc_info(thd, "closing tables");
+      close_thread_tables(thd);
+      thd_proc_info(thd, 0);
+
       thd->rollback_item_tree_changes();
     }
 
