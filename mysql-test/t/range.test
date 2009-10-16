@@ -1171,14 +1171,3 @@ a < 5 OR
 a < 10;
 
 DROP TABLE t1, t2, t3;
-
---echo #
---echo # Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN
---echo #
-
-CREATE TABLE t1(a INT, KEY(a));
-INSERT INTO t1 VALUES (1), (NULL);
-SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
-DROP TABLE t1;
-
---echo End of 5.1 tests

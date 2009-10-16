@@ -5891,17 +5891,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
-
-  /*
-    Any sargable predicate except "<=>" involving NULL as a constant is always
-    FALSE
-  */
-  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
-  {
-    tree= &null_element;
-    goto end;
-  }
-  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
