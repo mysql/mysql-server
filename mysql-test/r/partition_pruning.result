@@ -1272,9 +1272,8 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (2, NULL);
 # test with an invalid date, which lead to item->null_value is set.
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-99' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Warning	1292	Incorrect datetime value: '2009-04-99'
 Warning	1292	Incorrect datetime value: '2009-04-99'
 DROP TABLE t1;
 CREATE TABLE t1
