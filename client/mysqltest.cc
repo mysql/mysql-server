@@ -6457,8 +6457,6 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
     if (!disable_result_log)
     {
-      ulonglong UNINIT_VAR(affected_rows);    /* Ok to be undef if 'disable_info' is set */
-
       if (res)
       {
 	MYSQL_FIELD *fields= mysql_fetch_fields(res);
@@ -6475,10 +6473,10 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
       /*
         Need to call mysql_affected_rows() before the "new"
-        query to find the warnings
+        query to find the warnings.
       */
       if (!disable_info)
-        affected_rows= mysql_affected_rows(mysql);
+	append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
       /*
         Add all warnings to the result. We can't do this if we are in
@@ -6493,9 +6491,6 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 	  dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
 	}
       }
-
-      if (!disable_info)
-	append_info(ds, affected_rows, mysql_info(mysql));
     }
 
     if (res)
@@ -6868,6 +6863,13 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       */
     }
 
+    /*
+      Fetch info before fetching warnings, since it will be reset
+      otherwise.
+    */
+    if (!disable_info)
+      append_info(ds, mysql_stmt_affected_rows(stmt), mysql_info(mysql));
+
     if (!disable_warnings)
     {
       /* Get the warnings from execute */
@@ -6890,9 +6892,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 			    ds_execute_warnings.length);
       }
     }
-
-    if (!disable_info)
-      append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
   }
 

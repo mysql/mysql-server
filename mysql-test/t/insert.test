@@ -499,3 +499,33 @@ DROP TABLE t1, t2;
 
 --echo End of 5.0 tests.
 
+--echo #
+--echo # Bug#34898 "mysql_info() reports 0 warnings while
+--echo # mysql_warning_count() reports 1"
+--echo # Check that the number of warnings reported by
+--echo # mysql_info() is correct.
+--echo #
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (data varchar(4) not null);
+
+set sql_mode='error_for_division_by_zero';
+--echo #
+--echo # Demonstrate that the number of warnings matches
+--echo # the information in mysql_info().
+--echo #
+--enable_info
+insert t1 (data) values ('letter'), (1/0);
+update t1 set data='envelope' where 1/0 or 1;
+insert t1 (data) values (default), (1/0), ('dead beef');
+--disable_info
+
+set sql_mode=default;
+drop table t1;
+
+--echo #
+--echo # End of 5.4 tests
+--echo #
