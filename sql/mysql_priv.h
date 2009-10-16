@@ -878,6 +878,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 #include "tztime.h"
 #ifdef MYSQL_SERVER
 #include "sql_servers.h"
+#include "records.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -2235,12 +2236,6 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select, int use_record_cache, 
-                      bool print_errors, bool disable_rr_cache);
-void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
-                          bool print_error, uint idx);
-void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, bool sort_positions,

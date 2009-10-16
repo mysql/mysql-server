@@ -408,10 +408,6 @@ void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
 
-/*
-  The following function is not meant for normal usage
-  Currently it's used internally by manager.c
-*/
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);

@@ -581,6 +581,7 @@ struct handler_iterator {
   void *buffer;
 };
 
+class handler;
 /*
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -1152,7 +1153,7 @@ public:
   virtual ~handler(void)
   {
     DBUG_ASSERT(locked == FALSE);
-    /* TODO: DBUG_ASSERT(inited == NONE); */
+    DBUG_ASSERT(inited == NONE);
   }
   virtual handler *clone(MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
