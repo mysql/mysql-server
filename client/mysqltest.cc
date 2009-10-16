@@ -112,6 +112,8 @@ static uint my_end_arg= 0;
 /* Number of lines of the result to include in failure report */
 static uint opt_tail_lines= 0;
 
+static uint opt_connect_timeout= 0;
+
 static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
 
@@ -5007,6 +5009,11 @@ void do_connect(struct st_command *command)
 #endif
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
+
+  if (opt_connect_timeout)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  (void *) &opt_connect_timeout);
+
   if (opt_compress || con_compress)
     mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -5762,6 +5769,11 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
    (uchar**) &view_protocol, (uchar**) &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+   "Number of seconds before connection timeout.",
+   (uchar**) &opt_connect_timeout,
+   (uchar**) &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
+   120, 0, 3600 * 12, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6985,6 +6997,10 @@ int util_query(MYSQL* org_mysql, const char* query){
     if (!(mysql= mysql_init(mysql)))
       die("Failed in mysql_init()");
 
+    if (opt_connect_timeout)
+      mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                    (void *) &opt_connect_timeout);
+
     /* enable local infile, in non-binary builds often disabled by default */
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
     safe_connect(mysql, "util", org_mysql->host, org_mysql->user,
@@ -7644,6 +7660,9 @@ int main(int argc, char **argv)
   st_connection *con= connections;
   if (!( mysql_init(&con->mysql)))
     die("Failed in mysql_init()");
+  if (opt_connect_timeout)
+    mysql_options(&con->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  (void *) &opt_connect_timeout);
   if (opt_compress)
     mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
