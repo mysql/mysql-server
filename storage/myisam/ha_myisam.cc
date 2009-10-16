@@ -1594,8 +1594,8 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  old_query= thd->query;
-  old_query_length= thd->query_length;
+  old_query= thd->query();
+  old_query_length= thd->query_length();
   thd->set_query(table->s->table_name.str,
                  (uint) table->s->table_name.length);
 
