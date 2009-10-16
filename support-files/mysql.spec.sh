@@ -708,7 +708,7 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%attr(755, root, root) %{_libdir}/plugin/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/*.so*
 
 %if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
 %attr(644, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -838,8 +838,8 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
-%{_libdir}/plugin/*.a
-%{_libdir}/plugin/*.la
+%{_libdir}/mysql/plugin/*.a
+%{_libdir}/mysql/plugin/*.la
 
 %files shared
 %defattr(-, root, root, 0755)
