@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1406,8 +1406,8 @@ static void set_up_partition_func_pointers(partition_info *part_info)
       DBUG_ASSERT(part_info->get_part_partition_id);
       if (!part_info->column_list)
       {
-        part_info->get_part_partition_id=
-          part_info->get_part_partition_id_charset;
+        part_info->get_part_partition_id_charset=
+          part_info->get_part_partition_id;
         part_info->get_part_partition_id= get_part_id_charset_func_part;
       }
     }
@@ -2673,7 +2673,7 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
     part_info           A reference to the partition_info struct where all the
                         desired information is given
     out:part_id         The partition id is returned through this pointer
-    out: func_value     Value of partition function (longlong)
+    out:func_value      Value of partition function (longlong)
 
   RETURN VALUE
     part_id                     Partition id of partition that would contain
@@ -2731,7 +2731,7 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr)
     get_partition_id_range_col
     get_partition_id_hash_nosub
     get_partition_id_key_nosub
-    get_partition_id_linhash_nosub
+    get_partition_id_linear_hash_nosub
     get_partition_id_linear_key_nosub
 */
 
@@ -2923,12 +2923,12 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
     }
     else 
     {
-      DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
+      DBUG_RETURN(list_index + test(!tailf));
     }
   } while (max_list_index >= min_list_index);
-notfound:
   if (cmp > 0)
     list_index++;
+notfound:
   DBUG_RETURN(list_index);
 }
 
@@ -3027,7 +3027,6 @@ int get_partition_id_range_col(partition_info *part_info,
 
   DBUG_PRINT("exit",("partition: %d", *part_id));
   DBUG_RETURN(0);
-  return 0;
 }
 
 
@@ -6746,13 +6745,28 @@ setup_subparts:
 }
 
 
-/* TODO Commenting those functions */
+/*
+  This function takes a memory of packed fields in opt-range format
+  and stores it in record format. To avoid having to worry about how
+  the length of fields are calculated in opt-range format we send
+  an array of lengths used for each field in store_length_array.
+
+  SYNOPSIS
+  store_tuple_to_record()
+  pfield                         Field array
+  store_length_array             Array of field lengths
+  value                          Memory where fields are stored
+  value_end                      End of memory
+
+  RETURN VALUE
+  nparts                         Number of fields assigned
+*/
 uint32 store_tuple_to_record(Field **pfield,
                              uint32 *store_length_array,
                              uchar *value,
                              uchar *value_end)
 {
-  // see store_key_image_to_rec
+  /* This function is inspired by store_key_image_rec. */
   uint32 nparts= 0;
   uchar *loc_value;
   while (value < value_end)
@@ -6779,12 +6793,12 @@ uint32 store_tuple_to_record(Field **pfield,
 /*
   RANGE(columns) partitioning: compare value bound and probe tuple.
 
-  The value bound always is a full tuple (but may include MIN_VALUE and
-  MAX_VALUE special values).
+  The value bound always is a full tuple (but may include the MAX_VALUE
+  special value).
 
   The probe tuple may be a prefix of partitioning tuple. The tail_is_min
   parameter specifies whether the suffix components should be assumed to
-  hold MIN_VALUE or MAX_VALUE
+  hold MAX_VALUE
 */
 
 static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec)
