@@ -8429,7 +8429,7 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_LOG_SLOW_FILTER:
     global_system_variables.log_slow_filter=
-      find_bit_type_or_exit(argument, &log_slow_verbosity_typelib,
+      find_bit_type_or_exit(argument, &log_slow_filter_typelib,
                             opt->name, &error);
     /*
       If we are using filters, we set opt_slow_admin_statements to be always
@@ -8441,7 +8441,7 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_LOG_SLOW_VERBOSITY:
     global_system_variables.log_slow_verbosity=
-      find_bit_type_or_exit(argument, &log_slow_filter_typelib,
+      find_bit_type_or_exit(argument, &log_slow_verbosity_typelib,
                             opt->name, &error);
     if (error)
       return 1;

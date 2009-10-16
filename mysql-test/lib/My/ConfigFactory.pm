@@ -19,7 +19,7 @@ my @pre_rules=
 );
 
 
-my @share_locations= ("share/mysql", "sql/share", "share");
+my @share_locations= ("share/mariadb", "share/mysql", "sql/share", "share");
 
 
 sub get_basedir {

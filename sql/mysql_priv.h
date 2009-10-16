@@ -951,7 +951,6 @@ struct Query_cache_query_flags
 
 #define query_cache_abort(A)
 #define query_cache_end_of_result(A)
-#define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #define query_cache_maybe_disabled(T) 1
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/

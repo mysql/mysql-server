@@ -1,0 +1,73 @@
+#!/bin/sh
+
+#
+# This is a script that one needs to run in the source tarball to build
+# a MariaDB release for Windows
+#
+
+set -e
+
+if [ ! -d win/data ] ; then
+  echo This doesnt seem to be source tarball. 
+  echo This script should be run from the top directory of the source tarball 
+  echo   that was produced by 'make dist'
+  exit 1;
+fi
+
+set -x
+
+win/configure-mariadb.sh
+
+cmake -G "Visual Studio 9 2008"
+
+devenv.com MySQL.sln /build RelWithDebInfo
+devenv.com MySQL.sln /build Debug
+
+# TODO extract version number
+VER=`cat configure.in | 
+     perl -e 'while (<>) { if (/^AM_INIT_AUTOMAKE\([a-z ]*, *([0-9a-z\.-]+)/) { print "$1\n"; exit(0)} } ; exit 1'`
+
+echo Version string: $VER.
+
+# Remove '-maria-' from version number
+VER_NO_MARIA=${VER/maria-/}
+
+# We want the final zip to be named like this:
+#  mariadb-noinstall-5.1.38-win32.zip
+ZIPNAME=mariadb-noinstall-$VER_NO_MARIA-win32
+ZIPFILE=$ZIPNAME.zip
+
+# The top directory inside the zip should be called like this:
+#  mariadb-5.1-38-win32
+ZIPCONTENT=mariadb-$VER_NO_MARIA-win32
+
+# This will make $ZIPCONTENT.zip
+sh -x scripts/make_win_bin_dist $ZIPCONTENT
+
+mv $ZIPCONTENT.zip $ZIPFILE
+
+rm -rf unpack
+mkdir unpack
+
+cd unpack
+wget -O base.list.gz \
+http://askmonty.org/wiki/images/5/57/Mariadb-5.1-pre-beta-file-list-r2.txt.gz
+gunzip base.list.gz
+unzip ../$ZIPFILE
+(cd $ZIPCONTENT; /bin/find . | sort ) > new.list
+
+diff -u base.list new.list || true
+RES=$?
+
+cd ..
+
+rm -rf unpack
+ls -lah $ZIPFILE
+echo "$ZIPFILE is the Windows noinstall binary zip"
+
+if [ $RES ] ; then
+ echo "Archive contents differ from the standard file list, check the diff output above"
+else
+  echo "Archive contents match the standard list, OK"
+fi
+
