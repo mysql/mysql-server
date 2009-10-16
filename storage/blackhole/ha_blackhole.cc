@@ -105,7 +105,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -114,7 +114,7 @@ int ha_blackhole::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -130,7 +130,7 @@ int ha_blackhole::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::rnd_next");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
@@ -212,7 +212,7 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
 {
   DBUG_ENTER("ha_blackhole::index_read");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
@@ -224,7 +224,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
 {
   DBUG_ENTER("ha_blackhole::index_read_idx");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
@@ -235,7 +235,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
 {
   DBUG_ENTER("ha_blackhole::index_read_last");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }

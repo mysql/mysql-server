@@ -477,10 +477,10 @@ static void handle_bootstrap_impl(THD *thd)
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
     thd->set_query(query, length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    DBUG_PRINT("query",("%-.4096s", thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query, length);
+    thd->profiling.set_query_source(thd->query(), length);
 #endif
 
     /*
@@ -489,7 +489,7 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query, length, & found_semicolon);
+    mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -1208,20 +1208,20 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    char *packet_end= thd->query + thd->query_length;
+    char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char* end_of_stmt= NULL;
 
-    general_log_write(thd, command, thd->query, thd->query_length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    general_log_write(thd, command, thd->query(), thd->query_length());
+    DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-    thd->profiling.set_query_source(thd->query, thd->query_length);
+    thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd, thd->query, thd->query_length, &end_of_stmt);
+    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1664,7 +1664,8 @@ void log_slow_statement(THD *thd)
     {
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query, thd->query_length, end_utime_of_query);
+      slow_log_print(thd, thd->query(), thd->query_length(), 
+                     end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
@@ -2975,7 +2976,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3007,7 +3008,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3030,7 +3031,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3982,7 +3983,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query, thd->query_length);
+        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
       }
       my_ok(thd);
     } 
@@ -4559,7 +4560,7 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query, thd->query_length);
+          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
@@ -5950,9 +5951,10 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (*found_semicolon &&
-              (thd->query_length= (ulong)(*found_semicolon - thd->query)))
-            thd->query_length--;
+          if (*found_semicolon && (ulong) (*found_semicolon - thd->query()))
+            thd->set_query_inner(thd->query(),
+                                 (uint32) (*found_semicolon -
+                                           thd->query() - 1));
           /* Actually execute the query */
           if (*found_semicolon)
           {
