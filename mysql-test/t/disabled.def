@@ -14,3 +14,4 @@ innodb_bug39438          : Bug#42383 2009-01-28 lsoares "This fails in embedded 
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
 partition_innodb_builtin : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
 partition_innodb_plugin  : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
+innodb_bug46000          : Bug#47860 2009-10-16 satyab Test fails for innodb plugin 1.0.5
