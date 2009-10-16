@@ -323,7 +323,6 @@ void lex_start(THD *thd)
   lex->select_lex.select_number= 1;
   lex->length=0;
   lex->part_info= 0;
-  lex->global_flag= 0;
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;

@@ -1,4 +1,4 @@
-/* Copyrght (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, Sun Microsystems Inc. 2008-2009
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -363,7 +363,7 @@ char* partition_info::has_unique_fields()
     for (j= 0; j < num_fields; j++)
     {
       field_name_inner= it_inner++;
-      if (i == j)
+      if (i >= j)
         continue;
       if (!(my_strcasecmp(system_charset_info,
                           field_name_outer,
@@ -660,7 +660,7 @@ bool partition_info::check_range_constants(THD *thd)
 
   if (column_list)
   {
-    part_column_list_val* loc_range_col_array;
+    part_column_list_val *loc_range_col_array;
     part_column_list_val *current_largest_col_val;
     uint num_column_values= part_field_list.elements;
     uint size_entries= sizeof(part_column_list_val) * num_column_values;
@@ -669,7 +669,7 @@ bool partition_info::check_range_constants(THD *thd)
     LINT_INIT(current_largest_col_val);
     if (unlikely(range_col_array == NULL))
     {
-      mem_alloc_error(num_parts * sizeof(longlong));
+      mem_alloc_error(num_parts * size_entries);
       goto end;
     }
     loc_range_col_array= range_col_array;

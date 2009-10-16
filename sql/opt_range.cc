@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -655,8 +655,10 @@ public:
   */
   uint real_keynr[MAX_KEY];
 
-  /* Used to store 'current key tuples', in both range analysis and
-   * partitioning (list) analysis*/
+  /*
+    Used to store 'current key tuples', in both range analysis and
+    partitioning (list) analysis
+  */
   uchar min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
 
@@ -3131,7 +3133,7 @@ static
 int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
 {
   int res, left_res=0, right_res=0;
-  int partno= (int)key_tree->part;
+  int key_tree_part= (int)key_tree->part;
   bool set_full_part_if_bad_ret= FALSE;
   bool ignore_part_fields= ppar->ignore_part_fields;
   bool did_set_ignore_part_fields= FALSE;
@@ -3146,8 +3148,8 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   }
 
   /* Push SEL_ARG's to stack to enable looking backwards as well */
-  ppar->cur_part_fields+= ppar->is_part_keypart[partno];
-  ppar->cur_subpart_fields+= ppar->is_subpart_keypart[partno];
+  ppar->cur_part_fields+= ppar->is_part_keypart[key_tree_part];
+  ppar->cur_subpart_fields+= ppar->is_subpart_keypart[key_tree_part];
   *(ppar->arg_stack_end++)= key_tree;
 
   if (key_tree->type == SEL_ARG::KEY_RANGE)
@@ -3249,6 +3251,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         but this is a harder case we will solve later. For the harder case
         this clause then turns into use of all partitions and thus we
         simply set res= -1 as if the mapper had returned that.
+        TODO: What to do here is defined in WL#4065.
       */
       if (ppar->arg_stack[0]->part == 0)
       {
@@ -3283,7 +3286,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         Save our intent to mark full partition as used if we will not be able
         to obtain further limits on subpartitions
       */
-      if (partno < ppar->last_part_partno)
+      if (key_tree_part < ppar->last_part_partno)
       {
         /*
           We need to ignore the rest of the partitioning fields in all
@@ -3296,7 +3299,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       goto process_next_key_part;
     }
 
-    if (partno == ppar->last_subpart_partno && 
+    if (key_tree_part == ppar->last_subpart_partno && 
         (NULL != ppar->part_info->get_subpart_iter_for_interval))
     {
       PARTITION_ITERATOR subpart_iter;
@@ -3338,7 +3341,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
 
     if (key_tree->is_singlepoint())
     {
-      if (partno == ppar->last_part_partno &&
+      if (key_tree_part == ppar->last_part_partno &&
           ppar->cur_part_fields == ppar->part_fields &&
           ppar->part_info->get_part_iter_for_interval == NULL)
       {
@@ -3369,7 +3372,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         goto process_next_key_part;
       }
 
-      if (partno == ppar->last_subpart_partno &&
+      if (key_tree_part == ppar->last_subpart_partno &&
           ppar->cur_subpart_fields == ppar->subpart_fields)
       {
         /* 
@@ -3406,7 +3409,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         we're processing subpartititoning's key parts, this means we'll not be
         able to infer any suitable condition, so bail out.
       */
-      if (partno >= ppar->last_part_partno)
+      if (key_tree_part >= ppar->last_part_partno)
       {
         res= -1;
         goto pop_and_go_right;
@@ -3455,8 +3458,8 @@ process_next_key_part:
 pop_and_go_right:
   /* Pop this key part info off the "stack" */
   ppar->arg_stack_end--;
-  ppar->cur_part_fields-=    ppar->is_part_keypart[partno];
-  ppar->cur_subpart_fields-= ppar->is_subpart_keypart[partno];
+  ppar->cur_part_fields-=    ppar->is_part_keypart[key_tree_part];
+  ppar->cur_subpart_fields-= ppar->is_subpart_keypart[key_tree_part];
 
   if (res == -1)
     return -1;
