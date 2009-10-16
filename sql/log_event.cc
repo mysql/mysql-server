@@ -8464,6 +8464,9 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   if ((error= unpack_current_row(rli, &m_cols, abort_on_warnings)))
     DBUG_RETURN(error);
 
+  // Temporary fix to find out why it fails [/Matz]
+  memcpy(m_table->write_set->bitmap, m_cols.bitmap, (m_table->write_set->n_bits + 7) / 8);
+
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
@@ -8679,7 +8682,7 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 
   Returns TRUE if different.
 */
-static bool record_compare(TABLE *table)
+static bool record_compare(TABLE *table, MY_BITMAP *cols)
 {
   /*
     Need to set the X bit and the filler bits in both records since
@@ -8711,14 +8714,16 @@ static bool record_compare(TABLE *table)
     }
   }
 
-  if (table->s->blob_fields + table->s->varchar_fields == 0)
+  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
+      bitmap_is_set_all(cols))
   {
     result= cmp_record(table,record[1]);
     goto record_compare_exit;
   }
 
   /* Compare null bits */
-  if (memcmp(table->null_flags,
+  if (bitmap_is_set_all(cols) &&
+      memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
 	     table->s->null_bytes))
   {
@@ -8727,12 +8732,17 @@ static bool record_compare(TABLE *table)
   }
 
   /* Compare updated fields */
-  for (Field **ptr=table->field ; *ptr ; ptr++)
+  for (Field **ptr=table->field ; 
+       *ptr && ((ptr - table->field) < cols->n_bits);
+       ptr++)
   {
-    if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+    if (bitmap_is_set(cols, (*ptr)->field_index))
     {
-      result= TRUE;
-      goto record_compare_exit;
+      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      {
+        result= TRUE;
+        goto record_compare_exit;
+      }
     }
   }
 
@@ -8754,6 +8764,159 @@ record_compare_exit:
 
   return result;
 }
+
+
+/**
+  Validates before image. Searches the bitmap for 
+  columns set. If no colum, for the existing table, 
+  then the image cannot be used for searching a
+  record (regardless of using position(), index scan
+  or table scan).
+
+  @param table   the table we are using.
+  @param bi_cols the bitmap that signals usable columns.
+
+  @return TRUE if invalid, FALSE otherwise.
+*/
+static
+my_bool invalid_bi(TABLE *table, MY_BITMAP *bi_cols)
+{
+
+  int nfields_set= 0;
+  for (Field **ptr=table->field ; 
+       *ptr && ((ptr - table->field) < bi_cols->n_bits);
+       ptr++)
+  {
+    if (bitmap_is_set(bi_cols, (*ptr)->field_index))
+      nfields_set++;
+  }
+
+  return (nfields_set == 0);
+}
+
+/**
+  Validates whether the before image is usable for the
+  given key. It can be the case that the before image
+  does not contain values for the key (eg, master was
+  using 'minimal' option for image logging and slave has
+  different index structure on the table).
+  
+  @param keyinfo  reference to key.
+  @param bi_cols  the bitmap that signals usable columns.
+
+  @return TRUE if usable, FALSE otherwise.
+*/
+static
+my_bool is_usable_key(KEY *keyinfo, MY_BITMAP *bi_cols)
+{
+  for (uint i=0 ; i < keyinfo->key_parts ;i++)
+  {
+    uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+    if (fieldnr >= bi_cols->n_bits || 
+        !bitmap_is_set(bi_cols, fieldnr))
+      return FALSE;
+  }
+ 
+  return TRUE;
+}
+
+/**
+  Searches the table for a given key that can be used
+  according to the existing values, ie, columns set
+  in the bitmap.
+
+  The caller can specify which type of key to find by
+  setting the following flags in the key_type parameter:
+
+    - PRI_KEY_FLAG
+      Returns the primary key.
+
+    - UNIQUE_KEY_FLAG
+      Returns a unique key (flagged with HA_NOSAME)
+
+    - MULTIPLE_KEY_FLAG
+      Returns a key not unique nor PK.
+
+  The above flags can be used together, in which case, the
+  search is conducted in the above listed order. Eg, the 
+  following flag:
+
+    (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG)
+
+  means that a primary key is returned if it is suitable. If
+  not then the unique keys are searched. If no unique key is
+  suitable, then the keys are searched. Finally, if no key
+  is suitable, MAX_KEY is returned.
+
+  @param table    reference to the table.
+  @param bi_cols  the bitmap that signals usable columns.
+  @param key_type the type of key to search.
+
+  @return MAX_KEY if no key, according to the key_type specified
+          is suitable. Returns the key otherwise.
+
+*/
+static
+uint
+search_key_for_bi(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
+{
+  KEY *keyinfo;
+  uint res= MAX_KEY;
+  uint key;
+
+  if (key_type & PRI_KEY_FLAG)
+  {
+    if (table->s->primary_key < MAX_KEY)
+    {
+      keyinfo= table->s->key_info + (uint) table->s->primary_key;
+      if (is_usable_key(keyinfo, bi_cols)) 
+        return table->s->primary_key;
+    }
+  }
+
+  if (key_type & UNIQUE_KEY_FLAG)
+  {
+    if (table->s->uniques)
+    {
+      for (key=0,keyinfo= table->key_info ; 
+           (key < table->s->keys) && (res == MAX_KEY);
+           key++,keyinfo++)
+      {
+        if (!(keyinfo->flags & HA_NOSAME) || /* skip not unique */
+            (key == table->s->primary_key))  /* skip primary */
+          continue;
+        res= is_usable_key(keyinfo, bi_cols) ? key : MAX_KEY;
+
+        if (res < MAX_KEY)
+          return res;
+      }
+    }
+  }
+
+  if (key_type & MULTIPLE_KEY_FLAG)
+  {
+    if (table->s->keys)
+    {
+      for (key=0,keyinfo= table->key_info ; 
+           (key < table->s->keys) && (res == MAX_KEY);
+           key++,keyinfo++)
+      {
+        if (!(table->s->keys_in_use.is_set(key)) || /* key is no active */
+            (keyinfo->flags & HA_NOSAME) || /* skip uniques */
+            (key == table->s->primary_key)) /* skip primary */
+          continue;
+
+        res= is_usable_key(keyinfo, bi_cols) ? key : MAX_KEY;
+
+        if (res < MAX_KEY)
+          return res;
+      }
+    }
+  }
+
+  return res;
+}
+
 
 /**
   Locate the current row in event's table.
@@ -8782,6 +8945,7 @@ record_compare_exit:
   @c position() and @c rnd_pos() will be used. 
  */
 
+
 int Rows_log_event::find_row(const Relay_log_info *rli)
 {
   DBUG_ENTER("Rows_log_event::find_row");
@@ -8790,6 +8954,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
   TABLE *table= m_table;
   int error= 0;
+  KEY *keyinfo;
+  uint key;
 
   /*
     rpl_row_tabledefs.test specifies that
@@ -8801,13 +8967,25 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   prepare_record(table, &m_cols, FALSE);
   error= unpack_current_row(rli, &m_cols);
 
+  // Temporary fix to find out why it fails [/Matz]
+  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
+
+  if (invalid_bi(table, &m_cols))
+  {
+    error= HA_ERR_END_OF_FILE;
+    goto err;
+  }
+
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("looking for the following record"));
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif
 
-  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
-      table->s->primary_key < MAX_KEY)
+  if ((key= search_key_for_bi(table, &m_cols, PRI_KEY_FLAG)) >= MAX_KEY)
+    /* we dont have a PK, or PK is not usable with BI values */
+    goto INDEX_SCAN;
+
+  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
     /*
       Use a more efficient method to fetch the record given by
@@ -8841,11 +9019,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
   // We can't use position() - try other methods.
   
-  /* 
-    We need to retrieve all fields
-    TODO: Move this out from this function to main loop 
-   */
-  table->use_all_columns();
+INDEX_SCAN:
 
   /*
     Save copy of the record in table->record[1]. It might be needed 
@@ -8853,8 +9027,15 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0)
-  {
+  if ((key= search_key_for_bi(table, &m_cols, 
+                              (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))) 
+       >= MAX_KEY)
+    /* we dont have a key, or no key is suitable for the BI values */
+    goto TABLE_SCAN; 
+
+  keyinfo= table->key_info + key;
+
+
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
     /* We have a key: search the table using the index */
@@ -8868,14 +9049,14 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* Fill key data for the row */
 
     DBUG_ASSERT(m_key);
-    key_copy(m_key, table->record[0], table->key_info, 0);
+    key_copy(m_key, table->record[0], keyinfo, 0);
 
     /*
       Don't print debug messages when running valgrind since they can
       trigger false warnings.
      */
 #ifndef HAVE_purify
-    DBUG_DUMP("key data", m_key, table->key_info->key_length);
+    DBUG_DUMP("key data", m_key, keyinfo->key_length);
 #endif
 
     /*
@@ -8922,7 +9103,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       found.  I can see no scenario where it would be incorrect to
       chose the row to change only using a PK or an UNNI.
     */
-    if (table->key_info->flags & HA_NOSAME)
+    if (keyinfo->flags & HA_NOSAME || key == table->s->primary_key)
     {
       table->file->ha_index_end();
       goto ok;
@@ -8935,7 +9116,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
      */ 
     DBUG_PRINT("info",("non-unique index, scanning it to find matching record")); 
 
-    while (record_compare(table))
+    while (record_compare(table, &m_cols))
     {
       /*
         We need to set the null bytes to ensure that the filler bit
@@ -8968,8 +9149,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       Have to restart the scan to be able to fetch the next row.
     */
     table->file->ha_index_end();
-  }
-  else
+    goto ok;
+
+TABLE_SCAN:
+
+  /* All that we can do now is rely on a table scan */
   {
     DBUG_PRINT("info",("locating record using table scan (rnd_next)"));
 
@@ -8989,7 +9173,6 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     {
   restart_rnd_next:
       error= table->file->rnd_next(table->record[0]);
-
       DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
@@ -9016,7 +9199,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         goto err;
       }
     }
-    while (restart_count < 2 && record_compare(table));
+    while (restart_count < 2 && record_compare(table, &m_cols));
     
     /* 
       Note: above record_compare will take into accout all record fields 
@@ -9076,19 +9259,10 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 int 
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
-  if ((m_table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
-      m_table->s->primary_key < MAX_KEY)
-  {
-    /*
-      We don't need to allocate any memory for m_key since it is not used.
-    */
-    return 0;
-  }
-
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
+    m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
     if (!m_key)
       return HA_ERR_OUT_OF_MEM;
   }
@@ -9115,10 +9289,13 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   if (!(error= find_row(rli))) 
   { 
+
+    m_table->mark_columns_per_binlog_row_image();
     /*
       Delete the record found, located in record[0]
     */
     error= m_table->file->ha_delete_row(m_table->record[0]);
+    m_table->default_column_bitmaps();
   }
   return error;
 }
@@ -9271,9 +9448,15 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
 #endif
 
+  // Temporary fix to find out why it fails [/Matz]
+  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
+  memcpy(m_table->write_set->bitmap, m_cols_ai.bitmap, (m_table->write_set->n_bits + 7) / 8);
+
+  m_table->mark_columns_per_binlog_row_image();
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;
+  m_table->default_column_bitmaps();
 
   return error;
 }
