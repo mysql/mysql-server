@@ -515,10 +515,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 168 shift/reduce conflicts.
+  Currently there are 169 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 168
+%expect 169
 
 /*
    Comments for TOKENS.
@@ -1165,9 +1165,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
 
-%type <p_elem_value>
-        part_bit_expr
-
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
 
@@ -1300,8 +1297,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         init_key_options key_options key_opts key_opt key_using_alg
-        part_column_list part_column_expr_list part_column_expr_item
-        part_column_list_value
+        part_column_list
         server_def server_options_list server_option
         definer_opt no_definer definer
 END_OF_INPUT
@@ -3818,6 +3814,7 @@ part_type_def:
           {
             partition_info *part_info= Lex->part_info;
             part_info->list_of_part_fields= TRUE;
+            part_info->column_list= FALSE;
             part_info->part_type= HASH_PARTITION;
           }
         | opt_linear HASH_SYM
@@ -3869,20 +3866,22 @@ part_field_item:
         ;
 
 part_column_list:
-        COLUMN_LIST_SYM '(' part_field_list ')'
-        {
-          partition_info *part_info= Lex->part_info;
-          part_info->column_list= TRUE;
-          part_info->list_of_part_fields= TRUE;
-        }
+          COLUMN_LIST_SYM '(' part_field_list ')'
+          {
+            partition_info *part_info= Lex->part_info;
+            part_info->column_list= TRUE;
+            part_info->list_of_part_fields= TRUE;
+          }
         ;
 
 
 part_func:
           '(' remember_name part_func_expr remember_end ')'
           {
-            if (Lex->part_info->set_part_expr($2+1, $3, $4, FALSE))
+            partition_info *part_info= Lex->part_info;
+            if (part_info->set_part_expr($2+1, $3, $4, FALSE))
             { MYSQL_YYABORT; }
+            part_info->column_list= FALSE;
           }
         ;
 
@@ -4067,7 +4066,7 @@ opt_part_values:
             else
               part_info->part_type= HASH_PARTITION;
           }
-        | VALUES LESS_SYM THAN_SYM part_func_max
+        | VALUES LESS_SYM THAN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
@@ -4083,7 +4082,8 @@ opt_part_values:
             else
               part_info->part_type= RANGE_PARTITION;
           }
-        | VALUES IN_SYM '(' part_list_func ')'
+          part_func_max {}
+        | VALUES IN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
@@ -4099,14 +4099,120 @@ opt_part_values:
             else
               part_info->part_type= LIST_PARTITION;
           }
+          part_values_in {}
         ;
 
-part_column_expr_list:
-          part_column_expr_item {}
-        | part_column_expr_list ',' part_column_expr_item {}
+part_func_max:
+          MAX_VALUE_SYM
+          {
+            partition_info *part_info= Lex->part_info;
+
+            if (part_info->num_columns &&
+                part_info->num_columns != 1U)
+            {
+              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+              MYSQL_YYABORT;
+            }
+            else
+              part_info->num_columns= 1U;
+            if (part_info->init_column_part())
+            {
+              MYSQL_YYABORT;
+            }
+            if (part_info->add_max_value())
+            {
+              MYSQL_YYABORT;
+            }
+          }
+        | part_value_item {}
         ;
 
-part_column_expr_item:
+part_values_in:
+          part_value_item
+          {
+            LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
+
+            if (part_info->num_columns != 1U)
+            {
+              if (!lex->is_partition_management() ||
+                  part_info->num_columns == 0 ||
+                  part_info->num_columns > MAX_REF_PARTS)
+              {
+                my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+                MYSQL_YYABORT;
+              }
+              /*
+                Reorganize the current large array into a list of small
+                arrays with one entry in each array. This can happen
+                in the first partition of an ALTER TABLE statement where
+                we ADD or REORGANIZE partitions.
+              */
+              if (part_info->reorganize_into_single_field_col_val())
+              {
+                MYSQL_YYABORT;
+              }
+            }
+          }
+        | '(' part_value_list ')'
+          {
+            partition_info *part_info= Lex->part_info;
+            if (part_info->num_columns < 2U)
+            {
+              my_parse_error(ER(ER_ROW_SINGLE_PARTITION_FIELD_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+part_value_list:
+          part_value_item {}
+        | part_value_list ',' part_value_item {}
+        ;
+
+part_value_item:
+          '('
+          {
+            partition_info *part_info= Lex->part_info;
+            /* Initialisation code needed for each list of value expressions */
+            if (!(part_info->column_list &&
+                  part_info->part_type == LIST_PARTITION &&
+                  part_info->num_columns == 1U) &&
+                 part_info->init_column_part())
+            {
+              MYSQL_YYABORT;
+            }
+          }
+          part_value_item_list {}
+          ')'
+          {
+            LEX *lex= Lex;
+            partition_info *part_info= Lex->part_info;
+
+            if (part_info->num_columns == 0)
+              part_info->num_columns= part_info->curr_list_object;
+            if (part_info->num_columns != part_info->curr_list_object)
+            {
+              /*
+                All value items lists must be of equal length, in some cases
+                which is covered by the above if-statement we don't know yet
+                how many columns is in the partition so the assignment above
+                ensures that we only report errors when we know we have an
+                error.
+              */
+              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+              MYSQL_YYABORT;
+            }
+            part_info->curr_list_object= 0;
+          }
+        ;
+
+part_value_item_list:
+          part_value_expr_item {}
+        | part_value_item_list ',' part_value_expr_item {}
+        ;
+
+part_value_expr_item:
           MAX_VALUE_SYM
           {
             partition_info *part_info= Lex->part_info;
@@ -4116,223 +4222,29 @@ part_column_expr_item:
               my_parse_error(ER(ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR));
               MYSQL_YYABORT;
             }
-            if (!(col_val= part_info->add_column_value()))
+            if (part_info->add_max_value())
             {
               MYSQL_YYABORT;
             }
-            col_val->max_value= TRUE;
           }
         | bit_expr
           {
-            part_column_list_val *col_val;
             LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
+            Item *part_expr= $1;
+
             if (!lex->safe_to_cache_query)
             {
               my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
               MYSQL_YYABORT;
             }
-            if (!(col_val= lex->part_info->add_column_value()))
+            if (part_info->add_column_list_value(part_expr))
             {
               MYSQL_YYABORT;
             }
-            col_val->item_expression= $1;
-            col_val->part_info= NULL;
           }
         ;
 
-part_column_list_value:
-          COLUMN_LIST_SYM
-          {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
-            uint num_columns;
-            partition_element *p_elem= part_info->curr_part_elem;
-            part_column_list_val *col_val_array;
-            part_elem_value *list_val;
-
-            if (!part_info->column_list &&
-                !lex->is_partition_management())
-            {
-              my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-              MYSQL_YYABORT;
-            }
-            if (!(list_val= 
-                 (part_elem_value*)sql_calloc(sizeof(part_elem_value))) ||
-                p_elem->list_val_list.push_back(list_val))
-            {
-              mem_alloc_error(sizeof(part_elem_value));
-              MYSQL_YYABORT;
-            }
-            if (part_info->num_columns)
-              num_columns= part_info->num_columns;
-            else
-              num_columns= MAX_REF_PARTS;
-            if (!(col_val_array=
-                (part_column_list_val*)sql_calloc(num_columns *
-                                       sizeof(part_column_list_val))))
-            {
-              mem_alloc_error(num_columns * sizeof(part_elem_value));
-              MYSQL_YYABORT;
-            }
-            list_val->col_val_array= col_val_array;
-            part_info->curr_list_val= list_val;
-            part_info->curr_list_object= 0;
-          }
-          '(' part_column_expr_list ')'
-          {
-            partition_info *part_info= Lex->part_info;
-            uint num_columns= part_info->num_columns;
-            if (num_columns && num_columns != part_info->curr_list_object)
-            {
-              my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-              MYSQL_YYABORT;
-            }
-            part_info->num_columns= part_info->curr_list_object;
-          }
-        ;
-
-part_func_max:
-          max_value_sym
-          {
-            partition_info *part_info= Lex->part_info;
-            if (part_info->defined_max_value)
-            {
-              my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (part_info->column_list)
-            {
-              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
-              MYSQL_YYABORT;
-            }
-            part_info->defined_max_value= TRUE;
-            part_info->curr_part_elem->max_value= TRUE;
-            part_info->curr_part_elem->range_value= LONGLONG_MAX;
-          }
-        | part_range_func
-          {
-            partition_info *part_info= Lex->part_info;
-            if (part_info->defined_max_value)
-            {
-              my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (part_info->curr_part_elem->has_null_value)
-            {
-              my_parse_error(ER(ER_NULL_IN_VALUES_LESS_THAN));
-              MYSQL_YYABORT;
-            }
-            if (part_info->column_list)
-            {
-              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
-              MYSQL_YYABORT;
-            }
-          }
-        | '(' part_column_list_value ')'
-          {}
-        ;
-
-max_value_sym:
-          MAX_VALUE_SYM
-        | '(' MAX_VALUE_SYM ')'
-        ;
-        
-part_range_func:
-          '(' part_bit_expr ')' 
-          {
-            partition_info *part_info= Lex->part_info;
-            if (!($2->unsigned_flag))
-              part_info->curr_part_elem->signed_flag= TRUE;
-            part_info->curr_part_elem->range_value= $2->value;
-          }
-        ;
-
-part_list_func:
-          part_list_item {}
-        | part_list_func ',' part_list_item {}
-        ;
-
-part_list_item:
-          part_bit_expr
-          {
-            part_elem_value *value_ptr= $1;
-            partition_info *part_info= Lex->part_info;
-            if (!value_ptr->unsigned_flag)
-              part_info->curr_part_elem->signed_flag= TRUE;
-            if (!value_ptr->null_value &&
-               part_info->curr_part_elem->
-                list_val_list.push_back(value_ptr))
-            {
-              mem_alloc_error(sizeof(part_elem_value));
-              MYSQL_YYABORT;
-            }
-            if (part_info->column_list)
-            {
-              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
-              MYSQL_YYABORT;
-            }
-          }
-        | part_column_list_value
-        ;
-
-part_bit_expr:
-          bit_expr
-          {
-            Item *part_expr= $1;
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            partition_info *part_info= lex->part_info;
-            Name_resolution_context *context= &lex->current_select->context;
-            TABLE_LIST *save_list= context->table_list;
-            const char *save_where= thd->where;
-
-            context->table_list= 0;
-            thd->where= "partition function";
-
-            part_elem_value *value_ptr= 
-              (part_elem_value*)sql_alloc(sizeof(part_elem_value));
-            if (!value_ptr)
-            {
-              mem_alloc_error(sizeof(part_elem_value));
-              MYSQL_YYABORT;
-            }
-            if (part_expr->walk(&Item::check_partition_func_processor, 0,
-                                NULL))
-            {
-              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-              MYSQL_YYABORT;
-            }
-            if (part_expr->fix_fields(YYTHD, (Item**)0) ||
-                ((context->table_list= save_list), FALSE) ||
-                (!part_expr->const_item()) ||
-                (!lex->safe_to_cache_query))
-            {
-              my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
-              MYSQL_YYABORT;
-            }
-            thd->where= save_where;
-            value_ptr->value= part_expr->val_int();
-            value_ptr->unsigned_flag= TRUE;
-            if (!part_expr->unsigned_flag &&
-                value_ptr->value < 0)
-              value_ptr->unsigned_flag= FALSE;
-            if ((value_ptr->null_value= part_expr->null_value))
-            {
-              if (part_info->curr_part_elem->has_null_value)
-              {
-                my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-                MYSQL_YYABORT;
-              }
-              part_info->curr_part_elem->has_null_value= TRUE;
-            }
-            else if (part_expr->result_type() != INT_RESULT)
-            {
-              my_parse_error(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
-              MYSQL_YYABORT;
-            }
-            $$= value_ptr; 
-          }
-        ;
 
 opt_sub_partition:
           /* empty */

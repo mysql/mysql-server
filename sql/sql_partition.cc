@@ -1990,8 +1990,11 @@ static int add_column_list_values(File fptr, partition_info *part_info,
   int err= 0;
   uint i;
   uint num_elements= part_info->part_field_list.elements;
-  err+= add_string(fptr, partition_keywords[PKW_COLUMNS].str);
-  err+= add_begin_parenthesis(fptr);
+  bool use_parenthesis= (part_info->part_type == LIST_PARTITION &&
+                         part_info->num_columns > 1U);
+
+  if (use_parenthesis)
+    err+= add_begin_parenthesis(fptr);
   for (i= 0; i < num_elements; i++)
   {
     part_column_list_val *col_val= &list_value->col_val_array[i];
@@ -2032,7 +2035,8 @@ static int add_column_list_values(File fptr, partition_info *part_info,
     if (i != (num_elements - 1))
       err+= add_string(fptr, comma_str);
   }
-  err+= add_end_parenthesis(fptr);
+  if (use_parenthesis)
+    err+= add_end_parenthesis(fptr);
   return err;
 }
 
@@ -3894,10 +3898,12 @@ bool mysql_unpack_partition(THD *thd,
     mem_alloc_error(sizeof(partition_info));
     goto end;
   }
-  lex.part_info->part_state= part_state;
-  lex.part_info->part_state_len= part_state_len;
+  part_info= lex.part_info;
+  part_info->part_state= part_state;
+  part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
-  if (parse_sql(thd, & parser_state, NULL))
+  if (parse_sql(thd, & parser_state, NULL) ||
+      part_info->fix_parser_data(thd))
   {
     thd->free_items();
     goto end;
@@ -3918,7 +3924,6 @@ bool mysql_unpack_partition(THD *thd,
   */
 
   DBUG_PRINT("info", ("Successful parse"));
-  part_info= lex.part_info;
   DBUG_PRINT("info", ("default engine = %s, default_db_type = %s",
              ha_resolve_storage_engine_name(part_info->default_engine_type),
              ha_resolve_storage_engine_name(default_db_type)));
@@ -4368,6 +4373,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                    "LIST", "IN");
         }
+        DBUG_RETURN(TRUE);
+      }
+      alt_part_info->column_list= tab_part_info->column_list;
+      if (alt_part_info->fix_parser_data(thd))
+      {
         DBUG_RETURN(TRUE);
       }
     }
@@ -5126,6 +5136,10 @@ the generated partition syntax in a correct manner.
       {
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
+        if (thd->work_part_info->fix_parser_data(thd))
+        {
+          DBUG_RETURN(TRUE);
+        }
       }
       /*
         Set up partition default_engine_type either from the create_info

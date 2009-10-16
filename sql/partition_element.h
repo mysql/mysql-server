@@ -74,6 +74,7 @@ typedef struct p_column_list_val
 typedef struct p_elem_val
 {
   longlong value;
+  uint added_items;
   bool null_value;
   bool unsigned_flag;
   part_column_list_val *col_val_array;
