@@ -833,7 +833,7 @@ int mysql_update(THD *thd,
     char buff[STRING_BUFFER_USUAL_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-	        (ulong) thd->warning_info->statement_warn_count());
+                (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     my_ok(thd, (ulong) thd->row_count_func, id, buff);

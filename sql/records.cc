@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifdef USE_PRAGMA_INTERFACE
+#pragma implementation /* gcc class implementation */
+#endif
 
 /**
   @file
@@ -21,7 +24,9 @@
   Functions for easy reading of records, possible through a cache
 */
 
+#include "records.h"
 #include "mysql_priv.h"
+
 
 static int rr_quick(READ_RECORD *info);
 int rr_sequential(READ_RECORD *info);
