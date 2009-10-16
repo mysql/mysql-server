@@ -7,6 +7,8 @@
 # Remarks:
 # ${engine}_SOURCES  variable containing source files to produce the library must set before
 # calling this macro
+# ${engine}_LIBS variable containing extra libraries to link with may be set
+
 
 MACRO(MYSQL_STORAGE_ENGINE engine)
 IF(NOT SOURCE_SUBLIBS)
@@ -22,6 +24,9 @@ IF(NOT SOURCE_SUBLIBS)
     #Create static library. The name of the library is <storage_engine>.lib
     ADD_LIBRARY(${libname} ${${engine}_SOURCES})
     ADD_DEPENDENCIES(${libname} GenError)
+    IF(${engine}_LIBS)
+      TARGET_LINK_LIBRARIES(${libname} ${${engine}_LIBS})
+    ENDIF(${engine}_LIBS)
     MESSAGE("build ${engine} as static library")
   ELSEIF(${ENGINE_BUILD_TYPE} STREQUAL "DYNAMIC")
     ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
@@ -30,6 +35,9 @@ IF(NOT SOURCE_SUBLIBS)
     SET(dyn_libname ha_${libname})
     ADD_LIBRARY(${dyn_libname} SHARED ${${engine}_SOURCES})
     TARGET_LINK_LIBRARIES (${dyn_libname}  mysqld)
+    IF(${engine}_LIBS)
+      TARGET_LINK_LIBRARIES(${dyn_libname} ${${engine}_LIBS})
+    ENDIF(${engine}_LIBS)
     MESSAGE("build ${engine} as DLL")
   ENDIF(${ENGINE_BUILD_TYPE} STREQUAL "STATIC")
 ENDIF(NOT SOURCE_SUBLIBS)

@@ -302,17 +302,17 @@ static struct my_option my_long_options[] =
     (uchar**) &check_param.read_buffer_length,
     (uchar**) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
     (uchar**) &check_param.write_buffer_length,
     (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
     (uchar**) &check_param.sort_buffer_length,
     (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
-    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    ULONG_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
     (uchar**) &check_param.sort_key_blocks,
     (uchar**) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
@@ -837,7 +837,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       mi_check_print_error(param,"'%s' is marked as crashed after last repair",filename);
       break;
     case HA_ERR_OLD_FILE:
-      mi_check_print_error(param,"'%s' is a old type of MyISAM-table", filename);
+      mi_check_print_error(param,"'%s' is an old type of MyISAM-table", filename);
       break;
     case HA_ERR_END_OF_FILE:
       mi_check_print_error(param,"Couldn't read complete header from '%s'", filename);

@@ -184,7 +184,6 @@ show fields from testdb_1.v7;
 --error ER_TABLEACCESS_DENIED_ERROR
 show create view testdb_1.v7;
 
---error ER_VIEW_NO_EXPLAIN
 show create view v4;
 #--error ER_VIEW_NO_EXPLAIN
 show fields from v4;
