@@ -78,12 +78,12 @@ partition by range column_list(a,b)
 ERROR 42000: Inconsistency in usage of column lists for partitioning near '))' at line 3
 create table t1 (a int, b char(20))
 partition by range(a)
-(partition p0 values less than (column_list(1,"b")));
-ERROR HY000: Inconsistency in usage of column lists for partitioning
+(partition p0 values less than (1,"b"));
+ERROR HY000: Cannot have more than one value for this type of RANGE partitioning
 create table t1 (a int, b char(20))
 partition by range(a)
-(partition p0 values less than (column_list(1,"b")));
-ERROR HY000: Inconsistency in usage of column lists for partitioning
+(partition p0 values less than (1,"b"));
+ERROR HY000: Cannot have more than one value for this type of RANGE partitioning
 create table t1 (a int, b char(20));
 create global index inx on t1 (a,b)
 partition by range (a)
@@ -91,7 +91,7 @@ partition by range (a)
 drop table t1;
 create table t1 (a int, b char(20))
 partition by range column_list(b)
-(partition p0 values less than (column_list("b")));
+(partition p0 values less than ("b"));
 drop table t1;
 create table t1 (a int)
 partition by range (a)

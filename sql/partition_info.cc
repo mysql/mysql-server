@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyrght (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -682,7 +682,7 @@ bool partition_info::check_range_constants(THD *thd)
         part_elem_value *range_val= list_val_it++;
         part_column_list_val *col_val= range_val->col_val_array;
 
-        if (fix_column_value_functions(thd, col_val, i))
+        if (fix_column_value_functions(thd, range_val, i))
           goto end;
         memcpy(loc_range_col_array, (const void*)col_val, size_entries);
         loc_range_col_array+= num_column_values;
@@ -827,85 +827,6 @@ int partition_info::compare_column_values(const void *first_arg,
 }
 
 /*
-  Evaluate VALUES functions for column list values
-  SYNOPSIS
-    fix_column_value_functions()
-    thd                              Thread object
-    col_val                          List of column values
-    part_id                          Partition id we are fixing
-  RETURN VALUES
-    TRUE                             Error
-    FALSE                            Success
-  DESCRIPTION
-    Fix column VALUES and store in memory array adapted to the data type
-*/
-
-bool partition_info::fix_column_value_functions(THD *thd,
-                                                part_column_list_val *col_val,
-                                                uint part_id)
-{
-  uint num_columns= part_field_list.elements;
-  Name_resolution_context *context= &thd->lex->current_select->context;
-  TABLE_LIST *save_list= context->table_list;
-  bool result= FALSE;
-  uint i;
-  const char *save_where= thd->where;
-  DBUG_ENTER("partition_info::fix_column_value_functions");
-  if (col_val->fixed > 1)
-  {
-    DBUG_RETURN(FALSE);
-  }
-  context->table_list= 0;
-  thd->where= "partition function";
-  for (i= 0; i < num_columns; col_val++, i++)
-  {
-    Item *column_item= col_val->item_expression;
-    Field *field= part_field_array[i];
-    col_val->part_info= this;
-    col_val->partition_id= part_id;
-    if (col_val->max_value)
-      col_val->column_value= NULL;
-    else
-    {
-      if (!col_val->fixed && 
-          (column_item->fix_fields(thd, (Item**)0) ||
-          (!column_item->const_item())))
-      {
-        my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
-        result= TRUE;
-        goto end;
-      }
-      col_val->null_value= column_item->null_value;
-      col_val->column_value= NULL;
-      if (!col_val->null_value)
-      {
-        uchar *val_ptr;
-        uint len= field->pack_length();
-        if (column_item->save_in_field(field, TRUE))
-        {
-          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
-          result= TRUE;
-          goto end;
-        }
-        if (!(val_ptr= (uchar*) sql_calloc(len)))
-        {
-          mem_alloc_error(len);
-          result= TRUE;
-          goto end;
-        }
-        col_val->column_value= val_ptr;
-        memcpy(val_ptr, field->ptr, len);
-      }
-    }
-    col_val->fixed= 2;
-  }
-end:
-  thd->where= save_where;
-  context->table_list= save_list;
-  DBUG_RETURN(result);
-}
-
-/*
   This routine allocates an array for all list constants to achieve a fast
   check what partition a certain value belongs to. At the same time it does
   also check that there are no duplicates among the list constants and that
@@ -1002,7 +923,7 @@ bool partition_info::check_list_constants(THD *thd)
       while ((list_value= list_val_it2++))
       {
         part_column_list_val *col_val= list_value->col_val_array;
-        if (unlikely(fix_column_value_functions(thd, col_val, i)))
+        if (unlikely(fix_column_value_functions(thd, list_value, i)))
         {
           DBUG_RETURN(TRUE);
         }
@@ -1126,6 +1047,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
       goto end;
     }
+    if (fix_parser_data(thd))
+      goto end;
   }
   if (unlikely(!is_sub_partitioned() && 
                !(use_default_subpartitions && use_default_num_subpartitions)))
@@ -1378,31 +1301,6 @@ void partition_info::print_no_partition_found(TABLE *table)
 
 
 /*
-  Create a new column value in current list
-  SYNOPSIS
-    add_column_value()
-  RETURN
-    >0                 A part_column_list_val object which have been
-                       inserted into its list
-    0                  Memory allocation failure
-*/
-
-part_column_list_val *partition_info::add_column_value()
-{
-  uint max_val= num_columns ? num_columns : MAX_REF_PARTS;
-  DBUG_ENTER("add_column_value");
-  DBUG_PRINT("enter", ("num_columns = %u, curr_list_object %u, max_val = %u",
-                        num_columns, curr_list_object, max_val));
-  if (curr_list_object < max_val)
-  {
-    DBUG_RETURN(&curr_list_val->col_val_array[curr_list_object++]);
-  }
-  my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-  DBUG_RETURN(NULL);
-}
-
-
-/*
   Set fields related to partition expression
   SYNOPSIS
     set_part_expr()
@@ -1616,4 +1514,507 @@ id_err:
 }
 
 
+/*
+  Create a new column value in current list with maxvalue
+  Called from parser
+
+  SYNOPSIS
+    add_max_value()
+  RETURN
+    TRUE               Error
+    FALSE              Success
+*/
+
+int partition_info::add_max_value()
+{
+  DBUG_ENTER("partition_info::add_max_value");
+
+  part_column_list_val *col_val;
+  if (!(col_val= add_column_value()))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  col_val->max_value= TRUE;
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  Create a new column value in current list
+  Called from parser
+
+  SYNOPSIS
+    add_column_value()
+  RETURN
+    >0                 A part_column_list_val object which have been
+                       inserted into its list
+    0                  Memory allocation failure
+*/
+
+part_column_list_val *partition_info::add_column_value()
+{
+  uint max_val= num_columns ? num_columns : MAX_REF_PARTS;
+  DBUG_ENTER("add_column_value");
+  DBUG_PRINT("enter", ("num_columns = %u, curr_list_object %u, max_val = %u",
+                        num_columns, curr_list_object, max_val));
+  if (curr_list_object < max_val)
+  {
+    curr_list_val->added_items++;
+    DBUG_RETURN(&curr_list_val->col_val_array[curr_list_object++]);
+  }
+  if (!num_columns && part_type == LIST_PARTITION)
+  {
+    /*
+      We're trying to add more than MAX_REF_PARTS, this can happen
+      in ALTER TABLE using List partitions where the first partition
+      uses VALUES IN (1,2,3...,17) where the number of fields in
+      the list is more than MAX_REF_PARTS, in this case we know
+      that the number of columns must be 1 and we thus reorganize
+      into the structure used for 1 column. After this we call
+      ourselves recursively which should always succeed.
+    */
+    if (!reorganize_into_single_field_col_val())
+    {
+      DBUG_RETURN(add_column_value());
+    }
+    DBUG_RETURN(NULL);
+  }
+  my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
+  DBUG_RETURN(NULL);
+}
+
+
+/*
+  Add a column value in VALUES LESS THAN or VALUES IN
+  (Called from parser)
+
+  SYNOPSIS
+    add_column_list_value()
+    lex                      Parser's lex object
+    item                     Item object representing column value
+
+  RETURN VALUES
+    TRUE                     Failure
+    FALSE                    Success
+*/
+bool partition_info::add_column_list_value(Item *item)
+{
+  part_column_list_val *col_val;
+  DBUG_ENTER("partition_info::add_column_list_value");
+
+  if (part_type == LIST_PARTITION &&
+      num_columns == 1U)
+  {
+    if (init_column_part())
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  if (!(col_val= add_column_value()))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  col_val->item_expression= item;
+  col_val->part_info= NULL;
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  Initialise part_info object for receiving a set of column values
+  for a partition, called when parser reaches VALUES LESS THAN or
+  VALUES IN.
+
+  SYNOPSIS
+    init_column_part()
+    lex                    Parser's lex object
+
+  RETURN VALUES
+    TRUE                     Failure
+    FALSE                    Success
+*/
+bool partition_info::init_column_part()
+{
+  partition_element *p_elem= curr_part_elem;
+  part_column_list_val *col_val_array;
+  part_elem_value *list_val;
+  uint loc_num_columns;
+  DBUG_ENTER("partition_info::init_column_part");
+
+  if (!(list_val=
+      (part_elem_value*)sql_calloc(sizeof(part_elem_value))) ||
+       p_elem->list_val_list.push_back(list_val))
+  {
+    mem_alloc_error(sizeof(part_elem_value));
+    DBUG_RETURN(TRUE);
+  }
+  if (num_columns)
+    loc_num_columns= num_columns;
+  else
+    loc_num_columns= MAX_REF_PARTS;
+  if (!(col_val_array=
+        (part_column_list_val*)sql_calloc(loc_num_columns *
+         sizeof(part_column_list_val))))
+  {
+    mem_alloc_error(loc_num_columns * sizeof(part_elem_value));
+    DBUG_RETURN(TRUE);
+  }
+  list_val->col_val_array= col_val_array;
+  list_val->added_items= 0;
+  curr_list_val= list_val;
+  curr_list_object= 0;
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  In the case of ALTER TABLE ADD/REORGANIZE PARTITION for LIST
+  partitions we can specify list values as:
+  VALUES IN (v1, v2,,,, v17) if we're using the first partitioning
+  variant with a function or a column list partitioned table with
+  one partition field. In this case the parser knows not the
+  number of columns start with and allocates MAX_REF_PARTS in the
+  array. If we try to allocate something beyond MAX_REF_PARTS we
+  will call this function to reorganize into a structure with
+  num_columns = 1. Also when the parser knows that we used LIST
+  partitioning and we used a VALUES IN like above where number of
+  values was smaller than MAX_REF_PARTS or equal, then we will
+  reorganize after discovering this in the parser.
+
+  SYNOPSIS
+    reorganize_into_single_field_col_val()
+
+  RETURN VALUES
+    TRUE                     Failure
+    FALSE                    Success
+*/
+int partition_info::reorganize_into_single_field_col_val()
+{
+  part_column_list_val *col_val;
+  Item *part_expr;
+  uint loc_num_columns= num_columns;
+  uint i;
+  DBUG_ENTER("partition_info::reorganize_into_single_field_col_val");
+
+  num_columns= 1;
+  curr_list_val->added_items= 1U;
+  for (i= 1; i < loc_num_columns; i++)
+  {
+    col_val= &curr_list_val->col_val_array[i];
+    part_expr= col_val->item_expression;
+    if ((part_type != LIST_PARTITION &&
+         init_column_part()) ||
+        add_column_list_value(part_expr))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  This function handles the case of function-based partitioning.
+  It fixes some data structures created in the parser and puts
+  them in the format required by the rest of the partitioning
+  code.
+
+  SYNOPSIS
+  fix_func_partition()
+  thd                             Thread object
+  col_val                         Array of one value
+  part_elem                       The partition instance
+
+  RETURN VALUES
+    TRUE                     Failure
+    FALSE                    Success
+*/
+int partition_info::fix_func_partition(THD *thd,
+                                       part_elem_value *val,
+                                       partition_element *part_elem)
+{
+  uint i;
+  part_column_list_val *col_val= val->col_val_array;
+  DBUG_ENTER("partition_info::fix_func_partition");
+
+  if (col_val->fixed)
+  {
+    DBUG_RETURN(FALSE);
+  }
+  if (val->added_items != 1)
+  {
+    my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  if (col_val->max_value)
+  {
+    /* The parser ensures we're not LIST partitioned here */
+    DBUG_ASSERT(part_type == RANGE_PARTITION);
+    if (defined_max_value)
+    {
+      my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+    if (i == (num_parts - 1))
+    {
+      defined_max_value= TRUE;
+      part_elem->max_value= TRUE;
+      part_elem->range_value= LONGLONG_MAX;
+    }
+    else
+    {
+      my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+  }
+  else
+  {
+    part_elem_value *value_ptr;
+    Name_resolution_context *context= &thd->lex->current_select->context;
+    TABLE_LIST *save_list= context->table_list;
+    const char *save_where= thd->where;
+    Item *item_expr= col_val->item_expression;
+
+    context->table_list= 0;
+    thd->where= "partition function";
+
+    value_ptr= (part_elem_value*)sql_alloc(sizeof(part_elem_value));
+    if (!value_ptr)
+    {
+      mem_alloc_error(sizeof(part_elem_value));
+      DBUG_RETURN(TRUE);
+    }
+    if (item_expr->walk(&Item::check_partition_func_processor, 0,
+                        NULL))
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+    if (item_expr->fix_fields(thd, (Item**)0) ||
+        ((context->table_list= save_list), FALSE) ||
+         (!item_expr->const_item()))
+    {
+      context->table_list= save_list;
+      thd->where= save_where;
+      my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+    thd->where= save_where;
+    value_ptr->value= part_expr->val_int();
+    value_ptr->unsigned_flag= TRUE;
+    if (!item_expr->unsigned_flag &&
+        value_ptr->value < 0)
+      value_ptr->unsigned_flag= FALSE;
+    if ((value_ptr->null_value= item_expr->null_value))
+    {
+      if (part_elem->has_null_value)
+      {
+         my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+         DBUG_RETURN(TRUE);
+      }
+      part_elem->has_null_value= TRUE;
+    }
+    else if (item_expr->result_type() != INT_RESULT)
+    {
+      my_error(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+    if (!value_ptr->unsigned_flag)
+      part_elem->signed_flag= TRUE;
+    if (part_type == RANGE_PARTITION)
+    {
+      if (part_elem->has_null_value)
+      {
+        my_error(ER_NULL_IN_VALUES_LESS_THAN, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+      part_elem->range_value= value_ptr->value;
+    }
+    else if (part_type == LIST_PARTITION)
+    {
+      if (!value_ptr->null_value &&
+        part_elem->list_val_list.push_back(value_ptr))
+      {
+        mem_alloc_error(sizeof(part_elem_value));
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  col_val->fixed= 2;
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Evaluate VALUES functions for column list values
+  SYNOPSIS
+    fix_column_value_functions()
+    thd                              Thread object
+    col_val                          List of column values
+    part_id                          Partition id we are fixing
+
+  RETURN VALUES
+    TRUE                             Error
+    FALSE                            Success
+  DESCRIPTION
+    Fix column VALUES and store in memory array adapted to the data type
+*/
+
+bool partition_info::fix_column_value_functions(THD *thd,
+                                                part_elem_value *val,
+                                                uint part_id)
+{
+  uint num_columns= part_field_list.elements;
+  Name_resolution_context *context= &thd->lex->current_select->context;
+  TABLE_LIST *save_list= context->table_list;
+  bool result= FALSE;
+  uint i;
+  const char *save_where= thd->where;
+  part_column_list_val *col_val= val->col_val_array;
+  DBUG_ENTER("partition_info::fix_column_value_functions");
+
+  if (col_val->fixed > 1)
+  {
+    DBUG_RETURN(FALSE);
+  }
+  if (val->added_items != num_columns)
+  {
+    my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  context->table_list= 0;
+  thd->where= "partition function";
+  for (i= 0; i < num_columns; col_val++, i++)
+  {
+    Item *column_item= col_val->item_expression;
+    Field *field= part_field_array[i];
+    col_val->part_info= this;
+    col_val->partition_id= part_id;
+    if (col_val->max_value)
+      col_val->column_value= NULL;
+    else
+    {
+      if (!col_val->fixed && 
+          (column_item->fix_fields(thd, (Item**)0) ||
+          (!column_item->const_item())))
+      {
+        my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+        result= TRUE;
+        goto end;
+      }
+      col_val->null_value= column_item->null_value;
+      col_val->column_value= NULL;
+      if (!col_val->null_value)
+      {
+        uchar *val_ptr;
+        uint len= field->pack_length();
+        if (column_item->save_in_field(field, TRUE))
+        {
+          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
+          result= TRUE;
+          goto end;
+        }
+        if (!(val_ptr= (uchar*) sql_calloc(len)))
+        {
+          mem_alloc_error(len);
+          result= TRUE;
+          goto end;
+        }
+        col_val->column_value= val_ptr;
+        memcpy(val_ptr, field->ptr, len);
+      }
+    }
+    col_val->fixed= 2;
+  }
+end:
+  thd->where= save_where;
+  context->table_list= save_list;
+  DBUG_RETURN(result);
+}
+
+/*
+  The parser generates generic data structures, we need to set them up
+  as the rest of the code expects to find them. This is in reality part
+  of the syntax check of the parser code.
+
+  It is necessary to call this function in the case of a CREATE TABLE
+  statement, in this case we do it early in the check_partition_info
+  function.
+
+  It is necessary to call this function for ALTER TABLE where we
+  assign a completely new partition structure, in this case we do it
+  in prep_alter_part_table after discovering that the partition
+  structure is entirely redefined.
+
+  It's necessary to call this method also for ALTER TABLE ADD/REORGANIZE
+  of partitions, in this we call it in prep_alter_part_table after
+  making some initial checks but before going deep to check the partition
+  info, we also assign the column_list variable before calling this function
+  here.
+
+  Finally we also call it immediately after returning from parsing the
+  partitioning text found in the frm file.
+
+  This function mainly fixes the VALUES parts, these are handled differently
+  whether or not we use column list partitioning. Since the parser doesn't
+  know which we are using we need to set-up the old data structures after
+  the parser is complete when we know if what type of partitioning the
+  base table is using.
+
+  For column lists we will handle this in the fix_column_value_function.
+  For column lists it is sufficient to verify that the number of columns
+  and number of elements are in synch with each other. So only partitioning
+  using functions need to be set-up to their data structures.
+
+  SYNOPSIS
+    fix_parser_data()
+    thd                      Thread object
+
+  RETURN VALUES
+    TRUE                     Failure
+    FALSE                    Success
+*/
+
+int partition_info::fix_parser_data(THD *thd)
+{
+  List_iterator<partition_element> it(partitions);
+  partition_element *part_elem;
+  part_elem_value *val;
+  uint num_elements;
+  uint i= 0, j;
+  int result;
+  DBUG_ENTER("partition_info::fix_parser_data");
+
+  if (!(part_type == RANGE_PARTITION ||
+        part_type == LIST_PARTITION))
+  {
+    /* Nothing to do for HASH/KEY partitioning */
+    DBUG_RETURN(FALSE);
+  }
+  do
+  {
+    part_elem= it++;
+    j= 0;
+    num_elements= part_elem->list_val_list.elements;
+    DBUG_ASSERT(part_type == RANGE_PARTITION ?
+                num_elements == 1U : TRUE);
+    {
+      List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
+      part_elem_value *val= list_val_it++;
+      result= column_list ?
+        fix_column_value_functions(thd, val, i) :
+        fix_func_partition(thd, val, part_elem);
+      if (result)
+      {
+        DBUG_RETURN(TRUE);
+      }
+    } while (++j < num_elements);
+  } while (++i < num_parts);
+}
+
+void partition_info::print_debug(const char *str, uint *value)
+{
+  DBUG_ENTER("print_debug");
+  if (value)
+    DBUG_PRINT("info", ("parser: %s, val = %u", str, *value));
+  else
+    DBUG_PRINT("info", ("parser: %s", str));
+  DBUG_VOID_RETURN;
+}
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
