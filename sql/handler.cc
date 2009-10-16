@@ -4568,22 +4568,19 @@ static int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
+    DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
+              (table->s->fields + 7) / 8);
+
     /*
       If there are no table maps written to the binary log, this is
       the first row handled in this statement. In that case, we need
       to write table maps for all locked tables to the binary log.
     */
-    if (check_table_binlog_row_based(thd, table))
+    if (likely(!(error= write_locked_table_maps(thd))))
     {
-      DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
-                (table->s->fields + 7) / 8);
-
-      if (likely(!(error= write_locked_table_maps(thd))))
-      {
-        bool const has_trans= table->file->has_transactions();
-        error=
-          (*log_func)(thd, table, has_trans, before_record, after_record);
-      }
+      bool const has_trans= table->file->has_transactions();
+      error=
+        (*log_func)(thd, table, has_trans, before_record, after_record);
     }
   }
   return error ? HA_ERR_RBR_LOGGING_FAILED : 0;

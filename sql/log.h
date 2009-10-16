@@ -593,6 +593,24 @@ public:
   }
 };
 
+enum enum_binlog_row_image {
+  /*
+    MINIMAL
+      means PK in the before image and changed columns in after image
+
+    NOBLOB 
+      means that whenever possible, before and after image contain all columns
+      except blobs 
+
+    FULL
+      means all columns in both before and after image
+   */
+
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+
 enum enum_binlog_format {
   /*
     statement-based except for cases where only row-based can work (UUID()

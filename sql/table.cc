@@ -4472,6 +4472,7 @@ void st_table::mark_columns_needed_for_delete()
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
       file->column_bitmaps_signal();
     }
+    mark_columns_per_binlog_row_image();
   }
 }
 
@@ -4528,7 +4529,66 @@ void st_table::mark_columns_needed_for_update()
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
       file->column_bitmaps_signal();
     }
+    mark_columns_per_binlog_row_image();
   }
+  DBUG_VOID_RETURN;
+}
+
+void TABLE::mark_columns_per_binlog_row_image()
+{
+  DBUG_ENTER("mark_columns_per_binlog_row_image");
+
+  /**
+    If in RBR we may need to mark some extra columns,
+    depending on the binlog-row-image command line argument.
+   */
+  if ((mysql_bin_log.is_open() && in_use &&
+       in_use->current_stmt_binlog_row_based))
+  {
+    /* if there is no PK, then mark all columns for the BI. */
+    if (s->primary_key >= MAX_KEY)
+      bitmap_set_all(read_set);
+
+    switch (opt_binlog_row_image_id)
+    {
+      case BINLOG_ROW_IMAGE_FULL:
+        if (s->primary_key < MAX_KEY)
+          bitmap_set_all(read_set);
+        bitmap_set_all(write_set);
+        break;
+      case BINLOG_ROW_IMAGE_NOBLOB:
+        /* for every field that is not set, mark it unless it is a blob */
+        for (Field **ptr=field ; *ptr ; ptr++)
+        {
+          Field *field= *ptr;
+          /* 
+            bypass blob fields. These can be set or not set, we don't care.
+            Later if we don't need them in the before image, we will discard
+            them.
+
+            If set in the AI, then the blob is really needed. There is nothing
+            we can do.
+           */
+          if ((field->flags & PRI_KEY_FLAG) || 
+              (field->type() != MYSQL_TYPE_BLOB))
+            bitmap_set_bit(read_set, field->field_index);
+
+          if (field->type() != MYSQL_TYPE_BLOB)
+            bitmap_set_bit(write_set, field->field_index);
+        }
+        break;
+      case BINLOG_ROW_IMAGE_MINIMAL:
+        /* mark the primary key if available in the read_set */
+        if (s->primary_key < MAX_KEY)
+          mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+        break;
+
+      default: 
+        DBUG_ASSERT(FALSE);
+    }
+    file->column_bitmaps_signal();
+  }
+
   DBUG_VOID_RETURN;
 }
 

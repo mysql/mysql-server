@@ -506,6 +506,14 @@ TYPELIB binlog_format_typelib=
     binlog_format_names, NULL };
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
+
+const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
+TYPELIB binlog_row_image_typelib=
+  { array_elements(binlog_row_image_names) - 1, "",
+    binlog_row_image_names, NULL };
+ulong opt_binlog_row_image_id= (ulong) BINLOG_ROW_IMAGE_FULL;
+const char *opt_binlog_row_image_arg=
+  binlog_row_image_names[BINLOG_ROW_IMAGE_MINIMAL];
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
@@ -5685,7 +5693,8 @@ enum options_mysqld
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_SYNC_RELAY_LOG,
   OPT_SYNC_RELAY_LOG_INFO,
-  OPT_SYNC_MASTER_INFO
+  OPT_SYNC_MASTER_INFO,
+  OPT_BINLOG_ROW_IMAGE
 };
 
 
@@ -7038,6 +7047,16 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
+  {"binlog-row-image", OPT_BINLOG_ROW_IMAGE,
+    "Controls wether the records should be logged in a full, reversible or "
+    "minimal manner. Full means that all columns are stored in the before "
+    "and after image are logged. Reversible means that PK and changed "
+    "columns are stored in the before and after image. Minimal means that PK "
+    "columns are stored in before image and changed columns in the after "
+    "image. (Default: minimal.)", 
+    (uchar **) &opt_binlog_row_image_arg,
+    (uchar **) &opt_binlog_row_image_arg,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -8042,6 +8061,13 @@ mysqld_get_one_option(int optid,
     int id;
     id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
+    break;
+  }
+  case OPT_BINLOG_ROW_IMAGE:
+  {
+    int id;
+    id= find_type_or_exit(argument, &binlog_row_image_typelib, opt->name);
+    opt_binlog_row_image_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:

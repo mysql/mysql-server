@@ -3603,7 +3603,22 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
                            const uchar *before_record,
                            const uchar *after_record)
 { 
+  int error= 0;
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+
+  /**
+    Save a reference to the original read and write set bitmaps.
+    We will need this to restore the bitmaps at the end.
+   */
+  MY_BITMAP *old_read_set= table->read_set;
+  MY_BITMAP *old_write_set= table->write_set;
+
+  /** 
+     This will remove spurious fields required during execution but
+     not needed for binlogging. This is done according to the:
+     binlog-row-image option.
+   */
+  binlog_prepare_row_images(table);
 
   size_t const before_maxlen = max_row_length(table, before_record);
   size_t const after_maxlen  = max_row_length(table, after_record);
@@ -3639,15 +3654,35 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
 
-  return
-    ev->add_row_data(before_row, before_size) ||
-    ev->add_row_data(after_row, after_size);
+  error= ev->add_row_data(before_row, before_size) ||
+         ev->add_row_data(after_row, after_size);
+
+  /* restore read set for the rest of execution */
+  table->column_bitmaps_set_no_signal(old_read_set,
+                                      old_write_set);
+
+  return error;
 }
 
 int THD::binlog_delete_row(TABLE* table, bool is_trans, 
                            uchar const *record)
 { 
+  int error= 0;
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+
+  /**
+    Save a reference to the original read and write set bitmaps.
+    We will need this to restore the bitmaps at the end.
+   */
+  MY_BITMAP *old_read_set= table->read_set;
+  MY_BITMAP *old_write_set= table->write_set;
+
+  /** 
+     This will remove spurious fields required during execution but
+     not needed for binlogging. This is done according to the:
+     binlog-row-image option.
+   */
+  binlog_prepare_row_images(table);
 
   /* 
      Pack records into format for transfer. We are allocating more
@@ -3669,9 +3704,69 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
 
-  return ev->add_row_data(row_data, len);
+  error= ev->add_row_data(row_data, len);
+
+  /* restore read set for the rest of execution */
+  table->column_bitmaps_set_no_signal(old_read_set,
+                                      old_write_set);
+
+  return error;
 }
 
+void THD::binlog_prepare_row_images(TABLE *table) 
+{
+  DBUG_ENTER("THD::binlog_prepare_row_images");
+  /** 
+    Remove from read_set spurious columns. The write_set has been
+    handled before in table->mark_columns_needed_for_update. 
+   */
+
+  DBUG_PRINT_BITSET("debug", "table->read_set (before preparing): %s", table->read_set);
+
+  /** 
+    if there is a primary key in the table (ie, user declared PK or a
+    non-null unique index) and we dont want to ship the entire image.
+   */
+  if (table->s->primary_key < MAX_KEY &&
+      (opt_binlog_row_image_id < BINLOG_ROW_IMAGE_FULL))
+  {
+    DBUG_ASSERT(table->read_set != &table->tmp_set);
+
+    bitmap_clear_all(&table->tmp_set);
+
+    switch(opt_binlog_row_image_id)
+    {
+      case BINLOG_ROW_IMAGE_MINIMAL:
+        /* MINIMAL: Mark only PK */
+        table->mark_columns_used_by_index_no_reset(table->s->primary_key,
+                                                   &table->tmp_set);
+        break;
+      case BINLOG_ROW_IMAGE_NOBLOB:
+        /** 
+          NOBLOB: Remove unnecessary BLOB fields from read_set 
+                  (the ones that are not part of PK).
+         */
+        bitmap_union(&table->tmp_set, table->read_set);
+        for (Field **ptr=table->field ; *ptr ; ptr++)
+        {
+          Field *field= (*ptr);
+          if ((field->type() == MYSQL_TYPE_BLOB) &&
+              !(field->flags & PRI_KEY_FLAG))
+            bitmap_clear_bit(&table->tmp_set, field->field_index);
+        }
+        break;
+      default:
+        DBUG_ASSERT(0); // impossible.
+    }
+
+    /* set the temporary read_set */
+    table->column_bitmaps_set_no_signal(&table->tmp_set,
+                                        table->write_set);
+  }
+
+  DBUG_PRINT_BITSET("debug", "table->read_set (after preparing): %s", table->read_set);
+  DBUG_VOID_RETURN;
+}
 
 int THD::binlog_remove_pending_rows_event(bool clear_maps)
 {
