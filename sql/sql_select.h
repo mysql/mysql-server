@@ -280,7 +280,7 @@ public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
-  TABLE    **table,**all_tables,*sort_by_table;
+  TABLE    **all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
@@ -427,7 +427,7 @@ public:
        select_result *result_arg)
   {
     join_tab= join_tab_save= 0;
-    table= 0;
+    all_tables= 0;
     tables= 0;
     const_tables= 0;
     join_list= 0;
