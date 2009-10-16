@@ -628,6 +628,41 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
+  Prints "use <db>" statement when current db is to be changed.
+
+  We have to control emiting USE statements according to rewrite-db options.
+  We have to do it here (see process_event() below) and to suppress
+  producing USE statements by corresponding log event print-functions.
+*/
+void print_use_stmt(PRINT_EVENT_INFO* pinfo, const char* db, size_t db_len)
+{
+  // pinfo->db is the current db.
+  // If current db is the same as required db, do nothing.
+  if (!db || !memcmp(pinfo->db, db, db_len + 1))
+    return;
+
+  // Current db and required db are different.
+  // Check for rewrite rule for required db. (Note that in a rewrite rule
+  // neither db_from nor db_to part can be empty).
+  size_t len_to= 0;
+  const char *db_to= binlog_filter->get_rewrite_db(db, &len_to);
+
+  // If there is no rewrite rule for db (in this case len_to is left = 0),
+  // printing of the corresponding USE statement is left for log event
+  // print-function.
+  if (!len_to)
+    return;
+
+  // In case of rewrite rule print USE statement for db_to
+  fprintf(result_file, "use %s%s\n", db_to, pinfo->delimiter);
+
+  // Copy the *original* db to pinfo to suppress emiting
+  // of USE stmts by log_event print-functions.
+  memcpy(pinfo->db, db, db_len + 1);
+}
+
+
+/**
   Prints the given event in base64 format.
 
   The header is printed to the head cache and the body is printed to
@@ -738,8 +773,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (shall_skip_database(((Query_log_event*)ev)->db))
+    {
+      Query_log_event *qe= (Query_log_event*)ev;
+      if (shall_skip_database(qe->db))
         goto end;
+      print_use_stmt(print_event_info, qe->db, qe->db_len);
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,
@@ -750,6 +788,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       else
         ev->print(result_file, print_event_info);
       break;
+    }
 
     case CREATE_FILE_EVENT:
     {
@@ -867,6 +906,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (!shall_skip_database(exlq->db))
       {
+        print_use_stmt(print_event_info, exlq->db, exlq->db_len);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
@@ -889,6 +929,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
         destroy_evt= FALSE;
         goto end;
+      }
+      size_t len_to= 0;
+      const char* db_to= binlog_filter->get_rewrite_db(map->get_db_name(), &len_to);
+      if (len_to && map->rewrite_db(db_to, len_to, glob_description_event))
+      {
+        error("Could not rewrite database name");
+        goto err;
       }
     }
     case WRITE_ROWS_EVENT:
@@ -1142,6 +1189,9 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for usage by this program",
    (uchar**) &open_files_limit, (uchar**) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"rewrite-db", OPT_REWRITE_DB,
+   "Updates to a database with a different name than the original.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1333,6 +1383,49 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     }
     break;
+  case OPT_REWRITE_DB:    // db_from->db_to
+  {
+    char* ptr;
+    char* key= argument;  // db-from
+    char* val;            // db-to
+
+    // Where key begins
+    while (*key && my_isspace(&my_charset_latin1, *key))
+      key++;
+
+    // Where val begins
+    if (!(ptr= strstr(argument, "->")))
+    { sql_print_error("Bad syntax in rewrite-db: missing '->'!\n");
+      return 1;
+    }
+    val= ptr + 2;
+    while (*val && my_isspace(&my_charset_latin1, *val))
+      val++;
+
+    // Write /0 and skip blanks at the end of key
+    *ptr-- = 0;
+    while (my_isspace(&my_charset_latin1, *ptr) && ptr > argument)
+      *ptr-- = 0;
+
+    if (!*key)
+    { sql_print_error("Bad syntax in rewrite-db: empty db-from!\n");
+      return 1;
+    }
+
+    // Skip blanks at the end of val
+    ptr= val;
+    while (*ptr && !my_isspace(&my_charset_latin1, *ptr))
+      ptr++;
+    *ptr= 0;
+
+    if (!*val)
+    { sql_print_error("Bad syntax in rewrite-db: empty db-to!\n");
+      return 1;
+    }
+
+    binlog_filter->add_db_rewrite(key, val);
+    break;
+  }
   case 'v':
     if (argument == disabled_my_option)
       verbose= 0;
