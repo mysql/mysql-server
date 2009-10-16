@@ -1312,6 +1312,7 @@ int Dbtup::handleInsertReq(Signal* signal,
                      regTabPtr->m_attributes[MM].m_no_of_dynamic);
   bool varalloc = vardynsize || regTabPtr->m_bits & Tablerec::TR_ForceVarPart;
   bool rowid = req_struct->m_use_rowid;
+  bool update_acc = false; 
   Uint32 real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
   Uint32 frag_page_id = req_struct->frag_page_id;
 
@@ -1519,17 +1520,12 @@ int Dbtup::handleInsertReq(Signal* signal,
       }
     }
     real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
-    regOperPtr.p->m_tuple_location.m_page_no= frag_page_id;
-    c_lqh->accminupdate(signal,
-			regOperPtr.p->userpointer,
-			&regOperPtr.p->m_tuple_location);
+    update_acc = true; /* Will be updated later once success is known */
     
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
     base->m_header_bits= Tuple_header::ALLOC |
       (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0);
-
-    regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
   else 
   {
@@ -1589,6 +1585,25 @@ int Dbtup::handleInsertReq(Signal* signal,
   if (req_struct->m_reorg)
   {
     handle_reorg(req_struct, regFragPtr->fragStatus);
+  }
+
+  /* Have been successful with disk + mem, update ACC to point to
+   * new record if necessary
+   * Failures in disk alloc will skip this part
+   */
+  if (update_acc)
+  {
+    /* Acc stores the local key with the frag_page_id rather
+     * than the real_page_id
+     */
+    ndbassert(regOperPtr.p->m_tuple_location.m_page_no == real_page_id);
+
+    Local_key accKey = regOperPtr.p->m_tuple_location;
+    accKey.m_page_no = frag_page_id;
+
+    c_lqh->accminupdate(signal,
+                        regOperPtr.p->userpointer,
+                        &accKey);
   }
   
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
