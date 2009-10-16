@@ -42,6 +42,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "debug_sync.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -399,6 +400,31 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return buffer;
 }
 
+
+/**
+  Implementation of Drop_table_error_handler::handle_error().
+  The reason in having this implementation is to silence technical low-level
+  warnings during DROP TABLE operation. Currently we don't want to expose
+  the following warnings during DROP TABLE:
+    - Some of table files are missed or invalid (the table is going to be
+      deleted anyway, so why bother that something was missed);
+    - A trigger associated with the table does not have DEFINER (One of the
+      MySQL specifics now is that triggers are loaded for the table being
+      dropped. So, we may have a warning that trigger does not have DEFINER
+      attribute during DROP TABLE operation).
+
+  @return TRUE if the condition is handled.
+*/
+bool Drop_table_error_handler::handle_error(uint sql_errno,
+                                            const char *message,
+                                            MYSQL_ERROR::enum_warning_level level,
+                                            THD *thd)
+{
+  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
+          sql_errno == ER_TRG_NO_DEFINER);
+}
+
+
 /**
   Clear this diagnostics area. 
 
@@ -559,6 +585,9 @@ THD::THD()
    derived_tables_processing(FALSE),
    spcont(NULL),
    m_parser_state(NULL)
+#if defined(ENABLED_DEBUG_SYNC)
+   , debug_sync_control(0)
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 {
   ulong tmp;
 
@@ -807,6 +836,11 @@ void THD::init(void)
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_init_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 }
 
 
@@ -886,6 +920,12 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);

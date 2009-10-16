@@ -408,29 +408,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-/**
-  Execute commands from bootstrap_file.
-
-  Used when creating the initial grant tables.
-*/
-
-pthread_handler_t handle_bootstrap(void *arg)
+static void handle_bootstrap_impl(THD *thd)
 {
-  THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
   const char* found_semicolon= NULL;
 
-  /* The following must be called before DBUG_ENTER */
-  thd->thread_stack= (char*) &thd;
-  if (my_thread_init() || thd->store_globals())
-  {
-#ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-#endif
-    thd->fatal_error();
-    goto end;
-  }
   DBUG_ENTER("handle_bootstrap");
 
 #ifndef EMBEDDED_LIBRARY
@@ -525,6 +508,33 @@ pthread_handler_t handle_bootstrap(void *arg)
 #endif
   }
 
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute commands from bootstrap_file.
+
+  Used when creating the initial grant tables.
+*/
+
+pthread_handler_t handle_bootstrap(void *arg)
+{
+  THD *thd=(THD*) arg;
+
+  /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
+  if (my_thread_init() || thd->store_globals())
+  {
+#ifndef EMBEDDED_LIBRARY
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
+    thd->fatal_error();
+    goto end;
+  }
+
+  handle_bootstrap_impl(thd);
+
 end:
   net_end(&thd->net);
   thd->cleanup();
@@ -539,7 +549,8 @@ end:
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 
@@ -1417,7 +1428,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
-    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+#ifndef DBUG_OFF
+    bool debug_simulate= FALSE;
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
+    if (debug_simulate)
+    {
+      /*
+        Simulate a reload without a attached thread session.
+        Provides a environment similar to that of when the
+        server receives a SIGHUP signal and reloads caches
+        and flushes tables.
+      */
+      bool res;
+      my_pthread_setspecific_ptr(THR_THD, NULL);
+      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
+                                NULL, &not_used);
+      my_pthread_setspecific_ptr(THR_THD, thd);
+      if (!res)
+        my_ok(thd);
+      break;
+    }
+#endif
+    if (!reload_acl_and_cache(thd, options, NULL, &not_used))
       my_ok(thd);
     break;
   }
@@ -6226,6 +6258,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;

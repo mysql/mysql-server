@@ -1168,6 +1168,7 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
+  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 
@@ -1534,7 +1535,7 @@ void show_diff(DYNAMIC_STRING* ds,
   else
     diff_name = 0;
 #else
-  diff_name = "diff";		// Otherwise always assume it's called diff
+  diff_name = "diff";           /* Otherwise always assume it's called diff */
 #endif
 
   if (diff_name)
@@ -2490,7 +2491,7 @@ void do_source(struct st_command *command)
   }
 
   dynstr_free(&ds_filename);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -6774,8 +6775,10 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
+  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
+  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6906,6 +6909,13 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       */
     }
 
+    /*
+      Need to grab affected rows information before getting
+      warnings here
+    */
+    if (!disable_info)
+      affected_rows= mysql_affected_rows(mysql);
+
     if (!disable_warnings)
     {
       /* Get the warnings from execute */
@@ -6930,7 +6940,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
 
     if (!disable_info)
-      append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
+      append_info(ds, affected_rows, mysql_info(mysql));
 
   }
 
@@ -7525,6 +7535,8 @@ static void init_signal_handling(void)
 #endif
   sigaction(SIGILL, &sa, NULL);
   sigaction(SIGFPE, &sa, NULL);
+
+  DBUG_VOID_RETURN;
 }
 
 #endif /* !__WIN__ */
@@ -8175,6 +8187,8 @@ void do_get_replace_column(struct st_command *command)
   }
   my_free(start, MYF(0));
   command->last_argument= command->end;
+
+  DBUG_VOID_RETURN;
 }
 
 

@@ -392,7 +392,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   int        save_errno;
   uint       idx;
   uint       child_nr;
-  uint       key_parts;
+  uint       UNINIT_VAR(key_parts);
   uint       min_keys;
   my_bool    bad_children= FALSE;
   DBUG_ENTER("myrg_attach_children");
@@ -409,7 +409,6 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   rc= 1;
   errpos= 0;
   file_offset= 0;
-  LINT_INIT(key_parts);
   min_keys= 0;
   child_nr= 0;
   while ((myisam= (*callback)(callback_param)))

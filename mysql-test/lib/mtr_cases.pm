@@ -502,6 +502,7 @@ sub collect_one_suite($)
   if ($do_innodb_plugin)
   {
     my @new_cases;
+    my $sep= (IS_WINDOWS) ? ';' : ':';
 
     foreach my $test (@cases)
     {
@@ -517,6 +518,10 @@ sub collect_one_suite($)
       next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
       # Diff around innodb_thread_concurrency variable
       next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
+      # Disable for Innodb Plugin until the fix for Plugin is received
+      next if ($test->{'name'} eq 'main.innodb_bug46000');
+      # Disable for Innodb Plugin until the fix for Plugin is received
+      next if ($test->{'name'} eq 'main.innodb_bug44369');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
@@ -531,12 +536,13 @@ sub collect_one_suite($)
         }
       }
       my $plugin_filename= basename($lib_innodb_plugin);
+      my $plugin_list= "innodb=$plugin_filename" . $sep . "innodb_locks=$plugin_filename";
       push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{master_opt}}, "--plugin_load=$plugin_list");
       push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
       if ($new_test->{combination})
       {
         $new_test->{combination}.= '+innodb_plugin';
