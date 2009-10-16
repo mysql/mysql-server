@@ -81,8 +81,7 @@ rl_alphabetic (c)
 
 #if defined (HANDLE_MULTIBYTE)
 int
-_rl_walphabetic (wc)
-     wchar_t wc;
+_rl_walphabetic (wchar_t wc)
 {
   int c;
 
