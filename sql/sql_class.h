@@ -1092,6 +1092,31 @@ public:
 
 
 /**
+  This class is an internal error handler implementation for 
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
+*/
+
+class Drop_table_error_handler : public Internal_error_handler
+{
+public:
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd);
+
+private:
+  Internal_error_handler *m_err_handler;
+};
+
+
+/**
   Stores status of the currently executed statement.
   Cleared at the beginning of the statement, and then
   can hold either OK, ERROR, or EOF status.
@@ -1871,6 +1896,11 @@ public:
   partition_info *work_part_info;
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Debug Sync facility. See debug_sync.cc. */
+  struct st_debug_sync_control *debug_sync_control;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   THD();
   ~THD();
 
@@ -2617,7 +2647,32 @@ public:
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
-  uint	field_count,sum_func_count,func_count;
+  /**
+    Number of normal fields in the query, including those referred to
+    from aggregate functions. Hence, "SELECT `field1`,
+    SUM(`field2`) from t1" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint	field_count; 
+  /**
+    Number of fields in the query that have functions. Includes both
+    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND).
+    Also counts functions referred to from aggregate functions, i.e.,
+    "SELECT SUM(RAND())" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint  func_count;  
+  /**
+    Number of fields in the query that have aggregate functions. Note
+    that the optimizer may choose to optimize away these fields by
+    replacing them with constants, in which case sum_func_count will
+    need to be updated.
+
+    @see opt_sum_query, count_field_types
+  */
+  uint  sum_func_count;   
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
@@ -2882,7 +2937,8 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes();
+  int do_deletes();
+  int do_table_deletes(TABLE *table, bool ignore);
   bool send_eof();
   virtual void abort();
 };

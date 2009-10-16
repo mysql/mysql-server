@@ -3338,7 +3338,12 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 
 /**
-  Hide errors which show view underlying table information
+  Hide errors which show view underlying table information. 
+  There are currently two mechanisms at work that handle errors for views,
+  this one and a more general mechanism based on an Internal_error_handler,
+  see Show_create_error_handler. The latter handles errors encountered during
+  execution of SHOW CREATE VIEW, while the machanism using this method is
+  handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler
 
@@ -3347,6 +3352,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
+  if (thd->get_internal_handler())
+    return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
@@ -4630,7 +4637,8 @@ Item_subselect *TABLE_LIST::containing_subselect()
     (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
-    st_table::force_index and st_table::covering_keys.
+    st_table::force_index, st_table::force_index_order, 
+    st_table::force_index_group and st_table::covering_keys.
 
     Current implementation of the runtime does not allow mixing FORCE INDEX
     and USE INDEX, so this is checked here. Then the FORCE INDEX list 
@@ -4758,14 +4766,28 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
+    if (!index_order[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_order= TRUE;
+      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
+    }
+
+    if (!index_group[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_group= TRUE;
+      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
+    }
+
+    /*
+      TODO: get rid of tbl->force_index (on if any FORCE INDEX is specified) and
+      create tbl->force_index_join instead.
+      Then use the correct force_index_XX instead of the global one.
+    */
     if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_order[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_group[INDEX_HINT_FORCE].is_clear_all())
+        tbl->force_index_group || tbl->force_index_order)
     {
       tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
-      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
-      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
     }
 
     /* apply USE INDEX */

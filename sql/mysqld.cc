@@ -26,6 +26,7 @@
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
+#include "debug_sync.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -486,6 +487,9 @@ my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
+#if defined(ENABLED_DEBUG_SYNC)
+uint    opt_debug_sync_timeout= 0;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
@@ -1107,13 +1111,13 @@ void kill_mysql(void)
 
 #if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
+#define RETURN_FROM_KILL_SERVER return 0
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #endif
 {
   DBUG_ENTER("kill_server");
@@ -1121,7 +1125,10 @@ static void __cdecl kill_server(int sig_ptr)
   int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
+  {
+    DBUG_LEAVE;
     RETURN_FROM_KILL_SERVER;
+  }
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
   if (sig != 0) // 0 is not a valid signal number
@@ -1156,12 +1163,19 @@ static void __cdecl kill_server(int sig_ptr)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
   /* purecov: end */
 
-#endif /* EMBEDDED_LIBRARY */
+  RETURN_FROM_KILL_SERVER;                      // Avoid compiler warnings
+
+#else /* EMBEDDED_LIBRARY*/
+
+  DBUG_LEAVE;
   RETURN_FROM_KILL_SERVER;
+
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1323,6 +1337,10 @@ void clean_up(bool print_message)
 #ifdef USE_REGEX
   my_regex_end();
 #endif
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the debug sync facility. See debug_sync.cc. */
+  debug_sync_end();
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #if !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
@@ -1935,8 +1953,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Impossible
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -2756,7 +2775,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
+      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);				// Safety
+      return 0;                                 // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
@@ -3451,6 +3472,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   sys_var_slow_log_path.value= my_strdup(s, MYF(0));
   sys_var_slow_log_path.value_length= strlen(s);
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the debug sync facility. See debug_sync.cc. */
+  if (debug_sync_init())
+    return 1; /* purecov: tested */
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 #if (ENABLE_TEMP_POOL)
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -3706,6 +3733,7 @@ static void end_ssl()
 
 static int init_server_components()
 {
+  FILE* reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3748,7 +3776,7 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        freopen(log_error_file, "a+", stderr);
+        reopen= freopen(log_error_file, "a+", stderr);
         setbuf(stderr, NULL);
       }
     }
@@ -4603,7 +4631,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -4788,10 +4816,10 @@ static bool read_init_file(char *file_name)
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
-    return(1);
+    DBUG_RETURN(TRUE);
   bootstrap(file);
   (void) my_fclose(file,MYF(MY_WME));
-  return 0;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -4844,7 +4872,7 @@ void create_thread_to_handle_connection(THD *thd)
                               handle_one_connection,
                               (void*) thd)))
     {
-      /* purify: begin inspected */
+      /* purecov: begin inspected */
       DBUG_PRINT("error",
                  ("Can't create thread to handle request (error %d)",
                   error));
@@ -5657,6 +5685,9 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
+#if defined(ENABLED_DEBUG_SYNC)
+  OPT_DEBUG_SYNC_TIMEOUT,
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   OPT_OLD_MODE,
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
@@ -6428,6 +6459,14 @@ log and this option does nothing anymore.",
    "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK.",
    (uchar**) &opt_tc_heuristic_recover, (uchar**) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(ENABLED_DEBUG_SYNC)
+  {"debug-sync-timeout", OPT_DEBUG_SYNC_TIMEOUT,
+   "Enable the debug sync facility "
+   "and optionally specify a default wait timeout in seconds. "
+   "A zero value keeps the facility disabled.",
+   (uchar**) &opt_debug_sync_timeout, 0,
+   0, GET_UINT, OPT_ARG, 0, 0, UINT_MAX, 0, 0, 0},
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   {"temp-pool", OPT_TEMP_POOL,
 #if (ENABLE_TEMP_POOL)
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
@@ -7612,6 +7651,9 @@ static int mysql_init_variables(void)
   bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
   opt_large_pages= 0;
+#if defined(ENABLED_DEBUG_SYNC)
+  opt_debug_sync_timeout= 0;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   key_map_full.set_all();
 
   /* Character sets */
@@ -8346,6 +8388,22 @@ mysqld_get_one_option(int optid,
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
     break;
+#if defined(ENABLED_DEBUG_SYNC)
+  case OPT_DEBUG_SYNC_TIMEOUT:
+    /*
+      Debug Sync Facility. See debug_sync.cc.
+      Default timeout for WAIT_FOR action.
+      Default value is zero (facility disabled).
+      If option is given without an argument, supply a non-zero value.
+    */
+    if (!argument)
+    {
+      /* purecov: begin tested */
+      opt_debug_sync_timeout= DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT;
+      /* purecov: end */
+    }
+    break;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   }
   return 0;
 }
