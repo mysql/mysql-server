@@ -410,6 +410,7 @@ C_MODE_END
 #ifndef stdin
 #include <stdio.h>
 #endif
+#include <stdarg.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
