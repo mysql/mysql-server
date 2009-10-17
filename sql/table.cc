@@ -4615,6 +4615,12 @@ void st_table::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
+
+  if(mysql_bin_log.is_open() && in_use &&
+      in_use->current_stmt_binlog_row_based)
+  {
+    mark_columns_needed_for_update();
+  }
 }
 
 

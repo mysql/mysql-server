@@ -368,11 +368,6 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check,
   int error= 0;
   restore_record(table, s->default_values);
 
-  /*
-     This skip should be revisited in 6.0, because in 6.0 RBR one 
-     can have holes in the row (as the grain of the writeset is 
-     the column and not the entire row).
-   */
   if (!check)
     DBUG_RETURN(0);
 
@@ -382,35 +377,38 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check,
     explicit value for a field not having the explicit default 
     (@c check_that_all_fields_are_given_values()).
   */
+  
+  DBUG_PRINT_BITSET("debug", "cols: %s", cols);
   for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
   {
-    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
-    Field *const f= *field_ptr;
-    if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
-        (f->real_type() != MYSQL_TYPE_ENUM))
-    {
-
-      MYSQL_ERROR::enum_warning_level error_type=
-        MYSQL_ERROR::WARN_LEVEL_NOTE;
-      if (abort_on_warning && (table->file->has_transactions() ||
-                               first_row))
+    if ((uint) (field_ptr - table->field) >= cols->n_bits ||
+        !bitmap_is_set(cols, field_ptr - table->field))
+    {   
+      Field *const f= *field_ptr;
+      if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
+          (f->real_type() != MYSQL_TYPE_ENUM))
       {
-        error= HA_ERR_ROWS_EVENT_APPLY;
-        error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
+        MYSQL_ERROR::enum_warning_level error_type=
+          MYSQL_ERROR::WARN_LEVEL_NOTE;
+        if (abort_on_warning && (table->file->has_transactions() ||
+                                 first_row))
+        {
+          error= HA_ERR_ROWS_EVENT_APPLY;
+          error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
+        }
+        else
+        {
+          DBUG_PRINT("debug", ("Set default; field: %s", f->field_name));
+          f->set_default();
+          error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
+        }
+        push_warning_printf(current_thd, error_type,
+                            ER_NO_DEFAULT_FOR_FIELD,
+                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            f->field_name);
       }
-      else
-      {
-        DBUG_PRINT("debug", ("Set default; field: %s", f->field_name));
-        f->set_default();
-        error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
-      }
-      push_warning_printf(current_thd, error_type,
-                          ER_NO_DEFAULT_FOR_FIELD,
-                          ER(ER_NO_DEFAULT_FOR_FIELD),
-                          f->field_name);
     }
   }
-
   DBUG_RETURN(error);
 }
 
