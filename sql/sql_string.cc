@@ -26,10 +26,6 @@
 #ifdef HAVE_FCONVERT
 #include <floatingpoint.h>
 #endif
-<<<<<<< TREE
-=======
-
->>>>>>> MERGE-SOURCE
 #include "sql_string.h"
 
 /*****************************************************************************
