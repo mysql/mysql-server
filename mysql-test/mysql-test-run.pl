@@ -519,7 +519,8 @@ sub run_test_server ($$$) {
 	      }
 	    }
 	    $num_saved_datadir++;
-	    $num_failed_test++ unless $result->{retries};
+	    $num_failed_test++ unless ($result->{retries} ||
+                                       $result->{exp_fail});
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
