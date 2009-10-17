@@ -1,0 +1,278 @@
+#  WL#5096
+#  
+#  Description 
+#  ===========
+#
+#  This test case covers Requirements for different index structures
+#  on both master and slave. This covers requirements R2. R1 is
+#  covered in another test.
+#
+#  Usage
+#  =====
+#
+#  Before including this file the following variables should be set:
+#    * $mysqld_a_engine
+#    * $mysqld_b_engine
+#    * $mysqld_c_engine
+#
+#  Example:
+#
+#     -- let $mysqld_a_engine= Falcon
+#     -- let $mysqld_b_engine= MyISAM
+#     -- let $mysqld_c_engine= InnoDB
+#
+#     -- source extra/rpl_tests/rpl_row_img_diff_indexes.test
+# 
+
+-- connection mysqld_a
+
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+-- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+-- connection mysqld_a
+
+let $i= 16;
+while($i)
+{
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=0;
+
+  if (`SELECT $i=4`)
+  {
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when different
+    -- echo ####                 indexes exist on master and slave and PKE
+    -- echo ####                 is not declared in a column that does not
+    -- echo ####                 exist on the slave.
+    -- echo ####                 Master: PK --> Slave: PK, UK, K, none
+  }
+
+  if (`SELECT $i=8`)
+  {
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when different
+    -- echo ####                 indexes exist on master and slave and PKE
+    -- echo ####                 is not declared in a column that does not
+    -- echo ####                 exist on the slave.
+    -- echo ####                 Master: UK --> Slave: PK, UK, K, none
+  }
+
+  if (`SELECT $i=12`)
+  {
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when different
+    -- echo ####                 indexes exist on master and slave and PKE
+    -- echo ####                 is not declared in a column that does not
+    -- echo ####                 exist on the slave.
+    -- echo ####                 Master: K --> Slave: PK, UK, K, none
+  }
+
+  if (`SELECT $i=16`)
+  {
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when different
+    -- echo ####                 indexes exist on master and slave and PKE
+    -- echo ####                 is not declared in a column that does not
+    -- echo ####                 exist on the slave.
+    -- echo ####                 Master: none --> Slave: PK, UK, K, none
+  }
+
+  if (`SELECT $i=1`) {
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=2`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=3`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=4`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=5`) {
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob, c3 int, unique key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=6`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=7`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, unique key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=8`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, unique key(c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=9`) {
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=10`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=11`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=12`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=13`) {
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=14`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=15`)
+  { 
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=16`)
+  { 
+    -- connection mysqld_a
+    -- eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine
+    -- connection mysqld_b
+    -- eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_b_engine
+    -- connection mysqld_c
+    -- eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine
+  }
+
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_a
+
+  -- let $blob1= "a"
+  -- let $blob2= "b"
+  -- let $blob3= "c"
+
+  -- eval INSERT INTO t VALUES (1, $blob1, 10)
+  -- eval INSERT INTO t VALUES (2, $blob2, 20)
+  -- eval INSERT INTO t VALUES (3, $blob3, 30)
+  
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- connection mysqld_a
+  -- eval UPDATE t SET c1=10 WHERE c2=$blob1
+  -- eval UPDATE t SET c1=20 WHERE c1=2
+  -- eval UPDATE t SET c1=30 WHERE c3=30
+  -- eval UPDATE t SET c3=40 WHERE c1=30
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table=test.t
+  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+
+  -- connection mysqld_a
+  -- eval DELETE FROM t WHERE c2=$blob1
+  -- eval DELETE FROM t WHERE c1=20
+  -- eval DELETE FROM t
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table=test.t
+  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+
+  -- connection mysqld_a
+
+  DROP TABLE t;
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  dec $i;
+}

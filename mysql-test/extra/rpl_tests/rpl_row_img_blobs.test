@@ -1,0 +1,199 @@
+#  WL#5096
+#  
+#  Description 
+#  ===========
+#
+#  This test case covers Requirements for replication using different
+#  combinations of indexes and blob fields.  This covers requirements
+#  R1, R2 in ** Blobs ** Section (WL#5096). R3 and R4 are covered in
+#  another test.
+#
+#  Usage
+#  =====
+#
+#  Before including this file the following variables should be set:
+#    * $mysqld_a_engine
+#    * $mysqld_b_engine
+#    * $mysqld_c_engine
+#
+#  Example:
+#
+#     -- let $mysqld_a_engine= Falcon
+#     -- let $mysqld_b_engine= MyISAM
+#     -- let $mysqld_c_engine= InnoDB
+#
+#     -- source extra/rpl_tests/rpl_row_img_blobs.test
+# 
+
+-- connection mysqld_a
+
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+-- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+-- connection mysqld_a
+
+let $i= 7;
+while($i)
+{
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=0;
+
+  if (`SELECT $i=1`) {
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when blob is
+    -- echo ####                 part of PKE and --binlog-row-image='noblob'    
+    -- echo ####                 Case #1: blob is part of PK
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=2`)
+  { 
+    -- echo #### WL#5096
+    -- echo #### Requirement R1: Replication must not break when blob is
+    -- echo ####                 part of PKE and --binlog-row-image='noblob'
+    -- echo ####                 Case #2: blob is part of non-nullable UK
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_c_engine;
+  }
+  if (`SELECT $i=3`)
+  {
+    -- echo #### WL#5096
+    -- echo #### Requirement R2: Replication must not break when blob is
+    -- echo ####                 not part of BI
+    -- echo ####                 Case #1: K defined on blob column
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
+
+  }
+  if (`SELECT $i=4`) {
+    -- echo #### WL#5096
+    -- echo #### Requirement R2: Replication must not break when blob is
+    -- echo ####                 not part of BI
+    -- echo ####                 Case #2: PK defined on non blob column
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c 
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
+
+  }
+  if (`SELECT $i=5`)
+  { 
+    -- echo #### WL#5096
+    -- echo #### Requirement R2: Replication must not break when blob is
+    -- echo ####                 no included in BI.
+    -- echo ####                 Case #3: non-nullable UK defined on non blob column
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_c_engine;
+
+  }
+  if (`SELECT $i=6`)
+  { 
+    -- echo #### WL#5096
+    -- echo #### Requirement R2: Replication must not break when blob is
+    -- echo ####                 is not inlcuded in BI
+    -- echo ####                 Case #4: UK defined on non blob column
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_c_engine;
+
+  }
+  if (`SELECT $i=7`)
+  { 
+    -- echo #### WL#5096
+    -- echo #### Requirement R2: Replication must not break when blob is
+    -- echo ####                 is not inlcuded in BI
+    -- echo ####                 Case #5: no keys on table
+
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
+  }
+
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_a
+
+  -- let $blob1= "a"
+  -- let $blob2= "b"
+  -- let $blob3= "c"
+
+  -- eval INSERT INTO t VALUES (1, $blob1, 10)
+  -- eval INSERT INTO t VALUES (2, $blob2, 20)
+  -- eval INSERT INTO t VALUES (3, $blob3, 30)
+  
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- connection mysqld_a
+  -- eval UPDATE t SET c1=10 WHERE c2=$blob1
+  -- eval UPDATE t SET c1=20 WHERE c1=2
+  -- eval UPDATE t SET c1=30 WHERE c3=30
+  -- eval UPDATE t SET c3=40 WHERE c1=30
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table=test.t
+  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+
+  -- connection mysqld_a
+  -- eval DELETE FROM t WHERE c2=$blob1
+  -- eval DELETE FROM t WHERE c1=20
+  -- eval DELETE FROM t
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table=test.t
+  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+
+  -- connection mysqld_a
+
+  DROP TABLE t;
+
+  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+
+  dec $i;
+}
