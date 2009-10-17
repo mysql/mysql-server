@@ -61,8 +61,8 @@ show tables;
 Tables_in_test
 connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,,"",MASTER_PORT,MASTER_SOCKET);
-ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user ''@'localhost' (using password: NO)
 connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);

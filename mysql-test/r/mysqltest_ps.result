@@ -1,0 +1,40 @@
+select 1 + "2 a";
+1 + "2 a"
+3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2 a'
+create table t (a int primary key, b blob default '');
+Warnings:
+Warning	1101	BLOB/TEXT column 'b' can't have a default value
+select a, (2*a) AS a from t group by a;
+a	a
+Warnings:
+Warning	1052	Column 'a' in group statement is ambiguous
+drop table t;
+select 1 + "2 a";
+1 + "2 a"
+3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2 a'
+create table t (a int primary key, b blob default '');
+Warnings:
+Warning	1101	BLOB/TEXT column 'b' can't have a default value
+select a, (2*a) AS a from t group by a;
+a	a
+Warnings:
+Warning	1052	Column 'a' in group statement is ambiguous
+Warning	1052	Column 'a' in group statement is ambiguous
+drop table t;
+select 1 + "2 a";
+1 + "2 a"
+3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2 a'
+create table t (a int primary key, b blob default '');
+Warnings:
+Warning	1101	BLOB/TEXT column 'b' can't have a default value
+select a, (2*a) AS a from t group by a;
+a	a
+Warnings:
+Warning	1052	Column 'a' in group statement is ambiguous
+drop table t;
