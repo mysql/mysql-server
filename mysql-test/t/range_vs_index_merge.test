@@ -35,6 +35,8 @@ ANALYZE TABLE City;
 
 # The following 4 queries are added for code coverage 
 
+#the exptected # of rows differ on 32-bit and 64-bit platforms for innodb 
+--replace_column 9 4079
 EXPLAIN
 SELECT * FROM City
   WHERE (Population >= 100000 OR Name LIKE 'P%' OR Population < 100000);
@@ -113,13 +115,13 @@ SELECT * FROM City
 EXPLAIN
 SELECT  * FROM City WHERE (Name < 'Ac');
 EXPLAIN
-SELECT  * FROM City WHERE (Name < 'C');
+SELECT  * FROM City WHERE (Name < 'Bb');
 EXPLAIN
 SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
 EXPLAIN
 SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
 EXPLAIN
-SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'T');
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'S');
 EXPLAIN
 SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
 EXPLAIN
@@ -143,17 +145,17 @@ SELECT  * FROM City
 EXPLAIN
 SELECT  * FROM City
   WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 EXPLAIN
 SELECT  * FROM City
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
   (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 
 EXPLAIN
 SELECT  * FROM City
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 # The following 8 queries check that the plans
 # for the previous 4 plans are valid
@@ -168,27 +170,27 @@ SELECT  * FROM City
 
 SELECT  * FROM City USE INDEX ()
   WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 SELECT  * FROM City
   WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 SELECT  * FROM City USE INDEX ()
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
   (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 
 SELECT  * FROM City
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
   (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 
 SELECT  * FROM City USE INDEX ()
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 SELECT  * FROM City
-  WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-  (Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+  WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+  (Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 
 
 # The output of the next 6 commands tells us about selectivities
@@ -280,7 +282,7 @@ SELECT * FROM City WHERE Country < 'C';
 EXPLAIN 
 SELECT * FROM City WHERE Country < 'AGO';
 EXPLAIN 
-SELECT * FROM City WHERE Name BETWEEN 'P' AND 'T';
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'S';
 EXPLAIN 
 SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
 EXPLAIN 
@@ -302,7 +304,7 @@ SELECT * FROM City WHERE Name LIKE 'P%';
 EXPLAIN
 SELECT * FROM City
   WHERE ((Population > 101000 AND Population < 102000) AND
-         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+         (Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
         ((ID BETWEEN 3400 AND 3800) AND 
          (Country < 'AGO' OR Name LIKE 'Pa%'));
 
@@ -318,13 +320,13 @@ SELECT * FROM City
 
 SELECT * FROM City USE INDEX ()
   WHERE ((Population > 101000 AND Population < 102000) AND
-         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+         (Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
         ((ID BETWEEN 3400 AND 3800) AND 
          (Country < 'AGO' OR Name LIKE 'Pa%'));
 
 SELECT * FROM City
   WHERE ((Population > 101000 AND Population < 102000) AND
-         (Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+         (Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
         ((ID BETWEEN 3400 AND 3800) AND 
          (Country < 'AGO' OR Name LIKE 'Pa%'));
 

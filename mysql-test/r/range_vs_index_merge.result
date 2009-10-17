@@ -176,9 +176,9 @@ SELECT  * FROM City WHERE (Name < 'Ac');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Name	Name	35	NULL	13	Using where
 EXPLAIN
-SELECT  * FROM City WHERE (Name < 'C');
+SELECT  * FROM City WHERE (Name < 'Bb');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	325	Using where
+1	SIMPLE	City	range	Name	Name	35	NULL	208	Using where
 EXPLAIN
 SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -188,9 +188,9 @@ SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Name	Name	35	NULL	39	Using where
 EXPLAIN
-SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'T');
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'S');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	468	Using where
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using where
 EXPLAIN
 SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -208,19 +208,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT  * FROM City
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	Population,Country,Name	Name,Population	35,4	NULL	50	Using sort_union(Name,Population); Using where
 EXPLAIN
 SELECT  * FROM City
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
 (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	Population,Country,Name	Country,Name	3,35	NULL	143	Using sort_union(Country,Name); Using where
 EXPLAIN
 SELECT  * FROM City
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	Population,Country,Name	Country,Population	3,4	NULL	141	Using sort_union(Country,Population); Using where
 SELECT  * FROM City USE INDEX ()
@@ -243,39 +243,33 @@ ID	Name	Country	Population
 189	Parakou	BEN	103577
 SELECT  * FROM City USE INDEX ()
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 ID	Name	Country	Population
 65	Abu Dhabi	ARE	398695
 168	Pabna	BGD	103277
 189	Parakou	BEN	103577
-914	Sekondi-Takoradi	GHA	103653
 1003	Pemalang	IDN	103500
 2663	Río Bravo	MEX	103901
 SELECT  * FROM City
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 ID	Name	Country	Population
 65	Abu Dhabi	ARE	398695
 168	Pabna	BGD	103277
 189	Parakou	BEN	103577
-914	Sekondi-Takoradi	GHA	103653
 1003	Pemalang	IDN	103500
 2663	Río Bravo	MEX	103901
 SELECT  * FROM City USE INDEX ()
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
 (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 ID	Name	Country	Population
 55	Andorra la Vella	AND	21189
-59	Benguela	AGO	128300
 65	Abu Dhabi	ARE	398695
 67	al-Ayn	ARE	225970
 68	Ajman	ARE	114395
-69	Buenos Aires	ARG	2982146
 75	Almirante Brown	ARG	538918
 85	Avellaneda	ARG	353046
-93	Berazategui	ARG	276916
 96	Bahía Blanca	ARG	239810
-132	Brisbane	AUS	1291117
 134	Adelaide	AUS	978100
 144	Baku	AZE	1787800
 168	Pabna	BGD	103277
@@ -283,20 +277,16 @@ ID	Name	Country	Population
 750	Paarl	ZAF	105768
 2865	Pak Pattan	PAK	107800
 SELECT  * FROM City
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
 (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 ID	Name	Country	Population
 55	Andorra la Vella	AND	21189
-59	Benguela	AGO	128300
 65	Abu Dhabi	ARE	398695
 67	al-Ayn	ARE	225970
 68	Ajman	ARE	114395
-69	Buenos Aires	ARG	2982146
 75	Almirante Brown	ARG	538918
 85	Avellaneda	ARG	353046
-93	Berazategui	ARG	276916
 96	Bahía Blanca	ARG	239810
-132	Brisbane	AUS	1291117
 134	Adelaide	AUS	978100
 144	Baku	AZE	1787800
 168	Pabna	BGD	103277
@@ -304,47 +294,37 @@ ID	Name	Country	Population
 750	Paarl	ZAF	105768
 2865	Pak Pattan	PAK	107800
 SELECT  * FROM City USE INDEX ()
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 ID	Name	Country	Population
 55	Andorra la Vella	AND	21189
-59	Benguela	AGO	128300
 65	Abu Dhabi	ARE	398695
 67	al-Ayn	ARE	225970
 68	Ajman	ARE	114395
-69	Buenos Aires	ARG	2982146
 75	Almirante Brown	ARG	538918
 85	Avellaneda	ARG	353046
-93	Berazategui	ARG	276916
 96	Bahía Blanca	ARG	239810
-132	Brisbane	AUS	1291117
 134	Adelaide	AUS	978100
 144	Baku	AZE	1787800
 168	Pabna	BGD	103277
 189	Parakou	BEN	103577
-914	Sekondi-Takoradi	GHA	103653
 1003	Pemalang	IDN	103500
 2663	Río Bravo	MEX	103901
 SELECT  * FROM City
-WHERE (Name < 'C' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'T' AND (Population > 103000 AND Population < 104000));
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
 ID	Name	Country	Population
 55	Andorra la Vella	AND	21189
-59	Benguela	AGO	128300
 65	Abu Dhabi	ARE	398695
 67	al-Ayn	ARE	225970
 68	Ajman	ARE	114395
-69	Buenos Aires	ARG	2982146
 75	Almirante Brown	ARG	538918
 85	Avellaneda	ARG	353046
-93	Berazategui	ARG	276916
 96	Bahía Blanca	ARG	239810
-132	Brisbane	AUS	1291117
 134	Adelaide	AUS	978100
 144	Baku	AZE	1787800
 168	Pabna	BGD	103277
 189	Parakou	BEN	103577
-914	Sekondi-Takoradi	GHA	103653
 1003	Pemalang	IDN	103500
 2663	Río Bravo	MEX	103901
 EXPLAIN
@@ -651,9 +631,9 @@ SELECT * FROM City WHERE Country < 'AGO';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Country	Country	3	NULL	6	Using where
 EXPLAIN 
-SELECT * FROM City WHERE Name BETWEEN 'P' AND 'T';
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'S';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	468	Using where
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using where
 EXPLAIN 
 SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -673,7 +653,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 102000) AND
-(Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
 ((ID BETWEEN 3400 AND 3800) AND 
 (Country < 'AGO' OR Name LIKE 'Pa%'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -688,7 +668,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Country,Name,PRIMARY	3,35,4	NULL	56	Using sort_union(Country,Name,PRIMARY); Using where
 SELECT * FROM City USE INDEX ()
 WHERE ((Population > 101000 AND Population < 102000) AND
-(Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
 ((ID BETWEEN 3400 AND 3800) AND 
 (Country < 'AGO' OR Name LIKE 'Pa%'));
 ID	Name	Country	Population
@@ -697,15 +677,11 @@ ID	Name	Country	Population
 417	Itaituba	BRA	101320
 418	Araras	BRA	101046
 751	Potchefstroom	ZAF	101817
-1752	Sakata	JPN	101651
-1851	Saint John´s	CAN	101936
-1853	Saanich	CAN	101388
 2909	Puno	PER	101578
 3463	Pavlograd	UKR	127000
-4030	Sandy	USA	101853
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 102000) AND
-(Country < 'C' OR Name BETWEEN 'P' AND 'T')) OR
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
 ((ID BETWEEN 3400 AND 3800) AND 
 (Country < 'AGO' OR Name LIKE 'Pa%'));
 ID	Name	Country	Population
@@ -714,12 +690,8 @@ ID	Name	Country	Population
 417	Itaituba	BRA	101320
 418	Araras	BRA	101046
 751	Potchefstroom	ZAF	101817
-1752	Sakata	JPN	101651
-1851	Saint John´s	CAN	101936
-1853	Saanich	CAN	101388
 2909	Puno	PER	101578
 3463	Pavlograd	UKR	127000
-4030	Sandy	USA	101853
 SELECT * FROM City USE INDEX ()
 WHERE ((Population > 101000 AND Population < 110000) AND
 (Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
