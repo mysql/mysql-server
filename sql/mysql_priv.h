@@ -1984,6 +1984,7 @@ extern TYPELIB thread_handling_typelib;
 extern uint8 uc_update_queries[SQLCOM_END+1];
 extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
+extern TYPELIB binlog_row_image_typelib;
 
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_community_features;
