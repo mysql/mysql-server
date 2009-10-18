@@ -1,3 +1,6 @@
+#ifndef ATOMIC_X86_GCC_INCLUDED
+#define ATOMIC_X86_GCC_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -56,3 +59,4 @@
   asm volatile ("; xchg %0, %1;" : "+m" (*a) : "r" (v))
 #endif
 
+#endif /* ATOMIC_X86_GCC_INCLUDED */

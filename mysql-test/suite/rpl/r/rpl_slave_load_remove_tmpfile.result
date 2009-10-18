@@ -49,5 +49,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	9
 Last_SQL_Error	Error in Begin_load_query event: write to '../../tmp/SQL_LOAD.data' failed
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 drop table t1;
 drop table t1;
+call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' .Errcode: 9. Error_code: 3");

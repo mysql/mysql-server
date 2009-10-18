@@ -7,6 +7,9 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
 
 --echo # Bug#37938 Test "mysqldump" lacks various insert statements
 --echo # Turn off concurrent inserts to avoid random errors

@@ -1,3 +1,6 @@
+#ifndef AUTHORS_INCLUDED
+#define AUTHORS_INCLUDED
+
 /* Copyright (C) 2005-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -150,3 +153,5 @@ struct show_table_authors_st show_table_authors[]= {
     "SHA1(), AES_ENCRYPT(), AES_DECRYPT(), bug fixing" },
   {NULL, NULL, NULL}
 };
+
+#endif /* AUTHORS_INCLUDED */

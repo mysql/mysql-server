@@ -33,7 +33,7 @@ connection slave;
 
 # Stop when reaching the the first table map event.
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
-wait_for_slave_to_stop;
+-- source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
@@ -65,7 +65,7 @@ source include/show_binlog_events.inc;
 
 connection slave;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=106;
-wait_for_slave_to_stop;
+-- source include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 sync_with_master;

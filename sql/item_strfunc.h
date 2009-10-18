@@ -1,3 +1,6 @@
+#ifndef ITEM_STRFUNC_INCLUDED
+#define ITEM_STRFUNC_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -842,3 +845,4 @@ public:
   String *val_str(String *);
 };
 
+#endif /* ITEM_STRFUNC_INCLUDED */

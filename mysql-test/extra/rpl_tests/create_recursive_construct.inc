@@ -358,10 +358,10 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
     # include/show_binlog_events.inc. But due to BUG#41913, that
     # doesn't work, and we have to inline the entire file here. Sigh
     # :-(
-    --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR 106 <binlog_start>
+    --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR 107 <binlog_start>
     --replace_column 2 # 4 # 5 #
     --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
-    --eval SHOW BINLOG EVENTS FROM 106
+    --eval SHOW BINLOG EVENTS FROM 107
     --disable_query_log
   }
   SET binlog_format = STATEMENT;

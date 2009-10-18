@@ -2389,13 +2389,29 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     charset_database_number= thd_arg->variables.collation_database->number;
   
   /*
-    If we don't use flags2 for anything else than options contained in
-    thd_arg->options, it would be more efficient to flags2=thd_arg->options
-    (OPTIONS_WRITTEN_TO_BIN_LOG would be used only at reading time).
-    But it's likely that we don't want to use 32 bits for 3 bits; in the future
-    we will probably want to reclaim the 29 bits. So we need the &.
+    We only replicate over the bits of flags2 that we need: the rest
+    are masked out by "& OPTIONS_WRITTEN_TO_BINLOG".
+
+    We also force AUTOCOMMIT=1.  Rationale (cf. BUG#29288): After
+    fixing BUG#26395, we always write BEGIN and COMMIT around all
+    transactions (even single statements in autocommit mode).  This is
+    so that replication from non-transactional to transactional table
+    and error recovery from XA to non-XA table should work as
+    expected.  The BEGIN/COMMIT are added in log.cc. However, there is
+    one exception: MyISAM bypasses log.cc and writes directly to the
+    binlog.  So if autocommit is off, master has MyISAM, and slave has
+    a transactional engine, then the slave will just see one long
+    never-ending transaction.  The only way to bypass explicit
+    BEGIN/COMMIT in the binlog is by using a non-transactional table.
+    So setting AUTOCOMMIT=1 will make this work as expected.
+
+    Note: explicitly replicate AUTOCOMMIT=1 from master. We do not
+    assume AUTOCOMMIT=1 on slave; the slave still reads the state of
+    the autocommit flag as written by the master to the binlog. This
+    behavior may change after WL#4162 has been implemented.
   */
-  flags2= (uint32) (thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG);
+  flags2= (uint32) (thd_arg->options &
+                    (OPTIONS_WRITTEN_TO_BIN_LOG & ~OPTION_NOT_AUTOCOMMIT));
   DBUG_ASSERT(thd_arg->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_connection->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_server->number < 256*256);
@@ -3256,6 +3272,21 @@ Default database: '%s'. Query: '%s'",
     */
   } /* End of if (db_ok(... */
 
+  {/**
+      The following failure injecion works in cooperation with tests 
+      setting @@global.debug= 'd,stop_slave_middle_group'.
+      The sql thread receives the killed status and will proceed 
+      to shutdown trying to finish incomplete events group.
+   */
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
+                    if (strcmp("COMMIT", query) != 0 &&
+                        strcmp("BEGIN", query) != 0)
+                    {
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;
+                    };);
+  }
+
 end:
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
@@ -3627,6 +3658,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[UPDATE_ROWS_EVENT-1]=
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
+      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
 
       // Sanity-check that all post header lengths are initialized.
       IF_DBUG({
@@ -7454,8 +7486,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           thd->transaction.stmt.modified_non_trans_table= TRUE;
     } // row processing loop
 
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
-                    const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    {/**
+         The following failure injecion works in cooperation with tests 
+         setting @@global.debug= 'd,stop_slave_middle_group'.
+         The sql thread receives the killed status and will proceed 
+         to shutdown trying to finish incomplete events group.
+     */
+      DBUG_EXECUTE_IF("stop_slave_middle_group",
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    }
 
     if ((error= do_after_row_operations(rli, error)) &&
         ignored_error_code(convert_handler_error(error, thd, table)))
@@ -7498,32 +7538,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
-  }
-  /*
-    This code would ideally be placed in do_update_pos() instead, but
-    since we have no access to table there, we do the setting of
-    last_event_start_time here instead.
-  */
-  else if (table && (table->s->primary_key == MAX_KEY) &&
-           !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
-  {
-    /*
-      ------------ Temporary fix until WL#2975 is implemented ---------
-
-      This event is not the last one (no STMT_END_F). If we stop now
-      (in case of terminate_slave_thread()), how will we restart? We
-      have to restart from Table_map_log_event, but as this table is
-      not transactional, the rows already inserted will still be
-      present, and idempotency is not guaranteed (no PK) so we risk
-      that repeating leads to double insert. So we desperately try to
-      continue, hope we'll eventually leave this buggy situation (by
-      executing the final Rows_log_event). If we are in a hopeless
-      wait (reached end of last relay log and nothing gets appended
-      there), we timeout after one minute, and notify DBA about the
-      problem.  When WL#2975 is implemented, just remove the member
-      Relay_log_info::last_event_start_time and all its occurrences.
-    */
-    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(error);
@@ -8441,13 +8455,17 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
-
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   if ((error= prepare_record(table, m_width,
-                             TRUE /* check if columns have def. values */)))
+                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
+                             abort_on_warnings, m_curr_row == m_rows_buf)))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
-  error= unpack_current_row(rli); // TODO: how to handle errors?
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    DBUG_RETURN(error);
+
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
@@ -9244,8 +9262,12 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
-  error= unpack_current_row(rli); // this also updates m_curr_row_end
+  /* this also updates m_curr_row_end */
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    return error;
 
   /*
     Now we have the right row to update.  The old row (the one we're
@@ -9422,5 +9444,18 @@ st_print_event_info::st_print_event_info()
   myf const flags = MYF(MY_WME | MY_NABP);
   open_cached_file(&head_cache, NULL, NULL, 0, flags);
   open_cached_file(&body_cache, NULL, NULL, 0, flags);
+}
+#endif
+
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
+                    const Format_description_log_event* description_event)
+  :Log_event(buf, description_event)
+{
+  uint8 header_size= description_event->common_header_len;
+  ident_len = event_len - header_size;
+  set_if_smaller(ident_len,FN_REFLEN-1);
+  log_ident= buf + header_size;
 }
 #endif
