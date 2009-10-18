@@ -1,3 +1,6 @@
+#ifndef MY_ATOMIC_INCLUDED
+#define MY_ATOMIC_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -140,3 +143,4 @@ extern int my_atomic_initialize();
 
 #endif
 
+#endif /* MY_ATOMIC_INCLUDED */

@@ -1,3 +1,6 @@
+#ifndef SQL_ARRAY_INCLUDED
+#define SQL_ARRAY_INCLUDED
+
 /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -66,3 +69,4 @@ public:
   }
 };
 
+#endif /* SQL_ARRAY_INCLUDED */

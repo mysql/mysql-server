@@ -33,3 +33,56 @@ connection slave;
 sync_with_master;
 
 # End of 4.1 tests
+
+#
+# BUG#12190 CHANGE MASTER has differ path requiremts on MASTER_LOG_FILE and RELAY_LOG_FILE
+#
+
+source include/master-slave-reset.inc;
+
+connection master;
+create table t1 (a int);
+insert into t1 values (1);
+flush logs;
+insert into t1 values (2);
+
+# Note: the master positon saved by this will also be used by the
+# 'sync_with_master' below.
+sync_slave_with_master;
+
+# Check if the table t1 and t2 are identical on master and slave;
+let $diff_table_1= master:test.t1
+let $diff_table_2= slave:test.t1
+source include/diff_tables.inc;
+
+connection slave;
+source include/stop_slave.inc;
+delete from t1 where a=2;
+
+# start replication from the second insert, after fix of BUG#12190,
+# relay_log_file does not use absolute path, only the filename is
+# required
+#
+# Note: the follow change master will automatically reset
+# relay_log_purge to false, save the old value to restore
+let $relay_log_purge= `select @@global.relay_log_purge`;
+CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
+start slave sql_thread;
+source include/wait_for_slave_sql_to_start.inc;
+
+# Sync to the same position saved by the 'sync_slave_with_master' above.
+sync_with_master;
+
+# Check if the table t1 and t2 are identical on master and slave;
+let $diff_table_1= master:test.t1
+let $diff_table_2= slave:test.t1
+source include/diff_tables.inc;
+
+# clean up
+connection slave;
+start slave io_thread;
+source include/wait_for_slave_io_to_start.inc;
+eval set global relay_log_purge=$relay_log_purge;
+connection master;
+drop table t1;
+sync_slave_with_master;

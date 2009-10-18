@@ -1,6 +1,10 @@
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 # It is not possible to replicate FOUND_ROWS() using statement-based
 # replication, but there is a workaround that stores the result of
 # FOUND_ROWS() into a user variable and then replicates this instead.

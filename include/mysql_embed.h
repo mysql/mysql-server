@@ -1,3 +1,6 @@
+#ifndef MYSQL_EMBED_INCLUDED
+#define MYSQL_EMBED_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -28,3 +31,4 @@
 #define DONT_USE_RAID
 
 #endif /* EMBEDDED_LIBRARY */
+#endif /* MYSQL_EMBED_INCLUDED */

@@ -89,6 +89,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 
 *** Test lock wait timeout ***
 include/stop_slave.inc
@@ -151,13 +153,15 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 
 *** Test lock wait timeout and purged relay logs ***
 SET @my_max_relay_log_size= @@global.max_relay_log_size;
 SET global max_relay_log_size=0;
 include/stop_slave.inc
 DELETE FROM t2;
-CHANGE MASTER TO MASTER_LOG_POS=440;
+CHANGE MASTER TO MASTER_LOG_POS=441;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
@@ -218,6 +222,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 
 *** Clean up ***
 DROP TABLE t1,t2,t3;

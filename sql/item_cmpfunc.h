@@ -1,3 +1,6 @@
+#ifndef ITEM_CMPFUNC_INCLUDED
+#define ITEM_CMPFUNC_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1721,3 +1724,5 @@ inline Item *and_conds(Item *a, Item *b)
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);
+
+#endif /* ITEM_CMPFUNC_INCLUDED */
