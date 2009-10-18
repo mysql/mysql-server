@@ -1,3 +1,6 @@
+#ifndef HANDLER_INCLUDED
+#define HANDLER_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -212,6 +215,13 @@
   TODO remove the limit, use dynarrays
 */
 #define MAX_HA 15
+
+/*
+  Use this instead of 0 as the initial value for the slot number of
+  handlerton, so that we can distinguish uninitialized slot number
+  from slot 0.
+*/
+#define HA_SLOT_UNDEF ((uint)-1)
 
 /*
   Parameters for open() (in register form->filestat)
@@ -2064,3 +2074,4 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
 #endif
+#endif /* HANDLER_INCLUDED */

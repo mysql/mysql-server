@@ -1,3 +1,6 @@
+#ifndef CONFIG_WIN_INCLUDED
+#define CONFIG_WIN_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -410,3 +413,5 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+
+#endif /* CONFIG_WIN_INCLUDED */

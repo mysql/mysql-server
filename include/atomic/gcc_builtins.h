@@ -1,3 +1,6 @@
+#ifndef ATOMIC_GCC_BUILTINS_INCLUDED
+#define ATOMIC_GCC_BUILTINS_INCLUDED
+
 /* Copyright (C) 2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -31,3 +34,5 @@
 #define make_atomic_store_body(S)                   \
   (void) __sync_lock_test_and_set(a, v);
 #endif
+
+#endif /* ATOMIC_GCC_BUILTINS_INCLUDED */

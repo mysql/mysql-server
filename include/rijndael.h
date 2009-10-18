@@ -1,3 +1,6 @@
+#ifndef RIJNDAEL_INCLUDED
+#define RIJNDAEL_INCLUDED
+
 /* Copyright (C) 2002 MySQL AB
 
  This program is free software; you can redistribute it and/or modify
@@ -39,3 +42,5 @@ void rijndaelEncrypt(const uint32 rk[/*4*(Nr + 1)*/], int Nr,
 		     const uint8 pt[16], uint8 ct[16]);
 void rijndaelDecrypt(const uint32 rk[/*4*(Nr + 1)*/], int Nr,
 		     const uint8 ct[16], uint8 pt[16]);
+
+#endif /* RIJNDAEL_INCLUDED */

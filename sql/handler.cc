@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
@@ -221,6 +222,8 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     return NULL;
   }
 
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+
   switch (database_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
@@ -413,7 +416,13 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     reuse an array slot. Otherwise the number of uninstall/install
     cycles would be limited.
   */
-  hton2plugin[hton->slot]= NULL;
+  if (hton->slot != HA_SLOT_UNDEF)
+  {
+    /* Make sure we are not unpluging another plugin */
+    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < MAX_HA);
+    hton2plugin[hton->slot]= NULL;
+  }
 
   my_free((uchar*)hton, MYF(0));
 
@@ -430,6 +439,15 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
   hton= (handlerton *)my_malloc(sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
+
+  if (hton == NULL)
+  {
+    sql_print_error("Unable to allocate memory for plugin '%s' handlerton.",
+                    plugin->name.str);
+    goto err_no_hton_memory;
+  }
+
+  hton->slot= HA_SLOT_UNDEF;
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
@@ -540,6 +558,7 @@ err_deinit:
           
 err:
   my_free((uchar*) hton, MYF(0));
+err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
 }
@@ -1190,6 +1209,7 @@ int ha_commit_trans(THD *thd, bool all)
     if (cookie)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
@@ -1337,6 +1357,7 @@ int ha_rollback_trans(THD *thd, bool all)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }
 
@@ -1371,7 +1392,14 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
+  else
 #endif
+  {
+    if (!error)
+      RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    else
+      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  }
   DBUG_RETURN(error);
 }
 

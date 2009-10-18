@@ -5,6 +5,10 @@
 --source include/have_binlog_format_mixed_or_statement.inc 
 --source include/master-slave.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;

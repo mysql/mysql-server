@@ -1,3 +1,6 @@
+#ifndef MY_NO_PTHREAD_INCLUDED
+#define MY_NO_PTHREAD_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -14,9 +17,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#if !defined(_my_no_pthread_h) && !defined(THREAD)
-#define _my_no_pthread_h
-
+#ifndef THREAD
 
 /*
   This block is to access some thread-related type definitions
@@ -48,3 +49,4 @@
 #define rwlock_destroy(A)
 
 #endif
+#endif /* MY_NO_PTHREAD_INCLUDED */

@@ -1,0 +1,541 @@
+#############################################################
+# Author: Serge Kozlov <Serge.Kozlov@Sun.COM>
+# Date:   02/19/2009
+# Purpose: Testing basic functionality of heartbeat.
+# Description:
+# * Testing different values for slave_heartbeat_period.
+# * How to affect various statements to slave_heartbeat_period
+# * Various states of slave and heartbeat
+# * Various states of master and heartbeat
+# * Circular replication
+#############################################################
+--source include/master-slave.inc
+--echo
+
+--echo *** Preparing ***
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+--disable_query_log
+eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
+--enable_query_log
+
+--connection master
+RESET MASTER;
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_event_scheduler=@@global.event_scheduler;
+--echo
+
+#
+# Test slave_heartbeat_period
+#
+
+--connection slave
+
+# Default value of slave_heartbeat_timeout = slave_net_timeout/2
+--echo *** Default value ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
+let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout', Value, 1);
+let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+let $result= query_get_value(SELECT $slave_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
+--echo slave_net_timeout/slave_heartbeat_timeout=$result
+RESET SLAVE;
+--echo
+
+# Reset slave set slave_heartbeat_timeout = slave_net_timeout/2
+--echo *** Reset slave affect ***
+--disable_warnings
+SET @@global.slave_net_timeout=30;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
+RESET SLAVE;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+--echo
+
+# Check default value of slave_heartbeat_timeout if slave_net_timeout is changed
+--echo *** Default value if slave_net_timeout changed ***
+--disable_warnings
+SET @@global.slave_net_timeout=50;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+--echo
+
+# Set slave_net_timeout less than current value of slave_heartbeat_period
+--echo *** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
+let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+--replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
+eval SET @@global.slave_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+--echo
+
+# Set value of slave_heartbeat_period greater than slave_net_timeout
+--echo *** Warning if updated slave_heartbeat_timeout > slave_net_timeout ***
+let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout', Value, 1);
+inc $slave_net_timeout;
+--replace_result $MASTER_MYPORT MASTER_PORT $slave_net_timeout SLAVE_NET_TIMEOUT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=$slave_net_timeout;
+RESET SLAVE;
+--echo 
+
+# Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
+--echo *** CHANGE MASTER statement only updates slave_heartbeat_period ***
+--disable_warnings
+SET @@global.slave_net_timeout=20;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
+SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
+SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+RESET SLAVE;
+--echo
+
+# Master value of slave_net_timeout shouldn't affect to slave's slave_heartbeat_period
+--echo *** Update slave_net_timeout on master ***
+--connection master
+--disable_warnings
+SET @@global.slave_net_timeout=500;
+--enable_warnings
+--connection slave
+SET @@global.slave_net_timeout=200;
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
+--source include/start_slave.inc
+--sync_with_master
+SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+--source include/stop_slave.inc
+RESET SLAVE;
+--connection master
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+--echo
+
+# Start/stop slave shouldn't change slave_heartbeat_period
+--echo *** Start/stop slave ***
+--connection slave
+--disable_warnings
+SET @@global.slave_net_timeout=100;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=20;
+--source include/start_slave.inc
+--sync_with_master
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+--source include/stop_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+--echo
+
+# Reload slave shouldn't change slave_heartbeat_period
+--echo *** Reload slave ***
+--connection slave
+--disable_warnings
+SET @@global.slave_net_timeout=50;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=30;
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+wait
+EOF
+--echo Reload slave
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+--echo
+
+# Disable heartbeat
+--echo *** Disable heartbeat ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SHOW STATUS LIKE 'slave_received_heartbeats';
+--source include/start_slave.inc
+--sync_with_master
+--sleep 2
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SHOW STATUS LIKE 'slave_received_heartbeats';
+--source include/stop_slave.inc
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+SHOW STATUS LIKE 'slave_received_heartbeats';
+RESET SLAVE;
+let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+--replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
+--eval SELECT $slave_heartbeat_timeout = 0 AS Result
+--echo 
+
+#
+# Check limits for slave_heartbeat_timeout
+#
+
+--echo *** Min slave_heartbeat_timeout ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.001;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.0009;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+RESET SLAVE;
+--echo
+
+--echo *** Max slave_heartbeat_timeout ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294967;
+SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294968;
+RESET SLAVE;
+# Check double size of max allowed value for master_heartbeat_period
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=8589935;
+RESET SLAVE;
+# Check 2^32
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE 
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=4294967296;
+RESET SLAVE;
+--echo
+
+--echo *** Misc incorrect values ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_PARSE_ERROR
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='-1';
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_PARSE_ERROR
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='123abc';
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_PARSE_ERROR
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD='';
+RESET SLAVE;
+--echo
+
+#
+# Testing heartbeat 
+#
+
+# Check received heartbeat events for running slave
+--echo *** Running slave ***
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+--source include/start_slave.inc
+--sync_with_master
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var= slave_received_heartbeats;
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--echo
+
+# Check received heartbeat events for stopped slave
+--echo *** Stopped slave ***
+--source include/stop_slave.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+sleep 2;
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) AS Result, Result, 1);
+--echo Number of received heartbeat events while slave stopped: $result
+--echo
+
+# Check received heartbeat events for started slave
+--echo *** Started slave ***
+--source include/start_slave.inc
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--echo
+
+# Check received heartbeat events for stopped IO thread
+--echo *** Stopped IO thread ***
+STOP SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_stop.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+sleep 2;
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) AS Result, Result, 1);
+--echo Number of received heartbeat events while io thread stopped: $result
+--echo
+
+# Check received heartbeat events for started IO thread
+--echo *** Started IO thread ***
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_start.inc
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--echo
+
+# Check received heartbeat events for stopped SQL thread
+--echo *** Stopped SQL thread ***
+STOP SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_to_stop.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+sleep 2;
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
+--echo
+
+# Check received heartbeat events for started SQL thread
+--echo *** Started SQL thread ***
+START SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_to_start.inc
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--echo
+
+# Check received heartbeat event for stopped SQL thread by error
+--echo *** Stopped SQL thread by error ***
+--connection master
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
+--sync_slave_with_master
+INSERT INTO t1 VALUES (1, 'on slave', NULL);
+--connection master
+INSERT INTO t1 VALUES (1, 'on master', NULL);
+--connection slave
+let $slave_errno= ER_DUP_ENTRY
+--source include/wait_for_slave_sql_error.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+sleep 2;
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
+--source include/stop_slave.inc
+DROP TABLE t1;
+--echo
+
+# Check received heartbeat events while master send events to slave
+--echo *** Master send to slave ***
+--connection master
+# Create the event that will update table t1 every second
+DELIMITER |;
+CREATE EVENT e1 
+  ON SCHEDULE EVERY 1 SECOND
+  DO
+    BEGIN
+      UPDATE test.t1 SET a = a + 1 WHERE a < 10;
+    END|
+DELIMITER ;|
+--connection slave
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=5;
+--source include/start_slave.inc
+--connection master
+# Enable scheduler
+SET @@global.event_scheduler=1;
+--connection slave
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--sync_with_master
+# Wait some updates for table t1 from master
+let $wait_condition= SELECT COUNT(*)=1 FROM t1 WHERE a > 5;
+--source include/wait_condition.inc
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Number of received heartbeat events: $result
+--connection master
+DELETE FROM t1;
+DROP EVENT e1;
+--echo
+
+
+
+
+# Check received heartbeat events while logs flushed on slave
+--connection slave
+--echo *** Flush logs on slave ***
+STOP SLAVE;
+RESET SLAVE;
+DROP TABLE t1;
+--connection master
+DROP TABLE t1;
+RESET MASTER;
+--connection slave
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.5;
+let $slave_param_comparison= =;
+--source include/start_slave.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+# Flush logs every 0.1 second during 5 sec
+--disable_query_log
+let $i=50;
+while ($i) {
+  FLUSH LOGS;
+  dec $i;
+  sleep 0.1;
+}
+--enable_query_log
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Heartbeat events are received while rotation of relay logs (1 means 'yes'): $result
+--echo
+
+# Use compressed protocol between master and slave
+--echo *** Compressed protocol ***
+--connection master
+SET @@global.slave_compressed_protocol=1;
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+SET @@global.slave_compressed_protocol=1;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+--source include/start_slave.inc
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var= slave_received_heartbeats;
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+SET @@global.slave_compressed_protocol=0;
+--connection master
+SET @@global.slave_compressed_protocol=0;
+--echo
+
+
+# Check received heartbeat events after reset of master
+--echo *** Reset master ***
+--connection slave
+STOP SLAVE;
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+--source include/start_slave.inc
+let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--connection master
+RESET MASTER;
+--enable_query_log
+--sync_slave_with_master
+--sleep 2
+let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
+--echo Heartbeat events are received after reset of master (1 means 'yes'): $result
+--echo
+
+# Reloaded master should restore heartbeat
+--echo *** Reload master ***
+--connection slave
+STOP SLAVE;
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1;
+--source include/start_slave.inc
+# Wait until slave_received_heartbeats will be incremented
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var= slave_received_heartbeats;
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--connection master
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+--echo Reload master
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--connection slave
+# Wait until slave_received_heartbeats will be incremented
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var= slave_received_heartbeats;
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received
+--echo
+
+# Circular replication
+--echo *** Circular replication ***
+# Configure circular replication
+--connection master
+RESET MASTER;
+let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
+--sync_slave_with_master
+--source include/stop_slave.inc
+RESET MASTER;
+let $slave_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT $master_binlog MASTER_BINLOG
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1, MASTER_LOG_FILE='$master_binlog';
+--connection master
+RESET SLAVE;
+--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
+--source include/start_slave.inc
+# Insert data on master and on slave and make sure that it replicated for both directions
+INSERT INTO t1 VALUES(1, 'on master');
+--save_master_pos
+--connection slave
+--source include/start_slave.inc
+--sync_with_master
+INSERT INTO t1 VALUES(2, 'on slave');
+--save_master_pos
+--connection master
+--sync_with_master
+SELECT * FROM t1 ORDER BY a;
+let $master_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+--connection slave
+SELECT * FROM t1 ORDER BY a;
+# Wait heartbeat event on master
+--connection master
+let $status_var= slave_received_heartbeats;
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received on master
+let $master_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+# Wait heartbeat event on slave
+--connection slave
+let $status_var= slave_received_heartbeats;
+let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $status_var_comparsion= >;
+--source include/wait_for_status_var.inc
+--echo Heartbeat event received on slave
+let $slave_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+# Heartbeat period on slave less than on master therefore number of received events on slave
+# should be greater than on master
+let $result= query_get_value(SELECT ($slave_rcvd_heartbeats DIV $master_rcvd_heartbeats) > 1 AS Result, Result, 1);
+--echo Slave has received more events than master (1 means 'yes'): $result
+--echo
+
+#
+# Clean up and restore system variables
+#
+--echo *** Clean up ***
+--connection master
+--source include/stop_slave.inc
+DROP TABLE t1;
+--sync_slave_with_master
+--source include/stop_slave.inc
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+--echo
+
+# End of 6.0 test
+--echo End of 6.0 test

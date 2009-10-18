@@ -17,6 +17,9 @@
   @defgroup Semantic_Analysis Semantic Analysis
 */
 
+#ifndef SQL_LEX_INCLUDED
+#define SQL_LEX_INCLUDED
+
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
@@ -118,7 +121,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_TRIGGER,
   SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
-
+  SQLCOM_SHOW_RELAYLOG_EVENTS, 
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...
@@ -203,17 +206,19 @@ typedef struct st_lex_master_info
 {
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
+  float heartbeat_period;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {SSL_UNCHANGED, SSL_DISABLE, SSL_ENABLE}
-    ssl, ssl_verify_server_cert;
+  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+  DYNAMIC_ARRAY repl_ignore_server_ids;
 } LEX_MASTER_INFO;
 
 
@@ -2125,3 +2130,4 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 int my_missing_function_error(const LEX_STRING &token, const char *name);
 
 #endif /* MYSQL_SERVER */
+#endif /* SQL_LEX_INCLUDED */

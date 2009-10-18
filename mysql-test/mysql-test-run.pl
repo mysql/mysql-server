@@ -209,6 +209,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
@@ -984,6 +985,9 @@ sub command_line_setup {
 
   if ( $opt_experimental )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     # read the list of experimental test cases from the file specified on
     # the command line
     open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
@@ -994,6 +998,15 @@ sub command_line_setup {
       # remove comments (# foo) at the beginning of the line, or after a 
       # blank at the end of the line
       s/( +|^)#.*$//;
+      # If @ platform specifier given, use this entry only if it contains
+      # @<platform> or @!<xxx> where xxx != platform
+      if (/\@.*/)
+      {
+	next if (/\@!$plat/);
+	next unless (/\@$plat/ or /\@!/);
+	# Then remove @ and everything after it
+	s/\@.*$//;
+      }
       # remove whitespace
       s/^ +//;              
       s/ +$//;
@@ -1241,13 +1254,28 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Set one week timeout (check-testcase timeout will be 1/10th)
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
+    # One day to shutdown
+    $opt_shutdown_timeout= 24 * 60;
+    # One day for PID file creation (this is given in seconds not minutes)
+    $opt_start_timeout= 24 * 60 * 60;
+  }
+
+  # --------------------------------------------------------------------------
+  # Modified behavior with --start options
+  # --------------------------------------------------------------------------
+  if ($opt_start or $opt_start_dirty) {
+    collect_option ('quick-collect', 1);
+    $start_only= 1;
   }
 
   # --------------------------------------------------------------------------
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
-  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  if ($opt_wait_all && ! $start_only)
   {
     mtr_error("--wait-all can only be used with --start or --start-dirty");
   }
@@ -1505,6 +1533,10 @@ sub collect_mysqld_features_from_running_server ()
       $mysqld_variables{$1}= $2;
     }
   }
+
+  # "Convert" innodb flag
+  $mysqld_variables{'innodb'}= "ON"
+    if ($mysqld_variables{'have_innodb'} eq "YES");
 
   # Parse version
   my $version_str= $mysqld_variables{'version'};
@@ -1764,7 +1796,7 @@ sub environment_setup {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
-       $plugin_filename = "ha_example.dll"; 
+       $plugin_filename = "ha_example.dll";
     }
     else 
     {
@@ -1772,7 +1804,8 @@ sub environment_setup {
     }
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename);
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
@@ -1780,6 +1813,30 @@ sub environment_setup {
 
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
+  }
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find semisync plugins
+  # --------------------------------------------------------------------------
+  my $lib_semisync_master_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_master.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_master.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_master.so");
+  my $lib_semisync_slave_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_slave.so"),
+		      "$basedir/plugin/semisync/.libs/libsemisync_slave.so",
+                      "$basedir/lib/mysql/plugin/libsemisync_slave.so");
+  if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
+  {
+    $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
+    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
+    $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
+  }
+  else
+  {
+    $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
+    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
+    $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
   }
 
   # ----------------------------------------------------
@@ -2811,7 +2868,7 @@ sub run_testcase_check_skip_test($)
 
   if ( $tinfo->{'skip'} )
   {
-    mtr_report_test_skipped($tinfo);
+    mtr_report_test_skipped($tinfo) unless $start_only;
     return 1;
   }
 
@@ -3298,9 +3355,16 @@ sub run_testcase ($) {
   # server exits
   # ----------------------------------------------------------------------
 
-  if ( $opt_start or $opt_start_dirty )
+  if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Port and socket path for server(s):");
+    foreach my $mysqld ( mysqlds() )
+    {
+      mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
+	      "  " . $mysqld->value('socket'));
+    }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
       My::SafeProcess->wait_all();
@@ -3542,8 +3606,8 @@ sub run_testcase ($) {
 # error log and write all lines that look
 # suspicious into $error_log.warnings
 #
-sub extract_warning_lines ($) {
-  my ($error_log) = @_;
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
   # belonging to current tets into @lines
@@ -3551,14 +3615,27 @@ sub extract_warning_lines ($) {
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
   my @lines;
+  my $found_test= 0;		# Set once we've found the log of this test
   while ( my $line = <$Ferr> )
   {
-    if ( $line =~ /^CURRENT_TEST:/ )
+    if ($found_test)
     {
-      # Throw away lines from previous tests
-      @lines = ();
+      # If test wasn't last after all, discard what we found, test again.
+      if ( $line =~ /^CURRENT_TEST:/)
+      {
+	@lines= ();
+	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+      }
+      else
+      {
+	push(@lines, $line);
+      }
     }
-    push(@lines, $line);
+    else
+    {
+      # Search for beginning of test, until found
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+    }
   }
   $Ferr = undef; # Close error log file
 
@@ -3595,10 +3672,8 @@ sub extract_warning_lines ($) {
      # and correcting them shows a few additional harmless warnings.
      # Thus those patterns are temporarily removed from the list
      # of patterns. For more info see BUG#42408
-     # qr/^Warning:|mysqld: Warning|\[Warning\]/,
-     # qr/^Error:|\[ERROR\]/,
-     qr/^Warning:|mysqld: Warning/,
-     qr/^Error:/,
+     qr/^Warning:|mysqld: Warning|\[Warning\]/,
+     qr/^Error:|\[ERROR\]/,
      qr/^==.* at 0x/,
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
@@ -3638,7 +3713,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error);
+  extract_warning_lines($log_error, $tinfo->{name});
 
   my $args;
   mtr_init_args(\$args);
@@ -4078,8 +4153,8 @@ sub mysqld_arguments ($$$) {
 
   if ( $mysql_version_id >= 50106 )
   {
-    # Turn on logging to both tables and file
-    mtr_add_arg($args, "--log-output=table,file");
+    # Turn on logging to file
+    mtr_add_arg($args, "--log-output=file");
   }
 
   # Check if "extra_opt" contains skip-log-bin
@@ -5123,7 +5198,7 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
   enable-disabled       Run also tests marked as disabled
-  print_testcases       Don't run the tests but print details about all the
+  print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
 
 Options that specify ports
