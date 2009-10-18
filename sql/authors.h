@@ -36,6 +36,7 @@ struct show_table_authors_st {
 struct show_table_authors_st show_table_authors[]= {
   { "Brian (Krow) Aker", "Seattle, WA, USA",
     "Architecture, archive, federated, bunch of little stuff :)" },
+  { "Marc Alff", "Denver, CO, USA", "Signal, Resignal" },
   { "Venu Anuganti", "", "Client/server protocol (4.1)" },
   { "David Axmark", "Uppsala, Sweden",
     "Small stuff long time ago, Monty ripped it out!" },

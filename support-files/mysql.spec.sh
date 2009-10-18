@@ -465,8 +465,8 @@ rm -fr $RBR%{_datadir}/sql-bench
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 
-# Touch the place where the my.cnf config file might be located
-# Just to make sure it's in the file list and marked as a config file
+# Touch the place where the my.cnf config file might be located.
+# Just to make sure it's in the file list and marked as a config file.
 touch $RBR%{_sysconfdir}/my.cnf
 
 %pre server
@@ -867,6 +867,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
+
+- "mysqlmanager" got removed from version 5.4, all references deleted.
+
 * Fri Aug 28 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Merge up from 5.1 to 5.4: Remove handling for the InnoDB plugin.

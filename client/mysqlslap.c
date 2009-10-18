@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1199,7 +1199,7 @@ get_options(int *argc,char ***argv)
     
     if (opt_csv_str[0] == '-')
     {
-      csv_file= fileno(stdout);
+      csv_file= my_fileno(stdout);
     }
     else
     {
@@ -1918,7 +1918,7 @@ end:
   if (!opt_only_print) 
     mysql_close(mysql);
 
-  my_thread_end();
+  mysql_thread_end();
 
   pthread_mutex_lock(&counter_mutex);
   thread_counter--;

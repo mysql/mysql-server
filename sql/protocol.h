@@ -17,6 +17,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_error.h"
 
 class i_string;
 class THD;
@@ -42,6 +43,8 @@ protected:
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
+  bool net_store_data(const uchar *from, size_t length,
+                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   bool store_string_aux(const char *from, size_t length,
                         CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 public:
@@ -173,7 +176,8 @@ public:
 };
 
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
-bool net_send_error(THD *thd, uint sql_errno=0, const char *err=0);
+bool net_send_error(THD *thd, uint sql_errno, const char *err,
+                    const char* sqlstate);
 void net_end_statement(THD *thd);
 bool send_old_password_request(THD *thd);
 uchar *net_store_data(uchar *to,const uchar *from, size_t length);

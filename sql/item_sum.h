@@ -22,7 +22,87 @@
 
 #include <my_tree.h>
 
-/*
+class Item_sum;
+class Aggregator_distinct;
+class Aggregator_simple;
+
+/**
+  The abstract base class for the Aggregator_* classes.
+  It implements the data collection functions (setup/add/clear)
+  as either pass-through to the real functionality or
+  as collectors into an Unique (for distinct) structure.
+
+  Note that update_field/reset_field are not in that
+  class, because they're simply not called when
+  GROUP BY/DISTINCT can be handled with help of index on grouped 
+  fields (quick_group = 0);
+*/
+
+class Aggregator : public Sql_alloc
+{
+  friend class Item_sum;
+  friend class Item_sum_sum;
+  friend class Item_sum_count;
+  friend class Item_sum_avg;
+
+  /* 
+    All members are protected as this class is not usable outside of an 
+    Item_sum descendant.
+  */
+protected:
+  /* the aggregate function class to act on */
+  Item_sum *item_sum;
+
+  /**
+    When feeding back the data in endup() from Unique/temp table back to
+    Item_sum::add() methods we must read the data from Unique (and not 
+    recalculate the functions that are given as arguments to the aggregate
+    function. 
+    This flag is to tell the add() methods to take the data from the Unique
+    instead by calling the relevant val_..() method
+  */
+
+  bool use_distinct_values;
+
+public:
+  Aggregator (Item_sum *arg): item_sum(arg), use_distinct_values(FALSE) {}
+  virtual ~Aggregator () {}                   /* Keep gcc happy */
+
+  enum Aggregator_type { SIMPLE_AGGREGATOR, DISTINCT_AGGREGATOR }; 
+  virtual Aggregator_type Aggrtype() = 0;
+
+  /**
+    Called before adding the first row. 
+    Allocates and sets up the internal aggregation structures used, 
+    e.g. the Unique instance used to calculate distinct.
+  */
+  virtual bool setup(THD *) = 0;
+
+  /**
+    Called when we need to wipe out all the data from the aggregator :
+    all the values acumulated and all the state.
+    Cleans up the internal structures and resets them to their initial state.
+  */
+  virtual void clear() = 0;
+
+  /**
+    Called when there's a new value to be aggregated.
+    Updates the internal state of the aggregator to reflect the new value.
+  */
+  virtual bool add() = 0;
+
+  /**
+    Called when there are no more data and the final value is to be retrieved.
+    Finalises the state of the aggregator, so the final result can be retrieved.
+  */
+  virtual void endup() = 0;
+
+};
+
+
+class st_select_lex;
+
+/**
   Class Item_sum is the base class used for special expressions that SQL calls
   'set functions'. These expressions are formed with the help of aggregate
   functions such as SUM, MAX, GROUP_CONCAT etc.
@@ -215,13 +295,32 @@
   TODO: to catch queries where the limit is exceeded to make the
   code clean here.  
     
-*/ 
-
-class st_select_lex;
+*/
 
 class Item_sum :public Item_result_field
 {
 public:
+  /**
+    Aggregator class instance. Not set initially. Allocated only after
+    it is determined if the incoming data are already distinct.
+  */
+  Aggregator *aggr;
+
+  /**
+    Used in making ROLLUP. Set for the ROLLUP copies of the original
+    Item_sum and passed to create_tmp_field() to cause it to work
+    over the temp table buffer that is referenced by
+    Item_result_field::result_field.
+  */
+  bool force_copy_fields;
+
+  /**
+    Indicates how the aggregate function was specified by the parser :
+    1 if it was written as AGGREGATE(DISTINCT),
+    0 if it was AGGREGATE()
+  */
+  bool with_distinct;
+
   enum Sumfunctype
   { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
     AVG_DISTINCT_FUNC, MIN_FUNC, MAX_FUNC, STD_FUNC,
@@ -263,47 +362,28 @@ public:
   Item_sum() :quick_group(1), arg_count(0), forced_const(FALSE)
   {
     mark_as_sum_func();
+    init_aggregator();
   }
   Item_sum(Item *a) :quick_group(1), arg_count(1), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
+    init_aggregator();
   }
   Item_sum( Item *a, Item *b ) :quick_group(1), arg_count(2), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
     mark_as_sum_func();
+    init_aggregator();
   }
   Item_sum(List<Item> &list);
   //Copy constructor, need to perform subselects with temporary tables
   Item_sum(THD *thd, Item_sum *item);
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
-
-  /*
-    This method is similar to add(), but it is called when the current
-    aggregation group changes. Thus it performs a combination of
-    clear() and add().
-  */
-  inline bool reset() { clear(); return add(); };
-
-  /*
-    Prepare this item for evaluation of an aggregate value. This is
-    called by reset() when a group changes, or, for correlated
-    subqueries, between subquery executions.  E.g. for COUNT(), this
-    method should set count= 0;
-  */
-  virtual void clear()= 0;
-
-  /*
-    This method is called for the next row in the same group. Its
-    purpose is to aggregate the new value to the previous values in
-    the group (i.e. since clear() was called last time). For example,
-    for COUNT(), do count++.
-  */
-  virtual bool add()=0;
+  inline bool reset() { aggregator_clear(); return aggregator_add(); };
 
   /*
     Called when new group is started and results are being saved in
@@ -343,11 +423,6 @@ public:
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables ();
-  void cleanup() 
-  { 
-    Item::cleanup();
-    forced_const= FALSE; 
-  }
   bool is_null() { return null_value; }
   void make_const () 
   { 
@@ -359,7 +434,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 
-  /*
+  /**
+    Mark an aggregate as having no rows.
+
     This function is called by the execution engine to assign 'NO ROWS
     FOUND' value to an aggregate item, when the underlying result set
     has no rows. Such value, in a general case, may be different from
@@ -367,10 +444,15 @@ public:
     may be initialized to 0 by clear() and to NULL by
     no_rows_in_result().
   */
-  void no_rows_in_result() { clear(); }
-
-  virtual bool setup(THD *thd) {return 0;}
-  virtual void make_unique() {}
+  void no_rows_in_result()
+  {
+    if (!aggr)
+     set_aggregator(with_distinct ?
+                    Aggregator::DISTINCT_AGGREGATOR :
+                    Aggregator::SIMPLE_AGGREGATOR);
+    reset();
+  }
+  virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
@@ -381,14 +463,178 @@ public:
   st_select_lex *depended_from() 
     { return (nest_level == aggr_level ? 0 : aggr_sel); }
 
-  Item *get_arg(int i) { return args[i]; }
-  Item *set_arg(int i, THD *thd, Item *new_val);
+  Item *get_arg(uint i) { return args[i]; }
+  Item *set_arg(uint i, THD *thd, Item *new_val);
   uint get_arg_count() { return arg_count; }
+
+  /* Initialization of distinct related members */
+  void init_aggregator()
+  {
+    aggr= NULL;
+    with_distinct= FALSE;
+    force_copy_fields= FALSE;
+  }
+
+  /**
+    Called to initialize the aggregator.
+  */
+
+  inline bool aggregator_setup(THD *thd) { return aggr->setup(thd); };
+
+  /**
+    Called to cleanup the aggregator.
+  */
+
+  inline void aggregator_clear() { aggr->clear(); }
+
+  /**
+    Called to add value to the aggregator.
+  */
+
+  inline bool aggregator_add() { return aggr->add(); };
+
+  /* stores the declared DISTINCT flag (from the parser) */
+  void set_distinct(bool distinct)
+  {
+    with_distinct= distinct;
+    quick_group= with_distinct ? 0 : 1;
+  }
+
+  /**
+    Set the type of aggregation : DISTINCT or not.
+
+    Called when the final determination is done about the aggregation
+    type and the object is about to be used.
+  */
+
+  int set_aggregator(Aggregator::Aggregator_type aggregator);
+  virtual void clear()= 0;
+  virtual bool add()= 0;
+  virtual bool setup(THD *thd) {return 0;}
+
+  void cleanup ();
+};
+
+
+class Unique;
+
+
+/**
+ The distinct aggregator. 
+ Implements AGGFN (DISTINCT ..)
+ Collects all the data into an Unique (similarly to what Item_sum_distinct 
+ does currently) and then (if applicable) iterates over the list of 
+ unique values and pumps them back into its object
+*/
+
+class Aggregator_distinct : public Aggregator
+{
+  friend class Item_sum_sum;
+  friend class Item_sum_count;
+  friend class Item_sum_avg;
+protected:
+
+  /* 
+    flag to prevent consecutive runs of endup(). Normally in endup there are 
+    expensive calculations (like walking the distinct tree for example) 
+    which we must do only once if there are no data changes.
+    We can re-use the data for the second and subsequent val_xxx() calls.
+    endup_done set to TRUE also means that the calculated values for
+    the aggregate functions are correct and don't need recalculation.
+  */
+  bool endup_done;
+
+  /*
+    Used depending on the type of the aggregate function and the presence of
+    blob columns in it:
+    - For COUNT(DISTINCT) and no blob fields this points to a real temporary
+      table. It's used as a hash table.
+    - For AVG/SUM(DISTINCT) or COUNT(DISTINCT) with blob fields only the
+      in-memory data structure of a temporary table is constructed.
+      It's used by the Field classes to transform data into row format.
+  */
+  TABLE *table;
+  
+  /*
+    An array of field lengths on row allocated and used only for 
+    COUNT(DISTINCT) with multiple columns and no blobs. Used in 
+    Aggregator_distinct::composite_key_cmp (called from Unique to compare 
+    nodes
+  */
+  uint32 *field_lengths;
+
+  /*
+    used in conjunction with 'table' to support the access to Field classes 
+    for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
+  */
+  TMP_TABLE_PARAM *tmp_table_param;
+  
+  /*
+    If there are no blobs in the COUNT(DISTINCT) arguments, we can use a tree,
+    which is faster than heap table. In that case, we still use the table
+    to help get things set up, but we insert nothing in it. 
+    For AVG/SUM(DISTINCT) we always use this tree (as it takes a single 
+    argument) to get the distinct rows.
+  */
+  Unique *tree;
+
+  /* 
+    The length of the temp table row. Must be a member of the class as it
+    gets passed down to simple_raw_key_cmp () as a compare function argument
+    to Unique. simple_raw_key_cmp () is used as a fast comparison function 
+    when the entire row can be binary compared.
+  */  
+  uint tree_key_length;
+
+  /* 
+    Set to true if the result is known to be always NULL.
+    If set deactivates creation and usage of the temporary table (in the 
+    'table' member) and the Unique instance (in the 'tree' member) as well as 
+    the calculation of the final value on the first call to 
+    Item_[sum|avg|count]::val_xxx(). 
+  */
+  bool always_null;
+
+public:
+  Aggregator_distinct (Item_sum *sum) :
+    Aggregator(sum), table(NULL), tmp_table_param(NULL), tree(NULL),
+    always_null(FALSE) {}
+  virtual ~Aggregator_distinct ();
+  Aggregator_type Aggrtype() { return DISTINCT_AGGREGATOR; }
+
+  bool setup(THD *);
+  void clear(); 
+  bool add();
+  void endup();
+
+  bool unique_walk_function(void *element);
+  static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
+};
+
+
+/**
+  The pass-through aggregator. 
+  Implements AGGFN (DISTINCT ..) by knowing it gets distinct data on input. 
+  So it just pumps them back to the Item_sum descendant class.
+*/
+class Aggregator_simple : public Aggregator
+{
+public:
+
+  Aggregator_simple (Item_sum *sum) :
+    Aggregator(sum) {}
+  Aggregator_type Aggrtype() { return Aggregator::SIMPLE_AGGREGATOR; }
+
+  bool setup(THD * thd) { return item_sum->setup(thd); }
+  void clear() { item_sum->clear(); }
+  bool add() { return item_sum->add(); }
+  void endup() {};
 };
 
 
 class Item_sum_num :public Item_sum
 {
+  friend class Aggregator_distinct;
 protected:
   /*
    val_xxx() functions may be called several times during the execution of a 
@@ -443,9 +689,15 @@ protected:
   void fix_length_and_dec();
 
 public:
-  Item_sum_sum(Item *item_par) :Item_sum_num(item_par) {}
+  Item_sum_sum(Item *item_par, bool distinct= FALSE) :Item_sum_num(item_par) 
+  {
+    set_distinct(distinct);
+  }
   Item_sum_sum(THD *thd, Item_sum_sum *item);
-  enum Sumfunctype sum_func () const {return SUM_FUNC;}
+  enum Sumfunctype sum_func () const 
+  { 
+    return with_distinct ? SUM_DISTINCT_FUNC : SUM_FUNC; 
+  }
   void clear();
   bool add();
   double val_real();
@@ -456,91 +708,11 @@ public:
   void reset_field();
   void update_field();
   void no_rows_in_result() {}
-  const char *func_name() const { return "sum("; }
+  const char *func_name() const 
+  { 
+    return with_distinct ? "sum(distinct " : "sum("; 
+  }
   Item *copy_or_same(THD* thd);
-};
-
-
-
-/* Common class for SUM(DISTINCT), AVG(DISTINCT) */
-
-class Unique;
-
-class Item_sum_distinct :public Item_sum_num
-{
-protected:
-  /* storage for the summation result */
-  ulonglong count;
-  Hybrid_type val;
-  /* storage for unique elements */
-  Unique *tree;
-  TABLE *table;
-  enum enum_field_types table_field_type;
-  uint tree_key_length;
-protected:
-  Item_sum_distinct(THD *thd, Item_sum_distinct *item);
-public:
-  Item_sum_distinct(Item *item_par);
-  ~Item_sum_distinct();
-
-  bool setup(THD *thd);
-  void clear();
-  void cleanup();
-  bool add();
-  double val_real();
-  my_decimal *val_decimal(my_decimal *);
-  longlong val_int();
-  String *val_str(String *str);
-
-  /* XXX: does it need make_unique? */
-
-  enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
-  void reset_field() {} // not used
-  void update_field() {} // not used
-  virtual void no_rows_in_result() {}
-  void fix_length_and_dec();
-  enum Item_result result_type () const { return val.traits->type(); }
-  virtual void calculate_val_and_count();
-  virtual bool unique_walk_function(void *elem);
-};
-
-
-/*
-  Item_sum_sum_distinct - implementation of SUM(DISTINCT expr).
-  See also: MySQL manual, chapter 'Adding New Functions To MySQL'
-  and comments in item_sum.cc.
-*/
-
-class Item_sum_sum_distinct :public Item_sum_distinct
-{
-private:
-  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item)
-    :Item_sum_distinct(thd, item) {}
-public:
-  Item_sum_sum_distinct(Item *item_arg) :Item_sum_distinct(item_arg) {}
-
-  enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
-  const char *func_name() const { return "sum(distinct "; }
-  Item *copy_or_same(THD* thd) { return new Item_sum_sum_distinct(thd, this); }
-};
-
-
-/* Item_sum_avg_distinct - SELECT AVG(DISTINCT expr) FROM ... */
-
-class Item_sum_avg_distinct: public Item_sum_distinct
-{
-private:
-  Item_sum_avg_distinct(THD *thd, Item_sum_avg_distinct *original)
-    :Item_sum_distinct(thd, original) {}
-public:
-  uint prec_increment;
-  Item_sum_avg_distinct(Item *item_arg) : Item_sum_distinct(item_arg) {}
-
-  void fix_length_and_dec();
-  virtual void calculate_val_and_count();
-  enum Sumfunctype sum_func () const { return AVG_DISTINCT_FUNC; }
-  const char *func_name() const { return "avg(distinct "; }
-  Item *copy_or_same(THD* thd) { return new Item_sum_avg_distinct(thd, this); }
 };
 
 
@@ -548,17 +720,38 @@ class Item_sum_count :public Item_sum_int
 {
   longlong count;
 
+  friend class Aggregator_distinct;
+
+  void clear();
+  bool add();
+  void cleanup();
+
   public:
   Item_sum_count(Item *item_par)
     :Item_sum_int(item_par),count(0)
   {}
+
+  /**
+    Constructs an instance for COUNT(DISTINCT)
+
+    @param list  a list of the arguments to the aggregate function
+
+    This constructor is called by the parser only for COUNT (DISTINCT).
+  */
+
+  Item_sum_count(List<Item> &list)
+    :Item_sum_int(list),count(0)
+  {
+    set_distinct(TRUE);
+  }
   Item_sum_count(THD *thd, Item_sum_count *item)
     :Item_sum_int(thd, item), count(item->count)
   {}
-  enum Sumfunctype sum_func () const { return COUNT_FUNC; }
-  void clear();
+  enum Sumfunctype sum_func () const 
+  { 
+    return with_distinct ? COUNT_DISTINCT_FUNC : COUNT_FUNC; 
+  }
   void no_rows_in_result() { count=0; }
-  bool add();
   void make_const(longlong count_arg) 
   { 
     count=count_arg;
@@ -566,76 +759,12 @@ class Item_sum_count :public Item_sum_int
   }
   longlong val_int();
   void reset_field();
-  void cleanup();
   void update_field();
-  const char *func_name() const { return "count("; }
+  const char *func_name() const 
+  { 
+    return with_distinct ? "count(distinct " : "count(";
+  }
   Item *copy_or_same(THD* thd);
-};
-
-
-class TMP_TABLE_PARAM;
-
-class Item_sum_count_distinct :public Item_sum_int
-{
-  TABLE *table;
-  uint32 *field_lengths;
-  TMP_TABLE_PARAM *tmp_table_param;
-  bool force_copy_fields;
-  /*
-    If there are no blobs, we can use a tree, which
-    is faster than heap table. In that case, we still use the table
-    to help get things set up, but we insert nothing in it
-  */
-  Unique *tree;
-  /*
-   Storage for the value of count between calls to val_int() so val_int()
-   will not recalculate on each call. Validitiy of the value is stored in
-   is_evaluated.
-  */
-  longlong count;
-  /*
-    Following is 0 normal object and pointer to original one for copy 
-    (to correctly free resources)
-  */
-  Item_sum_count_distinct *original;
-  uint tree_key_length;
-
-
-  bool always_null;		// Set to 1 if the result is always NULL
-
-
-  friend int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
-  friend int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2);
-
-public:
-  Item_sum_count_distinct(List<Item> &list)
-    :Item_sum_int(list), table(0), field_lengths(0), tmp_table_param(0),
-     force_copy_fields(0), tree(0), count(0),
-     original(0), always_null(FALSE)
-  { quick_group= 0; }
-  Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
-    :Item_sum_int(thd, item), table(item->table),
-     field_lengths(item->field_lengths),
-     tmp_table_param(item->tmp_table_param),
-     force_copy_fields(0), tree(item->tree), count(item->count), 
-     original(item), tree_key_length(item->tree_key_length),
-     always_null(item->always_null)
-  {}
-  ~Item_sum_count_distinct();
-
-  void cleanup();
-
-  enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
-  void clear();
-  bool add();
-  longlong val_int();
-  void reset_field() { return ;}		// Never called
-  void update_field() { return ; }		// Never called
-  const char *func_name() const { return "count(distinct "; }
-  bool setup(THD *thd);
-  void make_unique();
-  Item *copy_or_same(THD* thd);
-  void no_rows_in_result() {}
 };
 
 
@@ -674,13 +803,18 @@ public:
   uint prec_increment;
   uint f_precision, f_scale, dec_bin_size;
 
-  Item_sum_avg(Item *item_par) :Item_sum_sum(item_par), count(0) {}
+  Item_sum_avg(Item *item_par, bool distinct= FALSE) 
+    :Item_sum_sum(item_par, distinct), count(0) 
+  {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
     :Item_sum_sum(thd, item), count(item->count),
     prec_increment(item->prec_increment) {}
 
   void fix_length_and_dec();
-  enum Sumfunctype sum_func () const {return AVG_FUNC;}
+  enum Sumfunctype sum_func () const 
+  {
+    return with_distinct ? AVG_DISTINCT_FUNC : AVG_FUNC;
+  }
   void clear();
   bool add();
   double val_real();
@@ -693,7 +827,10 @@ public:
   Item *result_item(Field *field)
   { return new Item_avg_field(hybrid_type, this); }
   void no_rows_in_result() {}
-  const char *func_name() const { return "avg("; }
+  const char *func_name() const 
+  { 
+    return with_distinct ? "avg(distinct " : "avg("; 
+  }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   void cleanup()
@@ -1181,12 +1318,9 @@ public:
 
 #endif /* HAVE_DLOPEN */
 
-class MYSQL_ERROR;
-
 class Item_func_group_concat : public Item_sum
 {
   TMP_TABLE_PARAM *tmp_table_param;
-  MYSQL_ERROR *warning;
   String result;
   String *separator;
   TREE tree_base;
@@ -1207,7 +1341,7 @@ class Item_func_group_concat : public Item_sum
   uint arg_count_order;
   /** The number of selected items, aka the expr list. */
   uint arg_count_field;
-  uint count_cut_values;
+  uint row_count;
   bool distinct;
   bool warning_for_row;
   bool always_null;
