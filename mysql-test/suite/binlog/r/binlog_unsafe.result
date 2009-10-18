@@ -43,12 +43,6 @@ END|
 CALL proc();
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from stored function ----
 CREATE FUNCTION func()
 RETURNS INT
@@ -67,12 +61,6 @@ func()
 0
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from trigger ----
 CREATE TRIGGER trig
 BEFORE INSERT ON trigger_table
@@ -88,12 +76,6 @@ INSERT INTO t2 VALUES (@@hostname);
 END|
 INSERT INTO trigger_table VALUES ('bye.');
 Warnings:
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from prepared statement ----
@@ -155,12 +137,6 @@ func5()
 0
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
 ==== Variables that should *not* be unsafe ====
 INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
 INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
@@ -214,9 +190,6 @@ DELETE FROM t1 LIMIT 1;
 END|
 CALL p1();
 Warnings:
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
-Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 DROP PROCEDURE p1;
 DROP TABLE t1;

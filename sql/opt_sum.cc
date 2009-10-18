@@ -355,10 +355,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           const_result= 0;
           break;
         }
+        item_sum->set_aggregator (item_sum->with_distinct ? 
+                                  Aggregator::DISTINCT_AGGREGATOR :
+                                  Aggregator::SIMPLE_AGGREGATOR);
         if (!count)
         {
           /* If count == 0, then we know that is_exact_count == TRUE. */
-          ((Item_sum_min*) item_sum)->clear(); /* Set to NULL. */
+          ((Item_sum_min*) item_sum)->aggregator_clear(); /* Set to NULL. */
         }
         else
           ((Item_sum_min*) item_sum)->reset(); /* Set to the constant value. */
@@ -443,10 +446,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           const_result= 0;
           break;
         }
+        item_sum->set_aggregator (item_sum->with_distinct ? 
+                                  Aggregator::DISTINCT_AGGREGATOR :
+                                  Aggregator::SIMPLE_AGGREGATOR);
         if (!count)
         {
           /* If count != 1, then we know that is_exact_count == TRUE. */
-          ((Item_sum_max*) item_sum)->clear(); /* Set to NULL. */
+          ((Item_sum_max*) item_sum)->aggregator_clear(); /* Set to NULL. */
         }
         else
           ((Item_sum_max*) item_sum)->reset(); /* Set to the constant value. */

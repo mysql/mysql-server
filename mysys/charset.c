@@ -248,6 +248,7 @@ static int add_collation(CHARSET_INFO *cs)
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_ucs2_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif        
       }
       else if (!strcmp(cs->csname, "utf8"))
@@ -280,6 +281,8 @@ static int add_collation(CHARSET_INFO *cs)
 
         if (my_charset_is_8bit_pure_ascii(all_charsets[cs->number]))
           all_charsets[cs->number]->state|= MY_CS_PUREASCII;
+        if (!my_charset_is_ascii_compatible(cs))
+          all_charsets[cs->number]->state|= MY_CS_NONASCII;
       }
     }
     else

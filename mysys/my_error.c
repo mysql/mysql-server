@@ -22,7 +22,6 @@
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
 
-
 /* Define some external variables for error handling */
 
 /*
@@ -67,12 +66,9 @@ static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
        MyFlags	Flags
        ...	variable list
 
-  RETURN
-    What (*error_handler_hook)() returns:
-    0   OK
 */
 
-int my_error(int nr, myf MyFlags, ...)
+void my_error(int nr, myf MyFlags, ...)
 {
   const char *format;
   struct my_err_head *meh_p;
@@ -96,7 +92,8 @@ int my_error(int nr, myf MyFlags, ...)
     (void) my_vsnprintf (ebuff, sizeof(ebuff), format, args);
     va_end(args);
   }
-  DBUG_RETURN((*error_handler_hook)(nr, ebuff, MyFlags));
+  (*error_handler_hook)(nr, ebuff, MyFlags);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -111,7 +108,7 @@ int my_error(int nr, myf MyFlags, ...)
       ...	variable list
 */
 
-int my_printf_error(uint error, const char *format, myf MyFlags, ...)
+void my_printf_error(uint error, const char *format, myf MyFlags, ...)
 {
   va_list args;
   char ebuff[ERRMSGSIZE];
@@ -122,7 +119,8 @@ int my_printf_error(uint error, const char *format, myf MyFlags, ...)
   va_start(args,MyFlags);
   (void) my_vsnprintf (ebuff, sizeof(ebuff), format, args);
   va_end(args);
-  DBUG_RETURN((*error_handler_hook)(error, ebuff, MyFlags));
+  (*error_handler_hook)(error, ebuff, MyFlags);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -135,9 +133,9 @@ int my_printf_error(uint error, const char *format, myf MyFlags, ...)
       MyFlags	Flags
 */
 
-int my_message(uint error, const char *str, register myf MyFlags)
+void my_message(uint error, const char *str, register myf MyFlags)
 {
-  return (*error_handler_hook)(error, str, MyFlags);
+  (*error_handler_hook)(error, str, MyFlags);
 }
 
 

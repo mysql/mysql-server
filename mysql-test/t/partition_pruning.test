@@ -1159,3 +1159,22 @@ INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
 -- echo must use p0 only:
 explain partitions select * from t1 where recdate < '2006-01-01 00:00:00';
 drop table t1;
+
+-- echo # 
+-- echo # BUG#33730 Full table scan instead selected partitions for query more than 10 partitions
+-- echo # 
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int)
+  partition by range(a+0) (
+  partition p0 values less than (64),
+  partition p1 values less than (128),
+  partition p2 values less than (255)
+);
+insert into t1 select A.a + 10*B.a from t0 A, t0 B;
+
+# this will use interval_via_walking
+explain partitions select * from t1 where a between 10 and 13;
+explain partitions select * from t1 where a between 10 and 10+33;
+
+drop table t0, t1;

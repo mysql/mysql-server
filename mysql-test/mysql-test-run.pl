@@ -818,7 +818,6 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
-	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,

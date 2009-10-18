@@ -33,7 +33,7 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-#ifdef __NT__
+#ifdef _WIN32
 #include "message.h"
 #endif
 
@@ -80,22 +80,27 @@ public:
 
   virtual ~Silence_log_table_errors() {}
 
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sql_state,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   const char *message() const { return m_message; }
 };
 
 bool
-Silence_log_table_errors::handle_error(uint /* sql_errno */,
-                                       const char *message_arg,
-                                       MYSQL_ERROR::enum_warning_level /* level */,
-                                       THD * /* thd */)
+Silence_log_table_errors::handle_condition(THD *,
+                                           uint,
+                                           const char*,
+                                           MYSQL_ERROR::enum_warning_level,
+                                           const char* msg,
+                                           MYSQL_ERROR ** cond_hdl)
 {
-  strmake(m_message, message_arg, sizeof(m_message)-1);
+  *cond_hdl= NULL;
+  strmake(m_message, msg, sizeof(m_message)-1);
   return TRUE;
 }
-
 
 sql_print_message_func sql_print_message_handlers[3] =
 {
@@ -1661,7 +1666,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   if (!thd->is_error())
     DBUG_RETURN(checked);
 
-  switch (thd->main_da.sql_errno())
+  switch (thd->stmt_da->sql_errno())
   {
     case ER_TRANS_CACHE_FULL:
     case ER_ERROR_ON_WRITE:
@@ -1789,7 +1794,7 @@ err:
   DBUG_RETURN(-1);
 }
 
-#ifdef __NT__
+#ifdef _WIN32
 static int eventSource = 0;
 
 static void setup_windows_event_source()
@@ -1824,7 +1829,7 @@ static void setup_windows_event_source()
   RegCloseKey(hRegKey);
 }
 
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 /**
@@ -1955,7 +1960,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif __NT__
+#elif _WIN32
 			"started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -2917,7 +2922,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       }
       else
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_BINLOG_PURGE_FATAL_ERR,
                             "a problem with deleting %s; "
                             "consider examining correspondence "
@@ -2948,7 +2953,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     }
     else
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_BINLOG_PURGE_FATAL_ERR,
                           "a problem with deleting %s; "
                           "consider examining correspondence "
@@ -3279,7 +3284,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -3325,7 +3330,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         {
           if (thd)
           {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_BINLOG_PURGE_FATAL_ERR,
                                 "a problem with deleting %s; "
                                 "consider examining correspondence "
@@ -3424,7 +3429,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -4435,9 +4440,9 @@ int query_error_code(THD *thd, bool not_killed)
   
   if (not_killed)
   {
-    error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+    error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
 
-    /* thd->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+    /* thd->stmt_da->sql_errno() might be ER_SERVER_SHUTDOWN or
        ER_QUERY_INTERRUPTED, So here we need to make sure that error
        is not set to these errors when specified not_killed by the
        caller.
@@ -4846,7 +4851,7 @@ void MYSQL_BIN_LOG::signal_update()
   DBUG_VOID_RETURN;
 }
 
-#ifdef __NT__
+#ifdef _WIN32
 static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
                                         size_t length, size_t buffLen)
 {
@@ -4879,7 +4884,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 
   DBUG_VOID_RETURN;
 }
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 /**
@@ -4941,7 +4946,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   length= my_vsnprintf(buff, sizeof(buff), format, args);
   print_buffer_to_file(level, buff);
 
-#ifdef __NT__
+#ifdef _WIN32
   print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
 

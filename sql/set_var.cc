@@ -434,7 +434,7 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
-#ifdef __NT__
+#ifdef _WIN32
 /* purecov: begin inspected */
 static sys_var_const            sys_named_pipe(&vars, "named_pipe",
                                                OPT_GLOBAL, SHOW_MY_BOOL,
@@ -2916,7 +2916,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     {
       char buf[20];
       int10_to_str((int) var->value->val_int(), buf, -10);
-      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), buf);
       return 1;
     }
   }
@@ -2932,8 +2932,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     const char *locale_str= res->c_ptr();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Unknown locale: '%s'", MYF(0), locale_str);
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), locale_str);
       return 1;
     }
   }
@@ -3133,17 +3132,13 @@ static int check_pseudo_thread_id(THD *thd, set_var *var)
 
 static uchar *get_warning_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value=
-    (thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
-     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
-     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
+  thd->sys_var_tmp.long_value= thd->warning_info->warn_count();
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 
 static uchar *get_error_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value= 
-    thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
+  thd->sys_var_tmp.long_value= thd->warning_info->error_count();
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 

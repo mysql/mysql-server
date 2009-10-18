@@ -628,6 +628,7 @@ MY_BITMAP temp_pool;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
+CHARSET_INFO *error_message_charset_info;
 
 MY_LOCALE *my_default_lc_time_names;
 
@@ -731,7 +732,7 @@ static	 NTService  Service;	      ///< Service object for WinNT
 #endif /* EMBEDDED_LIBRARY */
 #endif /* __WIN__ */
 
-#ifdef __NT__
+#ifdef _WIN32
 static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
@@ -804,11 +805,14 @@ static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
-pthread_handler_t handle_connections_sockets(void *arg);
+void handle_connections_sockets();
+#ifdef _WIN32
+pthread_handler_t handle_connections_sockets_thread(void *arg);
+#endif
 pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
 static bool read_init_file(char *file_name);
-#ifdef __NT__
+#ifdef _WIN32
 pthread_handler_t handle_connections_namedpipes(void *arg);
 #endif
 #ifdef HAVE_SMEM
@@ -894,7 +898,7 @@ static void close_connections(void)
       ip_sock= INVALID_SOCKET;
     }
   }
-#ifdef __NT__
+#ifdef _WIN32
   if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
   {
     HANDLE temp;
@@ -1686,7 +1690,7 @@ static void network_init(void)
     }
   }
 
-#ifdef __NT__
+#ifdef _WIN32
   /* create named pipe */
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
@@ -1808,7 +1812,8 @@ void close_connection(THD *thd, uint errcode, bool lock)
   if ((vio= thd->net.vio) != 0)
   {
     if (errcode)
-      net_send_error(thd, errcode, ER(errcode)); /* purecov: inspected */
+      net_send_error(thd, errcode,
+                     ER(errcode), NULL); /* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
@@ -2032,29 +2037,7 @@ static BOOL WINAPI console_event_handler( DWORD type )
 }
 
 
-/*
-  In Visual Studio 2005 and later, default SIGABRT handler will overwrite
-  any unhandled exception filter set by the application  and will try to
-  call JIT debugger. This is not what we want, this we calling __debugbreak
-  to stop in debugger, if process is being debugged or to generate 
-  EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
-*/
 
-#if (_MSC_VER >= 1400)
-static void my_sigabrt_handler(int sig)
-{
-  __debugbreak();
-}
-#endif /*_MSC_VER >=1400 */
-
-void win_install_sigabrt_handler(void)
-{
-#if (_MSC_VER >=1400)
-  /*abort() should not override our exception filter*/
-  _set_abort_behavior(0,_CALL_REPORTFAULT);
-  signal(SIGABRT,my_sigabrt_handler);
-#endif /* _MSC_VER >=1400 */
-}
 
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
 #define DEBUGGER_ATTACH_TIMEOUT 120
@@ -2133,7 +2116,6 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 
 static void init_signals(void)
 {
-  win_install_sigabrt_handler();
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
 
@@ -2853,11 +2835,11 @@ static void check_data_home(const char *path)
   for the client.
 */
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str, myf MyFlags);
+extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
-int my_message_sql(uint error, const char *str, myf MyFlags)
+void my_message_sql(uint error, const char *str, myf MyFlags)
 {
-  THD *thd;
+  THD *thd= current_thd;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
 
@@ -2879,70 +2861,18 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     error= ER_UNKNOWN_ERROR;
   }
 
-  if ((thd= current_thd))
+  if (thd)
   {
-    /*
-      TODO: There are two exceptions mechanism (THD and sp_rcontext),
-      this could be improved by having a common stack of handlers.
-    */
-    if (thd->handle_error(error, str,
-                          MYSQL_ERROR::WARN_LEVEL_ERROR))
-      DBUG_RETURN(0);
-
-    thd->is_slave_error=  1; // needed to catch query errors during replication
-
-    /*
-      thd->lex->current_select == 0 if lex structure is not inited
-      (not query command (COM_QUERY))
-    */
-    if (thd->lex->current_select &&
-	thd->lex->current_select->no_error && !thd->is_fatal_error)
-    {
-      DBUG_PRINT("error",
-                 ("Error converted to warning: current_select: no_error %d  "
-                  "fatal_error: %d",
-                  (thd->lex->current_select ?
-                   thd->lex->current_select->no_error : 0),
-                  (int) thd->is_fatal_error));
-    }
-    else
-    {
-      if (! thd->main_da.is_error())            // Return only first message
-      {
-        thd->main_da.set_error_status(thd, error, str);
-      }
-      query_cache_abort(&thd->net);
-    }
-    /*
-      If a continue handler is found, the error message will be cleared
-      by the stored procedures code.
-    */
-    if (thd->spcont &&
-        ! (MyFlags & ME_NO_SP_HANDLER) &&
-        thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
-    {
-      /*
-        Do not push any warnings, a handled error must be completely
-        silenced.
-      */
-      DBUG_RETURN(0);
-    }
-
-    if (!thd->no_warnings_for_error &&
-        !(MyFlags & ME_NO_WARNING_FOR_ERROR))
-    {
-      /*
-        Suppress infinite recursion if there a memory allocation error
-        inside push_warning.
-      */
-      thd->no_warnings_for_error= TRUE;
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
-      thd->no_warnings_for_error= FALSE;
-    }
+    if (MyFlags & ME_FATALERROR)
+      thd->is_fatal_error= 1;
+    (void) thd->raise_condition(error,
+                                NULL,
+                                MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                str);
   }
   if (!thd || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3106,6 +3036,7 @@ SHOW_VAR com_status_vars[]= {
   {"replace",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE]), SHOW_LONG_STATUS},
   {"replace_select",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE_SELECT]), SHOW_LONG_STATUS},
   {"reset",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESET]), SHOW_LONG_STATUS},
+  {"resignal",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESIGNAL]), SHOW_LONG_STATUS},
   {"restore_table",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESTORE_TABLE]), SHOW_LONG_STATUS},
   {"revoke",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE]), SHOW_LONG_STATUS},
   {"revoke_all",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE_ALL]), SHOW_LONG_STATUS},
@@ -3114,6 +3045,7 @@ SHOW_VAR com_status_vars[]= {
   {"savepoint",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SAVEPOINT]), SHOW_LONG_STATUS},
   {"select",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SELECT]), SHOW_LONG_STATUS},
   {"set_option",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SET_OPTION]), SHOW_LONG_STATUS},
+  {"signal",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SIGNAL]), SHOW_LONG_STATUS},
   {"show_authors",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_AUTHORS]), SHOW_LONG_STATUS},
   {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
@@ -4180,7 +4112,8 @@ static void create_shutdown_thread()
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
-  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+  if (pthread_create(&hThread,&connection_attrib, 
+                     handle_connections_sockets_thread, 0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 
   // On "Stop Service" we have to do regular shutdown
@@ -4191,12 +4124,11 @@ static void create_shutdown_thread()
 #endif /* EMBEDDED_LIBRARY */
 
 
-#if (defined(__NT__) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
   DBUG_ENTER("handle_connections_methods");
-#ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE &&
       (!have_tcpip || opt_disable_networking) &&
       !opt_enable_shared_memory)
@@ -4204,12 +4136,10 @@ static void handle_connections_methods()
     sql_print_error("TCP/IP, --shared-memory, or --named-pipe should be configured on NT OS");
     unireg_abort(1);				// Will not return
   }
-#endif
 
   pthread_mutex_lock(&LOCK_thread_count);
   (void) pthread_cond_init(&COND_handler_count,NULL);
   handler_count=0;
-#ifdef __NT__
   if (hPipe != INVALID_HANDLE_VALUE)
   {
     handler_count++;
@@ -4220,12 +4150,11 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif /* __NT__ */
   if (have_tcpip && !opt_disable_networking)
   {
     handler_count++;
     if (pthread_create(&hThread,&connection_attrib,
-		       handle_connections_sockets, 0))
+                       handle_connections_sockets_thread, 0))
     {
       sql_print_warning("Can't create thread to handle TCP/IP");
       handler_count--;
@@ -4260,7 +4189,7 @@ void decrement_handler_count()
 }
 #else
 #define decrement_handler_count()
-#endif /* defined(__NT__) || defined(HAVE_SMEM) */
+#endif /* defined(_WIN32) || defined(HAVE_SMEM) */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -4554,18 +4483,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   pthread_cond_signal(&COND_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
 
-#if defined(__NT__) || defined(HAVE_SMEM)
+#if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
-#ifdef __WIN__
-  if (!have_tcpip || opt_disable_networking)
-  {
-    sql_print_error("TCP/IP unavailable or disabled with --skip-networking; no available interfaces");
-    unireg_abort(1);
-  }
-#endif
-  handle_connections_sockets(0);
-#endif /* __NT__ */
+  handle_connections_sockets();
+#endif /* _WIN32 || HAVE_SMEM */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
   
@@ -4938,7 +4860,7 @@ void create_thread_to_handle_connection(THD *thd)
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER(ER_CANT_CREATE_THREAD), error);
-      net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
+      net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
       (void) pthread_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
       delete thd;
@@ -5040,7 +4962,7 @@ inline void kill_broken_server()
 	/* Handle new connections and spawn new process to handle them */
 
 #ifndef EMBEDDED_LIBRARY
-pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
+void handle_connections_sockets()
 {
   my_socket sock,new_sock;
   uint error_count=0;
@@ -5243,13 +5165,19 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
     create_new_thread(thd);
   }
-
-  decrement_handler_count();
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
-#ifdef __NT__
+#ifdef _WIN32
+pthread_handler_t handle_connections_sockets_thread(void *arg)
+{
+  my_thread_init();
+  handle_connections_sockets();
+  decrement_handler_count();
+  return 0;
+}
+
 pthread_handler_t handle_connections_namedpipes(void *arg)
 {
   HANDLE hConnectedPipe;
@@ -5329,7 +5257,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
   decrement_handler_count();
   DBUG_RETURN(0);
 }
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 #ifdef HAVE_SMEM
@@ -5905,7 +5833,7 @@ struct my_option my_long_options[] =
    "Deprecated option, use --external-locking instead.",
    (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NT__
+#ifdef _WIN32
   {"enable-named-pipe", OPT_HAVE_NAMED_PIPE, "Enable the named pipe (NT).",
    (uchar**) &opt_enable_named_pipe, (uchar**) &opt_enable_named_pipe, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7571,10 +7499,7 @@ SHOW_VAR status_vars[]= {
 static void print_version(void)
 {
   set_server_version();
-  /*
-    Note: the instance manager keys off the string 'Ver' so it can find the
-    version from the output of 'mysqld --version', so don't change it!
-  */
+
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
