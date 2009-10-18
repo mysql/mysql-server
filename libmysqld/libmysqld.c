@@ -99,7 +99,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   char name_buff[USERNAME_LENGTH];
 
   DBUG_ENTER("mysql_real_connect");
-  DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
+  DBUG_PRINT("enter",("host: %s  db: %s  user: %s (libmysqld)",
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));

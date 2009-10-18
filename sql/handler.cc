@@ -1313,7 +1313,7 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->ha_list= 0;
     trans->no_2pc=0;
     if (is_real_trans && thd->transaction_rollback_request)
-      thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
+      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
   }
@@ -1944,23 +1944,28 @@ const char *get_canonical_filename(handler *file, const char *path,
 struct Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_error(uint sql_errno,
-                            const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
 };
 
 
 bool
 Ha_delete_table_error_handler::
-handle_error(uint sql_errno,
-             const char *message,
-             MYSQL_ERROR::enum_warning_level level,
-             THD *thd)
+handle_condition(THD *,
+                 uint,
+                 const char*,
+                 MYSQL_ERROR::enum_warning_level,
+                 const char* msg,
+                 MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   /* Grab the error message */
-  strmake(buff, message, sizeof(buff)-1);
+  strmake(buff, msg, sizeof(buff)-1);
   return TRUE;
 }
 
@@ -2019,7 +2024,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
@@ -2771,6 +2776,9 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_TABLE_NEEDS_UPGRADE:
     textno=ER_TABLE_NEEDS_UPGRADE;
+    break;
+  case HA_ERR_NO_PARTITION_FOUND:
+    textno=ER_WRONG_PARTITION_NAME;
     break;
   case HA_ERR_TABLE_READONLY:
     textno= ER_OPEN_AS_READONLY;

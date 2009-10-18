@@ -927,10 +927,10 @@ protected:
 };
 
 
-class Create_func_format : public Create_func_arg2
+class Create_func_format : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_format s_singleton;
 
@@ -3352,9 +3352,34 @@ Create_func_floor::create(THD *thd, Item *arg1)
 Create_func_format Create_func_format::s_singleton;
 
 Item*
-Create_func_format::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_format::create_native(THD *thd, LEX_STRING name,
+                                  List<Item> *item_list)
 {
-  return new (thd->mem_root) Item_func_format(arg1, arg2);
+  Item *func= NULL;
+  int arg_count= item_list ? item_list->elements : 0;
+
+  switch (arg_count) {
+  case 2:
+  {
+    Item *param_1= item_list->pop();
+    Item *param_2= item_list->pop();
+    func= new (thd->mem_root) Item_func_format(param_1, param_2);
+    break;
+  }
+  case 3:
+  {
+    Item *param_1= item_list->pop();
+    Item *param_2= item_list->pop();
+    Item *param_3= item_list->pop();
+    func= new (thd->mem_root) Item_func_format(param_1, param_2, param_3);
+    break;
+  }
+  default:
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+
+  return func;
 }
 
 

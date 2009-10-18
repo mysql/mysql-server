@@ -528,11 +528,11 @@ String *Item_func_des_encrypt::val_str(String *str)
   return &tmp_value;
 
 error:
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                           code, ER(code),
                           "des_encrypt");
 #else
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_encrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
@@ -605,12 +605,12 @@ String *Item_func_des_decrypt::val_str(String *str)
   return &tmp_value;
 
 error:
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                           code, ER(code),
                           "des_decrypt");
 wrong_key:
 #else
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_decrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
@@ -2040,9 +2040,22 @@ String *Item_func_soundex::val_str(String *str)
 
 const int FORMAT_MAX_DECIMALS= 30;
 
-Item_func_format::Item_func_format(Item *org, Item *dec)
-: Item_str_func(org, dec)
+
+MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
+  DBUG_ASSERT(arg_count == 3);
+  String tmp, *locale_name= args[2]->val_str(&tmp);
+  MY_LOCALE *lc;
+  if (!locale_name ||
+      !(lc= my_locale_by_name(locale_name->c_ptr_safe())))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_LOCALE,
+                        ER(ER_UNKNOWN_LOCALE),
+                        locale_name ? locale_name->c_ptr_safe() : "NULL");
+    lc= &my_locale_en_US;
+  }
+  return lc;
 }
 
 void Item_func_format::fix_length_and_dec()
@@ -2052,6 +2065,10 @@ void Item_func_format::fix_length_and_dec()
   collation.set(default_charset());
   max_length= (char_length + max_sep_count + decimals) *
     collation.collation->mbmaxlen;
+  if (arg_count == 3)
+    locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
+  else
+    locale= &my_locale_en_US; /* Two arguments */
 }
 
 
@@ -2063,13 +2080,12 @@ void Item_func_format::fix_length_and_dec()
 
 String *Item_func_format::val_str(String *str)
 {
-  uint32 length;
   uint32 str_length;
   /* Number of decimal digits */
   int dec;
   /* Number of characters used to represent the decimals, including '.' */
   uint32 dec_length;
-  int diff;
+  MY_LOCALE *lc;
   DBUG_ASSERT(fixed == 1);
 
   dec= (int) args[1]->val_int();
@@ -2078,6 +2094,8 @@ String *Item_func_format::val_str(String *str)
     null_value=1;
     return NULL;
   }
+
+  lc= locale ? locale : get_locale(args[2]);
 
   dec= set_zone(dec, 0, FORMAT_MAX_DECIMALS);
   dec_length= dec ? dec+1 : 0;
@@ -2093,8 +2111,6 @@ String *Item_func_format::val_str(String *str)
     my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
-    if (rnd_dec.sign())
-      str_length--;
   }
   else
   {
@@ -2107,31 +2123,51 @@ String *Item_func_format::val_str(String *str)
     if (isnan(nr))
       return str;
     str_length=str->length();
-    if (nr < 0)
-      str_length--;				// Don't count sign
   }
-  /* We need this test to handle 'nan' values */
-  if (str_length >= dec_length+4)
+  /* We need this test to handle 'nan' and short values */
+  if (lc->grouping[0] > 0 &&
+      str_length >= dec_length + 1 + lc->grouping[0])
   {
-    char *tmp,*pos;
-    length= str->length()+(diff=((int)(str_length- dec_length-1))/3);
-    str= copy_if_not_alloced(&tmp_str,str,length);
-    str->length(length);
-    tmp= (char*) str->ptr()+length - dec_length-1;
-    for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
-      pos[0]= pos[-diff];
-    while (diff)
+    char buf[DECIMAL_MAX_STR_LENGTH * 2]; /* 2 - in the worst case when grouping=1 */
+    int count;
+    const char *grouping= lc->grouping;
+    char sign_length= *str->ptr() == '-' ? 1 : 0;
+    const char *src= str->ptr() + str_length - dec_length - 1;
+    const char *src_begin= str->ptr() + sign_length;
+    char *dst= buf + sizeof(buf);
+    
+    /* Put the fractional part */
+    if (dec)
     {
-      *pos= *(pos - diff);
-      pos--;
-      *pos= *(pos - diff);
-      pos--;
-      *pos= *(pos - diff);
-      pos--;
-      pos[0]=',';
-      pos--;
-      diff--;
+      dst-= (dec + 1);
+      *dst= lc->decimal_point;
+      memcpy(dst + 1, src + 2, dec);
     }
+    
+    /* Put the integer part with grouping */
+    for (count= *grouping; src >= src_begin; count--)
+    {
+      /*
+        When *grouping==0x80 (which means "end of grouping")
+        count will be initialized to -1 and
+        we'll never get into this "if" anymore.
+      */
+      if (!count)
+      {
+        *--dst= lc->thousand_sep;
+        if (grouping[1])
+          grouping++;
+        count= *grouping;
+      }
+      DBUG_ASSERT(dst > buf);
+      *--dst= *src--;
+    }
+    
+    if (sign_length) /* Put '-' */
+      *--dst= *str->ptr();
+    
+    /* Put the rest of the integer part without grouping */
+    str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
   }
   return str;
 }
@@ -3237,7 +3273,7 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_ZLIB_Z_DATA_ERROR,
                         ER(ER_ZLIB_Z_DATA_ERROR));
     null_value= 1;
@@ -3314,7 +3350,7 @@ String *Item_func_compress::val_str(String *str)
 		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
-    push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+    push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,code,ER(code));
     null_value= 1;
     return 0;
   }
@@ -3352,7 +3388,7 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_ZLIB_Z_DATA_ERROR,
 			ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
@@ -3362,7 +3398,7 @@ String *Item_func_uncompress::val_str(String *str)
   new_size= uint4korr(res->ptr()) & 0x3FFFFFFF;
   if (new_size > current_thd->variables.max_allowed_packet)
   {
-    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
                         current_thd->variables.max_allowed_packet);
@@ -3380,7 +3416,7 @@ String *Item_func_uncompress::val_str(String *str)
 
   code= ((err == Z_BUF_ERROR) ? ER_ZLIB_Z_BUF_ERROR :
 	 ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR));
-  push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+  push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,code,ER(code));
 
 err:
   null_value= 1;

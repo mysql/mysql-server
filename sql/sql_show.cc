@@ -598,7 +598,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (open_normal_and_derived_tables(thd, table_list, 0))
   {
     if (!table_list->view ||
-        (thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID))
+        (thd->is_error() && thd->stmt_da->sql_errno() != ER_VIEW_INVALID))
       DBUG_RETURN(TRUE);
 
     /*
@@ -606,7 +606,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       issue a warning with 'warning' level status in 
       case of invalid view and last error is ER_VIEW_INVALID
     */
-    mysql_reset_errors(thd, true);
+    thd->warning_info->clear_warning_info(thd->query_id);
     thd->clear_error();
 
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -2986,7 +2986,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     default:
       DBUG_ASSERT(0);
     }
-    if (thd->is_error() && thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
     {
       thd->clear_error();
       return 0;
@@ -3350,10 +3350,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               can return an error without setting an error message
               in THD, which is a hack. This is why we have to
               check for res, then for thd->is_error() only then
-              for thd->main_da.sql_errno().
+              for thd->stmt_da->sql_errno().
             */
             if (res && thd->is_error() &&
-                thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+                thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
             {
               /*
                 Hide error for not existing table.
@@ -3507,7 +3507,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /*
       there was errors during opening tables
     */
-    const char *error= thd->is_error() ? thd->main_da.message() : "";
+    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
@@ -3711,7 +3711,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       */ 
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->main_da.sql_errno(), thd->main_da.message());
+                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
       thd->clear_error();
       res= 0;
     }
@@ -4223,7 +4223,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
       */
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->main_da.sql_errno(), thd->main_da.message());
+                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
       thd->clear_error();
       res= 0;
     }
@@ -4436,7 +4436,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       DBUG_RETURN(1);
     if (res && thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
   }
   if (res) 
     thd->clear_error();
@@ -4469,7 +4469,7 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4574,7 +4574,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4653,7 +4653,7 @@ static int get_schema_key_column_usage_record(THD *thd,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -4848,7 +4848,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5386,7 +5386,7 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }

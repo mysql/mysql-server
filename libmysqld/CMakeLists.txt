@@ -13,15 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
-# Need to set USE_TLS, since __declspec(thread) approach to thread local
-# storage does not work properly in DLLs.
-IF(WIN32)
-  ADD_DEFINITIONS(-DUSE_TLS)
-ENDIF(WIN32)
-
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DHAVE_DLOPEN)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
@@ -139,6 +130,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/event_parse_data.cc
+           ../sql/sql_signal.cc
            ${GEN_SOURCES}
            ${LIB_SOURCES})
 

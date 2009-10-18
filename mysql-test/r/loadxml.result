@@ -1,0 +1,79 @@
+drop table if exists t1, t2;
+create table t1 (a int, b varchar(64));
+-- Load a static XML file
+load xml infile '../../std_data/loadxml.dat' into table t1
+rows identified by '<row>';
+select * from t1 order by a;
+a	b
+1	b1
+2	b2
+3	b3
+11	b11
+111	b111
+112	b112 & < > " ' &unknown; -- check entities
+212	b212
+213	b213
+214	b214
+215	b215
+216	&bb b;
+delete from t1;
+-- Load a static XML file with 'IGNORE num ROWS'
+load xml infile '../../std_data/loadxml.dat' into table t1
+rows identified by '<row>' ignore 4 rows;
+select * from t1 order by a;
+a	b
+111	b111
+112	b112 & < > " ' &unknown; -- check entities
+212	b212
+213	b213
+214	b214
+215	b215
+216	&bb b;
+-- Check 'mysqldump --xml' + 'LOAD XML' round trip
+delete from t1;
+load xml infile 'MYSQLTEST_VARDIR/tmp/loadxml-dump.xml' into table t1 rows identified by '<row>';;
+select * from t1 order by a;
+a	b
+111	b111
+112	b112 & < > " ' &unknown; -- check entities
+212	b212
+213	b213
+214	b214
+215	b215
+216	&bb b;
+--Check that default row tag is '<row>
+delete from t1;
+load xml infile 'MYSQLTEST_VARDIR/tmp/loadxml-dump.xml' into table t1;;
+select * from t1 order by a;
+a	b
+111	b111
+112	b112 & < > " ' &unknown; -- check entities
+212	b212
+213	b213
+214	b214
+215	b215
+216	&bb b;
+-- Check that 'xml' is not a keyword
+select 1 as xml;
+xml
+1
+create table t2(fl text);
+LOAD XML LOCAL INFILE "$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml"  INTO TABLE t2 ROWS IDENTIFIED BY '<person>';;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+#	root	localhost	test	Query	#	Reading from net	LOAD XML LOCAL INFILE "$MYSQLTEST_VARDIR/tmp/loadxml-dump.xml"  INTO TABLE t2 ROWS IDENTIFIED BY '<p
+drop table t1;
+drop table t2;
+create table t1 (
+id int(11) not null,
+text text,
+primary key (id)
+) engine=MyISAM default charset=latin1;
+load xml infile '../../std_data/loadxml2.dat' into table t1;
+select * from t1;
+id	text
+1	line1
+line2
+line3
+drop table t1;

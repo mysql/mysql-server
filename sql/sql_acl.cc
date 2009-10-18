@@ -702,7 +702,7 @@ my_bool acl_reload(THD *thd)
   if (simple_open_n_lock_tables(thd, tables))
   {
     sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-		    thd->main_da.message());
+		    thd->stmt_da->message());
     goto end;
   }
 
@@ -6036,9 +6036,12 @@ public:
   virtual ~Silence_routine_definer_errors()
   {}
 
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
 
   bool has_errors() { return is_grave; }
 
@@ -6047,18 +6050,23 @@ private:
 };
 
 bool
-Silence_routine_definer_errors::handle_error(uint sql_errno,
-                                       const char *message,
-                                       MYSQL_ERROR::enum_warning_level level,
-                                       THD *thd)
+Silence_routine_definer_errors::handle_condition(
+  THD *thd,
+  uint sql_errno,
+  const char*,
+  MYSQL_ERROR::enum_warning_level level,
+  const char* msg,
+  MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
   {
     switch (sql_errno)
     {
       case ER_NONEXISTING_PROC_GRANT:
         /* Convert the error into a warning. */
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno, message);
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     sql_errno, msg);
         return TRUE;
       default:
         is_grave= TRUE;

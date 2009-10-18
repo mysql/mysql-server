@@ -1433,7 +1433,7 @@ select benchmark(-1, 1);
 benchmark(-1, 1)
 NULL
 Warnings:
-Error	1411	Incorrect count value: '-1' for function benchmark
+Warning	1411	Incorrect count value: '-1' for function benchmark
 set @password="password";
 set @my_data="clear text to encode";
 select md5(encode(@my_data, "password"));
@@ -1533,7 +1533,7 @@ select locate('lo','hello',-18446744073709551615);
 locate('lo','hello',-18446744073709551615)
 0
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select locate('lo','hello',18446744073709551615);
 locate('lo','hello',18446744073709551615)
 0
@@ -1541,22 +1541,22 @@ select locate('lo','hello',-18446744073709551616);
 locate('lo','hello',-18446744073709551616)
 0
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select locate('lo','hello',18446744073709551616);
 locate('lo','hello',18446744073709551616)
 0
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select locate('lo','hello',-18446744073709551617);
 locate('lo','hello',-18446744073709551617)
 0
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select locate('lo','hello',18446744073709551617);
 locate('lo','hello',18446744073709551617)
 0
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select left('hello', 10);
 left('hello', 10)
 hello
@@ -1588,8 +1588,8 @@ select left('hello', -18446744073709551615);
 left('hello', -18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select left('hello', 18446744073709551615);
 left('hello', 18446744073709551615)
 hello
@@ -1597,26 +1597,26 @@ select left('hello', -18446744073709551616);
 left('hello', -18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select left('hello', 18446744073709551616);
 left('hello', 18446744073709551616)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select left('hello', -18446744073709551617);
 left('hello', -18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select left('hello', 18446744073709551617);
 left('hello', 18446744073709551617)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select right('hello', 10);
 right('hello', 10)
 hello
@@ -1648,8 +1648,8 @@ select right('hello', -18446744073709551615);
 right('hello', -18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select right('hello', 18446744073709551615);
 right('hello', 18446744073709551615)
 hello
@@ -1657,26 +1657,26 @@ select right('hello', -18446744073709551616);
 right('hello', -18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select right('hello', 18446744073709551616);
 right('hello', 18446744073709551616)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select right('hello', -18446744073709551617);
 right('hello', -18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select right('hello', 18446744073709551617);
 right('hello', 18446744073709551617)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 2, -1);
 substring('hello', 2, -1)
 
@@ -1708,8 +1708,8 @@ select substring('hello', -18446744073709551615, 1);
 substring('hello', -18446744073709551615, 1)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551615, 1);
 substring('hello', 18446744073709551615, 1)
 
@@ -1717,26 +1717,26 @@ select substring('hello', -18446744073709551616, 1);
 substring('hello', -18446744073709551616, 1)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551616, 1);
 substring('hello', 18446744073709551616, 1)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', -18446744073709551617, 1);
 substring('hello', -18446744073709551617, 1)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551617, 1);
 substring('hello', 18446744073709551617, 1)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 1, -1);
 substring('hello', 1, -1)
 
@@ -1762,8 +1762,8 @@ select substring('hello', 1, -18446744073709551615);
 substring('hello', 1, -18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 1, 18446744073709551615);
 substring('hello', 1, 18446744073709551615)
 hello
@@ -1771,26 +1771,26 @@ select substring('hello', 1, -18446744073709551616);
 substring('hello', 1, -18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 1, 18446744073709551616);
 substring('hello', 1, 18446744073709551616)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 1, -18446744073709551617);
 substring('hello', 1, -18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 1, 18446744073709551617);
 substring('hello', 1, 18446744073709551617)
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', -1, -1);
 substring('hello', -1, -1)
 
@@ -1816,10 +1816,10 @@ select substring('hello', -18446744073709551615, -18446744073709551615);
 substring('hello', -18446744073709551615, -18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551615, 18446744073709551615);
 substring('hello', 18446744073709551615, 18446744073709551615)
 
@@ -1827,34 +1827,34 @@ select substring('hello', -18446744073709551616, -18446744073709551616);
 substring('hello', -18446744073709551616, -18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551616, 18446744073709551616);
 substring('hello', 18446744073709551616, 18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', -18446744073709551617, -18446744073709551617);
 substring('hello', -18446744073709551617, -18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select substring('hello', 18446744073709551617, 18446744073709551617);
 substring('hello', 18446744073709551617, 18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', -1, 1, 'hi');
 insert('hello', -1, 1, 'hi')
 hello
@@ -1880,7 +1880,7 @@ select insert('hello', -18446744073709551615, 1, 'hi');
 insert('hello', -18446744073709551615, 1, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551615, 1, 'hi');
 insert('hello', 18446744073709551615, 1, 'hi')
 hello
@@ -1888,22 +1888,22 @@ select insert('hello', -18446744073709551616, 1, 'hi');
 insert('hello', -18446744073709551616, 1, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551616, 1, 'hi');
 insert('hello', 18446744073709551616, 1, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', -18446744073709551617, 1, 'hi');
 insert('hello', -18446744073709551617, 1, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551617, 1, 'hi');
 insert('hello', 18446744073709551617, 1, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 1, -1, 'hi');
 insert('hello', 1, -1, 'hi')
 hi
@@ -1929,7 +1929,7 @@ select insert('hello', 1, -18446744073709551615, 'hi');
 insert('hello', 1, -18446744073709551615, 'hi')
 hi
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 1, 18446744073709551615, 'hi');
 insert('hello', 1, 18446744073709551615, 'hi')
 hi
@@ -1937,22 +1937,22 @@ select insert('hello', 1, -18446744073709551616, 'hi');
 insert('hello', 1, -18446744073709551616, 'hi')
 hi
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 1, 18446744073709551616, 'hi');
 insert('hello', 1, 18446744073709551616, 'hi')
 hi
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 1, -18446744073709551617, 'hi');
 insert('hello', 1, -18446744073709551617, 'hi')
 hi
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 1, 18446744073709551617, 'hi');
 insert('hello', 1, 18446744073709551617, 'hi')
 hi
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', -1, -1, 'hi');
 insert('hello', -1, -1, 'hi')
 hello
@@ -1978,8 +1978,8 @@ select insert('hello', -18446744073709551615, -18446744073709551615, 'hi');
 insert('hello', -18446744073709551615, -18446744073709551615, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551615, 18446744073709551615, 'hi');
 insert('hello', 18446744073709551615, 18446744073709551615, 'hi')
 hello
@@ -1987,26 +1987,26 @@ select insert('hello', -18446744073709551616, -18446744073709551616, 'hi');
 insert('hello', -18446744073709551616, -18446744073709551616, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551616, 18446744073709551616, 'hi');
 insert('hello', 18446744073709551616, 18446744073709551616, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', -18446744073709551617, -18446744073709551617, 'hi');
 insert('hello', -18446744073709551617, -18446744073709551617, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select insert('hello', 18446744073709551617, 18446744073709551617, 'hi');
 insert('hello', 18446744073709551617, 18446744073709551617, 'hi')
 hello
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select repeat('hello', -1);
 repeat('hello', -1)
 
@@ -2038,8 +2038,8 @@ select repeat('hello', -18446744073709551615);
 repeat('hello', -18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select repeat('hello', 18446744073709551615);
 repeat('hello', 18446744073709551615)
 NULL
@@ -2049,27 +2049,27 @@ select repeat('hello', -18446744073709551616);
 repeat('hello', -18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select repeat('hello', 18446744073709551616);
 repeat('hello', 18446744073709551616)
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select repeat('hello', -18446744073709551617);
 repeat('hello', -18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select repeat('hello', 18446744073709551617);
 repeat('hello', 18446744073709551617)
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select space(-1);
 space(-1)
@@ -2102,8 +2102,8 @@ select space(-18446744073709551615);
 space(-18446744073709551615)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select space(18446744073709551615);
 space(18446744073709551615)
 NULL
@@ -2113,27 +2113,27 @@ select space(-18446744073709551616);
 space(-18446744073709551616)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select space(18446744073709551616);
 space(18446744073709551616)
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select space(18446744073709551617);
 space(18446744073709551617)
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
@@ -2166,8 +2166,8 @@ select rpad('hello', -18446744073709551615, '1');
 rpad('hello', -18446744073709551615, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select rpad('hello', 18446744073709551615, '1');
 rpad('hello', 18446744073709551615, '1')
 NULL
@@ -2177,27 +2177,27 @@ select rpad('hello', -18446744073709551616, '1');
 rpad('hello', -18446744073709551616, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select rpad('hello', 18446744073709551616, '1');
 rpad('hello', 18446744073709551616, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
 select rpad('hello', -18446744073709551617, '1');
 rpad('hello', -18446744073709551617, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select rpad('hello', 18446744073709551617, '1');
 rpad('hello', 18446744073709551617, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
 select lpad('hello', -1, '1');
 lpad('hello', -1, '1')
@@ -2230,8 +2230,8 @@ select lpad('hello', -18446744073709551615, '1');
 lpad('hello', -18446744073709551615, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select lpad('hello', 18446744073709551615, '1');
 lpad('hello', 18446744073709551615, '1')
 NULL
@@ -2241,27 +2241,27 @@ select lpad('hello', -18446744073709551616, '1');
 lpad('hello', -18446744073709551616, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select lpad('hello', 18446744073709551616, '1');
 lpad('hello', 18446744073709551616, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
 select lpad('hello', -18446744073709551617, '1');
 lpad('hello', -18446744073709551617, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 select lpad('hello', 18446744073709551617, '1');
 lpad('hello', 18446744073709551617, '1')
 NULL
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
@@ -2269,12 +2269,12 @@ SELECT CHAR(0xff,0x8f USING utf8);
 CHAR(0xff,0x8f USING utf8)
 NULL
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8 character string: 'FF8F'
 SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
 CHAR(0xff,0x8f USING utf8) IS NULL
 1
 Warnings:
-Error	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8 character string: 'FF8F'
 SET SQL_MODE=@orig_sql_mode;
 select substring('abc', cast(2 as unsigned int));
 substring('abc', cast(2 as unsigned int))
@@ -2558,3 +2558,133 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1;
+Start of 5.4 tests
+SELECT format(12345678901234567890.123, 3);
+format(12345678901234567890.123, 3)
+12,345,678,901,234,567,890.123
+SELECT format(12345678901234567890.123, 3, NULL);
+format(12345678901234567890.123, 3, NULL)
+12,345,678,901,234,567,890.123
+Warnings:
+Warning	1647	Unknown locale: 'NULL'
+SELECT format(12345678901234567890.123, 3, 'ar_AE');
+format(12345678901234567890.123, 3, 'ar_AE')
+12,345,678,901,234,567,890.123
+SELECT format(12345678901234567890.123, 3, 'ar_SA');
+format(12345678901234567890.123, 3, 'ar_SA')
+12345678901234567890.123
+SELECT format(12345678901234567890.123, 3, 'be_BY');
+format(12345678901234567890.123, 3, 'be_BY')
+12.345.678.901.234.567.890,123
+SELECT format(12345678901234567890.123, 3, 'de_DE');
+format(12345678901234567890.123, 3, 'de_DE')
+12.345.678.901.234.567.890,123
+SELECT format(12345678901234567890.123, 3, 'en_IN');
+format(12345678901234567890.123, 3, 'en_IN')
+1,23,45,67,89,01,23,45,67,890.123
+SELECT format(12345678901234567890.123, 3, 'en_US');
+format(12345678901234567890.123, 3, 'en_US')
+12,345,678,901,234,567,890.123
+SELECT format(12345678901234567890.123, 3, 'it_CH');
+format(12345678901234567890.123, 3, 'it_CH')
+12'345'678'901'234'567'890,123
+SELECT format(12345678901234567890.123, 3, 'ru_RU');
+format(12345678901234567890.123, 3, 'ru_RU')
+12 345 678 901 234 567 890,123
+SELECT format(12345678901234567890.123, 3, 'ta_IN');
+format(12345678901234567890.123, 3, 'ta_IN')
+1,23,45,67,89,01,23,45,67,890.123
+CREATE TABLE t1 (fmt CHAR(5) NOT NULL);
+INSERT INTO t1 VALUES ('ar_AE');
+INSERT INTO t1 VALUES ('ar_SA');
+INSERT INTO t1 VALUES ('be_BY');
+INSERT INTO t1 VALUES ('de_DE');
+INSERT INTO t1 VALUES ('en_IN');
+INSERT INTO t1 VALUES ('en_US');
+INSERT INTO t1 VALUES ('it_CH');
+INSERT INTO t1 VALUES ('ru_RU');
+INSERT INTO t1 VALUES ('ta_IN');
+SELECT fmt, format(12345678901234567890.123, 3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(12345678901234567890.123, 3, fmt)
+ar_AE	12,345,678,901,234,567,890.123
+ar_SA	12345678901234567890.123
+be_BY	12.345.678.901.234.567.890,123
+de_DE	12.345.678.901.234.567.890,123
+en_IN	1,23,45,67,89,01,23,45,67,890.123
+en_US	12,345,678,901,234,567,890.123
+it_CH	12'345'678'901'234'567'890,123
+ru_RU	12 345 678 901 234 567 890,123
+ta_IN	1,23,45,67,89,01,23,45,67,890.123
+SELECT fmt, format(12345678901234567890.123, 0, fmt) FROM t1 ORDER BY fmt;
+fmt	format(12345678901234567890.123, 0, fmt)
+ar_AE	12,345,678,901,234,567,890
+ar_SA	12345678901234567890
+be_BY	12.345.678.901.234.567.890
+de_DE	12.345.678.901.234.567.890
+en_IN	1,23,45,67,89,01,23,45,67,890
+en_US	12,345,678,901,234,567,890
+it_CH	12'345'678'901'234'567'890
+ru_RU	12 345 678 901 234 567 890
+ta_IN	1,23,45,67,89,01,23,45,67,890
+SELECT fmt, format(12345678901234567890,     3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(12345678901234567890,     3, fmt)
+ar_AE	12,345,678,901,234,567,890.000
+ar_SA	12345678901234567890.000
+be_BY	12.345.678.901.234.567.890,000
+de_DE	12.345.678.901.234.567.890,000
+en_IN	1,23,45,67,89,01,23,45,67,890.000
+en_US	12,345,678,901,234,567,890.000
+it_CH	12'345'678'901'234'567'890,000
+ru_RU	12 345 678 901 234 567 890,000
+ta_IN	1,23,45,67,89,01,23,45,67,890.000
+SELECT fmt, format(-12345678901234567890,    3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(-12345678901234567890,    3, fmt)
+ar_AE	-12,345,678,901,234,567,890.000
+ar_SA	-12345678901234567890.000
+be_BY	-12.345.678.901.234.567.890,000
+de_DE	-12.345.678.901.234.567.890,000
+en_IN	-1,23,45,67,89,01,23,45,67,890.000
+en_US	-12,345,678,901,234,567,890.000
+it_CH	-12'345'678'901'234'567'890,000
+ru_RU	-12 345 678 901 234 567 890,000
+ta_IN	-1,23,45,67,89,01,23,45,67,890.000
+SELECT fmt, format(-02345678901234567890,    3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(-02345678901234567890,    3, fmt)
+ar_AE	-2,345,678,901,234,567,890.000
+ar_SA	-2345678901234567890.000
+be_BY	-2.345.678.901.234.567.890,000
+de_DE	-2.345.678.901.234.567.890,000
+en_IN	-23,45,67,89,01,23,45,67,890.000
+en_US	-2,345,678,901,234,567,890.000
+it_CH	-2'345'678'901'234'567'890,000
+ru_RU	-2 345 678 901 234 567 890,000
+ta_IN	-23,45,67,89,01,23,45,67,890.000
+SELECT fmt, format(-00345678901234567890,    3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(-00345678901234567890,    3, fmt)
+ar_AE	-345,678,901,234,567,890.000
+ar_SA	-345678901234567890.000
+be_BY	-345.678.901.234.567.890,000
+de_DE	-345.678.901.234.567.890,000
+en_IN	-3,45,67,89,01,23,45,67,890.000
+en_US	-345,678,901,234,567,890.000
+it_CH	-345'678'901'234'567'890,000
+ru_RU	-345 678 901 234 567 890,000
+ta_IN	-3,45,67,89,01,23,45,67,890.000
+SELECT fmt, format(-00045678901234567890,    3, fmt) FROM t1 ORDER BY fmt;
+fmt	format(-00045678901234567890,    3, fmt)
+ar_AE	-45,678,901,234,567,890.000
+ar_SA	-45678901234567890.000
+be_BY	-45.678.901.234.567.890,000
+de_DE	-45.678.901.234.567.890,000
+en_IN	-45,67,89,01,23,45,67,890.000
+en_US	-45,678,901,234,567,890.000
+it_CH	-45'678'901'234'567'890,000
+ru_RU	-45 678 901 234 567 890,000
+ta_IN	-45,67,89,01,23,45,67,890.000
+DROP TABLE t1;
+SELECT format(123, 1, 'Non-existent-locale');
+format(123, 1, 'Non-existent-locale')
+123.0
+Warnings:
+Warning	1647	Unknown locale: 'Non-existent-locale'
+End of 5.4 tests

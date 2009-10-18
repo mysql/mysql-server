@@ -810,7 +810,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error=write_record(thd, table ,&info);
     if (error)
       break;
-    thd->row_count++;
+    thd->warning_info->inc_current_row_for_warning();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -949,10 +949,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
-	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
+	      (ulong) (info.records - info.copied),
+              (ulong) thd->warning_info->statement_warn_count());
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
+	      (ulong) (info.deleted + updated),
+              (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func= info.copied + info.deleted + updated;
     ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
@@ -1955,7 +1957,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
             main thread. Use of my_message will enable stored
             procedures continue handlers.
           */
-          my_message(di->thd.main_da.sql_errno(), di->thd.main_da.message(),
+          my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
                      MYF(0));
 	}
 	di->unlock();
@@ -2032,7 +2034,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      my_message(thd.main_da.sql_errno(), thd.main_da.message(), MYF(0));
+      my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
       goto error;
     }
   }
@@ -2281,8 +2283,8 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
   if (init_thr_lock() || thd->store_globals())
   {
     /* Can't use my_error since store_globals has perhaps failed */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
+    thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                   ER(ER_OUT_OF_RESOURCES), NULL);
     thd->fatal_error();
     goto err;
   }
@@ -2496,21 +2498,16 @@ pthread_handler_t handle_delayed_insert(void *arg)
     since it does not find one in the list.
   */
   pthread_mutex_lock(&di->mutex);
-#if !defined( __WIN__) /* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
     /* Can't use my_error since store_globals has not yet been called */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
+    thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                   ER(ER_OUT_OF_RESOURCES), NULL);
     goto end;
   }
-#endif
-
   handle_delayed_insert_impl(thd, di);
 
-#ifndef __WIN__
 end:
-#endif
   /*
     di should be unlinked from the thread handler list and have no active
     clients
@@ -2753,7 +2750,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s", thd.main_da.message());
+	  sql_print_error("%s", thd.stmt_da->message());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -2795,7 +2792,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s", thd.main_da.message());
+    sql_print_error("%s", thd.stmt_da->message());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
@@ -3263,10 +3260,12 @@ bool select_insert::send_eof()
   char buff[160];
   if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
+	    (ulong) (info.records - info.copied),
+            (ulong) thd->warning_info->statement_warn_count());
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
+	    (ulong) (info.deleted+info.updated),
+            (ulong) thd->warning_info->statement_warn_count());
   thd->row_count_func= info.copied + info.deleted +
                        ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                         info.touched : info.updated);
