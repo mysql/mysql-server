@@ -309,7 +309,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 		--without-plugin-daemon_example \
-		--without-plugin-example \
+		--without-plugin-ftexample \
 		--with-partition \
 		--with-big-tables \
 %if %{WITH_BUNDLED_ZLIB}
@@ -448,6 +448,13 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+# Even though this is a shared library, put it under /usr/lib/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
+install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
+%endif
+
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
 
@@ -465,11 +472,9 @@ rm -fr $RBR%{_datadir}/sql-bench
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 
-# Touch the place where the my.cnf config file and mysqlmanager.passwd
-# (MySQL Instance Manager password file) might be located
+# Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
-touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 
 %pre server
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -667,7 +672,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
-%doc %attr(644, root, man) %{_mandir}/man8/mysqlmanager.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
@@ -677,7 +681,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
-%ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -705,11 +708,18 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%attr(755, root, root) %{_libdir}/plugin/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+%if %{WITHOUT_INNODB_PLUGIN}
+%else
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
+%endif
+
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
+%endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
-%attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
@@ -832,8 +842,13 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
-%{_libdir}/plugin/*.a
-%{_libdir}/plugin/*.la
+%{_libdir}/mysql/plugin/ha_example.a
+%{_libdir}/mysql/plugin/ha_example.la
+%if %{WITHOUT_INNODB_PLUGIN}
+%else
+%{_libdir}/mysql/plugin/ha_innodb_plugin.a
+%{_libdir}/mysql/plugin/ha_innodb_plugin.la
+%endif
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -865,8 +880,13 @@ fi
 %changelog
 * Fri Aug 28 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Merge up form 5.1 to 5.4: Remove handling for the InnoDB plugin.
-  
+- Merge up from 5.1 to 5.4: Remove handling for the InnoDB plugin.
+
+* Thu Aug 27 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- This version does not contain the "Instance manager", "mysqlmanager":
+  Remove it from the spec file so that packaging succeeds.
+
 * Mon Aug 24 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Add conditionals for bundled zlib and innodb plugin
@@ -874,9 +894,9 @@ fi
 * Fri Aug 21 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Install plugin libraries in appropriate packages.
-- Disable example plugins.
+- Disable libdaemon_example and ftexample plugins.
 
-* Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
+* Thu Aug 20 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Update variable used for mysql-test suite location to match source.
 
@@ -884,7 +904,7 @@ fi
 
 - Correct yesterday's fix, so that it also works for the last flag,
   and fix a wrong quoting: un-quoted quote marks must not be escaped.
-  
+
 * Thu Nov 06 2008 Kent Boortz <kent.boortz@sun.com>
 
 - Removed "mysql_upgrade_shell"
@@ -894,7 +914,7 @@ fi
 
 - Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.
   This should cover both gcc and icc flags.  Fixes bug#40546.
-  
+
 * Fri Aug 29 2008 Kent Boortz <kent@mysql.com>
 
 - Removed the "Federated" storage engine option, and enabled in all
@@ -929,7 +949,7 @@ fi
 
 * Wed May 02 2007 Joerg Bruehe <joerg@mysql.com>
 
-- "ndb_size.tmpl" is not needed any more, 
+- "ndb_size.tmpl" is not needed any more,
   "man1/mysql_install_db.1" lacked the trailing '*'.
 
 * Sat Apr 07 2007 Kent Boortz <kent@mysql.com>
@@ -968,12 +988,12 @@ fi
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}", 
+- Call "make install" using "benchdir_root=%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
+- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB)
   replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
   (bug#22081).
 
@@ -1089,8 +1109,8 @@ fi
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
-- Avoid using the "bundled" zlib on "shared" builds: 
-  As it is not installed (on the build system), this gives dependency 
+- Avoid using the "bundled" zlib on "shared" builds:
+  As it is not installed (on the build system), this gives dependency
   problems with "libtool" causing the build to fail.
   (Change was done on Nov 11, but left uncommented.)
 
@@ -1280,7 +1300,7 @@ fi
 
 * Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
 
-- when using gcc, _always_ use CXX=gcc 
+- when using gcc, _always_ use CXX=gcc
 - replaced Copyright with License field (Copyright is obsolete)
 
 * Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
@@ -1370,7 +1390,7 @@ fi
 
 * Wed Nov 27 2002 Lenz Grimmer <lenz@mysql.com>
 
-- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of 
+- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of
   Linux distributions now support this scheme as proposed by the LSB either
   directly or via a compatibility symlink)
 - Use new "restart" init script action instead of starting and stopping
@@ -1385,7 +1405,7 @@ fi
   (mixing 3.23 and 4.0 packages)
 
 * Fri Aug 09 2002 Lenz Grimmer <lenz@mysql.com>
- 
+
 - Turn off OpenSSL in MySQL-Max for now until it works properly again
 - enable RAID for the Max binary instead
 - added compatibility link: safe_mysqld -> mysqld_safe to ease the

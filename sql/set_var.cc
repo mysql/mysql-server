@@ -1238,6 +1238,7 @@ void fix_slave_exec_mode(enum_var_type type)
   }
   if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  DBUG_VOID_RETURN;
 }
 
 

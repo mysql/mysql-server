@@ -137,46 +137,48 @@ test-force-full:
 test-force-mem:
 	$(MAKE) force=--force mem=--mem test
 
+EXP = --experimental=collections/default.experimental
+
 test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=normal --force --timer \
-	        --skip-ndbcluster --report-features
+	        --skip-ndbcluster --report-features $(EXP)
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
-	        --skip-ndbcluster --ps-protocol
+	        --skip-ndbcluster --ps-protocol $(EXP)
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb+rpl_ndb+ps --force --timer \
-	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb ; \
+	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb $(EXP) ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
-	          --with-ndbcluster-only ; \
+	          --with-ndbcluster-only $(EXP) ; \
 	else \
 	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
 	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1 $(EXP)
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2 $(EXP)
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts $(EXP)
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress $(EXP)
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
+	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp $(EXP)
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist ; \
+	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist $(EXP) ; \
 	fi
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=nist+ps --force --suite=nist --ps-protocol ; \
+	      @PERL@ ./mysql-test-run.pl --comment=nist+ps --force --suite=nist --ps-protocol $(EXP) ; \
 	fi
 	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
-	          --embedded-server --skip-rpl --skip-ndbcluster ; \
+	          --embedded-server --skip-rpl --skip-ndbcluster $(EXP) ; \
 	else \
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
@@ -184,22 +186,22 @@ test-bt:
 test-bt-fast:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
-	        --skip-ndbcluster --ps-protocol --report-features
+	        --skip-ndbcluster --ps-protocol --report-features $(EXP)
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
-	          --with-ndbcluster-only ; \
+	          --with-ndbcluster-only $(EXP) ; \
 	else \
 	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
 	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress $(EXP)
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
-	        --skip-ndbcluster --skip-rpl --report-features
+	        --skip-ndbcluster --skip-rpl --report-features $(EXP)
 
 test-bt-debug-fast:
 
