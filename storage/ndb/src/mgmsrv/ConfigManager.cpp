@@ -1532,11 +1532,6 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
          ref->state != ref->expected_state);
   assert(ref->state == (Uint32)m_config_state);
 
-  Config other_config;
-  if (sig->header.theLength == ConfigCheckRef::SignalLengthWithConfig &&
-      ref->length)
-
-
   switch(m_config_state)
   {
   default:
