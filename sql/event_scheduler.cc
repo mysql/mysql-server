@@ -607,7 +607,12 @@ Event_scheduler::stop()
   LOCK_DATA();
   DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state].str));
   if (state != RUNNING)
+  {
+    /* Synchronously wait until the scheduler stops. */
+    while (state != INITIALIZED)
+      COND_STATE_WAIT(thd, NULL, "Waiting for the scheduler to stop");
     goto end;
+  }
 
   /* Guarantee we don't catch spurious signals */
   do {

@@ -90,7 +90,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         !my_strcasecmp(system_charset_info, field_name.str,
+                        other.field_name.str);
 }
 
 /**
@@ -257,7 +259,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
                            (info != NULL) ? info : "(null)"));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
@@ -463,7 +465,7 @@ THD::THD()
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
-  hash_clear(&handler_tables_hash);
+  my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
   cuted_fields= 0L;
@@ -499,9 +501,6 @@ THD::THD()
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-#ifdef HAVE_QUERY_CACHE
-  query_cache_init_query(&net);                 // If error on boot
-#endif
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
@@ -522,13 +521,13 @@ THD::THD()
   *scramble= '\0';
 
   init();
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
   user_connect=(USER_CONN *)0;
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -794,7 +793,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition_no_handler");
 
-  query_cache_abort(& net);
+  query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
   if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
@@ -943,9 +942,9 @@ void THD::change_user(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 }
@@ -976,7 +975,7 @@ void THD::cleanup(void)
   }
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
-  hash_free(&user_vars);
+  my_hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
@@ -2603,12 +2602,12 @@ Statement_map::Statement_map() :
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
-            get_statement_id_as_hash_key,
-            delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
-            (hash_get_key) get_stmt_name_hash_key,
-            NULL,MYF(0));
+  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
+               get_statement_id_as_hash_key,
+               delete_statement_as_hash_key, MYF(0));
+  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_stmt_name_hash_key,
+               NULL,MYF(0));
 }
 
 
@@ -2673,9 +2672,9 @@ int Statement_map::insert(THD *thd, Statement *statement)
 
 err_max:
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar*) statement);
+    my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
-  hash_delete(&st_hash, (uchar*) statement);
+  my_hash_delete(&st_hash, (uchar*) statement);
 err_st_hash:
   return 1;
 }
@@ -2696,9 +2695,9 @@ void Statement_map::erase(Statement *statement)
   if (statement == last_found_statement)
     last_found_statement= 0;
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar *) statement);
+    my_hash_delete(&names_hash, (uchar *) statement);
 
-  hash_delete(&st_hash, (uchar *) statement);
+  my_hash_delete(&st_hash, (uchar *) statement);
   pthread_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -2728,8 +2727,8 @@ Statement_map::~Statement_map()
   prepared_stmt_count-= st_hash.records;
   pthread_mutex_unlock(&LOCK_prepared_stmt_count);
 
-  hash_free(&names_hash);
-  hash_free(&st_hash);
+  my_hash_free(&names_hash);
+  my_hash_free(&st_hash);
 }
 
 bool select_dumpvar::send_data(List<Item> &items)
@@ -3266,15 +3265,15 @@ void xid_free_hash(void *ptr)
 bool xid_cache_init()
 {
   pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                   xid_get_hash_key, xid_free_hash, 0) != 0;
+  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+                      xid_get_hash_key, xid_free_hash, 0) != 0;
 }
 
 void xid_cache_free()
 {
-  if (hash_inited(&xid_cache))
+  if (my_hash_inited(&xid_cache))
   {
-    hash_free(&xid_cache);
+    my_hash_free(&xid_cache);
     pthread_mutex_destroy(&LOCK_xid_cache);
   }
 }
@@ -3282,7 +3281,8 @@ void xid_cache_free()
 XID_STATE *xid_cache_search(XID *xid)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, xid->key(), xid->key_length());
+  XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
+                                             xid->key_length());
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
@@ -3293,7 +3293,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   XID_STATE *xs;
   my_bool res;
   pthread_mutex_lock(&LOCK_xid_cache);
-  if (hash_search(&xid_cache, xid->key(), xid->key_length()))
+  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
     res=1;
@@ -3312,8 +3312,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
-                          xid_state->xid.key_length())==0);
+  DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
+                             xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
@@ -3323,7 +3323,7 @@ bool xid_cache_insert(XID_STATE *xid_state)
 void xid_cache_delete(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  hash_delete(&xid_cache, (uchar *)xid_state);
+  my_hash_delete(&xid_cache, (uchar *)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
 }
 

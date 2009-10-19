@@ -762,7 +762,7 @@ static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
                                           1,
                                           sys_var::SESSION_VARIABLE_IN_BINLOG);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
 static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
                                       set_option_bit,
                                       ulonglong(OPTION_PROFILING));
@@ -864,9 +864,9 @@ static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRIN
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
 static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_profiling(&vars, "have_profiling", &have_profiling);
 static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
                                            &have_query_cache);
-static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
 /* Global read-only variable describing server license */
@@ -1796,7 +1796,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
     if (!(res=var->value->val_str(&str)) ||
 	((long) (var->save_result.ulong_value=
 		 (ulong) find_type(enum_names, res->ptr(),
-				   res->length(),1)-1)) < 0)
+				   res->length(), FALSE) - 1)) < 0)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
@@ -2535,9 +2535,20 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 {
   MYSQL_QUERY_LOG *file_log;
   char buff[FN_REFLEN];
-  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  char *res= 0, *old_value= 0;
   bool result= 0;
-  uint str_length= (var ? var->value->str_value.length() : 0);
+  uint str_length= 0;
+
+  if (var) 
+  {
+    String str(buff, sizeof(buff), system_charset_info), *newval;
+
+    newval= var->value->val_str(&str);
+    old_value= newval->c_ptr_safe();
+    str_length= strlen(old_value);
+  } 
+  
+
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -3249,7 +3260,7 @@ int mysql_add_sys_var_chain(sys_var *first, struct my_option *long_options)
 
 error:
   for (; first != var; first= first->next)
-    hash_delete(&system_variable_hash, (uchar*) first);
+    my_hash_delete(&system_variable_hash, (uchar*) first);
   return 1;
 }
  
@@ -3273,7 +3284,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
    
   for (sys_var *var= first; var; var= var->next)
-    result|= hash_delete(&system_variable_hash, (uchar*) var);
+    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
 
   return result;
 }
@@ -3310,7 +3321,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     for (i= 0; i < count; i++)
     {
-      sys_var *var= (sys_var*) hash_element(&system_variable_hash, i);
+      sys_var *var= (sys_var*) my_hash_element(&system_variable_hash, i);
       show->name= var->name;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -3347,8 +3358,8 @@ int set_var_init()
   
   for (sys_var *var=vars.first; var; var= var->next, count++);
 
-  if (hash_init(&system_variable_hash, system_charset_info, count, 0,
-                0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+  if (my_hash_init(&system_variable_hash, system_charset_info, count, 0,
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
     goto error;
 
   vars.last->next= NULL;
@@ -3373,7 +3384,7 @@ error:
 
 void set_var_free()
 {
-  hash_free(&system_variable_hash);
+  my_hash_free(&system_variable_hash);
 }
 
 
@@ -3399,7 +3410,7 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) hash_search(&system_variable_hash,
+  var= (sys_var*) my_hash_search(&system_variable_hash,
 			      (uchar*) str, length ? length : strlen(str));
   if (!(var || no_error))
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
@@ -3913,7 +3924,8 @@ ulong fix_sql_mode(ulong sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER);
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER | 
+                MODE_NO_ENGINE_SUBSTITUTION);
   return sql_mode;
 }
 

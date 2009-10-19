@@ -146,10 +146,10 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
       pthread_mutex_lock(&LOCK_slave_list);
 
     SLAVE_INFO* old_si;
-    if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
-					   (uchar*)&thd->server_id, 4)) &&
+    if ((old_si = (SLAVE_INFO*)my_hash_search(&slave_list,
+                                              (uchar*)&thd->server_id, 4)) &&
 	(!only_mine || old_si->thd == thd))
-    hash_delete(&slave_list, (uchar*)old_si);
+    my_hash_delete(&slave_list, (uchar*)old_si);
 
     if (need_mutex)
       pthread_mutex_unlock(&LOCK_slave_list);
@@ -221,17 +221,18 @@ extern "C" void slave_info_free(void *s)
 
 void init_slave_list()
 {
-  hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
-	    (hash_get_key) slave_list_key, (hash_free_key) slave_info_free, 0);
+  my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
+               (my_hash_get_key) slave_list_key,
+               (my_hash_free_key) slave_info_free, 0);
   pthread_mutex_init(&LOCK_slave_list, MY_MUTEX_INIT_FAST);
 }
 
 void end_slave_list()
 {
   /* No protection by a mutex needed as we are only called at shutdown */
-  if (hash_inited(&slave_list))
+  if (my_hash_inited(&slave_list))
   {
-    hash_free(&slave_list);
+    my_hash_free(&slave_list);
     pthread_mutex_destroy(&LOCK_slave_list);
   }
 }
@@ -547,8 +548,8 @@ HOSTS";
     uint32 log_server_id;
     SLAVE_INFO* si, *old_si;
     log_server_id = atoi(row[0]);
-    if ((old_si= (SLAVE_INFO*)hash_search(&slave_list,
-					  (uchar*)&log_server_id,4)))
+    if ((old_si= (SLAVE_INFO*)my_hash_search(&slave_list,
+                                             (uchar*)&log_server_id,4)))
       si = old_si;
     else
     {
@@ -682,7 +683,7 @@ bool show_slave_hosts(THD* thd)
 
   for (uint i = 0; i < slave_list.records; ++i)
   {
-    SLAVE_INFO* si = (SLAVE_INFO*) hash_element(&slave_list, i);
+    SLAVE_INFO* si = (SLAVE_INFO*) my_hash_element(&slave_list, i);
     protocol->prepare_for_resend();
     protocol->store((uint32) si->server_id);
     protocol->store(si->host, &my_charset_bin);

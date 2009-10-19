@@ -1227,3 +1227,165 @@ SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
 SELECT @@GLOBAL.max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 --echo End of 5.1 tests
+
+###########################################################################
+
+--echo
+--echo #
+--echo # Bug#34828: OF is taken as OFF and a value of 0 is set for variable SQL_notes.
+--echo #
+--echo
+
+--echo # Checking sql_notes...
+SET @sql_notes_saved = @@sql_notes;
+
+--echo
+SET @@sql_notes = ON;
+SELECT @@sql_notes;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_notes = OF;
+SELECT @@sql_notes;
+
+--echo
+SET @@sql_notes = OFF;
+SELECT @@sql_notes;
+
+--echo
+SET @@sql_notes = @sql_notes_saved;
+
+--echo
+--echo # Checking delay_key_write...
+SET @delay_key_write_saved = @@delay_key_write;
+
+--echo
+SET GLOBAL delay_key_write = ON;
+SELECT @@delay_key_write;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL delay_key_write = OF;
+SELECT @@delay_key_write;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL delay_key_write = AL;
+SELECT @@delay_key_write;
+
+--echo
+SET GLOBAL delay_key_write = OFF;
+SELECT @@delay_key_write;
+
+--echo
+SET GLOBAL delay_key_write = ALL;
+SELECT @@delay_key_write;
+
+--echo
+SET GLOBAL delay_key_write = @delay_key_write_saved;
+
+--echo
+--echo # Checking sql_safe_updates...
+SET @sql_safe_updates_saved = @@sql_safe_updates;
+
+--echo
+SET @@sql_safe_updates = ON;
+SELECT @@sql_safe_updates;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_safe_updates = OF;
+SELECT @@sql_safe_updates;
+
+--echo
+SET @@sql_safe_updates = OFF;
+SELECT @@sql_safe_updates;
+
+--echo
+SET @@sql_safe_updates = @sql_safe_updates_saved;
+
+--echo
+--echo # Checking foreign_key_checks...
+SET @foreign_key_checks_saved = @@foreign_key_checks;
+
+--echo
+SET @@foreign_key_checks = ON;
+SELECT @@foreign_key_checks;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@foreign_key_checks = OF;
+SELECT @@foreign_key_checks;
+
+--echo
+SET @@foreign_key_checks = OFF;
+SELECT @@foreign_key_checks;
+
+--echo
+SET @@foreign_key_checks = @foreign_key_checks_saved;
+
+--echo
+--echo # Checking unique_checks...
+SET @unique_checks_saved = @@unique_checks;
+
+--echo
+SET @@unique_checks = ON;
+SELECT @@unique_checks;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@unique_checks = OF;
+SELECT @@unique_checks;
+
+--echo
+SET @@unique_checks = OFF;
+SELECT @@unique_checks;
+
+--echo
+SET @@unique_checks = @unique_checks_saved;
+
+--echo
+--echo # Checking sql_buffer_result...
+SET @sql_buffer_result_saved = @@sql_buffer_result;
+
+--echo
+SET @@sql_buffer_result = ON;
+SELECT @@sql_buffer_result;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_buffer_result = OF;
+SELECT @@sql_buffer_result;
+
+--echo
+SET @@sql_buffer_result = OFF;
+SELECT @@sql_buffer_result;
+
+--echo
+SET @@sql_buffer_result = @sql_buffer_result_saved;
+
+--echo
+--echo # Checking sql_quote_show_create...
+SET @sql_quote_show_create_saved = @@sql_quote_show_create;
+
+--echo
+SET @@sql_quote_show_create = ON;
+SELECT @@sql_quote_show_create;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_quote_show_create = OF;
+SELECT @@sql_quote_show_create;
+
+--echo
+SET @@sql_quote_show_create = OFF;
+SELECT @@sql_quote_show_create;
+
+--echo
+SET @@sql_quote_show_create = @sql_quote_show_create_saved;
+
+--echo
+--echo # End of Bug#34828.
+--echo
+
+###########################################################################

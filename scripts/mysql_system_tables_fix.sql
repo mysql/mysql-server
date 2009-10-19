@@ -427,6 +427,9 @@ ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
                      AFTER db_collation;
 ALTER TABLE proc MODIFY body_utf8 longblob DEFAULT NULL;
 
+# Change comment from char(64) to text
+ALTER TABLE proc MODIFY comment
+                        text collate utf8_bin NOT NULL;
 
 #
 # EVENT privilege
@@ -536,6 +539,18 @@ ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT
 ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
+
+#
+# user.Create_tablespace_priv
+#
+
+SET @hadCreateTablespacePriv := 0;
+SELECT @hadCreateTablespacePriv :=1 FROM user WHERE Create_tablespace_priv LIKE '%';
+
+ALTER TABLE user ADD Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
+ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
+
+UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above

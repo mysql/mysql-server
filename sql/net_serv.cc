@@ -95,8 +95,8 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #ifndef MYSQL_INSTANCE_MANAGER
 #ifdef HAVE_QUERY_CACHE
 #define USE_QUERY_CACHE
-extern void query_cache_init_query(NET *net);
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
+extern void query_cache_insert(const char *packet, ulong length,
+                               unsigned pkt_nr);
 #endif // HAVE_QUERY_CACHE
 #define update_statistics(A) A
 #endif /* MYSQL_INSTANCE_MANGER */
@@ -125,18 +125,14 @@ my_bool my_net_init(NET *net, Vio* vio)
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
-  net->error=0; net->return_errno=0; net->return_status=0;
+  net->error=0; net->return_status=0;
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;
   net->last_error[0]=0;
   net->compress=0; net->reading_or_writing=0;
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
-#ifdef USE_QUERY_CACHE
-  query_cache_init_query(net);
-#else
-  net->query_cache_query= 0;
-#endif
+  net->unused= 0;
 
   if (vio != 0)					/* If real connection */
   {
@@ -586,7 +582,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
   DBUG_ENTER("net_real_write");
 
 #if defined(MYSQL_SERVER) && defined(USE_QUERY_CACHE)
-  query_cache_insert(net, (char*) packet, len);
+  query_cache_insert((char*) packet, len, net->pkt_nr);
 #endif
 
   if (net->error == 2)

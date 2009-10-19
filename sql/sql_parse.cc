@@ -374,7 +374,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
   thd->profiling.set_query_source(init_command_var->value,
                                   init_command_var->value_length);
@@ -402,7 +402,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
 }
@@ -478,7 +478,7 @@ static void handle_bootstrap_impl(THD *thd)
                                       QUERY_CACHE_FLAGS_SIZE);
     thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
     thd->profiling.set_query_source(thd->query, length);
 #endif
@@ -495,7 +495,7 @@ static void handle_bootstrap_impl(THD *thd)
     bootstrap_error= thd->is_error();
     net_end_statement(thd);
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     thd->profiling.finish_current_query();
 #endif
 
@@ -805,7 +805,7 @@ bool do_command(THD *thd)
   net_new_transaction(net);
 
   packet_length= my_net_read(net);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
   if (packet_length == packet_error)
@@ -865,7 +865,7 @@ bool do_command(THD *thd)
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
   DBUG_RETURN(return_value);
@@ -1222,7 +1222,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     general_log_write(thd, command, thd->query, thd->query_length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     thd->profiling.set_query_source(thd->query, thd->query_length);
 #endif
 
@@ -1257,7 +1257,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         MYSQL_QUERY_DONE(thd->is_error());
       }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
       thd->profiling.finish_current_query();
       thd->profiling.start_new_query("continuing");
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
@@ -1777,7 +1777,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       Mark this current profiling record to be discarded.  We don't
       wish to have SHOW commands show up in profiling.
     */
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     thd->profiling.discard_current_query();
 #endif
     break;
@@ -2339,7 +2339,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_SHOW_PROFILES:
   {
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     thd->profiling.discard_current_query();
     res= thd->profiling.show_profiles();
     if (res)
@@ -4950,7 +4950,7 @@ create_sp_error:
     res= mysql_xa_recover(thd);
     break;
   case SQLCOM_ALTER_TABLESPACE:
-    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
+    if (check_global_access(thd, CREATE_TABLESPACE_ACL))
       break;
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
       my_ok(thd);
@@ -6167,7 +6167,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache_abort(&thd->net);
+      query_cache_abort(&thd->query_cache_tls);
     }
     if (thd->lex->sphead)
     {
@@ -6251,8 +6251,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     Key *key;
-    lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
-    key= new Key(Key::PRIMARY, NullS,
+    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
+    key= new Key(Key::PRIMARY, null_lex_str,
                       &default_key_create_info,
                       0, lex->col_list);
     lex->alter_info.key_list.push_back(key);
@@ -6261,8 +6261,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     Key *key;
-    lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
-    key= new Key(Key::UNIQUE, NullS,
+    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
+    key= new Key(Key::UNIQUE, null_lex_str,
                  &default_key_create_info, 0,
                  lex->col_list);
     lex->alter_info.key_list.push_back(key);
