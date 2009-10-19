@@ -1337,10 +1337,10 @@ void ha_partition::cleanup_new_partition(uint part_count)
     m_file= m_added_file;
     m_added_file= NULL;
 
+    external_lock(ha_thd(), F_UNLCK);
     /* delete_table also needed, a bit more complex */
     close();
 
-    m_added_file= m_file;
     m_file= save_m_file;
   }
   DBUG_VOID_RETURN;
@@ -5144,8 +5144,9 @@ int ha_partition::info(uint flag)
       If the handler doesn't support statistics, it should set all of the
       above to 0.
 
-      We will allow the first handler to set the rec_per_key and use
-      this as an estimate on the total table.
+      We first scans through all partitions to get the one holding most rows.
+      We will then allow the handler with the most rows to set
+      the rec_per_key and use this as an estimate on the total table.
 
       max_data_file_length:     Maximum data file length
       We ignore it, is only used in
@@ -5157,14 +5158,33 @@ int ha_partition::info(uint flag)
       ref_length:               We set this to the value calculated
       and stored in local object
       create_time:              Creation time of table
-      Set by first handler
 
-      So we calculate these constants by using the variables on the first
-      handler.
+      So we calculate these constants by using the variables from the
+      handler with most rows.
     */
-    handler *file;
+    handler *file, **file_array;
+    ulonglong max_records= 0;
+    uint32 i= 0;
+    uint32 handler_instance= 0;
 
-    file= m_file[0];
+    file_array= m_file;
+    do
+    {
+      file= *file_array;
+      /* Get variables if not already done */
+      if (!(flag & HA_STATUS_VARIABLE) ||
+          !bitmap_is_set(&(m_part_info->used_partitions),
+                         (file_array - m_file)))
+        file->info(HA_STATUS_VARIABLE);
+      if (file->stats.records > max_records)
+      {
+        max_records= file->stats.records;
+        handler_instance= i;
+      }
+      i++;
+    } while (*(++file_array));
+
+    file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
