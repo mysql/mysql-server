@@ -1513,7 +1513,6 @@ id_err:
   return 1;
 }
 
-
 /*
   Create a new column value in current list with maxvalue
   Called from parser
@@ -2016,5 +2015,45 @@ void partition_info::print_debug(const char *str, uint *value)
   else
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
+}
+#else /* WITH_PARTITION_STORAGE_ENGINE */
+ /*
+   For builds without partitioning we need to define these functions
+   since we they are called from the parser. The parser cannot
+   remove code parts using ifdef, but the code parts cannot be called
+   so we simply need to add empty functions to make the linker happy.
+ */
+part_column_list_val *partition_info::add_column_value()
+{
+  return NULL;
+}
+
+bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
+                                   char *end_token, bool is_subpart)
+{
+  (void)start_token;
+  (void)item_ptr;
+  (void)end_token;
+  (void)is_subpart;
+  return FALSE;
+}
+
+int partition_info::reorganize_into_single_field_col_val()
+{
+  return 0;
+}
+
+bool partition_info::init_column_part()
+{
+  return FALSE;
+}
+
+bool partition_info::add_column_list_value(Item *item)
+{
+  return FALSE;
+}
+int partition_info::add_max_value()
+{
+  return 0;
 }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
