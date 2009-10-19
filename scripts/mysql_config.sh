@@ -167,6 +167,10 @@ Options:
         --port           [$port]
         --version        [$version]
         --libmysqld-libs [$embedded_libs]
+        --variable=VAR   VAR is one of:
+                pkgincludedir [$pkgincludedir]
+                pkglibdir     [$pkglibdir]
+                plugindir     [$plugindir]
 EOF
         exit 1
 }
@@ -184,6 +188,15 @@ while test $# -gt 0; do
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
         --embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
+        --variable=*)
+          var=`echo "$1" | sed 's,^[^=]*=,,'`
+          case "$var" in
+            pkgincludedir) echo "$pkgincludedir" ;;
+            pkglibdir) echo "$pkglibdir" ;;
+            plugindir) echo "$plugindir" ;;
+            *) usage ;;
+          esac
+          ;;
         *)         usage ;;
         esac
 
