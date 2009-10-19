@@ -1530,7 +1530,14 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
 
   assert(ref->generation != ref->expected_generation ||
          ref->state != ref->expected_state);
-  assert(ref->state == (Uint32)m_config_state);
+  if((Uint32)m_config_state != ref->state)
+  {
+    // The config state changed while this check was in the air
+    // drop the signal and thus cause it to run again later
+    require(!m_checked.get(nodeId));
+    m_waiting_for.clear(nodeId);
+    return;
+  }
 
   switch(m_config_state)
   {
