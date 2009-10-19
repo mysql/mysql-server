@@ -1615,5 +1615,25 @@ id_err:
   return 1;
 }
 
+#else /* WITH_PARTITION_STORAGE_ENGINE */
+ /*
+   For builds without partitioning we need to define these functions
+   since we they are called from the parser. The parser cannot
+   remove code parts using ifdef, but the code parts cannot be called
+   so we simply need to add empty functions to make the linker happy.
+ */
+part_column_list_val *partition_info::add_column_value()
+{
+  return NULL;
+}
 
+bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
+                                   char *end_token, bool is_subpart)
+{
+  (void)start_token;
+  (void)item_ptr;
+  (void)end_token;
+  (void)is_subpart;
+  return FALSE;
+}
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
