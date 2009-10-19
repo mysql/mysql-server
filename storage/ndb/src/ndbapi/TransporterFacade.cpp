@@ -2304,13 +2304,25 @@ testSignalSectionIterator()
   return 0;
 }
 
-#include <NdbTap.hpp>
-
-TAPTEST(TransporterFacade)
+int main(int arg, char** argv)
 {
+  /* Test Section Iterators
+   * ----------------------
+   * To run this code : 
+   *   cd storage/ndb/src/ndbapi
+   *   make testSectionIterators
+   *   ./testSectionIterators
+   *
+   * Will print "OK" in success case
+   */
+  
+
   VERIFY(testLinearSectionIterator() == 0);
   VERIFY(testSignalSectionIterator() == 0);
-  return 1; // OK
+  
+  printf("OK\n");
+
+  return 0;
 }
 #endif
 
