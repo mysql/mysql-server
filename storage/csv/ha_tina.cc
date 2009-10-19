@@ -111,8 +111,8 @@ static int tina_init_func(void *p)
 
   tina_hton= (handlerton *)p;
   VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
-  (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                   (hash_get_key) tina_get_key,0,0);
+  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,0,
+                      (my_hash_get_key) tina_get_key,0,0);
   tina_hton->state= SHOW_OPTION_YES;
   tina_hton->db_type= DB_TYPE_CSV_DB;
   tina_hton->create= tina_create_handler;
@@ -123,7 +123,7 @@ static int tina_init_func(void *p)
 
 static int tina_done_func(void *p)
 {
-  hash_free(&tina_open_tables);
+  my_hash_free(&tina_open_tables);
   pthread_mutex_destroy(&tina_mutex);
 
   return 0;
@@ -148,9 +148,9 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     If share is not present in the hash, create a new share and
     initialize its members.
   */
-  if (!(share=(TINA_SHARE*) hash_search(&tina_open_tables,
-                                        (uchar*) table_name,
-                                       length)))
+  if (!(share=(TINA_SHARE*) my_hash_search(&tina_open_tables,
+                                           (uchar*) table_name,
+                                           length)))
   {
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                          &share, sizeof(*share),
@@ -377,7 +377,7 @@ static int free_share(TINA_SHARE *share)
       share->tina_write_opened= FALSE;
     }
 
-    hash_delete(&tina_open_tables, (uchar*) share);
+    my_hash_delete(&tina_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free((uchar*) share, MYF(0));
@@ -448,6 +448,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
   chain= chain_buffer;
   file_buff= new Transparent_file();
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);;
 }
 
 
@@ -594,7 +595,7 @@ int ha_tina::find_current_row(uchar *buf)
   bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
-  free_root(&blobroot, MYF(MY_MARK_BLOCKS_FREE));
+  free_root(&blobroot, MYF(0));
 
   /*
     We do not read further then local_saved_data_file_length in order
@@ -1073,8 +1074,6 @@ int ha_tina::rnd_init(bool scan)
   records_is_known= 0;
   chain_ptr= chain;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   DBUG_RETURN(0);
 }
 
@@ -1191,6 +1190,7 @@ int ha_tina::extra(enum ha_extra_function operation)
  }
   DBUG_RETURN(0);
 }
+
 
 /*
   Set end_pos to the last valid byte of continuous area, closest
@@ -1394,8 +1394,6 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1595,8 +1593,6 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1604,7 +1600,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     count--;
     current_position= next_position;
   }
-  
+
   free_root(&blobroot, MYF(0));
 
   my_free((char*)buf, MYF(0));

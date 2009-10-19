@@ -77,7 +77,7 @@ set sql_mode='traditional';
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event e_16407;
 set sql_mode="ansi";
 select get_lock('ee_16407_2', 60);
@@ -114,8 +114,8 @@ insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 select /*2*/ user, host, db, info from information_schema.processlist
 where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
@@ -138,8 +138,8 @@ ee_16407_4	0000-00-00
 "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 drop event ee_16407_2;
 drop event ee_16407_3;
@@ -185,8 +185,8 @@ ee_16407_6	2004-02-29
 "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
-events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
@@ -444,13 +444,13 @@ events_test	e2	root@localhost	-05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NU
 events_test	e3	root@localhost	+00:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE EVENT e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e1		+05:00	CREATE EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+e1		+05:00	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE EVENT e2;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e2		-05:00	CREATE EVENT `e2` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+e2		-05:00	CREATE DEFINER=`root`@`localhost` EVENT `e2` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE EVENT e3;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e3		+00:00	CREATE EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+e3		+00:00	CREATE DEFINER=`root`@`localhost` EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 The following should fail, and nothing should be altered.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00';

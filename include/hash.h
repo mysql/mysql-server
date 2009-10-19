@@ -22,40 +22,6 @@ extern "C" {
 #endif
 
 /*
-  There was a problem on MacOSX with a shared object ha_example.so.
-  It used hash_search(). During build of ha_example.so no libmysys
-  was specified. Since MacOSX had a hash_search() in the system
-  library, it built the shared object so that the dynamic linker
-  linked hash_search() to the system library, which caused a crash
-  when called. To come around this, we renamed hash_search() to
-  my_hash_search(), as we did long ago with hash_insert() and
-  hash_reset(). However, this time we made the move complete with
-  all names. To keep compatibility, we redefine the old names.
-  Since every C and C++ file, that uses HASH, needs to include
-  this file, the change is complete. Both names could be used
-  in the code, but the my_* versions are recommended now.
-*/
-#define hash_get_key    my_hash_get_key
-#define hash_free_key   my_hash_free_key
-#define hash_init       my_hash_init
-#define hash_init2      my_hash_init2
-#define _hash_init      _my_hash_init
-#define hash_free       my_hash_free
-#define hash_reset      my_hash_reset
-#define hash_element    my_hash_element
-#define hash_search     my_hash_search
-#define hash_first      my_hash_first
-#define hash_next       my_hash_next
-#define hash_insert     my_hash_insert
-#define hash_delete     my_hash_delete
-#define hash_update     my_hash_update
-#define hash_replace    my_hash_replace
-#define hash_check      my_hash_check
-#define hash_clear      my_hash_clear
-#define hash_inited     my_hash_inited
-#define hash_init_opt   my_hash_init_opt
-
-/*
   Overhead to store an element in hash
   Can be used to approximate memory consumption for a hash
  */

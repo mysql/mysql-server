@@ -99,10 +99,10 @@ SELECT @@session.innodb_table_locks AS res_is_1;
 res_is_1
 1
 '#----------------------FN_DYNVARS_046_06------------------------#'
-SELECT @@global.innodb_table_locks =
+SELECT IF(@@global.innodb_table_locks, "ON", "OFF") =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_table_locks';
-@@global.innodb_table_locks =
+IF(@@global.innodb_table_locks, "ON", "OFF") =
 VARIABLE_VALUE
 1
 SELECT @@global.innodb_table_locks;
@@ -113,12 +113,12 @@ WHERE VARIABLE_NAME='innodb_table_locks';
 VARIABLE_VALUE
 OFF
 '#----------------------FN_DYNVARS_046_07------------------------#'
-SELECT @@session.innodb_table_locks =
+SELECT IF(@@session.innodb_table_locks, "ON", "OFF") =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='innodb_table_locks';
-@@session.innodb_table_locks =
+IF(@@session.innodb_table_locks, "ON", "OFF") =
 VARIABLE_VALUE
-0
+1
 SELECT @@session.innodb_table_locks;
 @@session.innodb_table_locks
 1

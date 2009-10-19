@@ -4960,14 +4960,14 @@ int item_create_init()
 
   DBUG_ENTER("item_create_init");
 
-  if (hash_init(& native_functions_hash,
-                system_charset_info,
-                array_elements(func_array),
-                0,
-                0,
-                (hash_get_key) get_native_fct_hash_key,
-                NULL,                          /* Nothing to free */
-                MYF(0)))
+  if (my_hash_init(& native_functions_hash,
+                   system_charset_info,
+                   array_elements(func_array),
+                   0,
+                   0,
+                   (my_hash_get_key) get_native_fct_hash_key,
+                   NULL,                          /* Nothing to free */
+                   MYF(0)))
     DBUG_RETURN(1);
 
   for (func= func_array; func->builder != NULL; func++)
@@ -4979,7 +4979,7 @@ int item_create_init()
 #ifndef DBUG_OFF
   for (uint i=0 ; i < native_functions_hash.records ; i++)
   {
-    func= (Native_func_registry*) hash_element(& native_functions_hash, i);
+    func= (Native_func_registry*) my_hash_element(& native_functions_hash, i);
     DBUG_PRINT("info", ("native function: %s  length: %u",
                         func->name.str, (uint) func->name.length));
   }
@@ -4997,7 +4997,7 @@ int item_create_init()
 void item_create_cleanup()
 {
   DBUG_ENTER("item_create_cleanup");
-  hash_free(& native_functions_hash);
+  my_hash_free(& native_functions_hash);
   DBUG_VOID_RETURN;
 }
 
@@ -5008,9 +5008,9 @@ find_native_function_builder(THD *thd, LEX_STRING name)
   Create_func *builder= NULL;
 
   /* Thread safe */
-  func= (Native_func_registry*) hash_search(& native_functions_hash,
-                                            (uchar*) name.str,
-                                             name.length);
+  func= (Native_func_registry*) my_hash_search(& native_functions_hash,
+                                               (uchar*) name.str,
+                                               name.length);
 
   if (func)
   {

@@ -103,10 +103,10 @@ SELECT @@session.query_cache_wlock_invalidate AS res_is_1;
 res_is_1
 1
 '#----------------------FN_DYNVARS_135_06------------------------#'
-SELECT @@global.query_cache_wlock_invalidate = VARIABLE_VALUE 
+SELECT IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
-@@global.query_cache_wlock_invalidate = VARIABLE_VALUE
+IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@global.query_cache_wlock_invalidate;
 @@global.query_cache_wlock_invalidate
@@ -117,11 +117,11 @@ WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 VARIABLE_VALUE
 OFF
 '#----------------------FN_DYNVARS_135_07------------------------#'
-SELECT @@session.query_cache_wlock_invalidate = VARIABLE_VALUE 
+SELECT IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
-@@session.query_cache_wlock_invalidate = VARIABLE_VALUE
-0
+IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE
+1
 SELECT @@session.query_cache_wlock_invalidate;
 @@session.query_cache_wlock_invalidate
 1

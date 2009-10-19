@@ -32,9 +32,9 @@ Rpl_filter::Rpl_filter() :
 Rpl_filter::~Rpl_filter() 
 {
   if (do_table_inited) 
-    hash_free(&do_table);
+    my_hash_free(&do_table);
   if (ignore_table_inited)
-    hash_free(&ignore_table);
+    my_hash_free(&ignore_table);
   if (wild_do_table_inited)
     free_string_array(&wild_do_table);
   if (wild_ignore_table_inited)
@@ -103,12 +103,12 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     len= (uint) (strmov(end, tables->table_name) - hash_key);
     if (do_table_inited) // if there are any do's
     {
-      if (hash_search(&do_table, (uchar*) hash_key, len))
+      if (my_hash_search(&do_table, (uchar*) hash_key, len))
 	DBUG_RETURN(1);
     }
     if (ignore_table_inited) // if there are any ignores
     {
-      if (hash_search(&ignore_table, (uchar*) hash_key, len))
+      if (my_hash_search(&ignore_table, (uchar*) hash_key, len))
 	DBUG_RETURN(0); 
     }
     if (wild_do_table_inited && 
@@ -387,7 +387,7 @@ void free_table_ent(void* a)
 void 
 Rpl_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 {
-  hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
+  my_hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
 	    get_table_key, free_table_ent, 0);
   *h_inited = 1;
 }
@@ -458,7 +458,7 @@ Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
   {
     for (uint i= 0; i < h->records; i++)
     {
-      TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) hash_element(h, i);
+      TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) my_hash_element(h, i);
       if (s->length())
         s->append(',');
       s->append(e->db,e->key_len);

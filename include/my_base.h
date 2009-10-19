@@ -255,7 +255,17 @@ enum ha_base_keytype {
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
                          HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
 
-#define HA_KEY_HAS_PART_KEY_SEG 65536   /* Key contains partial segments */
+/*
+  Key contains partial segments.
+
+  This flag is internal to the MySQL server by design. It is not supposed
+  neither to be saved in FRM-files, nor to be passed to storage engines.
+  It is intended to pass information into internal static sort_keys(KEY *,
+  KEY *) function.
+
+  This flag can be calculated -- it's based on key lengths comparison.
+*/
+#define HA_KEY_HAS_PART_KEY_SEG 65536
 
 	/* Automatic bits in key-flag */
 
