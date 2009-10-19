@@ -1,5 +1,5 @@
 # this test mostly test privilege control (what doesn't work
-# in the embedded server by default). So disabled in embedded-server mode
+# in the embedded server by default). So skip the test in embedded-server mode.
 -- source include/not_embedded.inc
 
 -- source include/testdb_only.inc
@@ -13,7 +13,7 @@ drop function if exists f2;
 
 use INFORMATION_SCHEMA;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
-show tables where Tables_in_information_schema not like "Innodb%";
+show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'Innodb%';
 --replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;
@@ -123,7 +123,7 @@ create view v1 as select f1 from t1;
 grant insert on v1 to testdb_2@localhost;
 
 create view v5 as select f1 from t1;
-grant show view on v5 to testdb_2@localhost;
+grant select, show view on v5 to testdb_2@localhost;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
@@ -131,7 +131,7 @@ create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
 connection default;
 use testdb_1;
 create view v6 as select f1 from t1;
-grant show view on v6 to testdb_2@localhost;
+grant select, show view on v6 to testdb_2@localhost;
 
 create table t2 (f1 char(4));
 create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
@@ -163,10 +163,10 @@ show fields from testdb_1.v7;
 show create view testdb_1.v7;
 
 revoke insert(f1) on v3 from testdb_2@localhost;
-revoke show view on v5 from testdb_2@localhost;
+revoke select,show view on v5 from testdb_2@localhost;
 connection default;
 use testdb_1;
-revoke show view on v6 from testdb_2@localhost;
+revoke select,show view on v6 from testdb_2@localhost;
 connection testdb_2;
 
 --error ER_TABLEACCESS_DENIED_ERROR

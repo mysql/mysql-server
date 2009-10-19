@@ -560,7 +560,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       table_list.table_name= uname;
       table_list.table_name_length= file_name_len;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, 1, 1, 1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
         continue;
     }
 #endif
@@ -3745,8 +3745,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
-    check_access(thd,SELECT_ACL | EXTRA_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, test(tables->schema_table));
+    check_access(thd,SELECT_ACL, db_name->str,
+                 &tables->grant.privilege, FALSE, FALSE,
+                 test(tables->schema_table));
     col_access= get_column_grant(thd, &tables->grant, 
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -4174,7 +4175,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
-  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1, TRUE);
+  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, FALSE,
+                                   1, TRUE);
   if (!(proc_table= open_proc_table_for_read(thd, &open_tables_state_backup)))
   {
     DBUG_RETURN(1);
@@ -4583,7 +4585,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     Table_triggers_list *triggers= tables->table->triggers;
     int event, timing;
 
-    if (check_table_access(thd, TRIGGER_ACL, tables, 1, TRUE))
+    if (check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, TRUE))
       goto ret;
 
     for (event= 0; event < (int)TRG_EVENT_MAX; event++)
@@ -7044,7 +7046,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!lst)
     return TRUE;
 
-  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  if (check_table_access(thd, TRIGGER_ACL, lst, FALSE, 1, TRUE))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
     return TRUE;
