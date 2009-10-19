@@ -6775,8 +6775,10 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
+  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
+  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6911,9 +6913,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       Need to grab affected rows information before getting
       warnings here
     */
-    ulonglong affected_rows;
-    LINT_INIT(affected_rows);
-
     if (!disable_info)
       affected_rows= mysql_affected_rows(mysql);
 

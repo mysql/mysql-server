@@ -2561,8 +2561,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -3095,8 +3096,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
