@@ -4516,9 +4516,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
-    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
-                          tables->db, tables->table_name, (long) tables));
-
     safe_to_ignore_table= FALSE;
 
     /*
@@ -4555,6 +4552,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       }
       DBUG_RETURN(-1);
     }
+    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
+                          tables->db, tables->table_name, (long) tables));
     (*counter)++;
 
     /*
