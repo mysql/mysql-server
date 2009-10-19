@@ -5,6 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create database if not exists mysqltest;
+use mysqltest;
 create temporary table mysqltest.t1 (n int)ENGINE=MyISAM;
 create temporary table mysqltest.t2 (n int)ENGINE=MyISAM;
 show status like 'Slave_open_temp_tables';
