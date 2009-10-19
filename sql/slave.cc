@@ -2083,8 +2083,7 @@ static int has_temporary_error(THD *thd)
   @retval 2 No error calling ev->apply_event(), but error calling
   ev->update_pos().
 */
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
-                               bool skip)
+int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
 
@@ -2129,37 +2128,33 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     ev->when= my_time(0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
-  if (skip)
-  {
-    int reason= ev->shall_skip(rli);
-    if (reason == Log_event::EVENT_SKIP_COUNT)
-      --rli->slave_skip_counter;
-    pthread_mutex_unlock(&rli->data_lock);
-    if (reason == Log_event::EVENT_SKIP_NOT)
-      exec_res= ev->apply_event(rli);
-#ifndef DBUG_OFF
-    /*
-      This only prints information to the debug trace.
-
-      TODO: Print an informational message to the error log?
-    */
-    static const char *const explain[] = {
-      // EVENT_SKIP_NOT,
-      "not skipped",
-      // EVENT_SKIP_IGNORE,
-      "skipped because event should be ignored",
-      // EVENT_SKIP_COUNT
-      "skipped because event skip counter was non-zero"
-    };
-    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                        thd->options & OPTION_BEGIN ? 1 : 0,
-                        rli->get_flag(Relay_log_info::IN_STMT)));
-    DBUG_PRINT("skip_event", ("%s event was %s",
-                              ev->get_type_str(), explain[reason]));
-#endif
-  }
-  else
+  int reason= ev->shall_skip(rli);
+  if (reason == Log_event::EVENT_SKIP_COUNT)
+    --rli->slave_skip_counter;
+  pthread_mutex_unlock(&rli->data_lock);
+  if (reason == Log_event::EVENT_SKIP_NOT)
     exec_res= ev->apply_event(rli);
+
+#ifndef DBUG_OFF
+  /*
+    This only prints information to the debug trace.
+
+    TODO: Print an informational message to the error log?
+  */
+  static const char *const explain[] = {
+    // EVENT_SKIP_NOT,
+    "not skipped",
+    // EVENT_SKIP_IGNORE,
+    "skipped because event should be ignored",
+    // EVENT_SKIP_COUNT
+    "skipped because event skip counter was non-zero"
+  };
+  DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                      thd->options & OPTION_BEGIN ? 1 : 0,
+                      rli->get_flag(Relay_log_info::IN_STMT)));
+  DBUG_PRINT("skip_event", ("%s event was %s",
+                            ev->get_type_str(), explain[reason]));
+#endif
 
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
@@ -2279,7 +2274,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       delete ev;
       DBUG_RETURN(1);
     }
-    exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
+    exec_res= apply_event_and_update_pos(ev, thd, rli);
 
     /*
       Format_description_log_event should not be deleted because it will be

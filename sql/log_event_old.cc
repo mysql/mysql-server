@@ -1814,7 +1814,56 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
-  DBUG_RETURN(0);
+  if (get_flags(STMT_END_F))
+  {
+    /*
+      This is the end of a statement or transaction, so close (and
+      unlock) the tables we opened when processing the
+      Table_map_log_event starting the statement.
+
+      OBSERVER.  This will clear *all* mappings, not only those that
+      are open for the table. There is not good handle for on-close
+      actions for tables.
+
+      NOTE. Even if we have no table ('table' == 0) we still need to be
+      here, so that we increase the group relay log position. If we didn't, we
+      could have a group relay log position which lags behind "forever"
+      (assume the last master's transaction is ignored by the slave because of
+      replicate-ignore rules).
+    */
+    thd->binlog_flush_pending_rows_event(true);
+
+    /*
+      If this event is not in a transaction, the call below will, if some
+      transactional storage engines are involved, commit the statement into
+      them and flush the pending event to binlog.
+      If this event is in a transaction, the call will do nothing, but a
+      Xid_log_event will come next which will, if some transactional engines
+      are involved, commit the transaction and flush the pending event to the
+      binlog.
+    */
+    if (error= ha_autocommit_or_rollback(thd, 0))
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
+
+    /*
+      Now what if this is not a transactional engine? we still need to
+      flush the pending event to the binlog; we did it with
+      thd->binlog_flush_pending_rows_event(). Note that we imitate
+      what is done for real queries: a call to
+      ha_autocommit_or_rollback() (sometimes only if involves a
+      transactional engine), and a call to be sure to have the pending
+      event flushed.
+    */
+
+    thd->reset_current_stmt_binlog_row_based();
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
+
+  DBUG_RETURN(error);
 }
 
 
@@ -1844,71 +1893,18 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
   if (get_flags(STMT_END_F))
   {
     /*
-      This is the end of a statement or transaction, so close (and
-      unlock) the tables we opened when processing the
-      Table_map_log_event starting the statement.
-
-      OBSERVER.  This will clear *all* mappings, not only those that
-      are open for the table. There is not good handle for on-close
-      actions for tables.
-
-      NOTE. Even if we have no table ('table' == 0) we still need to be
-      here, so that we increase the group relay log position. If we didn't, we
-      could have a group relay log position which lags behind "forever"
-      (assume the last master's transaction is ignored by the slave because of
-      replicate-ignore rules).
-    */
-    thd->binlog_flush_pending_rows_event(true);
-
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+     */
+    rli->stmt_done(log_pos, when);
     /*
-      If this event is not in a transaction, the call below will, if some
-      transactional storage engines are involved, commit the statement into
-      them and flush the pending event to binlog.
-      If this event is in a transaction, the call will do nothing, but a
-      Xid_log_event will come next which will, if some transactional engines
-      are involved, commit the transaction and flush the pending event to the
-      binlog.
+      Clear any errors in thd->net.last_err*. It is not known if this is
+      needed or not. It is believed that any errors that may exist in
+      thd->net.last_err* are allowed. Examples of errors are "key not
+      found", which is produced in the test case rpl_row_conflicts.test
     */
-    error= ha_autocommit_or_rollback(thd, 0);
-
-    /*
-      Now what if this is not a transactional engine? we still need to
-      flush the pending event to the binlog; we did it with
-      thd->binlog_flush_pending_rows_event(). Note that we imitate
-      what is done for real queries: a call to
-      ha_autocommit_or_rollback() (sometimes only if involves a
-      transactional engine), and a call to be sure to have the pending
-      event flushed.
-    */
-
-    thd->reset_current_stmt_binlog_row_based();
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-       */
-      rli->stmt_done(log_pos, when);
-
-      /*
-        Clear any errors pushed in thd->net.client_last_err* if for
-        example "no key found" (as this is allowed). This is a safety
-        measure; apparently those errors (e.g. when executing a
-        Delete_rows_log_event_old of a non-existing row, like in
-        rpl_row_mystery22.test, thd->net.last_error = "Can't
-        find record in 't1'" and last_errno=1032) do not become
-        visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
+    thd->clear_error();
   }
   else
   {

@@ -2,6 +2,7 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 binlog.binlog_tmp_table*                 # Bug#45578:2009-07-10 alik Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
+binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
 
