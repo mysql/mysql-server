@@ -37,10 +37,10 @@ EOF
 --source $MYSQLTEST_VARDIR/tmp/test_mgmd.inc
 
 let NDBT_TMP_DIR=$MYSQLTEST_VARDIR/tmp;
+let $log_file=$MYSQLTEST_VARDIR/tmp/test_mgmd.log;
 
-echo TEST_MGMD: '$TEST_MGMD';
-echo NDBT_BASE_PORT: $NDBT_BASE_PORT;
-echo NDBT_TMP_DIR: $NDBT_TMP_DIR;
---exec $TEST_MGMD;
+--exec $TEST_MGMD > $log_file 2>&1
+
+echo Sucessfully executed $TEST_MGMD;
 
 exit;
