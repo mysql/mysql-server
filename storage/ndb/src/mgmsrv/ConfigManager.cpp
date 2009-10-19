@@ -1601,8 +1601,8 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   case CS_CONFIRMED:
     if (ref->expected_state == CS_INITIAL)
     {
-      // MASV for peer todo what? Some kind of upgrade fix...
       g_eventLogger->info("Waiting for peer");
+      m_waiting_for.clear(nodeId);
       return;
     }
     break;
