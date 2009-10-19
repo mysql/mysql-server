@@ -2435,6 +2435,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
 }
