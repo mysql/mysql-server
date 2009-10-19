@@ -11783,8 +11783,17 @@ option_type:
         ;
 
 option_type2:
-          /* empty */ { $$= OPT_DEFAULT; }
-        | ONE_SHOT_SYM { Lex->one_shot_set= 1; $$= OPT_SESSION; }
+          /* empty */
+          {
+            $$= OPT_DEFAULT;
+            Lex->option_type= OPT_DEFAULT;
+          }
+        | ONE_SHOT_SYM
+          {
+            Lex->one_shot_set= 1;
+            $$= OPT_SESSION;
+            Lex->option_type= OPT_SESSION;
+          }
         ;
 
 opt_var_type:
@@ -11795,10 +11804,26 @@ opt_var_type:
         ;
 
 opt_var_ident_type:
-          /* empty */     { $$=OPT_DEFAULT; }
-        | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
-        | LOCAL_SYM '.'   { $$=OPT_SESSION; }
-        | SESSION_SYM '.' { $$=OPT_SESSION; }
+          /* empty */
+          {
+            $$=OPT_DEFAULT;
+            Lex->option_type= OPT_DEFAULT;
+          }
+        | GLOBAL_SYM '.'
+          {
+            $$=OPT_GLOBAL;
+            Lex->option_type= OPT_GLOBAL;
+          }
+        | LOCAL_SYM '.'
+          {
+            $$=OPT_SESSION;
+            Lex->option_type= OPT_SESSION;
+          }
+        | SESSION_SYM '.'
+          {
+            $$=OPT_SESSION;
+            Lex->option_type= OPT_SESSION;
+          }
         ;
 
 ext_option_value:
@@ -12038,8 +12063,22 @@ internal_variable_name:
             sp_pcontext *spc= lex->spcont;
             sp_variable_t *spv;
 
-            /* We have to lookup here since local vars can shadow sysvars */
-            if (!spc || !(spv = spc->find_variable(&$1)))
+            /*
+              We have to lookup here since local vars can shadow sysvars.
+
+              We also have to inspect the option_type first since the variable
+              identifier might have been prefixed with @@session or @@global
+              prefixes. Without this check we would wrongly identify them
+              as SP local variables.
+            */
+            if (lex->option_type == OPT_DEFAULT && spc &&
+                (spv= spc->find_variable(&$1)))
+            {
+              /* An SP local variable */
+              $$.var= NULL;
+              $$.base_name= $1;     
+            }
+            else
             {
               /* Not an SP local variable */
               sys_var *tmp=find_sys_var(thd, $1.str, $1.length);
@@ -12055,12 +12094,6 @@ internal_variable_name:
                 */
                 lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
               }
-            }
-            else
-            {
-              /* An SP local variable */
-              $$.var= NULL;
-              $$.base_name= $1;
             }
           }
         | ident '.' ident
