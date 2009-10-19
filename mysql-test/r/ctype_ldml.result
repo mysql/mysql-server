@@ -41,6 +41,14 @@ efgh	efgh
 ijkl	ijkl
 DROP TABLE t1;
 #
+# Bug#45645 Mysql server close all connection and restart using lower function
+#
+CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+INSERT INTO t1 (a) VALUES ('hello!');
+SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
+a
+DROP TABLE t1;
+#
 # Bug#43827 Server closes connections and restarts
 #
 CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
