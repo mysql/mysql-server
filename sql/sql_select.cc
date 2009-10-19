@@ -2668,7 +2668,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	goto error;		// Fatal error
     }
     else
+    {
       found_const_table_map|= s->table->map;
+      s->table->pos_in_table_list->optimized_away= TRUE;
+    }
   }
 
   /* loop until no more const tables are found */
@@ -16564,18 +16567,35 @@ static void print_join(THD *thd,
 {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
-  TABLE_LIST **table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
-                                                tables->elements);
-  if (table == 0)
+  TABLE_LIST **table;
+  uint non_const_tables= 0;
+
+  for (TABLE_LIST *t= ti++; t ; t= ti++)
+    if (!t->optimized_away)
+      non_const_tables++;
+  if (!non_const_tables)
+  {
+    str->append(STRING_WITH_LEN("dual"));
+    return; // all tables were optimized away
+  }
+  ti.rewind();
+
+  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
+                                                non_const_tables)))
     return;  // out of memory
 
-  for (TABLE_LIST **t= table + (tables->elements - 1); t >= table; t--)
-    *t= ti++;
+  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
+  while ((tmp= ti++))
+  {
+    if (tmp->optimized_away)
+      continue;
+    *t--= tmp;
+  }
 
   DBUG_ASSERT(tables->elements >= 1);
   (*table)->print(thd, str, query_type);
 
-  TABLE_LIST **end= table + tables->elements;
+  TABLE_LIST **end= table + non_const_tables;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
