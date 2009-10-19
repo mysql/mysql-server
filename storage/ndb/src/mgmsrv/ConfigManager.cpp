@@ -1541,7 +1541,7 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   {
   default:
   case CS_UNINITIALIZED:
-    g_eventLogger->error("execCONFIG_CHECK_REQ: unhandled state");
+    g_eventLogger->error("execCONFIG_CHECK_REF: unhandled state");
     abort();
     break;
 
