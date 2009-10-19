@@ -17,11 +17,10 @@ SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE")
 
 # Disable some warnings for NDB build:
-# 4200: non-standard extension used: zero length array
 # 4355: 'this': used in base member initializer list
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
-SET(CMAKE_C_FLAGS   "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
+SET(CMAKE_C_FLAGS   "${CMAKE_CXX_FLAGS} /wd4355")
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_SUBDIRECTORY(include)
