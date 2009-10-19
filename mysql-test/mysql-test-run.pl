@@ -519,7 +519,8 @@ sub run_test_server ($$$) {
 	      }
 	    }
 	    $num_saved_datadir++;
-	    $num_failed_test++ unless $result->{retries};
+	    $num_failed_test++ unless ($result->{retries} ||
+                                       $result->{exp_fail});
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
@@ -4709,7 +4710,8 @@ sub start_servers($) {
       my $logfile= $mysqld->value('#log-error');
       if ( defined $logfile and -f $logfile )
       {
-	$tinfo->{logfile}= mtr_fromfile($logfile);
+        my @srv_lines= extract_server_log($logfile, $tinfo->{name});
+	$tinfo->{logfile}= "Server log is:\n" . join ("", @srv_lines);
       }
       else
       {
