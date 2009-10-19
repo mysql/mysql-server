@@ -55,8 +55,3 @@ ADD_LIBRARY(ndbapi STATIC
             NdbBlob.cpp
             SignalSender.cpp
             ObjectMap.cpp)
-
-ADD_EXECUTABLE(TransporterFacade-t TransporterFacade.cpp)
-SET_TARGET_PROPERTIES(TransporterFacade-t
-                      PROPERTIES COMPILE_FLAGS "-DUNIT_TEST")
-TARGET_LINK_LIBRARIES(TransporterFacade-t ndbclient)
