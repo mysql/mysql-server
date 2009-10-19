@@ -36,6 +36,12 @@ select @@log_slow_verbosity;
 
 show fields from mysql.slow_log;
 
+#
+# Check flush command
+#
+
+flush slow query logs;
+
 # Reset used variables
 
 set @@log_slow_filter=default;

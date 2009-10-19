@@ -1366,7 +1366,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
   DBUG_ENTER("Event_job_data::execute");
 
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, 0);
 
   /*
     MySQL parser currently assumes that current database is either

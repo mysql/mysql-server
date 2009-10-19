@@ -142,7 +142,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -1928,7 +1928,7 @@ int multi_update::do_updates()
     {
       if (thd->killed && trans_safe)
 	goto err;
-      if ((local_error=tmp_table->file->rnd_next(tmp_table->record[0])))
+      if ((local_error= tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
@@ -1943,12 +1943,12 @@ int multi_update::do_updates()
       uint field_num= 0;
       do
       {
-        if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+        if ((local_error=
+             tbl->file->ha_rnd_pos(tbl->record[0],
+                                   (uchar*) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
-      } while((tbl= check_opt_it++));
+      } while ((tbl= check_opt_it++));
 
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);

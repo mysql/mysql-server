@@ -1373,6 +1373,12 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                         table->s->table_name.str, (long) table));
 
+ if (table->file)
+ {
+   table->file->update_global_table_stats();
+   table->file->update_global_index_stats();
+ }
+
   *table_ptr=table->next;
   /*
     When closing a MERGE parent or child table, detach the children first.
@@ -1901,6 +1907,13 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   DBUG_ENTER("close_temporary");
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
+
+  /* in_use is not set for replication temporary tables during shutdown */
+  if (table->in_use)
+  {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
 
   free_io_cache(table);
   closefrm(table, 0);

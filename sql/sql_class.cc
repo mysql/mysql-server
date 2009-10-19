@@ -615,6 +615,7 @@ THD::THD()
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
+
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -817,7 +818,63 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
+  bzero((char *) &org_status_var, sizeof(org_status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+  select_commands= update_commands= other_commands= 0;
+  /* Set to handle counting of aborted connections */
+  userstat_running= opt_userstat_running;
+  last_global_update_time= current_connect_time= time(NULL);
+}
+
+ 
+/* Updates some status variables to be used by update_global_user_stats */
+
+void THD::update_stats(void)
+{
+  /* sql_command == SQLCOM_END in case of parse errors or quit */
+  if (lex->sql_command != SQLCOM_END)
+  {
+    /* The replication thread has the COM_CONNECT command */
+    DBUG_ASSERT(command == COM_QUERY || command == COM_CONNECT);
+
+    /* A SQL query. */
+    if (lex->sql_command == SQLCOM_SELECT)
+      select_commands++;
+    else if (! sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+    {
+      /* Ignore 'SHOW ' commands */
+    }
+    else if (is_update_query(lex->sql_command))
+      update_commands++;
+    else
+      other_commands++;
+  }
+}
+
+
+void THD::update_all_stats()
+{
+  time_t save_time;
+  ulonglong end_cpu_time, end_utime;
+  double busy_time, cpu_time;
+
+  /* This is set at start of query if opt_userstat_running was set */
+  if (!userstat_running)
+    return;
+
+  end_cpu_time= my_getcputime();
+  end_utime=    my_micro_time_and_time(&save_time);
+  busy_time= (end_utime - start_utime)  / 1000000.0;
+  cpu_time=  (end_cpu_time - start_cpu_time) / 10000000.0;
+  /* In case there are bad values, 2629743 is the #seconds in a month. */
+  if (cpu_time > 2629743.0)
+    cpu_time= 0;
+  status_var_add(status_var.cpu_time, cpu_time);
+  status_var_add(status_var.busy_time, busy_time);
+
+  /* Updates THD stats and the global user stats. */
+  update_stats();
+  update_global_user_stats(this, TRUE, save_time);
 }
 
 
@@ -984,9 +1041,8 @@ THD::~THD()
    from_var     from this array
 
   NOTES
-    This function assumes that all variables are long/ulong.
-    If this assumption will change, then we have to explictely add
-    the other variables after the while loop
+    This function assumes that all variables at start are long/ulong and
+    other types are handled explicitely
 */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
@@ -998,6 +1054,13 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+
+  /* Handle the not ulong variables. See end of system_status_var */
+  to_var->bytes_received=       from_var->bytes_received;
+  to_var->bytes_sent+=          from_var->bytes_sent;
+  to_var->binlog_bytes_written= from_var->binlog_bytes_written;
+  to_var->cpu_time+=            from_var->cpu_time;
+  to_var->busy_time+=           from_var->busy_time;
 }
 
 /*
@@ -1010,7 +1073,8 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
     dec_var      minus this array
   
   NOTE
-    This function assumes that all variables are long/ulong.
+    This function assumes that all variables at start are long/ulong and
+    other types are handled explicitely
 */
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
@@ -1023,6 +1087,14 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
+
+  to_var->bytes_received=       (from_var->bytes_received -
+                                 dec_var->bytes_received);
+  to_var->bytes_sent+=          from_var->bytes_sent - dec_var->bytes_sent;
+  to_var->binlog_bytes_written= (from_var->binlog_bytes_written -
+                                 dec_var->binlog_bytes_written);
+  to_var->cpu_time+=            from_var->cpu_time - dec_var->cpu_time;
+  to_var->busy_time+=           from_var->busy_time - dec_var->busy_time;
 }
 
 #define SECONDS_TO_WAIT_FOR_KILL 2
@@ -2773,7 +2845,8 @@ void thd_increment_bytes_sent(ulong length)
 {
   THD *thd=current_thd;
   if (likely(thd != 0))
-  { /* current_thd==0 when close_connection() calls net_send_error() */
+  {
+    /* current_thd == 0 when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
   }
 }

@@ -294,13 +294,13 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
-  int key_res= relations->file->index_read_map(relations->record[0],
-                                               buff, (key_part_map) 1,
-                                               HA_READ_KEY_EXACT);
+  int key_res= relations->file->ha_index_read_map(relations->record[0],
+                                                  buff, (key_part_map) 1,
+                                                  HA_READ_KEY_EXACT);
 
   for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
-	key_res= relations->file->index_next(relations->record[0]))
+	key_res= relations->file->ha_index_next(relations->record[0]))
   {
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
@@ -308,8 +308,8 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     field->store((longlong) topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
-    if (!topics->file->index_read_map(topics->record[0], topic_id_buff,
-                                      (key_part_map)1, HA_READ_KEY_EXACT))
+    if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
+                                         (key_part_map)1, HA_READ_KEY_EXACT))
     {
       memorize_variant_topic(thd,topics,count,find_fields,
 			     names,name,description,example);

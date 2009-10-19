@@ -331,10 +331,14 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILES]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILE]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CLIENT_STATS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_USER_STATS]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_INDEX_STATS]=  CF_STATUS_COMMAND;
 
-   sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
-                                                 CF_SHOW_TABLE_COMMAND |
-                                                 CF_REEXECUTION_FRAGILE);
+  sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
+                                                CF_SHOW_TABLE_COMMAND |
+                                                CF_REEXECUTION_FRAGILE);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
@@ -548,7 +552,6 @@ end:
 #endif
   DBUG_RETURN(0);
 }
-
 
 /**
   @brief Check access privs for a MERGE table and fix children lock types.
@@ -801,6 +804,8 @@ bool do_command(THD *thd)
 
   net_new_transaction(net);
 
+  /* Save for user statistics */
+  thd->start_bytes_received= thd->status_var.bytes_received;
   packet_length= my_net_read(net);
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.start_new_query();
@@ -1324,7 +1329,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     table_list.select_lex= &(thd->lex->select_lex);
 
     lex_start(thd);
-    mysql_reset_thd_for_next_command(thd);
+    mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
     thd->lex->
       select_lex.table_list.link_in_list((uchar*) &table_list,
@@ -1609,6 +1614,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   /* Free tables */
   close_thread_tables(thd);
 
+  /* Update status; Must be done after close_thread_tables */
+  thd->update_all_stats();
+
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
@@ -1777,6 +1785,12 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     thd->profiling.discard_current_query();
 #endif
     break;
+  case SCH_USER_STATS:
+  case SCH_CLIENT_STATS:
+    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
+      DBUG_RETURN(1);
+  case SCH_TABLE_STATS:
+  case SCH_INDEX_STATS:
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
   case SCH_STATUS:
@@ -2218,6 +2232,10 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PROFILE:
+  case SQLCOM_SHOW_CLIENT_STATS:
+  case SQLCOM_SHOW_USER_STATS:
+  case SQLCOM_SHOW_TABLE_STATS:
+  case SQLCOM_SHOW_INDEX_STATS:
   case SQLCOM_SELECT:
     thd->status_var.last_query_cost= 0.0;
     if (all_tables)
@@ -5059,6 +5077,10 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         delete result;
     }
   }
+  /* Count number of empty select queries */
+  if (!thd->sent_row_count)
+    status_var_increment(thd->status_var.empty_queries);
+  status_var_add(thd->status_var.rows_sent, thd->sent_row_count);
   return res;
 }
 
@@ -5220,6 +5242,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       if (!no_errors)
       {
         const char *db_name= db ? db : thd->db;
+        status_var_increment(thd->status_var.access_denied_errors);
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  sctx->priv_user, sctx->priv_host, db_name);
       }
@@ -5252,12 +5275,15 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
+    {
+      status_var_increment(thd->status_var.access_denied_errors);
       my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                sctx->priv_user,
                sctx->priv_host,
                (thd->password ?
                 ER(ER_YES) :
                 ER(ER_NO)));                    /* purecov: tested */
+    }
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -5283,11 +5309,14 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   DBUG_PRINT("error",("Access denied"));
   if (!no_errors)
+  {
+    status_var_increment(thd->status_var.access_denied_errors);
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->priv_host,
              (db ? db : (thd->db ?
                          thd->db :
                          "unknown")));          /* purecov: tested */
+  }
   DBUG_RETURN(TRUE);				/* purecov: tested */
 }
 
@@ -5316,6 +5345,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     if (!thd->col_access && check_grant_db(thd, dst_db_name))
     {
+      status_var_increment(thd->status_var.access_denied_errors);
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_ctx->priv_user,
                thd->security_ctx->priv_host,
@@ -5378,14 +5408,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 {
   TABLE_LIST *org_tables= tables;
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
-  uint i= 0;
   Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
+  uint i;
   /*
     The check that first_not_own_table is not reached is for the case when
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; i < number && tables != first_not_own_table;
+  for (i=0; i < number && tables != first_not_own_table;
        tables= tables->next_global, i++)
   {
     if (tables->security_ctx)
@@ -5397,9 +5427,12 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
+      {
+        status_var_increment(thd->status_var.access_denied_errors);
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  sctx->priv_user, sctx->priv_host,
                  INFORMATION_SCHEMA_NAME.str);
+      }
       return TRUE;
     }
     /*
@@ -5563,6 +5596,7 @@ bool check_global_access(THD *thd, ulong want_access)
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
+  status_var_increment(thd->status_var.access_denied_errors);
   return 1;
 #else
   return 0;
@@ -5666,7 +5700,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
    Call it after we use THD for queries, not before.
 */
 
-void mysql_reset_thd_for_next_command(THD *thd)
+void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
@@ -5711,6 +5745,15 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+
+  /* Copy data for user stats */
+  if ((thd->userstat_running= calculate_userstat))
+  {
+    thd->start_cpu_time= my_getcputime();
+    memcpy(&thd->org_status_var, &thd->status_var, sizeof(thd->status_var));
+    thd->select_commands= thd->update_commands= thd->other_commands= 0;
+  }
+
   thd->query_plan_flags= QPLAN_INIT;
   thd->query_plan_fsort_passes= 0;
 
@@ -5909,7 +5952,6 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
                  const char ** found_semicolon)
 {
   DBUG_ENTER("mysql_parse");
-
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
   /*
@@ -5929,7 +5971,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     FIXME: cleanup the dependencies in the code to simplify this.
   */
   lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
   {
@@ -6001,10 +6043,11 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   }
   else
   {
+    /* Update statistics for getting the query from the cache */
+    thd->lex->sql_command= SQLCOM_SELECT;
     /* There are no multi queries in the cache. */
     *found_semicolon= NULL;
   }
-
   DBUG_VOID_RETURN;
 }
 
@@ -6028,7 +6071,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 
   Parser_state parser_state(thd, inBuf, length);
   lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, 0);
 
   if (!parse_sql(thd, & parser_state, NULL) &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
@@ -6867,6 +6910,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (flush_error_log())
       result=1;
   }
+  if (((options & (REFRESH_SLOW_QUERY_LOG | REFRESH_LOG)) ==
+       REFRESH_SLOW_QUERY_LOG))
+  {
+    /* We are only flushing slow query log */
+    logger.flush_slow_log(thd);
+  }
+
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
@@ -6949,26 +6999,55 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
 #endif
 #ifdef OPENSSL
-   if (options & REFRESH_DES_KEY_FILE)
-   {
-     if (des_key_file && load_des_key_file(des_key_file))
-         result= 1;
-   }
+  if (options & REFRESH_DES_KEY_FILE)
+  {
+    if (des_key_file && load_des_key_file(des_key_file))
+      result= 1;
+  }
 #endif
 #ifdef HAVE_REPLICATION
- if (options & REFRESH_SLAVE)
- {
-   tmp_write_to_binlog= 0;
-   pthread_mutex_lock(&LOCK_active_mi);
-   if (reset_slave(thd, active_mi))
-     result=1;
-   pthread_mutex_unlock(&LOCK_active_mi);
- }
+  if (options & REFRESH_SLAVE)
+  {
+    tmp_write_to_binlog= 0;
+    pthread_mutex_lock(&LOCK_active_mi);
+    if (reset_slave(thd, active_mi))
+      result=1;
+    pthread_mutex_unlock(&LOCK_active_mi);
+  }
 #endif
- if (options & REFRESH_USER_RESOURCES)
-   reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
- *write_to_binlog= tmp_write_to_binlog;
- return result;
+  if (options & REFRESH_USER_RESOURCES)
+    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+  if (options & REFRESH_TABLE_STATS)
+  {
+    pthread_mutex_lock(&LOCK_global_table_stats);
+    free_global_table_stats();
+    init_global_table_stats();
+    pthread_mutex_unlock(&LOCK_global_table_stats);
+  }
+  if (options & REFRESH_INDEX_STATS)
+  {
+    pthread_mutex_lock(&LOCK_global_index_stats);
+    free_global_index_stats();
+    init_global_index_stats();
+    pthread_mutex_unlock(&LOCK_global_index_stats);
+  }
+  if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS))
+  {
+    pthread_mutex_lock(&LOCK_global_user_client_stats);
+    if (options & REFRESH_USER_STATS)
+    {
+      free_global_user_stats();
+      init_global_user_stats();
+    }
+    if (options & REFRESH_CLIENT_STATS)
+    {
+      free_global_client_stats();
+      init_global_client_stats();
+    }
+    pthread_mutex_unlock(&LOCK_global_user_client_stats);
+  }
+  *write_to_binlog= tmp_write_to_binlog;
+  return result;
 }
 
 
@@ -7004,7 +7083,6 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (tmp)
   {
-
     /*
       If we're SUPER, we can KILL anything, including system-threads.
       No further checks.

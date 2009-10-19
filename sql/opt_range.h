@@ -727,7 +727,7 @@ public:
   ~FT_SELECT() { file->ft_end(); }
   int init() { return error=file->ft_init(); }
   int reset() { return 0; }
-  int get_next() { return error=file->ft_read(record); }
+  int get_next() { return error= file->ha_ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }
 };
 

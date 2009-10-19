@@ -1834,9 +1834,9 @@ static bool update_user_table(THD *thd, TABLE *table,
   key_copy((uchar *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar *) user_key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar *) user_key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
                MYF(0));	/* purecov: deadcode */
@@ -1927,9 +1927,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
     if (what == 'N')
@@ -2151,9 +2151,9 @@ static int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0],0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0],0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -2369,8 +2369,9 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
     col_privs->file->ha_index_init(0, 1);
-    if (col_privs->file->index_read_map(col_privs->record[0], (uchar*) key,
-                                        (key_part_map)15, HA_READ_KEY_EXACT))
+    if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
+                                           (key_part_map)15,
+                                           HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
       col_privs->file->ha_index_end();
@@ -2391,7 +2392,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         return;				/* purecov: deadcode */
       }
       my_hash_insert(&hash_columns, (uchar *) mem_check);
-    } while (!col_privs->file->index_next(col_privs->record[0]) &&
+    } while (!col_privs->file->ha_index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
@@ -2532,8 +2533,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    if (table->file->index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       HA_WHOLE_KEY, HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
       {
@@ -2610,9 +2611,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
-    if (table->file->index_read_map(table->record[0], user_key,
-                                    (key_part_map)15,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       (key_part_map)15,
+                                       HA_READ_KEY_EXACT))
       goto end;
 
     /* Scan through all rows with the same host,db,user and table */
@@ -2663,7 +2664,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	    hash_delete(&g_t->hash_columns,(uchar*) grant_column);
 	}
       }
-    } while (!table->file->index_next(table->record[0]) &&
+    } while (!table->file->ha_index_next(table->record[0]) &&
 	     !key_cmp_if_same(table, key, 0, key_prefix_length));
   }
 
@@ -2713,9 +2714,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -2840,10 +2841,10 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar*) table->field[0]->ptr,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar*) table->field[0]->ptr,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -3548,7 +3549,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   p_table->file->ha_index_init(0, 1);
   p_table->use_all_columns();
 
-  if (!p_table->file->index_first(p_table->record[0]))
+  if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3600,7 +3601,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         goto end_unlock;
       }
     }
-    while (!p_table->file->index_next(p_table->record[0]));
+    while (!p_table->file->ha_index_next(p_table->record[0]));
   }
   /* Return ok */
   return_val= 0;
@@ -3650,7 +3651,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   t_table->use_all_columns();
   c_table->use_all_columns();
 
-  if (!t_table->file->index_first(t_table->record[0]))
+  if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3685,7 +3686,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 	goto end_unlock;
       }
     }
-    while (!t_table->file->index_next(t_table->record[0]));
+    while (!t_table->file->ha_index_next(t_table->record[0]));
   }
 
   return_val=0;					// Return ok
@@ -3957,6 +3958,8 @@ err:
   {
     char command[128];
     get_privilege_desc(command, sizeof(command), want_access);
+    status_var_increment(thd->status_var.access_denied_errors);
+
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
              command,
              sctx->priv_user,
@@ -5203,9 +5206,9 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
-    if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                                user_key, (key_part_map)3,
-                                                HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                   user_key, (key_part_map)3,
+                                                   HA_READ_KEY_EXACT)))
     {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
@@ -5240,7 +5243,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
                          table->s->table_name.str, user_str, host_str));
 #endif
-      while ((error= table->file->rnd_next(table->record[0])) != 
+      while ((error= table->file->ha_rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
       {
         if (error)

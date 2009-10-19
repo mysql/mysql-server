@@ -565,8 +565,8 @@ retry:
       if (table->file->inited != handler::NONE)
       {
         error=keyname ?
-	  table->file->index_next(table->record[0]) :
-	  table->file->rnd_next(table->record[0]);
+	  table->file->ha_index_next(table->record[0]) :
+	  table->file->ha_rnd_next(table->record[0]);
         break;
       }
       /* else fall through */
@@ -575,13 +575,13 @@ retry:
       {
         table->file->ha_index_or_rnd_end();
         table->file->ha_index_init(keyno, 1);
-        error= table->file->index_first(table->record[0]);
+        error= table->file->ha_index_first(table->record[0]);
       }
       else
       {
         table->file->ha_index_or_rnd_end();
 	if (!(error= table->file->ha_rnd_init(1)))
-          error= table->file->rnd_next(table->record[0]);
+          error= table->file->ha_rnd_next(table->record[0]);
       }
       mode=RNEXT;
       break;
@@ -589,7 +589,7 @@ retry:
       DBUG_ASSERT(keyname != 0);
       if (table->file->inited != handler::NONE)
       {
-        error=table->file->index_prev(table->record[0]);
+        error=table->file->ha_index_prev(table->record[0]);
         break;
       }
       /* else fall through */
@@ -597,13 +597,13 @@ retry:
       DBUG_ASSERT(keyname != 0);
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
-      error= table->file->index_last(table->record[0]);
+      error= table->file->ha_index_last(table->record[0]);
       mode=RPREV;
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
       DBUG_ASSERT(keyname != 0);
-      error= table->file->index_next_same(table->record[0], key, key_len);
+      error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
     case RKEY:
     {
@@ -643,8 +643,8 @@ retry:
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
-      error= table->file->index_read_map(table->record[0],
-                                         key, keypart_map, ha_rkey_mode);
+      error= table->file->ha_index_read_map(table->record[0],
+                                            key, keypart_map, ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }

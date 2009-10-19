@@ -1425,7 +1425,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-	if (table->file->rnd_pos(table->record[1],table->file->dup_ref))
+	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
 	  goto err;
       }
       else
@@ -1446,9 +1446,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  }
 	}
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
-	if ((error=(table->file->index_read_idx_map(table->record[1],key_nr,
-                                                    (uchar*) key, HA_WHOLE_KEY,
-                                                    HA_READ_KEY_EXACT))))
+	if ((error= (table->file->ha_index_read_idx_map(table->record[1],
+                                                        key_nr, (uchar*) key,
+                                                        HA_WHOLE_KEY,
+                                                        HA_READ_KEY_EXACT))))
 	  goto err;
       }
       if (info->handle_duplicates == DUP_UPDATE)

@@ -1636,7 +1636,7 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       goto error;
     while (TRUE)
     {
-      if ((result= file->rnd_next(m_rec0)))
+      if ((result= file->ha_rnd_next(m_rec0)))
       {
         if (result == HA_ERR_RECORD_DELETED)
           continue;                              //Probably MyISAM
@@ -3495,7 +3495,7 @@ int ha_partition::rnd_next(uchar *buf)
   
   while (TRUE)
   {
-    result= file->rnd_next(buf);
+    result= file->ha_rnd_next(buf);
     if (!result)
     {
       m_last_part= part_id;
@@ -4345,8 +4345,8 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else if (is_next_same)
   {
-    if (!(error= file->index_next_same(buf, m_start_key.key,
-                                       m_start_key.length)))
+    if (!(error= file->ha_index_next_same(buf, m_start_key.key,
+                                          m_start_key.length)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);
@@ -4354,7 +4354,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else 
   {
-    if (!(error= file->index_next(buf)))
+    if (!(error= file->ha_index_next(buf)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);                           // Row was in range
@@ -4409,24 +4409,26 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
-      error= file->index_read_map(buf, m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(buf, m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      /* MyISAM engine can fail if we call index_first() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
+      /*
+        MyISAM engine can fail if we call index_first() when indexes disabled
+        that happens if the table is empty.
+        Here we use file->stats.records instead of file->records() because
+        file->records() is supposed to return an EXACT count, and it can be
+        possibly slow. We don't need an exact number, an approximate one- from
+        the last ::info() call - is sufficient.
+      */
       if (file->stats.records == 0)
       {
         error= HA_ERR_END_OF_FILE;
         break;
       }
-      error= file->index_first(buf);
+      error= file->ha_index_first(buf);
       break;
     case partition_index_first_unordered:
       /*
@@ -4507,45 +4509,49 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
 
     switch (m_index_scan_type) {
     case partition_index_read:
-      error= file->index_read_map(rec_buf_ptr,
-                                  m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(rec_buf_ptr,
+                                     m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
-      /* MyISAM engine can fail if we call index_first() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
+      /*
+        MyISAM engine can fail if we call index_first() when indexes disabled
+        that happens if the table is empty.
+        Here we use file->stats.records instead of file->records() because
+        file->records() is supposed to return an EXACT count, and it can be
+        possibly slow. We don't need an exact number, an approximate one- from
+        the last ::info() call - is sufficient.
+      */
       if (file->stats.records == 0)
       {
         error= HA_ERR_END_OF_FILE;
         break;
       }
-      error= file->index_first(rec_buf_ptr);
+      error= file->ha_index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      /* MyISAM engine can fail if we call index_last() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
+      /*
+        MyISAM engine can fail if we call index_last() when indexes disabled
+        that happens if the table is empty.
+        Here we use file->stats.records instead of file->records() because
+        file->records() is supposed to return an EXACT count, and it can be
+        possibly slow. We don't need an exact number, an approximate one- from
+        the last ::info() call - is sufficient.
+      */
       if (file->stats.records == 0)
       {
         error= HA_ERR_END_OF_FILE;
         break;
       }
-      error= file->index_last(rec_buf_ptr);
+      error= file->ha_index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;
     case partition_index_read_last:
-      error= file->index_read_last_map(rec_buf_ptr,
-                                       m_start_key.key,
-                                       m_start_key.keypart_map);
+      error= file->ha_index_read_last_map(rec_buf_ptr,
+                                          m_start_key.key,
+                                          m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
     case partition_read_range:
@@ -4647,10 +4653,10 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     memcpy(rec_buf(part_id), table->record[0], m_rec_length);
   }
   else if (!is_next_same)
-    error= file->index_next(rec_buf(part_id));
+    error= file->ha_index_next(rec_buf(part_id));
   else
-    error= file->index_next_same(rec_buf(part_id), m_start_key.key,
-				 m_start_key.length);
+    error= file->ha_index_next_same(rec_buf(part_id), m_start_key.key,
+                                    m_start_key.length);
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE)
@@ -4695,7 +4701,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_prev");
 
-  if ((error= file->index_prev(rec_buf(part_id))))
+  if ((error= file->ha_index_prev(rec_buf(part_id))))
   {
     if (error == HA_ERR_END_OF_FILE)
     {

@@ -7815,7 +7815,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               goto err;
             }
 	    ha_checksum row_crc= 0;
-            int error= t->file->rnd_next(t->record[0]);
+            int error= t->file->ha_rnd_next(t->record[0]);
             if (unlikely(error))
             {
               if (error == HA_ERR_RECORD_DELETED)

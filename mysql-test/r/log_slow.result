@@ -56,5 +56,6 @@ last_insert_id	int(11)	NO		NULL
 insert_id	int(11)	NO		NULL	
 server_id	int(10) unsigned	NO		NULL	
 sql_text	mediumtext	NO		NULL	
+flush slow query logs;
 set @@log_slow_filter=default;
 set @@log_slow_verbosity=default;

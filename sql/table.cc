@@ -1325,6 +1325,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       uint usable_parts= 0;
       keyinfo->name=(char*) share->keynames.type_names[key];
+      keyinfo->name_length= strlen(keyinfo->name);
+      keyinfo->cache_name=
+        (uchar*) alloc_root(&share->mem_root,
+                            share->table_cache_key.length+
+                            keyinfo->name_length + 1);
+      if (keyinfo->cache_name)           // If not out of memory
+      {
+        uchar *pos= keyinfo->cache_name;
+        memcpy(pos, share->table_cache_key.str, share->table_cache_key.length);
+        memcpy(pos + share->table_cache_key.length, keyinfo->name,
+               keyinfo->name_length+1);
+      }
+
       /* Fix fulltext keys for old .frm files */
       if (share->key_info[key].flags & HA_FULLTEXT)
 	share->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;

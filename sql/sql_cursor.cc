@@ -655,7 +655,7 @@ void Materialized_cursor::fetch(ulong num_rows)
   result->begin_dataset();
   for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
   {
-    if ((res= table->file->rnd_next(table->record[0])))
+    if ((res= table->file->ha_rnd_next(table->record[0])))
       break;
     /* Send data only if the read was successful. */
     result->send_data(item_list);

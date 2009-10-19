@@ -1790,10 +1790,10 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  if (! table->file->index_read_idx_map(table->record[0], 0,
-                                        (uchar *)table->field[0]->ptr,
-                                        HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_idx_map(table->record[0], 0,
+                                           (uchar *)table->field[0]->ptr,
+                                           HA_WHOLE_KEY,
+                                           HA_READ_KEY_EXACT))
   {
     int error;
     /*

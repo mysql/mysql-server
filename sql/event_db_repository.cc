@@ -404,17 +404,18 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   }
 
   key_copy(key_buf, event_table->record[0], key_info, key_len);
-  if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
-                                               (key_part_map)1,
-                                               HA_READ_PREFIX)))
+  if (!(ret= event_table->file->ha_index_read_map(event_table->record[0],
+                                                  key_buf,
+                                                  (key_part_map)1,
+                                                  HA_READ_PREFIX)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
     {
       ret= copy_event_to_schema_table(thd, schema_table, event_table);
       if (ret == 0)
-        ret= event_table->file->index_next_same(event_table->record[0],
-                                                key_buf, key_len);
+        ret= event_table->file->ha_index_next_same(event_table->record[0],
+                                                   key_buf, key_len);
     } while (ret == 0);
   }
   DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
@@ -883,8 +884,9 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     DBUG_PRINT("info", ("Row not found"));
     DBUG_RETURN(TRUE);

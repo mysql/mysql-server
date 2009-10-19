@@ -7,6 +7,7 @@ Tables_in_information_schema (T%)
 TABLES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 create database `inf%`;
 create database mbase;

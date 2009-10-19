@@ -1,0 +1,166 @@
+DROP TABLE IF EXISTS t1;
+select variable_value from information_schema.global_status where variable_name="handler_read_key" into @global_read_key;
+show columns from information_schema.client_statistics;
+Field	Type	Null	Key	Default	Extra
+CLIENT	varchar(64)	NO			
+TOTAL_CONNECTIONS	int(21)	NO		0	
+CONCURRENT_CONNECTIONS	int(21)	NO		0	
+CONNECTED_TIME	int(21)	NO		0	
+BUSY_TIME	double	NO		0	
+CPU_TIME	double	NO		0	
+BYTES_RECEIVED	int(21)	NO		0	
+BYTES_SENT	int(21)	NO		0	
+BINLOG_BYTES_WRITTEN	int(21)	NO		0	
+ROWS_READ	int(21)	NO		0	
+ROWS_SENT	int(21)	NO		0	
+ROWS_DELETED	int(21)	NO		0	
+ROWS_INSERTED	int(21)	NO		0	
+ROWS_UPDATED	int(21)	NO		0	
+SELECT_COMMANDS	int(21)	NO		0	
+UPDATE_COMMANDS	int(21)	NO		0	
+OTHER_COMMANDS	int(21)	NO		0	
+COMMIT_TRANSACTIONS	int(21)	NO		0	
+ROLLBACK_TRANSACTIONS	int(21)	NO		0	
+DENIED_CONNECTIONS	int(21)	NO		0	
+LOST_CONNECTIONS	int(21)	NO		0	
+ACCESS_DENIED	int(21)	NO		0	
+EMPTY_QUERIES	int(21)	NO		0	
+show columns from information_schema.user_statistics;
+Field	Type	Null	Key	Default	Extra
+USER	varchar(48)	NO			
+TOTAL_CONNECTIONS	int(21)	NO		0	
+CONCURRENT_CONNECTIONS	int(21)	NO		0	
+CONNECTED_TIME	int(21)	NO		0	
+BUSY_TIME	double	NO		0	
+CPU_TIME	double	NO		0	
+BYTES_RECEIVED	int(21)	NO		0	
+BYTES_SENT	int(21)	NO		0	
+BINLOG_BYTES_WRITTEN	int(21)	NO		0	
+ROWS_READ	int(21)	NO		0	
+ROWS_SENT	int(21)	NO		0	
+ROWS_DELETED	int(21)	NO		0	
+ROWS_INSERTED	int(21)	NO		0	
+ROWS_UPDATED	int(21)	NO		0	
+SELECT_COMMANDS	int(21)	NO		0	
+UPDATE_COMMANDS	int(21)	NO		0	
+OTHER_COMMANDS	int(21)	NO		0	
+COMMIT_TRANSACTIONS	int(21)	NO		0	
+ROLLBACK_TRANSACTIONS	int(21)	NO		0	
+DENIED_CONNECTIONS	int(21)	NO		0	
+LOST_CONNECTIONS	int(21)	NO		0	
+ACCESS_DENIED	int(21)	NO		0	
+EMPTY_QUERIES	int(21)	NO		0	
+show columns from information_schema.index_statistics;
+Field	Type	Null	Key	Default	Extra
+TABLE_SCHEMA	varchar(192)	NO			
+TABLE_NAME	varchar(192)	NO			
+INDEX_NAME	varchar(192)	NO			
+ROWS_READ	int(21)	NO		0	
+show columns from information_schema.table_statistics;
+Field	Type	Null	Key	Default	Extra
+TABLE_SCHEMA	varchar(192)	NO			
+TABLE_NAME	varchar(192)	NO			
+ROWS_READ	int(21)	NO		0	
+ROWS_CHANGED	int(21)	NO		0	
+ROWS_CHANGED_X_INDEXES	int(21)	NO		0	
+set @save_general_log=@@global.general_log;
+set @@global.general_log=0;
+set @@global.userstat=1;
+flush status;
+create table t1 (a int, primary key (a), b int default 0) engine=myisam;
+insert into t1 (a) values (1),(2),(3),(4);
+update t1 set b=1;
+update t1 set b=5 where a=2;
+delete from t1 where a=3;
+/* Empty query */
+select * from t1 where a=999;
+a	b
+drop table t1;
+create table t1 (a int, primary key (a), b int default 0) engine=innodb;
+begin;
+insert into t1 values(1,1);
+commit;
+begin;
+insert into t1 values(2,2);
+commit;
+begin;
+insert into t1 values(3,3);
+rollback;
+drop table t1;
+select sleep(1);
+sleep(1)
+0
+show status like "rows%";
+Variable_name	Value
+Rows_read	6
+Rows_sent	1
+show status like "ha%";
+Variable_name	Value
+Handler_commit	10
+Handler_delete	1
+Handler_discover	0
+Handler_prepare	10
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	5
+Handler_rollback	2
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	5
+Handler_write	7
+select variable_value - @global_read_key as "handler_read_key" from information_schema.global_status where variable_name="handler_read_key";
+handler_read_key
+3
+set @@global.userstat=0;
+select * from information_schema.index_statistics;
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
+test	t1	PRIMARY	2
+select * from information_schema.table_statistics;
+TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
+test	t1	6	13	13
+show table_statistics;
+Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
+test	t1	6	13	13
+show index_statistics;
+Table_schema	Table_name	Index_name	Rows_read
+test	t1	PRIMARY	2
+select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT,
+ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS,
+UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS,
+ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS,
+ACCESS_DENIED, EMPTY_QUERIES from information_schema.client_statistics;
+TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	ROWS_READ	ROWS_SENT	ROWS_DELETED	ROWS_INSERTED	ROWS_UPDATED	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES
+1	0	6	2	1	8	5	3	11	9	10	2	0	0	0	1
+select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT,
+ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS,
+UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS,
+ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS,
+ACCESS_DENIED, EMPTY_QUERIES from information_schema.user_statistics;
+TOTAL_CONNECTIONS	CONCURRENT_CONNECTIONS	ROWS_READ	ROWS_SENT	ROWS_DELETED	ROWS_INSERTED	ROWS_UPDATED	SELECT_COMMANDS	UPDATE_COMMANDS	OTHER_COMMANDS	COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS	DENIED_CONNECTIONS	LOST_CONNECTIONS	ACCESS_DENIED	EMPTY_QUERIES
+1	0	6	2	1	8	5	3	11	9	10	2	0	0	0	1
+flush table_statistics;
+flush index_statistics;
+select * from information_schema.index_statistics;
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
+select * from information_schema.table_statistics;
+TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
+show status like "%statistics%";
+Variable_name	Value
+Com_show_client_statistics	0
+Com_show_index_statistics	1
+Com_show_table_statistics	1
+Com_show_user_statistics	0
+select connected_time <> 0, busy_time <> 0, bytes_received <> 0,
+bytes_sent <> 0, binlog_bytes_written <> 0
+from information_schema.user_statistics;
+connected_time <> 0	busy_time <> 0	bytes_received <> 0	bytes_sent <> 0	binlog_bytes_written <> 0
+1	1	1	1	1
+select connected_time <> 0, busy_time <> 0, bytes_received <> 0,
+bytes_sent <> 0, binlog_bytes_written <> 0
+from information_schema.client_statistics;
+connected_time <> 0	busy_time <> 0	bytes_received <> 0	bytes_sent <> 0	binlog_bytes_written <> 0
+1	1	1	1	1
+set @@global.general_log=@save_general_log;

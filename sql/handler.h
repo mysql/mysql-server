@@ -30,6 +30,10 @@
 
 #define USING_TRANSACTIONS
 
+#if MAX_KEY > 128
+#error MAX_KEY is too large.  Values up to 128 are supported.
+#endif
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -601,8 +605,9 @@ struct handlerton
   SHOW_COMP_OPTION state;
 
   /*
-    Historical number used for frm file to determine the correct storage engine.
-    This is going away and new engines will just use "name" for this.
+    Historical number used for frm file to determine the correct
+    storage engine.  This is going away and new engines will just use
+    "name" for this.
   */
   enum legacy_db_type db_type;
   /*
@@ -1138,6 +1143,12 @@ public:
     Interval returned by get_auto_increment() and being consumed by the
     inserter.
   */
+  /* Statistics  variables */
+  ulonglong rows_read;
+  ulonglong rows_changed;
+  /* One bigger than needed to avoid to test if key == MAX_KEY */
+  ulonglong index_rows_read[MAX_KEY+1];
+
   Discrete_interval auto_inc_interval_for_cur_row;
   /**
      Number of reserved auto-increment intervals. Serves as a heuristic
@@ -1156,7 +1167,10 @@ public:
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0)
-    {}
+    {
+      reset_statistics();
+    }
+
   virtual ~handler(void)
   {
     DBUG_ASSERT(locked == FALSE);
@@ -1278,10 +1292,16 @@ public:
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
+  void reset_statistics()
+  {
+    rows_read= rows_changed= 0;
+    bzero(index_rows_read, sizeof(index_rows_read));
+  }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
     table_share= share;
+    reset_statistics();
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
@@ -1390,22 +1410,23 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the
+     handle. Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
   */
+protected:
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
   {
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return  index_read(buf, key, key_len, find_flag);
+    return index_read(buf, key, key_len, find_flag);
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the
+     handle. Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
@@ -1430,6 +1451,79 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+  inline void update_index_statistics()
+  {
+    index_rows_read[active_index]++;
+    rows_read++;
+  }
+public:
+
+  /* Similar functions like the above, but does statistics counting */
+  inline int ha_index_read_map(uchar * buf, const uchar * key,
+                               key_part_map keypart_map,
+                               enum ha_rkey_function find_flag)
+  {
+    int error= index_read_map(buf, key, keypart_map, find_flag);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                                   key_part_map keypart_map,
+                                   enum ha_rkey_function find_flag)
+  {
+    int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+    if (!error)
+    {
+      rows_read++;
+      index_rows_read[index]++;
+    }
+    return error;
+  }
+  inline int ha_index_next(uchar * buf)
+  {
+    int error= index_next(buf);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_prev(uchar * buf)
+  {
+    int error= index_prev(buf);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_first(uchar * buf)
+  {
+    int error= index_first(buf);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_last(uchar * buf)
+  {
+    int error= index_last(buf);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
+  {
+    int error= index_next_same(buf, key, keylen);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+  inline int ha_index_read_last_map(uchar * buf, const uchar * key,
+                                    key_part_map keypart_map)
+  {
+    int error= index_read_last_map(buf, key, keypart_map);
+    if (!error)
+      update_index_statistics();
+    return error;
+  }
+
   virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                      KEY_MULTI_RANGE *ranges, uint range_count,
                                      bool sorted, HANDLER_BUFFER *buffer);
@@ -1443,6 +1537,7 @@ public:
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
+private:
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
@@ -1453,11 +1548,50 @@ public:
     handlers for random position.
   */
   virtual int rnd_pos_by_record(uchar *record)
-    {
-      position(record);
-      return rnd_pos(record, ref);
-    }
+  {
+    position(record);
+    return rnd_pos(record, ref);
+  }
   virtual int read_first_row(uchar *buf, uint primary_key);
+public:
+
+  /* Same as above, but with statistics */
+  inline int ha_ft_read(uchar *buf)
+  {
+    int error= ft_read(buf);
+    if (!error)
+      rows_read++;
+    return error;
+  }
+  inline int ha_rnd_next(uchar *buf)
+  {
+    int error= rnd_next(buf);
+    if (!error)
+      rows_read++;
+    return error;
+  }
+  inline int ha_rnd_pos(uchar *buf, uchar *pos)
+  {
+    int error= rnd_pos(buf, pos);
+    if (!error)
+      rows_read++;
+    return error;
+  }
+  inline int ha_rnd_pos_by_record(uchar *buf)
+  {
+    int error= rnd_pos_by_record(buf);
+    if (!error)
+      rows_read++;
+    return error;
+  }
+  inline int ha_read_first_row(uchar *buf, uint primary_key)
+  {
+    int error= read_first_row(buf, primary_key);
+    if (!error)
+      rows_read++;
+    return error;
+  }
+
   /**
     The following 3 function is only needed for tables that may be
     internal temporary tables during joins.
@@ -1625,6 +1759,9 @@ public:
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
+
+  void update_global_table_stats();
+  void update_global_index_stats();
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
@@ -1944,6 +2081,7 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  friend class ha_partition;
 };
 
 

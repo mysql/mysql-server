@@ -511,6 +511,9 @@ static sys_var_const            sys_protocol_version(&vars, "protocol_version",
 static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
 					   &SV::read_buff_size);
 static sys_var_opt_readonly	sys_readonly(&vars, "read_only", &opt_readonly);
+static sys_var_bool_ptr	        sys_userstat(&vars, "userstat",
+                                             &opt_userstat_running);
+
 static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",

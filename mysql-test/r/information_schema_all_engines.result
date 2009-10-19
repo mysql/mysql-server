@@ -2,6 +2,7 @@ use INFORMATION_SCHEMA;
 show tables;
 Tables_in_information_schema
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
@@ -11,6 +12,7 @@ EVENTS
 FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
+INDEX_STATISTICS
 KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
@@ -26,8 +28,10 @@ STATISTICS
 TABLES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
 INNODB_BUFFER_POOL_PAGES
 PBXT_STATISTICS
@@ -60,6 +64,7 @@ c2.column_name LIKE '%SCHEMA%'
         );
 table_name	column_name
 CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
 COLLATIONS	COLLATION_NAME
 COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
@@ -69,6 +74,7 @@ EVENTS	EVENT_SCHEMA
 FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
+INDEX_STATISTICS	TABLE_SCHEMA
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
@@ -84,8 +90,10 @@ STATISTICS	TABLE_SCHEMA
 TABLES	TABLE_SCHEMA
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 INNODB_BUFFER_POOL_PAGES	page_type
 PBXT_STATISTICS	ID
@@ -118,6 +126,7 @@ c2.column_name LIKE '%SCHEMA%'
         );
 table_name	column_name
 CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
 COLLATIONS	COLLATION_NAME
 COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
@@ -127,6 +136,7 @@ EVENTS	EVENT_SCHEMA
 FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
+INDEX_STATISTICS	TABLE_SCHEMA
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
@@ -142,8 +152,10 @@ STATISTICS	TABLE_SCHEMA
 TABLES	TABLE_SCHEMA
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 INNODB_BUFFER_POOL_PAGES	page_type
 PBXT_STATISTICS	ID
@@ -182,6 +194,7 @@ group by c2.column_type order by num limit 1)
 group by t.table_name order by num1, t.table_name;
 table_name	group_concat(t.table_schema, '.', t.table_name)	num1
 CHARACTER_SETS	information_schema.CHARACTER_SETS	1
+CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
 COLLATIONS	information_schema.COLLATIONS	1
 COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
 COLUMNS	information_schema.COLUMNS	1
@@ -191,6 +204,7 @@ EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
+INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
 INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
 INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
@@ -220,8 +234,10 @@ STATISTICS	information_schema.STATISTICS	1
 TABLES	information_schema.TABLES	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
+TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
+USER_STATISTICS	information_schema.USER_STATISTICS	1
 VIEWS	information_schema.VIEWS	1
 XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
 Database: information_schema
@@ -229,6 +245,7 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -238,6 +255,7 @@ Database: information_schema
 | FILES                                 |
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -253,8 +271,10 @@ Database: information_schema
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
@@ -277,6 +297,7 @@ Database: INFORMATION_SCHEMA
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -286,6 +307,7 @@ Database: INFORMATION_SCHEMA
 | FILES                                 |
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -301,8 +323,10 @@ Database: INFORMATION_SCHEMA
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
@@ -328,5 +352,5 @@ Wildcard: inf_rmation_schema
 +--------------------+
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	43
+information_schema	47
 mysql	22

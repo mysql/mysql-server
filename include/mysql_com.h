@@ -29,6 +29,7 @@
 
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
+#define LIST_PROCESS_HOST_LEN 64
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
@@ -115,6 +116,11 @@ enum enum_server_command
 					   thread */
 #define REFRESH_MASTER          128     /* Remove all bin logs in the index
 					   and truncate the index */
+#define REFRESH_TABLE_STATS     256     /* Refresh table stats hash table */
+#define REFRESH_INDEX_STATS     512     /* Refresh index stats hash table */
+#define REFRESH_USER_STATS      1024    /* Refresh user stats hash table */
+#define REFRESH_SLOW_QUERY_LOG  4096    /* Flush slow query log and rotate*/
+#define REFRESH_CLIENT_STATS    8192    /* Refresh client stats hash table */
 
 /* The following can't be set with mysql_refresh() */
 #define REFRESH_READ_LOCK	16384	/* Lock tables for read */

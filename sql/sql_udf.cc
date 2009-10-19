@@ -567,10 +567,10 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
-  if (!table->file->index_read_idx_map(table->record[0], 0,
-                                       (uchar*) table->field[0]->ptr,
-                                       HA_WHOLE_KEY,
-                                       HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_idx_map(table->record[0], 0,
+                                          (uchar*) table->field[0]->ptr,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT))
   {
     int error;
     if ((error = table->file->ha_delete_row(table->record[0])))

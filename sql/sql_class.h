@@ -415,8 +415,6 @@ struct system_variables
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -455,6 +453,8 @@ typedef struct system_status_var
   ulong select_range_count;
   ulong select_range_check_count;
   ulong select_scan_count;
+  ulong rows_read;
+  ulong rows_sent;
   ulong long_query_count;
   ulong filesort_merge_passes;
   ulong filesort_range_count;
@@ -472,6 +472,9 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+  ulong empty_queries;
+  ulong access_denied_errors;                   /* Can only be 0 or 1 */
+  ulong lost_connections;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
@@ -480,12 +483,16 @@ typedef struct system_status_var
     Status variables which it does not make sense to add to
     global status variable counter
   */
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
+  ulonglong binlog_bytes_written;
   double last_query_cost;
+  double cpu_time, busy_time;
 } STATUS_VAR;
 
 /*
   This is used for 'SHOW STATUS'. It must be updated to the last ulong
-  variable in system_status_var which is makes sens to add to the global
+  variable in system_status_var which is makes sense to add to the global
   counter
 */
 
@@ -1299,6 +1306,7 @@ public:
   struct  my_rnd_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  struct  system_status_var org_status_var; // For user statistics
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
@@ -1399,6 +1407,8 @@ public:
   uint in_sub_stmt;
   /* TRUE when the current top has SQL_LOG_BIN ON */
   bool sql_log_bin_toplevel;
+  /* True when opt_userstat_running is set at start of query */
+  bool userstat_running;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -1842,6 +1852,21 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  /* Time when the current thread connected to MySQL. */
+  time_t current_connect_time;
+  /* Last time when THD stats were updated in global_user_stats. */
+  time_t last_global_update_time;
+  /* Number of commands not reflected in global_user_stats yet. */
+  uint select_commands, update_commands, other_commands;
+  ulonglong start_cpu_time;
+  ulonglong start_bytes_received;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -1902,6 +1927,8 @@ public:
     alloc_root.
   */
   void init_for_queries();
+  void update_all_stats();
+  void update_stats(void);
   void change_user(void);
   void cleanup(void);
   void cleanup_after_query();
@@ -2318,7 +2345,6 @@ private:
   */
   MEM_ROOT main_mem_root;
 };
-
 
 /** A short cut for thd->main_da.set_ok_status(). */
 

@@ -821,6 +821,13 @@ void Log_to_file_event_handler::flush()
     mysql_slow_log.reopen_file();
 }
 
+void Log_to_file_event_handler::flush_slow_log()
+{
+  /* reopen slow log file */
+  if (opt_slow_log)
+    mysql_slow_log.reopen_file();
+}
+
 /*
   Log error with all enabled log event handlers
 
@@ -916,8 +923,6 @@ void LOGGER::init_log_tables()
 
 bool LOGGER::flush_logs(THD *thd)
 {
-  int rc= 0;
-
   /*
     Now we lock logger, as nobody should be able to use logging routines while
     log tables are closed
@@ -929,7 +934,24 @@ bool LOGGER::flush_logs(THD *thd)
 
   /* end of log flush */
   logger.unlock();
-  return rc;
+  return 0;
+}
+
+
+bool LOGGER::flush_slow_log(THD *thd)
+{
+  /*
+    Now we lock logger, as nobody should be able to use logging routines while
+    log tables are closed
+  */
+  logger.lock_exclusive();
+
+  /* reopen log files */
+  file_log_handler->flush_slow_log();
+
+  /* end of log flush */
+  logger.unlock();
+  return 0;
 }
 
 
@@ -4070,6 +4092,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   if (likely(is_open()))
   {
     IO_CACHE *file= &log_file;
+    my_off_t my_org_b_tell;
 #ifdef HAVE_REPLICATION
     /*
       In the future we need to add to the following if tests like
@@ -4077,13 +4100,15 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
+    if ((!(thd->options & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
+
+    my_org_b_tell= my_b_tell(file);
 
 #if defined(USING_TRANSACTIONS) 
     /*
@@ -4095,7 +4120,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
      trans/non-trans table types the best possible in binlogging)
       - or if the event asks for it (cache_stmt == TRUE).
     */
-    if (opt_using_transactions && thd)
+    if (opt_using_transactions)
     {
       if (thd->binlog_setup_trx_data())
         goto err;
@@ -4136,7 +4161,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       If row-based binlogging, Insert_id, Rand and other kind of "setting
       context" events are not needed.
     */
-    if (thd)
     {
       if (!thd->current_stmt_binlog_row_based)
       {
@@ -4183,16 +4207,16 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       }
     }
 
-    /*
-       Write the SQL command
-     */
-
+    /* Write the SQL command */
     if (event_info->write(file) || 
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
+      ulonglong data_written= (my_b_tell(file) - my_org_b_tell);
+      status_var_add(thd->status_var.binlog_bytes_written, data_written);
+
       if (flush_and_sync())
 	goto err;
       signal_update();
@@ -4318,6 +4342,7 @@ uint MYSQL_BIN_LOG::next_file_id()
 
   SYNOPSIS
     write_cache()
+    thd      Current_thread
     cache    Cache to write to the binary log
     lock_log True if the LOCK_log mutex should be aquired, false otherwise
     sync_log True if the log should be flushed and sync:ed
@@ -4327,7 +4352,8 @@ uint MYSQL_BIN_LOG::next_file_id()
     be reset as a READ_CACHE to be able to read the contents from it.
  */
 
-int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
+int MYSQL_BIN_LOG::write_cache(THD *thd, IO_CACHE *cache, bool lock_log,
+                               bool sync_log)
 {
   Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
 
@@ -4375,6 +4401,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
       /* write the first half of the split header */
       if (my_b_write(&log_file, header, carry))
         return ER_ERROR_ON_WRITE;
+      status_var_add(thd->status_var.binlog_bytes_written, carry);
 
       /*
         copy fixed second half of header to cache so the correct
@@ -4443,6 +4470,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
     /* Write data to the binary log file */
     if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
+    status_var_add(thd->status_var.binlog_bytes_written, length);
+
     cache->read_pos=cache->read_end;		// Mark buffer used up
   } while ((length= my_b_fill(cache)));
 
@@ -4494,6 +4523,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   if (lock)
     pthread_mutex_lock(&LOCK_log);
   ev.write(&log_file);
+  status_var_add(thd->status_var.binlog_bytes_written, ev.data_written);
+
   if (lock)
   {
     if (!error && !(error= flush_and_sync()))
@@ -4565,21 +4596,28 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       */
       if (qinfo.write(&log_file))
         goto err;
+      status_var_add(thd->status_var.binlog_bytes_written, qinfo.data_written);
 
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= write_cache(cache, false, true)))
+                        if ((write_error= write_cache(thd, cache, FALSE,
+                                                      TRUE)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         abort();
                       });
 
-      if ((write_error= write_cache(cache, false, false)))
+      if ((write_error= write_cache(thd, cache, FALSE, FALSE)))
         goto err;
 
-      if (commit_event && commit_event->write(&log_file))
-        goto err;
+      if (commit_event)
+      {
+        if (commit_event->write(&log_file))
+          goto err;
+        status_var_add(thd->status_var.binlog_bytes_written,
+                       commit_event->data_written);
+      }
 
       if (incident && write_incident(thd, FALSE))
         goto err;

@@ -829,7 +829,7 @@ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
+ sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h linux/unistd.h \
  execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
@@ -2096,7 +2096,18 @@ case "$target" in
 	# We also disable for SCO for the time being, the headers for the
 	# thread library we use conflicts with other headers.
     ;;
- *) AC_CHECK_FUNCS(clock_gettime)
+*) 
+   # most systems require the program be linked with librt library to use
+   # the function clock_gettime 
+   my_save_LIBS="$LIBS"
+   LIBS=""
+   AC_CHECK_LIB(rt,clock_gettime)
+   LIBRT=$LIBS
+   LIBS="$my_save_LIBS"
+   AC_SUBST(LIBRT)
+
+   LIBS="$LIBS $LIBRT"
+   AC_CHECK_FUNCS(clock_gettime)
     ;;
 esac
 
@@ -2786,7 +2797,7 @@ then
 fi
 sql_client_dirs="$sql_client_dirs client"
 
-CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
+CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS $LIBRT"
 
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(CLIENT_THREAD_LIBS)

@@ -1236,6 +1236,7 @@ int ha_commit_one_phase(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
+      /* Should this be done only if is_real_trans is set ? */
       status_var_increment(thd->status_var.ha_commit_count);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
@@ -2092,6 +2093,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
+  rows_read= rows_changed= 0;
+  memset(index_rows_read, 0, sizeof(index_rows_read));
   DBUG_RETURN(error);
 }
 
@@ -2513,9 +2516,10 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
-    error= index_read_map(table->record[1], key,
-                          make_prev_keypart_map(table->s->next_number_keypart),
-                          HA_READ_PREFIX_LAST);
+    error= ha_index_read_map(table->record[1], key,
+                             make_prev_keypart_map(table->s->
+                                                   next_number_keypart),
+                             HA_READ_PREFIX_LAST);
     /*
       MySQL needs to call us for next row: assume we are inserting ("a",null)
       here, we return 3, and next this statement will want to insert
@@ -3549,6 +3553,122 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
 }
 
 
+/*
+  Updates the global table stats with the TABLE this handler represents
+*/
+
+void handler::update_global_table_stats()
+{
+  TABLE_STATS * table_stats;
+
+  status_var_add(table->in_use->status_var.rows_read, rows_read);
+
+  if (!table->in_use->userstat_running)
+  {
+    rows_read= rows_changed= 0;
+    return;
+  }
+
+  if (rows_read + rows_changed == 0)
+    return;                                     // Nothing to update.
+
+  DBUG_ASSERT(table->s && table->s->table_cache_key.str);
+
+  pthread_mutex_lock(&LOCK_global_table_stats);
+  /* Gets the global table stats, creating one if necessary. */
+  if (!(table_stats= (TABLE_STATS*)
+        hash_search(&global_table_stats,
+                    (uchar*) table->s->table_cache_key.str,
+                    table->s->table_cache_key.length)))
+  {
+    if (!(table_stats = ((TABLE_STATS*)
+                         my_malloc(sizeof(TABLE_STATS),
+                                   MYF(MY_WME | MY_ZEROFILL)))))
+    {
+      /* Out of memory error already given */
+      goto end;
+    }
+    memcpy(table_stats->table, table->s->table_cache_key.str,
+           table->s->table_cache_key.length);
+    table_stats->table_name_length= table->s->table_cache_key.length;
+    table_stats->engine_type= ht->db_type;
+    /* No need to set variables to 0, as we use MY_ZEROFILL above */
+
+    if (my_hash_insert(&global_table_stats, (uchar*) table_stats))
+    {
+      /* Out of memory error is already given */
+      my_free(table_stats, 0);
+      goto end;
+    }
+  }
+  // Updates the global table stats.
+  table_stats->rows_read+=    rows_read;
+  table_stats->rows_changed+= rows_changed;
+  table_stats->rows_changed_x_indexes+= (rows_changed *
+                                         (table->s->keys ? table->s->keys :
+                                          1));
+  rows_read= rows_changed= 0;
+end:
+  pthread_mutex_unlock(&LOCK_global_table_stats);
+}
+
+
+/*
+  Updates the global index stats with this handler's accumulated index reads.
+*/
+
+void handler::update_global_index_stats()
+{
+  DBUG_ASSERT(table->s);
+
+  if (!table->in_use->userstat_running)
+  {
+    /* Reset all index read values */
+    bzero(index_rows_read, sizeof(index_rows_read[0]) * table->s->keys);
+    return;
+  }
+
+  for (uint index = 0; index < table->s->keys; index++)
+  {
+    if (index_rows_read[index])
+    {
+      INDEX_STATS* index_stats;
+      uint key_length;
+      KEY *key_info = &table->key_info[index];  // Rows were read using this
+
+      DBUG_ASSERT(key_info->cache_name);
+      if (!key_info->cache_name)
+        continue;
+      key_length= table->s->table_cache_key.length + key_info->name_length + 1;
+      pthread_mutex_lock(&LOCK_global_index_stats);
+      // Gets the global index stats, creating one if necessary.
+      if (!(index_stats= (INDEX_STATS*) hash_search(&global_index_stats,
+                                                    key_info->cache_name,
+                                                    key_length)))
+      {
+        if (!(index_stats = ((INDEX_STATS*)
+                             my_malloc(sizeof(INDEX_STATS),
+                                       MYF(MY_WME | MY_ZEROFILL)))))
+          goto end;                             // Error is already given
+
+        memcpy(index_stats->index, key_info->cache_name, key_length);
+        index_stats->index_name_length= key_length;
+        if (my_hash_insert(&global_index_stats, (uchar*) index_stats))
+        {
+          my_free(index_stats, 0);
+          goto end;
+        }
+      }
+      /* Updates the global index stats. */
+      index_stats->rows_read+= index_rows_read[index];
+      index_rows_read[index]= 0;
+end:
+      pthread_mutex_unlock(&LOCK_global_index_stats);
+    }
+  }
+}
+
+
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
@@ -4207,17 +4327,16 @@ int handler::read_range_first(const key_range *start_key,
   range_key_part= table->key_info[active_index].key_part;
 
   if (!start_key)			// Read first record
-    result= index_first(table->record[0]);
+    result= ha_index_first(table->record[0]);
   else
-    result= index_read_map(table->record[0],
-                           start_key->key,
-                           start_key->keypart_map,
-                           start_key->flag);
+    result= ha_index_read_map(table->record[0],
+                              start_key->key,
+                              start_key->keypart_map,
+                              start_key->flag);
   if (result)
     DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
 		? HA_ERR_END_OF_FILE
 		: result);
-
   DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
 }
 
@@ -4243,11 +4362,11 @@ int handler::read_range_next()
   if (eq_range)
   {
     /* We trust that index_next_same always gives a row in range */
-    DBUG_RETURN(index_next_same(table->record[0],
-                                end_range->key,
-                                end_range->length));
+    DBUG_RETURN(ha_index_next_same(table->record[0],
+                                   end_range->key,
+                                   end_range->length));
   }
-  result= index_next(table->record[0]);
+  result= ha_index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
   DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
@@ -4629,6 +4748,7 @@ int handler::ha_write_row(uchar *buf)
 
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
+  rows_changed++;
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
@@ -4650,6 +4770,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
+  rows_changed++;
   if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
   return 0;
@@ -4664,6 +4785,7 @@ int handler::ha_delete_row(const uchar *buf)
 
   if (unlikely(error= delete_row(buf)))
     return error;
+  rows_changed++;
   if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
   return 0;

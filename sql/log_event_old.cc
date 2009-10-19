@@ -63,7 +63,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
-    mysql_reset_thd_for_next_command(thd);
+    mysql_reset_thd_for_next_command(thd, 0);
 
     /*
       Check if the slave is set to use SBR.  If so, it should switch
@@ -553,7 +553,7 @@ replace_record(THD *thd, TABLE *table,
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
@@ -579,10 +579,10 @@ replace_record(THD *thd, TABLE *table,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
         DBUG_PRINT("info", ("index_read_idx() returns error %d", error));
@@ -694,13 +694,13 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       length. Something along these lines should work:
 
       ADD>>>  store_record(table,record[1]);
-              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+              int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
       ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
                                  table->s->reclength) == 0);
 
     */
     table->file->position(table->record[0]);
-    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
     /*
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
@@ -738,8 +738,9 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read_map(table->record[1], key, HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[1], key,
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
@@ -793,7 +794,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[1])))
+      while ((error= table->file->ha_index_next(table->record[1])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -822,7 +823,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     do
     {
   restart_rnd_next:
-      error= table->file->rnd_next(table->record[1]);
+      error= table->file->ha_rnd_next(table->record[1]);
 
       DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
       DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
@@ -2115,7 +2116,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
       DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
@@ -2147,10 +2148,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
         DBUG_PRINT("info",("index_read_idx() returns error %d", error));
@@ -2301,13 +2302,13 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       length. Something along these lines should work:
 
       ADD>>>  store_record(table,record[1]);
-              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+              int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
       ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
                                  table->s->reclength) == 0);
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error= table->file->rnd_pos_by_record(table->record[0]);
+    int error= table->file->ha_rnd_pos_by_record(table->record[0]);
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -2367,9 +2368,9 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[0][pos]= 0xFF;
     
-    if ((error= table->file->index_read_map(table->record[0], m_key, 
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[0], m_key, 
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
       if (error == HA_ERR_RECORD_DELETED)
@@ -2431,7 +2432,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->ha_index_next(table->record[0])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -2467,7 +2468,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     do
     {
   restart_rnd_next:
-      error= table->file->rnd_next(table->record[0]);
+      error= table->file->ha_rnd_next(table->record[0]);
 
       switch (error) {
 

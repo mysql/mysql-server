@@ -28,6 +28,10 @@
 #ifdef __NETWARE__
 #include <nks/time.h>
 #endif
+#ifdef HAVE_LINUX_UNISTD_H
+#include <linux/unistd.h>
+#endif
+
 
 ulonglong my_getsystime()
 {
@@ -221,4 +225,26 @@ time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
 #else
   return (time_t) (microtime / 1000000);
 #endif  /* defined(__WIN__) */
+}
+
+
+/*
+  Return cpu time in milliseconds * 10
+*/
+
+ulonglong my_getcputime()
+{
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp))
+    return 0;
+  return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
+#elif defined(__NR_clock_gettime)
+  struct timespec tp;
+  if (syscall(__NR_clock_gettime, CLOCK_THREAD_CPUTIME_ID, &tp))
+    return 0;
+  return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
+#else
+  return 0;
+#endif /* HAVE_CLOCK_GETTIME */
 }

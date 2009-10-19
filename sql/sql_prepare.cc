@@ -2067,14 +2067,13 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   Prepared_statement *stmt;
   bool error;
   DBUG_ENTER("mysqld_stmt_prepare");
-
   DBUG_PRINT("prep_query", ("%s", packet));
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   if (! (stmt= new Prepared_statement(thd)))
-    DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
+    goto end;           /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
   {
@@ -2082,7 +2081,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
       The error is set in the insert. The statement itself
       will be also deleted there (this is how the hash works).
     */
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   /* Reset warnings from previous command */
@@ -2109,6 +2108,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   thd->protocol= save_protocol;
 
   /* check_prepared_statemnt sends the metadata packet in case of success */
+end:
   DBUG_VOID_RETURN;
 }
 
@@ -2450,7 +2450,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
@@ -2549,7 +2549,8 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("mysqld_stmt_fetch");
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
+
   status_var_increment(thd->status_var.com_stmt_fetch);
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
@@ -2615,7 +2616,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   DBUG_ENTER("mysqld_stmt_reset");
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   status_var_increment(thd->status_var.com_stmt_reset);
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
