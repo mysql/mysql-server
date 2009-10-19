@@ -269,11 +269,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
                     0, 0, is_schema_db(view->db)) ||
-       check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+       check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0, is_schema_db(view->db)) ||
-        check_grant(thd, DROP_ACL, view, 0, 1, 0))))
+        check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
     goto err;
 
   for (sl= select_lex; sl; sl= sl->next_select())
@@ -323,7 +323,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
                          &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
-            check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
+            check_grant(thd, SELECT_ACL, tbl, FALSE, 1, FALSE))
           goto err;
       }
     }
@@ -1233,8 +1233,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (!table->prelocking_placeholder &&
         (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
-      if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, TRUE))
+      if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
+                             UINT_MAX, TRUE) &&
+          check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
@@ -1244,7 +1245,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
              (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !table->belong_to_view)
     {
-      if (check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, FALSE))
+      if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
         goto err;
     }
 

@@ -2362,7 +2362,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
+  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
+                                     1, TRUE) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,
@@ -2808,7 +2809,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)
+  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
       || open_and_lock_tables(thd, tables))
     result= -1;
   else
