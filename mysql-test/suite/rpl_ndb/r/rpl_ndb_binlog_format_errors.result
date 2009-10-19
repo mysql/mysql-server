@@ -70,7 +70,7 @@ SET @@session.binlog_format = MIXED;
 INSERT INTO t_stmt VALUES (UUID());
 ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 * Multi-unsafe statement and stmt-only engine
-INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
+INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
 ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 ---- binlog_format=statement ----
 [on slave]
@@ -125,6 +125,8 @@ set global sql_slave_skip_counter=1;
 include/start_slave.inc
 [on master]
 ==== Clean up ====
+DROP TRIGGER trig_autoinc;
+DROP TRIGGER trig_double_autoinc;
 DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
 DROP DATABASE other;
 SET @@global.binlog_format = @old_binlog_format;

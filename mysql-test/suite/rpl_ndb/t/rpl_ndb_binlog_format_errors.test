@@ -139,11 +139,11 @@ SET @@session.binlog_format = MIXED;
 --error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (UUID());
 
-# Concatenate three unsafe values, and then concatenate NULL to
+# Concatenate two unsafe values, and then concatenate NULL to
 # that so that the result is NULL and we instead use autoinc.
 --echo * Multi-unsafe statement and stmt-only engine
 --error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
-INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
+INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
 
 
 --echo ---- binlog_format=statement ----
@@ -228,6 +228,8 @@ INSERT INTO t VALUES (UUID());
 
 --echo ==== Clean up ====
 
+DROP TRIGGER trig_autoinc;
+DROP TRIGGER trig_double_autoinc;
 DROP TABLE t, t_self_logging, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
 DROP DATABASE other;
 SET @@global.binlog_format = @old_binlog_format;
