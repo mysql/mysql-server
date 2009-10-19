@@ -448,6 +448,13 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+# Even though this is a shared library, put it under /usr/lib/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
+install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
+%endif
+
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
 
@@ -705,6 +712,10 @@ fi
 %if %{WITHOUT_INNODB_PLUGIN}
 %else
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
+%endif
+
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
