@@ -1309,9 +1309,9 @@ static const char *my_locale_month_names_ro_RO[13] =
 static const char *my_locale_ab_month_names_ro_RO[13] = 
  {"ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","nov","dec", NullS };
 static const char *my_locale_day_names_ro_RO[8] = 
- {"Luni","Marţi","Miercuri","Joi","Vineri","SîmbĂtĂ","DuminicĂ", NullS };
+ {"Luni","Marţi","Miercuri","Joi","Vineri","Sâmbătă","Duminică", NullS };
 static const char *my_locale_ab_day_names_ro_RO[8] = 
- {"Lu","Ma","Mi","Jo","Vi","Sî","Du", NullS };
+ {"Lu","Ma","Mi","Jo","Vi","Sâ","Du", NullS };
 static TYPELIB my_locale_typelib_month_names_ro_RO = 
  { array_elements(my_locale_month_names_ro_RO)-1, "", my_locale_month_names_ro_RO, NULL };
 static TYPELIB my_locale_typelib_ab_month_names_ro_RO = 
