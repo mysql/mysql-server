@@ -55,7 +55,7 @@ SELECT COUNT(@@SESSION.sql_auto_is_null);
 # Check if the value in SESSION Table matches value in variable #
 #################################################################
 
-SELECT @@SESSION.sql_auto_is_null = VARIABLE_VALUE 
+SELECT IF(@@SESSION.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 --echo 1 Expected

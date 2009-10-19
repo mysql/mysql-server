@@ -112,7 +112,7 @@ SELECT @@session.local_infile = 1;
 # Check if the value in GLOBAL Tables matches values in variable   #
 ####################################################################
 
-SELECT @@global.local_infile = VARIABLE_VALUE 
+SELECT IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='local_infile';
 

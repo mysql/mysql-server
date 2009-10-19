@@ -1525,5 +1525,34 @@ DROP USER 'user1'@'localhost';
 DROP USER 'user2';
 DROP DATABASE db1;
 
+
+--echo #
+--echo # Bug #25863 No database selected error, but documentation 
+--echo #            says * for global allowed
+--echo #
+
+connect(conn1,localhost,root,,*NO-ONE*);
+
+--error ER_NO_DB_ERROR
+GRANT ALL ON * TO mysqltest_1;
+
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+DROP USER mysqltest_1;
+
+USE test;
+
+GRANT ALL ON * TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+DROP USER mysqltest_1;
+
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+DROP USER mysqltest_1;
+
+connection default;
+disconnect conn1;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

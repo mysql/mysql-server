@@ -1027,9 +1027,9 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
   {
     Item_param *param= *it;
     varname= var_it++;
-    entry= (user_var_entry*)hash_search(&stmt->thd->user_vars,
-                                        (uchar*) varname->str,
-                                         varname->length);
+    entry= (user_var_entry*)my_hash_search(&stmt->thd->user_vars,
+                                           (uchar*) varname->str,
+                                           varname->length);
     if (param->set_from_user_var(stmt->thd, entry) ||
         param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);
@@ -1074,8 +1074,8 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     Item_param *param= *it;
     varname= var_it++;
 
-    entry= (user_var_entry *) hash_search(&thd->user_vars, (uchar*) varname->str,
-                                          varname->length);
+    entry= (user_var_entry *) my_hash_search(&thd->user_vars, (uchar*)
+                                             varname->str, varname->length);
     /*
       We have to call the setup_one_conversion_function() here to set
       the parameter's members that might be needed further
@@ -2152,9 +2152,9 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
       convert it for error messages to be uniform.
     */
     if ((entry=
-         (user_var_entry*)hash_search(&thd->user_vars,
-                                      (uchar*)lex->prepared_stmt_code.str,
-                                      lex->prepared_stmt_code.length))
+         (user_var_entry*)my_hash_search(&thd->user_vars,
+                                         (uchar*)lex->prepared_stmt_code.str,
+                                         lex->prepared_stmt_code.length))
         && entry->value)
     {
       my_bool is_var_null;
@@ -2462,7 +2462,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.set_query_source(stmt->query, stmt->query_length);
 #endif
   DBUG_PRINT("exec_query", ("%s", stmt->query));

@@ -121,7 +121,7 @@ SET @@session.unique_checks = 123456789031;
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.unique_checks = VARIABLE_VALUE 
+SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='unique_checks';
 

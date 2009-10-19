@@ -135,7 +135,7 @@ WHERE VARIABLE_NAME='sql_log_off';
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@session.sql_log_off = VARIABLE_VALUE 
+SELECT IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_log_off';
 SELECT @@session.sql_log_off;

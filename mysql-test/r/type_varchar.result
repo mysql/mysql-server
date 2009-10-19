@@ -489,3 +489,23 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '1a'
 Warning	1292	Truncated incorrect INTEGER value: 't'
 DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+5 = a
+1
+0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 's'
+DROP TABLE t1;
+CREATE TABLE t1 (a CHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+5 = a
+1
+0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 's               '
+DROP TABLE t1;

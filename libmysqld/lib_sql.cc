@@ -98,7 +98,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     thd= (THD *) mysql->thd;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
 
@@ -142,7 +142,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
   return result;
@@ -952,7 +952,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     client_field->catalog= dup_str_aux(field_alloc, "def", 3, cs, thd_cs);
     client_field->catalog_length= 3;
 
-    if (INTERNAL_NUM_FIELD(client_field))
+    if (IS_NUM(client_field->type))
       client_field->flags|= NUM_FLAG;
 
     if (flags & (int) Protocol::SEND_DEFAULTS)
