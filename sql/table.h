@@ -1356,6 +1356,8 @@ struct TABLE_LIST
     the parsed tree is created.
   */
   uint8 trg_event_map;
+  /* TRUE <=> this table is a const one and was optimized away. */
+  bool optimized_away;
 
   uint i_s_requested_object;
   bool has_db_lookup_value;
