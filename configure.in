@@ -2835,7 +2835,7 @@ server_scripts=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings regex mysys dbug libmysql"
+sql_client_dirs="strings mysys dbug extra regex libmysql"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2901,9 +2901,10 @@ AC_SUBST(mysql_plugin_defs)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
-# Start with the (longer) server list, add each client item not yet present.
-sql_union_dirs=" $sql_server_dirs "
-for DIR in $sql_client_dirs
+# We support client-only builds by "--without-server", but not vice versa,
+# so we start with the client list, then add each server item not yet present.
+sql_union_dirs=" $sql_client_dirs "
+for DIR in $sql_server_dirs
 do
   if echo " $sql_union_dirs " | grep " $DIR " >/dev/null
   then
