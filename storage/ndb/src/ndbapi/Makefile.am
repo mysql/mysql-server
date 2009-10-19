@@ -16,9 +16,14 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-noinst_PROGRAMS = ndberror_check-t
+noinst_PROGRAMS = ndberror_check-t TransporterFacade-t
 
 ndberror_check_t_SOURCES = ndberror_check.cpp
+
+TransporterFacade_t_CXXFLAGS = -DUNIT_TEST
+TransporterFacade_t_SOURCES = TransporterFacade.cpp
+TransporterFacade_t_LDFLAGS = -static \
+  $(top_builddir)/storage/ndb/src/libndbclient.la
 
 noinst_LTLIBRARIES = libndbapi.la
 
@@ -64,10 +69,3 @@ INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
-
-EXTRA_PROGRAMS = testSectionIterators
-
-testSectionIterators_CXXFLAGS = -DUNIT_TEST
-testSectionIterators_SOURCES = TransporterFacade.cpp
-testSectionIterators_LDFLAGS = @ndb_bin_am_ldflags@	 \
-  $(top_builddir)/storage/ndb/src/libndbclient.la
