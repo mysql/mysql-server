@@ -68,4 +68,9 @@ Uint32 mt_get_thread_references_for_blocks(const Uint32 blocks[],
                                            Uint32 ownThreadId,
                                            Uint32 dst[], Uint32 len);
 
+/**
+ * wakeup thread running block
+ */
+void mt_wakeup(class SimulatedBlock*);
+
 #endif

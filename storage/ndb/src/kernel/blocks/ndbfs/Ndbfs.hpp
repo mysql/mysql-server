@@ -57,6 +57,7 @@ protected:
   void execSTTOR(Signal* signal);
   void execCONTINUEB(Signal* signal);
   void execALLOC_MEM_REQ(Signal* signal);
+  void execSEND_PACKED(Signal*);
 
   bool scanningInProgress;
   Uint16 newId();
