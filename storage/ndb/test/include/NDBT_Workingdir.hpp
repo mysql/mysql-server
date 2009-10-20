@@ -36,9 +36,9 @@ public:
     char* ndbt_tmp = getenv("NDBT_TMP_DIR");
     if (ndbt_tmp)
       tmp_path = ndbt_tmp;
-    assert(ndbt_tmp);
+    assert(tmp_path);
 
-    m_wd.assfmt("%s%s%s%d", ndbt_tmp, DIR_SEPARATOR, dirname,
+    m_wd.assfmt("%s%s%s%d", tmp_path, DIR_SEPARATOR, dirname,
                 (int)NdbProcess::getpid());
     if (access(m_wd.c_str(), F_OK) == 0)
       NdbDir::remove_recursive(m_wd.c_str());

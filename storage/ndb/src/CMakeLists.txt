@@ -24,8 +24,10 @@ ADD_SUBDIRECTORY(mgmsrv)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
 
-FILE(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dummy.cpp "")
-ADD_LIBRARY(ndbclient STATIC dummy.cpp)
+IF(NOT EXISTS cmake_dummy.cpp)
+  FILE(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake_dummy.cpp "")
+ENDIF()
+ADD_LIBRARY(ndbclient STATIC cmake_dummy.cpp)
 TARGET_LINK_LIBRARIES(ndbclient
                       ndbapi
                       ndbtransport
