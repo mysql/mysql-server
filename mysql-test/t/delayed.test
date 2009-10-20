@@ -247,7 +247,7 @@ DROP TABLE t1;
 # Bug #32676: insert delayed crash with wrong column and function specified
 #
 CREATE TABLE t1 (a INT);
---error  ER_BAD_FIELD_ERROR
+--error 1305
 INSERT DELAYED INTO t1 SET b= b();
 DROP TABLE t1;
 
