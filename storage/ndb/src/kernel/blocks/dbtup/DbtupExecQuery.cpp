@@ -747,19 +747,36 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      {
        jam();
    do_insert:
-       if (handleInsertReq(signal, operPtr,
-			   fragptr, regTabPtr, &req_struct) == -1) 
+       Local_key accminupdate;
+       Local_key * accminupdateptr = &accminupdate;
+       if (unlikely(handleInsertReq(signal, operPtr,
+                                    fragptr, regTabPtr, &req_struct,
+                                    &accminupdateptr) == -1))
        {
-	 return;
+         return;
        }
+
+       terrorCode = 0;
+       checkImmediateTriggersAfterInsert(&req_struct,
+                                         regOperPtr,
+                                         regTabPtr,
+                                         disk_page != RNIL);
+
+       if (unlikely(terrorCode != 0))
+       {
+         tupkeyErrorLab(signal);
+         return;
+       }
+
        if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
        {
-	 jam();
-	 if (executeTuxInsertTriggers(signal,
-				      regOperPtr,
-				      regFragPtr,
-				      regTabPtr) != 0) {
-	   jam();
+         jam();
+         if (unlikely(executeTuxInsertTriggers(signal,
+                                               regOperPtr,
+                                               regFragPtr,
+                                               regTabPtr) != 0))
+         {
+           jam();
            /*
             * TUP insert succeeded but add of TUX entries failed.  All
             * TUX changes have been rolled back at this point.
@@ -774,53 +791,65 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             */
            signal->theData[0] = operPtr.i;
            do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
-	   tupkeyErrorLab(signal);
-	   return;
-	 }
+           tupkeyErrorLab(signal);
+           return;
+         }
        }
-       checkImmediateTriggersAfterInsert(&req_struct,
-					 regOperPtr,
-					 regTabPtr,
-                                         disk_page != RNIL);
+
+       if (accminupdateptr)
+       {
+         /**
+          * Update ACC local-key, once *everything* has completed succesfully
+          */
+         c_lqh->accminupdate(signal,
+                             regOperPtr->userpointer,
+                             accminupdateptr);
+       }
+
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
 
      if (Roptype == ZUPDATE) {
        jam();
-       if (handleUpdateReq(signal, regOperPtr,
-			   regFragPtr, regTabPtr, &req_struct, disk_page != RNIL) == -1) {
-	 return;
+       if (unlikely(handleUpdateReq(signal, regOperPtr,
+                                    regFragPtr, regTabPtr,
+                                    &req_struct, disk_page != RNIL) == -1))
+       {
+         return;
        }
-       // If update operation is done on primary, 
-       // check any after op triggers
-       terrorCode= 0;
-       if (!regTabPtr->tuxCustomTriggers.isEmpty()) {
-	 jam();
-	 if (executeTuxUpdateTriggers(signal,
-				      regOperPtr,
-				      regFragPtr,
-				      regTabPtr) != 0) {
-	   jam();
+
+       terrorCode = 0;
+       checkImmediateTriggersAfterUpdate(&req_struct,
+                                         regOperPtr,
+                                         regTabPtr,
+                                         disk_page != RNIL);
+
+       if (unlikely(terrorCode != 0))
+       {
+         tupkeyErrorLab(signal);
+         return;
+       }
+
+       if (!regTabPtr->tuxCustomTriggers.isEmpty())
+       {
+         jam();
+         if (unlikely(executeTuxUpdateTriggers(signal,
+                                               regOperPtr,
+                                               regFragPtr,
+                                               regTabPtr) != 0))
+         {
+           jam();
            /*
             * See insert case.
             */
            signal->theData[0] = operPtr.i;
            do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
-	   tupkeyErrorLab(signal);
-	   return;
-	 }
+           tupkeyErrorLab(signal);
+           return;
+         }
        }
-       checkImmediateTriggersAfterUpdate(&req_struct,
-					 regOperPtr,
-					 regTabPtr,
-                                         disk_page != RNIL);
-       // XXX use terrorCode for now since all methods are void
-       if (terrorCode != 0) 
-       {
-	 tupkeyErrorLab(signal);
-	 return;
-       }
+
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      } 
@@ -828,24 +857,31 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      {
        jam();
        req_struct.log_size= 0;
-       if (handleDeleteReq(signal, regOperPtr,
-			   regFragPtr, regTabPtr, 
-			   &req_struct,
-			   disk_page != RNIL) == -1) {
-	 return;
+       if (unlikely(handleDeleteReq(signal, regOperPtr,
+                                    regFragPtr, regTabPtr,
+                                    &req_struct,
+                                    disk_page != RNIL) == -1))
+       {
+         return;
        }
-       /*
-	* TUX doesn't need to check for triggers at delete since entries in
-	* the index are kept until commit time.
-	*/
+
+       terrorCode = 0;
+       checkImmediateTriggersAfterDelete(&req_struct,
+                                         regOperPtr,
+                                         regTabPtr,
+                                         disk_page != RNIL);
+
+       if (unlikely(terrorCode != 0))
+       {
+         tupkeyErrorLab(signal);
+         return;
+       }
 
        /*
-	* Secondary index triggers fire on the primary after a delete.
-	*/
-       checkImmediateTriggersAfterDelete(&req_struct,
-					 regOperPtr, 
-					 regTabPtr,
-                                         disk_page != RNIL);
+        * TUX doesn't need to check for triggers at delete since entries in
+        * the index are kept until commit time.
+        */
+
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
@@ -856,7 +892,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    }
 
    tupkeyErrorLab(signal);
- }
+}
 
 void
 Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
@@ -1114,6 +1150,9 @@ int Dbtup::handleUpdateReq(Signal* signal,
     jam();
     setChecksum(req_struct->m_tuple_ptr, regTabPtr);
   }
+
+  set_tuple_state(operPtrP, TUPLE_PREPARED);
+
   return 0;
   
 error:
@@ -1349,7 +1388,8 @@ int Dbtup::handleInsertReq(Signal* signal,
                            Ptr<Operationrec> regOperPtr,
                            Ptr<Fragrecord> fragPtr,
                            Tablerec* regTabPtr,
-                           KeyReqStruct *req_struct)
+                           KeyReqStruct *req_struct,
+                           Local_key ** accminupdateptr)
 {
   Uint32 tup_version = 1;
   Fragrecord* regFragPtr = fragPtr.p;
@@ -1648,17 +1688,21 @@ int Dbtup::handleInsertReq(Signal* signal,
 
     Local_key accKey = regOperPtr.p->m_tuple_location;
     accKey.m_page_no = frag_page_id;
-
-    c_lqh->accminupdate(signal,
-                        regOperPtr.p->userpointer,
-                        &accKey);
+    ** accminupdateptr = accKey;
   }
-  
+  else
+  {
+    * accminupdateptr = 0; // No accminupdate should be performed
+  }
+
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
   {
     jam();
     setChecksum(req_struct->m_tuple_ptr, regTabPtr);
   }
+
+  set_tuple_state(regOperPtr.p, TUPLE_PREPARED);
+
   return 0;
   
 size_change_error:
@@ -1756,6 +1800,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
       goto error;
     }
   }
+
+  set_tuple_state(regOperPtr, TUPLE_PREPARED);
+
   if (req_struct->attrinfo_len == 0)
   {
     return 0;
