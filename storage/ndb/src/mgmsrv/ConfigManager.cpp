@@ -1530,18 +1530,20 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
 
   assert(ref->generation != ref->expected_generation ||
          ref->state != ref->expected_state);
-  assert(ref->state == (Uint32)m_config_state);
-
-  Config other_config;
-  if (sig->header.theLength == ConfigCheckRef::SignalLengthWithConfig &&
-      ref->length)
-
+  if((Uint32)m_config_state != ref->state)
+  {
+    // The config state changed while this check was in the air
+    // drop the signal and thus cause it to run again later
+    require(!m_checked.get(nodeId));
+    m_waiting_for.clear(nodeId);
+    return;
+  }
 
   switch(m_config_state)
   {
   default:
   case CS_UNINITIALIZED:
-    g_eventLogger->error("execCONFIG_CHECK_REQ: unhandled state");
+    g_eventLogger->error("execCONFIG_CHECK_REF: unhandled state");
     abort();
     break;
 
@@ -1599,8 +1601,8 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   case CS_CONFIRMED:
     if (ref->expected_state == CS_INITIAL)
     {
-      // MASV for peer todo what? Some kind of upgrade fix...
       g_eventLogger->info("Waiting for peer");
+      m_waiting_for.clear(nodeId);
       return;
     }
     break;
