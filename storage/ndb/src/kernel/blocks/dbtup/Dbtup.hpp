@@ -1972,7 +1972,8 @@ private:
                       Ptr<Operationrec> regOperPtr,
                       Ptr<Fragrecord>,
                       Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct);
+                      KeyReqStruct* req_struct,
+                      Local_key ** accminupdateptr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
