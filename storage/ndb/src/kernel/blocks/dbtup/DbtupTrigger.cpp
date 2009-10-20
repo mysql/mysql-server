@@ -759,6 +759,14 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     executeDirect= false; // remove warning
   }//switch
 
+
+  if (ERROR_INSERTED(4030))
+  {
+    terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
+    // XXX should return status and abort the rest
+    return;
+  }
+
   req_struct->no_fired_triggers++;
 
   trigAttrInfo->setAttrInfoType(TrigAttrInfo::PRIMARY_KEY);
