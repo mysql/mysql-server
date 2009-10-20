@@ -5822,8 +5822,6 @@ ER_SAME_NAME_PARTITION
         eng "Duplicate partition name %-.192s"
         ger "Doppelter Partitionsname: %-.192s"
         swe "Duplicerat partitionsnamn %-.192s"
-ER_SAME_NAME_PARTITION_FIELD
-        eng "Duplicate partition field name %-.192s"
 ER_NO_BINLOG_ERROR
         eng "It is not allowed to shut off binlog on this command"
         ger "Es es nicht erlaubt, bei diesem Befehl binlog abzuschalten"
@@ -6182,14 +6180,6 @@ ER_TOO_LONG_FIELD_COMMENT
 
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
-ER_PARTITION_COLUMN_LIST_ERROR
-  eng "Inconsistency in usage of column lists for partitioning"
-ER_WRONG_TYPE_COLUMN_VALUE_ERROR
-  eng "Partition column values of incorrect type"
-ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
-  eng "Too many fields in '%s'"
-ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
-  eng "Cannot use MAXVALUE as value in List partitioning"
 
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
@@ -6216,3 +6206,13 @@ ER_TOO_MANY_CONCURRENT_TRXS
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
+ER_SAME_NAME_PARTITION_FIELD
+        eng "Duplicate partition field name %-.192s"
+ER_PARTITION_COLUMN_LIST_ERROR
+  eng "Inconsistency in usage of column lists for partitioning"
+ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+  eng "Partition column values of incorrect type"
+ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
+  eng "Too many fields in '%-.192s'"
+ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
+  eng "Cannot use MAXVALUE as value in List partitioning"
