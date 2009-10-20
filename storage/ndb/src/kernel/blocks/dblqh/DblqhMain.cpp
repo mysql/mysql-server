@@ -16856,7 +16856,7 @@ void Dblqh::readExecLogLab(Signal* signal)
   buildLinkedLogPageList(signal);
 #ifndef NO_REDO_PAGE_CACHE
   addCachePages(m_redo_page_cache,
-                logPartPtr.i, /* logPartPtr.p->logPartNo, */
+                logPartPtr.p->logPartNo,
                 logPartPtr.p->execSrStartPageNo,
                 lfoPtr.p);
 #endif
@@ -18254,7 +18254,7 @@ void Dblqh::findPageRef(Signal* signal, CommitLogRecord* commitLogRecord)
 #ifndef NO_REDO_PAGE_CACHE
   RedoPageCache& cache = m_redo_page_cache;
   RedoCacheLogPageRecord key;
-  key.m_part_no = logPartPtr.i; /* logPartPtr.p->logPartNo; */
+  key.m_part_no = logPartPtr.p->logPartNo;
   key.m_file_no = commitLogRecord->fileNo;
   key.m_page_no = commitLogRecord->startPageNo;
   Ptr<RedoCacheLogPageRecord> pagePtr;
