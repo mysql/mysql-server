@@ -50,7 +50,7 @@ kill @id;
 drop table t2,t3;
 insert into t4 values (3),(4);
 connection master;
---error 0,1053,2013
+--error 0,1317,2013
 reap;
 connection master1;
 save_master_pos;
