@@ -26,12 +26,6 @@ SET SESSION debug="d,crash_before_flush_keys";
 --error 2013
 FLUSH TABLE t1;
 
---echo # Run MYISAMCHK tool to check the table t1 and repair
---replace_result $MYISAMCHK MYISAMCHK  $MYSQLD_DATADIR  MYSQLD_DATADIR
---error 255
---exec $MYISAMCHK -cs $MYSQLD_DATADIR/test/t1 2>&1
---exec $MYISAMCHK -rs $MYSQLD_DATADIR/test/t1
-
 --echo # Write file to make mysql-test-run.pl start the server 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
@@ -42,8 +36,6 @@ FLUSH TABLE t1;
 --echo # it to be back online again
 --source include/wait_until_connected_again.inc
 
-SHOW CREATE TABLE t1;
-
-SELECT * FROM t1 FORCE INDEX (PRIMARY);
-
+# Must report that the table wasn't closed properly
+CHECK TABLE t1;
 DROP TABLE t1;
