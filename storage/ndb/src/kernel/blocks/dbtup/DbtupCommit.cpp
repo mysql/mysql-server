@@ -119,34 +119,39 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
   regOperPtr->m_undo_buffer_space= 0;
 }
 
-static
 bool
-operator>(const Local_key& key1, const Dbtup::ScanOp& op)
+Dbtup::is_rowid_lcp_scanned(const Local_key& key1,
+                            const Dbtup::ScanOp& op)
 {
   Local_key key2 = op.m_scanPos.m_key;
-  int gth0 = int(key1.m_page_no) - int(key2.m_page_no);
-  int gth1 = int(key1.m_page_idx) - int(key2.m_page_idx);
-  if (gth0 > 0 || (gth0 == 0 && gth1 > 0))
-  {
-    return true;
-  }
-  if (gth0 < 0 || (gth0 == 0 && gth1 < 0))
-  {
+  switch (op.m_state) {
+  case Dbtup::ScanOp::First:
+    ndbrequire(key2.isNull());
     return false;
-  }
-
-  /**
-   * key are equal...need to look at scan state
-   */
-  switch(op.m_state){
+  case Dbtup::ScanOp::Current:
   case Dbtup::ScanOp::Next:
+    ndbrequire(!key2.isNull());
+    if (key1.m_page_no < key2.m_page_no)
+      return true;
+    if (key1.m_page_no > key2.m_page_no)
+      return false;
+    if (key1.m_page_idx < key2.m_page_idx)
+      return true;
+    if (key1.m_page_idx > key2.m_page_idx)
+      return false;
     /**
-     * This row-id has already been scanned
+     * key are equal...need to look at scan state
      */
+    if (op.m_state == Dbtup::ScanOp::Next)
+      return true;
     return false;
-  default:
+  case Dbtup::ScanOp::Last:
     return true;
+  default:
+    ndbrequire(false);
+    break;
   }
+  return false;
 }
 
 void
@@ -183,7 +188,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
-    if (rowid > *scanOp.p)
+    if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
     {
       jam();
       extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
@@ -369,7 +374,7 @@ Dbtup::commit_operation(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    if (rowid > *scanOp.p)
+    if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
     {
       jam();
        copy_bits |= Tuple_header::LCP_SKIP;
