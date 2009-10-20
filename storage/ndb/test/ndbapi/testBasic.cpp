@@ -1146,7 +1146,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbDictionary::Dictionary::List l;
   pNdb->getDictionary()->listIndexes(l, tab->getName());
-  for (i = 0; i<(int)l.count; i++)
+  for (i = 0; i<l.count; i++)
   {
     if (DictTabInfo::isOrderedIndex(l.elements[i].type))
       bits |= TupError::TE_OI;
