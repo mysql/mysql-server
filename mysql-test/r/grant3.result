@@ -154,4 +154,42 @@ SELECT * FROM mysqltest_1.t1;
 a
 DROP USER 'mysqltest1'@'%';
 DROP DATABASE mysqltest_1;
+#
+# Bug#41597 - After rename of user, there are additional grants
+#             when grants are reapplied.
+#
+CREATE DATABASE temp;
+CREATE TABLE temp.t1(a INT, b VARCHAR(10));
+INSERT INTO temp.t1 VALUES(1, 'name1');
+INSERT INTO temp.t1 VALUES(2, 'name2');
+INSERT INTO temp.t1 VALUES(3, 'name3');
+CREATE USER 'user1'@'%';
+RENAME USER 'user1'@'%' TO 'user2'@'%';
+# Show privileges after rename and BEFORE grant
+SHOW GRANTS FOR 'user2'@'%';
+Grants for user2@%
+GRANT USAGE ON *.* TO 'user2'@'%'
+GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%';
+# Show privileges after rename and grant
+SHOW GRANTS FOR 'user2'@'%';
+Grants for user2@%
+GRANT USAGE ON *.* TO 'user2'@'%'
+GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%'
+# Connect as the renamed user
+SHOW GRANTS;
+Grants for user2@%
+GRANT USAGE ON *.* TO 'user2'@'%'
+GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%'
+SELECT a FROM temp.t1;
+a
+1
+2
+3
+# Check for additional privileges by accessing a
+# non privileged column. We shouldn't be able to 
+# access this column.
+SELECT b FROM temp.t1;
+ERROR 42000: SELECT command denied to user 'user2'@'localhost' for column 'b' in table 't1'
+DROP USER 'user2'@'%';
+DROP DATABASE temp;
 End of 5.0 tests
