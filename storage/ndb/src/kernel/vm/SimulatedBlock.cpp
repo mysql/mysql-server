@@ -2989,3 +2989,22 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   sendRoutedSignal(path, 2, dst, 1, gsn, signal, len, JBB, &handle);
   return false;
 }
+
+void
+SimulatedBlock::setup_wakeup()
+{
+#ifdef NDBD_MULTITHREADED
+#else
+  globalTransporterRegistry.setup_wakeup_socket();
+#endif
+}
+
+void
+SimulatedBlock::wakeup()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_wakeup(this);
+#else
+  globalTransporterRegistry.wakeup();
+#endif
+}

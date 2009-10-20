@@ -95,6 +95,7 @@ public:
    ~FastScheduler();
 
   void doJob();
+  void postPoll();
   int checkDoJob();
 
   void activateSendPacked();
