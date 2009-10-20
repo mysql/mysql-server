@@ -1146,7 +1146,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbDictionary::Dictionary::List l;
   pNdb->getDictionary()->listIndexes(l, tab->getName());
-  for (i = 0; i<(int)l.count; i++)
+  for (i = 0; i<l.count; i++)
   {
     if (DictTabInfo::isOrderedIndex(l.elements[i].type))
       bits |= TupError::TE_OI;
@@ -1502,7 +1502,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
   bool null = false;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (tab->getColumn(i)->getNullable())
     {
@@ -1527,7 +1527,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp = pTrans->getNdbOperation(tab->getName());
   pOp->insertTuple();
   hugoTrans.equalForRow(pOp, 0);
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         !tab->getColumn(i)->getNullable())
@@ -1546,7 +1546,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp->readTuple();
   hugoTrans.equalForRow(pOp, 0);
   Vector<NdbRecAttr*> values;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         tab->getColumn(i)->getNullable())
