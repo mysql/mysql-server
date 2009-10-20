@@ -468,6 +468,13 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Local_key m_key_mm;         // MM local key returned
     Uint32 m_realpid_mm;        // MM real page id
     Uint32 m_extent_info_ptr_i;
+    ScanPos() {
+      /*
+       * Position is Null until scanFirst().  In particular in LCP scan
+       * it is Null between LCP_FRAG_ORD and ACC_SCANREQ.
+       */
+      m_key.setNull();
+    }
   };
 
   // Scan Lock
@@ -3203,6 +3210,8 @@ private:
 #endif
   
   void findFirstOp(OperationrecPtr&);
+  bool is_rowid_lcp_scanned(const Local_key& key1,
+                           const Dbtup::ScanOp& op);
   void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
   
