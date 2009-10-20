@@ -232,6 +232,7 @@ AsyncFile::run()
 
     // No need to signal as ndbfs only uses tryRead
     theReportTo->writeChannelNoSignal(request);
+    m_fs.wakeup();
   }//while
 }//AsyncFile::run()
 
