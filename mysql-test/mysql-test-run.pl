@@ -144,7 +144,7 @@ our @opt_extra_mysqld_opt;
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
-my $opt_ssl_supported;
+our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
