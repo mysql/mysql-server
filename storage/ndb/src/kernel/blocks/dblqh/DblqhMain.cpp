@@ -14626,13 +14626,11 @@ void Dblqh::openFileRw(Signal* signal,
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_WRITE_BUFFER;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
   if (c_o_direct)
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
-#if NDB_VERSION_D >= NDB_MAKE_VERSION(6,4,0)
   if (writeBuffer)
     signal->theData[6] |= FsOpenReq::OM_WRITE_BUFFER;
-#endif
 
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   Uint64 sz = clogFileSize;
