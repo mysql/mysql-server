@@ -171,9 +171,9 @@ case $VERSION_NAME in
   *-ndb-* )  VERSION_NAME=`echo $VERSION_NAME | sed -e 's/[.0-9]*-ndb-//'` ;;
 esac
 if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
-  NEW_NAME=mysql-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
+  NEW_NAME=mariadb-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
 else
-  NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$VERSION_NAME-$PLATFORM$SUFFIX
+  NEW_NAME=mariadb@MYSQL_SERVER_SUFFIX@-$VERSION_NAME-$PLATFORM$SUFFIX
 fi
 
 # ----------------------------------------------------------------------
@@ -389,6 +389,9 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
   storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
+  storage/maria/maria_chk$BS storage/maria/maria_pack$BS \
+  storage/maria/maria_ftdump$BS storage/maria/maria_read_log$BS \
+  storage/maria/maria_dump_log$BS \
   sql/mysqld$BS sql/mysqld-debug$BS \
   sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
