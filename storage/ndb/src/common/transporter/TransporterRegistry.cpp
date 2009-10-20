@@ -97,6 +97,7 @@ TransporterRegistry::TransporterRegistry(void * callback,
   performStates       = new PerformState      [maxTransporters];
   ioStates            = new IOState           [maxTransporters]; 
  
+  m_has_extra_wakeup_socket = false;
 #if defined(HAVE_EPOLL_CREATE)
  m_epoll_fd = -1;
  m_epoll_events       = new struct epoll_event[maxTransporters];
@@ -698,6 +699,66 @@ TransporterRegistry::external_IO(Uint32 timeOutMillis) {
   performSend();
 }
 
+bool
+TransporterRegistry::setup_wakeup_socket()
+{
+  if (m_has_extra_wakeup_socket)
+  {
+    return true;
+  }
+
+  if (socketpair(AF_LOCAL, SOCK_STREAM, 0, m_extra_wakeup_sockets))
+  {
+    perror("socketpair failed!");
+    return false;
+  }
+
+  if (!TCP_Transporter::setSocketNonBlocking(m_extra_wakeup_sockets[0]) ||
+      !TCP_Transporter::setSocketNonBlocking(m_extra_wakeup_sockets[1]))
+  {
+    goto err;
+  }
+
+#if defined(HAVE_EPOLL_CREATE)
+  if (m_epoll_fd != -1)
+  {
+    int sock = m_extra_wakeup_sockets[0];
+    struct epoll_event event_poll;
+    bzero(&event_poll, sizeof(event_poll));
+    event_poll.data.u32 = 0;
+    event_poll.events = EPOLLIN;
+    int ret_val = epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, sock, &event_poll);
+    if (ret_val != 0)
+    {
+      int error= errno;
+      fprintf(stderr, "Failed to add extra sock %u to epoll-set: %u\n",
+              sock, error);
+      fflush(stderr);
+      goto err;
+    }
+  }
+#endif
+  m_has_extra_wakeup_socket = true;
+  return true;
+
+err:
+  close(m_extra_wakeup_sockets[0]);
+  close(m_extra_wakeup_sockets[1]);
+  m_extra_wakeup_sockets[0] = NDB_INVALID_SOCKET;
+  m_extra_wakeup_sockets[1] = NDB_INVALID_SOCKET;
+  return false;
+}
+
+void
+TransporterRegistry::wakeup()
+{
+  if (m_has_extra_wakeup_socket)
+  {
+    char c;
+    send(m_extra_wakeup_sockets[1], &c, 1, 0);
+  }
+}
+
 Uint32
 TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   Uint32 retVal = 0;
@@ -745,7 +806,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   else
 #endif
   {
-    if(nTCPTransporters > 0 || retVal == 0)
+    if(nTCPTransporters > 0 || m_has_extra_wakeup_socket || retVal == 0)
     {
       retVal |= poll_TCP(timeOutMillis);
     }
@@ -843,6 +904,16 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
   
+  if (m_has_extra_wakeup_socket)
+  {
+    const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
+    if (socket > maxSocketValue)
+      maxSocketValue = socket;
+
+    // Put the connected transporters in the socket read-set
+    FD_SET(socket, &tcpReadset);
+  }
+
   timeOutMillis = hasdata ? 0 : timeOutMillis;
   
   struct timeval timeout;
@@ -963,6 +1034,12 @@ TransporterRegistry::performReceive()
     {
       assert(errno == EINTR);
     }
+
+    if (m_has_data_transporters.get(0))
+    {
+      m_has_data_transporters.clear(Uint32(0));
+      consume_extra_sockets();
+    }
     
     Uint32 id = 0;
     while ((id = m_has_data_transporters.find(id + 1)) != BitmaskImpl::NotFound)
@@ -973,6 +1050,14 @@ TransporterRegistry::performReceive()
   else
 #endif
   {
+    if (m_has_extra_wakeup_socket)
+    {
+      if (FD_ISSET(m_extra_wakeup_sockets[0], &tcpReadset))
+      {
+	consume_extra_sockets();
+      }
+    }
+
     for (int i=0; i<nTCPTransporters; i++) 
     {
       checkJobBuffer();
@@ -1040,6 +1125,21 @@ TransporterRegistry::performReceive()
     } 
   }
 #endif
+}
+
+void
+TransporterRegistry::consume_extra_sockets()
+{
+  char buf[4096];
+  int ret;
+  int loop = 0;
+  int err;
+  NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
+  do
+  {
+    ret = recv(sock, buf, sizeof(buf), 0);
+    err = InetErrno;
+  } while (ret == sizeof(buf) || (ret == -1 && err == EINTR));
 }
 
 void
