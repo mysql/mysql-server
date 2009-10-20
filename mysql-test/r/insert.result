@@ -355,17 +355,17 @@ insert into t2 values (1,12), (2,24);
 insert into v1 (f1) values (3) on duplicate key update f3= f3 + 10;
 ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
 select * from t1;
 f1	f2
 1	11
 2	22
-3	NULL
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
 select * from t1;
 f1	f2
 1	11
 2	22
-12	NULL
 drop view v1;
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, data int, unique(data));
