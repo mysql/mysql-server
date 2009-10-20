@@ -2096,6 +2096,8 @@ public:
   GRANT_NAME (TABLE *form);
   virtual ~GRANT_NAME() {};
   virtual bool ok() { return privs != 0; }
+  void set_user_details(const char *h, const char *d,
+                        const char *u, const char *t);
 };
 
 
@@ -2113,27 +2115,36 @@ public:
 };
 
 
-
-GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
-                       const char *t, ulong p)
-  :privs(p)
+void GRANT_NAME::set_user_details(const char *h, const char *d,
+                                  const char *u, const char *t)
 {
   /* Host given by user */
   update_hostname(&host, strdup_root(&memex, h));
-  db =   strdup_root(&memex,d);
+  if (db != d)
+  {
+    db= strdup_root(&memex, d);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, db);
+  }
   user = strdup_root(&memex,u);
   sort=  get_sort(3,host.hostname,db,user);
-  tname= strdup_root(&memex,t);
-  if (lower_case_table_names)
+  if (tname != t)
   {
-    my_casedn_str(files_charset_info, db);
-    my_casedn_str(files_charset_info, tname);
+    tname= strdup_root(&memex, t);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, tname);
   }
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
   hash_key = (char*) alloc_root(&memex,key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
 }
 
+GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
+                       const char *t, ulong p)
+  :db(0), tname(0), privs(p)
+{
+  set_user_details(h, d, u, t);
+}
 
 GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                 	 const char *t, ulong p, ulong c)
@@ -5183,9 +5194,20 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       case 2:
       case 3:
-        grant_name->user= strdup_root(&mem, user_to->user.str);
-        update_hostname(&grant_name->host,
-                        strdup_root(&mem, user_to->host.str));
+        /* 
+          Update the grant structure with the new user name and
+          host name
+        */
+        grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                   user_to->user.str, grant_name->tname);
+
+        /*
+          Since username is part of the hash key, when the user name
+          is renamed, the hash key is changed. Update the hash to
+          ensure that the position matches the new hash key value
+        */
+        hash_update(&column_priv_hash, (byte *)grant_name,
+                    grant_name->hash_key, grant_name->key_length);
 	break;
       }
     }
