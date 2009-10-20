@@ -13,9 +13,15 @@ create table bug44369 (DB_ROW_ID int) engine=innodb;
 --error ER_CANT_CREATE_TABLE
 create table bug44369 (db_row_id int) engine=innodb;
 
-show errors;
+# TODO: after Bug#47233 is fixed, 'show warning' should be replaced by 'show
+# errors' again.
+# show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table bug44369 (db_TRX_Id int) engine=innodb;
 
-show errors;
+# TODO: after Bug#47233 is fixed, 'show warning' should be replaced by 'show
+# errors' again.
+# show errors;
+show warnings;
