@@ -729,6 +729,19 @@ protected:
                           Uint32 *dst, 
 			  const Uint32 keyPaLen[MAX_ATTRIBUTES_IN_INDEX])const;
   
+  /**
+   * if ndbd,
+   *   wakeup main-loop if sleeping on IO
+   * if ndbmtd
+   *   wakeup thread running block-instance
+   */
+  void wakeup();
+
+  /**
+   * setup struct for wakeup
+   */
+  void setup_wakeup();
+
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */

@@ -4047,6 +4047,14 @@ mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
   return cnt;
 }
 
+void
+mt_wakeup(class SimulatedBlock* block)
+{
+  Uint32 thr_no = block->getThreadId();
+  thr_data *thrptr = g_thr_repository.m_thread + thr_no;
+  wakeup(&thrptr->m_waiter);
+}
+
 /**
  * Global data
  */

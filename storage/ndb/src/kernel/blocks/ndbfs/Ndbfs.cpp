@@ -79,6 +79,7 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   addRecSignal(GSN_FSAPPENDREQ, &Ndbfs::execFSAPPENDREQ);
   addRecSignal(GSN_FSREMOVEREQ, &Ndbfs::execFSREMOVEREQ);
   addRecSignal(GSN_ALLOC_MEM_REQ, &Ndbfs::execALLOC_MEM_REQ);
+  addRecSignal(GSN_SEND_PACKED, &Ndbfs::execSEND_PACKED, true);
    // Set send signals
 
   theRequestPool = new Pool<Request>;
@@ -294,6 +295,8 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
       break;
     }
   }
+
+  setup_wakeup();
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1366,6 +1369,17 @@ Ndbfs::execCONTINUEB(Signal* signal)
     scanningInProgress = false;
    }
    return;
+}
+
+void
+Ndbfs::execSEND_PACKED(Signal* signal)
+{
+  if (scanningInProgress == false && scanIPC(signal))
+  {
+    scanningInProgress = true;
+    signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+  }
 }
 
 void
