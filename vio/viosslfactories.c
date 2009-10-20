@@ -123,55 +123,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
 }
 
 
-static int
-vio_verify_callback(int ok, X509_STORE_CTX *ctx)
-{
-  char	buf[256];
-  X509*	err_cert;
-  int	err,depth;
-
-  DBUG_ENTER("vio_verify_callback");
-  DBUG_PRINT("enter", ("ok=%d, ctx=%p", ok, ctx));
-  err_cert=X509_STORE_CTX_get_current_cert(ctx);
-  err=	   X509_STORE_CTX_get_error(ctx);
-  depth=   X509_STORE_CTX_get_error_depth(ctx);
-
-  X509_NAME_oneline(X509_get_subject_name(err_cert),buf,sizeof(buf));
-  if (!ok)
-  {
-    DBUG_PRINT("error",("verify error: num: %d : '%s'\n",err,
-			X509_verify_cert_error_string(err)));
-    if (verify_depth >= depth)
-    {
-      ok=1;
-      verify_error=X509_V_OK;
-    }
-    else
-    {
-      verify_error=X509_V_ERR_CERT_CHAIN_TOO_LONG;
-    }
-  }
-  switch (ctx->error) {
-  case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
-    X509_NAME_oneline(X509_get_issuer_name(ctx->current_cert),buf,256);
-    DBUG_PRINT("info",("issuer= %s\n",buf));
-    break;
-  case X509_V_ERR_CERT_NOT_YET_VALID:
-  case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-    DBUG_PRINT("error", ("notBefore"));
-    /*ASN1_TIME_print_fp(stderr,X509_get_notBefore(ctx->current_cert));*/
-    break;
-  case X509_V_ERR_CERT_HAS_EXPIRED:
-  case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
-    DBUG_PRINT("error", ("notAfter error"));
-    /*ASN1_TIME_print_fp(stderr,X509_get_notAfter(ctx->current_cert));*/
-    break;
-  }
-  DBUG_PRINT("exit", ("%d", ok));
-  DBUG_RETURN(ok);
-}
-
-
 #ifdef __NETWARE__
 
 /* NetWare SSL cleanup */
@@ -263,7 +214,7 @@ new_VioSSLConnectorFd(const char* key_file,
     result=SSL_CTX_set_cipher_list(ptr->ssl_context, cipher);
     DBUG_PRINT("info",("SSL_set_cipher_list() returned %d",result));
   }
-  SSL_CTX_set_verify(ptr->ssl_context, verify, vio_verify_callback);
+  SSL_CTX_set_verify(ptr->ssl_context, verify, NULL);
   if (vio_set_cert_stuff(ptr->ssl_context, cert_file, key_file) == -1)
   {
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
@@ -360,7 +311,7 @@ new_VioSSLAcceptorFd(const char *key_file,
   SSL_CTX_sess_set_cache_size(ptr->ssl_context,128);
 
   /* DH? */
-  SSL_CTX_set_verify(ptr->ssl_context, verify, vio_verify_callback);
+  SSL_CTX_set_verify(ptr->ssl_context, verify, NULL);
   SSL_CTX_set_session_id_context(ptr->ssl_context,
 				 (const uchar*) &(ptr->session_id_context),
 				 sizeof(ptr->session_id_context));
