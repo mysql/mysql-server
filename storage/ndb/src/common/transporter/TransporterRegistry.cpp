@@ -259,6 +259,12 @@ TransporterRegistry::~TransporterRegistry()
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
 
+  if (m_has_extra_wakeup_socket)
+  {
+    my_socket_close(m_extra_wakeup_sockets[0]);
+    my_socket_close(m_extra_wakeup_sockets[1]);
+  }
+
   DBUG_VOID_RETURN;
 }
 
