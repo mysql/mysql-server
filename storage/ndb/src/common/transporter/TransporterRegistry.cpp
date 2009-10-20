@@ -187,6 +187,12 @@ TransporterRegistry::~TransporterRegistry()
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
 
+  if (m_has_extra_wakeup_socket)
+  {
+    close(m_extra_wakeup_sockets[0]);
+    close(m_extra_wakeup_sockets[1]);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1054,7 +1060,7 @@ TransporterRegistry::performReceive()
     {
       if (FD_ISSET(m_extra_wakeup_sockets[0], &tcpReadset))
       {
-	consume_extra_sockets();
+        consume_extra_sockets();
       }
     }
 
@@ -1132,7 +1138,6 @@ TransporterRegistry::consume_extra_sockets()
 {
   char buf[4096];
   int ret;
-  int loop = 0;
   int err;
   NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
   do
