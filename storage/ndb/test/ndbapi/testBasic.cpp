@@ -21,7 +21,7 @@
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
-
+#include <signaldata/DictTabInfo.hpp>
 
 /**
  * TODO 
@@ -1090,7 +1090,9 @@ struct TupError
     TE_VARSIZE  = 0x1,
     TE_MULTI_OP = 0x2,
     TE_DISK     = 0x4,
-    TE_REPLICA  = 0x8
+    TE_REPLICA  = 0x8,
+    TE_OI       = 0x10, // Ordered index
+    TE_UI       = 0x20  // Unique hash index
   };
   int op;
   int error;
@@ -1109,6 +1111,9 @@ f_tup_errors[] =
   { NdbOperation::InsertRequest, 4019, TupError::TE_REPLICA }, //Alloc rowid error
   { NdbOperation::InsertRequest, 4020, TupError::TE_MULTI_OP }, // Size change error
   { NdbOperation::InsertRequest, 4021, TupError::TE_DISK },    // Out of disk space
+  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },
+  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },
+  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },
   { -1, 0, 0 }
 };
 
@@ -1136,6 +1141,16 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     bits |= TupError::TE_REPLICA;
   }
 
+  NdbDictionary::Dictionary::List l;
+  pNdb->getDictionary()->listIndexes(l, tab->getName());
+  for (i = 0; i<(int)l.count; i++)
+  {
+    if (DictTabInfo::isOrderedIndex(l.elements[i].type))
+      bits |= TupError::TE_OI;
+    if (DictTabInfo::isUniqueIndex(l.elements[i].type))
+      bits |= TupError::TE_UI;
+  }
+
   /**
    * Insert
    */
@@ -1143,20 +1158,18 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   {
     if (f_tup_errors[i].op != NdbOperation::InsertRequest)
     {
-      g_info << "Skipping " << f_tup_errors[i].error 
-	     << " -  not insert" << endl;
       continue;
     }
 
     if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
     {
-      g_info << "Skipping " << f_tup_errors[i].error 
-	     << " - req bits: " << hex << f_tup_errors[i].bits
-	     << " bits: " << hex << bits << endl;
+      g_err << "Skipping " << f_tup_errors[i].error
+            << " - req bits: " << hex << f_tup_errors[i].bits
+            << " bits: " << hex << bits << endl;
       continue;
     }
     
-    g_info << "Testing error insert: " << f_tup_errors[i].error << endl;
+    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
     if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
     {
@@ -1171,6 +1184,42 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
+  }
+
+  /**
+   * update
+   */
+  hugoTrans.loadTable(pNdb, 5);
+  for(i = 0; f_tup_errors[i].op != -1; i++)
+  {
+    if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
+    {
+      continue;
+    }
+
+    if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
+    {
+      g_err << "Skipping " << f_tup_errors[i].error
+            << " - req bits: " << hex << f_tup_errors[i].bits
+            << " bits: " << hex << bits << endl;
+      continue;
+    }
+
+    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
+    restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+    if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
+    {
+
+    }
+    else
+    {
+      hugoTrans.scanUpdateRecords(pNdb, 5);
+    }
+    restarter.insertErrorInAllNodes(0);
+    if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
+    {
+      return NDBT_FAILED;
+    }
   }
   
   return NDBT_OK;
@@ -1527,39 +1576,56 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 int
 runDDInsertFailUpdateBatch(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Ndb* pNdb = GETNDB(step);
   NdbRestarter restarter;
   
   const NdbDictionary::Table * tab = ctx->getTab();
   
+  int errCode = 0;
+  int expectedError = 0;
   {
     bool tabHasDD = false;
-    
     for(int i = 0; i<tab->getNoOfColumns(); i++)
     {
       tabHasDD |= (tab->getColumn(i)->getStorageType() == 
                    NdbDictionary::Column::StorageTypeDisk);
     }
     
-    if (!tabHasDD)
+    if (tabHasDD)
     {
-      ndbout_c("Table %s has no disk attributes, skipping",
+      errCode = 4021;
+      expectedError = 1601;
+    }
+    else
+    {
+      NdbDictionary::Dictionary::List l;
+      pNdb->getDictionary()->listIndexes(l, tab->getName());
+      for (Uint32 i = 0; i<l.count; i++)
+      {
+        if (DictTabInfo::isOrderedIndex(l.elements[i].type))
+        {
+          errCode = 4023;
+          expectedError = 9999;
+          break;
+        }
+      }
+    }
+
+    if (errCode == 0)
+    {
+      ndbout_c("Table %s has no disk attributes or ordered indexes, skipping",
                tab->getName());
       return NDBT_OK;
     }
   }
 
   HugoOperations hugoOps(*ctx->getTab());
-  Ndb* pNdb = GETNDB(step);
-
-  /* Error Insert 4021 - DD tuple insert will fail in disk
-   * space preallocation step
-   */
-  restarter.insertErrorInAllNodes(4021);
 
   int result = NDBT_OK;
   
   for (Uint32 loop = 0; loop < 100; loop ++)
   {
+    restarter.insertErrorInAllNodes(errCode);
     CHECK(hugoOps.startTransaction(pNdb) == 0);
     
     /* Create batch with insert op (which will fail due to disk allocation issue)
@@ -1578,7 +1644,7 @@ runDDInsertFailUpdateBatch(NDBT_Context* ctx, NDBT_Step* step)
     
     NdbError err= hugoOps.getTransaction()->getNdbError();
     
-    CHECK(err.code == 1601); // Disk prealloc error
+    CHECK(err.code == expectedError);
     
     hugoOps.closeTransaction(pNdb);
   }  
