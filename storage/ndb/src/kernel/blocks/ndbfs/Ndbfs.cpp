@@ -973,7 +973,7 @@ Ndbfs::report(Request * request, Signal* signal)
 	m_maxOpenedFiles = theOpenFiles.size();
 
       fsConf->filePointer = request->theFilePointer;
-      sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBB);
+      sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBA);
       break;
     }
     case Request:: closeRemove:
@@ -983,7 +983,7 @@ Ndbfs::report(Request * request, Signal* signal)
       theOpenFiles.erase(request->theFilePointer); 
       // Put the file in idle files list
       theIdleFiles.push_back(request->file); 
-      sendSignal(ref, GSN_FSCLOSECONF, signal, 1, JBB);
+      sendSignal(ref, GSN_FSCLOSECONF, signal, 1, JBA);
       break;
     }
     case Request:: writeSync:
@@ -991,24 +991,24 @@ Ndbfs::report(Request * request, Signal* signal)
     case Request:: write:
     case Request:: writev: {
       jam();
-      sendSignal(ref, GSN_FSWRITECONF, signal, 1, JBB);
+      sendSignal(ref, GSN_FSWRITECONF, signal, 1, JBA);
       break;
     }
     case Request:: read:
     case Request:: readv: {
       jam();
-      sendSignal(ref, GSN_FSREADCONF, signal, 1, JBB);
+      sendSignal(ref, GSN_FSREADCONF, signal, 1, JBA);
       break;
     }
     case Request:: readPartial: {
       jam();
       fsConf->bytes_read = request->par.readWrite.pages[0].size;
-      sendSignal(ref, GSN_FSREADCONF, signal, 2, JBB);
+      sendSignal(ref, GSN_FSREADCONF, signal, 2, JBA);
       break;
     }
     case Request:: sync: {
       jam();
-      sendSignal(ref, GSN_FSSYNCCONF, signal, 1, JBB);
+      sendSignal(ref, GSN_FSSYNCCONF, signal, 1, JBA);
       break;
     }//case
     case Request::append:
@@ -1016,14 +1016,14 @@ Ndbfs::report(Request * request, Signal* signal)
     {
       jam();
       signal->theData[1] = request->par.append.size;
-      sendSignal(ref, GSN_FSAPPENDCONF, signal, 2, JBB);
+      sendSignal(ref, GSN_FSAPPENDCONF, signal, 2, JBA);
       break;
     }
     case Request::rmrf: {
       jam();
       // Put the file in idle files list
       theIdleFiles.push_back(request->file);            
-      sendSignal(ref, GSN_FSREMOVECONF, signal, 1, JBB);
+      sendSignal(ref, GSN_FSREMOVECONF, signal, 1, JBA);
       break;
     }
     case Request:: end: {
