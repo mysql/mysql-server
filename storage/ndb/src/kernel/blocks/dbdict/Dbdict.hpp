@@ -74,7 +74,7 @@
 /*--------------------------------------------------------------*/
 #define ZPACK_TABLE_INTO_PAGES 0
 #define ZSEND_GET_TAB_RESPONSE 3
-
+#define ZDROP_TAB_WAIT_GCI     4
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -2420,6 +2420,8 @@ private:
 
   void dropTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
   void dropTableRef(Signal * signal, DropTableReq *, DropTableRef::ErrorCode);
+  void dropTableWaitGci(Signal*);
+
   void printTables(); // For debugging only
   int handleAlterTab(AlterTabReq * req,
 		     CreateTableRecord * regAlterTabPtr,

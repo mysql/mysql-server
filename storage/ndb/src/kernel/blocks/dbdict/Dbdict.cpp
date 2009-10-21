@@ -359,6 +359,10 @@ void Dbdict::execCONTINUEB(Signal* signal)
     sendGetTabResponse(signal);
     break;
 
+  case ZDROP_TAB_WAIT_GCI:
+    jam();
+    dropTableWaitGci(signal);
+    break;
   default :
     ndbrequire(false);
     break;
@@ -7392,7 +7396,54 @@ Dbdict::prepDropTab_complete(Signal* signal, DropTableRecordPtr dropTabPtr){
 
   dropTabPtr.p->m_coordinatorData.m_gsn = GSN_DROP_TAB_REQ;
   dropTabPtr.p->m_coordinatorData.m_block = DBDICT;
-  
+
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
+
+  signal->theData[0] = ZDROP_TAB_WAIT_GCI;
+  signal->theData[1] = dropTabPtr.i;
+  signal->theData[2] = gci_hi;
+  signal->theData[3] = gci_lo;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+}
+
+void
+Dbdict::dropTableWaitGci(Signal* signal)
+{
+  jam();
+
+  DropTableRecordPtr dropTabPtr;
+  c_opDropTable.getPtr(dropTabPtr, signal->theData[1]);
+  Uint32 gci_hi = signal->theData[2];
+  Uint32 gci_lo = signal->theData[3];
+
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 curr_gci_hi = signal->theData[1];
+  Uint32 curr_gci_lo = signal->theData[2];
+
+  if (curr_gci_hi == gci_hi &&
+      curr_gci_lo == gci_lo)
+  {
+    jam();
+    signal->theData[0] = ZDROP_TAB_WAIT_GCI;
+    signal->theData[1] = dropTabPtr.i;
+    signal->theData[2] = gci_hi;
+    signal->theData[3] = gci_lo;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+    return;
+  }
+
   DropTabReq * req = (DropTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = dropTabPtr.p->key;
