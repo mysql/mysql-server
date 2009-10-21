@@ -1109,13 +1109,11 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
   /* Test if we get an empty string or wrong integer */
   if (str == int_end || error == MY_ERRNO_EDOM)
   {
-    char buff[128];
-    String tmp(buff, (uint32) sizeof(buff), system_charset_info);
-    tmp.copy(str, length, system_charset_info);
+    ErrConvString err(str, length, cs);
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "integer", tmp.c_ptr(), field_name,
+                        "integer", err.ptr(), field_name,
                         (ulong) table->in_use->warning_info->current_row_for_warning());
     return 1;
   }
@@ -2674,14 +2672,11 @@ int Field_new_decimal::store(const char *from, uint length,
                            &decimal_value)) &&
       table->in_use->abort_on_warning)
   {
-    /* Because "from" is not NUL-terminated and we use %s in the ER() */
-    String from_as_str;
-    from_as_str.copy(from, length, &my_charset_bin);
-
+    ErrConvString errmsg(from, length, &my_charset_bin);
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from_as_str.c_ptr(), field_name,
+                        "decimal", errmsg.ptr(), field_name,
                         (ulong) table->in_use->warning_info->current_row_for_warning());
 
     DBUG_RETURN(err);
@@ -2697,18 +2692,15 @@ int Field_new_decimal::store(const char *from, uint length,
     break;
   case E_DEC_BAD_NUM:
     {
-      /* Because "from" is not NUL-terminated and we use %s in the ER() */
-      String from_as_str;
-      from_as_str.copy(from, length, &my_charset_bin);
-
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                          "decimal", from_as_str.c_ptr(), field_name,
-                        (ulong) table->in_use->warning_info->current_row_for_warning());
-    my_decimal_set_zero(&decimal_value);
-
-    break;
+      ErrConvString errmsg(from, length, &my_charset_bin);
+      push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          "decimal", errmsg.ptr(), field_name,
+                          (ulong) table->in_use->warning_info->
+                          current_row_for_warning());
+      my_decimal_set_zero(&decimal_value);
+      break;
     }
   }
 
@@ -4569,10 +4561,11 @@ warn:
     char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
     String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
     str= val_str(&tmp, 0);
+    ErrConvString err(str);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        str->c_ptr());
+                        err.ptr());
   }
   return res;
 }
@@ -6359,7 +6352,6 @@ check_string_copy_error(Field_str *field,
     return FALSE;
 
   convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
-
   push_warning_printf(thd,
                       MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
@@ -6610,13 +6602,11 @@ double Field_string::val_real(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
-                        "DOUBLE", tmp.c_ptr());
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        err.ptr());
   }
   return result;
 }
@@ -6636,13 +6626,11 @@ longlong Field_string::val_int(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    char buf[LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE];
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
-                        "INTEGER", tmp.c_ptr());
+                        "INTEGER", err.ptr());
   }
   return result;
 }
@@ -6674,14 +6662,11 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
                           charset(), decimal_value);
   if (!table->in_use->no_errors && err)
   {
-    char buf[DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE];
-    CHARSET_INFO *cs= charset();
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString errmsg((char*) ptr, field_length, charset());
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
-                        "DECIMAL", tmp.c_ptr());
+                        "DECIMAL", errmsg.ptr());
   }
 
   return decimal_value;

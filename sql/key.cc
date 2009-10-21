@@ -349,10 +349,29 @@ void key_unpack(String *to,TABLE *table,uint idx)
     }
     if ((field=key_part->field))
     {
+      CHARSET_INFO *cs= field->charset();
       field->val_str(&tmp);
+      if (cs->mbmaxlen > 1 &&
+          table->field[key_part->fieldnr - 1]->field_length !=
+          key_part->length)
+      {
+        /* 
+          Prefix key, multi-byte charset. 
+          For the columns of type CHAR(N), the above val_str() 
+          call will return exactly "key_part->length" bytes, 
+          which can break a multi-byte characters in the middle. 
+          Align, returning not more than "char_length" characters. 
+        */
+        uint charpos, char_length= key_part->length / cs->mbmaxlen;
+        if ((charpos= my_charpos(cs, tmp.ptr(),
+                                 tmp.ptr() + tmp.length(),
+                                 char_length)) < tmp.length())
+          tmp.length(charpos);
+      }
       if (key_part->length < field->pack_length())
 	tmp.length(min(tmp.length(),key_part->length));
-      to->append(tmp);
+      ErrConvString err(&tmp);
+      to->append(err.ptr());
     }
     else
       to->append(STRING_WITH_LEN("???"));

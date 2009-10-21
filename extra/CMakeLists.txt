@@ -29,8 +29,8 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
                     --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
                     --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
                     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
-                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-                   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
+                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
+                   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL

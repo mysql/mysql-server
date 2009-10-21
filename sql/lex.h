@@ -607,6 +607,7 @@ static SYMBOL symbols[] = {
   { "X509",		SYM(X509_SYM)},
   { "XOR",		SYM(XOR)},
   { "XA",               SYM(XA_SYM)},
+  { "XML",              SYM(XML_SYM)}, /* LOAD XML Arnold/Erik */
   { "YEAR",		SYM(YEAR_SYM)},
   { "YEAR_MONTH",	SYM(YEAR_MONTH_SYM)},
   { "ZEROFILL",		SYM(ZEROFILL)},

@@ -1,23 +1,29 @@
 <charsets>
 
   <charset name="utf8">
-    <collation name="utf8_test_ci" id="240">
+    <collation name="utf8_test_ci" id="353">
       <rules>
         <reset>a</reset>
         <s>b</s>
       </rules>
     </collation>
 
+    <collation name="utf8_maxuserid_ci" id="2047">
+      <rules>
+        <reset>a</reset>
+        <s>b</s>
+      </rules>
+    </collation>
   </charset>
 
   <charset name="ucs2">
-    <collation name="ucs2_test_ci" id="241">
+    <collation name="ucs2_test_ci" id="358">
       <rules>
         <reset>a</reset>
         <s>b</s>
       </rules>
     </collation>
-    <collation name="ucs2_vn_ci" id="242">
+    <collation name="ucs2_vn_ci" id="359">
       <!-- Vietnamese experimental collation -->
       <rules>
         <reset>A</reset>
