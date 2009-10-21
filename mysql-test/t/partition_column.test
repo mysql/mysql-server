@@ -52,6 +52,8 @@ partition by list column_list(a,b)
                           column_list(NULL, NULL)),
   partition p1 values in (column_list(1,1), column_list(2,2)),
   partition p2 values in (column_list(3, NULL), column_list(NULL, 1)));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
 #
 # BUG#47754 Crash when selecting using NOT BETWEEN for column list partitioning
 #
@@ -79,6 +81,8 @@ create table t1 (a int)
 partition by list (a)
 ( partition p0 values in (2, 1),
   partition p1 values in (4, NULL, 3));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
 insert into t1 values (1);
 insert into t1 values (2);
 insert into t1 values (3);
@@ -92,6 +96,8 @@ create table t1 (a int)
 partition by list column_list(a)
 ( partition p0 values in (column_list(2), column_list(1)),
   partition p1 values in (column_list(4), column_list(NULL), column_list(3)));
+select partition_method, partition_expression, partition_description
+ from information_schema.partitions where table_name = "t1";
 insert into t1 values (1);
 insert into t1 values (2);
 insert into t1 values (3);
@@ -110,6 +116,8 @@ subpartitions 4
   partition p1 values less than (column_list(1, 'a', MAXVALUE, TO_DAYS('1999-01-01'))),
   partition p2 values less than (column_list(1, 'a', MAXVALUE, MAXVALUE)),
   partition p3 values less than (column_list(1, MAXVALUE, MAXVALUE, MAXVALUE)));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
 drop table t1;
 
 create table t1 (a int, b char(10), c varchar(5), d int)
@@ -120,6 +128,8 @@ subpartitions 3
   partition p1 values less than (column_list(2,'abc','abc')),
   partition p2 values less than (column_list(3,'abc','abc')),
   partition p3 values less than (column_list(4,'abc','abc')));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
 
 insert into t1 values (1,'a','b',1),(2,'a','b',2),(3,'a','b',3);
 insert into t1 values (1,'b','c',1),(2,'b','c',2),(3,'b','c',3);
@@ -133,6 +143,8 @@ create table t1 (a int, b varchar(2), c int)
 partition by range column_list (a, b, c)
 (partition p0 values less than (column_list(1, 'A', 1)),
  partition p1 values less than (column_list(1, 'B', 1)));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
 insert into t1 values (1, 'A', 1);
 explain partitions select * from t1 where a = 1 AND b <= 'A' and c = 1;
 select * from t1 where a = 1 AND b <= 'A' and c = 1;

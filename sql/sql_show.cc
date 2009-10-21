@@ -4827,6 +4827,43 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   return;
 }
 
+static int
+get_partition_column_description(partition_info *part_info,
+                                 part_elem_value *list_value,
+                                 String &tmp_str)
+{
+  uint num_elements= part_info->part_field_list.elements;
+  uint i;
+  DBUG_ENTER("get_partition_column_description");
+
+  for (i= 0; i < num_elements; i++)
+  {
+    part_column_list_val *col_val= &list_value->col_val_array[i];
+    if (col_val->max_value)
+      tmp_str.append(partition_keywords[PKW_MAXVALUE].str);
+    else if (col_val->null_value)
+      tmp_str.append("NULL");
+    else
+    {
+      char buffer[MAX_STR_SIZE_PF];
+      String str(buffer, sizeof(buffer), &my_charset_bin);
+      String *res= col_val->item_expression->val_str(&str);
+      if (!res)
+      {
+        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+        DBUG_RETURN(1);
+      }
+      if (col_val->item_expression->result_type() == STRING_RESULT)
+        tmp_str.append("'");
+      tmp_str.append(*res);
+      if (col_val->item_expression->result_type() == STRING_RESULT)
+        tmp_str.append("'");
+    }
+    if (i != num_elements - 1)
+      tmp_str.append(",");
+  }
+  DBUG_RETURN(0);
+}
 
 static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
@@ -4837,6 +4874,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   char buff[61];
   String tmp_res(buff, sizeof(buff), cs);
   String tmp_str;
+  uint num_elements;
   TABLE *show_table= tables->table;
   handler *file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4958,36 +4996,68 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       /* Partition description */
       if (part_info->part_type == RANGE_PARTITION)
       {
-        if (part_elem->range_value != LONGLONG_MAX)
-          table->field[11]->store((longlong) part_elem->range_value, FALSE);
+        if (part_info->column_list)
+        {
+          List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
+          part_elem_value *list_value= list_val_it++;
+          tmp_str.length(0);
+          if (get_partition_column_description(part_info,
+                                               list_value,
+                                               tmp_str))
+          {
+            DBUG_RETURN(1);
+          }
+          table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
+        }
         else
-          table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
+        {
+          if (part_elem->range_value != LONGLONG_MAX)
+            table->field[11]->store((longlong) part_elem->range_value, FALSE);
+          else
+            table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
                                  partition_keywords[PKW_MAXVALUE].length, cs);
+        }
         table->field[11]->set_notnull();
       }
       else if (part_info->part_type == LIST_PARTITION)
       {
         List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
         part_elem_value *list_value;
-        uint no_items= part_elem->list_val_list.elements;
+        uint num_items= part_elem->list_val_list.elements;
         tmp_str.length(0);
         tmp_res.length(0);
         if (part_elem->has_null_value)
         {
           tmp_str.append("NULL");
-          if (no_items > 0)
+          if (num_items > 0)
             tmp_str.append(",");
         }
         while ((list_value= list_val_it++))
         {
-          if (!list_value->unsigned_flag)
-            tmp_res.set(list_value->value, cs);
+          if (part_info->column_list)
+          {
+            if (part_info->part_field_list.elements > 1U)
+              tmp_str.append("(");
+            if (get_partition_column_description(part_info,
+                                                 list_value,
+                                                 tmp_str))
+            {
+              DBUG_RETURN(1);
+            }
+            if (part_info->part_field_list.elements > 1U)
+              tmp_str.append(")");
+          }
           else
-            tmp_res.set((ulonglong)list_value->value, cs);
-          tmp_str.append(tmp_res);
-          if (--no_items != 0)
+          {
+            if (!list_value->unsigned_flag)
+              tmp_res.set(list_value->value, cs);
+            else
+              tmp_res.set((ulonglong)list_value->value, cs);
+            tmp_str.append(tmp_res);
+          }
+          if (--num_items != 0)
             tmp_str.append(",");
-        };
+        }
         table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
         table->field[11]->set_notnull();
       }
