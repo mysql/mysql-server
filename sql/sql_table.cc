@@ -72,7 +72,7 @@ static void wait_for_kill_signal(THD *thd)
   @brief Helper function for explain_filename
 */
 static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, int errcode)
+                           const char* name, uint name_len, bool add_quotes)
 {
   uint res;
   uint errors;
@@ -92,18 +92,44 @@ static char* add_identifier(char *to_p, const char * end_p,
   res= strconvert(&my_charset_filename, conv_name, system_charset_info,
                   conv_string, FN_REFLEN, &errors);
   if (!res || errors)
+  {
+    DBUG_PRINT("error", ("strconvert of '%s' failed with %u (errors: %u)", conv_name, res, errors));
     conv_name= name;
+  }
   else
   {
     DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
     conv_name= conv_string;
   }
 
-  if (errcode)
-    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  if (add_quotes && (end_p - to_p > 2))
+  {
+    *(to_p++)= '`';
+    while (*conv_name && (end_p - to_p - 1) > 0)
+    {
+      uint length= my_mbcharlen(system_charset_info, *conv_name);
+      if (!length)
+        length= 1;
+      if (length == 1 && *conv_name == '`')
+      { 
+        if ((end_p - to_p) < 3)
+          break;
+        *(to_p++)= '`';
+        *(to_p++)= *(conv_name++);
+      }
+      else if (((long) length) < (end_p - to_p))
+      {
+        to_p= strnmov(to_p, conv_name, length);
+        conv_name+= length;
+      }
+      else
+        break;                               /* string already filled */
+    }
+    to_p= strnmov(to_p, "`", end_p - to_p);
+  }
   else
-    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
-  return to_p;
+    to_p= strnmov(to_p, conv_name, end_p - to_p);
+  DBUG_RETURN(to_p);
 }
 
 
@@ -135,6 +161,8 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
+                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
@@ -245,28 +273,39 @@ uint explain_filename(const char *from,
         part_name_len-= 5;
     }
   }
+  else
+    table_name_len= strlen(table_name);
   if (db_name)
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         ER_TABLE_NAME);
+  {
+    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+  }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -280,15 +319,22 @@ uint explain_filename(const char *from,
         to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
+    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    *(to_p++)= ' ';
     to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         ER_PARTITION_NAME);
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      *(to_p++)= ' ';
       to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           ER_SUBPARTITION_NAME);
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
@@ -1726,6 +1772,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error= FALSE, need_start_waiters= FALSE;
+  Drop_table_error_handler err_handler(thd->get_internal_handler());
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -1746,7 +1793,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
+  thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
+  thd->pop_internal_handler();
+
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1847,9 +1897,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(1);
   }
-
-  /* Don't give warnings for not found errors, as we already generate notes */
-  thd->no_warnings_for_error= 1;
 
   for (table= tables; table; table= table->next_local)
   {
@@ -2099,7 +2146,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   pthread_mutex_unlock(&LOCK_open);
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
@@ -5171,6 +5217,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   char tmp_path[FN_REFLEN];
 #endif
   char ts_name[FN_LEN + 1];
+  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
 
 
@@ -5227,8 +5274,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    flags|= MY_SYNC;
+
   /*
     Create a new table by copying from source table
+    and sync the new table if the flag MY_SYNC is set
 
     Altough exclusive name-lock on target table protects us from concurrent
     DML and DDL operations on it we still want to wrap .FRM creation and call
@@ -5249,7 +5300,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       goto err;
     }
   }
-  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  else if (my_copy(src_path, dst_path, flags))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);

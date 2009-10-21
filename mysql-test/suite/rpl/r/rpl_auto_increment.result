@@ -244,3 +244,71 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 drop table t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+SET SQL_MODE='';
+INSERT INTO t1 VALUES(NULL);
+INSERT INTO t2 VALUES(NULL);
+SELECT * FROM t1;
+id
+1
+SELECT * FROM t2;
+id
+1
+INSERT INTO t1 VALUES();
+INSERT INTO t2 VALUES();
+SELECT * FROM t1;
+id
+1
+2
+SELECT * FROM t2;
+id
+1
+2
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+SELECT * FROM t1;
+id
+1
+2
+3
+SELECT * FROM t2;
+id
+1
+2
+3
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+SELECT * FROM t1;
+id
+0
+1
+2
+3
+SELECT * FROM t2;
+id
+0
+1
+2
+3
+INSERT INTO t1 VALUES(4);
+INSERT INTO t2 VALUES(4);
+FLUSH LOGS;
+Comparing tables master:test.t1 and slave:test.t1
+Comparing tables master:test.t2 and slave:test.t2
+DROP TABLE t1;
+DROP TABLE t2;
+Comparing tables master:test.t1 and slave:test.t1
+Comparing tables master:test.t2 and slave:test.t2
+DROP TABLE t1;
+DROP TABLE t2;
+SET SQL_MODE='';

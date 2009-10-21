@@ -202,7 +202,7 @@ $flags->{libs} =
 $flags->{libs_r} =
   [@ldflags,@lib_r_opts,'@ZLIB_DEPS@','@LIBS@','@openssl_libs@'];
 $flags->{embedded_libs} =
-  [@ldflags,@lib_e_opts,'@LIBDL@','@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@innodb_system_libs@','@openssl_libs@'];
+  [@ldflags,@lib_e_opts,'@LIBDL@','@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@openssl_libs@'];
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];

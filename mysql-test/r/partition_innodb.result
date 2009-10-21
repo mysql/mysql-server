@@ -23,6 +23,20 @@ partition p1 values less than ('za'));
 insert into t1 values  ('j');
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;
+create table t1 (a int not null,
+b datetime not null,
+primary key (a,b))
+engine=innodb
+partition by range (to_days(b))
+subpartition by hash (a)
+subpartitions 2
+( partition p0 values less than (to_days('2009-01-01')),
+partition p1 values less than (to_days('2009-02-01')),
+partition p2 values less than (to_days('2009-03-01')),
+partition p3 values less than maxvalue);
+alter table t1 reorganize partition p1,p2 into
+( partition p2 values less than (to_days('2009-03-01')));
+drop table t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
 PARTITION BY RANGE(id) ( 
 PARTITION p0 VALUES LESS THAN (5), 
@@ -274,3 +288,7 @@ SUBPARTITION BY KEY (char_column)
 SUBPARTITIONS 2
 (PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
 drop table t1;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB
+PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
+CREATE INDEX i1 ON t1 (a);
+DROP TABLE t1;
