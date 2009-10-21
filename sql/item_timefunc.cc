@@ -2502,10 +2502,11 @@ String *Item_char_typecast::val_str(String *str)
         str_value= *res;                        // Not malloced string
         res= &str_value;
       }
+      ErrConvString err(res);
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_TRUNCATED_WRONG_VALUE,
                           ER(ER_TRUNCATED_WRONG_VALUE), char_type,
-                          res->c_ptr_safe());
+                          err.ptr());
       res->length((uint) length);
     }
     else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)

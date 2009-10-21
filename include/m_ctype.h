@@ -477,6 +477,9 @@ uint my_charset_repertoire(CHARSET_INFO *cs);
 
 my_bool my_charset_is_ascii_compatible(CHARSET_INFO *cs);
 
+extern size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
+                              const char* fmt, va_list ap);
+
 #define	_MY_U	01	/* Upper case */
 #define	_MY_L	02	/* Lower case */
 #define	_MY_NMR	04	/* Numeral (digit) */

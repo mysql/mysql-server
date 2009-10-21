@@ -425,6 +425,8 @@ struct system_variables
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 
+  /* Error messages */
+  MY_LOCALE *lc_messages;
   /* Locale Support */
   MY_LOCALE *lc_time_names;
 

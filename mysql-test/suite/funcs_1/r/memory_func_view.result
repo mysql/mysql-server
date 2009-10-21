@@ -2124,10 +2124,10 @@ IS NOT TRUE	<--------30 characters------->	3
 IS NOT TRUE	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 IS     TRUE	-1	5
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect DOUBLE value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect DOUBLE value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect DOUBLE value: '-1'
+Warning	1292	Truncated incorrect DOUBLE value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DOUBLE value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_binary_30`,'IS     TRUE','IS NOT TRUE') AS `IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2141,10 +2141,10 @@ IS NOT TRUE	<--------30 characters------->	3
 IS NOT TRUE	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           	4
 IS     TRUE	-1                            	5
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect DOUBLE value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect DOUBLE value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect DOUBLE value: '-1'
+Warning	1292	Truncated incorrect DOUBLE value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DOUBLE value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -2187,7 +2187,7 @@ IS NOT TRUE	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 IS     TRUE	-1	5
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect DOUBLE value: ' ---äÖüß@µ*$--           '
+Warning	1292	Truncated incorrect DOUBLE value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_char_30`,'IS     TRUE','IS NOT TRUE') AS `IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2202,7 +2202,7 @@ IS NOT TRUE	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 IS     TRUE	-1	5
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect DOUBLE value: ' ---äÖüß@µ*$--           '
+Warning	1292	Truncated incorrect DOUBLE value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           '
 DROP VIEW v1;
 
 
@@ -3410,13 +3410,13 @@ NULL	NULL	1
 -3333.33	-3333.3333	28
 Warnings:
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect DECIMAL value: '-1'
-Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
+Warning	1292	Truncated incorrect DECIMAL value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DECIMAL value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as decimal(37,2)) AS `CAST(my_binary_30 AS DECIMAL(37,2))`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3432,13 +3432,13 @@ NULL	NULL	1
 -3333.33	-3333.3333                    	28
 Warnings:
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect DECIMAL value: '-1'
-Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
+Warning	1292	Truncated incorrect DECIMAL value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DECIMAL value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -3496,7 +3496,7 @@ Warning	1292	Truncated incorrect DECIMAL value: '                              '
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ' ---äÖüß@µ*$--           '
+Warning	1292	Truncated incorrect DECIMAL value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as decimal(37,2)) AS `CAST(my_char_30 AS DECIMAL(37,2))`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3516,7 +3516,7 @@ Warning	1292	Truncated incorrect DECIMAL value: '                              '
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
 Warning	1366	Incorrect decimal value: '' for column '' at row -1
-Warning	1292	Truncated incorrect DECIMAL value: ' ---äÖüß@µ*$--           '
+Warning	1292	Truncated incorrect DECIMAL value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           '
 DROP VIEW v1;
 
 

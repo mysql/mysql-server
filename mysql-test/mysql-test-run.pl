@@ -958,12 +958,12 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
-                                    "$basedir/sql/share/english",
-                                    "$basedir/share/english");
+  $path_language=   mtr_path_exists("$basedir/share/mysql",
+                                    "$basedir/sql/share",
+                                    "$basedir/share");
 
 
-  my $path_share= dirname($path_language);
+  my $path_share= $path_language;
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   if (using_extern())
@@ -1438,7 +1438,7 @@ sub collect_mysqld_features {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
-  mtr_add_arg($args, "--language=%s", $path_language);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
@@ -2706,7 +2706,7 @@ sub mysql_install_db {
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
   my $install_basedir= $mysqld->value('basedir');
-  my $install_lang= $mysqld->value('language');
+  my $install_lang= $mysqld->value('lc-messages-dir');
   my $install_chsdir= $mysqld->value('character-sets-dir');
 
   mtr_report("Installing system database...");
@@ -2729,7 +2729,7 @@ sub mysql_install_db {
 		$path_vardir_trace);
   }
 
-  mtr_add_arg($args, "--language=%s", $install_lang);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,

@@ -19,7 +19,7 @@ col2 VARCHAR(32) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL,
 UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
 INSERT INTO t1 VALUES('A', 'A'), ('B', 'B'), ('C', 'C');
 INSERT INTO t1 VALUES('A ', 'A ');
-ERROR 23000: Duplicate entry '' for key 'key1'
+ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(255) CHARACTER SET UCS2 COLLATE UCS2_BIN NOT NULL,

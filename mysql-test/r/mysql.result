@@ -207,6 +207,8 @@ Warning (Code 1286): Unknown table engine 'nonexistent2'
 Warning (Code 1266): Using storage engine MyISAM for table 't2'
 Error (Code 1050): Table 't2' already exists
 drop tables t1, t2;
+Variable_name	Value
+lc_messages	ru_RU
 <TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>create table t1 (a char(5));
 insert into t1 values ('\0b\0');
 a
