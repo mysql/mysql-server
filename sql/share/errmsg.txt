@@ -6214,8 +6214,8 @@ ER_WRONG_TYPE_COLUMN_VALUE_ERROR
   eng "Partition column values of incorrect type"
 ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
   eng "Too many fields in '%-.192s'"
-ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
-  eng "Cannot use MAXVALUE as value in List partitioning"
+ER_MAXVALUE_IN_VALUES_IN
+  eng "Cannot use MAXVALUE as value in VALUES IN"
 ER_TOO_MANY_VALUES_ERROR
   eng "Cannot have more than one value for this type of %-.64s partitioning"
 ER_ROW_SINGLE_PARTITION_FIELD_ERROR
