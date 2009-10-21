@@ -1,0 +1,46 @@
+#
+# BUG#40045: Replication failure on RBR + no PK + UPDATE + integer key +
+#            char with no key
+#
+# BUG#40007: Replication failure with RBR + no PK + 2 indexed fields 
+#
+# Test Description
+# ================
+#  
+#   (see rpl_row_record_find_myisam.test)
+#
+
+source include/master-slave.inc;
+source include/have_binlog_format_row.inc;
+connection master;
+source include/have_innodb.inc;
+connection slave;
+source include/have_innodb.inc;
+connection master;
+
+--echo #################################################################
+--echo # CASE 5: InnoDB - master, MyISAM - slave
+--echo #################################################################
+
+let $master_engine= InnoDB;
+let $slave_engine= MyISAM;
+
+-- source extra/rpl_tests/rpl_row_record_find.test
+
+--echo #################################################################
+--echo # CASE 6: InnoDB - master, InnoDB - slave
+--echo #################################################################
+
+let $master_engine= InnoDB;
+let $slave_engine= InnoDB;
+
+-- source extra/rpl_tests/rpl_row_record_find.test
+
+--echo #################################################################
+--echo # CASE 7: MyISAM - master, InnoDB - slave
+--echo #################################################################
+
+let $master_engine= MyISAM;
+let $slave_engine= InnoDB;
+
+-- source extra/rpl_tests/rpl_row_record_find.test
