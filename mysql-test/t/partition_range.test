@@ -9,7 +9,7 @@
 drop table if exists t1, t2;
 --enable_warnings
 
---error ER_PARSE_ERROR
+--error ER_NULL_IN_VALUES_LESS_THAN
 create table t1 (a int)
 partition by range (a)
 ( partition p0 values less than (NULL),

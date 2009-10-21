@@ -452,7 +452,7 @@ partitions 2
 #
 # Partition by range, inconsistent partition function and constants
 #
---error 1064
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -522,7 +522,7 @@ partitions 2
 #
 # Partition by range, missing parenthesis
 #
---error 1064
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -536,7 +536,7 @@ partitions 2
 #
 # Partition by range, maxvalue in wrong place
 #
---error 1064
+--error ER_PARTITION_MAXVALUE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -550,7 +550,7 @@ partitions 2
 #
 # Partition by range, maxvalue in several places
 #
---error 1064
+--error ER_PARTITION_MAXVALUE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -765,7 +765,7 @@ partitions 2
 #
 # Partition by list, wrong constant result type (not INT)
 #
---error 1064
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,

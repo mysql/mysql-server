@@ -3,8 +3,7 @@ create table t1 (a int)
 partition by range (a)
 ( partition p0 values less than (NULL),
 partition p1 values less than (MAXVALUE));
-ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '),
-partition p1 values less than (MAXVALUE))' at line 3
+ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
 create table t1 (a datetime not null)
 partition by range (TO_SECONDS(a))
 ( partition p0 VALUES LESS THAN (TO_SECONDS('2007-03-08 00:00:00')),
