@@ -10343,10 +10343,22 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     event_data= (Ndb_event_data *) share->op->getCustomData();
   if (event_data && event_data->table)
   {
-    event_data->table->s->db.str= share->db;
-    event_data->table->s->db.length= strlen(share->db);
-    event_data->table->s->table_name.str= share->table_name;
-    event_data->table->s->table_name.length= strlen(share->table_name);
+    if (!IS_TMP_PREFIX(share->table_name))
+    {
+      event_data->table->s->db.str= share->db;
+      event_data->table->s->db.length= strlen(share->db);
+      event_data->table->s->table_name.str= share->table_name;
+      event_data->table->s->table_name.length= strlen(share->table_name);
+    }
+    else
+    {
+      /**
+       * we don't rename the table->s here 
+       *   that is used by injector
+       *   as we don't know if all events has been processed
+       * This will be dropped anyway
+       */
+    }
   }
   /* else rename will be handled when the ALTER event comes */
   share->old_names= old_key;
