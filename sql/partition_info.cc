@@ -1047,7 +1047,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
       goto end;
     }
-    if (fix_parser_data(thd))
+    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        fix_parser_data(thd))
       goto end;
   }
   if (unlikely(!is_sub_partitioned() && 
