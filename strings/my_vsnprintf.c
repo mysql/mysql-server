@@ -18,61 +18,519 @@
 #include <stdarg.h>
 #include <m_ctype.h>
 
-/*
-  Limited snprintf() implementations
 
-  SYNOPSIS
-    my_vsnprintf()
-    to		Store result here
-    n		Store up to n-1 characters, followed by an end 0
-    fmt		printf format
-    ap		Arguments
+#define MAX_ARGS 32                           /* max positional args count*/
+#define MAX_PRINT_INFO 32                     /* max print position count */
 
-  IMPLEMENTION:
-    Supports following formats:
-    %#[l]d
-    %#[l]u
-    %#[l]x
-    %#.#b 	Local format; note first # is ignored and second is REQUIRED
-    %#.#s	Note first # is ignored
+#define LENGTH_ARG     1
+#define WIDTH_ARG      2
+#define PREZERO_ARG    4
+#define ESCAPED_ARG    8 
+
+typedef struct pos_arg_info ARGS_INFO;
+typedef struct print_info PRINT_INFO;
+
+struct pos_arg_info
+{
+  char arg_type;                              /* argument type */
+  uint have_longlong;                         /* used from integer values */
+  char *str_arg;                              /* string value of the arg */
+  longlong longlong_arg;                      /* integer value of the arg */
+  double double_arg;                          /* double value of the arg */
+};
+
+
+struct print_info
+{
+  char arg_type;                              /* argument type */
+  size_t arg_idx;                             /* index of the positional arg */
+  size_t length;                              /* print width or arg index */
+  size_t width;                               /* print width or arg index */
+  uint flags;
+  const char *begin;                          /**/
+  const char *end;                            /**/
+};
+
+
+/**
+  Calculates print length or index of positional argument
+
+  @param fmt         processed string
+  @param length      print length or index of positional argument
+  @param pre_zero    returns flags with PREZERO_ARG set if necessary
+
+  @retval
+    string position right after length digits
+*/
+
+static const char *get_length(const char *fmt, size_t *length, uint *pre_zero)
+{
+  for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
+  {
+    *length= *length * 10 + (uint)(*fmt - '0');
+    if (!*length)
+      *pre_zero|= PREZERO_ARG;                  /* first digit was 0 */
+  }
+  return fmt;
+}
+
+
+/**
+  Calculates print width or index of positional argument
+
+  @param fmt         processed string
+  @param width       print width or index of positional argument
+
+  @retval
+    string position right after width digits
+*/
+
+static const char *get_width(const char *fmt, size_t *width)
+{
+  for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
+  {
+    *width= *width * 10 + (uint)(*fmt - '0');
+  }
+  return fmt;
+}
+
+/**
+  Calculates print width or index of positional argument
+
+  @param fmt            processed string
+  @param have_longlong  TRUE if longlong is required
+
+  @retval
+    string position right after modifier symbol
+*/
+
+static const char *check_longlong(const char *fmt, uint *have_longlong)
+{
+  *have_longlong= 0;
+  if (*fmt == 'l')
+  {
+    fmt++;
+    if (*fmt != 'l')
+      *have_longlong= (sizeof(long) == sizeof(longlong));
+    else
+    {
+      fmt++;
+      *have_longlong= 1;
+    }
+  }
+  else if (*fmt == 'z')
+  {
+    fmt++;
+    *have_longlong= (sizeof(size_t) == sizeof(longlong));
+  }
+  return fmt;
+}
+
+
+/**
+  Returns escaped string
+
+  @param cs         string charset
+  @param to         buffer where escaped string will be placed
+  @param end        end of buffer
+  @param par        string to escape
+  @param par_len    string length
+  @param quote_char character for quoting
+
+  @retval
+    position in buffer which points on the end of escaped string
+*/
+
+static char *backtick_string(CHARSET_INFO *cs, char *to, char *end,
+                             char *par, size_t par_len, char quote_char)
+{
+  uint char_len;
+  char *start= to;
+  char *par_end= par + par_len;
+  size_t buff_length= (size_t) (end - to);
+
+  if (buff_length <= par_len)
+    goto err;
+  *start++= quote_char;
+
+  for ( ; par < par_end; par+= char_len)
+  {
+    uchar c= *(uchar *) par;
+    if (!(char_len= my_mbcharlen(cs, c)))
+      char_len= 1;
+    if (char_len == 1 && c == (uchar) quote_char )
+    {
+      if (start + 1 >= end)
+        goto err;
+      *start++= quote_char;
+    }
+    if (start + char_len >= end)
+      goto err;
+    start= strnmov(start, par, char_len);
+  }
     
-  RETURN
+  if (start + 1 >= end)
+    goto err;
+  *start++= quote_char;
+  return start;
+
+err:
+    *to='\0';
+  return to;
+}
+
+
+/**
+  Prints string argument
+*/
+
+static char *process_str_arg(CHARSET_INFO *cs, char *to, char *end,
+                             size_t width, char *par, uint print_type)
+{
+  int well_formed_error;
+  size_t plen, left_len= (size_t) (end - to) + 1;
+  if (!par)
+    par = (char*) "(null)";
+
+  plen= strnlen(par, width);
+  if (left_len <= plen)
+    plen = left_len - 1;
+  plen= cs->cset->well_formed_len(cs, par, par + plen,
+                                  width, &well_formed_error);
+  if (print_type & ESCAPED_ARG)
+    to= backtick_string(cs, to, end, par, plen, '`');
+  else
+    to= strnmov(to,par,plen);
+  return to;
+}
+
+
+/**
+  Prints binary argument
+*/
+
+static char *process_bin_arg(char *to, char *end, size_t width, char *par)
+{
+  DBUG_ASSERT(to <= end);
+  if (to + width + 1 > end)
+    width= end - to - 1;  /* sign doesn't matter */
+  memmove(to, par, width);
+  to+= width;
+  return to;
+}
+
+
+/**
+  Prints integer argument
+*/
+
+static char *process_int_arg(char *to, char *end, size_t length,
+                             longlong par, char arg_type, uint print_type)
+{
+  size_t res_length, to_length;
+  char *store_start= to, *store_end;
+  char buff[32];
+
+  if ((to_length= (size_t) (end-to)) < 16 || length)
+    store_start= buff;
+
+  if (arg_type == 'd')
+    store_end= int10_to_str(par, store_start, -10);
+  else if (arg_type == 'u')
+    store_end= int10_to_str(par, store_start, 10);
+  else if (arg_type == 'p')
+  {
+    store_start[0]= '0';
+    store_start[1]= 'x';
+    store_end= int2str(par, store_start + 2, 16, 0);
+  }
+  else
+  {
+    DBUG_ASSERT(arg_type == 'X' || arg_type =='x');
+    store_end= int2str(par, store_start, 16, (arg_type == 'X'));
+  }
+
+  if ((res_length= (size_t) (store_end - store_start)) > to_length)
+    return to;                           /* num doesn't fit in output */
+  /* If %#d syntax was used, we have to pre-zero/pre-space the string */
+  if (store_start == buff)
+  {
+    length= min(length, to_length);
+    if (res_length < length)
+    {
+      size_t diff= (length- res_length);
+      bfill(to, diff, (print_type & PREZERO_ARG) ? '0' : ' ');
+      to+= diff;
+    }
+    bmove(to, store_start, res_length);
+  }
+  to+= res_length;
+  return to;
+}
+
+
+/**
+  Procesed positional arguments.
+
+  @param cs         string charset
+  @param to         buffer where processed string will be place
+  @param end        end of buffer
+  @param par        format string
+  @param arg_index  arg index of the first occurrence of positional arg
+  @param ap         list of parameters
+
+  @retval
+    end of buffer where processed string is placed
+*/
+
+static char *process_args(CHARSET_INFO *cs, char *to, char *end,
+                          const char* fmt, size_t arg_index, va_list ap)
+{
+  ARGS_INFO args_arr[MAX_ARGS];
+  PRINT_INFO print_arr[MAX_PRINT_INFO];
+  uint idx= 0, arg_count= arg_index;
+
+start:
+  /* Here we are at the beginning of positional argument, right after $ */
+  arg_index--;
+  print_arr[idx].flags= 0;
+  if (*fmt == '`')
+  {
+    print_arr[idx].flags|= ESCAPED_ARG;
+    fmt++;
+  }
+  if (*fmt == '-')
+    fmt++;
+  print_arr[idx].length= print_arr[idx].width= 0;
+  /* Get print length */
+  if (*fmt == '*')
+  {          
+    fmt++;
+    fmt= get_length(fmt, &print_arr[idx].length, &print_arr[idx].flags);
+    print_arr[idx].length--;    
+    DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
+    args_arr[print_arr[idx].length].arg_type= 'd';
+    print_arr[idx].flags|= LENGTH_ARG;
+    arg_count= max(arg_count, print_arr[idx].length + 1);
+    fmt++;
+  }
+  else
+    fmt= get_length(fmt, &print_arr[idx].length, &print_arr[idx].flags);
+  
+  if (*fmt == '.')
+  {
+    fmt++;
+    /* Get print width */
+    if (*fmt == '*')
+    {
+      fmt= get_width(fmt, &print_arr[idx].width);
+      print_arr[idx].width--;
+      DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
+      args_arr[print_arr[idx].width].arg_type= 'd';
+      print_arr[idx].flags|= WIDTH_ARG;
+      arg_count= max(arg_count, print_arr[idx].width + 1);
+      fmt++;
+    }
+    else
+      fmt= get_width(fmt, &print_arr[idx].width);
+  }
+  else
+    print_arr[idx].width= SIZE_T_MAX;
+
+  fmt= check_longlong(fmt, &args_arr[arg_index].have_longlong);
+  if (*fmt == 'p')
+    args_arr[arg_index].have_longlong= (sizeof(void *) == sizeof(longlong));
+  args_arr[arg_index].arg_type= print_arr[idx].arg_type= *fmt;
+  
+  print_arr[idx].arg_idx= arg_index;
+  print_arr[idx].begin= ++fmt;
+
+  while (*fmt && *fmt != '%')
+    fmt++;
+
+  if (!*fmt)                                  /* End of format string */
+  {
+    uint i;
+    print_arr[idx].end= fmt;
+    /* Obtain parameters from the list */
+    for (i= 0 ; i < arg_count; i++)
+    {
+      switch (args_arr[i].arg_type) {
+      case 's':
+      case 'b':
+        args_arr[i].str_arg= va_arg(ap, char *);
+        break;
+      case 'f':
+      case 'g':
+        args_arr[i].double_arg= va_arg(ap, double);
+        break;
+      case 'd':
+      case 'u':
+      case 'x':
+      case 'X':
+      case 'p':
+        if (args_arr[i].have_longlong)
+          args_arr[i].longlong_arg= va_arg(ap,longlong);
+        else if (args_arr[i].arg_type == 'd')
+          args_arr[i].longlong_arg= va_arg(ap, int);
+        else
+          args_arr[i].longlong_arg= va_arg(ap, uint);
+        break;
+      case 'c':
+        args_arr[i].longlong_arg= va_arg(ap, int);
+        break;
+      default:
+        DBUG_ASSERT(0);
+      }
+    }
+    /* Print result string */
+    for (i= 0; i <= idx; i++)
+    {
+      uint width= 0, length= 0;
+      switch (print_arr[i].arg_type) {
+      case 's':
+      {
+        char *par= args_arr[print_arr[i].arg_idx].str_arg;
+        width= (print_arr[i].flags & WIDTH_ARG) ?
+          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        to= process_str_arg(cs, to, end, width, par, print_arr[i].flags);
+        break;
+      }
+      case 'b':
+      {
+        char *par = args_arr[print_arr[i].arg_idx].str_arg;
+        width= (print_arr[i].flags & WIDTH_ARG) ?
+          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        to= process_bin_arg(to, end, width, par);
+        break;
+      }
+      case 'c':
+      {
+        if (to == end)
+          break;
+        *to++= (char) args_arr[print_arr[i].arg_idx].longlong_arg;
+        break;
+      }
+      case 'd':
+      case 'u':
+      case 'x':
+      case 'X':
+      case 'p':
+      {
+        /* Integer parameter */
+        longlong larg;
+        length= (print_arr[i].flags & LENGTH_ARG) ?
+          args_arr[print_arr[i].length].longlong_arg : print_arr[i].length;
+
+        if (args_arr[print_arr[i].arg_idx].have_longlong)
+          larg = args_arr[print_arr[i].arg_idx].longlong_arg;
+        else if (print_arr[i].arg_type == 'd')
+          larg = (int) args_arr[print_arr[i].arg_idx].longlong_arg;
+        else
+          larg= (uint) args_arr[print_arr[i].arg_idx].longlong_arg;
+
+        to= process_int_arg(to, end, length, larg, print_arr[i].arg_type,
+                            print_arr[i].flags);
+        break;
+      }
+      default:
+        break;
+      }
+
+      if (to == end)
+        break;
+
+      length= min(end - to , print_arr[i].end - print_arr[i].begin);
+      if (to + length < end)
+        length++;
+      to= strnmov(to, print_arr[i].begin, length);
+    }
+    DBUG_ASSERT(to <= end);
+    *to='\0';				/* End of errmessage */
+    return to;
+  }
+  else
+  {
+    /* Process next positional argument*/
+    DBUG_ASSERT(*fmt == '%');
+    print_arr[idx].end= fmt - 1;
+    idx++;
+    fmt++;
+    arg_index= 0;
+    fmt= get_width(fmt, &arg_index);
+    DBUG_ASSERT(*fmt == '$');
+    fmt++;
+    arg_count= max(arg_count, arg_index);
+    goto start;
+  }
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
+
+/**
+  Produces output string according to a format string
+
+  @param cs         string charset
+  @param to         buffer where processed string will be place
+  @param n          size of buffer
+  @param par        format string
+  @param ap         list of parameters
+
+  @retval
     length of result string
 */
 
-size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
+size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
+                       const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
   size_t length, width;
-  uint pre_zero, have_long;
+  uint print_type, have_longlong;
 
   for (; *fmt ; fmt++)
   {
     if (*fmt != '%')
     {
-      if (to == end)			/* End of buffer */
+      if (to == end)                            /* End of buffer */
 	break;
-      *to++= *fmt;			/* Copy ordinary char */
+      *to++= *fmt;                            /* Copy ordinary char */
       continue;
     }
     fmt++;					/* skip '%' */
-    /* Read max fill size (only used with %d and %u) */
-    if (*fmt == '-')
-      fmt++;
+
     length= width= 0;
-    pre_zero= have_long= 0;
-    if (*fmt == '*')
+    print_type= 0;
+
+    /* Read max fill size (only used with %d and %u) */
+    if (my_isdigit(&my_charset_latin1, *fmt))
     {
-      fmt++;
-      length= va_arg(ap, int);
+      fmt= get_length(fmt, &length, &print_type);
+      if (*fmt == '$')
+      {
+        to= process_args(cs, to, end, (fmt+1), length, ap);
+        return (size_t) (to - start);
+      }
     }
     else
-      for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
+    {
+      if (*fmt == '`')
       {
-        length= length * 10 + (uint)(*fmt - '0');
-        if (!length)
-          pre_zero= 1;			/* first digit was 0 */
+        print_type|= ESCAPED_ARG;
+        fmt++;
       }
+      if (*fmt == '-')
+        fmt++;
+      if (*fmt == '*')
+      {
+        fmt++;
+        length= va_arg(ap, int);
+      }
+      else
+        fmt= get_length(fmt, &length, &print_type);
+    }
+
     if (*fmt == '.')
     {
       fmt++;
@@ -82,75 +540,41 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
         width= va_arg(ap, int);
       }
       else
-        for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
-          width= width * 10 + (uint)(*fmt - '0');
+        fmt= get_width(fmt, &width);
     }
     else
-      width= ~0;
-    if (*fmt == 'l')
-    {
-      fmt++;
-      have_long= 1;
-    }
+      width= SIZE_T_MAX;   
+
+    fmt= check_longlong(fmt, &have_longlong);
+
     if (*fmt == 's')				/* String parameter */
     {
-      reg2 char	*par = va_arg(ap, char *);
-      size_t plen,left_len = (size_t) (end - to) + 1;
-      if (!par) par = (char*)"(null)";
-      plen= (uint) strnlen(par, width);
-      if (left_len <= plen)
-	plen = left_len - 1;
-      to=strnmov(to,par,plen);
+      reg2 char *par= va_arg(ap, char *);
+      to= process_str_arg(cs, to, end, width, par, print_type);
       continue;
     }
     else if (*fmt == 'b')				/* Buffer parameter */
     {
       char *par = va_arg(ap, char *);
-      DBUG_ASSERT(to <= end);
-      if (to + abs(width) + 1 > end)
-        width= (uint) (end - to - 1);  /* sign doesn't matter */
-      memmove(to, par, abs(width));
-      to+= width;
+      to= process_bin_arg(to, end, width, par);
       continue;
     }
-    else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x')	/* Integer parameter */
+    else if (*fmt == 'd' || *fmt == 'u' || *fmt == 'x' || *fmt == 'X' ||
+             *fmt == 'p')
     {
-      register long larg;
-      size_t res_length, to_length;
-      char *store_start= to, *store_end;
-      char buff[32];
+      /* Integer parameter */
+      longlong larg;
+      if (*fmt == 'p')
+        have_longlong= (sizeof(void *) == sizeof(longlong));
 
-      if ((to_length= (size_t) (end-to)) < 16 || length)
-	store_start= buff;
-      if (have_long)
-        larg = va_arg(ap, long);
+      if (have_longlong)
+        larg = va_arg(ap,longlong);
+      else if (*fmt == 'd')
+        larg = va_arg(ap, int);
       else
-        if (*fmt == 'd')
-          larg = va_arg(ap, int);
-        else
-          larg= (long) (uint) va_arg(ap, int);
-      if (*fmt == 'd')
-	store_end= int10_to_str(larg, store_start, -10);
-      else
-        if (*fmt== 'u')
-          store_end= int10_to_str(larg, store_start, 10);
-        else
-          store_end= int2str(larg, store_start, 16, 0);
-      if ((res_length= (size_t) (store_end - store_start)) > to_length)
-	break;					/* num doesn't fit in output */
-      /* If %#d syntax was used, we have to pre-zero/pre-space the string */
-      if (store_start == buff)
-      {
-	length= min(length, to_length);
-	if (res_length < length)
-	{
-	  size_t diff= (length- res_length);
-	  bfill(to, diff, pre_zero ? '0' : ' ');
-	  to+= diff;
-	}
-	bmove(to, store_start, res_length);
-      }
-      to+= res_length;
+        larg= va_arg(ap, uint);
+
+      to= process_int_arg(to, end, length, larg, *fmt, print_type);
       continue;
     }
     else if (*fmt == 'c')                       /* Character parameter */
@@ -171,6 +595,19 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
   DBUG_ASSERT(to <= end);
   *to='\0';				/* End of errmessage */
   return (size_t) (to - start);
+}
+
+
+/*
+  Limited snprintf() implementations
+
+  exported to plugins as a service, see the detailed documentation
+  around my_snprintf_service_st
+*/
+
+size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
+{
+  return my_vsnprintf_ex(&my_charset_latin1, to, n, fmt, ap);
 }
 
 
@@ -220,6 +657,18 @@ int main()
   my_printf("Hex:   %lx  '%6lx'\n", 32, 65);
   my_printf("conn %ld to: '%-.64s' user: '%-.32s' host:\
  `%-.64s' (%-.64s)", 1, 0,0,0,0);
+
+  my_printf("Hello string %`s\n", "I am a string");
+  my_printf("Hello %05s\n", "TEST");
+  my_printf("My %1$`-.1s test\n", "QQQQ");
+  my_printf("My %1$s test done %2$s\n", "DDDD", "AAAA");
+  my_printf("My %1$s test %2$s, %1$-.3s\n", "DDDD", "CCCC");
+  my_printf("My %1$`-.4b test\n", "QQQQ");
+  my_printf("My %1$c test\n", 'X');
+  my_printf("My `%010d` test1 %4x test2 %4X\n", 10, 10, 10);
+  my_printf("My `%1$010d` test1 %2$4x test2 %2$4x\n", 10, 10);
+  my_printf("My %1$*02$d test\n", 10, 5);
+  my_printf("My %1$`s test %2$s, %1$`-.3s\n", "DDDD", "CCCC");
   return 0;
 }
 #endif

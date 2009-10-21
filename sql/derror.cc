@@ -24,9 +24,14 @@
 #include "mysql_priv.h"
 #include "mysys_err.h"
 
-static bool read_texts(const char *file_name,const char ***point,
-		       uint error_messages);
 static void init_myfunc_errs(void);
+
+
+const char **get_server_errmsgs()
+{
+  return CURRENT_THD_ERRMSGS;
+}
+
 
 /**
   Read messages from errorfile.
@@ -54,7 +59,8 @@ bool init_errmessage(void)
   errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
-  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
+  if (read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
+                 &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
       !errmsgs)
   {
     if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
@@ -65,13 +71,13 @@ bool init_errmessage(void)
   }
 
   /* Register messages for use with my_error(). */
-  if (my_error_register(errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
+  if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
   {
     x_free((uchar*) errmsgs);
     DBUG_RETURN(TRUE);
   }
 
-  errmesg= errmsgs;		        /* Init global variabel */
+  DEFAULT_ERRMSGS= errmsgs;             /* Init global variable */
   init_myfunc_errs();			/* Init myfunc messages */
   DBUG_RETURN(FALSE);
 }
@@ -81,19 +87,17 @@ bool init_errmessage(void)
   Read text from packed textfile in language-directory.
 
   If we can't read messagefile then it's panic- we can't continue.
-
-  @todo
-    Convert the character set to server system character set
 */
 
-static bool read_texts(const char *file_name,const char ***point,
-		       uint error_messages)
+bool read_texts(const char *file_name, const char *language,
+                const char ***point, uint error_messages)
 {
   register uint i;
   uint count,funktpos,textcount;
   size_t length;
   File file;
   char name[FN_REFLEN];
+  char lang_path[FN_REFLEN];
   uchar *buff;
   uchar head[32],*pos;
   const char *errmsg;
@@ -101,10 +105,26 @@ static bool read_texts(const char *file_name,const char ***point,
 
   LINT_INIT(buff);
   funktpos=0;
-  if ((file=my_open(fn_format(name,file_name,language,"",4),
+  convert_dirname(lang_path, language, NullS);
+  (void) my_load_path(lang_path, lang_path, lc_messages_dir);
+  if ((file=my_open(fn_format(name,file_name,
+                              lang_path, "", 4),
 		    O_RDONLY | O_SHARE | O_BINARY,
 		    MYF(0))) < 0)
-    goto err; /* purecov: inspected */
+  {
+    /*
+      Trying pre-5.4 sematics of the --language parameter.
+      It included the language-specific part, e.g.:
+      
+      --language=/path/to/english/
+    */
+    if ((file= my_open(fn_format(name, file_name, lc_messages_dir, "", 4),
+                       O_RDONLY | O_SHARE | O_BINARY,
+                       MYF(0))) < 0)
+      goto err;
+    sql_print_error("An old style --language value with language specific part detected: %s", lc_messages_dir);
+    sql_print_error("Use --lc-messages-dir without language specific part instead.");
+  }
 
   funktpos=1;
   if (my_read(file,(uchar*) head,32,MYF(MY_NABP))) goto err;
@@ -113,21 +133,7 @@ static bool read_texts(const char *file_name,const char ***point,
     goto err; /* purecov: inspected */
   textcount=head[4];
 
-  if (!head[30])
-  {
-    sql_print_error("Character set information not found in '%s'. \
-Please install the latest version of this file.",name);
-    goto err1;
-  }
-  
-  /* TODO: Convert the character set to server system character set */
-  if (!get_charset(head[30],MYF(MY_WME)))
-  {
-    sql_print_error("Character set #%d is not supported for messagefile '%s'",
-                    (int)head[30],name);
-    goto err1;
-  }
-  
+  error_message_charset_info= system_charset_info;
   length=uint2korr(head+6); count=uint2korr(head+8);
 
   if (count < error_messages)
@@ -180,7 +186,6 @@ err:
     break;
   }
   sql_print_error(errmsg, name);
-err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   DBUG_RETURN(1);

@@ -241,8 +241,9 @@ extern uint    my_large_page_size;
 #endif
 
 /* charsets */
+#define MY_ALL_CHARSETS_SIZE 2048
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -668,6 +669,7 @@ extern void     my_osmaperr(unsigned long last_error);
 extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
+extern const char** get_global_errmsgs();
 extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
@@ -681,7 +683,8 @@ extern void my_error _VARARGS((int nr,myf MyFlags, ...));
 extern void my_printf_error _VARARGS((uint my_err, const char *format,
                                      myf MyFlags, ...))
                                      ATTRIBUTE_FORMAT(printf, 2, 4);
-extern int my_error_register(const char **errmsgs, int first, int last);
+extern int my_error_register(const char** (*get_errmsgs) (),
+                             int first, int last);
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_no_curses(uint my_err, const char *str,myf MyFlags);

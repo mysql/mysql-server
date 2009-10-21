@@ -49,6 +49,7 @@ DROP TABLE t1;
 #
 #  Vietnamese experimental collation
 #
+--echo  Vietnamese experimental collation
 
 show collation like 'ucs2_vn_ci';
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
@@ -91,3 +92,28 @@ drop table t1;
 set names latin1;
 show collation like 'latin1_test';
 select "foo" = "foo " collate latin1_test;
+
+-- echo The following tests check that two-byte collation IDs work
+# The file ../std-data/Index.xml has a number of collations with high IDs.
+
+# Test that the "ID" column in I_S and SHOW queries can handle two bytes
+select * from information_schema.collations where id>256 order by id;
+show collation like '%test%';
+
+# Test that two-byte collation ID is correctly transfered to the client side.
+show collation like 'ucs2_vn_ci';
+create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
+insert into t1 values (0x0061);
+--enable_metadata
+set @@character_set_results=NULL;
+select * from t1;
+--disable_metadata
+drop table t1;
+
+#
+# Check maximum collation ID (2047 as of MySQL-6.0.9)
+#
+CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
+DROP TABLE t1;

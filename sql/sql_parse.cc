@@ -7783,7 +7783,10 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
     return FALSE;
 
   if (!no_error)
-    my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
+  {
+    ErrConvString err(str->str, str->length, cs);
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
+  }
   return TRUE;
 }
 

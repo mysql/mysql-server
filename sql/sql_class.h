@@ -89,6 +89,7 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_LAST_BIT};
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
+enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -424,6 +425,8 @@ struct system_variables
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 
+  /* Error messages */
+  MY_LOCALE *lc_messages;
   /* Locale Support */
   MY_LOCALE *lc_time_names;
 
@@ -2369,13 +2372,15 @@ my_eof(THD *thd)
 class sql_exchange :public Sql_alloc
 {
 public:
+  enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
   char *file_name;
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
   CHARSET_INFO *cs;
-  sql_exchange(char *name,bool dumpfile_flag);
+  sql_exchange(char *name, bool dumpfile_flag,
+               enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
 };
 
