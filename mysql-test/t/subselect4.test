@@ -1,0 +1,32 @@
+# General purpose bug fix tests go here : subselect.test too large
+
+
+--echo #
+--echo # Bug #46791: Assertion failed:(table->key_read==0),function unknown
+--echo #    function,file sql_base.cc
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,1),(2,2);
+CREATE TABLE t3 LIKE t1;
+
+--echo # should have 1 impossible where and 2 dependent subqueries
+EXPLAIN
+SELECT 1 FROM t1
+WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
+ORDER BY count(*);
+
+--echo # should not crash the next statement
+SELECT 1 FROM t1
+WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
+ORDER BY count(*);
+
+--echo # should not crash: the crash is caused by the previous statement
+SELECT 1;
+
+DROP TABLE t1,t2,t3;
+
+
+--echo End of 5.0 tests.

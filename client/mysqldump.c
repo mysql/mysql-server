@@ -5008,7 +5008,7 @@ int main(int argc, char **argv)
   exit_code= get_options(&argc, &argv);
   if (exit_code)
   {
-    free_resources(0);
+    free_resources();
     exit(exit_code);
   }
 
@@ -5016,14 +5016,14 @@ int main(int argc, char **argv)
   {
     if(!(stderror_file= freopen(log_error_file, "a+", stderr)))
     {
-      free_resources(0);
+      free_resources();
       exit(EX_MYSQLERR);
     }
   }
 
   if (connect_to_db(current_host, current_user, opt_password))
   {
-    free_resources(0);
+    free_resources();
     exit(EX_MYSQLERR);
   }
   if (!path)
