@@ -4262,7 +4262,7 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
-  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) */
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
 
@@ -16997,7 +16997,7 @@ static void test_bug20023()
 {
   MYSQL con;
 
-  int sql_big_selects_orig;
+  int sql_big_selects_orig= 0;
   /*
     Type of max_join_size is ha_rows, which might be ulong or off_t
     depending on the platform or configure options. Preserve the string
@@ -17005,10 +17005,10 @@ static void test_bug20023()
   */
   char max_join_size_orig[32];
 
-  int sql_big_selects_2;
-  int sql_big_selects_3;
-  int sql_big_selects_4;
-  int sql_big_selects_5;
+  int sql_big_selects_2= 0;
+  int sql_big_selects_3= 0;
+  int sql_big_selects_4= 0;
+  int sql_big_selects_5= 0;
 
   char query_buffer[MAX_TEST_QUERY_LENGTH];
 
@@ -17147,7 +17147,7 @@ static void bug31418_impl()
   MYSQL con;
 
   my_bool is_null;
-  int rc;
+  int rc= 0;
 
   /* Create a new connection. */
 

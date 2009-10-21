@@ -1,6 +1,7 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_gbk.inc
 
+RESET MASTER;
 SET NAMES gbk;
 --character_set gbk
 

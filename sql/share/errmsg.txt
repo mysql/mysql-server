@@ -6180,35 +6180,21 @@ ER_TOO_LONG_FIELD_COMMENT
 
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
-ER_PARTITION_COLUMN_LIST_ERROR
-  eng "Inconsistency in usage of column lists for partitioning"
-ER_WRONG_TYPE_COLUMN_VALUE_ERROR
-  eng "Partition column values of incorrect type"
-ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
-  eng "Too many fields in '%s'"
-ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
-  eng "Cannot use MAXVALUE as value in List partitioning"
-ER_TOO_MANY_VALUES_ERROR
-  eng "Cannot have more than one value for this type of %-.64s partitioning"
-ER_SAME_NAME_PARTITION_FIELD
-        eng "Duplicate partition field name %-.192s"
-ER_ROW_SINGLE_PARTITION_FIELD_ERROR
-        eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
 
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
-  eng "Database `%s`"
-  swe "Databas `%s`"
+  eng "Database"
+  swe "Databas"
 ER_TABLE_NAME
-  eng "Table `%s`"
-  swe "Tabell `%s`"
+  eng "Table"
+  swe "Tabell"
 ER_PARTITION_NAME
-  eng "Partition `%s`"
-  swe "Partition `%s`"
+  eng "Partition"
+  swe "Partition"
 ER_SUBPARTITION_NAME
-  eng "Subpartition `%s`"
-  swe "Subpartition `%s`"
+  eng "Subpartition"
+  swe "Subpartition"
 ER_TEMPORARY_NAME
   eng "Temporary"
   swe "Temporär"
@@ -6220,3 +6206,17 @@ ER_TOO_MANY_CONCURRENT_TRXS
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
+ER_SAME_NAME_PARTITION_FIELD
+        eng "Duplicate partition field name %-.192s"
+ER_PARTITION_COLUMN_LIST_ERROR
+  eng "Inconsistency in usage of column lists for partitioning"
+ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+  eng "Partition column values of incorrect type"
+ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
+  eng "Too many fields in '%-.192s'"
+ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR
+  eng "Cannot use MAXVALUE as value in List partitioning"
+ER_TOO_MANY_VALUES_ERROR
+  eng "Cannot have more than one value for this type of %-.64s partitioning"
+ER_ROW_SINGLE_PARTITION_FIELD_ERROR
+        eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
