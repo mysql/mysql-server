@@ -713,7 +713,7 @@ TransporterRegistry::setup_wakeup_socket()
     return true;
   }
 
-  if (socketpair(AF_LOCAL, SOCK_STREAM, 0, m_extra_wakeup_sockets))
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, m_extra_wakeup_sockets))
   {
     perror("socketpair failed!");
     return false;
