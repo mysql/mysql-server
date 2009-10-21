@@ -1,21 +1,26 @@
 # Copyright (C) 2006 MySQL AB
-#  All rights reserved. Use is subject to license terms.
-#
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+
+# Need to set USE_TLS, since __declspec(thread) approach to thread local
+# storage does not work properly in DLLs.
+IF(WIN32)
+  ADD_DEFINITIONS(-DUSE_TLS)
+ENDIF(WIN32)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DHAVE_DLOPEN)
 
@@ -45,6 +50,12 @@ FOREACH(rpath ${ZLIB_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
 ENDFOREACH(rpath)
 
+# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
+# not set during configure time.
+INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
+FOREACH(rpath ${DBUG_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
+ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
 FOREACH(rpath ${TAOCRYPT_SOURCES})
@@ -56,9 +67,19 @@ FOREACH(rpath ${YASSL_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
 ENDFOREACH(rpath)
 
+INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
+FOREACH(rpath ${STRINGS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
+ENDFOREACH(rpath)
+
 INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
 FOREACH(rpath ${REGEX_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
+FOREACH(rpath ${MYSYS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
 ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
@@ -66,69 +87,17 @@ FOREACH(rpath ${VIO_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../vio/${rpath})
 ENDFOREACH(rpath)
 
-# Engines
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/heap/CMakeLists.txt)
-FOREACH(rpath ${HEAP_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/heap/${rpath})
-ENDFOREACH(rpath)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisam/CMakeLists.txt)
-FOREACH(rpath ${MYISAM_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisam/${rpath})
-ENDFOREACH(rpath)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisammrg/CMakeLists.txt)
-FOREACH(rpath ${MYISAMMRG_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisammrg/${rpath})
-ENDFOREACH(rpath)
-
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/archive/CMakeLists.txt)
-  FOREACH(rpath ${ARCHIVE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/archive/${rpath})
+FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
+  STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
+  SET(ENGINE_DIR ${${ENGINE_LIB_UPPER}_DIR})
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/${ENGINE_DIR}/CMakeLists.txt)
+  FOREACH(rpath ${${ENGINE_LIB_UPPER}_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ${CMAKE_SOURCE_DIR}/storage/${ENGINE_DIR}/${rpath})
   ENDFOREACH(rpath)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
+ENDFOREACH(ENGINE_LIB)
 
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/blackhole/CMakeLists.txt)
-  FOREACH(rpath ${BLACKHOLE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/blackhole/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/example/CMakeLists.txt)
-  FOREACH(rpath ${EXAMPLE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/example/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/federated/CMakeLists.txt)
-  FOREACH(rpath ${FEDERATED_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/federated/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/CMakeLists.txt)
-  FOREACH(rpath ${INNOBASE_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/innobase/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-
-IF(WITH_CSV_STORAGE_ENGINE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/csv/CMakeLists.txt)
-  FOREACH(rpath ${CSV_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/csv/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  FOREACH(rpath ${NDB_HANDLER_SRC})
-    SET(LIB_SOURCES ${LIB_SOURCES} ../sql/${rpath})
-  ENDFOREACH(rpath)
-ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
@@ -186,15 +155,15 @@ ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver)
 
-ADD_DEPENDENCIES(mysqlserver mysys)
-TARGET_LINK_LIBRARIES(mysqlserver mysys)
+# Add any additional libraries requested by engine(s)
+FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
+  STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
+  IF(${ENGINE_LIB_UPPER}_LIBS)
+    TARGET_LINK_LIBRARIES(mysqlserver ${${ENGINE_LIB_UPPER}_LIBS})
+  ENDIF(${ENGINE_LIB_UPPER}_LIBS)
+ENDFOREACH(ENGINE_LIB)
+
 
 ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
-
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(libmysqld ndbclient)
-  TARGET_LINK_LIBRARIES(libmysqld ndbclient)
-  INCLUDE_DIRECTORIES(${NDB_CLIENT_INCLUDES})
-ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)

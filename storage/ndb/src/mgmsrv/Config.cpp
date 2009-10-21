@@ -290,9 +290,11 @@ add_diff(const char* name, const char* key,
   Uint32 type;
   require(value->get("Type", &type));
 
-  // Add the value to the section if not already added
   require(value->put("Name", value_name));
-  if (!section->put("Value", value))
+
+  // Add the value to the section if not already added
+  // (a changed value will be detected twice)
+  if (!section->put(value_name, value))
     require(section->getPropertiesErrno() ==
             E_PROPERTIES_ELEMENT_ALREADY_EXISTS);
 
@@ -605,14 +607,14 @@ p2s(const Properties* prop, const char* name, BaseString& buf){
   {
     Uint32 val;
     require(prop->get(name, &val));
-    buf.assfmt("%d", val);
+    buf.assfmt("%u", val);
     break;
   }
   case PropertiesType_Uint64:
   {
     Uint64 val;
     require(prop->get(name, &val));
-    buf.assfmt("%lld", val);
+    buf.assfmt("%llu", val);
     break;
   }
   case PropertiesType_char:
@@ -713,9 +715,9 @@ void Config::print_diff(const Config* other) const {
 
 
 const char*
-Config::diff2str(const Config* other, BaseString& str) const {
+Config::diff2str(const Config* other, BaseString& str, const unsigned * exclude) const {
   Properties diff_list;
-  diff(other, diff_list);
+  diff(other, diff_list, exclude);
   return diff2str(diff_list, str);
 }
 

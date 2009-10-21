@@ -543,7 +543,7 @@ NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
       data[tid].testSeconds           = numSeconds;
       data[tid].coolDownSeconds       = numWarmSeconds;
       data[tid].randomSeed            = 
-	NdbTick_CurrentMillisecond()+i+j;
+	(unsigned long)(NdbTick_CurrentMillisecond()+i+j);
       data[tid].changedTime           = 0;
       data[tid].runState              = Runnable;
       data[tid].ndbRecordSharedData   = ndbRecordSharedDataPtr;

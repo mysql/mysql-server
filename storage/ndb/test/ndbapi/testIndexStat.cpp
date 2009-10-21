@@ -1528,6 +1528,7 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
+#if 0
 static void
 usage()
 {
@@ -1536,6 +1537,7 @@ usage()
     << ": measure records_in_range error as percentage of total rows" << endl;
   my_print_help(my_long_options);
 }
+#endif
 
 static int
 checkoptions()

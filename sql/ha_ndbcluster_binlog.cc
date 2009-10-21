@@ -258,8 +258,7 @@ static void run_query(THD *thd, char *buf, char *end,
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
-  thd->query_length= end - buf;
-  thd->query= buf;
+  thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
@@ -305,8 +304,7 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 
   thd->options= save_thd_options;
-  thd->query_length= save_thd_query_length;
-  thd->query= save_thd_query;
+  thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
@@ -3825,7 +3823,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       ndb->closeTransaction(trans);
       break;
     }
-    ndb->closeTransaction(trans);
     for (i= 0; i < 2; i++)
     {
       if (op[i]->getNdbError().code)
@@ -3874,9 +3871,11 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       {
         error_str= tmp_buf;
         error= 1;
+        ndb->closeTransaction(trans);
         goto err;
       }
     }
+    ndb->closeTransaction(trans);
 
     DBUG_RETURN(0);
   }

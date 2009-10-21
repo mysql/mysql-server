@@ -28,8 +28,6 @@
 #include <NdbSleep.h>
 #include <NdbTick.h>
 
-#define DEBUG(x) ndbout << x << endl;
-
 SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
   m_services(5),
@@ -159,7 +157,7 @@ SocketServer::setup(SocketServer::Service * service,
   DBUG_RETURN(true);
 }
 
-void
+bool
 SocketServer::doAccept(){
   fd_set readSet, exceptionSet;
   FD_ZERO(&readSet);
@@ -173,7 +171,7 @@ SocketServer::doAccept(){
   {
     m_services.unlock();
     my_sleep(1000);
-    return;
+    return true;
   }
 #endif
 
@@ -195,7 +193,10 @@ SocketServer::doAccept(){
       if(my_FD_ISSET(si.m_socket, &readSet)){
 	my_socket childSock = my_accept(si.m_socket, 0, 0);
 	if(!my_socket_valid(childSock))
-	  continue;
+        {
+          m_services.unlock();
+	  return false;
+        }
 
 	SessionInstance s;
 	s.m_service = si.m_service;
@@ -207,17 +208,20 @@ SocketServer::doAccept(){
 	  startSession(m_sessions.back());
 	  m_session_mutex.unlock();
 	}
-	
+
 	continue;
-      }      
-      
-      if(my_FD_ISSET(si.m_socket, &exceptionSet)){
-	DEBUG("socket in the exceptionSet");
-	continue;
+      }
+
+      if(my_FD_ISSET(si.m_socket, &exceptionSet))
+      {
+        m_services.unlock();
+        return false;
       }
     }
   }
   m_services.unlock();
+
+  return true;
 }
 
 extern "C"
@@ -264,11 +268,16 @@ SocketServer::doRun(){
   while(!m_stopThread){
     m_session_mutex.lock();
     checkSessionsImpl();
-    if(m_sessions.size() < m_maxSessions){
-      m_session_mutex.unlock();
-      doAccept();
-    } else {
-      m_session_mutex.unlock();
+    m_session_mutex.unlock();
+
+    if(m_sessions.size() >= m_maxSessions){
+      // Don't accept more connections yet
+      NdbSleep_MilliSleep(200);
+      continue;
+    }
+
+    if (!doAccept()){
+      // accept failed, step back
       NdbSleep_MilliSleep(200);
     }
   }

@@ -1039,7 +1039,9 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
     }
     if(!restart)
     {
-      if(ndb_mgm_stop(h, 1, (const int*)&nodeId) < 0)
+      int nodes[1];
+      nodes[0]= (int)nodeId;
+      if(ndb_mgm_stop(h, 1, nodes) < 0)
       {
         ndb_mgm_destroy_handle(&h);
         return SEND_OR_RECEIVE_FAILED;

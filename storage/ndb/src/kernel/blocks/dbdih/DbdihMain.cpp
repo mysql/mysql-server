@@ -354,6 +354,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
       wf.fragId = signal->theData[2];
       wf.pageIndex = signal->theData[3];
       wf.wordIndex = signal->theData[4];
+      wf.totalfragments = signal->theData[5];
       packFragIntoPagesLab(signal, &wf);
       return;
       break;
@@ -1252,11 +1253,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   initData();
 
+  cconnectFileSize = 256; // Only used for DDL
+
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
 					   &capiConnectFileSize),
-		NDBD_EXIT_INVALID_CONFIG);
-  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,
-					   &cconnectFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
@@ -5803,7 +5803,7 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
 
   if (ERROR_INSERTED(7204))
   {
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
   }
   else
   {
@@ -6920,51 +6920,6 @@ void Dbdih::nodeFailCompletedCheckLab(Signal* signal,
   ************************************
   */
 /*
-  3.4.1   L O C A L  N O D E   S E I Z E   R E Q U E S T
-  ******************************************************
-  */
-void Dbdih::execDISEIZEREQ(Signal* signal) 
-{
-  ConnectRecordPtr connectPtr;
-  jamEntry();
-  Uint32 userPtr = signal->theData[0];
-  BlockReference userRef = signal->theData[1];
-  ndbrequire(cfirstconnect != RNIL);
-  connectPtr.i = cfirstconnect;
-  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  cfirstconnect = connectPtr.p->nextPool;
-  connectPtr.p->nextPool = RNIL;
-  connectPtr.p->userpointer = userPtr;
-  connectPtr.p->userblockref = userRef;
-  connectPtr.p->connectState = ConnectRecord::INUSE;
-  signal->theData[0] = connectPtr.p->userpointer;
-  signal->theData[1] = connectPtr.i;
-  sendSignal(userRef, GSN_DISEIZECONF, signal, 2, JBB);
-}//Dbdih::execDISEIZEREQ()
-
-/*
-  3.5   L O C A L  N O D E   R E L E A S E
-  ****************************************
-  */
-/*
-  3.5.1   L O C A L  N O D E   R E L E A S E   R E Q U E S T
-  *******************************************************=
-  */
-void Dbdih::execDIRELEASEREQ(Signal* signal) 
-{
-  ConnectRecordPtr connectPtr;
-  jamEntry();
-  connectPtr.i = signal->theData[0];
-  Uint32 userRef = signal->theData[2];
-  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  ndbrequire(connectPtr.p->connectState != ConnectRecord::FREE);
-  ndbrequire(connectPtr.p->userblockref == userRef);
-  signal->theData[0] = connectPtr.p->userpointer;
-  sendSignal(connectPtr.p->userblockref, GSN_DIRELEASECONF, signal, 1, JBB);
-  release_connect(connectPtr);
-}//Dbdih::execDIRELEASEREQ()
-
-/*
   3.7   A D D   T A B L E
   **********************=
   */
@@ -7312,6 +7267,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   connectPtr.p->connectState = ConnectRecord::INUSE;
   connectPtr.p->table = req->tableId;
   connectPtr.p->m_alter.m_changeMask = 0;
+  connectPtr.p->m_create.m_map_ptr_i = req->hashMapPtrI;
 
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
@@ -7326,7 +7282,8 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   tabPtr.p->m_scan_count[1] = 0;
   tabPtr.p->m_scan_reorg_flag = 0;
 
-  if(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE){
+  if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
+  {
     jam();
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
@@ -7334,8 +7291,9 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     return;
   }
 
-  if(getNodeState().getSystemRestartInProgress() &&
-     tabPtr.p->tabStatus == TabRecord::TS_IDLE){
+  if (getNodeState().getSystemRestartInProgress() &&
+     tabPtr.p->tabStatus == TabRecord::TS_IDLE)
+  {
     jam();
     
     ndbrequire(cmasterNodeId == getOwnNodeId());
@@ -7598,6 +7556,16 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
       tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
     }
 
+    if (AlterTableReq::getAddFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      Callback cb;
+      cb.m_callbackData = connectPtr.i;
+      cb.m_callbackFunction = safe_cast(&Dbdih::alter_table_writeTable_conf);
+      saveTableFile(signal, connectPtr, tabPtr, TabRecord::CS_ALTER_TABLE, cb);
+      return;
+    }
+
     send_alter_tab_conf(signal, connectPtr);
   }
   else
@@ -7608,7 +7576,29 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     sendSignal(connectPtr.p->userblockref, GSN_DIADDTABCONF, signal,
                DiAddTabConf::SignalLength, JBB);
 
+
+    if (tabPtr.p->method == TabRecord::HASH_MAP)
+    {
+      Uint32 newValue = RNIL;
+      if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+      {
+        jam();
+        TabRecordPtr primTabPtr;
+        primTabPtr.i = tabPtr.p->primaryTableId;
+        ptrCheckGuard(primTabPtr, ctabFileSize, tabRecord);
+        newValue = primTabPtr.p->m_map_ptr_i;
+      }
+      else
+      {
+        jam();
+        newValue = connectPtr.p->m_create.m_map_ptr_i;
+      }
+
+      tabPtr.p->m_map_ptr_i = newValue;
+    }
     // Release
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
   }
 
@@ -7616,6 +7606,20 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
 void
 Dbdih::release_connect(ConnectRecordPtr ptr)
 {
+  TabRecordPtr tabPtr;
+  tabPtr.i = ptr.p->table;
+  if (tabPtr.i != RNIL)
+  {
+    jam();
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    if (tabPtr.p->connectrec == ptr.i)
+    {
+      ndbassert(false); // should be fixed elsewhere
+      tabPtr.p->connectrec = RNIL;
+    }
+  }
+
+  ptr.p->table = RNIL;
   ptr.p->userblockref = ZNIL;
   ptr.p->userpointer = RNIL;
   ptr.p->connectState = ConnectRecord::FREE;
@@ -7665,6 +7669,11 @@ Dbdih::execADD_FRAGREF(Signal* signal){
 	       DiAddTabRef::SignalLength, JBB);  
 
     // Release
+    Ptr<TabRecord> tabPtr;
+    tabPtr.i = connectPtr.p->table;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
   }
 }
@@ -7673,11 +7682,20 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   3.7.1.3   R E F U S E
   *********************
   */
-void Dbdih::addtabrefuseLab(Signal* signal, ConnectRecordPtr connectPtr, Uint32 errorCode) 
+void
+Dbdih::addtabrefuseLab(Signal* signal,
+                       ConnectRecordPtr connectPtr, Uint32 errorCode)
 {
   signal->theData[0] = connectPtr.p->userpointer;
   signal->theData[1] = errorCode;
   sendSignal(connectPtr.p->userblockref, GSN_DIADDTABREF, signal, 2, JBB);
+
+  Ptr<TabRecord> tabPtr;
+  tabPtr.i = connectPtr.p->table;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+  tabPtr.p->connectrec = RNIL;
+
   release_connect(connectPtr);
   return;
 }//Dbdih::addtabrefuseLab()
@@ -7933,6 +7951,32 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
+  switch(requestType){
+  case AlterTabReq::AlterTablePrepare:
+    jam();
+    // fall through
+  case AlterTabReq::AlterTableRevert:
+    jam();
+    if (AlterTableReq::getAddFragFlag(req->changeMask) &&
+        tabPtr.p->tabCopyStatus != TabRecord::CS_IDLE)
+    {
+      jam();
+      SectionHandle handle(this, signal);
+      sendSignalWithDelay(reference(), GSN_ALTER_TAB_REQ, signal, 100,
+                          signal->getLength(), &handle);
+      return;
+    }
+  case AlterTabReq::AlterTableCommit:
+    jam();
+  case AlterTabReq::AlterTableComplete:
+    jam();
+  case AlterTabReq::AlterTableWaitScan:
+    jam();
+    break;
+  default:
+    jamLine(requestType);
+  }
+
   ConnectRecordPtr connectPtr;
   connectPtr.i = RNIL;
   switch (requestType) {
@@ -7952,6 +7996,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     connectPtr.p->userblockref = senderRef;
     connectPtr.p->connectState = ConnectRecord::ALTER_TABLE;
     connectPtr.p->table = tabPtr.i;
+    tabPtr.p->connectrec = connectPtr.i;
     break;
   case AlterTabReq::AlterTableRevert:
     jam();
@@ -7965,6 +8010,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if (AlterTableReq::getAddFragFlag(req->changeMask))
     {
       jam();
+      tabPtr.p->tabCopyStatus = TabRecord::CS_ALTER_TABLE;
       connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_REVERT;
       drop_fragments(signal, connectPtr,
                      connectPtr.p->m_alter.m_totalfragments);
@@ -7972,6 +8018,9 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     }
 
     send_alter_tab_conf(signal, connectPtr);
+
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
     return;
     break;
@@ -8011,6 +8060,8 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     }
 
     send_alter_tab_conf(signal, connectPtr);
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
     return;
   case AlterTabReq::AlterTableComplete:
@@ -8021,9 +8072,13 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     connectPtr.p->userblockref = senderRef;
 
     send_alter_tab_conf(signal, connectPtr);
-    release_connect(connectPtr);
+
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
+
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
+    release_connect(connectPtr);
     return;
   case AlterTabReq::AlterTableWaitScan:{
     jam();
@@ -8048,8 +8103,8 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   if (AlterTableReq::getAddFragFlag(req->changeMask))
   {
     jam();
-    SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
     handle.getSection(ptr, 0);
     union {
       Uint16 buf[2+2*MAX_NDB_PARTITIONS];
@@ -8064,10 +8119,11 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
       jam();
       ndbrequire(tabPtr.p->totalfragments == save);
       ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
-      send_alter_tab_ref(signal, connectPtr, err);
+      send_alter_tab_ref(signal, tabPtr, connectPtr, err);
       return;
     }
 
+    tabPtr.p->tabCopyStatus = TabRecord::CS_ALTER_TABLE;
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     tabPtr.p->totalfragments = save; // Dont make the available yet...
     sendAddFragreq(signal, connectPtr, tabPtr,
@@ -8278,7 +8334,9 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
 }
 
 void
-Dbdih::send_alter_tab_ref(Signal* signal, Ptr<ConnectRecord> connectPtr,
+Dbdih::send_alter_tab_ref(Signal* signal,
+                          Ptr<TabRecord> tabPtr,
+                          Ptr<ConnectRecord> connectPtr,
                           Uint32 errCode)
 {
   AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
@@ -8288,6 +8346,8 @@ Dbdih::send_alter_tab_ref(Signal* signal, Ptr<ConnectRecord> connectPtr,
   sendSignal(connectPtr.p->userblockref, GSN_ALTER_TAB_REF, signal,
              AlterTabRef::SignalLength, JBB);
 
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+  tabPtr.p->connectrec = RNIL;
   release_connect(connectPtr);
 }
 
@@ -8300,6 +8360,60 @@ Dbdih::send_alter_tab_conf(Signal* signal, Ptr<ConnectRecord> connectPtr)
   conf->connectPtr = connectPtr.i;
   sendSignal(connectPtr.p->userblockref, GSN_ALTER_TAB_CONF, signal,
              AlterTabConf::SignalLength, JBB);
+}
+
+void
+Dbdih::saveTableFile(Signal* signal,
+                     Ptr<ConnectRecord> connectPtr,
+                     Ptr<TabRecord> tabPtr,
+                     TabRecord::CopyStatus expectedStatus,
+                     Callback& cb)
+{
+  ndbrequire(connectPtr.i == cb.m_callbackData);         // required
+  ndbrequire(tabPtr.p->tabCopyStatus == expectedStatus); // locking
+  memcpy(&connectPtr.p->m_callback, &cb, sizeof(Callback));
+
+  tabPtr.p->tabCopyStatus = TabRecord::CS_COPY_TO_SAVE;
+  tabPtr.p->tabUpdateState = TabRecord::US_CALLBACK;
+  signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+}
+
+void
+Dbdih::alter_table_writeTable_conf(Signal* signal, Uint32 ptrI, Uint32 err)
+{
+  jamEntry();
+  ndbrequire(err == 0);
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = ptrI;
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  switch(connectPtr.p->connectState){
+  case ConnectRecord::ALTER_TABLE_REVERT:
+  {
+    jam();
+    send_alter_tab_conf(signal, connectPtr);
+
+    Ptr<TabRecord> tabPtr;
+    tabPtr.i = connectPtr.p->table;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+    tabPtr.p->connectrec = RNIL;
+    release_connect(connectPtr);
+    return;
+  }
+  case ConnectRecord::ALTER_TABLE:
+  {
+    jam();
+    send_alter_tab_conf(signal, connectPtr);
+    return;
+  }
+  default:
+    jamLine(connectPtr.p->connectState);
+    ndbrequire(false);
+  }
 }
 
 void
@@ -8331,14 +8445,18 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     case ConnectRecord::ALTER_TABLE_ABORT:
     {
       jam();
-      send_alter_tab_ref(signal, connectPtr, ~0);
+      ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_ALTER_TABLE);
+      tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
+      send_alter_tab_ref(signal, tabPtr, connectPtr, ~0);
       return;
     }
     case ConnectRecord::ALTER_TABLE_REVERT:
     {
       jam();
-      send_alter_tab_conf(signal, connectPtr);
-      release_connect(connectPtr);
+      Callback cb;
+      cb.m_callbackData = connectPtr.i;
+      cb.m_callbackFunction = safe_cast(&Dbdih::alter_table_writeTable_conf);
+      saveTableFile(signal, connectPtr, tabPtr, TabRecord::CS_ALTER_TABLE, cb);
       return;
     }
     default:
@@ -10878,7 +10996,22 @@ void Dbdih::packTableIntoPagesLab(Signal* signal, Uint32 tableId)
   tabPtr.p->noPages = 1;
   wf.wordIndex = 35;
   wf.pageIndex = 0;
-  writePageWord(&wf, tabPtr.p->totalfragments);
+  Uint32 totalfragments = tabPtr.p->totalfragments;
+  if (tabPtr.p->connectrec != RNIL)
+  {
+    jam();
+    Ptr<ConnectRecord> connectPtr;
+    connectPtr.i = tabPtr.p->connectrec;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    ndbrequire(connectPtr.p->table == tabPtr.i);
+    if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+    {
+      jam();
+      totalfragments = connectPtr.p->m_alter.m_totalfragments;
+    }
+  }
+
+  writePageWord(&wf, totalfragments);
   writePageWord(&wf, tabPtr.p->noOfBackups);
   writePageWord(&wf, tabPtr.p->hashpointer);
   writePageWord(&wf, tabPtr.p->kvalue);
@@ -10891,7 +11024,8 @@ void Dbdih::packTableIntoPagesLab(Signal* signal, Uint32 tableId)
   signal->theData[2] = 0;
   signal->theData[3] = wf.pageIndex;
   signal->theData[4] = wf.wordIndex;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
+  signal->theData[5] = totalfragments;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 6, JBB);
 }//Dbdih::packTableIntoPagesLab()
 
 /*****************************************************************************/
@@ -10908,7 +11042,7 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
   writeReplicas(wf, fragPtr.p->storedReplicas);
   writeReplicas(wf, fragPtr.p->oldStoredReplicas);
   wf->fragId++;
-  if (wf->fragId == wf->rwfTabPtr.p->totalfragments) {
+  if (wf->fragId == wf->totalfragments) {
     jam();
     PageRecordPtr pagePtr;
     pagePtr.i = wf->rwfTabPtr.p->pageRef[0];
@@ -10963,7 +11097,11 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
       signal->theData[1] = wf->rwfTabPtr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
-      break;
+    case TabRecord::CS_COPY_TO_SAVE:
+      signal->theData[0] = DihContinueB::ZTABLE_UPDATE;
+      signal->theData[1] = wf->rwfTabPtr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      return;
     default:
       ndbrequire(false);
       return;
@@ -10976,7 +11114,8 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
     signal->theData[2] = wf->fragId;
     signal->theData[3] = wf->pageIndex;
     signal->theData[4] = wf->wordIndex;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
+    signal->theData[5] = wf->totalfragments;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 6, JBB);
   }//if
   return;
 }//Dbdih::packFragIntoPagesLab()
@@ -13136,7 +13275,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[2] = tabPtr.i + 1;
     if (ERROR_INSERTED(7204))
     {
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
     }
     else
     {
@@ -13167,6 +13306,19 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
     return;
     break;
+  case TabRecord::US_CALLBACK:
+  {
+    jam();
+    releaseTabPages(tabPtr.i);
+    tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
+    tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
+
+    Ptr<ConnectRecord> connectPtr;
+    connectPtr.i = tabPtr.p->connectrec;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    execute(signal, connectPtr.p->m_callback, 0);
+    return;
+  }
   default:
     ndbrequire(false);
     return;

@@ -31,7 +31,7 @@
 int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
-  char * _database = "BANK";
+  const char * _database = "BANK";
   int disk = 0;
   int skip_create = 0;
 

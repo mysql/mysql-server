@@ -166,8 +166,10 @@ create table t11 engine=myisam as select * from t11_c;
 
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
---exec $NDB_DESC --no-defaults -d test t3_c | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d test t2_c | grep ForceVarPart
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
 
 --source include/ndb_backup.inc
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
@@ -175,8 +177,10 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
---exec $NDB_DESC --no-defaults -d test t3_c | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d test t2_c | grep ForceVarPart
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
 
 # Bug #30667
 # ndb table discovery does not work correcly with information schema
@@ -422,13 +426,17 @@ select count(*)
         select * from t11_c) a;
 #
 # Drop all table except t2_c
-#   This to make sure that error returned from ndb_restore above is 
+#   This to make sure that error returned from ndb_restore below is 
 #     guaranteed to be from t2_c, this since order of tables in backup
 #     is none deterministic
 # 
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
---exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 | grep Translate || true
+
+# ndb_restore should now fail, table t2_c already exists
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--error 1
+--exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
 
 CREATE TABLE t11_c (
   c1 int primary key, c2 char(10), c3 varchar(10)
@@ -458,7 +466,9 @@ drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 # Test BUG#10287
 #
 
---exec $NDB_SELECT_ALL --no-defaults -d sys -D , SYSTAB_0 | grep 520093696, | sed "s/,$the_backup_id/,<the_backup_id>/"
+--disable_query_log
+source include/ndb_backup_id.inc;
+--enable_query_log
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
 

@@ -662,7 +662,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     return;
   case ZINTSPH2:
     jam();
-    intstartphase2x010Lab(signal);
+    ndbsttorry010Lab(signal);
     return;
   case ZINTSPH3:
     jam();
@@ -763,43 +763,6 @@ void Dbtc::intstartphase1x010Lab(Signal* signal)
   cfailure_nr = 0;
   ndbsttorry010Lab(signal);
 }//Dbtc::intstartphase1x010Lab()
-
-/*****************************************************************************/
-/*                         I N T S T A R T P H A S E 2 X                     */
-/*                          SET-UP LOCAL CONNECTIONS.                        */
-/*****************************************************************************/
-void Dbtc::intstartphase2x010Lab(Signal* signal) 
-{
-  tcConnectptr.i = cfirstfreeTcConnect;
-  intstartphase2x020Lab(signal);
-}//Dbtc::intstartphase2x010Lab()
-
-void Dbtc::intstartphase2x020Lab(Signal* signal) 
-{
-  if (tcConnectptr.i == RNIL) {
-    jam();
-    ndbsttorry010Lab(signal);
-    return;
-  }//if
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  tcConnectptr.p->tcConnectstate = OS_CONNECTING_DICT;
-/* ****************** */
-/*     DISEIZEREQ   < */
-/* ****************** */
-  signal->theData[0] = tcConnectptr.i;
-  signal->theData[1] = cownref;
-  sendSignal(cdihblockref, GSN_DISEIZEREQ, signal, 2, JBB);
-}//Dbtc::intstartphase2x020Lab()
-
-void Dbtc::execDISEIZECONF(Signal* signal) 
-{
-  jamEntry();
-  tcConnectptr.i = signal->theData[0];
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  tcConnectptr.p->dihConnectptr = signal->theData[1];
-  tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-  intstartphase2x020Lab(signal);
-}//Dbtc::execDISEIZECONF()
 
 /*****************************************************************************/
 /*                         I N T S T A R T P H A S E 3 X                     */
@@ -1088,13 +1051,15 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       capiConnectClosing[nodeId]--;
       if (capiConnectClosing[nodeId] == 0) {
         jam();
+
         /********************************************************************/
         // No outstanding ABORT or COMMIT's of this failed API node. 
-        // We can respond with API_FAILCONF
+        // Perform SimulatedBlock level cleanup before sending
+        // API_FAILCONF
         /********************************************************************/
-        signal->theData[0] = nodeId;
-        signal->theData[1] = cownref;
-        sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+        Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                       nodeId};
+        simBlockNodeFailure(signal, nodeId, cb);
       }
       return;
     }
@@ -4921,7 +4886,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_connected == false);
+    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
     len = 4;
   }
 
@@ -7503,10 +7468,11 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
        * The node has died
        */
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(ptr);
       ptr.p->stopFragTimer();
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(ptr);
+      }
     }
     
     scanError(signal, scanptr, ZSCAN_FRAG_LQH_ERROR);
@@ -7743,22 +7709,24 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 
   cmasterNodeId = tnewMasterId;
   
+  HostRecordPtr myHostPtr;
+
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   for (i = 0; i < tnoOfNodes; i++) 
   {
     jam();
-    hostptr.i = cdata[i];
-    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+    myHostPtr.i = cdata[i];
+    ptrCheckGuard(myHostPtr, chostFilesize, hostRecord);
     
     /*------------------------------------------------------------*/
     /*       SET STATUS OF THE FAILED NODE TO DEAD SINCE IT HAS   */
     /*       FAILED.                                              */
     /*------------------------------------------------------------*/
-    hostptr.p->hostStatus = HS_DEAD;
-    hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
+    myHostPtr.p->hostStatus = HS_DEAD;
+    myHostPtr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
     c_ongoing_take_over_cnt++;
-    c_alive_nodes.clear(hostptr.i);
+    c_alive_nodes.clear(myHostPtr.i);
 
     if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
     {
@@ -7767,7 +7735,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       /*       THE CURRENT TAKE OVER CAN BE AFFECTED BY THIS NODE   */
       /*       FAILURE.                                             */
       /*------------------------------------------------------------*/
-      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) 
+      if (myHostPtr.p->lqhTransStatus == LTS_ACTIVE) 
       {
 	jam();
 	/*------------------------------------------------------------*/
@@ -7775,17 +7743,20 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 	/*       PROTOCOL FOR TC.                                     */
 	/*------------------------------------------------------------*/
 	signal->theData[0] = TcContinueB::ZNODE_TAKE_OVER_COMPLETED;
-	signal->theData[1] = hostptr.i;
+	signal->theData[1] = myHostPtr.i;
 	sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
       }//if
     }//if
     
     jam();
-    signal->theData[0] = hostptr.i;
+    signal->theData[0] = myHostPtr.i;
     sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
     
-    checkScanActiveInFailedLqh(signal, 0, hostptr.i);
-    nodeFailCheckTransactions(signal, 0, hostptr.i);
+    checkScanActiveInFailedLqh(signal, 0, myHostPtr.i);
+    nodeFailCheckTransactions(signal, 0, myHostPtr.i);
+    Callback cb = {safe_cast(&Dbtc::ndbdFailBlockCleanupCallback), 
+                  myHostPtr.i};
+    simBlockNodeFailure(signal, myHostPtr.i, cb);
   }
 }//Dbtc::execNODE_FAILREP()
 
@@ -7925,6 +7896,28 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   }
 }
 
+void
+Dbtc::ndbdFailBlockCleanupCallback(Signal* signal,
+                                   Uint32 failedNodeId,
+                                   Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  checkNodeFailComplete(signal, failedNodeId,
+                        HostRecord::NF_BLOCK_HANDLE);
+}
+
+void
+Dbtc::apiFailBlockCleanupCallback(Signal* signal,
+                                  Uint32 failedNodeId,
+                                  Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = cownref;
+  sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+}
 
 void
 Dbtc::checkScanFragList(Signal* signal,
@@ -10421,12 +10414,24 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     tabPtr.i = scanptr.p->scanTableref;
     ptrAss(tabPtr, tableRecord);
     Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
-    if(tabPtr.p->checkTable(schemaVersion) == false){
+    if (ERROR_INSERTED(8081) || tabPtr.p->checkTable(schemaVersion) == false)
+    {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
-      scanError(signal, scanptr, tabPtr.p->getErrorCode(schemaVersion));
+      Uint32 err;
+      if (ERROR_INSERTED(8081))
+      {
+        err = ZTIME_OUT_ERROR;
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      else
+      {
+        err = tabPtr.p->getErrorCode(schemaVersion);
+      }
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
+      scanError(signal, scanptr, err);
       return;
     }
   }
@@ -10443,7 +10448,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     updateBuddyTimer(apiConnectptr);
     {
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
       run.release(scanFragptr);
     }
     close_scan_req_send_conf(signal, scanptr);
@@ -10510,9 +10514,10 @@ void Dbtc::execDIH_SCAN_GET_NODES_REF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
-  ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-  
-  run.release(scanFragptr);
+  {
+    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    run.release(scanFragptr);
+  }
 
   scanError(signal, scanptr, errCode);
 }//Dbtc::execDIGETPRIMREF()
@@ -10554,12 +10559,11 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
    * close of the other fragment scans
    */
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
+  scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+  scanFragptr.p->stopFragTimer();
   {
-    scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    
     run.release(scanFragptr);
-    scanFragptr.p->stopFragTimer();
   }    
   scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
@@ -10655,11 +10659,12 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
       return;
     } else {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
       scanFragptr.p->stopFragTimer();
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
     }
     close_scan_req_send_conf(signal, scanptr);
     return;
@@ -13352,7 +13357,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_version == 0);
   }
 }//Dbtc::sendTcIndxConf()
 

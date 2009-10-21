@@ -745,7 +745,7 @@ a
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p407,p408,p409	ALL	NULL	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t1	p3xx,p407,p408,p409	ALL	NULL	NULL	NULL	NULL	18	Using where
 SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 (a >= '2005-07-01' AND a <= '2005-09-30');
@@ -772,7 +772,7 @@ EXPLAIN PARTITIONS SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 (a >= '2005-07-01' AND a <= '2005-09-30');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	18	Using where
+1	SIMPLE	t1	p3xx,p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	27	Using where
 DROP TABLE t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

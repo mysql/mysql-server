@@ -3889,7 +3889,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     if (seq_end == 0)
       seq_end = MAX_SIGNALS_TO_DUMP;
     seq_end--;
-    Signal signal;
+    SignalT<25> signal;
     const SignalHeader *s = signalSequence[seq_end].ptr;
     unsigned siglen = (sizeof(*s)>>2) + s->theLength;
     if (siglen > 25)
@@ -3927,6 +3927,23 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
                                            &signal.theData[0]);
   }
   fflush(out);
+}
+
+int
+FastScheduler::traceDumpGetCurrentThread()
+{
+  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
+  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+
+  /* The selfptr might be NULL, or pointer to thread that crashed. */
+  if (selfptr == 0)
+  {
+    return -1;
+  }
+  else
+  {
+    return (int)selfptr->m_thr_no;
+  }
 }
 
 void
@@ -4029,6 +4046,14 @@ mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
     }
   }
   return cnt;
+}
+
+void
+mt_wakeup(class SimulatedBlock* block)
+{
+  Uint32 thr_no = block->getThreadId();
+  thr_data *thrptr = g_thr_repository.m_thread + thr_no;
+  wakeup(&thrptr->m_waiter);
 }
 
 /**

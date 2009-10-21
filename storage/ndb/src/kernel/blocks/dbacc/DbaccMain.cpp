@@ -1441,7 +1441,6 @@ checkop:
     nextbits &= ~(Uint32)Operationrec::OP_MASK;
     nextbits &= ~(Uint32)Operationrec::OP_ELEMENT_DISAPPEARED;
     nextbits |= (nextop = ZINSERT);
-    nextbits |= Operationrec::OP_INSERT_IS_DONE;
     goto conf;
   }
   else if (nextop == ZINSERT)

@@ -128,6 +128,21 @@ void Dblqh::initRecords()
                                        NDB_O_DIRECT_WRITE_ALIGNMENT,
                                        false);
 
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.set((RedoCacheLogPageRecord*)logPageRecord,
+                               clogPageFileSize);
+  m_redo_page_cache.m_hash.setSize(63);
+
+  const Uint32 * base = (Uint32*)logPageRecord;
+  const RedoCacheLogPageRecord* tmp1 = (RedoCacheLogPageRecord*)logPageRecord;
+  ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
+  ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
+#endif
+
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
@@ -387,6 +402,14 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
 Dblqh::~Dblqh() 
 {
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.clear();
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.clear();
+#endif
+
   // Records with dynamic sizes
   deallocRecord((void **)&addFragRecord, "AddFragRecord",
 		sizeof(AddFragRecord), 

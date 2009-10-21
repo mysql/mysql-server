@@ -21,7 +21,9 @@
 #include <signaldata/StartFragReq.hpp>
 
 DblqhProxy::DblqhProxy(Block_context& ctx) :
-  LocalProxy(DBLQH, ctx)
+  LocalProxy(DBLQH, ctx),
+  c_tableRecSize(0),
+  c_tableRec(0)
 {
   // GSN_CREATE_TAB_REQ
   addRecSignal(GSN_CREATE_TAB_REQ, &DblqhProxy::execCREATE_TAB_REQ);
@@ -125,6 +127,26 @@ DblqhProxy::callNDB_STTOR(Signal* signal)
   }
 }
 
+// GSN_READ_CONFIG_REQ
+void
+DblqhProxy::callREAD_CONFIG_REQ(Signal* signal)
+{
+  const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
+  ndbrequire(req->noOfParameters == 0);
+
+  const ndb_mgm_configuration_iterator * p = 
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &c_tableRecSize));
+  c_tableRec = (Uint8*)allocRecord("TableRec", sizeof(Uint8), c_tableRecSize);
+  D("proxy:" << V(c_tableRecSize));
+  Uint32 i;
+  for (i = 0; i < c_tableRecSize; i++)
+    c_tableRec[i] = 0;
+  backREAD_CONFIG_REQ(signal);
+}
+
 // GSN_CREATE_TAB_REQ
 
 // there is no consistent LQH connect pointer to use as ssId
@@ -200,6 +222,10 @@ DblqhProxy::sendCREATE_TAB_CONF(Signal* signal, Uint32 ssId)
     *req = ss.m_req;
     EXECUTE_DIRECT(DBTUP, GSN_CREATE_TAB_REQ,
                    signal, CreateTabReq::SignalLength);
+
+    Uint32 tableId = ss.m_req.tableId;
+    ndbrequire(tableId < c_tableRecSize);
+    c_tableRec[tableId] = 1;
   } else {
     CreateTabRef* ref = (CreateTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -482,9 +508,23 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
   c_lcpRecord.m_lcp_frag_ord_cnt++;
 
   // Forward
-  Uint32 instance = getInstanceKey(req->tableId, req->fragmentId);
-  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
-             GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
+  ndbrequire(req->tableId < c_tableRecSize);
+  if (c_tableRec[req->tableId] == 0)
+  {
+    jam();
+    /**
+     * Send to lqh-0...that will handle it...
+     */
+    sendSignal(workerRef(0),
+               GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    Uint32 instance = getInstanceKey(req->tableId, req->fragmentId);
+    sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+               GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
+  }
 }
 
 void
@@ -706,6 +746,8 @@ void
 DblqhProxy::execEMPTY_LCP_REQ(Signal* signal)
 {
   jam();
+
+  CRASH_INSERTION(5008);
 
   EmptyLcpReq * const req = (EmptyLcpReq*)&signal->theData[0];
   Uint32 nodeId = refToNode(req->senderRef);
@@ -941,6 +983,10 @@ DblqhProxy::execDROP_TAB_REQ(Signal* signal)
   ss.m_req = *req;
   ndbrequire(signal->getLength() == DropTabReq::SignalLength);
   sendREQ(signal, ss);
+
+  Uint32 tableId = ss.m_req.tableId;
+  ndbrequire(tableId < c_tableRecSize);
+  c_tableRec[tableId] = 0;
 }
 
 void
@@ -1288,6 +1334,13 @@ DblqhProxy::sendSTART_RECCONF_2(Signal* signal, Uint32 ssId)
 void
 DblqhProxy::execLQH_TRANSREQ(Signal* signal)
 {
+  jamEntry();
+  
+  if (!checkNodeFailSequence(signal))
+  {
+    jam();
+    return;
+  }
   const LqhTransReq* req = (const LqhTransReq*)signal->getDataPtr();
   Ss_LQH_TRANSREQ& ss = ssSeize<Ss_LQH_TRANSREQ>();
   ss.m_req = *req;

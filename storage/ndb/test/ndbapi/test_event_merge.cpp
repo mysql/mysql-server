@@ -801,20 +801,20 @@ struct Run : public Tab {
     skip = false;
     evt_op = 0;
     gcicnt = 0;
-    for (i = 0; i < g_maxgcis; i++) {
+    for (i = 0; i < (int)g_maxgcis; i++) {
       gcinum[i] = (Uint64)0;
       gcievtypes[i][0] = gcievtypes[i][1] = (Uint32)0;
     }
     tableops = 0;
     blobops = 0;
     gciops = 0;
-    for (i = 0; i < g_maxpk; i++) {
+    for (i = 0; i < (int)g_maxpk; i++) {
       pk_op[i] = 0;
       pk_ev[i] = 0;
       ev_pos[i] = 0;
     }
     for (j = 0; i < 2; j ++) {
-      for (i = 0; i < g_maxcol; i++) {
+      for (i = 0; i < (int)g_maxcol; i++) {
         ev_ra[j][i] = 0;
         ev_bh[j][i] = 0;
       }
@@ -1028,7 +1028,8 @@ checkop(const Op* op, Uint32& pk1)
         const Data& d = op->data[j];
         if (d.ind[i] == 0) {
           const Data::Txt& txt = *d.ptr[i].txt;
-          for (unsigned int k = 0; k < txt.len; k++) {
+          int k;
+          for (k = 0; k < (int)txt.len; k++) {
             chkrc(strchr(g_charval, txt.val[k]) != 0);
           }
         }
@@ -1684,8 +1685,8 @@ runops()
   Op* gci_op[g_maxtab][g_maxpk];
   uint left = 0; // number of table pks with ops
   Uint32 pk1;
-  unsigned int i;
-  for (unsigned int i = 0; i < maxrun(); i++) {
+  int i;
+  for (i = 0; i < (int)maxrun(); i++) {
     Run& r = run(i);
     for (pk1 = 0; pk1 < g_opts.maxpk; pk1++) {
       gci_op[i][pk1] = 0;
@@ -1843,9 +1844,9 @@ static void
 geteventdata(Run& r)
 {
   Data (&d)[2] = g_rec_ev->data;
-  int j;
+  int i, j;
   for (j = 0; j < 2; j++) {
-    for (unsigned int i = 0; i < ncol(); i++) {
+    for (i = 0; i < (int)ncol(); i++) {
       const Col& c = getcol(i);
       int ind, ret;
       if (! c.isblob()) {
@@ -2185,7 +2186,7 @@ setseed(int n)
   if (n == -1) {
     if (g_opts.seed == 0)
       return;
-    if (g_opts.seed != -1)
+    if (g_opts.seed != (uint)-1)
       seed = (uint)g_opts.seed;
     else
       seed = 1 + (ushort)getpid();
@@ -2300,11 +2301,13 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
+#if 0
 static void
 usage()
 {
   my_print_help(my_long_options);
 }
+#endif
 
 static int
 checkopts()
@@ -2346,7 +2349,7 @@ checkopts()
     g_opts.no_implicit_nulls = true;
   }
   if (g_opts.maxpk > g_maxpk ||
-      g_opts.maxtab > g_maxtab) {
+      g_opts.maxtab > (int)g_maxtab) {
     return -1;
   }
   if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {

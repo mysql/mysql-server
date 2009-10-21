@@ -102,6 +102,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   m_disconnect_errnum = new int               [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
  
+  m_has_extra_wakeup_socket = false;
 #if defined(HAVE_EPOLL_CREATE)
  m_epoll_fd = -1;
  m_epoll_events       = new struct epoll_event[maxTransporters];
@@ -257,6 +258,12 @@ TransporterRegistry::~TransporterRegistry()
 #endif
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
+
+  if (m_has_extra_wakeup_socket)
+  {
+    my_socket_close(m_extra_wakeup_sockets[0]);
+    my_socket_close(m_extra_wakeup_sockets[1]);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -831,6 +838,66 @@ TransporterRegistry::external_IO(Uint32 timeOutMillis) {
   performSend();
 }
 
+bool
+TransporterRegistry::setup_wakeup_socket()
+{
+  if (m_has_extra_wakeup_socket)
+  {
+    return true;
+  }
+
+  if (my_socketpair(m_extra_wakeup_sockets))
+  {
+    perror("socketpair failed!");
+    return false;
+  }
+
+  if (!TCP_Transporter::setSocketNonBlocking(m_extra_wakeup_sockets[0]) ||
+      !TCP_Transporter::setSocketNonBlocking(m_extra_wakeup_sockets[1]))
+  {
+    goto err;
+  }
+
+#if defined(HAVE_EPOLL_CREATE)
+  if (m_epoll_fd != -1)
+  {
+    int sock = m_extra_wakeup_sockets[0].fd;
+    struct epoll_event event_poll;
+    bzero(&event_poll, sizeof(event_poll));
+    event_poll.data.u32 = 0;
+    event_poll.events = EPOLLIN;
+    int ret_val = epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, sock, &event_poll);
+    if (ret_val != 0)
+    {
+      int error= errno;
+      fprintf(stderr, "Failed to add extra sock %u to epoll-set: %u\n",
+              sock, error);
+      fflush(stderr);
+      goto err;
+    }
+  }
+#endif
+  m_has_extra_wakeup_socket = true;
+  return true;
+
+err:
+  my_socket_close(m_extra_wakeup_sockets[0]);
+  my_socket_close(m_extra_wakeup_sockets[1]);
+  my_socket_invalidate(m_extra_wakeup_sockets+0);
+  my_socket_invalidate(m_extra_wakeup_sockets+1);
+  return false;
+}
+
+void
+TransporterRegistry::wakeup()
+{
+  if (m_has_extra_wakeup_socket)
+  {
+    char c;
+    my_send(m_extra_wakeup_sockets[1], &c, 1, 0);
+  }
+}
+
 Uint32
 TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   Uint32 retVal = 0;
@@ -878,7 +945,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   else
 #endif
   {
-    if(nTCPTransporters > 0 || retVal == 0)
+    if(nTCPTransporters > 0 || m_has_extra_wakeup_socket || retVal == 0)
     {
       retVal |= poll_TCP(timeOutMillis);
     }
@@ -985,6 +1052,15 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
   
+  if (m_has_extra_wakeup_socket)
+  {
+    const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
+    maxSocketValue = my_socket_nfds(socket, maxSocketValue);
+
+    // Put the connected transporters in the socket read-set
+    my_FD_SET(socket, &tcpReadset);
+  }
+
   timeOutMillis = hasdata ? 0 : timeOutMillis;
   
   struct timeval timeout;
@@ -1107,6 +1183,12 @@ TransporterRegistry::performReceive()
     {
       assert(errno == EINTR);
     }
+
+    if (m_has_data_transporters.get(0))
+    {
+      m_has_data_transporters.clear(Uint32(0));
+      consume_extra_sockets();
+    }
     
     Uint32 id = 0;
     while ((id = m_has_data_transporters.find(id + 1)) != BitmaskImpl::NotFound)
@@ -1117,6 +1199,14 @@ TransporterRegistry::performReceive()
   else
 #endif
   {
+    if (m_has_extra_wakeup_socket)
+    {
+      if (my_FD_ISSET(m_extra_wakeup_sockets[0], &tcpReadset))
+      {
+        consume_extra_sockets();
+      }
+    }
+
     for (int i=0; i<nTCPTransporters; i++) 
     {
       TCP_Transporter *t = theTCPTransporters[i];
@@ -1206,6 +1296,20 @@ TransporterRegistry::performSend(NodeId nodeId)
   }
 
   return 0;
+}
+
+void
+TransporterRegistry::consume_extra_sockets()
+{
+  char buf[4096];
+  int ret;
+  int err;
+  NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
+  do
+  {
+    ret = my_recv(sock, buf, sizeof(buf), 0);
+    err = my_socket_errno();
+  } while (ret == sizeof(buf) || (ret == -1 && err == EINTR));
 }
 
 void

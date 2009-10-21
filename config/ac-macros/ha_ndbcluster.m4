@@ -130,15 +130,30 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_docs="$withval"],
               [ndb_docs=no])
   AC_ARG_WITH([ndb-port],
-              [AC_HELP_STRING([--with-ndb-port],
-                              [Port for NDB Cluster management server])],
-              [ndb_port="$withval"],
-              [ndb_port="default"])
+              [AC_HELP_STRING([--with-ndb-port=port-number],
+              [Default port used by NDB Cluster management server])],
+              [ndb_port="$withval"],[ndb_port="no"])
+  case "$ndb_port" in
+    "yes" )
+      AC_MSG_ERROR([--with-ndb-port=<port-number> needs an argument])
+      ;;
+    "no" )
+      ;;
+    * )
+      AC_DEFINE_UNQUOTED([NDB_PORT], [$ndb_port],
+                         [Default port used by NDB Cluster management server])
+      ;;
+  esac
+
   AC_ARG_WITH([ndb-port-base],
               [AC_HELP_STRING([--with-ndb-port-base],
-                              [Base port for NDB Cluster transporters])],
-              [ndb_port_base="$withval"],
-              [ndb_port_base="default"])
+                              [Deprecated option])],
+              [ndb_port_base="$withval"], [])
+  if test "$ndb_port_base"
+  then
+     AC_MSG_WARN([Ignoring deprecated option --with-ndb-port-base])
+  fi
+
   AC_ARG_WITH([ndb-debug],
               [AC_HELP_STRING([--without-ndb-debug],
                               [Disable special ndb debug features])],
@@ -322,11 +337,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     fi
   fi
 
-  if test X"$ndb_port" = Xdefault
-  then
-    ndb_port="1186"
-  fi
-  
   have_ndb_binlog="no"
   if test X"$ndb_binlog" = Xdefault ||
      test X"$ndb_binlog" = Xyes
@@ -444,7 +454,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_SCI_LIBS)
 
   AC_SUBST(ndb_transporter_opt_objs)
-  AC_SUBST(ndb_port)
   AC_SUBST(ndb_bin_am_ldflags)
   AC_SUBST(ndb_opt_subdirs)
 
@@ -466,7 +475,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   AC_CONFIG_FILES([
    storage/ndb/include/ndb_version.h
-   storage/ndb/include/ndb_global.h
    storage/ndb/include/ndb_types.h
   ])
 ])

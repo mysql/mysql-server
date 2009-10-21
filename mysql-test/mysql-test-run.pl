@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl";
+my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl,innodb";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -1315,6 +1315,9 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
+
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
   }
@@ -1783,14 +1786,25 @@ sub environment_setup {
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
   if ($mysql_version_id >= 50100) {
+    my $plugin_filename;
+    if (IS_WINDOWS)
+    {
+       $plugin_filename = "ha_example.dll"; 
+    }
+    else 
+    {
+       $plugin_filename = "ha_example.so";
+    }
     my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
-		      "$basedir/storage/example/.libs/ha_example.so",);
+      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
+		      "$basedir/storage/example/.libs/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
+    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
   }
 
   # ----------------------------------------------------
@@ -3654,7 +3668,7 @@ sub extract_warning_lines ($) {
      # qr/^Error:|\[ERROR\]/,
      qr/^Warning:|mysqld: Warning/,
      qr/^Error:/,
-     qr/^==.* at 0x/,
+     qr/^==\d*==/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,

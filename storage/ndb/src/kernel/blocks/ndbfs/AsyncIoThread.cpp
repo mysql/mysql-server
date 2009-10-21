@@ -59,8 +59,13 @@ struct NdbThread*
 AsyncIoThread::doStart()
 {
   // Stacksize for filesystem threads
-  // An 8k stack should be enough
+#if !defined(DBUG_OFF) && defined (__hpux)
+  // Empirical evidence indicates at least 32k
+  const NDB_THREAD_STACKSIZE stackSize = 32768;
+#else
+  // Otherwise an 8k stack should be enough
   const NDB_THREAD_STACKSIZE stackSize = 8192;
+#endif
 
   char buf[16];
   numAsyncFiles++;
@@ -189,6 +194,11 @@ AsyncIoThread::run()
     case Request::end:
       theStartFlag = false;
       return;
+    case Request::allocmem:
+    {
+      allocMemReq(request);
+      break;
+    }
     default:
       DEBUG(ndbout_c("Invalid Request"));
       abort();
@@ -199,5 +209,17 @@ AsyncIoThread::run()
 
     // No need to signal as ndbfs only uses tryRead
     theReportTo->writeChannelNoSignal(request);
+    m_fs.wakeup();
   }
+}
+
+void
+AsyncIoThread::allocMemReq(Request* request)
+{
+  bool res = request->par.alloc.ctx->m_mm.init(0);
+  if (res == true)
+    request->error = 0;
+  else
+    request->error = 1;
+  
 }

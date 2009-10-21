@@ -110,7 +110,8 @@ ErrorReporter::get_trace_no(){
 
 
 void
-ErrorReporter::formatMessage(Uint32 num_threads, int faultID,
+ErrorReporter::formatMessage(int thr_no,
+                             Uint32 num_threads, int faultID,
 			     const char* problemData, 
 			     const char* objRef,
 			     const char* theNameOfTheTraceFile,
@@ -124,26 +125,35 @@ ErrorReporter::formatMessage(Uint32 num_threads, int faultID,
   int sofar;
 
   processId = NdbHost_GetProcessId();
-  
+  char thrbuf[100] = "";
+  if (thr_no >= 0)
+  {
+    BaseString::snprintf(thrbuf, sizeof(thrbuf), " thr: %u", thr_no);
+  }
+
   BaseString::snprintf(messptr, MESSAGE_LENGTH,
-	   "Time: %s\n"
-           "Status: %s\n"
-	   "Message: %s (%s)\n"
-	   "Error: %d\n"
-           "Error data: %s\n"
-	   "Error object: %s\n"
-           "Program: %s\n"
-	   "Pid: %d\n"
-           "Trace: %s",
-	   formatTimeStampString() , 
-           exit_st_msg,
-	   exit_msg, exit_cl_msg,
-	   faultID, 
-	   (problemData == NULL) ? "" : problemData, 
-	   objRef, 
-	   my_progname, 
-	   processId, 
-	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>");
+                       "Time: %s\n"
+                       "Status: %s\n"
+                       "Message: %s (%s)\n"
+                       "Error: %d\n"
+                       "Error data: %s\n"
+                       "Error object: %s\n"
+                       "Program: %s\n"
+                       "Pid: %d%s\n"
+                       "Version: %s\n"
+                       "Trace: %s",
+                       formatTimeStampString() , 
+                       exit_st_msg,
+                       exit_msg, exit_cl_msg,
+                       faultID, 
+                       (problemData == NULL) ? "" : problemData, 
+                       objRef, 
+                       my_progname, 
+                       processId, 
+                       thrbuf,
+                       NDB_VERSION_STRING,
+                       theNameOfTheTraceFile ? 
+                       theNameOfTheTraceFile : "<no tracefile>");
 
   if (theNameOfTheTraceFile)
   {
@@ -151,16 +161,15 @@ ErrorReporter::formatMessage(Uint32 num_threads, int faultID,
     {
       sofar = strlen(messptr);
       BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
-             " %s_t%u", theNameOfTheTraceFile, i);
+                           " %s_t%u", theNameOfTheTraceFile, i);
     }
   }
 
   sofar = strlen(messptr);
   BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
-           "\n"
-           "Version: %s\n"
-           "***EOM***\n",
-           NDB_VERSION_STRING);
+                       "\n"
+                       "***EOM***\n");
+
   // Add trailing blanks to get a fixed length of the message
   while (strlen(messptr) <= MESSAGE_LENGTH-3){
     strcat(messptr, " ");
@@ -252,6 +261,7 @@ WriteMessage(int thrdMessageID,
   Uint32 jamBlockNumber;
 
   Uint32 threadCount = globalScheduler.traceDumpGetNumThreads();
+  int thr_no = globalScheduler.traceDumpGetCurrentThread();
 
   /**
    * Format trace file name
@@ -285,7 +295,8 @@ WriteMessage(int thrdMessageID,
 	    "                        \n\n\n");   
     
     // ...and write the error-message...
-    ErrorReporter::formatMessage(threadCount, thrdMessageID,
+    ErrorReporter::formatMessage(thr_no,
+                                 threadCount, thrdMessageID,
 				 thrdProblemData, thrdObjRef,
 				 theTraceFileName, theMessage);
     fprintf(stream, "%s", theMessage);
@@ -312,7 +323,8 @@ WriteMessage(int thrdMessageID,
     fseek(stream, offset, SEEK_SET);
     
     // ...and write the error-message there...
-    ErrorReporter::formatMessage(threadCount, thrdMessageID,
+    ErrorReporter::formatMessage(thr_no,
+                                 threadCount, thrdMessageID,
 				 thrdProblemData, thrdObjRef,
 				 theTraceFileName, theMessage);
     fprintf(stream, "%s", theMessage);

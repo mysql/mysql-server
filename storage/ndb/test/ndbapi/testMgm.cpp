@@ -1068,6 +1068,7 @@ check_get_nodeid_invalid_nodetype1(NdbMgmd& mgmd)
 }
 
 
+#if 0
 static bool
 check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
 {
@@ -1083,7 +1084,7 @@ check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
   }
   return true;
 }
-
+#endif
 
 static bool
 check_get_nodeid_dynamic_nodeid(NdbMgmd& mgmd)
@@ -1153,11 +1154,10 @@ check_get_nodeid_nonode(NdbMgmd& mgmd)
   return get_nodeid_result_contains(mgmd, args, expected.c_str());
 }
 
-
+#if 0
 static bool
 check_get_nodeid_nodeid1(NdbMgmd& mgmd)
 {
-
   // Find a node that does exist
   Config conf;
   if (!mgmd.get_config(conf))
@@ -1188,7 +1188,7 @@ check_get_nodeid_nodeid1(NdbMgmd& mgmd)
   reply.print();
   return ok(reply);
 }
-
+#endif
 
 static bool
 check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
@@ -2047,17 +2047,34 @@ check_connection_parameter_invalid_nodeid(NdbMgmd& mgmd)
 static bool
 check_connection_parameter(NdbMgmd& mgmd)
 {
+  // Find a NDB node with dynamic port
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId1 = 0;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    Uint32 nodeType;
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) == 0 &&
+        iter.get(CFG_TYPE_OF_SECTION, &nodeType) == 0 &&
+        nodeType == NDB_MGM_NODE_TYPE_NDB){
+      nodeId1 = i;
+      break;
+    }
+  }
+
   NodeId otherNodeId = 0;
   BaseString original_value;
 
   // Get current value of first connection between mgmd and other node
   for (int nodeId = 1; nodeId < MAX_NODES; nodeId++){
 
-    g_info << "Checking if connection between " << mgmd.nodeid()
+    g_info << "Checking if connection between " << nodeId1
            << " and " << nodeId << " exists" << endl;
 
     Properties args;
-    args.put("node1", mgmd.nodeid());
+    args.put("node1", nodeId1);
     args.put("node2", nodeId);
 
     Properties result;
@@ -2087,7 +2104,7 @@ check_connection_parameter(NdbMgmd& mgmd)
   }
 
   Properties get_args;
-  get_args.put("node1", mgmd.nodeid());
+  get_args.put("node1", nodeId1);
   get_args.put("node2", otherNodeId);
 
   {
@@ -2399,6 +2416,59 @@ int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  Vector<NdbMgmd*> mgmds;
+
+  while(true)
+  {
+    NdbMgmd* mgmd = new NdbMgmd();
+
+    // Set quite short timeout
+    if (!mgmd->set_timeout(1000))
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (mgmd->connect())
+    {
+      mgmds.push_back(mgmd);
+      g_info << "connections: " << mgmds.size() << endl;
+      continue;
+    }
+
+    g_err << "Failed to make another connection, connections: "
+          << mgmds.size() << endl;
+
+
+    // Disconnect some connections
+    int to_disconnect = 10;
+    while(mgmds.size() && to_disconnect--)
+    {
+      g_info << "disconnnect, connections: " << mgmds.size() << endl;
+      NdbMgmd* mgmd = mgmds[0];
+      mgmds.erase(0);
+      delete mgmd;
+    }
+
+    if (loops-- == 0)
+      break;
+  }
+
+  while(mgmds.size())
+  {
+    NdbMgmd* mgmd = mgmds[0];
+    mgmds.erase(0);
+    delete mgmd;
+  }
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2526,6 +2596,10 @@ TESTCASE("Stress2",
 //  STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
+TESTCASE("Bug45497",
+         "Connect to ndb_mgmd until it can't handle more connections"){
+  STEP(runTestBug45497);
+}
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
@@ -2536,3 +2610,4 @@ int main(int argc, const char** argv){
   return testMgm.execute(argc, argv);
 }
 
+template class Vector<NdbMgmd*>;

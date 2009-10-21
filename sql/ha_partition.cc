@@ -426,12 +426,9 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
 
 int ha_partition::delete_table(const char *name)
 {
-  int error;
   DBUG_ENTER("ha_partition::delete_table");
 
-  if ((error= del_ren_cre_table(name, NULL, NULL, NULL)))
-    DBUG_RETURN(error);
-  DBUG_RETURN(handler::delete_table(name));
+  DBUG_RETURN(del_ren_cre_table(name, NULL, NULL, NULL));
 }
 
 
@@ -459,12 +456,9 @@ int ha_partition::delete_table(const char *name)
 
 int ha_partition::rename_table(const char *from, const char *to)
 {
-  int error;
   DBUG_ENTER("ha_partition::rename_table");
 
-  if ((error= del_ren_cre_table(from, to, NULL, NULL)))
-    DBUG_RETURN(error);
-  DBUG_RETURN(handler::rename_table(from, to));
+  DBUG_RETURN(del_ren_cre_table(from, to, NULL, NULL));
 }
 
 
@@ -1810,6 +1804,15 @@ uint ha_partition::del_ren_cre_table(const char *from,
   DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
+  if (to == NULL && table_arg == NULL)
+  {
+    /*
+      Delete table, start by delete the .par file. If error, break, otherwise
+      delete as much as possible.
+    */
+    if ((error= handler::delete_table(from)))
+      DBUG_RETURN(error);
+  }
   /*
     Since ha_partition has HA_FILE_BASED, it must alter underlying table names
     if they do not have HA_FILE_BASED and lower_case_table_names == 2.
@@ -1831,6 +1834,8 @@ uint ha_partition::del_ren_cre_table(const char *from,
       create_partition_name(to_buff, to_path, name_buffer_ptr,
                             NORMAL_PART_NAME, FALSE);
       error= (*file)->ha_rename_table(from_buff, to_buff);
+      if (error)
+        goto rename_error;
     }
     else if (table_arg == NULL)			// delete branch
       error= (*file)->ha_delete_table(from_buff);
@@ -1846,6 +1851,15 @@ uint ha_partition::del_ren_cre_table(const char *from,
       save_error= error;
     i++;
   } while (*(++file));
+  if (to != NULL)
+  {
+    if ((error= handler::rename_table(from, to)))
+    {
+      /* Try to revert everything, ignore errors */
+      (void) handler::rename_table(to, from);
+      goto rename_error;
+    }
+  }
   DBUG_RETURN(save_error);
 create_error:
   name_buffer_ptr= m_name_buffer_ptr;
@@ -1853,7 +1867,21 @@ create_error:
   {
     create_partition_name(from_buff, from_path, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
-    VOID((*file)->ha_delete_table((const char*) from_buff));
+    (void) (*file)->ha_delete_table((const char*) from_buff);
+    name_buffer_ptr= strend(name_buffer_ptr) + 1;
+  }
+  DBUG_RETURN(error);
+rename_error:
+  name_buffer_ptr= m_name_buffer_ptr;
+  for (abort_file= file, file= m_file; file < abort_file; file++)
+  {
+    /* Revert the rename, back from 'to' to the original 'from' */
+    create_partition_name(from_buff, from_path, name_buffer_ptr,
+                          NORMAL_PART_NAME, FALSE);
+    create_partition_name(to_buff, to_path, name_buffer_ptr,
+                          NORMAL_PART_NAME, FALSE);
+    /* Ignore error here */
+    (void) (*file)->ha_rename_table(to_buff, from_buff);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);
@@ -3705,7 +3733,7 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-  else if (sorted)
+  if (sorted)
   {
     /*
       An ordered scan is requested. We must make sure all fields of the 
@@ -4389,17 +4417,6 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      /* MyISAM engine can fail if we call index_first() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->index_first(buf);
       break;
     case partition_index_first_unordered:
@@ -4487,32 +4504,10 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
                                   m_start_key.flag);
       break;
     case partition_index_first:
-      /* MyISAM engine can fail if we call index_first() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      /* MyISAM engine can fail if we call index_last() when indexes disabled */
-      /* that happens if the table is empty. */
-      /* Here we use file->stats.records instead of file->records() because */
-      /* file->records() is supposed to return an EXACT count, and it can be   */
-      /* possibly slow. We don't need an exact number, an approximate one- from*/
-      /* the last ::info() call - is sufficient. */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;
@@ -5389,6 +5384,13 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Currently only NDB use the *_CANNOT_BATCH */
     break;
   }
+  /*
+    http://dev.mysql.com/doc/refman/5.1/en/partitioning-limitations.html
+    says we no longer support logging to partitioned tables, so we fail
+    here.
+  */
+  case HA_EXTRA_MARK_AS_LOG_TABLE:
+    DBUG_RETURN(ER_UNSUPORTED_LOG_ENGINE);
   default:
   {
     /* Temporary crash to discover what is wrong */

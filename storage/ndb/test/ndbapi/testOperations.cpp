@@ -283,6 +283,7 @@ valid(const Sequence& s)
   return true;
 }
 
+#if 0
 static
 NdbOut& operator<<(NdbOut& out, const Sequence& s)
 {
@@ -306,6 +307,7 @@ NdbOut& operator<<(NdbOut& out, const Sequence& s)
   out << "]";
   return out;
 }
+#endif
 
 static
 void
@@ -415,7 +417,7 @@ verify_savepoint(NDBT_Context* ctx,
     /**
      * Increase savepoint to <em>k</em>
      */
-    for(int l = 1; l<=seq; l++)
+    for(size_t l = 1; l<=(size_t)seq; l++)
     {
       C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
       C3(same.execute_NoCommit(pNdb) == 0);

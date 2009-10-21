@@ -24,7 +24,7 @@
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
 #include "NdbOperation.hpp"
-#include <NdbIndexScanOperation.hpp>
+#include "NdbIndexScanOperation.hpp"
 
 class NdbTransaction;
 class NdbScanOperation;

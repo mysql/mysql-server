@@ -1674,6 +1674,17 @@ void Dbdict::readSchemaConf(Signal* signal,
     return;
   }
 
+  if (sf0->NdbVersion < NDB_MAKE_VERSION(6,4,0) && 
+      ! convertSchemaFileTo_6_4(xsf)) 
+  {
+    jam();
+    ndbrequire(! crashInd);
+    ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
+    readSchemaRef(signal, fsPtr);
+    return;
+  }
+
+
   for (Uint32 n = 0; n < xsf->noOfPages; n++) {
     SchemaFile * sf = &xsf->schemaPage[n];
     bool ok = false;
@@ -1811,6 +1822,48 @@ Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
   xsf->noOfPages = noOfPages;
   initSchemaFile(xsf, 0, xsf->noOfPages, false);
 
+  return true;
+}
+
+bool
+Dbdict::convertSchemaFileTo_6_4(XSchemaFile * xsf)
+{
+  for (Uint32 i = 0; i < xsf->noOfPages; i++)
+  {
+    for (Uint32 j = 0; j < NDB_SF_PAGE_ENTRIES; j++)
+    {
+      Uint32 n = i * NDB_SF_PAGE_ENTRIES + j;
+      SchemaFile::TableEntry * transEntry = getTableEntry(xsf, n);
+      
+      switch(SchemaFile::Old::TableState(transEntry->m_tableState)) {
+      case SchemaFile::Old::INIT:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::ADD_STARTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::TABLE_ADD_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      case SchemaFile::Old::DROP_TABLE_STARTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::DROP_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      case SchemaFile::Old::ALTER_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      case SchemaFile::Old::TEMPORARY_TABLE_COMMITTED:
+        transEntry->m_tableState = SchemaFile::SF_IN_USE;
+        break;
+      default:
+        transEntry->m_tableState = SchemaFile::SF_UNUSED;
+        break;
+      }
+    }
+    computeChecksum(xsf, i);
+  }
   return true;
 }
 
@@ -3323,6 +3376,13 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     ndbrequire(ok);
   }
     
+  if (sf0->NdbVersion < NDB_MAKE_VERSION(6,4,0))
+  {
+    jam();
+    bool ok = convertSchemaFileTo_6_4(xsf);
+    ndbrequire(ok);
+  }
+
   validateChecksum(xsf);
 
   XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
@@ -3520,7 +3580,7 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 #ifdef PRINT_SCHEMA_RESTART
     printf("checkSchemaStatus: pass: %d table: %d",
            c_restartRecord.m_pass, tableId);
-    ndbout << "old: " << *ownEntry << " new: " << *masterEntry;
+    ndbout << "old: " << *ownEntry << " new: " << *masterEntry << endl;
 #endif
 
     if (c_restartRecord.m_pass <= CREATE_OLD_PASS)
@@ -3932,6 +3992,11 @@ Dbdict::restartCreateObj(Signal* signal,
 			 bool file){
   jam();
   
+
+#ifdef PRINT_SCHEMA_RESTART
+  ndbout_c("restartCreateObj table: %u file: %u", tableId, Uint32(file));
+#endif
+
   c_restartRecord.m_entry = *new_entry;
   if(file)
   {
@@ -4053,6 +4118,17 @@ Dbdict::restartCreateObj_parse(Signal* signal,
 
   c_restartRecord.m_op_cnt++;
 
+  if (OpSectionBuffer::getSegmentSize() * 
+      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  {
+    jam();
+    /**
+     * Commit transaction now...so we don't risk overflowing
+     *   c_opSectionBufferPool
+     */
+    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
+  }
+
   if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
   {
     jam();
@@ -4140,6 +4216,17 @@ Dbdict::restartDropObj(Signal* signal,
 
   c_restartRecord.m_op_cnt++;
 
+  if (OpSectionBuffer::getSegmentSize() * 
+      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  {
+    jam();
+    /**
+     * Commit transaction now...so we don't risk overflowing
+     *   c_opSectionBufferPool
+     */
+    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
+  }
+
   if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
   {
     jam();
@@ -4172,6 +4259,17 @@ Dbdict::restartDropObj(Signal* signal,
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
+void Dbdict::handleApiFailureCallback(Signal* signal, 
+                                      Uint32 failedNodeId,
+                                      Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = reference();
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+}
+
 /* ---------------------------------------------------------------- */
 // We receive a report of an API that failed.
 /* ---------------------------------------------------------------- */
@@ -4181,6 +4279,7 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
   Uint32 failedApiNode = signal->theData[0];
   BlockReference retRef = signal->theData[1];
 
+  ndbrequire(retRef == QMGR_REF); // As callback hard-codes QMGR_REF
 #if 0
   Uint32 userNode = refToNode(c_connRecord.userBlockRef);
   if (userNode == failedApiNode) {
@@ -4190,7 +4289,22 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
 #endif
 
   // sends API_FAILCONF when done
-  handleApiFail(signal, failedApiNode, retRef);
+  handleApiFail(signal, failedApiNode);
+}//execAPI_FAILREQ()
+
+void Dbdict::handleNdbdFailureCallback(Signal* signal, 
+                                       Uint32 failedNodeId, 
+                                       Uint32 ignoredRc)
+{
+  jamEntry();
+
+  /* Node failure handling is complete */
+  NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
+  nfCompRep->blockNo      = DBDICT;
+  nfCompRep->nodeId       = getOwnNodeId();
+  nfCompRep->failedNodeId = failedNodeId;
+  sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
+             NFCompleteRep::SignalLength, JBB);
 }
 
 /* ---------------------------------------------------------------- */
@@ -4258,12 +4372,11 @@ void Dbdict::send_nf_complete_rep(Signal* signal, const NodeFailRep* nodeFail)
       ndbout_c("Sending NF_COMPLETEREP for node %u", i);
 #endif
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
-      NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
-      nfCompRep->blockNo      = DBDICT;
-      nfCompRep->nodeId       = getOwnNodeId();
-      nfCompRep->failedNodeId = nodePtr.i;
-      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
-		 NFCompleteRep::SignalLength, JBB);
+
+      Callback cb = {safe_cast(&Dbdict::handleNdbdFailureCallback),
+                     i};
+
+      simBlockNodeFailure(signal, nodePtr.i, cb);
     }//if
   }//for
 
@@ -25749,8 +25862,7 @@ Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
  */
 void
 Dbdict::handleApiFail(Signal* signal,
-                      Uint32 failedApiNode,
-                      BlockReference retRef)
+                      Uint32 failedApiNode)
 {
   D("handleApiFail" << V(failedApiNode));
 
@@ -25789,7 +25901,6 @@ Dbdict::handleApiFail(Signal* signal,
         ndbrequire(ok);
 
         tx_ptr.p->m_clientFlags |= TransClient::ApiFail;
-        tx_ptr.p->m_apiFailRetRef = retRef;
         takeOvers++;
       }
     }
@@ -25801,7 +25912,7 @@ Dbdict::handleApiFail(Signal* signal,
 
   if (takeOvers == 0) {
     jam();
-    sendApiFailConf(signal, failedApiNode, retRef);
+    apiFailBlockHandling(signal, failedApiNode);
   }
 }
 
@@ -25963,19 +26074,17 @@ Dbdict::finishApiFail(Signal* signal, TxHandlePtr tx_ptr)
 
   if (takeOvers == 0) {
     jam();
-    Uint32 retRef = tx_ptr.p->m_apiFailRetRef;
-    sendApiFailConf(signal, failedApiNode, retRef);
+    apiFailBlockHandling(signal, failedApiNode);
   }
 }
 
 void
-Dbdict::sendApiFailConf(Signal* signal,
-                        Uint32 failedApiNode,
-                        BlockReference retRef)
+Dbdict::apiFailBlockHandling(Signal* signal,
+                             Uint32 failedApiNode)
 {
-  signal->theData[0] = failedApiNode;
-  signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+  Callback cb = { safe_cast(&Dbdict::handleApiFailureCallback),
+                  failedApiNode };
+  simBlockNodeFailure(signal, failedApiNode, cb);
 }
 
 // find callback for any key

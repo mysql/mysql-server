@@ -55,7 +55,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             Bitmask.cpp
 	    ndbinfo.c
 )
-TARGET_LINK_LIBRARIES(ndbgeneral zlib)
+TARGET_LINK_LIBRARIES(ndbgeneral zlib mysys ws2_32)
 
 ADD_EXECUTABLE(BaseString-t BaseString.cpp)
 SET_TARGET_PROPERTIES(BaseString-t
@@ -67,3 +67,7 @@ SET_TARGET_PROPERTIES(Bitmask-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_BITMASK")
 TARGET_LINK_LIBRARIES(Bitmask-t ndbgeneral)
 
+ADD_EXECUTABLE(Parser-t Parser.cpp)
+SET_TARGET_PROPERTIES(Parser-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_PARSER")
+TARGET_LINK_LIBRARIES(Parser-t ndbgeneral)

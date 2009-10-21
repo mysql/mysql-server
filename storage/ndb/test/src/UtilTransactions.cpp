@@ -1096,8 +1096,8 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 
       if(!null_found)
       {
-	if(iop= pTrans->getNdbIndexScanOperation(indexName, 
-                                                 tab.getName()))
+	if((iop= pTrans->getNdbIndexScanOperation(indexName, 
+                                                  tab.getName())) != 0)
 	{
 	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
 			     parallelism))
@@ -1208,7 +1208,7 @@ int
 UtilTransactions::equal(const NdbDictionary::Table* pTable, 
 			NdbOperation* op, const NDBT_ResultRow& src)
 {
-  for(int a = 0; a<tab.getNoOfColumns(); a++){
+  for(Uint32 a = 0; (int)a<tab.getNoOfColumns(); a++){
     const NdbDictionary::Column* attr = tab.getColumn(a);
     if (attr->getPrimaryKey() == true){
       if (op->equal(attr->getName(), src.attributeStore(a)->aRef()) != 0){
@@ -1240,6 +1240,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
 	return pTrans->getNdbIndexOperation(idx->getName(), tab.getName());
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        abort();
       }
     }
   case NdbOperation::InsertRequest:
@@ -1252,6 +1254,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::UniqueHashIndex:
 	return pTrans->getNdbIndexOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return pTrans->getNdbOperation(tab.getName());
@@ -1261,6 +1265,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return pTrans->getNdbScanOperation(tab.getName());
@@ -1270,9 +1276,13 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return 0;
+  default:
+    abort();
   }
   return 0;
 }
