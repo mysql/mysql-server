@@ -1638,7 +1638,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
-        my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0),
+        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0),
                  subpart_str);
         goto end;
       }
@@ -1666,7 +1666,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
-        my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), part_str);
+        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0), part_str);
         goto end;
       }
       part_info->part_result_type= INT_RESULT;
@@ -2014,7 +2014,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
         String *res= item_expr->val_str(&str);
         if (!res)
         {
-          my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+          my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
           return 1;
         }
         if (item_expr->result_type() == STRING_RESULT)
