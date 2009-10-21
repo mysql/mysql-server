@@ -8,6 +8,11 @@ create table t1 (a datetime not null)
 partition by range (TO_SECONDS(a))
 ( partition p0 VALUES LESS THAN (TO_SECONDS('2007-03-08 00:00:00')),
 partition p1 VALUES LESS THAN (TO_SECONDS('2007-04-01 00:00:00')));
+select partition_method, partition_expression, partition_description
+from information_schema.partitions where table_name = "t1";
+partition_method	partition_expression	partition_description
+RANGE	TO_SECONDS(a)	63340531200
+RANGE	TO_SECONDS(a)	63342604800
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
 explain partitions select * from t1 where a < '2007-03-08 00:00:00';
