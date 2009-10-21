@@ -2269,17 +2269,19 @@ bool check_duplicates_in_interval(const char *set_or_name,
     tmp.count--;
     if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
     {
+      THD *thd= current_thd;
+      ErrConvString err(*cur_value, *cur_length, cs);
       if ((current_thd->variables.sql_mode &
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
-                 name,*cur_value,set_or_name);
+                 name, err.ptr(), set_or_name);
         return 1;
       }
-      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
-			  ER_DUPLICATED_VALUE_IN_TYPE,
-			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
-			  name,*cur_value,set_or_name);
+      push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_DUPLICATED_VALUE_IN_TYPE,
+                          ER(ER_DUPLICATED_VALUE_IN_TYPE),
+                          name, err.ptr(), set_or_name);
       (*dup_val_count)++;
     }
   }
@@ -2665,7 +2667,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                                 interval->type_lengths[i], 
                                 comma_buf, comma_length, NULL, 0))
             {
-              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", tmp->ptr());
+              ErrConvString err(tmp->ptr(), tmp->length(), cs);
+              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", err.ptr());
               DBUG_RETURN(TRUE);
             }
           }

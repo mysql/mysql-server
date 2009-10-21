@@ -264,10 +264,11 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
   {
+    ErrConvString err(res);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
-                        str_value.c_ptr());
+                        err.ptr());
   }
   return decimal_value;
 }
@@ -2456,6 +2457,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
   tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
+    ErrConvString err(cptr, cs);
     /*
       We can use str_value.ptr() here as Item_string is gurantee to put an
       end \0 here.
@@ -2463,7 +2465,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }
@@ -2493,10 +2495,11 @@ longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
       (err > 0 ||
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
+    ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }

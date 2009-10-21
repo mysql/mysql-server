@@ -67,11 +67,11 @@ is( $config->value('client', 'host'),
 ok ( $config->value("mysqld.1", 'character-sets-dir') =~ /$basedir.*charsets$/,
      "'character-sets-dir' generated");
 
-ok ( $config->value("mysqld.1", 'language') =~ /$basedir.*english$/,
-     "'language' generated");
+ok ( $config->value("mysqld.1", 'lc-messages-dir') =~ /$basedir.*share$/,
+     "'lc-messages-dir' generated");
 
 ok ( $config->value("ENV", 'MASTER_MY_PORT') =~ /\d/,
-     "'language' generated");
+     "'lc-messages-dir' generated");
 
 my $gen2_cnf= "$dir/gen2.cnf";
 open(OUT, ">", $gen2_cnf) or die;
