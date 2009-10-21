@@ -944,8 +944,29 @@ longlong Item_func_to_days::val_int()
 longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
                                                 bool *incl_endp)
 {
-  longlong res= val_int();
-  return null_value ? LONGLONG_MIN : res;
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong seconds;
+  longlong days;
+  int dummy;                                /* unused */
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+  seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
+  seconds= ltime.neg ? -seconds : seconds;
+  days= (longlong) calc_daynr(ltime.year, ltime.month, ltime.day);
+  seconds+= days * 24L * 3600L;
+  /* Set to NULL if invalid date, but keep the value */
+  null_value= check_date(&ltime,
+                         (ltime.year || ltime.month || ltime.day),
+                         (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE),
+                         &dummy);
+  /*
+    Even if the evaluation return NULL, seconds is useful for pruning
+  */
+  return seconds;
 }
 
 longlong Item_func_to_seconds::val_int()
@@ -956,10 +977,10 @@ longlong Item_func_to_seconds::val_int()
   longlong days;
   if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
-  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
+  seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
   seconds=ltime.neg ? -seconds : seconds;
-  days= (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
-  return (seconds + days * (24L * 3600L));
+  days= (longlong) calc_daynr(ltime.year, ltime.month, ltime.day);
+  return seconds + days * 24L * 3600L;
 }
 
 /*
@@ -981,9 +1002,9 @@ enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
   if (args[0]->type() == Item::FIELD_ITEM)
   {
     if (args[0]->field_type() == MYSQL_TYPE_DATE)
-      return MONOTONIC_STRICT_INCREASING;
+      return MONOTONIC_STRICT_INCREASING_NOT_NULL;
     if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
-      return MONOTONIC_INCREASING;
+      return MONOTONIC_INCREASING_NOT_NULL;
   }
   return NON_MONOTONIC;
 }
@@ -992,10 +1013,9 @@ enum_monotonicity_info Item_func_to_seconds::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM)
   {
-    if (args[0]->field_type() == MYSQL_TYPE_DATE)
-      return MONOTONIC_STRICT_INCREASING;
-    if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
-      return MONOTONIC_INCREASING;
+    if (args[0]->field_type() == MYSQL_TYPE_DATE ||
+        args[0]->field_type() == MYSQL_TYPE_DATETIME)
+      return MONOTONIC_STRICT_INCREASING_NOT_NULL;
   }
   return NON_MONOTONIC;
 }
@@ -1006,12 +1026,27 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
   longlong res;
-  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  int dummy;                                /* unused */
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /* got NULL, leave the incl_endp intact */
     return LONGLONG_MIN;
   }
   res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
+  /* Set to NULL if invalid date, but keep the value */
+  null_value= check_date(&ltime,
+                         (ltime.year || ltime.month || ltime.day),
+                         (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE),
+                         &dummy);
+  if (null_value)
+  {
+    /*
+      Even if the evaluation return NULL, the calc_daynr is useful for pruning
+    */
+    if (args[0]->field_type() != MYSQL_TYPE_DATE)
+      *incl_endp= TRUE;
+    return res;
+  }
   
   if (args[0]->field_type() == MYSQL_TYPE_DATE)
   {
@@ -1024,15 +1059,19 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     point to day bound ("strictly less" comparison stays intact):
 
       col < '2007-09-15 00:00:00'  -> TO_DAYS(col) <  TO_DAYS('2007-09-15')
+      col > '2007-09-15 23:59:59'  -> TO_DAYS(col) >  TO_DAYS('2007-09-15')
 
     which is different from the general case ("strictly less" changes to
     "less or equal"):
 
       col < '2007-09-15 12:34:56'  -> TO_DAYS(col) <= TO_DAYS('2007-09-15')
   */
-  if (!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
-                      ltime.second_part))
-    ; /* do nothing */
+  if ((!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
+                       ltime.second_part)) ||
+       (left_endp && ltime.hour == 23 && ltime.minute == 59 &&
+        ltime.second == 59))
+    /* do nothing */
+    ;
   else
     *incl_endp= TRUE;
   return res;

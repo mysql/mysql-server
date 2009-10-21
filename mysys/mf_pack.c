@@ -33,12 +33,11 @@ static char * NEAR_F expand_tilde(char * *path);
 void pack_dirname(char * to, const char *from)
 {
   int cwd_err;
-  size_t d_length,length,buff_length;
+  size_t d_length,length,UNINIT_VAR(buff_length);
   char * start;
   char buff[FN_REFLEN];
   DBUG_ENTER("pack_dirname");
 
-  LINT_INIT(buff_length);
   (void) intern_filename(to,from);		/* Change to intern name */
 
 #ifdef FN_DEVCHAR

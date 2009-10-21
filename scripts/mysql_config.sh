@@ -107,7 +107,7 @@ fi
 libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
 libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
 libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@ "
-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@ @openssl_libs@ "
+embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 
 if [ -r "$pkglibdir/libmygcc.a" ]; then
   # When linking against the static library with a different version of GCC
@@ -167,6 +167,10 @@ Options:
         --port           [$port]
         --version        [$version]
         --libmysqld-libs [$embedded_libs]
+        --variable=VAR   VAR is one of:
+                pkgincludedir [$pkgincludedir]
+                pkglibdir     [$pkglibdir]
+                plugindir     [$plugindir]
 EOF
         exit 1
 }
@@ -184,6 +188,15 @@ while test $# -gt 0; do
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
         --embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
+        --variable=*)
+          var=`echo "$1" | sed 's,^[^=]*=,,'`
+          case "$var" in
+            pkgincludedir) echo "$pkgincludedir" ;;
+            pkglibdir) echo "$pkglibdir" ;;
+            plugindir) echo "$plugindir" ;;
+            *) usage ;;
+          esac
+          ;;
         *)         usage ;;
         esac
 
