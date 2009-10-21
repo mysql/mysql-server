@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3870,6 +3870,7 @@ part_func:
             partition_info *part_info= Lex->part_info;
             if (part_info->set_part_expr($2+1, $3, $4, FALSE))
             { MYSQL_YYABORT; }
+            part_info->num_columns= 1;
             part_info->column_list= FALSE;
           }
         ;
@@ -3972,7 +3973,21 @@ opt_num_subparts:
 
 part_defs:
           /* empty */
-          {}
+          {
+            partition_info *part_info= Lex->part_info;
+            if (part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0),
+                       "RANGE");
+              MYSQL_YYABORT;
+            }
+            else if (part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0),
+                       "LIST");
+              MYSQL_YYABORT;
+            }
+          }
         | '(' part_def_list ')'
           {
             partition_info *part_info= Lex->part_info;
@@ -4081,7 +4096,7 @@ opt_part_values:
               if (part_info->part_type != LIST_PARTITION)
               {
                 my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                         "LIST", "IN");
+                               "LIST", "IN");
                 MYSQL_YYABORT;
               }
             }
@@ -4099,6 +4114,7 @@ part_func_max:
             if (part_info->num_columns &&
                 part_info->num_columns != 1U)
             {
+              part_info->print_debug("Kilroy II", NULL);
               my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
               MYSQL_YYABORT;
             }
@@ -4121,6 +4137,7 @@ part_values_in:
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
+            part_info->print_debug("part_values_in: part_value_item", NULL);
 
             if (part_info->num_columns != 1U)
             {
@@ -4128,6 +4145,7 @@ part_values_in:
                   part_info->num_columns == 0 ||
                   part_info->num_columns > MAX_REF_PARTS)
               {
+                part_info->print_debug("Kilroy III", NULL);
                 my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
                 MYSQL_YYABORT;
               }
@@ -4135,7 +4153,8 @@ part_values_in:
                 Reorganize the current large array into a list of small
                 arrays with one entry in each array. This can happen
                 in the first partition of an ALTER TABLE statement where
-                we ADD or REORGANIZE partitions.
+                we ADD or REORGANIZE partitions. Also can only happen
+                for LIST partitions.
               */
               if (part_info->reorganize_into_single_field_col_val())
               {
@@ -4163,9 +4182,9 @@ part_value_item:
           '('
           {
             partition_info *part_info= Lex->part_info;
+            part_info->print_debug("( part_value_item", NULL);
             /* Initialisation code needed for each list of value expressions */
-            if (!(part_info->column_list &&
-                  part_info->part_type == LIST_PARTITION &&
+            if (!(part_info->part_type == LIST_PARTITION &&
                   part_info->num_columns == 1U) &&
                  part_info->init_column_part())
             {
@@ -4177,7 +4196,7 @@ part_value_item:
           {
             LEX *lex= Lex;
             partition_info *part_info= Lex->part_info;
-
+            part_info->print_debug(") part_value_item", NULL);
             if (part_info->num_columns == 0)
               part_info->num_columns= part_info->curr_list_object;
             if (part_info->num_columns != part_info->curr_list_object)
@@ -4189,6 +4208,7 @@ part_value_item:
                 ensures that we only report errors when we know we have an
                 error.
               */
+              part_info->print_debug("Kilroy I", NULL);
               my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
               MYSQL_YYABORT;
             }
@@ -4227,7 +4247,7 @@ part_value_expr_item:
               my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
               MYSQL_YYABORT;
             }
-            if (part_info->add_column_list_value(part_expr))
+            if (part_info->add_column_list_value(YYTHD, part_expr))
             {
               MYSQL_YYABORT;
             }

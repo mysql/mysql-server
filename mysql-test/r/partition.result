@@ -405,14 +405,12 @@ create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
 partition p1 values less than (10));
-ERROR 42000: VALUES value must be of same type as partition function near '),
-partition p1 values less than (10))' at line 3
+ERROR HY000: VALUES value must be of same type as partition function
 create table t1 (a bigint)
 partition by list (a)
 (partition p0 values in (0xFFFFFFFFFFFFFFFF),
 partition p1 values in (10));
-ERROR 42000: VALUES value must be of same type as partition function near '),
-partition p1 values in (10))' at line 3
+ERROR HY000: VALUES value must be of same type as partition function
 create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (100),
@@ -1407,7 +1405,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE(a)
 (PARTITION p0 VALUES LESS THAN (NULL));
-ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '))' at line 3
+ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
 create table t1 (s1 int auto_increment primary key)
 partition by list (s1)
 (partition p1 values in (1),
