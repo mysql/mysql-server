@@ -710,10 +710,14 @@ err:
 }
 #endif
 
-/*****************************************************************************
+/**
   Read a packet from server. Give error message if socket was down
   or packet is an error message
-*****************************************************************************/
+
+  @retval  packet_error    An error occurred during reading.
+                           Error message is set.
+  @retval  
+*/
 
 ulong
 cli_safe_read(MYSQL *mysql)
@@ -879,31 +883,132 @@ void free_old_query(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Finish reading of a partial result set from the server.
+  Get the EOF packet, and update mysql->status
+  and mysql->warning_count.
+
+  @return  TRUE if a communication or protocol error, an error
+           is set in this case, FALSE otherwise.
+*/
+
+my_bool flush_one_result(MYSQL *mysql)
+{
+  ulong packet_length;
+
+  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY);
+
+  do
+  {
+    packet_length= cli_safe_read(mysql);
+    /*
+      There is an error reading from the connection,
+      or (sic!) there were no error and no
+      data in the stream, i.e. no more data from the server.
+      Since we know our position in the stream (somewhere in
+      the middle of a result set), this latter case is an error too
+      -- each result set must end with a EOF packet.
+      cli_safe_read() has set an error for us, just return.
+    */
+    if (packet_length == packet_error)
+      return TRUE;
+  }
+  while (packet_length > 8 || mysql->net.read_pos[0] != 254);
+
+  /* Analyze EOF packet of the result set. */
+
+  if (protocol_41(mysql))
+  {
+    char *pos= (char*) mysql->net.read_pos + 1;
+    mysql->warning_count=uint2korr(pos);
+    pos+=2;
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+  }
+  return FALSE;
+}
+
+
+/**
+  Read a packet from network. If it's an OK packet, flush it.
+
+  @return  TRUE if error, FALSE otherwise. In case of 
+           success, is_ok_packet is set to TRUE or FALSE,
+           based on what we got from network.
+*/
+
+my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
+{
+  ulong packet_length= cli_safe_read(mysql);
+
+  if (packet_length == packet_error)
+    return TRUE;
+
+  /* cli_safe_read always reads a non-empty packet. */
+  DBUG_ASSERT(packet_length);
+
+  *is_ok_packet= mysql->net.read_pos[0] == 0;
+  if (*is_ok_packet)
+  {
+    uchar *pos= mysql->net.read_pos + 1;
+
+    net_field_length_ll(&pos); /* affected rows */
+    net_field_length_ll(&pos); /* insert id */
+
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+
+    if (protocol_41(mysql))
+    {
+      mysql->warning_count=uint2korr(pos);
+      pos+=2;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Flush result set sent from server
 */
 
-static void cli_flush_use_result(MYSQL *mysql)
+static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
 {
   /* Clear the current execution status */
   DBUG_ENTER("cli_flush_use_result");
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
-  for (;;)
+
+  if (flush_one_result(mysql))
+    DBUG_VOID_RETURN;                           /* An error occurred */
+
+  if (! flush_all_results)
+    DBUG_VOID_RETURN;
+
+  while (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
   {
-    ulong pkt_len;
-    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
-      break;
-    if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+    my_bool is_ok_packet;
+    if (opt_flush_ok_packet(mysql, &is_ok_packet))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
+    if (is_ok_packet)
     {
-      if (protocol_41(mysql))
-      {
-        char *pos= (char*) mysql->net.read_pos + 1;
-        mysql->warning_count=uint2korr(pos); pos+=2;
-        mysql->server_status=uint2korr(pos); pos+=2;
-      }
-      break;                            /* End of data */
+      /*
+        Indeed what we got from network was an OK packet, and we
+        know that OK is the last one in a multi-result-set, so
+        just return.
+      */
+      DBUG_VOID_RETURN;
     }
+    /*
+      It's a result set, not an OK packet. A result set contains
+      of two result set subsequences: field metadata, terminated
+      with EOF packet, and result set data, again terminated with
+      EOF packet. Read and flush them.
+    */
+    if (flush_one_result(mysql) || flush_one_result(mysql))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
   }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1009,7 +1114,7 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        (*mysql->methods->flush_use_result)(mysql);
+        (*mysql->methods->flush_use_result)(mysql, FALSE);
         mysql->status=MYSQL_STATUS_READY;
         if (mysql->unbuffered_fetch_owner)
           *mysql->unbuffered_fetch_owner= TRUE;
