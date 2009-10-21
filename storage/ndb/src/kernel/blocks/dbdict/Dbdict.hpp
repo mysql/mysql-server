@@ -94,6 +94,7 @@
 #define ZWAIT_SUBSTARTSTOP 4
 #define ZDICT_TAKEOVER_REQ 5
 
+#define ZCOMMIT_WAIT_GCI   6
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -1922,6 +1923,7 @@ private:
   void trans_rollback_sp_done(Signal* signal, SchemaTransPtr, SchemaOpPtr);
 
   void trans_commit_start(Signal*, SchemaTransPtr);
+  void trans_commit_wait_gci(Signal*);
   void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
   void trans_commit_first(Signal*, SchemaTransPtr);
   void trans_commit_recv_reply(Signal*, SchemaTransPtr);
