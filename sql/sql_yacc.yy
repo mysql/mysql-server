@@ -4229,7 +4229,7 @@ part_value_expr_item:
             part_column_list_val *col_val;
             if (part_info->part_type == LIST_PARTITION)
             {
-              my_parse_error(ER(ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR));
+              my_parse_error(ER(ER_MAXVALUE_IN_VALUES_IN));
               MYSQL_YYABORT;
             }
             if (part_info->add_max_value())

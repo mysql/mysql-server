@@ -1992,7 +1992,7 @@ int partition_info::fix_parser_data(THD *thd)
   partition_element *part_elem;
   part_elem_value *val;
   uint num_elements;
-  uint i= 0, j;
+  uint i= 0, j, k;
   int result;
   DBUG_ENTER("partition_info::fix_parser_data");
 
@@ -2019,6 +2019,15 @@ int partition_info::fix_parser_data(THD *thd)
         {
           my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
           DBUG_RETURN(TRUE);
+        }
+        for (k= 0; k < num_columns; k++)
+        {
+          part_column_list_val *col_val= &val->col_val_array[k];
+          if (col_val->null_value && part_type == RANGE_PARTITION)
+          {
+            my_error(ER_NULL_IN_VALUES_LESS_THAN, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
         }
       }
       else
