@@ -5054,10 +5054,9 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *c_len, const char *c_dec,
                  CHARSET_INFO *cs)
 {
-  Item *res;
+  Item *UNINIT_VAR(res);
   ulong len;
   uint dec;
-  LINT_INIT(res);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
