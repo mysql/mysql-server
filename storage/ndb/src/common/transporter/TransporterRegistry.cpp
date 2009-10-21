@@ -760,7 +760,7 @@ TransporterRegistry::wakeup()
 {
   if (m_has_extra_wakeup_socket)
   {
-    char c;
+    static char c = 37; // not looked at on receiver side
     send(m_extra_wakeup_sockets[1], &c, 1, 0);
   }
 }
@@ -916,7 +916,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     if (socket > maxSocketValue)
       maxSocketValue = socket;
 
-    // Put the connected transporters in the socket read-set
+    // Put the wakup-socket in the read-set
     FD_SET(socket, &tcpReadset);
   }
 
