@@ -87,6 +87,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   m_firstExecutedScanOp(NULL),
   // Scan operations
   theScanningOp(NULL),
+  m_scanningQuery(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
   thePendingBlobOps(0)
@@ -130,7 +131,8 @@ NdbTransaction::init()
   theFirstOpInList	  = NULL;
   theLastOpInList	  = NULL;
 
-  theScanningOp            = NULL;
+  theScanningOp           = NULL;
+  m_scanningQuery         = NULL;
 
   theFirstExecOpInList	  = NULL;
   theLastExecOpInList	  = NULL;
@@ -1147,6 +1149,7 @@ NdbTransaction::releaseOperations()
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
   theScanningOp = NULL;
+  m_scanningQuery = NULL;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
@@ -1313,7 +1316,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
 { 
   NdbOperation* tOp;
 
-  if (theScanningOp != NULL){
+  if (theScanningOp != NULL || m_scanningQuery != NULL){
     setErrorCode(4607);
     return NULL;
   }
@@ -2862,7 +2865,7 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
   int error = query->assignParameters(paramValues);
   if (unlikely(error != 0)) {
     setErrorCode(error);
-    query->close(false,true);
+    query->release();
     return NULL;
   }
 

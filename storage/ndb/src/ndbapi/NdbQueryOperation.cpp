@@ -336,7 +336,9 @@ NdbQuery::nextResult(bool fetchAllowed, bool forceSend)
 void
 NdbQuery::close(bool forceSend, bool release)
 {
-  m_impl.close(forceSend,release);
+  m_impl.close(forceSend);
+  if (release)
+    m_impl.release();
 }
 
 NdbTransaction*
@@ -460,6 +462,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_state(Initial),
   m_error(),
   m_transaction(trans),
+  m_scanTransaction(NULL),
   m_operations(0),
   m_countOperations(0),
   m_tcKeyConfReceived(false),
@@ -512,12 +515,13 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef, 
                          NdbQueryImpl* next)
 {
-  if(queryDef.getNoOfOperations()==0){
+  if (queryDef.getNoOfOperations()==0) {
     trans.setErrorCode(QRY_HAS_ZERO_OPERATIONS);
     return NULL;
   }
+
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef, next);
-  if(query==NULL){
+  if (query==NULL) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
   }
   assert(query->m_state==Initial);
@@ -745,10 +749,13 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
 
   /* Check if there are any more completed streams available.*/
   if(m_queryDef.isScanQuery()){
-    Ndb* const ndb = m_transaction.getNdb();
     
-    TransporterFacade* const facade 
-      = ndb->theImpl->m_transporter_facade;
+    assert (m_state==Executing || m_state==Fetching);
+    assert (m_scanTransaction);
+
+    Ndb* const ndb = m_transaction.getNdb();
+    TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
+
     /* This part needs to be done under mutex due to synchronization with 
      * receiver thread. */
     PollGuard poll_guard(facade,
@@ -791,13 +798,11 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         m_fullStreams.pop();
       }
       if (m_applStreams.top() != NULL) {
-//      printf("::fetchMoreResults, got another 'm_applStreams'\n");
         return FetchResult_ok;
       }
 
       // Only expect to end up here if another ::sendFetchMore() is required
       assert (getRoot().isBatchComplete());
-//    printf("::fetchMoreResults, waiting for more 'm_applStreams'\n");
     } // while(true)
 
   } else { // is a Lookup query
@@ -857,15 +862,18 @@ NdbQueryImpl::closeSingletonScans()
 } //NdbQueryImpl::closeSingletonScans
 
 int
-NdbQueryImpl::close(bool forceSend, bool release)
+NdbQueryImpl::close(bool forceSend)
 {
   assert (m_state != Destructed);
+  Ndb* const ndb = m_transaction.getNdb();
 
-  // FIXME1 - Generally needxs more debugging
+  // TODO?: Unsure if we may also need to send a close to datanodes if we
+  //        have an errorcondition on this query
+
   if (m_state >= Executing  && m_state < EndOfData) {
     if (m_queryDef.isScanQuery()) {
-      Ndb* const ndb = m_transaction.getNdb();
-    
+      assert (m_scanTransaction != NULL);
+
       TransporterFacade* const facade = ndb->theImpl->m_transporter_facade;
 
       /* This part needs to be done under mutex due to synchronization with 
@@ -878,7 +886,6 @@ NdbQueryImpl::close(bool forceSend, bool release)
       /* Wait for outstanding scan results from current batch fetch */
       while (!getRoot().isBatchComplete())
       {
-        printf("::close waits for outstanding scan result batches\n");
         const FetchResult waitResult = static_cast<FetchResult>
               (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
                                     m_transaction.getConnectedNodeId(), 
@@ -908,7 +915,6 @@ NdbQueryImpl::close(bool forceSend, bool release)
       /* Wait for close to be confirm: */
       while (sent > 0 && !getRoot().isBatchComplete())
       {
-        printf("::close waits for SCAN CONF\n");
         const FetchResult waitResult = static_cast<FetchResult>
               (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
                                     m_transaction.getConnectedNodeId(), 
@@ -925,24 +931,44 @@ NdbQueryImpl::close(bool forceSend, bool release)
         default:
           assert(false);
         }
-        break;  // FIXME, temp hack, Ref ::receiveSCAN_TABCONF, & 'EndOfData'
       } // while
 
     } else { // Lookup query
       // Not likely to require any action to close lookups on TC
     }
+    // Throw any pending results
+    m_fullStreams.clear();
+    m_applStreams.clear();
     m_state = EndOfData;
+
+  } else { // Not executed query, nor fetched any rows
+    // Should not have any pending result rows in this state:
+    assert(m_fullStreams.top() == NULL);
+    assert(m_applStreams.top() == NULL);
   }
 
-  // Throw any pending results
-  m_fullStreams.clear();
-  m_applStreams.clear();
+  if (m_scanTransaction != NULL) {
+    assert (m_state != Closed);
+    assert (m_scanTransaction->m_scanningQuery == this);
+    m_scanTransaction->m_scanningQuery = NULL;
+    ndb->closeTransaction(m_scanTransaction);
+    ndb->theRemainingStartTransactions--;  // Compensate; m_scanTransaction was not a real Txn
+    m_scanTransaction = NULL;
+  }
+
   m_state = Closed;
-
-  if (release) {
-    delete this;
-  }
   return 0;
+} //NdbQueryImpl::close
+
+void
+NdbQueryImpl::release()
+{ 
+  assert (m_state != Destructed);
+  if (m_state != Closed) {
+    close(true);  // Ignore any errors, explicit ::close() first if errors are of interest
+  }
+
+  delete this;
 }
 
 void
@@ -975,8 +1001,17 @@ NdbQueryImpl::execTCKEYCONF(){
   }
 }
 
+void 
+NdbQueryImpl::execCLOSE_SCAN_REP(){
+  if(traceSignals){
+    ndbout << "NdbQueryImpl::execCLOSE_SCAN_REP()" << endl;
+  }
+  if (m_state < EndOfData)
+    m_state = EndOfData;
+}
+
 bool 
-NdbQueryImpl::incPendingStreams(int increment){
+NdbQueryImpl::countPendingStreams(int increment){
   m_pendingStreams += increment;
   if(m_pendingStreams==0 && m_tcKeyConfReceived){
     for(Uint32 i = 0; i < getNoOfOperations(); i++){
@@ -1026,7 +1061,7 @@ NdbQueryImpl::prepareSend()
     Uint32 batchRows = m_maxBatchRows; // >0: User specified prefered value, ==0: Use default CFG values
 
 #ifdef TEST_SCANREQ
-    batchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans
+    batchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
 #endif
 
     // Calculate batchsize for query as minimum batchRows for all m_operations[].
@@ -1046,8 +1081,22 @@ NdbQueryImpl::prepareSend()
       assert (firstBatchRows==batchRows);
     }
     m_maxBatchRows = batchRows;
+
+    /** Scan operations need a own sub-transaction object associated with each 
+     *  query.
+     */
+    ndb->theRemainingStartTransactions++; // Compensate; does not start a real Txn
+    NdbTransaction *scanTxn = ndb->hupp(&m_transaction);
+    if (scanTxn==NULL) {
+      ndb->theRemainingStartTransactions--;
+      m_transaction.setOperationErrorCodeAbort(ndb->getNdbError().code);
+      return -1;
+    }
+    scanTxn->theMagicNumber = 0x37412619;
+    scanTxn->m_scanningQuery = this;
+    this->m_scanTransaction = scanTxn;
   }
-  else
+  else  // Lookup query
   {
     m_pendingStreams = m_parallelism = 1;
     /* We will always receive a TCKEYCONF signal, even if the root operation
@@ -1136,7 +1185,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 
   Uint32 tTableId = rootTable->m_id;
   Uint32 tSchemaVersion = rootTable->m_version;
-  Uint64 transId = m_transaction.getTransactionId();
 
   if (rootDef.isScanOperation())
   {
@@ -1169,14 +1217,16 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, tSignal.getDataPtrSend());
     Uint32 reqInfo = 0;
 
-    scanTabReq->apiConnectPtr = m_transaction.theTCConPtr;
+    const Uint64 transId = m_scanTransaction->getTransactionId();
+
+    scanTabReq->apiConnectPtr = m_scanTransaction->theTCConPtr;
+    scanTabReq->buddyConPtr = m_scanTransaction->theBuddyConPtr; // 'buddy' refers 'real-transaction'->theTCConPtr
     scanTabReq->spare = 0;  // Unused in later protocoll versions
     scanTabReq->tableId = tTableId;
     scanTabReq->tableSchemaVersion = tSchemaVersion;
     scanTabReq->storedProcId = 0xFFFF;
     scanTabReq->transId1 = (Uint32) transId;
     scanTabReq->transId2 = (Uint32) (transId >> 32);
-    scanTabReq->buddyConPtr = m_transaction.theBuddyConPtr;
 
     Uint32 batchRows = m_maxBatchRows;
     Uint32 batchByteSize, firstBatchRows;
@@ -1264,6 +1314,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 
     TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, tSignal.getDataPtrSend());
 
+    const Uint64 transId = m_transaction.getTransactionId();
     tcKeyReq->apiConnectPtr   = m_transaction.theTCConPtr;
     tcKeyReq->apiOperationPtr = getRoot().getIdOfReceiver();
     tcKeyReq->tableId = tTableId;
@@ -1332,15 +1383,15 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
       setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
       return FetchResult_sendFail;
     }
-  }
-  m_state = Executing;
+    m_transaction.OpSent();
+  } // if
 
   /* Todo : Consider calling NdbOperation::postExecuteRelease()
    * Ideally it should be called outside TP mutex, so not added
    * here yet
    */
-  m_transaction.OpSent();
 
+  m_state = Executing;
   return 1;
 } // NdbQueryImpl::doSend()
 
@@ -1377,7 +1428,7 @@ NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
     }
   }
 
-//  printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
+//printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
   if (sent==0)
     return 0;
 
@@ -1389,8 +1440,10 @@ NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
   tSignal.setSignal(GSN_SCAN_NEXTREQ);
   ScanNextReq * const scanNextReq = CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
 
-  Uint64 transId = m_transaction.getTransactionId();
-  scanNextReq->apiConnectPtr = m_transaction.theTCConPtr;
+  assert (m_scanTransaction);
+  const Uint64 transId = m_scanTransaction->getTransactionId();
+
+  scanNextReq->apiConnectPtr = m_scanTransaction->theTCConPtr;
   scanNextReq->stopScan = closeFlag;
   scanNextReq->transId1 = (Uint32) transId;
   scanNextReq->transId2 = (Uint32) (transId >> 32);
@@ -1409,7 +1462,6 @@ NdbQueryImpl::sendFetchMore(int nodeId, bool closeFlag)
 
   return sent;
 } // NdbQueryImpl::sendFetchMore()
-
 
 
 NdbQueryImpl::StreamStack::StreamStack():
@@ -1477,7 +1529,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
 }
 
 NdbQueryOperationImpl::~NdbQueryOperationImpl(){
-  Ndb* const ndb = m_queryImpl.getNdbTransaction().getNdb();
 
 #ifndef NDEBUG // Buffer overrun check activated.
   { const size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
@@ -1496,10 +1547,13 @@ NdbQueryOperationImpl::~NdbQueryOperationImpl(){
     delete[] m_resultStreams;
   }
 
-  NdbRecAttr* recAttr;
-  while(recAttr!=NULL){
-    ndb->releaseRecAttr(recAttr);
+  Ndb* const ndb = m_queryImpl.getNdbTransaction().getNdb();
+  NdbRecAttr* recAttr = m_firstRecAttr;
+  while (recAttr != NULL)
+  {
+    NdbRecAttr* saveRecAttr = recAttr;
     recAttr = recAttr->next();
+    ndb->releaseRecAttr(saveRecAttr);
   }
 }
 
@@ -2097,14 +2151,11 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
       ndbout << "  rootStream {" << *rootStream << "}" << endl;
     }
     if (rootStream->isBatchComplete()){
-//    printf("  rootStream->isBatchComplete, root.isBatchComplete():%d\n", root.isBatchComplete());
       m_queryImpl.buildChildTupleLinks(streamNo);
       /* nextResult() will later move it from m_fullStreams to m_applStreams
        * under mutex protection.*/
       if (rootStream->m_receiver.hasResults()) {
         m_queryImpl.m_fullStreams.push(*rootStream);
-      } else {
-//      printf("  rootStream is empty\n");
       }
       // Don't awake before we have data, or query batch completed.
       return rootStream->m_receiver.hasResults() || root.isBatchComplete();
@@ -2128,25 +2179,25 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
          * but now we know that there will be
          * an extra instance. Therefore, increment total count of pending 
          * streams.*/
-        m_queryImpl.incPendingStreams(1);
+        m_queryImpl.countPendingStreams(1);
       }    
       childStream->m_pendingResults++;
       if (childStream->isBatchComplete()) {
         /* This child stream appears to be complete. Therefore decrement total 
          * count of pending streams.*/
-        m_queryImpl.incPendingStreams(-1);
+        m_queryImpl.countPendingStreams(-1);
       }
     }
     
     if (resultStream->m_pendingResults == 0) { 
       /* If this stream is complete, check if the query is also 
        * complete for this batch.*/
-      return m_queryImpl.incPendingStreams(-1);
+      return m_queryImpl.countPendingStreams(-1);
     } else if (resultStream->m_pendingResults == -1) {
       /* This happens because we received results for the child before those
        * of the parent. This operation will be set as complete again when the 
        * TRANSID_AI for the parent arrives.*/
-      m_queryImpl.incPendingStreams(1);
+      m_queryImpl.countPendingStreams(1);
     }
     return false;
   }
@@ -2165,12 +2216,12 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
     /* This happens because we received results for the child before those
      * of the parent. This stream will be set as complete again when the 
      * TRANSID_AI for the parent arrives.*/
-    m_queryImpl.incPendingStreams(1);
+    m_queryImpl.countPendingStreams(1);
   }  
   m_resultStreams[0]->m_pendingResults--;
   if(m_resultStreams[0]->isBatchComplete()){
     /* This stream is complete. Check if the query is also complete.*/
-    return m_queryImpl.incPendingStreams(-1);
+    return m_queryImpl.countPendingStreams(-1);
   }
   return false;
 } //NdbQueryOperationImpl::execTCKEYREF
@@ -2210,15 +2261,12 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
 
   if (resultStream.isBatchComplete()) {
     /* This stream is now complete*/
-    m_queryImpl.incPendingStreams(-1);
+    m_queryImpl.countPendingStreams(-1);
     m_queryImpl.buildChildTupleLinks(streamNo);
-//  printf("  resultStream->isBatchComplete, query::isBatchComplete:%d\n", isBatchComplete());
     /* nextResult() will later move it from m_fullStreams to m_applStreams
      * under mutex protection.*/
     if (resultStream.m_receiver.hasResults()) {
       m_queryImpl.m_fullStreams.push(resultStream);
-    } else {
-//    printf("  Stream is empty\n");
     }
     // Don't awake before we have data, or query batch completed.
     return resultStream.m_receiver.hasResults() || isBatchComplete();
@@ -2285,7 +2333,7 @@ NdbQueryOperationImpl::getIdOfReceiver() const {
 bool 
 NdbQueryOperationImpl::isBatchComplete() const {
   if (m_queryImpl.m_state >= NdbQueryImpl::EndOfData) {
-    printf("Query state:%d (>= EndOfData) -> BatchCompleted\n", m_queryImpl.m_state);
+//  printf("Query state:%d (>= EndOfData) -> BatchCompleted\n", m_queryImpl.m_state);
     return true;
   }
   for(Uint32 i = 0; i < m_queryImpl.getParallelism(); i++){

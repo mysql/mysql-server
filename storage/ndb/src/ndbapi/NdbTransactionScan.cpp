@@ -45,49 +45,30 @@ int
 NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
-#if TODO_SPJ_NEED_SCAN_TABREF
-  printf("NdbTransaction::receiveSCAN_TABREF, apiPtr:%x\n", ref->apiConnectPtr);
+  if (checkState_TransId(&ref->transId1)) {
+    if (theScanningOp) {
+      theScanningOp->setErrorCode(ref->errorCode);
+      theScanningOp->execCLOSE_SCAN_REP();
+      if(!ref->closeNeeded){
+        return 0;
+      }
 
+      /**
+       * Setup so that close_impl will actually perform a close
+       *   and not "close scan"-optimze it away
+       */
+      theScanningOp->m_conf_receivers_count++;
+      theScanningOp->m_conf_receivers[0] = theScanningOp->m_receivers[0];
+      theScanningOp->m_conf_receivers[0]->m_tcPtrI = ~0;
 
-  void * tPtr = theNdb->int2void(ref->apiConnectPtr);
-  printf("  tPtr:%p\n", tPtr);
-
-//assert(tPtr); // For now
-  NdbReceiver* tOp = theNdb->void2rec(tPtr);
-  printf("  NdbReceiver::magic:%d\n", tOp->checkMagicNumber());
-  printf("  NdbQueryOperationImpl::magic:%d\n", ((NdbQueryOperationImpl*)tPtr)->checkMagicNumber());
-
-  if (tOp && tOp->checkMagicNumber())
-  {
-    NdbQueryOperationImpl* const queryOpImpl 
-      = static_cast<NdbQueryOperationImpl*>(tOp->m_owner);
-
-    printf("  query->magic:%d\n", queryOpImpl->checkMagicNumber());
-    if(queryOpImpl->checkMagicNumber())
-    {
-//    queryOpImpl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
+    } else {
+      assert (m_scanningQuery);
+      m_scanningQuery->setErrorCode(ref->errorCode);
+      m_scanningQuery->execCLOSE_SCAN_REP();
+      if(!ref->closeNeeded){
+        return 0;
+      }
     }
-  }
-#endif //TODO_SPJ_NEED_SCAN_TABREF
-
-  if(checkState_TransId(&ref->transId1)){
-    if (theScanningOp == NULL) {
-      printf("FIXME: No active Scanning op, 'REF' ignored - likely a NdbQuery\n");
-      return 0;
-    }
-    theScanningOp->setErrorCode(ref->errorCode);
-    theScanningOp->execCLOSE_SCAN_REP();
-    if(!ref->closeNeeded){
-      return 0;
-    }
-
-    /**
-     * Setup so that close_impl will actually perform a close
-     *   and not "close scan"-optimze it away
-     */
-    theScanningOp->m_conf_receivers_count++;
-    theScanningOp->m_conf_receivers[0] = theScanningOp->m_receivers[0];
-    theScanningOp->m_conf_receivers[0]->m_tcPtrI = ~0;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -116,7 +97,8 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
 				   const Uint32 * ops, Uint32 len)
 {
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
-  if(checkState_TransId(&conf->transId1)){
+
+  if (checkState_TransId(&conf->transId1)) {
     
     /*
       If both EndOfData is set and number of operations is 0, close the scan.
@@ -125,7 +107,8 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       if (theScanningOp) {
         theScanningOp->execCLOSE_SCAN_REP();
       } else {
-        printf("TODO ::receiveSCAN_TABCONF received EOF, len:%d\n", len);
+        assert (m_scanningQuery);
+        m_scanningQuery->execCLOSE_SCAN_REP();
       }
       return 1; // -> Finished
     }
@@ -145,9 +128,10 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
         if(tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
           Uint32 opCount = info;
-          NdbQueryOperationImpl* query = tOp->m_query_operation_impl;
+          NdbQueryOperationImpl* queryOp = tOp->m_query_operation_impl;
+          assert (&queryOp->getQuery() == m_scanningQuery);
 
-          if (query->execSCAN_TABCONF(tcPtrI, opCount, tOp))
+          if (queryOp->execSCAN_TABCONF(tcPtrI, opCount, tOp))
             scanStatus = 1; // We have result data, wakeup receiver
         }
         else
