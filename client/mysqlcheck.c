@@ -369,12 +369,15 @@ static int get_options(int *argc, char ***argv)
     If there's no --default-character-set option given with
     --fix-table-name or --fix-db-name set the default character set to "utf8".
   */
-  if (!default_charset && (opt_fix_db_names || opt_fix_table_names))
+  if (!default_charset)
   {
-    default_charset= (char*) "utf8";
+    if (opt_fix_db_names || opt_fix_table_names)
+      default_charset= (char*) "utf8";
+    else
+      default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
   }
-  if (default_charset && !get_charset_by_csname(default_charset, MY_CS_PRIMARY,
-                                                MYF(MY_WME)))
+  if (strcmp(default_charset, MYSQL_AUTODETECT_CHARSET_NAME) &&
+      !get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME)))
   {
     printf("Unsupported character set: %s\n", default_charset);
     return 1;
@@ -787,8 +790,7 @@ static int dbConnect(char *host, char *user, char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (default_charset)
-    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
