@@ -3025,7 +3025,7 @@ int get_partition_id_range_col(partition_info *part_info,
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
     if (cmp_rec_and_tuple(range_col_array + loc_part_id*num_columns,
-                         num_columns) >= 0)
+                          num_columns) >= 0)
       min_part_id= loc_part_id + 1;
     else
       max_part_id= loc_part_id - 1;
@@ -6827,12 +6827,12 @@ uint32 store_tuple_to_record(Field **pfield,
 /*
   RANGE(columns) partitioning: compare value bound and probe tuple.
 
-  The value bound always is a full tuple (but may include the MAX_VALUE
+  The value bound always is a full tuple (but may include the MAXVALUE
   special value).
 
   The probe tuple may be a prefix of partitioning tuple. The tail_is_min
   parameter specifies whether the suffix components should be assumed to
-  hold MAX_VALUE
+  hold MAXVALUE
 */
 
 static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec)
