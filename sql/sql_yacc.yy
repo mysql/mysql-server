@@ -4245,7 +4245,7 @@ part_value_expr_item:
 
             if (!lex->safe_to_cache_query)
             {
-              my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
               MYSQL_YYABORT;
             }
             if (part_info->add_column_list_value(YYTHD, part_expr))

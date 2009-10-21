@@ -1679,7 +1679,7 @@ bool partition_info::add_column_list_value(THD *thd, Item *item)
   {
     context->table_list= save_list;
     thd->where= save_where;
-    my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     DBUG_RETURN(TRUE);
   }
   thd->where= save_where;
