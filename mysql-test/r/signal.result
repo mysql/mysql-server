@@ -2332,21 +2332,21 @@ DECLARE céèçà foo CONDITION FOR SQLSTATE '12345';
 SIGNAL céèçà SET MYSQL_ERRNO = 1000;
 end $$
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '�èçà foo CONDITION FOR SQLSTATE '12345';
-SIGNAL céèçà SET MYSQL_ERRNO = 1' at line 3
+SIGNAL céèçà SET ' at line 3
 create procedure test_signal()
 begin
 DECLARE "céèçà" CONDITION FOR SQLSTATE '12345';
 SIGNAL "céèçà" SET MYSQL_ERRNO = 1000;
 end $$
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"céèçà" CONDITION FOR SQLSTATE '12345';
-SIGNAL "céèçà" SET MYSQL_ERRNO =' at line 3
+SIGNAL "céèçà" S' at line 3
 create procedure test_signal()
 begin
 DECLARE 'céèçà' CONDITION FOR SQLSTATE '12345';
 SIGNAL 'céèçà' SET MYSQL_ERRNO = 1000;
 end $$
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''céèçà' CONDITION FOR SQLSTATE '12345';
-SIGNAL 'céèçà' SET MYSQL_ERRNO =' at line 3
+SIGNAL 'céèçà' S' at line 3
 create procedure test_signal()
 begin
 DECLARE `céèçà` CONDITION FOR SQLSTATE '12345';
