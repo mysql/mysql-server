@@ -283,12 +283,14 @@ public:
   void print_debug(const char *str, uint*);
   int fix_func_partition(THD *thd,
                          part_elem_value *val,
-                         partition_element *part_elem);
+                         partition_element *part_elem,
+                         uint part_id);
   bool fix_column_value_functions(THD *thd,
                                   part_elem_value *val,
                                   uint part_id);
   int fix_parser_data(THD *thd);
   int add_max_value();
+  void init_col_val(part_column_list_val *col_val, Item *item);
   int reorganize_into_single_field_col_val();
   part_column_list_val *add_column_value();
   bool set_part_expr(char *start_token, Item *item_ptr,
@@ -296,7 +298,7 @@ public:
   static int compare_column_values(const void *a, const void *b);
   bool set_up_charset_field_preps();
   bool init_column_part();
-  bool add_column_list_value(Item *item);
+  bool add_column_list_value(THD *thd, Item *item);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,

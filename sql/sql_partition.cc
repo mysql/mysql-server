@@ -2007,14 +2007,6 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       char buffer[MAX_STR_SIZE_PF];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item_expr= col_val->item_expression;
-      if (!col_val->fixed &&
-          (item_expr->fix_fields(current_thd, (Item**)0) || 
-           (!item_expr->const_item())))
-      {
-        my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
-        return 1;
-      }
-      col_val->fixed= 1;
       if (item_expr->null_value)
         err+= add_string(fptr, "NULL");
       else
@@ -4340,38 +4332,63 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     if ((alter_info->flags & ALTER_ADD_PARTITION) ||
          (alter_info->flags & ALTER_REORGANIZE_PARTITION))
     {
-      if ((tab_part_info->column_list &&
-          alt_part_info->num_columns != tab_part_info->num_columns) ||
-          (!tab_part_info->column_list && alt_part_info->num_columns))
+      if (thd->work_part_info->part_type != tab_part_info->part_type)
       {
-        my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if ((thd->work_part_info->part_type != tab_part_info->part_type) &&
-          (thd->work_part_info->part_type != NOT_A_PARTITION))
-      {
-        if (thd->work_part_info->part_type == RANGE_PARTITION)
+        if (thd->work_part_info->part_type == NOT_A_PARTITION)
         {
-          my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                   "RANGE", "LESS THAN");
-        }
-        else if (thd->work_part_info->part_type == LIST_PARTITION)
-        {
-          DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
-          my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                   "LIST", "IN");
-        }
-        else if (tab_part_info->part_type == RANGE_PARTITION)
-        {
-          my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                   "RANGE", "LESS THAN");
+          if (tab_part_info->part_type == RANGE_PARTITION)
+          {
+            my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "RANGE");
+            DBUG_RETURN(TRUE);
+          }
+          else if (tab_part_info->part_type == LIST_PARTITION)
+          {
+            my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), "LIST");
+            DBUG_RETURN(TRUE);
+          }
+          /*
+            Hash partitions can be altered without parser finds out about
+            that it is HASH partitioned. So no error here.
+          */
         }
         else
         {
-          DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
-          my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                   "LIST", "IN");
+          if (thd->work_part_info->part_type == RANGE_PARTITION)
+          {
+            my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                     "RANGE", "LESS THAN");
+          }
+          else if (thd->work_part_info->part_type == LIST_PARTITION)
+          {
+            DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
+            my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                     "LIST", "IN");
+          }
+          else if (tab_part_info->part_type == RANGE_PARTITION)
+          {
+            my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                     "RANGE", "LESS THAN");
+          }
+          else
+          {
+            DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+            my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                     "LIST", "IN");
+          }
+          DBUG_RETURN(TRUE);
         }
+      }
+      if ((tab_part_info->column_list &&
+          alt_part_info->num_columns != tab_part_info->num_columns) ||
+          (!tab_part_info->column_list &&
+            (tab_part_info->part_type == RANGE_PARTITION ||
+             tab_part_info->part_type == LIST_PARTITION) &&
+            alt_part_info->num_columns != 1U) ||
+          (!tab_part_info->column_list &&
+            tab_part_info->part_type == HASH_PARTITION &&
+            alt_part_info->num_columns != 0))
+      {
+        my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
       alt_part_info->column_list= tab_part_info->column_list;
