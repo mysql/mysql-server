@@ -1084,9 +1084,11 @@ private:
   
   NdbIndexScanOperation* m_firstExecutedScanOp;
 
-  // Scan operations
-  // The operation actually performing the scan
-  NdbScanOperation* theScanningOp; 
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of these may be non-NULL, which indirectly indicates the type)
+  NdbScanOperation* theScanningOp;
+  NdbQueryImpl* m_scanningQuery;
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;

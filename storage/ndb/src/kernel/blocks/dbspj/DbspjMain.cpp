@@ -940,7 +940,11 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
-  if (req->closeFlag == ZTRUE)
+  Ptr<TreeNode> treeNodePtr;
+  m_treenode_pool.getPtr(treeNodePtr, requestPtr.p->m_currentNodePtrI);
+
+  if (req->closeFlag == ZTRUE &&                         // Requested close scan
+      treeNodePtr.p->m_scanfrag_data.m_scan_status == 2) // Is closed on LQH
   {
     jam();
 
@@ -953,7 +957,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     conf->transId1 = requestPtr.p->m_transId[0];
     conf->transId2 = requestPtr.p->m_transId[1];
     conf->completedOps = 0;
-    conf->fragmentCompleted = 2; // Finished...
+    conf->fragmentCompleted = 2; // =ZSCAN_FRAG_CLOSED -> Finished...
     conf->total_len = 0; // Not supported...
 
     DEBUG("execSCAN_NEXTREQ(close), fragmentCompleted:" << conf->fragmentCompleted);
@@ -964,9 +968,6 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     cleanup(requestPtr);
     return;
   }
-
-  Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, requestPtr.p->m_currentNodePtrI);
 
   ndbrequire(treeNodePtr.p->m_info != 0 &&
              treeNodePtr.p->m_info->m_execSCAN_NEXTREQ != 0);
@@ -2068,7 +2069,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
 
-  ndbrequire(done <= 2); // 0, 1, 2
+  ndbrequire(done <= 2); // 0, 1, 2 (=ZSCAN_FRAG_CLOSED)
 
   treeNodePtr.p->m_scanfrag_data.m_scan_status = done;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;

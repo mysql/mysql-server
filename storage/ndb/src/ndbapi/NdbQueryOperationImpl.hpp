@@ -81,8 +81,17 @@ public:
    */ 
   NdbQuery::NextResultOutcome nextResult(bool fetchAllowed, bool forceSend);
 
-  /** Close query*/
-  int close(bool forceSend, bool release);
+  /** Close query: 
+   *  - Release datanode resources,
+   *  - Discard pending result sets,
+   *  - optionaly dealloc NdbQuery structures
+   */
+  int close(bool forceSend);
+
+  /** Deallocate 'this' NdbQuery object and its NdbQueryOperation objects.
+   *  If not already closed, it will also ::close() the NdbQuery.
+   */
+  void release();
 
   NdbTransaction& getNdbTransaction() const
   { return m_transaction; }
@@ -133,12 +142,15 @@ public:
   Uint32 getMaxBatchRows() const
   { return m_maxBatchRows; }
 
-  /** Get the (transaction independent) definition of this query.*/
+  /** Get the (transaction independent) definition of this query. */
   const NdbQueryDefImpl& getQueryDef() const
   { return m_queryDef; }
 
-  /** Process TCKEYCONF message. Return true if query is complete.*/
+  /** Process TCKEYCONF message. Return true if query is complete. */
   bool execTCKEYCONF();
+
+  /** Process SCAN_TABCONF w/ EndOfData which is a 'Close Scan Reply'. */
+  void execCLOSE_SCAN_REP();
 
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
@@ -212,6 +224,12 @@ private:
   /** Transaction in which this query instance executes.*/
   NdbTransaction& m_transaction;
 
+  /** Scan queries creates their own sub transaction which they
+   *  execute within.
+   *  Has same transId, Ndb*, ++ as the 'real' transaction above.
+   */
+  NdbTransaction* m_scanTransaction;
+
   /** The operations constituting this query.*/
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   size_t m_countOperations;             // #elements in above array
@@ -281,10 +299,10 @@ private:
 
   /** Count number of completed streams within this batch. (There should be 
    *  'parallelism' number of streams for each operation.)
-   *  @param increment Change in count of  completed operations.
+   *  @param increment Change in count of completed operations.
    *  @return True if batch is complete.
    */
-  bool incPendingStreams(int increment);
+  bool countPendingStreams(int increment);
 
 }; // class NdbQueryImpl
 
