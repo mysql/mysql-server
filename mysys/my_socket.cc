@@ -97,7 +97,7 @@ int my_socketpair(my_socket s[2])
 {
   int ret;
   int sock[2];
-  ret= socketpair(AF_LOCAL, SOCK_STREAM, 0, sock);
+  ret= socketpair(AF_UNIX, SOCK_STREAM, 0, sock);
   if (ret == 0)
   {
     s[0].fd = sock[0];
