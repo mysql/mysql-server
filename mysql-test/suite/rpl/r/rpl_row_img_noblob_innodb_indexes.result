@@ -1,19 +1,16 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
 include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 RESET MASTER;
-include/stop_slave.inc
 RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
-RESET MASTER;
-include/stop_slave.inc
-RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
@@ -35,7 +32,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -153,7 +150,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -271,7 +268,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -511,7 +508,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -629,7 +626,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -747,7 +744,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -987,7 +984,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1105,7 +1102,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1223,7 +1220,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1463,7 +1460,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1581,7 +1578,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1699,7 +1696,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -1939,7 +1936,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2057,7 +2054,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2175,7 +2172,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2415,7 +2412,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2533,7 +2530,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2651,7 +2648,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -2891,7 +2888,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R4: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -3009,7 +3006,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R3: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.
@@ -3127,7 +3124,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R2: Replication must not break when different
+#### Requirement R1: Replication must not break when different
 ####                 indexes exist on master and slave and PKE
 ####                 is not declared in a column that does not
 ####                 exist on the slave.

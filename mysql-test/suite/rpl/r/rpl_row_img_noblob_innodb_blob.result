@@ -1,19 +1,16 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
 include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 RESET MASTER;
-include/stop_slave.inc
 RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+include/stop_slave.inc
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
-RESET MASTER;
-include/stop_slave.inc
-RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
@@ -35,7 +32,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -67,7 +64,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -99,7 +96,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -131,7 +128,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -163,7 +160,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= InnoDB;;
@@ -195,7 +192,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -227,8 +224,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -263,7 +260,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -295,7 +292,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -327,7 +324,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -359,7 +356,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -391,7 +388,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= InnoDB;;
@@ -423,7 +420,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -455,8 +452,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -491,7 +488,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -523,7 +520,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -555,7 +552,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -587,7 +584,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -619,7 +616,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= MyISAM;;
@@ -651,7 +648,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -683,8 +680,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -719,7 +716,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -751,7 +748,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -783,7 +780,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -815,7 +812,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -847,7 +844,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= MyISAM;;
@@ -879,7 +876,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -911,8 +908,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -947,7 +944,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -979,7 +976,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -1011,7 +1008,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -1043,7 +1040,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -1075,7 +1072,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= InnoDB;;
@@ -1107,7 +1104,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -1139,8 +1136,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -1175,7 +1172,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -1207,7 +1204,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -1239,7 +1236,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -1271,7 +1268,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -1303,7 +1300,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= MyISAM;;
@@ -1335,7 +1332,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -1367,8 +1364,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -1403,7 +1400,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #5: no keys on table
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -1435,7 +1432,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 is not inlcuded in BI
 ####                 Case #4: UK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -1467,7 +1464,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 no included in BI.
 ####                 Case #3: non-nullable UK defined on non blob column
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -1499,7 +1496,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #2: PK defined on non blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -1531,7 +1528,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R7: Replication must not break when blob is
+#### Requirement R2: Replication must not break when blob is
 ####                 not part of BI
 ####                 Case #1: K defined on blob column
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= InnoDB;;
@@ -1563,7 +1560,7 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
+#### Requirement R1: Replication must not break when blob is
 ####                 part of PKE and --binlog-row-image='noblob'
 ####                 Case #2: blob is part of non-nullable UK
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -1595,8 +1592,8 @@ SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 #### WL#5096
-#### Requirement R6: Replication must not break when blob is
-####                 part of PKE and --binlog-row-image='noblob'
+#### Requirement R1: Replication must not break when blob is
+####                 part of PKE and --binlog-row-image='noblob'    
 ####                 Case #1: blob is part of PK
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
