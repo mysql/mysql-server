@@ -51,7 +51,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
-			mf_pack.c mf_unixpath.c mf_strip.c mf_arr_appstr.c \
+			mf_pack.c mf_unixpath.c mf_arr_appstr.c \
 			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c my_getncpus.c \
@@ -72,12 +72,13 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			mf_soundex.c \
-			my_conio.c my_wincond.c my_winthread.c
+			my_conio.c my_wincond.c my_winthread.c \
+                        my_socket.cc
 
 EXTRA_DIST =  		CMakeLists.txt my_times.c
 
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \

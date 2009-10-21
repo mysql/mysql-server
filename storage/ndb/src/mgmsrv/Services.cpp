@@ -399,12 +399,13 @@ MgmApiSession::runSession()
       const char* msg= NULL;
       switch(ctx.m_status) {
       case Parser_t::Eof:    // Client disconnected
-        g_eventLogger->debug("%s: Disconnected!", name());
         stop= true;
+        g_eventLogger->debug("%s: Eof!", name());
         break;
 
       case Parser_t::ExternalStop: // Stopped by other thread
         stop= true;
+        g_eventLogger->debug("%s: ExternalStop!", name());
         break;
 
       case Parser_t::NoLine: // Normal read timeout
@@ -443,6 +444,8 @@ MgmApiSession::runSession()
 
   }
 
+  g_eventLogger->debug("%s: Stopped!", name());
+
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
   if(my_socket_valid(m_socket))
@@ -451,6 +454,9 @@ MgmApiSession::runSession()
     my_socket_invalidate(&m_socket);
   }
   NdbMutex_Unlock(m_mutex);
+
+  g_eventLogger->debug("%s: Disconnected!", name());
+
   DBUG_VOID_RETURN;
 }
 

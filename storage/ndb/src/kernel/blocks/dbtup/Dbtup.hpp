@@ -470,10 +470,18 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Local_key m_key_mm;         // MM local key returned
     Uint32 m_realpid_mm;        // MM real page id
     Uint32 m_extent_info_ptr_i;
+    ScanPos() {
+      /*
+       * Position is Null until scanFirst().  In particular in LCP scan
+       * it is Null between LCP_FRAG_ORD and ACC_SCANREQ.
+       */
+      m_key.setNull();
+    }
   };
 
   // Scan Lock
   struct ScanLock {
+    ScanLock() {}
     Uint32 m_accLockOp;
     union {
       Uint32 nextPool;
@@ -570,6 +578,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Page_request 
   {
+    Page_request() {}
     Local_key m_key;
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
@@ -1302,6 +1311,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    * Build index operation record.
    */
   struct BuildIndexRec {
+    BuildIndexRec() {}
+
     BuildIndxImplReq m_request;
     Uint8  m_build_vs;          // varsize pages
     Uint32 m_indexId;           // the index
@@ -1717,6 +1728,7 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
 
   void execDROP_FRAG_REQ(Signal*);
 
@@ -1956,7 +1968,8 @@ private:
                       Ptr<Operationrec> regOperPtr,
                       Ptr<Fragrecord>,
                       Tablerec* regTabPtr,
-                      KeyReqStruct* req_struct);
+                      KeyReqStruct* req_struct,
+                      Local_key ** accminupdateptr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3237,6 +3250,8 @@ private:
 #endif
   
   void findFirstOp(OperationrecPtr&);
+  bool is_rowid_lcp_scanned(const Local_key& key1,
+                           const Dbtup::ScanOp& op);
   void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
   

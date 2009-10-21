@@ -32,6 +32,7 @@ int debug = 0;
 
 Logger logger;
 
+#ifndef _WIN32
 int
 runas(const char * user){
   if(user == 0 || strlen(user) == 0){
@@ -56,6 +57,7 @@ runas(const char * user){
   }
   return res;
 }
+#endif
 
 int
 insert(const char * pair, Properties & p){

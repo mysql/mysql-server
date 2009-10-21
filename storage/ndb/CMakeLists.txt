@@ -17,14 +17,32 @@ SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE")
 
 # Disable some warnings for NDB build:
-# 4200: non-standard extension used: zero length array
 # 4355: 'this': used in base member initializer list
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
-SET(CMAKE_C_FLAGS   "${CMAKE_CXX_FLAGS} /wd4355 /wd4200")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
+SET(CMAKE_C_FLAGS   "${CMAKE_CXX_FLAGS} /wd4355")
 
-ADD_SUBDIRECTORY(include)
-ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(tools)
-ADD_SUBDIRECTORY(test)
-ADD_SUBDIRECTORY(docs)
+IF(NOT SOURCE_SUBLIBS)
+  ADD_SUBDIRECTORY(include)
+  ADD_SUBDIRECTORY(src)
+  ADD_SUBDIRECTORY(tools)
+  ADD_SUBDIRECTORY(test)
+  IF(WITH_NDB_TEST)
+    ADD_SUBDIRECTORY(src/cw/cpcd)
+  ENDIF()
+  ADD_SUBDIRECTORY(docs)
+ENDIF()
+
+IF(WITHOUT_PARTITION_STORAGE_ENGINE)
+  MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
+ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
+
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+SET(NDBCLUSTER_SOURCES
+	../../sql/ha_ndbcluster.cc
+	../../sql/ha_ndbcluster_cond.cc
+	../../sql/ha_ndbcluster_connection.cc
+	../../sql/ha_ndbcluster_binlog.cc)
+SET(NDBCLUSTER_LIBS ndbclient)
+MYSQL_STORAGE_ENGINE(NDBCLUSTER)

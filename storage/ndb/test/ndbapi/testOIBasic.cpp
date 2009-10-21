@@ -384,11 +384,13 @@ thrrow(Par par, uint j)
   return par.m_usedthreads * j + par.m_no;
 }
 
+#if 0
 static bool
 isthrrow(Par par, uint i)
 {
   return i % par.m_usedthreads == par.m_no;
 }
+#endif
 
 // timer
 
@@ -434,9 +436,9 @@ const char*
 Tmr::time()
 {
   if (m_cnt == 0) {
-    sprintf(m_time, "%u ms", m_ms);
+    sprintf(m_time, "%u ms", (unsigned)m_ms);
   } else {
-    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", m_ms, m_cnt, (1000 * m_ms) / m_cnt);
+    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", (unsigned)m_ms, m_cnt, (unsigned)((1000 * m_ms) / m_cnt));
   }
   return m_time;
 }
@@ -445,7 +447,7 @@ const char*
 Tmr::pct(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
-    sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+    sprintf(m_text, "%u pct", (unsigned)((100 * m_ms) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -457,9 +459,9 @@ Tmr::over(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
     if (t1.m_ms <= m_ms)
-      sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+      sprintf(m_text, "%u pct", (unsigned)((100 * (m_ms - t1.m_ms)) / t1.m_ms));
     else
-      sprintf(m_text, "-%u pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
+      sprintf(m_text, "-%u pct", (unsigned)((100 * (t1.m_ms - m_ms)) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -3182,6 +3184,7 @@ Set::verifyorder(Par par, const ITab& itab, bool descending) const
 
 // print
 
+#if 0
 static NdbOut&
 operator<<(NdbOut& out, const Set& set)
 {
@@ -3193,6 +3196,7 @@ operator<<(NdbOut& out, const Set& set)
   }
   return out;
 }
+#endif
 
 // BVal - range scan bound
 
@@ -3626,6 +3630,7 @@ pkdelete(Par par)
   return 0;
 }
 
+#if 0
 static int
 pkread(Par par)
 {
@@ -3658,6 +3663,7 @@ pkread(Par par)
     CHK(set1.verify(par, set2, false) == 0);
   return 0;
 }
+#endif
 
 static int
 pkreadfast(Par par, uint count)
@@ -4183,6 +4189,7 @@ scanreadindex(Par par)
   return 0;
 }
 
+#if 0
 static int
 scanreadall(Par par)
 {
@@ -4190,6 +4197,7 @@ scanreadall(Par par)
   CHK(scanreadindex(par) == 0);
   return 0;
 }
+#endif
 
 // timing scans
 
@@ -4453,6 +4461,7 @@ scanupdateindex(Par par)
   return 0;
 }
 
+#if 0
 static int
 scanupdateall(Par par)
 {
@@ -4460,6 +4469,7 @@ scanupdateall(Par par)
   CHK(scanupdateindex(par) == 0);
   return 0;
 }
+#endif
 
 // medium level routines
 

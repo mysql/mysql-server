@@ -18,6 +18,10 @@
 */
 
 
+#ifdef _WIN32
+#define DEFAULT_PREFIX "c:/atrt"
+#endif
+
 #include "atrt.hpp"
 #include <my_sys.h>
 #include <my_getopt.h>
@@ -30,7 +34,7 @@
 
 #include <NdbSleep.h>
 
-#define PATH_SEPARATOR "/"
+#define PATH_SEPARATOR DIR_SEPARATOR
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -162,7 +166,7 @@ int
 main(int argc, char ** argv)
 {
   ndb_init();
-  
+
   bool restart = true;
   int lineno = 1;
   int test_no = 1; 
@@ -475,16 +479,15 @@ parse_args(int argc, char** argv)
   
   struct stat sbuf;
   BaseString mycnf;
+  mycnf.append(g_cwd);
+  mycnf.append(DIR_SEPARATOR);
+
   if (argc > 1 && lstat(argv[argc-1], &sbuf) == 0)
   {
-    mycnf.append(g_cwd);
-    mycnf.append(PATH_SEPARATOR);
     mycnf.append(argv[argc-1]);
   }
   else
   {
-    mycnf.append(g_cwd);
-    mycnf.append(PATH_SEPARATOR);
     mycnf.append("my.cnf");
     if (lstat(mycnf.c_str(), &sbuf) != 0)
     {
@@ -494,6 +497,8 @@ parse_args(int argc, char** argv)
       return false;
     }
   }
+
+  to_fwd_slashes((char*)g_cwd);
 
   g_logger.info("Bootstrapping using %s", mycnf.c_str());
   
@@ -612,6 +617,7 @@ parse_args(int argc, char** argv)
     {
       tmp.assfmt("PATH=%s/mysql-test/ndb", g_prefix);
     }
+    to_native(tmp);
     g_env_path = strdup(tmp.c_str());
     putenv(g_env_path);
   }
@@ -909,7 +915,7 @@ start_process(atrt_process & proc){
 	     proc.m_proc.m_cwd.c_str());
   
   g_logger.debug("system(%s)", tmp.c_str());
-  const int r1 = system(tmp.c_str());
+  const int r1 = sh(tmp.c_str());
   if(r1 != 0)
   {
     g_logger.critical("Failed to setup process");
@@ -1175,6 +1181,7 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
         cmd.appfmt("%s/bin/", g_prefix);
       }
       cmd.append(tc.m_command.c_str());
+      to_native(cmd);
 
       if (0) // valgrind
       {
@@ -1214,7 +1221,7 @@ gather_result(atrt_config& config, int * result){
   }
 
   g_logger.debug("system(%s)", tmp.c_str());
-  const int r1 = system(tmp.c_str());
+  const int r1 = sh(tmp.c_str());
   if(r1 != 0)
   {
     g_logger.critical("Failed to gather result!");
@@ -1222,7 +1229,7 @@ gather_result(atrt_config& config, int * result){
   }
   
   g_logger.debug("system(%s)", g_analyze_progname);
-  const int r2 = system(g_analyze_progname);
+  const int r2 = sh(g_analyze_progname);
   
   if(r2 == -1 || r2 == (127 << 8))
   {
@@ -1250,7 +1257,7 @@ setup_hosts(atrt_config& config){
 	       config.m_hosts[i]->m_basedir.c_str());
     
     g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = system(tmp.c_str());
+    const int r1 = sh(tmp.c_str());
     if(r1 != 0){
       g_logger.critical("Failed to setup %s",
 			config.m_hosts[i]->m_hostname.c_str());
@@ -1269,7 +1276,7 @@ do_rsync(const char *dir, const char *dst)
   
   g_logger.info("rsyncing %s to %s", dir, dst);
   g_logger.debug("system(%s)", tmp.c_str());
-  const int r1 = system(tmp.c_str());
+  const int r1 = sh(tmp.c_str());
   if(r1 != 0)
   {
     g_logger.critical("Failed to rsync %s to %s", dir, dst);
@@ -1328,9 +1335,16 @@ sshx(atrt_config & config, unsigned mask)
     
     if (type == 0)
       continue;
-    
-    tmp.appfmt("xterm -fg black -title \"%s(%s) on %s\""
-	       " -e 'ssh -t -X %s sh %s/ssh-login.sh' &",
+
+#ifdef _WIN32
+#define SYS_SSH "bash '-c echo\"%s(%s) on %s\";" \
+	        "ssh -t %s sh %s/ssh-login.sh' &"
+#else
+#define SYS_SSH "xterm -fg black -title \"%s(%s) on %s\"" \
+	        " -e 'ssh -t -X %s sh %s/ssh-login.sh' &"
+#endif
+
+    tmp.appfmt(SYS_SSH,
 	       type,
 	       proc.m_cluster->m_name.c_str(),
 	       proc.m_host->m_hostname.c_str(),
@@ -1338,7 +1352,7 @@ sshx(atrt_config & config, unsigned mask)
 	       proc.m_proc.m_cwd.c_str());
     
     g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = system(tmp.c_str());
+    const int r1 = sh(tmp.c_str());
     if(r1 != 0)
     {
       g_logger.critical("Failed sshx (%s)", 

@@ -431,6 +431,37 @@ protected:
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
+  /**
+   * simBlockNodeFailure
+   *
+   * Method must be called by blocks that send or receive 
+   * remote Fragmented Signals when they detect a node 
+   * (NDBD or API) failure.
+   * If the block needs to acknowledge or perform further
+   * processing after completing block-level node failure 
+   * handling, it can supply a Callback which will be invoked 
+   * when block-level node failure handling has completed.
+   * Otherwise TheEmptyCallback is used.
+   * If TheEmptyCallback is used, all failure handling is
+   * performed in the current timeslice, to avoid any
+   * races.
+   * 
+   * Parameters
+   *   signal       : Current signal*
+   *   failedNodeId : Node id of failed node
+   *   cb           : Callback to be executed when block-level
+   *                  node failure handling completed.
+   *                  TheEmptyCallback is passed if no further
+   *                  processing is required.
+   * Returns
+   *   Number of 'resources' cleaned up in call.
+   *   Callback return code is total resources cleaned up.
+   *   
+   */
+  Uint32 simBlockNodeFailure(Signal* signal,
+                             Uint32 failedNodeId,
+                             Callback& cb = TheEmptyCallback);
+
   /**********************************************************
    * Fragmented signals structures
    */
@@ -474,7 +505,8 @@ protected:
     
     enum Status {
       SendNotComplete = 0,
-      SendComplete    = 1
+      SendComplete    = 1,
+      SendCancelled   = 2
     };
     Uint8  m_status;
     Uint8  m_prio;
@@ -592,6 +624,25 @@ private:
   Uint32 *m_watchDogCounter;
 
   SectionSegmentPool::Cache * m_sectionPoolCache;
+  
+  
+  Uint32 doNodeFailureCleanup(Signal* signal,
+                              Uint32 failedNodeId,
+                              Uint32 resource,
+                              Uint32 cursor,
+                              Uint32 elementsCleaned,
+                              Callback& cb);
+
+  bool doCleanupFragInfo(Uint32 failedNodeId,
+                         Uint32& cursor,
+                         Uint32& rtUnitsUsed,
+                         Uint32& elementsCleaned);
+
+  bool doCleanupFragSend(Uint32 failedNodeId,
+                         Uint32& cursor,
+                         Uint32& rtUnitsUsed,
+                         Uint32& elementsCleaned);
+  
 protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
@@ -683,6 +734,19 @@ protected:
                           Uint32 *dst, 
 			  const Uint32 keyPaLen[MAX_ATTRIBUTES_IN_INDEX])const;
   
+  /**
+   * if ndbd,
+   *   wakeup main-loop if sleeping on IO
+   * if ndbmtd
+   *   wakeup thread running block-instance
+   */
+  void wakeup();
+
+  /**
+   * setup struct for wakeup
+   */
+  void setup_wakeup();
+
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */
@@ -716,6 +780,9 @@ private:
   ArrayPool<FragmentSendInfo> c_fragmentSendPool;
   DLList<FragmentSendInfo> c_linearFragmentSendList;
   DLList<FragmentSendInfo> c_segmentedFragmentSendList;
+
+protected:
+  Uint32 debugPrintFragmentCounts();
   
 public: 
   class MutexManager {
@@ -733,6 +800,7 @@ public:
      * core interface
      */
     struct ActiveMutex {
+      ActiveMutex() {}
       Uint32 m_gsn; // state
       Uint32 m_mutexId;
       Callback m_callback;
@@ -1217,18 +1285,18 @@ SectionHandle::~SectionHandle()
 #define RSS_OP_SNAPSHOT_SAVE(x) rss_##x = x
 #define RSS_OP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x)
 #else
-#define RSS_AP_SNAPSHOT(x)
+#define RSS_AP_SNAPSHOT(x) struct rss_dummy0_##x { int dummy; }
 #define RSS_AP_SNAPSHOT_SAVE(x)
 #define RSS_AP_SNAPSHOT_CHECK(x)
 
-#define RSS_OP_COUNTER(x)
+#define RSS_OP_COUNTER(x) struct rss_dummy1_##x { int dummy; }
 #define RSS_OP_COUNTER_INIT(x)
 #define RSS_OP_ALLOC(x)
 #define RSS_OP_FREE(x)
 #define RSS_OP_ALLOC_X(x,n)
 #define RSS_OP_FREE_X(x,n)
 
-#define RSS_OP_SNAPSHOT(x)
+#define RSS_OP_SNAPSHOT(x) struct rss_dummy2_##x { int dummy; }
 #define RSS_OP_SNAPSHOT_SAVE(x)
 #define RSS_OP_SNAPSHOT_CHECK(x)
 

@@ -33,13 +33,14 @@ ndb_mgmd_SOURCES = \
 	mgm_ndbinfo.cpp \
 	ConfigManager.cpp
 
-noinst_PROGRAMS = testConfig
+noinst_PROGRAMS = MgmConfig-t
 
-testConfig_SOURCES = \
+MgmConfig_t_SOURCES = \
 	testConfig.cpp \
 	InitConfigFileParser.cpp \
 	ConfigInfo.cpp \
 	Config.cpp
+MgmConfig_t_LDFLAGS = -static
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/ndbapi \
                -I$(top_srcdir)/storage/ndb/src/mgmapi \
@@ -56,7 +57,7 @@ LDADD_LOC = $(top_builddir)/storage/ndb/src/mgmclient/CommandInterpreter.lo \
 	    @TERMCAP_LIB@
 
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\""
 

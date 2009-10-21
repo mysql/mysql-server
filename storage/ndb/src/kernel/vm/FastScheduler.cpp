@@ -174,16 +174,28 @@ FastScheduler::doJob()
 
 }//FastScheduler::doJob()
 
+void
+FastScheduler::postPoll()
+{
+  SignalT<25> signalT;
+  Signal * signal = reinterpret_cast<Signal*>(&signalT);
+  SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
+  b_fs->executeFunction(GSN_SEND_PACKED, signal);
+}
+
 void FastScheduler::sendPacked()
 {
   if (globalData.sendPackedActivated == 1) {
+    SignalT<25> signalT;
+    Signal * signal = reinterpret_cast<Signal*>(&signalT);
     SimulatedBlock* b_lqh = globalData.getBlock(DBLQH);
     SimulatedBlock* b_tc = globalData.getBlock(DBTC);
     SimulatedBlock* b_tup = globalData.getBlock(DBTUP);
-    Signal* signal = getVMSignals();
+    SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
     b_lqh->executeFunction(GSN_SEND_PACKED, signal);
     b_tc->executeFunction(GSN_SEND_PACKED, signal);
     b_tup->executeFunction(GSN_SEND_PACKED, signal);
+    b_fs->executeFunction(GSN_SEND_PACKED, signal);
     return;
   } else if (globalData.activateSendPacked == 0) {
     return;
@@ -473,6 +485,12 @@ Uint32
 FastScheduler::traceDumpGetNumThreads()
 {
   return 1;                     // Single-threaded ndbd scheduler
+}
+
+int
+FastScheduler::traceDumpGetCurrentThread()
+{
+  return -1;                     // Single-threaded ndbd scheduler
 }
 
 bool

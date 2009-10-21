@@ -26,6 +26,7 @@ class NdbfsContinueB {
    * Sender(s)/Reciver(s)
    */
   friend class Ndbfs;
+  friend class VoidFs;
   friend bool printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData,
 				   Uint32 len, Uint16);
 private:

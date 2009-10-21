@@ -297,7 +297,7 @@ int mysql_update(THD *thd,
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   if (conds)
   {
@@ -337,7 +337,14 @@ int mysql_update(THD *thd,
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
-    if (error)
+    /*
+      There was an error or the error was already sent by
+      the quick select evaluation.
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (error || thd->is_error())
     {
       DBUG_RETURN(1);				// Error in where
     }
@@ -747,6 +754,7 @@ int mysql_update(THD *thd,
       break;
     }
   }
+  table->auto_increment_field_not_null= FALSE;
   dup_key_found= 0;
   /*
     Caching the killed status to pass as the arg to query event constuctor;
@@ -849,13 +857,22 @@ int mysql_update(THD *thd,
       also when using BEFORE UPDATE triggers on table and also quite
       hard checks on UPDATE statement. Still it is used very often with
       all those limitations.
-
-      Moreover, since there is no read before update, found == updated,
-      as there is no optimization to remove the update if the new data
-      should equal the old.
     */
     table->file->info(HA_STATUS_WRITTEN_ROWS);
-    found= updated= table->file->stats.rows_updated;
+    updated= table->file->stats.rows_updated;
+    /*
+      If we could compare the records then the records were
+      either found by reading the table or they were
+      constructed from the WHERE clause. In this case the
+      handler might not have been called to perform the update.
+      If we could not compare the records then the read was skipped
+      and we could not create a record to compare with from the
+      WHERE clause. In this case we cannot use the calculated value
+      of found, instead the number if found records must equal to number
+      of updated records.
+     */
+    if (!can_compare_record)
+      found= updated;
   }
 
   /* If LAST_INSERT_ID(X) was used, report X */

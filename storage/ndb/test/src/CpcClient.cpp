@@ -189,6 +189,7 @@ SimpleCpcClient::undefine_process(Uint32 id, Properties& reply){
   return status;
 }
 
+#if 0
 static void
 printproc(SimpleCpcClient::Process & p) {
   ndbout.println("Name:                %s", p.m_name.c_str());
@@ -204,7 +205,7 @@ printproc(SimpleCpcClient::Process & p) {
   ndbout.println("Ulimit:              %s", p.m_ulimit.c_str());
   ndbout.println("");
 }
-
+#endif
 
 static int
 convert(const Properties & src, SimpleCpcClient::Process & dst){

@@ -172,7 +172,6 @@ public:
   };
 
   enum OperationState {
-    OS_CONNECTING_DICT = 0,
     OS_CONNECTED = 1,
     OS_OPERATING = 2,
     OS_PREPARED = 3,
@@ -501,6 +500,8 @@ public:
   /* WHEN THE INDEX IS DROPPED.               */
   /* **************************************** */
   struct TcIndexData {
+    TcIndexData() {}
+
     /**
      *  IndexState
      */
@@ -846,7 +847,6 @@ public:
     // with indexes almost never used.
     //---------------------------------------------------
     UintR clientData;           /* SENDERS OPERATION POINTER              */
-    UintR dihConnectptr;        /* CONNECTION TO DIH BLOCK ON THIS NODE   */
     UintR prevTcConnect;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
     UintR savePointId;
 
@@ -956,7 +956,8 @@ public:
       NF_TAKEOVER          = 0x1,
       NF_CHECK_SCAN        = 0x2,
       NF_CHECK_TRANSACTION = 0x4,
-      NF_NODE_FAIL_BITS    = 0x7 // All bits...
+      NF_BLOCK_HANDLE      = 0x8,
+      NF_NODE_FAIL_BITS    = 0xF // All bits...
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
@@ -1304,7 +1305,6 @@ private:
   void execDIGETNODESREF(Signal* signal);
   void execDIH_SCAN_GET_NODES_REF(Signal* signal);
   void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
-  void execDISEIZECONF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
   void execDIH_SCAN_TAB_REF(Signal* signal);
   void execDIH_SCAN_TAB_CONF(Signal* signal);
@@ -1610,7 +1610,6 @@ private:
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
   void diverify010Lab(Signal* signal);
-  void intstartphase2x010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
   void abortBeginErrorLab(Signal* signal);
@@ -1625,7 +1624,6 @@ private:
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
   void tckeyreq020Lab(Signal* signal);
-  void intstartphase2x020Lab(Signal* signal);
   void intstartphase1x010Lab(Signal* signal);
   void startphase1x010Lab(Signal* signal);
 
@@ -1641,7 +1639,10 @@ private:
 			 LocalDLList<ScanFragRec>::Head&);
 
   void nodeFailCheckTransactions(Signal*,Uint32 transPtrI,Uint32 failedNodeId);
+  void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
   void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
+
+  void apiFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
   
   // Initialisation
   void initData();

@@ -233,7 +233,6 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
   addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Dbtc::execDIH_SCAN_GET_NODES_CONF);
   addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbtc::execDIH_SCAN_GET_NODES_REF);
-  addRecSignal(GSN_DISEIZECONF, &Dbtc::execDISEIZECONF);
   addRecSignal(GSN_DIVERIFYCONF, &Dbtc::execDIVERIFYCONF);
   addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbtc::execDIH_SCAN_TAB_CONF);
   addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbtc::execDIH_SCAN_TAB_REF);

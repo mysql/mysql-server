@@ -32,7 +32,33 @@ class ContinueFragmented {
 public:
   
 private:
-  Uint32 line;
+  enum {
+    CONTINUE_SENDING = 0,
+    CONTINUE_CLEANUP = 1
+  };
+  
+  STATIC_CONST(CONTINUE_CLEANUP_FIXED_WORDS = 5);
+
+  enum {
+    RES_FRAGSEND = 0, /* Fragmented send lists */
+    RES_FRAGINFO = 1, /* Fragmented signal assembly hash */
+    RES_LAST = 2      /* Must be last */
+  };
+
+  Uint32 type;
+  
+  union
+  {
+    Uint32 line;  /* For CONTINUE_SENDING */
+    struct        /* For CONTINUE_CLEANUP */
+    {
+      Uint32 failedNodeId;
+      Uint32 resource;
+      Uint32 cursor;
+      Uint32 elementsCleaned;
+      Uint32 callbackStart; /* Callback structure placed here */
+    } cleanup;
+  };
 };
 
 #endif

@@ -38,11 +38,8 @@ public:
                           const char* objRef,
 			  enum NdbShutdownType = NST_ErrorHandler);
   
-  static void handleWarning(int faultID, 
-			    const char* problemData,
-                            const char* objRef);
-  
-  static void formatMessage(Uint32 num_threads, int faultID,
+  static void formatMessage(int thr_no,
+                            Uint32 num_threads, int faultID,
 			    const char* problemData,
                             const char* objRef, 
 			    const char* theNameOfTheTraceFile,

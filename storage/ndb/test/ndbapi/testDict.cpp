@@ -1254,7 +1254,7 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
 int
 runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
 
-  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~0, 256*256*256-2};
+  Uint32 startvalues[5] = {256-2, 0, 256*256-2, ~Uint32(0), 256*256*256-2};
 
   int ret = NDBT_OK;
 
@@ -1283,7 +1283,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
-    if (startvalue != ~(Uint32)0) // check that default value starts with 1
+    if (startvalue != ~Uint32(0)) // check that default value starts with 1
       myColumn.setAutoIncrementInitialValue(startvalue);
     myTable.addColumn(myColumn);
 
@@ -1294,7 +1294,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 
 
-    if (startvalue == ~(Uint32)0) // check that default value starts with 1
+    if (startvalue == ~Uint32(0)) // check that default value starts with 1
       startvalue = 1;
 
     for (int i = 0; i < 16; i++) {
@@ -1755,8 +1755,8 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   per *= 1000;
   per /= times;
   
-  ndbout_c("%d random getColumn(name) in %Ld ms -> %d us/get",
-	   times, stop, (Uint32)per);
+  ndbout_c("%d random getColumn(name) in %Ld ms -> %u us/get",
+	   times, stop, Uint32(per));
 
   return NDBT_OK;
 }
@@ -1901,7 +1901,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
-  for (int i = 0; i<tab.getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab.getNoOfColumns(); i++)
   {
     if (tab.getColumn(i)->getStorageType() == 
         NdbDictionary::Column::StorageTypeDisk)
@@ -2604,7 +2604,6 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 {
   int lgError = 15000;
   int tsError = 16000;
-  //int res;
   char lgname[256];
   char ufname[256];
   char tsname[256];
@@ -3085,7 +3084,7 @@ runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
   if (res.init(ctx, step))
     return NDBT_FAILED;
   
-  for (Uint32 i = 0; i<(Uint32)loops; i++)
+  for (int i = 0; i<loops; i++)
   {
     for (Uint32 j = 0; j<10; j++)
       if (dict.schema_op(pNdb))
@@ -3324,7 +3323,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
                 6017, 
 #endif
                 0 };
-  for (Uint32 i = 0; i<err[i] != 0; i++)
+  for (Uint32 i = 0; err[i] != 0; i++)
   {
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
 
@@ -3430,10 +3429,10 @@ int
 restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
-
-  res.restartAll(NdbRestarter::NRRF_INITIAL |
-                 NdbRestarter::NRRF_NOSTART |
-                 NdbRestarter::NRRF_ABORT);
+  
+  res.restartAll2(NdbRestarter::NRRF_INITIAL |
+                  NdbRestarter::NRRF_NOSTART |
+                  NdbRestarter::NRRF_ABORT);
   if (res.waitClusterNoStart())
     return NDBT_FAILED;
 
@@ -3525,7 +3524,9 @@ template class Vector<ST_Obj*>;
 typedef Vector<ST_Obj*> ST_Objlist;
 
 static ST_Objlist st_objlist;
+#ifndef NDEBUG
 static const ST_Obj* st_find_obj(const char* db, const char* name);
+#endif
 
 #define ST_MAX_NAME_SIZE  (MAX_TAB_NAME_SIZE + 100)
 
@@ -3968,6 +3969,7 @@ err:
   return -1;
 }
 
+#if 0
 static int
 st_wait_db_node_up(ST_Con& c, int node_id)
 {
@@ -3989,6 +3991,7 @@ st_wait_db_node_up(ST_Con& c, int node_id)
 err:
   return -1;
 }
+#endif
 
 // extra connection (separate API node)
 
@@ -4114,7 +4117,7 @@ err:
 }
 
 // debug aid
-
+#ifndef NDEBUG
 static const ST_Obj*
 st_find_obj(const char* dbname, const char* name)
 {
@@ -4130,7 +4133,9 @@ st_find_obj(const char* dbname, const char* name)
   }
   return ret_objp;
 }
+#endif
 
+#if 0
 static void
 st_print_obj(const char* dbname, const char* name, int line = 0)
 {
@@ -4146,6 +4151,7 @@ st_print_obj(const char* dbname, const char* name, int line = 0)
     g_info << " line:" << line;
   g_info << endl;
 }
+#endif
 
 // set object state
 
@@ -4164,11 +4170,13 @@ st_set_commit_obj(ST_Con& c, ST_Obj& obj)
   }
 }
 
+#if 0
 static void
 st_set_commit_trg(ST_Con& c, ST_Trg& trg)
 {
   st_set_commit_obj(c, trg);
 }
+#endif
 
 static void
 st_set_commit_ind(ST_Con& c, ST_Ind& ind)
@@ -6188,14 +6196,14 @@ err:
   return NDBT_FAILED;
 }
 
+#if 0
 static int
 st_test_sr_commit(ST_Con& c, int arg = -1)
 {
   g_info << "not yet" << endl;
   return NDBT_OK;
-err:
-  return NDBT_FAILED;
 }
+#endif
 
 // run test cases
 
@@ -7095,6 +7103,179 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug46585(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbDictionary::Table tab(*ctx->getTab());
+  NdbRestarter res;
+  int records = ctx->getNumRecords();
+
+  // ordered index on first few columns
+  NdbDictionary::Index idx("X");
+  idx.setTable(tab.getName());
+  idx.setType(NdbDictionary::Index::OrderedIndex);
+  idx.setLogging(false);
+  for (int cnt = 0, i_hate_broken_compilers = 0;
+       cnt < 3 &&
+       i_hate_broken_compilers < tab.getNoOfColumns();
+       i_hate_broken_compilers++) {
+    if (NdbSqlUtil::check_column_for_ordered_index
+        (tab.getColumn(i_hate_broken_compilers)->getType(), 0) == 0 &&
+        tab.getColumn(i_hate_broken_compilers)->getStorageType() !=
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      idx.addColumn(*tab.getColumn(i_hate_broken_compilers));
+      cnt++;
+    }
+  }
+
+  for (int i = 0; i<tab.getNoOfColumns(); i++)
+  {
+    if (tab.getColumn(i)->getStorageType() ==
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      NDBT_Tables::create_default_tablespace(pNdb);
+      break;
+    }
+  }
+
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+  (void)pDic->dropTable(tab.getName());
+  if (pDic->createTable(tab) != 0)
+  {
+    ndbout << "FAIL: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createIndex(idx) != 0)
+  {
+    ndbout << "FAIL: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  for (int i = 0; i<loops; i++)
+  {
+    const NdbDictionary::Table * org = pDic->getTable(tab.getName());
+    {
+      HugoTransactions trans(* org);
+      CHECK2(trans.loadTable(pNdb, records) == 0,
+           "load table failed");
+    }
+
+    NdbDictionary::Table altered = * org;
+    altered.setFragmentCount(org->getFragmentCount() + 1);
+    ndbout_c("alter from %u to %u partitions",
+             org->getFragmentCount(),
+             altered.getFragmentCount());
+
+    if (pDic->beginSchemaTrans())
+    {
+      ndbout << "Failed to beginSchemaTrans()" << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    if (pDic->prepareHashMap(*org, altered) == -1)
+    {
+      ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    if (pDic->endSchemaTrans())
+    {
+      ndbout << "Failed to endSchemaTrans()" << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    result = pDic->alterTable(*org, altered);
+    if (result)
+    {
+      ndbout << pDic->getNdbError() << endl;
+    }
+    CHECK2(result == 0,
+           "failed to alter");
+
+    pDic->invalidateTable(tab.getName());
+    {
+      const NdbDictionary::Table * alteredP = pDic->getTable(tab.getName());
+      CHECK2(alteredP->getFragmentCount() == altered.getFragmentCount(),
+             "altered table does not have correct frag count");
+
+      HugoTransactions trans(* alteredP);
+
+      CHECK2(trans.scanUpdateRecords(pNdb, records) == 0,
+             "scan update failed");
+      trans.startTransaction(pNdb);
+      trans.pkUpdateRecord(pNdb, 0);
+      trans.execute_Commit(pNdb);
+      ndbout_c("before restart, gci: %d", trans.getRecordGci(0));
+      trans.closeTransaction(pNdb);
+    }
+
+    switch(i % 2){
+    case 0:
+      if (res.getNumDbNodes() > 1)
+      {
+        int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        CHECK2(res.restartOneDbNode(nodeId,
+                                    false,
+                                    true,
+                                    true) == 0,
+               "restart one node failed");
+        CHECK2(res.waitNodesNoStart(&nodeId, 1) == 0,
+               "wait node started failed");
+        CHECK2(res.startNodes(&nodeId, 1) == 0,
+               "start node failed");
+        break;
+      }
+    case 1:
+    {
+      CHECK2(res.restartAll(false, true, false) == 0,
+             "restart all failed");
+      CHECK2(res.waitClusterNoStart() == 0,
+             "waitClusterNoStart failed");
+      CHECK2(res.startAll() == 0,
+             "startAll failed");
+      break;
+    }
+    }
+    CHECK2(res.waitClusterStarted() == 0,
+           "wait cluster started failed");
+
+    int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);
+    ndbout_c("restartGCI: %d", restartGCI);
+
+    pDic->invalidateTable(tab.getName());
+    {
+      const NdbDictionary::Table * alteredP = pDic->getTable(tab.getName());
+      HugoTransactions trans(* alteredP);
+
+      int cnt;
+      CHECK2(trans.selectCount(pNdb, 0, &cnt) == 0,
+             "select count failed");
+
+      CHECK2(cnt == records,
+             "table does not have correct record count: "
+             << cnt << " != " << records);
+
+      CHECK2(alteredP->getFragmentCount() == altered.getFragmentCount(),
+             "altered table does not have correct frag count");
+
+      CHECK2(trans.scanUpdateRecords(pNdb, records) == 0,
+             "scan update failed");
+      CHECK2(trans.pkUpdateRecords(pNdb, records) == 0,
+             "pkUpdateRecords failed");
+      CHECK2(trans.clearTable(pNdb) == 0,
+             "clear table failed");
+    }
+  }
+
+end:
+  (void)pDic->dropTable(tab.getName());
+  return result;
+}
 
 /** telco-6.4 **/
  
@@ -7334,6 +7515,11 @@ TESTCASE("Bug41905",
 TESTCASE("Bug46552", "")
 {
   INITIALIZER(runBug46552);
+}
+TESTCASE("Bug46585", "")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runBug46585);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);

@@ -471,6 +471,10 @@ args: -n ScanReadError5030 T1 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n ScanReadError8081 T1 D1 D2
+
+max-time: 500
+cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
 
 max-time: 500
@@ -505,7 +509,7 @@ max-time: 500
 cmd: testScan
 args: -n Bug36124 T1
 
-max-time: 1000
+max-time: 1800
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
@@ -541,10 +545,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18414 T1
 
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug18612 T1
-
+#max-time: 1000
+#cmd: testNodeRestart
+#args: -n Bug18612 T1
+#
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18612SR T1
@@ -797,6 +801,14 @@ cmd: testNdbApi
 args: -n NdbRecordRowLength
 
 max-time: 500
+cmd: testNdbApi
+args: -n Bug44065
+
+max-time: 500
+cmd: testNdbApi
+args: -n Bug44065_org
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
@@ -984,7 +996,7 @@ args: -n Multi
 #
 max-time: 3600
 cmd: test_event
-args: -n CreateDropNR -l 1
+args: -n CreateDropNR T1
 
 max-time: 600
 cmd: testBasic
@@ -1097,7 +1109,7 @@ type: bench
 
 max-time: 5000
 cmd: testNodeRestart
-args: -n GCP T1
+args: -n GCP -l 1 T1
 
 max-time: 1200
 cmd: testNodeRestart
@@ -1415,6 +1427,10 @@ max-time: 300
 cmd: testDict
 args: -n Bug46552 T1
 
+max-time: 900
+cmd: testDict
+args: -n Bug46585 T1 I3 D1
+
 max-time: 300
 cmd: testSystemRestart
 args: -n Bug46651 T1
@@ -1428,4 +1444,15 @@ max-time: 300
 cmd: testNdbApi
 args: -n ApiFailReqBehaviour T1
 
-# end of 6.3
+max-time: 300
+cmd: testNdbApi
+args: -n ReadColumnDuplicates
+
+max-time: 300
+cmd: testBasic
+args: -n DDInsertFailUpdateBatch D1 D2
+
+max-time: 300
+cmd: testNdbApi
+args: -n FragmentedApiFailure T1
+

@@ -29,6 +29,7 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/LgmanContinueB.hpp>
 #include <signaldata/GetTabInfo.hpp>
+#include <signaldata/NodeFailRep.hpp>
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -53,6 +54,8 @@ extern EventLogger * g_eventLogger;
 #define DEBUG_UNDO_EXECUTION 0
 #define DEBUG_SEARCH_LOG_HEAD 0
 
+#define FREE_BUFFER_MARGIN (2 * File_formats::UNDO_PAGE_WORDS)
+
 Lgman::Lgman(Block_context & ctx) :
   SimulatedBlock(LGMAN, ctx),
   m_tup(0),
@@ -67,6 +70,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_READ_CONFIG_REQ, &Lgman::execREAD_CONFIG_REQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Lgman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Lgman::execCONTINUEB);
+  addRecSignal(GSN_NODE_FAILREP, &Lgman::execNODE_FAILREP);
 
   addRecSignal(GSN_CREATE_FILE_IMPL_REQ, &Lgman::execCREATE_FILE_IMPL_REQ);
   addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REQ,
@@ -323,32 +327,71 @@ Lgman::execCONTINUEB(Signal* signal){
 }
 
 void
+Lgman::execNODE_FAILREP(Signal* signal)
+{
+  jamEntry();
+  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NdbNodeBitmask failed; 
+  failed.assign(NdbNodeBitmask::Size, rep->theNodes);
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // No distributed fragmented signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
+}
+
+void
 Lgman::execDUMP_STATE_ORD(Signal* signal){
   jamEntry();
-  if(signal->theData[0] == 12001)
+  if (signal->theData[0] == 12001 || signal->theData[0] == 12002)
   {
+    char tmp[1024];
     Ptr<Logfile_group> ptr;
     m_logfile_group_list.first(ptr);
     while(!ptr.isNull())
     {
-      infoEvent("lfg %d state: %x fs: %d lsn "
-		"[ last: %lld s(req): %lld s:ed: %lld lcp: %lld ] waiters: %d %d",
-		ptr.p->m_logfile_group_id, ptr.p->m_state, 
-		ptr.p->m_outstanding_fs,
-		ptr.p->m_last_lsn, ptr.p->m_last_sync_req_lsn,
-		ptr.p->m_last_synced_lsn, ptr.p->m_last_lcp_lsn,
-		!ptr.p->m_log_buffer_waiters.isEmpty(),
-		!ptr.p->m_log_sync_waiters.isEmpty());
+      BaseString::snprintf(tmp, sizeof(tmp),
+                           "lfg %u state: %x fs: %u lsn "
+                           " [ last: %llu s(req): %llu s:ed: %llu lcp: %llu ] "
+                           " waiters: %d %d",
+                           ptr.p->m_logfile_group_id, ptr.p->m_state,
+                           ptr.p->m_outstanding_fs,
+                           ptr.p->m_last_lsn, ptr.p->m_last_sync_req_lsn,
+                           ptr.p->m_last_synced_lsn, ptr.p->m_last_lcp_lsn,
+                           !ptr.p->m_log_buffer_waiters.isEmpty(),
+                           !ptr.p->m_log_sync_waiters.isEmpty());
+      if (signal->theData[0] == 12001)
+        infoEvent(tmp);
+      ndbout_c(tmp);
+
+      BaseString::snprintf(tmp, sizeof(tmp),
+                           "   callback_buffer_words: %u"
+                           " free_buffer_words: %u free_file_words: %llu",
+                           ptr.p->m_callback_buffer_words,
+                           ptr.p->m_free_buffer_words,
+                           ptr.p->m_free_file_words);
+      if (signal->theData[0] == 12001)
+        infoEvent(tmp);
+      ndbout_c(tmp);
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
       {
 	Ptr<Log_waiter> waiter;
 	Local_log_waiter_list 
 	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 	list.first(waiter);
-	infoEvent("  free_buffer_words: %d head(waiters).sz: %d %d",
-		  ptr.p->m_free_buffer_words,
-		  waiter.p->m_size,
-		  2*File_formats::UNDO_PAGE_WORDS);
+        BaseString::snprintf(tmp, sizeof(tmp),
+                             "  head(waiters).sz: %u %u",
+                             waiter.p->m_size,
+                             FREE_BUFFER_MARGIN);
+        if (signal->theData[0] == 12001)
+          infoEvent(tmp);
+        ndbout_c(tmp);
       }
       if (!ptr.p->m_log_sync_waiters.isEmpty())
       {
@@ -356,14 +399,18 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 	Local_log_waiter_list 
 	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 	list.first(waiter);
-	infoEvent("  m_last_synced_lsn: %lld head(waiters %x).m_sync_lsn: %lld",
-		  ptr.p->m_last_synced_lsn,
-		  waiter.i,
-		  waiter.p->m_sync_lsn);
+        BaseString::snprintf(tmp, sizeof(tmp),
+                             "  m_last_synced_lsn: %llu head(waiters %x).m_sync_lsn: %llu",
+                             ptr.p->m_last_synced_lsn,
+                             waiter.i,
+                             waiter.p->m_sync_lsn);
+        if (signal->theData[0] == 12001)
+          infoEvent(tmp);
+        ndbout_c(tmp);
 	
 	while(!waiter.isNull())
 	{
-	  ndbout_c("ptr: %x %p lsn: %lld next: %x", 
+	  ndbout_c("ptr: %x %p lsn: %llu next: %x",
 		   waiter.i, waiter.p, waiter.p->m_sync_lsn, waiter.p->nextList);
 	  list.next(waiter);
 	}
@@ -975,6 +1022,8 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
 
   m_free_file_words = 0;
   m_free_buffer_words = 0;
+  m_callback_buffer_words = 0;
+
   m_pos[CONSUMER].m_current_page.m_ptr_i = RNIL;// { m_buffer_pages, idx }
   m_pos[CONSUMER].m_current_pos.m_ptr_i = RNIL; // { page ptr.i, m_words_used}
   m_pos[PRODUCER].m_current_page.m_ptr_i = RNIL;// { m_buffer_pages, idx }
@@ -1414,9 +1463,12 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
   Ptr<Lgman::Logfile_group> ptr;
   if(m_lgman->m_logfile_group_hash.find(ptr, key))
   {
-    if(ptr.p->m_free_buffer_words >= (sz + 2*File_formats::UNDO_PAGE_WORDS)&& 
-       ptr.p->m_log_buffer_waiters.isEmpty())
+    Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
+    Uint32 free_buffer = ptr.p->m_free_buffer_words;
+    if (free_buffer >= (sz + callback_buffer + FREE_BUFFER_MARGIN) &&
+        ptr.p->m_log_buffer_waiters.isEmpty())
     {
+      ptr.p->m_callback_buffer_words = callback_buffer + sz;
       return 1;
     }
     
@@ -1470,8 +1522,10 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
  
   jamEntry();
 
-  if(consumer.m_current_page == producer.m_current_page)
+  if (consumer.m_current_page == producer.m_current_page)
   {
+    jam();
+    Buffer_idx pos = producer.m_current_pos;
 
 #if 0
     if (force)
@@ -1487,13 +1541,18 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
     {
       jam();
 
-      if (ptr.p->m_log_buffer_waiters.isEmpty() || ptr.p->m_outstanding_fs)
+      if (ptr.p->m_log_buffer_waiters.isEmpty() || pos.m_idx == 0)
       {
         jam();
 	force =  0;
       }
-      
-      if (force < 2)
+      else if (ptr.p->m_free_buffer_words < FREE_BUFFER_MARGIN)
+      {
+        jam();
+        force = 2;
+      }
+
+      if (force < 2 || ptr.p->m_outstanding_fs)
       {
         jam();
 	signal->theData[0] = LgmanContinueB::FLUSH_LOG;
@@ -1506,12 +1565,14 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       else
       {
         jam();
-	Buffer_idx pos= producer.m_current_pos;
 	GlobalPage *page = m_shared_page_pool.getPtr(pos.m_ptr_i);
 	
 	Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
 
-	ndbout_c("force flush %d %d", pos.m_idx, ptr.p->m_free_buffer_words);
+	ndbout_c("force flush %d %d outstanding: %u isEmpty(): %u",
+                 pos.m_idx, ptr.p->m_free_buffer_words,
+                 ptr.p->m_outstanding_fs,
+                 ptr.p->m_log_buffer_waiters.isEmpty());
 	
 	ndbrequire(pos.m_idx); // don't flush empty page...
 	Uint64 lsn= ptr.p->m_last_lsn - 1;
@@ -1661,11 +1722,13 @@ void
 Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
   Uint32 free_buffer= ptr.p->m_free_buffer_words;
+  Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
   Local_log_waiter_list 
     list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 
-  if(list.isEmpty())
+  if (list.isEmpty())
   {
+    jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_WAITERS_THREAD;
     return;
   }
@@ -1675,18 +1738,21 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   list.first(waiter);
   Uint32 sz  = waiter.p->m_size;
   Uint32 logfile_group_id = ptr.p->m_logfile_group_id;
-  if(sz + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
+  if (sz + callback_buffer + FREE_BUFFER_MARGIN < free_buffer)
   {
+    jam();
     removed= true;
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
+    ptr.p->m_callback_buffer_words += sz;
     sendCallbackConf(signal, block, callback, logfile_group_id);
 
     list.releaseFirst(waiter);
   }
   
-  if(removed && !list.isEmpty())
+  if (removed && !list.isEmpty())
   {
+    jam();
     ptr.p->m_state |= Logfile_group::LG_WAITERS_THREAD;
     signal->theData[0] = LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS;
     signal->theData[1] = ptr.i;
@@ -1694,6 +1760,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   }
   else
   {
+    jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_WAITERS_THREAD;
   }
 }
@@ -2182,6 +2249,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
     Ptr<Lgman::Logfile_group> ptr;
     if(m_lgman->m_logfile_group_hash.find(ptr, key))
     {
+      Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
       Uint64 last_lsn_filegroup= ptr.p->m_last_lsn;
       if(last_lsn_filegroup == last_lsn
 #ifdef VM_TRACE
@@ -2197,6 +2265,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	}
 	* (dst - 1) |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
 	ptr.p->m_free_file_words += 2;
+        tot += 2; // for callback_buffer
 	m_lgman->validate_logfile_group(ptr);
       }
       else
@@ -2210,6 +2279,11 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	  dst += src[i].len;
 	}
       }
+      if (unlikely(! (tot <= callback_buffer)))
+      {
+        abort();
+      }
+      ptr.p->m_callback_buffer_words = callback_buffer - tot;
     }
     
     m_lgman->m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;

@@ -2068,7 +2068,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    NDB_PORT,
+    STR_VALUE(NDB_PORT),
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -2769,7 +2769,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
     ConfigInfo::CI_USED,
-    0,
+    false,
     ConfigInfo::CI_INT,
     "0",
     "0",
@@ -4087,15 +4087,6 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 	ctx.m_userProperties.get(server_port_adder.c_str(), &adder);
 	ctx.m_userProperties.put(server_port_adder.c_str(), adder+1, true);
       }
-      
-      if (!ctx.m_userProperties.get("ServerPortBase", &base)){
-	if(!(ctx.m_userDefaults &&
-	   ctx.m_userDefaults->get("PortNumber", &base)) &&
-	   !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	  base= (Uint32)strtoll(NDB_TCP_BASE_PORT,0,0);
-	}
-	ctx.m_userProperties.put("ServerPortBase", base);
-      }
 
       port= base + adder;
       ctx.m_userProperties.put("ServerPort_", id1, port);
@@ -4127,7 +4118,7 @@ fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data)
   ctx.m_userProperties.get(ctx.fname, &nodes);
   if (nodes == 1) // first management server
   {
-    Uint32 portno= atoi(NDB_PORT);
+    Uint32 portno= NDB_PORT;
     ctx.m_currentSection->get("PortNumber", &portno);
     ctx.m_userProperties.put("ShmUniqueId", portno);
   }

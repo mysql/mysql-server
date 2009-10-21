@@ -1,0 +1,1 @@
+--innodb_commit_concurrency=1

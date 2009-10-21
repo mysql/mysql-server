@@ -1,0 +1,145 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/trx0rseg.ic
+Rollback segment
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+#include "srv0srv.h"
+#include "mtr0log.h"
+
+/******************************************************************//**
+Gets a rollback segment header.
+@return	rollback segment header, page x-latched */
+UNIV_INLINE
+trx_rsegf_t*
+trx_rsegf_get(
+/*==========*/
+	ulint	space,		/*!< in: space where placed */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	ulint	page_no,	/*!< in: page number of the header */
+	mtr_t*	mtr)		/*!< in: mtr */
+{
+	buf_block_t*	block;
+	trx_rsegf_t*	header;
+
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
+
+	header = TRX_RSEG + buf_block_get_frame(block);
+
+	return(header);
+}
+
+/******************************************************************//**
+Gets a newly created rollback segment header.
+@return	rollback segment header, page x-latched */
+UNIV_INLINE
+trx_rsegf_t*
+trx_rsegf_get_new(
+/*==============*/
+	ulint	space,		/*!< in: space where placed */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	ulint	page_no,	/*!< in: page number of the header */
+	mtr_t*	mtr)		/*!< in: mtr */
+{
+	buf_block_t*	block;
+	trx_rsegf_t*	header;
+
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
+
+	header = TRX_RSEG + buf_block_get_frame(block);
+
+	return(header);
+}
+
+/***************************************************************//**
+Gets the file page number of the nth undo log slot.
+@return	page number of the undo log segment */
+UNIV_INLINE
+ulint
+trx_rsegf_get_nth_undo(
+/*===================*/
+	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
+	ulint		n,	/*!< in: index of slot */
+	mtr_t*		mtr)	/*!< in: mtr */
+{
+	if (UNIV_UNLIKELY(n >= TRX_RSEG_N_SLOTS)) {
+		fprintf(stderr,
+			"InnoDB: Error: trying to get slot %lu of rseg\n",
+			(ulong) n);
+		ut_error;
+	}
+
+	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS
+			      + n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
+}
+
+/***************************************************************//**
+Sets the file page number of the nth undo log slot. */
+UNIV_INLINE
+void
+trx_rsegf_set_nth_undo(
+/*===================*/
+	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
+	ulint		n,	/*!< in: index of slot */
+	ulint		page_no,/*!< in: page number of the undo log segment */
+	mtr_t*		mtr)	/*!< in: mtr */
+{
+	if (UNIV_UNLIKELY(n >= TRX_RSEG_N_SLOTS)) {
+		fprintf(stderr,
+			"InnoDB: Error: trying to set slot %lu of rseg\n",
+			(ulong) n);
+		ut_error;
+	}
+
+	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,
+			 page_no, MLOG_4BYTES, mtr);
+}
+
+/****************************************************************//**
+Looks for a free slot for an undo log segment.
+@return	slot index or ULINT_UNDEFINED if not found */
+UNIV_INLINE
+ulint
+trx_rsegf_undo_find_free(
+/*=====================*/
+	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
+	mtr_t*		mtr)	/*!< in: mtr */
+{
+	ulint		i;
+	ulint		page_no;
+
+	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+
+		page_no = trx_rsegf_get_nth_undo(rsegf, i, mtr);
+
+		if (page_no == FIL_NULL) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}

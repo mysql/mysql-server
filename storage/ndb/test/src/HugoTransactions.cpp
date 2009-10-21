@@ -326,6 +326,19 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
               parallelism = 1;
               ndbout_c("decrease parallelism");
             }
+            else if (retryAttempt >= (m_retryMax / 5) &&
+                     (lm != NdbOperation::LM_CommittedRead))
+            {
+              lm = NdbOperation::LM_CommittedRead;
+              ndbout_c("switch to LM_CommittedRead");
+            }
+            else if (retryAttempt >= (m_retryMax / 4) &&
+                     (pIdx != 0))
+            {
+              pIdx = 0;
+              scan_flags |= NdbScanOperation::SF_TupScan;
+              ndbout_c("switch to table-scan (SF_TupScan) form index-scan");
+            }
           }
 	  retryAttempt++;
 	}

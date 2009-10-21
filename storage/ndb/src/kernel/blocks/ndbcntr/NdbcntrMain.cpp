@@ -224,6 +224,13 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     signal->theData[0] = 7025;
     EXECUTE_DIRECT(DBDIH, GSN_DUMP_STATE_ORD, signal, 1);
     jamEntry();
+
+    {
+      signal->theData[0] = 12002;
+      EXECUTE_DIRECT(LGMAN, GSN_DUMP_STATE_ORD, signal, 1, 0);
+    }
+
+    jamEntry();
     break;
   }
   case SystemError::CopyFragRefError:
@@ -1844,6 +1851,18 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
              NodeFailRep::SignalLength, JBB);
 
   sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
 
   if (c_stopRec.stopReq.senderRef)

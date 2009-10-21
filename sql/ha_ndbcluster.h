@@ -30,8 +30,8 @@
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
-#include <NdbApi.hpp>
-#include <ndbapi_limits.h>
+#include <ndbapi/NdbApi.hpp>
+#include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
@@ -728,6 +728,8 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap);
 
+  static inline bool isManualBinlogExec(THD *thd);
+
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name);
@@ -844,9 +846,9 @@ private:
 
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
-  uint m_blob_expected_count;
+  uint m_blob_expected_count_per_row;
   uchar *m_blob_destination_record;
-  Uint64 m_blob_total_size;
+  Uint64 m_blobs_row_total_size; /* Bytes needed for all blobs in current row */
   
   // memory for blobs in one tuple
   uchar *m_blobs_buffer;

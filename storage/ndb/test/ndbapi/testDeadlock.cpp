@@ -458,7 +458,7 @@ wl1822_main(char scantx)
   static const unsigned thrcount = 2;
   // create threads for tx1 and tx2
   Thr* thrlist[2];
-  int n;
+  unsigned n;
   for (n = 0; n < thrcount; n++) {
     Thr& thr = *(thrlist[n] = new Thr(1 + n));
     CHK(thr.m_ret == 0);

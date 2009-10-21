@@ -212,9 +212,8 @@ InitConfigFileParser::run_config_rules(Context& ctx)
   ctx.m_config->put("NoOfNodes", nNodes);
 
   char tmpLine[MAX_LINE_LENGTH];
-  BaseString::snprintf(tmpLine, MAX_LINE_LENGTH, "EXTERNAL SYSTEM_");
-  strncat(tmpLine, system, MAX_LINE_LENGTH);
-  strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
+  BaseString::snprintf(tmpLine, MAX_LINE_LENGTH,
+                       "EXTERNAL SYSTEM_%s:NoOfConnections", system);
   ctx.m_config->put(tmpLine, nExtConnections);
 
   return new Config(ctx.m_configValues.getConfigValues());
@@ -333,9 +332,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     }
     if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
       ctx.reportError("Illegal value %s for parameter %s.\n"
-		      "Legal values are between %Lu and %Lu", value, fname,
-		      m_info->getMin(ctx.m_currentInfo, fname), 
-		      m_info->getMax(ctx.m_currentInfo, fname));
+                      "Legal values are between %llu and %llu", value, fname,
+                      m_info->getMin(ctx.m_currentInfo, fname),
+                      m_info->getMax(ctx.m_currentInfo, fname));
       return false;
     }
     if(type == ConfigInfo::CI_INT){
@@ -650,9 +649,10 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       Uint64 value_int;
       switch(options[i].var_type){
       case GET_INT:
+      case GET_UINT:
 	value_int = *(Uint32*)options[i].value;
 	break;
-      case GET_LL:
+      case GET_ULL:
 	value_int = *(Uint64*)options[i].value;
 	break;
       case GET_STR:
@@ -664,12 +664,12 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 
       const char * fname = options[i].name;
       if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
-	ctx.reportError("Illegal value %lld for parameter %s.\n"
-			"Legal values are between %Lu and %Lu", 
-			value_int, fname,
-			m_info->getMin(ctx.m_currentInfo, fname), 
-			m_info->getMax(ctx.m_currentInfo, fname));
-	return false;
+        ctx.reportError("Illegal value %llu for parameter %s.\n"
+                        "Legal values are between %llu and %llu",
+                        value_int, fname,
+                        m_info->getMin(ctx.m_currentInfo, fname),
+                        m_info->getMax(ctx.m_currentInfo, fname));
+        return false;
       }
 
       ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
@@ -682,11 +682,19 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 	  ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
 	} 
       }
-      
-      if (options[i].var_type == GET_INT)
+
+      switch(options[i].var_type){
+      case GET_INT:
+      case GET_UINT:
 	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
-      else
-	ctx.m_currentSection->put64(options[i].name, value_int);	
+        break;
+      case GET_ULL:
+	ctx.m_currentSection->put64(options[i].name, value_int);
+        break;
+      default:
+        abort();
+        break;
+      }
     }
   }
   return true;
@@ -801,12 +809,12 @@ InitConfigFileParser::parse_mycnf()
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (uchar**)malloc(sizeof(int));
-	opt.var_type = GET_INT;
+	opt.value = (uchar**)malloc(sizeof(uint));
+	opt.var_type = GET_UINT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (uchar**)malloc(sizeof(Int64));
-	opt.var_type = GET_LL;
+	opt.value = (uchar**)malloc(sizeof(Uint64));
+	opt.var_type = GET_ULL;
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 

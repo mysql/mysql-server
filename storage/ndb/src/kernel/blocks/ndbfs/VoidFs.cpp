@@ -39,21 +39,20 @@
 #include <Configuration.hpp>
 
 VoidFs::VoidFs(Block_context & ctx) :
-  SimulatedBlock(NDBFS, ctx)
+  Ndbfs(ctx)
 {
-  BLOCK_CONSTRUCTOR(VoidFs);
-  
   // Set received signals
-  addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ);
-  addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD);
-  addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR);
-  addRecSignal(GSN_FSOPENREQ, &VoidFs::execFSOPENREQ);
-  addRecSignal(GSN_FSCLOSEREQ, &VoidFs::execFSCLOSEREQ);
-  addRecSignal(GSN_FSWRITEREQ, &VoidFs::execFSWRITEREQ);
-  addRecSignal(GSN_FSREADREQ, &VoidFs::execFSREADREQ);
-  addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ);
-  addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ);
-  addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ);
+  addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD, true);
+  addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR, true);
+  addRecSignal(GSN_FSOPENREQ, &VoidFs::execFSOPENREQ, true);
+  addRecSignal(GSN_FSCLOSEREQ, &VoidFs::execFSCLOSEREQ, true);
+  addRecSignal(GSN_FSWRITEREQ, &VoidFs::execFSWRITEREQ, true);
+  addRecSignal(GSN_FSREADREQ, &VoidFs::execFSREADREQ, true);
+  addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ, true);
+  addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ, true);
+  addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ, true);
+
    // Set send signals
 }
 
@@ -74,6 +73,9 @@ VoidFs::execREAD_CONFIG_REQ(Signal* signal)
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
+
+  signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
 }
 
 void

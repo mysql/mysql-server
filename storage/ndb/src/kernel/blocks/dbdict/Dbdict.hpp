@@ -2121,7 +2121,6 @@ private:
     Uint32 m_clientFlags;
     BlockReference m_takeOverRef;
     Uint32 m_takeOverTransId;
-    BlockReference m_apiFailRetRef;
 
     Callback m_callback;
     ErrorInfo m_error;
@@ -2139,7 +2138,6 @@ private:
       m_clientFlags = 0;
       m_takeOverRef = 0;
       m_takeOverTransId = 0;
-      m_apiFailRetRef = 0;
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
       m_magic = 0;
@@ -2163,11 +2161,11 @@ private:
   void beginSchemaTrans(Signal*, TxHandlePtr);
   void endSchemaTrans(Signal*, TxHandlePtr, Uint32 flags = 0);
 
-  void handleApiFail(Signal*, Uint32 failedApiNode, BlockReference retRef);
+  void handleApiFail(Signal*, Uint32 failedApiNode);
   void takeOverTransClient(Signal*, SchemaTransPtr);
   void runTransClientTakeOver(Signal*, Uint32 tx_key, Uint32 ret);
   void finishApiFail(Signal*, TxHandlePtr tx_ptr);
-  void sendApiFailConf(Signal*, Uint32 failedApiNode, BlockReference retRef);
+  void apiFailBlockHandling(Signal*, Uint32 failedApiNode);
 
   /*
    * Callback key is for different record types in some cases.
@@ -3421,6 +3419,12 @@ private:
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
 
+  void handleNdbdFailureCallback(Signal* signal, 
+                                 Uint32 failedNodeId,
+                                 Uint32 ignoredRc);
+  void handleApiFailureCallback(Signal* signal,
+                                Uint32 failedNodeId,
+                                Uint32 ignoredRc);
   // Statement blocks
 
   /* ------------------------------------------------------------ */
@@ -3540,6 +3544,7 @@ private:
   void closeReadSchemaConf(Signal* signal,
                            FsConnectRecordPtr fsPtr);
   bool convertSchemaFileTo_5_0_6(XSchemaFile*);
+  bool convertSchemaFileTo_6_4(XSchemaFile*);
 
   /* ------------------------------------------------------------ */
   // Get table definitions

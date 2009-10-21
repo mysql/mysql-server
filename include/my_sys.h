@@ -224,8 +224,8 @@ extern uint    my_large_page_size;
 #endif
 
 /* charsets */
-extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *all_charsets[256];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -240,8 +240,8 @@ extern void (*my_sigtstp_cleanup)(void),
 	    (*my_sigtstp_restart)(void),
 	    (*my_abort_hook)(int);
 					/* Executed when comming from shell */
-extern int NEAR my_umask,		/* Default creation mask  */
-	   NEAR my_umask_dir,
+extern MYSQL_PLUGIN_IMPORT int NEAR my_umask;		/* Default creation mask  */
+extern int NEAR my_umask_dir,
 	   NEAR my_recived_signals,	/* Signals we have got */
 	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   NEAR my_dont_interrupt;	/* call remember_intr when set */
@@ -712,7 +712,6 @@ extern int wild_compare(const char *str,const char *wildstr,
 extern WF_PACK *wf_comp(char * str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
-extern size_t strip_sp(char * str);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);

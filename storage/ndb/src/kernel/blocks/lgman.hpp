@@ -48,6 +48,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execNODE_FAILREP(Signal* signal);
   
   void execCREATE_FILE_IMPL_REQ(Signal* signal);
   void execCREATE_FILEGROUP_IMPL_REQ(Signal* signal);
@@ -214,7 +215,9 @@ public:
     Undofile_list::Head m_files;     // Files in log
     Undofile_list::Head m_meta_files;// Files being created or dropped
     
-    Uint32 m_free_buffer_words;    // Free buffer page words
+    Uint32 m_free_buffer_words;     // Free buffer page words
+    Uint32 m_callback_buffer_words; // buffer words that has been
+                                    // returned to user, but not yet consumed
     Log_waiter_list::Head m_log_buffer_waiters;
     Page_map::Head m_buffer_pages; // Pairs of { ptr.i, count }
     struct Position {
