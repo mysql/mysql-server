@@ -8,6 +8,16 @@
 drop table if exists t1;
 --enable_warnings
 
+--error ER_NULL_IN_VALUES_LESS_THAN
+create table t1 (a int, b int)
+partition by range column_list (a,b)
+(partition p0 values less than (NULL, maxvalue));
+
+--error ER_MAXVALUE_IN_VALUES_IN, ER_PARSE_ERROR
+create table t1 (a int, b int)
+partition by list column_list(a,b)
+( partition p0 values in ((maxvalue, 0)));
+
 #
 # BUG#47837, Crash when two same fields in column list processing
 #
@@ -115,7 +125,7 @@ create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range column_list(a,b,c,d)
 subpartition by hash (to_seconds(d))
 subpartitions 4
-( partition p0 values less than (1, NULL, MAXVALUE, NULL),
+( partition p0 values less than (1, 0, MAXVALUE, 0),
   partition p1 values less than (1, 'a', MAXVALUE, TO_DAYS('1999-01-01')),
   partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
   partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
@@ -168,7 +178,7 @@ partition by range column_list(d)
 
 create table t1 (a int, b int)
 partition by range column_list(a,b)
-(partition p0 values less than (null, 10));
+(partition p0 values less than (maxvalue, 10));
 drop table t1;
 
 create table t1 (d date)
@@ -250,13 +260,13 @@ partition by range column_list(a,b)
 
 create table t1 (a int, b int)
 partition by range column_list(a,b)
-(partition p0 values less than (1, NULL),
+(partition p0 values less than (1, 0),
  partition p1 values less than (2, maxvalue),
  partition p2 values less than (3, 3),
- partition p3 values less than (10, NULL));
+ partition p3 values less than (10, maxvalue));
 
 -- error ER_NO_PARTITION_FOR_GIVEN_VALUE
-insert into t1 values (10,0);
+insert into t1 values (11,0);
 insert into t1 values (0,1),(1,1),(2,1),(3,1),(3,4),(4,9),(9,1);
 select * from t1;
 
