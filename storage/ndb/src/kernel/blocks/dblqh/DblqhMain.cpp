@@ -21666,7 +21666,7 @@ Dblqh::release(RedoPageCache& cache)
   }
   cache.m_hash.removeAll();
 
-#if defined VM_TRACE || defined ERROR_INSERT || true
+#if defined VM_TRACE || defined ERROR_INSERT || 1
   ndbout_c("RedoPageCache: avoided %u (%u/%u) page-reads",
            cache.m_hits, cache.m_multi_page, cache.m_multi_miss);
 #endif
