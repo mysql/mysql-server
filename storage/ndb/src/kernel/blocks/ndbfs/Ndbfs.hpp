@@ -127,6 +127,7 @@ protected:
   void execFSREMOVEREQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execALLOC_MEM_REQ(Signal*);
+  void execSEND_PACKED(Signal*);
 
 private:
   // Declared but not defined

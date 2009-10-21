@@ -893,7 +893,7 @@ TransporterRegistry::wakeup()
 {
   if (m_has_extra_wakeup_socket)
   {
-    char c;
+    static char c = 37;
     my_send(m_extra_wakeup_sockets[1], &c, 1, 0);
   }
 }
@@ -1057,7 +1057,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
     maxSocketValue = my_socket_nfds(socket, maxSocketValue);
 
-    // Put the connected transporters in the socket read-set
+    // Put the wakup-socket in the read-set
     my_FD_SET(socket, &tcpReadset);
   }
 

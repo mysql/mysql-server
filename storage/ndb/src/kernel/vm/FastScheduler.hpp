@@ -260,6 +260,8 @@ FastScheduler::scheduleTimeQueue(Uint32 aIndex)
      (GlobalSignalNumber)signal->header.theVerId_signalNumber);
   if (highestAvailablePrio() > JBA)
     highestAvailablePrio(JBA);
+
+  signal->header.m_noOfSections = 0; // Or else sendPacked might pick it up
 }
 
 inline
