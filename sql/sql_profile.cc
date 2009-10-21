@@ -415,7 +415,7 @@ bool PROFILING::show_profiles()
                                            MYSQL_TYPE_DOUBLE));
   field_list.push_back(new Item_empty_string("Query", 40));
 
-  if (thd->protocol->send_fields(&field_list,
+  if (thd->protocol->send_result_set_metadata(&field_list,
                                  Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 

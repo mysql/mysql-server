@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+#include "sql_prepare.h"
 #include "probes_mysql.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -2043,6 +2044,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         err_status= TRUE;
         break;
       }
+
+      Send_field *out_param_info= new Send_field();
+      nctx->get_item(i)->make_field(out_param_info);
+      out_param_info->db_name= m_db.str;
+      out_param_info->table_name= m_name.str;
+      out_param_info->org_table_name= m_name.str;
+      out_param_info->col_name= spvar->name.str;
+      out_param_info->org_col_name= spvar->name.str;
+
+      srp->set_out_param_info(out_param_info);
     }
   }
 
@@ -2450,7 +2461,7 @@ sp_head::show_create_routine(THD *thd, int type)
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
-  if (protocol->send_fields(&fields,
+  if (protocol->send_result_set_metadata(&fields,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     DBUG_RETURN(TRUE);
@@ -2636,8 +2647,8 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-					     max(buffer.length(), 1024)));
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                             max(buffer.length(), 1024)));
+  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
@@ -2869,7 +2880,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
-        net_end_statement(thd);
+        thd->protocol->end_statement();
 
       query_cache_end_of_result(thd);
 
