@@ -32,7 +32,7 @@ static my_bool tty_password= 0, opt_table_type= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint my_end_arg= 0;
 static uint opt_verbose=0;
-static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 
 #ifdef HAVE_SMEM 
 static char *shared_memory_base_name=0;

@@ -2031,10 +2031,11 @@ AC_SUBST(MAKE_SHELL)
 AC_CHECK_HEADERS(varargs.h stdarg.h dirent.h locale.h ndir.h sys/dir.h \
  sys/file.h sys/ndir.h sys/ptem.h sys/pte.h sys/select.h sys/stream.h \
  sys/mman.h curses.h termcap.h termio.h termbits.h asm/termbits.h grp.h \
-paths.h semaphore.h)
+paths.h semaphore.h langinfo.h)
 
 # Already-done: strcasecmp
 AC_CHECK_FUNCS(lstat putenv select setenv setlocale strcoll tcgetattr)
+AC_CHECK_FUNCS(nl_langinfo)
 
 AC_STAT_MACROS_BROKEN
 MYSQL_SIGNAL_CHECK
