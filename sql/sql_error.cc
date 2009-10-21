@@ -630,7 +630,8 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
   DBUG_ASSERT(format != NULL);
 
   va_start(args,format);
-  my_vsnprintf(warning, sizeof(warning), format, args);
+  my_vsnprintf_ex(&my_charset_utf8_general_ci, warning,
+                  sizeof(warning), format, args);
   va_end(args);
   push_warning(thd, level, code, warning);
   DBUG_VOID_RETURN;
@@ -712,3 +713,146 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   DBUG_RETURN(FALSE);
 }
 
+
+/**
+   Convert value for dispatch to error message(see WL#751).
+
+   @param to          buffer for converted string
+   @param to_length   size of the buffer
+   @param from        string which should be converted
+   @param from_length string length
+   @param from_cs     charset from convert
+ 
+   @retval
+   result string
+*/
+
+char *err_conv(char *buff, uint to_length, const char *from,
+               uint from_length, CHARSET_INFO *from_cs)
+{
+  char *to= buff;
+  const char *from_start= from;
+  size_t res;
+
+  DBUG_ASSERT(to_length > 0);
+  to_length--;
+  if (from_cs == &my_charset_bin)
+  {
+    uchar char_code;
+    res= 0;
+    while (1)
+    {
+      if ((uint)(from - from_start) >= from_length ||
+          res >= to_length)
+      {
+        *to= 0;
+        break;
+      }
+
+      char_code= ((uchar) *from);
+      if (char_code >= 0x20 && char_code <= 0x7E)
+      {
+        *to++= char_code;
+        from++;
+        res++;
+      }
+      else
+      {
+        if (res + 4 >= to_length)
+        {
+          *to= 0;
+          break;
+        }
+        res+= my_snprintf(to, 5, "\\x%02X", (uint) char_code);
+        to+=4;
+        from++;
+      }
+    }
+  }
+  else
+  {
+    uint errors;
+    res= copy_and_convert(to, to_length, system_charset_info,
+                          from, from_length, from_cs, &errors);
+    to[res]= 0;
+  }
+  return buff;
+}
+
+
+/**
+   Convert string for dispatch to client(see WL#751).
+
+   @param to          buffer to convert
+   @param to_length   buffer length
+   @param to_cs       chraset to convert
+   @param from        string from convert
+   @param from_length string length
+   @param from_cs     charset from convert
+   @param errors      count of errors during convertion
+
+   @retval
+   length of converted string
+*/
+
+uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+                             const char *from, uint32 from_length,
+                             CHARSET_INFO *from_cs, uint *errors)
+{
+  int         cnvres;
+  my_wc_t     wc;
+  const uchar *from_end= (const uchar*) from+from_length;
+  char *to_start= to;
+  uchar *to_end= (uchar*) to+to_length;
+  my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
+  my_charset_conv_wc_mb wc_mb;
+  uint error_count= 0;
+  uint length;
+
+  DBUG_ASSERT(to_length > 0);
+  to_length--;
+
+  if (!to_cs || from_cs == to_cs || to_cs == &my_charset_bin)
+  {
+    length= min(to_length, from_length);
+    memmove(to, from, length);
+    to[length]= 0;
+    return length;
+  }
+
+  wc_mb= to_cs->cset->wc_mb;
+  while (1)
+  {
+    if ((cnvres= (*mb_wc)(from_cs, &wc, (uchar*) from, from_end)) > 0)
+    {
+      if (!wc)
+        break;
+      from+= cnvres;
+    }
+    else if (cnvres == MY_CS_ILSEQ)
+    {
+      wc= (ulong) (uchar) *from;
+      from+=1;
+    }
+    else
+      break;
+
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
+      to+= cnvres;
+    else if (cnvres == MY_CS_ILUNI)
+    {
+      length= (wc <= 0xFFFF) ? 6/* '\1234' format*/ : 9 /* '\+123456' format*/;
+      if ((uchar*)(to + length) >= to_end)
+        break;
+      cnvres= my_snprintf(to, 9,
+                          (wc <= 0xFFFF) ? "\\%04X" : "\\+%06X", (uint) wc);
+      to+= cnvres;
+    }
+    else
+      break;
+  }
+
+  *to= 0;
+  *errors= error_count;
+  return (uint32) (to - to_start);
+}

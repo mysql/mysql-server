@@ -39,7 +39,7 @@ sub fix_charset_dir {
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_basedir($group),
-		     \@share_locations, "english");
+		     \@share_locations);
 }
 
 sub fix_datadir {
@@ -197,7 +197,7 @@ my @mysqld_rules=
  { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
- { 'language' => \&fix_language },
+ { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },

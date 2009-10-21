@@ -132,10 +132,13 @@ void my_parse_error(const char *s)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
 
   const char *yytext= lip->get_tok_start();
+  if (!yytext)
+    yytext= "";
+
   /* Push an error into the error stack */
+  ErrConvString err(yytext, thd->variables.character_set_client);
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
-                  (yytext ? yytext : ""),
-                  lip->yylineno);
+                  err.ptr(), lip->yylineno);
 }
 
 /**
@@ -11480,8 +11483,9 @@ IDENT_sys:
                                                    $1.length, &dummy_error);
               if (wlen < $1.length)
               {
+                ErrConvString err($1.str, $1.length, &my_charset_bin);
                 my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-                         cs->csname, $1.str + wlen);
+                         cs->csname, err.ptr());
                 MYSQL_YYABORT;
               }
               $$= $1;
