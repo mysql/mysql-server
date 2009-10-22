@@ -17,7 +17,6 @@ main.log_tables                          # Bug#47924 2009-10-08 alik main.log_ta
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.plugin_load                         # Bug#47146
 
-rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
