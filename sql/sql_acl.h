@@ -85,6 +85,11 @@
 #define DEFAULT_CREATE_PROC_ACLS \
 (ALTER_PROC_ACL | EXECUTE_ACL)
 
+#define SHOW_CREATE_TABLE_ACLS \
+(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | \
+ CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
+ TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+
 /*
   Defines to change the above bits to how things are stored in tables
   This is needed as the 'host' and 'db' table is missing a few privileges

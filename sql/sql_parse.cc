@@ -2990,18 +2990,41 @@ end_with_restore_list:
       else
       {
         ulong save_priv;
-        if (check_access(thd, SELECT_ACL, first_table->db,
+
+        /*
+          If it is an INFORMATION_SCHEMA table, SELECT_ACL privilege is the
+          only privilege allowed. For any other privilege check_access()
+          reports an error. That's how internal implementation protects
+          INFORMATION_SCHEMA from updates.
+
+          For ordinary tables any privilege from the SHOW_CREATE_TABLE_ACLS
+          set is sufficient.
+        */
+
+        ulong check_privs= test(first_table->schema_table) ?
+                           SELECT_ACL : SHOW_CREATE_TABLE_ACLS;
+
+        if (check_access(thd, check_privs, first_table->db,
                          &save_priv, FALSE, FALSE,
                          test(first_table->schema_table)))
           goto error;
+
         /*
-          save_priv contains any privileges actually granted by check_access.
-          If there are no global privileges (save_priv == 0) and no table level
-          privileges, access is denied.
+          save_priv contains any privileges actually granted by check_access
+          (i.e. save_priv contains global (user- and database-level)
+          privileges).
+
+          The fact that check_access() returned FALSE does not mean that
+          access is granted. We need to check if save_priv contains any
+          table-specific privilege. If not, we need to check table-level
+          privileges.
+
+          If there are no global privileges and no table-level privileges,
+          access is denied.
         */
-        if (!save_priv &&
-            !has_any_table_level_privileges(thd, TABLE_ACLS,
-                                            first_table))
+
+        if (!(save_priv & (SHOW_CREATE_TABLE_ACLS)) &&
+            !has_any_table_level_privileges(thd, SHOW_CREATE_TABLE_ACLS, first_table))
         {
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                   "SHOW", thd->security_ctx->priv_user,
@@ -3010,9 +3033,7 @@ end_with_restore_list:
         }
       }
 
-      /*
-        Access is granted. Execute command.
-      */
+      /* Access is granted. Execute the command.  */
       res= mysqld_show_create(thd, first_table);
       break;
     }
