@@ -74,4 +74,17 @@
 
   </charset>
 
+  <charset name="latin1">
+    <family>Western</family>
+    <description>cp1252 West European</description>
+    <alias>csisolatin1</alias>
+    <alias>iso-8859-1</alias>
+    <alias>iso-ir-100</alias>
+    <alias>iso_8859-1</alias>
+    <alias>iso_8859-1:1987</alias>
+    <alias>l1</alias>
+    <alias>latin1</alias>
+    <collation name="latin1_test" id="99" order="test"/>
+  </charset>
+
 </charsets>

@@ -8817,38 +8817,81 @@ bool Field::eq_def(Field *field)
 
 
 /**
+  Compare the first t1::count type names.
+
+  @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
+*/
+
+static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+{
+  for (uint i= 0; i < t1->count; i++)
+    if (my_strnncoll(charset,
+                     (const uchar*) t1->type_names[i],
+                     t1->type_lengths[i],
+                     (const uchar*) t2->type_names[i],
+                     t2->type_lengths[i]))
+      return FALSE;
+  return TRUE;
+}
+
+/**
   @return
   returns 1 if the fields are equally defined
 */
 
 bool Field_enum::eq_def(Field *field)
 {
+  TYPELIB *values;
+
   if (!Field::eq_def(field))
-    return 0;
-  return compare_enum_values(((Field_enum*) field)->typelib);
-}
+    return FALSE;
 
+  values= ((Field_enum*) field)->typelib;
 
-bool Field_enum::compare_enum_values(TYPELIB *values)
-{
+  /* Definition must be strictly equal. */
   if (typelib->count != values->count)
     return FALSE;
-  for (uint i= 0; i < typelib->count; i++)
-    if (my_strnncoll(field_charset,
-                     (const uchar*) typelib->type_names[i],
-                     typelib->type_lengths[i],
-                     (const uchar*) values->type_names[i],
-                     values->type_lengths[i]))
-      return FALSE;
-  return TRUE;
+
+  return compare_type_names(field_charset, typelib, values);
 }
 
+
+/**
+  Check whether two fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they retain the same
+  pack length and if new members are added to the end of the list.
+
+  @return IS_EQUAL_YES if fields are compatible.
+          IS_EQUAL_NO otherwise.
+*/
 
 uint Field_enum::is_equal(Create_field *new_field)
 {
-  if (!Field_str::is_equal(new_field))
-    return 0;
-  return compare_enum_values(new_field->interval);
+  TYPELIB *values= new_field->interval;
+
+  /*
+    The fields are compatible if they have the same flags,
+    type, charset and have the same underlying length.
+  */
+  if (compare_str_field_flags(new_field, flags) ||
+      new_field->sql_type != real_type() ||
+      new_field->charset != field_charset ||
+      new_field->pack_length != pack_length())
+    return IS_EQUAL_NO;
+
+  /*
+    Changing the definition of an ENUM or SET column by adding a new
+    enumeration or set members to the end of the list of valid member
+    values only alters table metadata and not table data.
+  */
+  if (typelib->count > values->count)
+    return IS_EQUAL_NO;
+
+  /* Check whether there are modification before the end. */
+  if (! compare_type_names(field_charset, typelib, new_field->interval))
+    return IS_EQUAL_NO;
+
+  return IS_EQUAL_YES;
 }
 
 
