@@ -652,6 +652,17 @@ static int use_db(char *database)
   return 0;
 } /* use_db */
 
+static int disable_binlog()
+{
+  const char *stmt= "SET SQL_LOG_BIN=0";
+  if (mysql_query(sock, stmt))
+  {
+    fprintf(stderr, "Failed to %s\n", stmt);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    return 1;
+  }
+  return 0;
+}
 
 static int handle_request_for_tables(char *tables, uint length)
 {
@@ -843,6 +854,14 @@ int main(int argc, char **argv)
   }
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
+
+  if (!opt_write_binlog)
+  {
+    if (disable_binlog()) {
+      first_error= 1;
+      goto end;
+    }
+  }
 
   if (opt_auto_repair &&
       my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))

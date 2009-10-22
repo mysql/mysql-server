@@ -1,4 +1,28 @@
 #!/bin/sh
+
+SCRIPT_NAME="`basename $0`"
+
+usage()
+{
+  echo "Usage: ${SCRIPT_NAME} [--help|-h]"
+  echo ""
+  echo "This script creates the MySQL system tables and starts the server."
+}
+
+for arg do
+  case "$arg" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "${SCRIPT_NAME}: unknown option $arg"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
 if test ! -x  ./scripts/mysql_install_db
 then
   echo "I didn't find the script './scripts/mysql_install_db'."

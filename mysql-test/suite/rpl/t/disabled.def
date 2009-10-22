@@ -10,4 +10,4 @@
 #
 ##############################################################################
 
-rpl_cross_version      : Bug#43913 2009-03-27 joro rpl_cross_version can't pass on conflicts complainig clash with --slave-load-tm
+rpl_get_master_version_and_clock:  # Bug#46931 2009-10-17 joro rpl.rpl_get_master_version_and_clock fails
