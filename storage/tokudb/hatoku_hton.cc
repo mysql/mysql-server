@@ -985,7 +985,7 @@ static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Ve
 static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
 
 static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 60, 0, ~0L, 0);
-static MYSQL_SYSVAR_BOOL(prelock_empty, tokudb_prelock_empty, 0, "Tokudb Shared Data", NULL, NULL, TRUE);
+static MYSQL_SYSVAR_BOOL(prelock_empty, tokudb_prelock_empty, 0, "Tokudb Prelock Empty Table", NULL, NULL, TRUE);
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
 #if 0
