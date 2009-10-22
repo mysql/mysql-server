@@ -2147,7 +2147,14 @@ static int add_column_list_values(File fptr, partition_info *part_info,
           return 1;
         }
         if (item_expr->result_type() == STRING_RESULT)
+        {
+          if (field_cs)
+          {
+            err+= add_string(fptr,"_");
+            err+= add_string(fptr, field_cs->csname);
+          }
           err+= add_string(fptr,"'");
+        }
         err+= add_string_object(fptr, res);
         if (item_expr->result_type() == STRING_RESULT)
           err+= add_string(fptr,"'");
