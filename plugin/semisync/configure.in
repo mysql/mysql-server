@@ -1,0 +1,9 @@
+# configure.in for semi-synchronous replication
+
+AC_INIT(mysql-semi-sync-plugin, 0.2)
+AM_INIT_AUTOMAKE
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+
