@@ -2868,7 +2868,7 @@ com_help(String *buffer __attribute__((unused)),
            "For developer information, including the MySQL Reference Manual, "
            "visit:\n"
            "   http://dev.mysql.com/\n"
-           "To buy MySQL Network Support, training, or other products, visit:\n"
+           "To buy MySQL Enterprise support, training, or other products, visit:\n"
            "   https://shop.mysql.com/\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
@@ -3566,7 +3566,7 @@ static void print_warnings()
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
   */
-  if (!cur || num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10))
+  if (!cur || (num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10)))
     goto end;
 
   /* Print the warnings */

@@ -10673,7 +10673,6 @@ load:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Lex_input_stream *lip= YYLIP;
 
             if (lex->sphead)
             {
@@ -10681,7 +10680,6 @@ load:
                        $2 == FILETYPE_CSV ? "LOAD DATA" : "LOAD XML");
               MYSQL_YYABORT;
             }
-            lex->fname_start= lip->get_tok_end();
           }
           load_data_lock opt_local INFILE TEXT_STRING_filesystem
           {
@@ -10694,14 +10692,10 @@ load:
             if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
           }
-          opt_duplicate INTO
-          {
-            Lex->fname_end= YYLIP->get_ptr();
-          }
-          TABLE_SYM table_ident
+          opt_duplicate INTO TABLE_SYM table_ident
           {
             LEX *lex=Lex;
-            if (!Select->add_table_to_list(YYTHD, $13, NULL, TL_OPTION_UPDATING,
+            if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
                                            lex->lock_option))
               MYSQL_YYABORT;
             lex->field_list.empty();
@@ -10709,7 +10703,7 @@ load:
             lex->value_list.empty();
           }
           opt_load_data_charset
-          { Lex->exchange->cs= $15; }
+          { Lex->exchange->cs= $14; }
           opt_xml_rows_identified_by
           opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
           opt_load_data_set_spec
@@ -10852,6 +10846,7 @@ opt_ignore_lines:
 
 lines_or_rows:
         LINES { }
+
         | ROWS_SYM { }
         ;
 
