@@ -1549,7 +1549,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
   trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
 
-end:
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt commit
   DBUG_RETURN(error);
