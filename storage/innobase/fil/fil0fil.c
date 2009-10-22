@@ -594,6 +594,11 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(chain, space->chain, node);
 
+	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
+
+		fil_system->max_assigned_id = id;
+	}
+
 	mutex_exit(&fil_system->mutex);
 }
 
@@ -613,12 +618,10 @@ fil_node_open_file(
 	ulint		size_high;
 	ibool		ret;
 	ibool		success;
-#ifndef UNIV_HOTBACKUP
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
@@ -654,9 +657,11 @@ fil_node_open_file(
 		size_bytes = (((ib_int64_t)size_high) << 32)
 			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
-		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-		/* TODO: adjust to zip_size, like below? */
-#else
+		if (space->id == 0) {
+			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			goto add_size;
+		}
+#endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(space->id != 0);
 
@@ -735,7 +740,10 @@ fil_node_open_file(
 				(size_bytes
 				 / dict_table_flags_to_zip_size(flags));
 		}
-#endif
+
+#ifdef UNIV_HOTBACKUP
+add_size:
+#endif /* UNIV_HOTBACKUP */
 		space->size += node->size;
 	}
 
@@ -955,7 +963,7 @@ close_more:
 			" while the maximum\n"
 			"InnoDB: allowed value would be %lu.\n"
 			"InnoDB: You may need to raise the value of"
-			" innodb_max_files_open in\n"
+			" innodb_open_files in\n"
 			"InnoDB: my.cnf.\n",
 			(ulong) fil_system->n_open,
 			(ulong) fil_system->max_n_open);
@@ -1535,7 +1543,7 @@ fil_open_log_and_system_tablespace_files(void)
 					fprintf(stderr,
 						"InnoDB: Warning: you must"
 						" raise the value of"
-						" innodb_max_open_files in\n"
+						" innodb_open_files in\n"
 						"InnoDB: my.cnf! Remember that"
 						" InnoDB keeps all log files"
 						" and all system\n"
@@ -2923,7 +2931,6 @@ fil_open_single_table_tablespace(
 	byte*		page;
 	ulint		space_id;
 	ulint		space_flags;
-	ibool		ret		= TRUE;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -3001,7 +3008,7 @@ fil_open_single_table_tablespace(
 			(ulong) space_id, (ulong) space_flags,
 			(ulong) id, (ulong) flags);
 
-		ret = FALSE;
+		success = FALSE;
 
 		goto func_exit;
 	}
@@ -3021,7 +3028,7 @@ func_exit:
 	os_file_close(file);
 	mem_free(filepath);
 
-	return(ret);
+	return(success);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3299,7 +3306,17 @@ fil_load_single_table_tablespace(
 
 	if (!success) {
 
-		goto func_exit;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though the tablespace creation"
+				" of this table failed.\n",
+				srv_force_recovery);
+			goto func_exit;
+		}
+
+		exit(1);
 	}
 
 	/* We do not use the size information we have about the file, because
