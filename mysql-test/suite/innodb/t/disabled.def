@@ -1,1 +1,2 @@
-innodb-index  : Bug#47563 2009-06-11 svoj InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
+innodb-index                  : Bug#47563 2009-06-11 svoj InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
+innodb_information_schema     : Bug#47808 joro : innodb_information_schema.test fails when run under valgrind
