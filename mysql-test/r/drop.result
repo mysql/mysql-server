@@ -121,3 +121,17 @@ ERROR 42000: Incorrect table name '#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 use test;
 drop database mysqltestbug26703;
 End of 5.1 tests
+
+# --
+# -- Bug#37431 (DROP TABLE does not report errors correctly).
+# --
+DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1051	Unknown table 't1'
+
+# --
+# -- End of Bug#37431.
+# --
