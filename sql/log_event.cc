@@ -8452,7 +8452,10 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   /* fill table->record[0] with default values */
 
   if ((error= prepare_record(table, m_width,
-                             TRUE /* check if columns have def. values */)))
+                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
+                             (rli->sql_thd->variables.sql_mode &
+                               (MODE_STRICT_TRANS_TABLES |
+                                MODE_STRICT_ALL_TABLES)))))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
