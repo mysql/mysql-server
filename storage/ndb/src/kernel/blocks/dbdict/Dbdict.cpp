@@ -1834,6 +1834,7 @@ Dbdict::convertSchemaFileTo_6_4(XSchemaFile * xsf)
 {
   for (Uint32 i = 0; i < xsf->noOfPages; i++)
   {
+    xsf->schemaPage[i].NdbVersion = NDB_VERSION_D;
     for (Uint32 j = 0; j < NDB_SF_PAGE_ENTRIES; j++)
     {
       Uint32 n = i * NDB_SF_PAGE_ENTRIES + j;
