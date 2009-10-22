@@ -142,6 +142,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
 
+  thd->mysys_var= 0;
+
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.finish_current_query();
 #endif
@@ -634,6 +636,7 @@ void *create_embedded_thd(int client_flag)
 
   thread_count++;
   threads.append(thd);
+  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);
@@ -1087,6 +1090,9 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char *sqlstate)
 {
+  uint error;
+  uchar converted_err[MYSQL_ERRMSG_SIZE];
+  uint32 converted_err_len;
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
 
@@ -1101,7 +1107,12 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
-  strmake(ei->info, err, sizeof(ei->info)-1);
+  converted_err_len= convert_error_message((char*)converted_err,
+                                           sizeof(converted_err),
+                                           thd->variables.character_set_results,
+                                           err, strlen(err),
+                                           system_charset_info, &error);
+  strmake(ei->info, (const char*) converted_err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;

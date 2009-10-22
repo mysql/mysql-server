@@ -27,6 +27,7 @@
 #include "mysys_err.h"
 #include "events.h"
 #include "probes_mysql.h"
+#include "debug_sync.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -399,9 +400,10 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
                                         "index_merge_intersection=on";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
-static char *opt_init_slave, *language_ptr, *opt_init_connect;
+static char *opt_init_slave, *lc_messages_dir_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
+static char *lc_messages;
 static char *lc_time_names_name;
 static char *my_bind_addr_str;
 static char *default_collation_name; 
@@ -498,6 +500,9 @@ my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
+#if defined(ENABLED_DEBUG_SYNC)
+uint    opt_debug_sync_timeout= 0;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
@@ -575,9 +580,11 @@ char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
-     language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
+     lc_messages_dir[FN_REFLEN], reg_ext[FN_EXTLEN],
+     mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+char err_shared_dir[FN_REFLEN];
 char mysql_unpacked_real_data_home[FN_REFLEN];
 int mysql_unpacked_real_data_home_len;
 uint reg_ext_length;
@@ -590,7 +597,6 @@ uint mysql_data_home_len;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
-const char **errmesg;			/**< Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
 
@@ -630,6 +636,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 CHARSET_INFO *error_message_charset_info;
 
+MY_LOCALE *my_default_lc_messages;
 MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
@@ -648,7 +655,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count;
+                LOCK_connection_count, LOCK_error_messages;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -1123,13 +1130,13 @@ void kill_mysql(void)
 
 #if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_RETURN(0)
+#define RETURN_FROM_KILL_SERVER return 0
 #else
 static void __cdecl kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
+#define RETURN_FROM_KILL_SERVER return
 #endif
 {
   DBUG_ENTER("kill_server");
@@ -1137,15 +1144,18 @@ static void __cdecl kill_server(int sig_ptr)
   int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
+  {
+    DBUG_LEAVE;
     RETURN_FROM_KILL_SERVER;
+  }
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
   if (sig != 0) // 0 is not a valid signal number
     my_sigset(sig, SIG_IGN);                    /* purify inspected */
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
-    sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
+    sql_print_information(ER_DEFAULT(ER_NORMAL_SHUTDOWN),my_progname);
   else
-    sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
+    sql_print_error(ER_DEFAULT(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
 #if defined(HAVE_SMEM) && defined(__WIN__)    
   /*    
@@ -1172,12 +1182,19 @@ static void __cdecl kill_server(int sig_ptr)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
   /* purecov: end */
 
-#endif /* EMBEDDED_LIBRARY */
+  RETURN_FROM_KILL_SERVER;                      // Avoid compiler warnings
+
+#else /* EMBEDDED_LIBRARY*/
+
+  DBUG_LEAVE;
   RETURN_FROM_KILL_SERVER;
+
+#endif /* EMBEDDED_LIBRARY */
 }
 
 
@@ -1339,17 +1356,20 @@ void clean_up(bool print_message)
 #ifdef USE_REGEX
   my_regex_end();
 #endif
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the debug sync facility. See debug_sync.cc. */
+  debug_sync_end();
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #if !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message && errmesg && server_start_time)
-    sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
+  if (print_message && /*errmesg &&*/ server_start_time)
+    sql_print_information(ER_DEFAULT(ER_SHUTDOWN_COMPLETE),my_progname);
+  cleanup_errmsgs();
   thread_scheduler.end();
   finish_client_errs();
-  my_free((uchar*) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST),
-          MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
@@ -1433,6 +1453,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
+  (void) pthread_mutex_destroy(&LOCK_error_messages);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_global_read_lock);
@@ -1805,7 +1826,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   DBUG_PRINT("enter",("fd: %s  error: '%s'",
 		      thd->net.vio ? vio_description(thd->net.vio) :
 		      "(not connected)",
-		      errcode ? ER(errcode) : ""));
+		      errcode ? ER_DEFAULT(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
   thd->killed= THD::KILL_CONNECTION;
@@ -1813,7 +1834,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   {
     if (errcode)
       net_send_error(thd, errcode,
-                     ER(errcode), NULL); /* purecov: inspected */
+                     ER_DEFAULT(errcode), NULL); /* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
@@ -1957,8 +1978,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Impossible
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -2755,7 +2777,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
+      DBUG_LEAVE;                               // Must match DBUG_ENTER()
       pthread_exit(0);				// Safety
+      return 0;                                 // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
@@ -3343,6 +3367,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
     open_files_limit= files;
   }
   unireg_init(opt_specialflag); /* Set up extern variabels */
+  if (!(my_default_lc_messages=
+        my_locale_by_name(lc_messages)))
+  {
+    sql_print_error("Unknown locale: '%s'", lc_messages);
+    return 1;
+  }
+  global_system_variables.lc_messages= my_default_lc_messages;
   if (init_errmessage())	/* Read error messages from file */
     return 1;
   init_client_errs();
@@ -3393,12 +3424,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
-      sql_print_error(ER(ER_UNKNOWN_COLLATION), default_collation_name);
+      sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION), default_collation_name);
       return 1;
     }
     if (!my_charset_same(default_charset_info, default_collation))
     {
-      sql_print_error(ER(ER_COLLATION_CHARSET_MISMATCH),
+      sql_print_error(ER_DEFAULT(ER_COLLATION_CHARSET_MISMATCH),
 		      default_collation_name,
 		      default_charset_info->csname);
       return 1;
@@ -3460,6 +3491,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   s= opt_slow_logname ? opt_slow_logname : make_default_log_name(buff, "-slow.log");
   sys_var_slow_log_path.value= my_strdup(s, MYF(0));
   sys_var_slow_log_path.value_length= strlen(s);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the debug sync facility. See debug_sync.cc. */
+  if (debug_sync_init())
+    return 1; /* purecov: tested */
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #if (ENABLE_TEMP_POOL)
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
@@ -3546,6 +3583,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_error_messages, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
@@ -3716,6 +3754,7 @@ static void end_ssl()
 
 static int init_server_components()
 {
+  FILE* reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3758,7 +3797,7 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        freopen(log_error_file, "a+", stderr);
+        reopen= freopen(log_error_file, "a+", stderr);
         setbuf(stderr, NULL);
       }
     }
@@ -3952,8 +3991,8 @@ server.");
   }
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!errmesg[0][0])
-    unireg_abort(1);
+  if (!DEFAULT_ERRMSGS[0][0])
+    unireg_abort(1);  
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
@@ -4466,7 +4505,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   start_handle_manager();
 
-  sql_print_information(ER(ER_STARTUP),my_progname,server_version,
+  sql_print_information(ER_DEFAULT(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
                          mysqld_port,
@@ -4602,7 +4641,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -4843,7 +4882,7 @@ void create_thread_to_handle_connection(THD *thd)
                               handle_one_connection,
                               (void*) thd)))
     {
-      /* purify: begin inspected */
+      /* purecov: begin inspected */
       DBUG_PRINT("error",
                  ("Can't create thread to handle request (error %d)",
                   error));
@@ -5627,6 +5666,7 @@ enum options_mysqld
   OPT_DEFAULT_COLLATION,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
+  OPT_LC_ERROR_MESSAGES,
   OPT_LC_TIME_NAMES,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
@@ -5663,6 +5703,9 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
+#if defined(ENABLED_DEBUG_SYNC)
+  OPT_DEBUG_SYNC_TIMEOUT,
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   OPT_OLD_MODE,
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
@@ -5895,9 +5938,17 @@ Disable with --skip-super-large-pages.",
    (uchar**) &opt_init_slave, (uchar**) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"language", 'L',
-   "Client error messages in given language. May be given as a full path.",
-   (uchar**) &language_ptr, (uchar**) &language_ptr, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
+   "Client error messages in given language. May be given as a full path. "
+   "Deprecated. Use --lc-messages-dir instead.",
+   (uchar**) &lc_messages_dir_ptr, (uchar**) &lc_messages_dir_ptr, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lc-messages-dir", 'L',
+   "Directory where error messages are.", (uchar**) &lc_messages_dir_ptr,
+   (uchar**) &lc_messages_dir_ptr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lc-messages", OPT_LC_ERROR_MESSAGES,
+   "Set the language used for the error messages.",
+   (uchar**) &lc_messages, (uchar**) &lc_messages, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0 },
   {"lc-time-names", OPT_LC_TIME_NAMES,
    "Set the language used for the month names and the days of the week.",
    (uchar**) &lc_time_names_name,
@@ -6439,6 +6490,14 @@ log and this option does nothing anymore.",
    "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK.",
    (uchar**) &opt_tc_heuristic_recover, (uchar**) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(ENABLED_DEBUG_SYNC)
+  {"debug-sync-timeout", OPT_DEBUG_SYNC_TIMEOUT,
+   "Enable the debug sync facility "
+   "and optionally specify a default wait timeout in seconds. "
+   "A zero value keeps the facility disabled.",
+   (uchar**) &opt_debug_sync_timeout, 0,
+   0, GET_UINT, OPT_ARG, 0, 0, UINT_MAX, 0, 0, 0},
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   {"temp-pool", OPT_TEMP_POOL,
 #if (ENABLE_TEMP_POOL)
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
@@ -7498,10 +7557,7 @@ SHOW_VAR status_vars[]= {
 static void print_version(void)
 {
   set_server_version();
-  /*
-    Note: the instance manager keys off the string 'Ver' so it can find the
-    version from the output of 'mysqld --version', so don't change it!
-  */
+
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
@@ -7618,12 +7674,14 @@ static int mysql_init_variables(void)
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
-  errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;
+#if defined(ENABLED_DEBUG_SYNC)
+  opt_debug_sync_timeout= 0;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   key_map_full.set_all();
 
   /* Character sets */
@@ -7648,7 +7706,7 @@ static int mysql_init_variables(void)
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
-  language_ptr= language;
+  lc_messages_dir_ptr= lc_messages_dir;
   mysql_data_home= mysql_real_data_home;
   thd_startup_options= (OPTION_AUTO_IS_NULL | OPTION_BIN_LOG |
                         OPTION_QUOTE_SHOW_CREATE | OPTION_SQL_NOTES);
@@ -7673,7 +7731,6 @@ static int mysql_init_variables(void)
   multi_keycache_init();
 
   /* Set directory paths */
-  strmake(language, LANGUAGE, sizeof(language)-1);
   strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
@@ -7696,6 +7753,7 @@ static int mysql_init_variables(void)
   default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
+  lc_messages= (char*) "en_US";
   lc_time_names_name= (char*) "en_US";
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
@@ -7858,7 +7916,7 @@ mysqld_get_one_option(int optid,
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
-    strmake(language, argument, sizeof(language)-1);
+    strmake(lc_messages_dir, argument, sizeof(lc_messages_dir)-1);
     break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
@@ -8358,6 +8416,22 @@ mysqld_get_one_option(int optid,
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
     break;
+#if defined(ENABLED_DEBUG_SYNC)
+  case OPT_DEBUG_SYNC_TIMEOUT:
+    /*
+      Debug Sync Facility. See debug_sync.cc.
+      Default timeout for WAIT_FOR action.
+      Default value is zero (facility disabled).
+      If option is given without an argument, supply a non-zero value.
+    */
+    if (!argument)
+    {
+      /* purecov: begin tested */
+      opt_debug_sync_timeout= DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT;
+      /* purecov: end */
+    }
+    break;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   }
   return 0;
 }
@@ -8604,7 +8678,7 @@ static int fix_paths(void)
     --mysql_unpacked_real_data_home_len;
 
 
-  convert_dirname(language,language,NullS);
+  convert_dirname(lc_messages_dir, lc_messages_dir, NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
@@ -8618,7 +8692,7 @@ static int fix_paths(void)
   else
     strxnmov(buff,sizeof(buff)-1,mysql_home,sharedir,NullS);
   convert_dirname(buff,buff,NullS);
-  (void) my_load_path(language,language,buff);
+  (void) my_load_path(lc_messages_dir, lc_messages_dir, buff);
 
   /* If --character-sets-dir isn't given, use shared library dir */
   if (charsets_dir != mysql_charsets_dir)

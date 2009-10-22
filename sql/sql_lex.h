@@ -1795,13 +1795,6 @@ typedef struct st_lex : public Query_tables_list
 
   const char *stmt_definition_end;
 
-  /*
-    Pointers to part of LOAD DATA statement that should be rewritten
-    during replication ("LOCAL 'filename' REPLACE INTO" part).
-  */
-  const char *fname_start;
-  const char *fname_end;
-  
   /**
     During name resolution search only in the table list given by 
     Name_resolution_context::first_name_resolution_table and

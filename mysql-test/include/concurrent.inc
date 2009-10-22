@@ -25,8 +25,6 @@
 #               new wrapper t/concurrent_innodb_safelog.test
 #
 
---source include/not_embedded.inc
-
 connection default;
 #
 # Show prerequisites for this test.

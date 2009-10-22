@@ -106,10 +106,11 @@ my_bool my_thread_global_init(void)
     pthread_attr_t  dummy_thread_attr;
 
     pthread_attr_init(&dummy_thread_attr);
-    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_DETACHED);
+    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_JOINABLE);
 
-    pthread_create(&dummy_thread,&dummy_thread_attr,
-                   nptl_pthread_exit_hack_handler, NULL);
+    if (pthread_create(&dummy_thread,&dummy_thread_attr,
+                       nptl_pthread_exit_hack_handler, NULL) == 0)
+      (void)pthread_join(dummy_thread, NULL);
   }
 #endif /* TARGET_OS_LINUX */
 

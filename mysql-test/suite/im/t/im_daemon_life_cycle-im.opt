@@ -1,3 +1,0 @@
---run-as-service
---log=$MYSQLTEST_VARDIR/log/im.log
---monitoring-interval=1
