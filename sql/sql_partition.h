@@ -67,9 +67,6 @@ bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           TABLE *table, handler *file, HA_CREATE_INFO *info);
 void set_linear_hash_mask(partition_info *part_info, uint num_parts);
 bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
-char *generate_partition_syntax(partition_info *part_info,
-                                uint *buf_length, bool use_sql_alloc,
-                                bool show_partition_options);
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
 void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
@@ -96,6 +93,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
+Item* convert_charset_partition_constant(Item *item, CHARSET_INFO *cs);
 
 /*
   A "Get next" function for partition iterator.

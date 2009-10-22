@@ -6207,7 +6207,7 @@ ER_TOO_MANY_CONCURRENT_TRXS
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
 ER_SAME_NAME_PARTITION_FIELD
-        eng "Duplicate partition field name %-.192s"
+        eng "Duplicate partition field name '%-.192s'"
 ER_PARTITION_COLUMN_LIST_ERROR
   eng "Inconsistency in usage of column lists for partitioning"
 ER_WRONG_TYPE_COLUMN_VALUE_ERROR
@@ -6220,3 +6220,5 @@ ER_TOO_MANY_VALUES_ERROR
   eng "Cannot have more than one value for this type of %-.64s partitioning"
 ER_ROW_SINGLE_PARTITION_FIELD_ERROR
         eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
+ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+  eng "Field '%-.192s' is of a not allowed type for this type of partitioning"

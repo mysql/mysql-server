@@ -8,6 +8,29 @@
 drop table if exists t1;
 --enable_warnings
 
+create table t1 (a int, b char(10), c varchar(25), d datetime)
+partition by range column_list(a,b,c,d)
+subpartition by hash (to_seconds(d))
+subpartitions 4
+( partition p0 values less than (1, 0, MAXVALUE, 0),
+  partition p1 values less than (1, 'a', MAXVALUE, TO_DAYS('1999-01-01')),
+  partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
+  partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
+select partition_method, partition_expression, partition_description
+  from information_schema.partitions where table_name = "t1";
+#show create table t1;
+drop table t1;
+
+#
+# BUG#48163, Dagger in UCS2 not working as partition value
+#
+#create table t1 (a varchar(2) character set ucs2)
+#partition by list column_list (a)
+#(partition p0 values in (0x2020),
+# partition p1 values in (''));
+#insert into t1 values ('');
+#drop table t1;
+
 --error ER_NULL_IN_VALUES_LESS_THAN
 create table t1 (a int, b int)
 partition by range column_list (a,b)
@@ -18,6 +41,13 @@ create table t1 (a int, b int)
 partition by list column_list(a,b)
 ( partition p0 values in ((maxvalue, 0)));
 
+create table t1 (a int, b int)
+partition by list column_list (a,b)
+( partition p0 values in ((0,0)));
+--error ER_MAXVALUE_IN_VALUES_IN, ER_PARSE_ERROR
+alter table t1 add partition
+(partition p1 values in (maxvalue, maxvalue));
+drop table t1;
 #
 # BUG#47837, Crash when two same fields in column list processing
 #
@@ -61,6 +91,7 @@ partition by list column_list(a,b)
   partition p2 values in ((3, NULL), (NULL, 1)));
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
+show create table t1;
 #
 # BUG#47754 Crash when selecting using NOT BETWEEN for column list partitioning
 #
@@ -90,6 +121,7 @@ partition by list (a)
   partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
+show create table t1;
 insert into t1 values (1);
 insert into t1 values (2);
 insert into t1 values (3);
@@ -111,6 +143,7 @@ partition by list column_list(a)
   partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
  from information_schema.partitions where table_name = "t1";
+show create table t1;
 insert into t1 values (1);
 insert into t1 values (2);
 insert into t1 values (3);
@@ -119,18 +152,6 @@ insert into t1 values (NULL);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (5);
 show create table t1;
-drop table t1;
-
-create table t1 (a int, b char(10), c varchar(25), d datetime)
-partition by range column_list(a,b,c,d)
-subpartition by hash (to_seconds(d))
-subpartitions 4
-( partition p0 values less than (1, 0, MAXVALUE, 0),
-  partition p1 values less than (1, 'a', MAXVALUE, TO_DAYS('1999-01-01')),
-  partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
-  partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
-select partition_method, partition_expression, partition_description
-  from information_schema.partitions where table_name = "t1";
 drop table t1;
 
 create table t1 (a int, b char(10), c varchar(5), d int)
@@ -143,6 +164,7 @@ subpartitions 3
   partition p3 values less than (4,'abc','abc'));
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
+show create table t1;
 
 insert into t1 values (1,'a','b',1),(2,'a','b',2),(3,'a','b',3);
 insert into t1 values (1,'b','c',1),(2,'b','c',2),(3,'b','c',3);
@@ -158,6 +180,7 @@ partition by range column_list (a, b, c)
  partition p1 values less than (1, 'B', 1));
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
+show create table t1;
 insert into t1 values (1, 'A', 1);
 explain partitions select * from t1 where a = 1 AND b <= 'A' and c = 1;
 select * from t1 where a = 1 AND b <= 'A' and c = 1;
@@ -171,10 +194,22 @@ select * from t1 where a = 'a';
 drop table t1;
 
 --error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+create table t1 (d time)
+partition by range column_list(d)
+( partition p0 values less than ('2000-01-01'),
+  partition p1 values less than ('2040-01-01'));
+
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 create table t1 (d timestamp)
 partition by range column_list(d)
 ( partition p0 values less than ('2000-01-01'),
   partition p1 values less than ('2040-01-01'));
+
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+create table t1 (d bit(1))
+partition by range column_list(d)
+( partition p0 values less than (0),
+  partition p1 values less than (1));
 
 create table t1 (a int, b int)
 partition by range column_list(a,b)
