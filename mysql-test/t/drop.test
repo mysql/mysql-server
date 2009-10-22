@@ -202,3 +202,24 @@ use test;
 drop database mysqltestbug26703;
 
 --echo End of 5.1 tests
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#37431 (DROP TABLE does not report errors correctly).
+--echo # --
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+
+SHOW WARNINGS;
+
+--echo
+--echo # --
+--echo # -- End of Bug#37431.
+--echo # --
