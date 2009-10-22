@@ -860,22 +860,19 @@ void multi_delete::abort()
 
 
 
-/*
+/**
   Do delete from other tables.
-  Returns values:
-	0 ok
-	1 error
+
+  @retval 0 ok
+  @retval 1 error
+
+  @todo Is there any reason not use the normal nested-loops join? If not, and
+  there is no documentation supporting it, this method and callee should be
+  removed and there should be hooks within normal execution.
 */
 
 int multi_delete::do_deletes()
 {
-  int local_error= 0, counter= 0, tmp_error;
-  bool will_batch;
-  /*
-    If the IGNORE option is used all non fatal errors will be translated
-    to warnings and we should not break the row-by-row iteration
-  */
-  bool ignore= thd->lex->current_select->no_error;
   DBUG_ENTER("do_deletes");
   DBUG_ASSERT(do_delete);
 
@@ -886,78 +883,107 @@ int multi_delete::do_deletes()
   table_being_deleted= (delete_while_scanning ? delete_tables->next_local :
                         delete_tables);
  
-  for (; table_being_deleted;
+  for (uint counter= 0; table_being_deleted;
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
-    ha_rows last_deleted= deleted;
     TABLE *table = table_being_deleted->table;
     if (tempfiles[counter]->get(table))
+      DBUG_RETURN(1);
+
+    int local_error= 
+      do_table_deletes(table, thd->lex->current_select->no_error);
+
+    if (thd->killed && !local_error)
+      DBUG_RETURN(1);
+
+    if (local_error == -1)				// End of file
+      local_error = 0;
+
+    if (local_error)
+      DBUG_RETURN(local_error);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
+   Implements the inner loop of nested-loops join within multi-DELETE
+   execution.
+
+   @param table The table from which to delete.
+
+   @param ignore If used, all non fatal errors will be translated
+   to warnings and we should not break the row-by-row iteration.
+
+   @return Status code
+
+   @retval  0 All ok.
+   @retval  1 Triggers or handler reported error.
+   @retval -1 End of file from handler.
+*/
+int multi_delete::do_table_deletes(TABLE *table, bool ignore)
+{
+  int local_error= 0;
+  READ_RECORD info;
+  ha_rows last_deleted= deleted;
+  DBUG_ENTER("do_deletes_for_table");
+  init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
+  /*
+    Ignore any rows not found in reference tables as they may already have
+    been deleted by foreign key handling
+  */
+  info.ignore_not_found_rows= 1;
+  bool will_batch= !table->file->start_bulk_delete();
+  while (!(local_error= info.read_record(&info)) && !thd->killed)
+  {
+    if (table->triggers &&
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_BEFORE, FALSE))
     {
-      local_error=1;
+      local_error= 1;
       break;
     }
-
-    READ_RECORD	info;
-    init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
-    /*
-      Ignore any rows not found in reference tables as they may already have
-      been deleted by foreign key handling
-    */
-    info.ignore_not_found_rows= 1;
-    will_batch= !table->file->start_bulk_delete();
-    while (!(local_error=info.read_record(&info)) && !thd->killed)
+      
+    local_error= table->file->ha_delete_row(table->record[0]);
+    if (local_error && !ignore)
     {
+      table->file->print_error(local_error, MYF(0));
+      break;
+    }
+      
+    /*
+      Increase the reported number of deleted rows only if no error occurred
+      during ha_delete_row.
+      Also, don't execute the AFTER trigger if the row operation failed.
+    */
+    if (!local_error)
+    {
+      deleted++;
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, FALSE))
+                                            TRG_ACTION_AFTER, FALSE))
       {
         local_error= 1;
         break;
       }
-
-      local_error= table->file->ha_delete_row(table->record[0]);
-      if (local_error && !ignore)
-      {
-        table->file->print_error(local_error,MYF(0));
-        break;
-      }
-
-      /*
-        Increase the reported number of deleted rows only if no error occurred
-        during ha_delete_row.
-        Also, don't execute the AFTER trigger if the row operation failed.
-      */
-      if (!local_error)
-      {
-        deleted++;
-        if (table->triggers &&
-            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                              TRG_ACTION_AFTER, FALSE))
-        {
-          local_error= 1;
-          break;
-        }
-      }
     }
-    if (will_batch && (tmp_error= table->file->end_bulk_delete()))
-    {
-      if (!local_error)
-      {
-        local_error= tmp_error;
-        table->file->print_error(local_error,MYF(0));
-      }
-    }
-    if (last_deleted != deleted && !table->file->has_transactions())
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
-    end_read_record(&info);
-    if (thd->killed && !local_error)
-      local_error= 1;
-    if (local_error == -1)				// End of file
-      local_error = 0;
   }
+  if (will_batch)
+  {
+    int tmp_error= table->file->end_bulk_delete();
+    if (tmp_error && !local_error)
+    {
+      local_error= tmp_error;
+      table->file->print_error(local_error, MYF(0));
+    }
+  }
+  if (last_deleted != deleted && !table->file->has_transactions())
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+
+  end_read_record(&info);
+
   DBUG_RETURN(local_error);
 }
-
 
 /*
   Send ok to the client

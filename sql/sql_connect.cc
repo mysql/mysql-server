@@ -977,7 +977,7 @@ static void end_connection(THD *thd)
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
 
-  if (thd->killed || net->error && net->vio != 0)
+  if (thd->killed || (net->error && net->vio != 0))
   {
     statistic_increment(aborted_threads,&LOCK_status);
   }

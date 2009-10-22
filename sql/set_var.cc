@@ -529,11 +529,11 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
-#ifdef HAVE_SYS_UN_H
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
-#endif
+
 #ifdef HAVE_THR_SETCONCURRENCY
 /* purecov: begin tested */
 static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
@@ -625,6 +625,12 @@ static sys_var_long_ptr	sys_table_cache_size(&vars, "table_open_cache",
 					     &table_cache_size);
 static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
+
+#if defined(ENABLED_DEBUG_SYNC)
+/* Debug Sync Facility. Implemented in debug_sync.cc. */
+static sys_var_debug_sync sys_debug_sync(&vars, "debug_sync");
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
@@ -3419,7 +3425,7 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++);
+  for (sys_var *var=vars.first; var; var= var->next, count++) ;
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -4255,10 +4261,10 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
     goto end_with_read_lock;
 
-  if (result= make_global_read_lock_block_commit(thd))
+  if ((result= make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -4271,6 +4277,7 @@ end_with_read_lock:
 }
 
 
+#ifndef DBUG_OFF
 /* even session variable here requires SUPER, because of -#o,file */
 bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 {
@@ -4297,6 +4304,8 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
     DBUG_EXPLAIN(buf, sizeof(buf));
   return (uchar*) thd->strdup(buf);
 }
+#endif /* DBUG_OFF */
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)
