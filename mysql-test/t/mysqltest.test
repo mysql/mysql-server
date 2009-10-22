@@ -854,6 +854,7 @@ while ($outer)
 }
 
 # Test source in an if in a while which is false on 1st iteration
+# Also test --error in same context
 let $outer= 2; # Number of outer loops
 let $ifval= 0; # false 1st time
 while ($outer)
@@ -862,6 +863,8 @@ while ($outer)
 
   if ($ifval) {
     --source $MYSQLTEST_VARDIR/tmp/sourced.inc
+    --error ER_NO_SUCH_TABLE
+    SELECT * from nowhere;
   }
   dec $outer;
   inc $ifval;

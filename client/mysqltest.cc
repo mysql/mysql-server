@@ -7720,6 +7720,7 @@ int main(int argc, char **argv)
     if (!ok_to_do)
     {
       if (command->type == Q_SOURCE ||
+          command->type == Q_ERROR ||
           command->type == Q_WRITE_FILE ||
           command->type == Q_APPEND_FILE ||
 	  command->type == Q_PERL)

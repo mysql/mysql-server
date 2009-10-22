@@ -317,6 +317,7 @@ here is the sourced script
 outer=2 ifval=0
 outer=1 ifval=1
 here is the sourced script
+ERROR 42S02: Table 'test.nowhere' doesn't exist
 
 In loop
 here is the sourced script
