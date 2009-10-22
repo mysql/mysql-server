@@ -4443,6 +4443,8 @@ void st_table::mark_auto_increment_column()
 
 void st_table::mark_columns_needed_for_delete()
 {
+  mark_columns_per_binlog_row_image();
+
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
@@ -4466,13 +4468,20 @@ void st_table::mark_columns_needed_for_delete()
       be able to do an delete
     */
     if (s->primary_key == MAX_KEY)
-      file->use_hidden_primary_key();
+    {
+      /*
+        If in RBR, this was done already in:
+        mark_columns_per_binlog_row_image
+      */
+      if (!(mysql_bin_log.is_open() && in_use &&
+          in_use->current_stmt_binlog_row_based))
+        file->use_hidden_primary_key();
+    }
     else
     {
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
       file->column_bitmaps_signal();
     }
-    mark_columns_per_binlog_row_image();
   }
 }
 
@@ -4497,6 +4506,9 @@ void st_table::mark_columns_needed_for_delete()
 
 void st_table::mark_columns_needed_for_update()
 {
+
+  mark_columns_per_binlog_row_image();
+
   DBUG_ENTER("mark_columns_needed_for_update");
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_UPDATE);
@@ -4512,9 +4524,7 @@ void st_table::mark_columns_needed_for_update()
     }
     file->column_bitmaps_signal();
   }
-  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE ||
-      mysql_bin_log.is_open() && in_use &&
-      in_use->current_stmt_binlog_row_based)
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
     /*
       If the handler has no cursor capabilites, or we have row-based
@@ -4523,18 +4533,25 @@ void st_table::mark_columns_needed_for_update()
       able to do an update
     */
     if (s->primary_key == MAX_KEY)
-      file->use_hidden_primary_key();
+    {
+      /*
+        If in RBR, this was done already in:
+        mark_columns_per_binlog_row_image
+      */
+      if (!(mysql_bin_log.is_open() && in_use &&
+          in_use->current_stmt_binlog_row_based))
+        file->use_hidden_primary_key();
+    }
     else
     {
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
       file->column_bitmaps_signal();
     }
-    mark_columns_per_binlog_row_image();
   }
   DBUG_VOID_RETURN;
 }
 
-void TABLE::mark_columns_per_binlog_row_image()
+void st_table::mark_columns_per_binlog_row_image()
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
 
@@ -4602,6 +4619,7 @@ void TABLE::mark_columns_per_binlog_row_image()
 
 void st_table::mark_columns_needed_for_insert()
 {
+  mark_columns_per_binlog_row_image();
   if (triggers)
   {
     /*
@@ -4615,12 +4633,6 @@ void st_table::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
-
-  if(mysql_bin_log.is_open() && in_use &&
-      in_use->current_stmt_binlog_row_based)
-  {
-    mark_columns_needed_for_update();
-  }
 }
 
 

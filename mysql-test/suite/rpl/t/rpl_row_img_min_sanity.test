@@ -51,7 +51,7 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
   print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
@@ -66,7 +66,7 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
   print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
@@ -95,8 +95,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
 
@@ -110,8 +110,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
 
@@ -139,8 +139,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
 
@@ -154,8 +154,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
   close(FILE);
 EOF
 
@@ -183,8 +183,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
   close(FILE);
 EOF
 
@@ -198,8 +198,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
   close(FILE);
 EOF
 
@@ -227,8 +227,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
   close(FILE);
 EOF
 
@@ -242,8 +242,8 @@ perl;
   $binlog= $ENV{'BINLOG_CONTENTS'};
   open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
   my $contents = do { local $/; <FILE> };
-  print "Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
-  print "Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
   close(FILE);
 EOF
 
