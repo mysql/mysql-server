@@ -1556,3 +1556,326 @@ disconnect conn1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo #########################################################################
+--echo #
+--echo # Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.
+--echo #
+--echo #########################################################################
+
+--echo
+--echo # --
+--echo # -- Prepare the environment.
+--echo # --
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+CREATE TABLE mysqltest_db1.t1(a INT);
+
+--echo
+--echo # --
+--echo # -- Check that global privileges don't allow SHOW CREATE TABLE.
+--echo # --
+
+GRANT EVENT                   ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT LOCK TABLES             ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT ALTER ROUTINE           ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT CREATE ROUTINE          ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT EXECUTE                 ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+GRANT FILE                    ON *.* TO mysqltest_u1@localhost;
+GRANT CREATE USER             ON *.* TO mysqltest_u1@localhost;
+GRANT PROCESS                 ON *.* TO mysqltest_u1@localhost;
+GRANT RELOAD                  ON *.* TO mysqltest_u1@localhost;
+GRANT REPLICATION CLIENT      ON *.* TO mysqltest_u1@localhost;
+GRANT REPLICATION SLAVE       ON *.* TO mysqltest_u1@localhost;
+GRANT SHOW DATABASES          ON *.* TO mysqltest_u1@localhost;
+GRANT SHUTDOWN                ON *.* TO mysqltest_u1@localhost;
+GRANT USAGE                   ON *.* TO mysqltest_u1@localhost;
+
+--echo
+SHOW GRANTS FOR mysqltest_u1@localhost;
+
+--echo
+--echo # connection: con1 (mysqltest_u1@mysqltest_db1)
+--connect (con1,localhost,mysqltest_u1,,mysqltest_db1)
+--connection con1
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE TABLE t1;
+
+--echo
+--echo # connection: default
+--connection default
+
+--disconnect con1
+
+--echo
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+
+--echo
+--echo # -- 
+--echo # -- Check that global SELECT allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global INSERT allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global UPDATE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global DELETE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global CREATE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global DROP allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT DROP ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global ALTER allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT ALTER ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global INDEX allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT INDEX ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global REFERENCES allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT CREATE VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that global SHOW VIEW allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT SHOW VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level SELECT allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level INSERT allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT INSERT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level UPDATE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level DELETE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT DELETE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level CREATE allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT CREATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level DROP allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT DROP ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level ALTER allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT ALTER ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level INDEX allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT INDEX ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level REFERENCES allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT REFERENCES ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level CREATE VIEW allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT CREATE VIEW ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Check that table-level SHOW VIEW allows SHOW CREATE TABLE.
+--echo # -- 
+
+--echo
+GRANT SHOW VIEW ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+--source include/bug38347.inc
+
+--echo
+--echo # -- 
+--echo # -- Cleanup.
+--echo # -- 
+
+--echo
+DROP DATABASE mysqltest_db1;
+
+DROP USER mysqltest_u1@localhost;
+
+--echo
+--echo # End of Bug#38347.
+--echo
