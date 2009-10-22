@@ -752,6 +752,18 @@ struct st_table {
     bytes, it would take up 4.
   */
   my_bool force_index;
+
+  /**
+    Flag set when the statement contains FORCE INDEX FOR ORDER BY
+    See TABLE_LIST::process_index_hints().
+  */
+  my_bool force_index_order;
+
+  /**
+    Flag set when the statement contains FORCE INDEX FOR GROUP BY
+    See TABLE_LIST::process_index_hints().
+  */
+  my_bool force_index_group;
   my_bool distinct,const_table,no_rows;
 
   /**

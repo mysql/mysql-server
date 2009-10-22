@@ -302,9 +302,6 @@ static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_div
 static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
 						     offsetof(KEY_CACHE,
 							      param_age_threshold));
-static sys_var_const    sys_language(&vars, "language",
-                                     OPT_GLOBAL, SHOW_CHAR,
-                                     (uchar*) language);
 static sys_var_const    sys_large_files_support(&vars, "large_files_support",
                                                 OPT_GLOBAL, SHOW_BOOL,
                                                 (uchar*) &opt_large_files);
@@ -314,6 +311,9 @@ static sys_var_const    sys_large_page_size(&vars, "large_page_size",
 static sys_var_const    sys_large_pages(&vars, "large_pages",
                                         OPT_GLOBAL, SHOW_MY_BOOL,
                                         (uchar*) &opt_large_pages);
+static sys_var_const    sys_language(&vars, "lc_messages_dir",
+                                     OPT_GLOBAL, SHOW_CHAR,
+                                     (uchar*) lc_messages_dir);
 static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 					 &opt_local_infile);
 #ifdef HAVE_MLOCKALL
@@ -529,11 +529,11 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
-#ifdef HAVE_SYS_UN_H
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
-#endif
+
 #ifdef HAVE_THR_SETCONCURRENCY
 /* purecov: begin tested */
 static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
@@ -625,6 +625,12 @@ static sys_var_long_ptr	sys_table_cache_size(&vars, "table_open_cache",
 					     &table_cache_size);
 static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
+
+#if defined(ENABLED_DEBUG_SYNC)
+/* Debug Sync Facility. Implemented in debug_sync.cc. */
+static sys_var_debug_sync sys_debug_sync(&vars, "debug_sync");
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
@@ -786,6 +792,9 @@ sys_last_insert_id(&vars, "last_insert_id",
 static sys_var_last_insert_id
 sys_identity(&vars, "identity", sys_var::SESSION_VARIABLE_IN_BINLOG);
 
+static sys_var_thd_lc_messages
+sys_lc_messages(&vars, "lc_messages", sys_var::NOT_IN_BINLOG);
+
 static sys_var_thd_lc_time_names
 sys_lc_time_names(&vars, "lc_time_names", sys_var::SESSION_VARIABLE_IN_BINLOG);
 
@@ -907,8 +916,10 @@ bool sys_var_str::check(THD *thd, set_var *var)
     return 0;
 
   if ((res=(*check_func)(thd, var)) < 0)
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-             name, var->value->str_value.ptr());
+  {
+    ErrConvString err(&var->value->str_value);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+  }
   return res;
 }
 
@@ -1798,7 +1809,13 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 		 (ulong) find_type(enum_names, res->ptr(),
 				   res->length(), FALSE) - 1)) < 0)
     {
-      value= res ? res->c_ptr() : "NULL";
+      if (res)
+      {
+        ErrConvString err(res);
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+        return 1;
+      }
+      value= "NULL";
       goto err;
     }
   }
@@ -1851,8 +1868,9 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff) - 1, error_len));
-      goto err;
+      ErrConvString err(error, error_len, res->charset());
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+      return 1;
     }
   }
   else
@@ -2000,7 +2018,8 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
   if (!(format= date_time_format_make(date_time_type,
 				      res->ptr(), res->length())))
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
+    ErrConvString err(res);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
     return 1;
   }
   
@@ -2104,7 +2123,8 @@ bool sys_var_collation::check(THD *thd, set_var *var)
     }
     if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
     {
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
+      ErrConvString err(res);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
       return 1;
     }
   }
@@ -2144,7 +2164,8 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
     else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
              !(tmp=get_old_charset_by_name(res->c_ptr())))
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+      ErrConvString err(res);
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
       return 1;
     }
   }
@@ -2906,7 +2927,7 @@ bool sys_var_thd_ulong_session_readonly::check(THD *thd, set_var *var)
 }
 
 
-bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
+static MY_LOCALE *check_locale(THD *thd, const char *name, set_var *var)
 {
   MY_LOCALE *locale_match;
 
@@ -2916,29 +2937,38 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     {
       char buf[20];
       int10_to_str((int) var->value->val_int(), buf, -10);
-      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
-      return 1;
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), buf);
+      return 0;
     }
   }
   else // STRING_RESULT
   {
     char buff[6]; 
-    String str(buff, sizeof(buff), &my_charset_latin1), *res;
+    String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
-      return 1;
+      return 0;
     }
     const char *locale_str= res->c_ptr();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Unknown locale: '%s'", MYF(0), locale_str);
-      return 1;
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE),
+                      MYF(0), locale_str);
+      return 0;
     }
   }
 
-  var->save_result.locale_value= locale_match;
+  return var->save_result.locale_value= locale_match;
+}
+
+
+bool sys_var_thd_lc::check(THD *thd, set_var *var)
+{
+  MY_LOCALE *locale_match;
+
+  if (!(locale_match= check_locale(thd, name, var)))
+    return 1;
   return 0;
 }
 
@@ -2969,6 +2999,56 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
+
+
+bool sys_var_thd_lc_messages::update(THD *thd, set_var *var)
+{
+  MY_LOCALE *locale= var->save_result.locale_value;
+
+  if (!locale->errmsgs->errmsgs)
+  {
+    pthread_mutex_lock(&LOCK_error_messages);
+    if (!locale->errmsgs->errmsgs &&
+        read_texts(ERRMSG_FILE, locale->errmsgs->language,
+                   &locale->errmsgs->errmsgs,
+                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_UNKNOWN_ERROR,
+                          "Can't process error message file for locale '%s'",
+                          locale->name);
+      pthread_mutex_unlock(&LOCK_error_messages);
+      return 0;
+    }
+    pthread_mutex_unlock(&LOCK_error_messages);
+  }
+
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.lc_messages= locale;
+  else
+    thd->variables.lc_messages= locale;
+
+  return 0;
+}
+
+
+uchar *sys_var_thd_lc_messages::value_ptr(THD *thd, enum_var_type type,
+					  LEX_STRING *base)
+{
+  return type == OPT_GLOBAL ?
+                 (uchar *) global_system_variables.lc_messages->name :
+                 (uchar *) thd->variables.lc_messages->name;
+}
+
+
+void sys_var_thd_lc_messages::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.lc_messages= my_default_lc_messages;
+  else
+    thd->variables.lc_messages= global_system_variables.lc_messages;
+}
+
 
 /*
   Handling of microseoncds given as seconds.part_seconds
@@ -3345,7 +3425,7 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++);
+  for (sys_var *var=vars.first; var; var= var->next, count++) ;
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -3991,8 +4071,9 @@ bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
                                &error, &error_len, &not_used);
   if (error_len)
   {
-    strmake(buff, error, min(sizeof(buff) - 1, error_len));
-    goto err;
+    ErrConvString err(error, error_len, res->charset());
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+    return TRUE;    
   }
   return FALSE;
 err:
@@ -4180,10 +4261,10 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
     goto end_with_read_lock;
 
-  if (result= make_global_read_lock_block_commit(thd))
+  if ((result= make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -4196,6 +4277,7 @@ end_with_read_lock:
 }
 
 
+#ifndef DBUG_OFF
 /* even session variable here requires SUPER, because of -#o,file */
 bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 {
@@ -4222,6 +4304,8 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
     DBUG_EXPLAIN(buf, sizeof(buf));
   return (uchar*) thd->strdup(buf);
 }
+#endif /* DBUG_OFF */
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)

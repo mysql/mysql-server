@@ -47,11 +47,11 @@ insert into t1 values (0x01,0x01);
 select * from t1 where a=b;
 a	b
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '\x01'
 select * from t1 where a=b and b=0x01;
 a	b
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '\x01'
 drop table if exists t1;
 CREATE TABLE  t1 (b int(2) zerofill, c int(2) zerofill);
 INSERT INTO t1 (b,c) VALUES (1,2), (1,1), (2,2);

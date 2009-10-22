@@ -448,6 +448,13 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+# Even though this is a shared library, put it under /usr/lib/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
+install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
+%endif
+
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
 
@@ -465,8 +472,8 @@ rm -fr $RBR%{_datadir}/sql-bench
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 
-# Touch the place where the my.cnf config file might be located
-# Just to make sure it's in the file list and marked as a config file
+# Touch the place where the my.cnf config file might be located.
+# Just to make sure it's in the file list and marked as a config file.
 touch $RBR%{_sysconfdir}/my.cnf
 
 %pre server
@@ -707,6 +714,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
 %endif
 
+%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
+%endif
+
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
@@ -867,6 +878,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
+
+- "mysqlmanager" got removed from version 5.4, all references deleted.
+
 * Fri Aug 28 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Merge up from 5.1 to 5.4: Remove handling for the InnoDB plugin.

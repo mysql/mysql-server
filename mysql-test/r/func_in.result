@@ -608,4 +608,146 @@ SELECT SUM( DISTINCT e ) FROM t1 GROUP BY b,c,d HAVING (b,c,d) IN
 ((AVG( 1 ), 1 + c, 1 + d), (AVG( 1 ), 2 + c, 2 + d));
 SUM( DISTINCT e )
 DROP TABLE t1;
+#
+# Bug #44139: Table scan when NULL appears in IN clause
+#
+CREATE TABLE t1 (
+c_int INT NOT NULL,
+c_decimal DECIMAL(5,2) NOT NULL,
+c_float FLOAT(5, 2) NOT NULL,
+c_bit BIT(10) NOT NULL,
+c_date DATE NOT NULL, 
+c_datetime DATETIME NOT NULL,
+c_timestamp TIMESTAMP NOT NULL,
+c_time TIME NOT NULL,
+c_year YEAR NOT NULL,
+c_char CHAR(10) NOT NULL,
+INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
+INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
+INDEX(c_char));
+INSERT INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
+INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, 1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, NULL, 2, NULL, 3, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_int	c_int	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_decimal	c_decimal	3	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, 1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_decimal	c_decimal	3	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_float	c_float	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, 1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_float	c_float	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_bit	c_bit	2	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, 1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_bit	c_bit	2	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_date 
+IN ('2009-09-01', '2009-09-02', '2009-09-03');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_date	c_date	3	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_date
+IN (NULL, '2009-09-01', '2009-09-02', '2009-09-03');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_date	c_date	3	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_datetime
+IN ('2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_datetime	c_datetime	8	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_datetime
+IN (NULL, '2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_datetime	c_datetime	8	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp
+IN ('2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_timestamp	c_timestamp	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp
+IN (NULL, '2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_timestamp	c_timestamp	4	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_year	c_year	1	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, 1, 2, 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_year	c_year	1	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_char IN ('1', '2', '3');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_char	c_char	10	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, '1', '2', '3');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c_char	c_char	10	NULL	3	Using where
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP TABLE t1;
+#
 End of 5.1 tests

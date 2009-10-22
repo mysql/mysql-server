@@ -380,6 +380,9 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   /*
     buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
   */
+  uint error;
+  uchar converted_err[MYSQL_ERRMSG_SIZE];
+  uint32 converted_err_len;
   uchar buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
@@ -404,7 +407,12 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
       buff[2]= '#';
       pos= (uchar*) strmov((char*) buff+3, sqlstate);
     }
-    length= (uint) (strmake((char*) pos, err, MYSQL_ERRMSG_SIZE-1) -
+    converted_err_len= convert_error_message((char*)converted_err,
+                                             sizeof(converted_err),
+                                             thd->variables.character_set_results,
+                                             err, strlen(err),
+                                             system_charset_info, &error);
+    length= (uint) (strmake((char*) pos, (char*)converted_err, MYSQL_ERRMSG_SIZE) -
                     (char*) buff);
     err= (char*) buff;
   }
