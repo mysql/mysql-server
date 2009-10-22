@@ -436,6 +436,10 @@ void Dbdict::execCONTINUEB(Signal* signal)
     CRASH_INSERTION(ERROR_INSERT_VALUE);
     break;
 #endif
+  case ZCOMMIT_WAIT_GCI:
+    jam();
+    trans_commit_wait_gci(signal);
+    break;
   default :
     ndbrequire(false);
     break;
@@ -24089,13 +24093,74 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
   }
   else
   {
-    Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
-    Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+    jam();
+
+    signal->theData[0] = 0; // user ptr
+    signal->theData[1] = 0; // Execute direct
+    signal->theData[2] = 1; // Current
+    EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
     
-    // Todo should alloc mutex on SCHEMA_BEGIN
-    bool ok = mutex.lock(c);
-    ndbrequire(ok);
+    jamEntry();
+    Uint32 gci_hi = signal->theData[1];
+    Uint32 gci_lo = signal->theData[2];
+    
+    signal->theData[0] = ZCOMMIT_WAIT_GCI;
+    signal->theData[1] = trans_ptr.i;
+    signal->theData[2] = gci_hi;
+    signal->theData[3] = gci_lo;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
   }
+}
+
+void
+Dbdict::trans_commit_wait_gci(Signal* signal)
+{
+  jam();
+  SchemaTransPtr trans_ptr;
+  c_schemaTransPool.getPtr(trans_ptr, signal->theData[1]);
+
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_COMMITTING);
+  
+  Uint32 gci_hi = signal->theData[2];
+  Uint32 gci_lo = signal->theData[3];
+
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 curr_gci_hi = signal->theData[1];
+  Uint32 curr_gci_lo = signal->theData[2];
+
+  ndbout_c("%u %u - %u %u",
+           gci_hi, gci_lo,
+           curr_gci_hi, curr_gci_lo);
+
+  if (!getNodeState().getStarted())
+  {
+    jam();
+    /**
+     * node is starting
+     */
+  }
+  else if (curr_gci_hi == gci_hi && curr_gci_lo == gci_lo)
+  {
+    jam();
+    signal->theData[0] = ZCOMMIT_WAIT_GCI;
+    signal->theData[1] = trans_ptr.i;
+    signal->theData[2] = gci_hi;
+    signal->theData[3] = gci_lo;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+    return;
+  }
+
+  Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+  Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+  
+  // Todo should alloc mutex on SCHEMA_BEGIN
+  bool ok = mutex.lock(c);
+  ndbrequire(ok);
 }
 
 void

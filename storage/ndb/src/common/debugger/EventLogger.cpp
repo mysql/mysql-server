@@ -659,18 +659,12 @@ void getTextTransporterWarning(QQQQ) {
   getTextTransporterError(m_text, m_text_len, theData, len);
 }
 void getTextMissedHeartbeat(QQQQ) {
-  //-----------------------------------------------------------------------
-  // REPORT Undo Logging blocked due to buffer near to overflow.
-  //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d missed heartbeat %d",
 		       theData[1],
 		       theData[2]);
 }
 void getTextDeadDueToHeartbeat(QQQQ) {
-  //-----------------------------------------------------------------------
-  // REPORT Undo Logging blocked due to buffer near to overflow.
-  //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d declared dead due to missed heartbeat",
 		       theData[1]);

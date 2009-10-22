@@ -42,6 +42,7 @@ VoidFs::VoidFs(Block_context & ctx) :
   Ndbfs(ctx)
 {
   // Set received signals
+  addRecSignal(GSN_SEND_PACKED, &VoidFs::execSEND_PACKED, true);
   addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD, true);
   addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR, true);
@@ -90,6 +91,12 @@ VoidFs::execSTTOR(Signal* signal)
     return;
   }
   ndbrequire(0);
+}
+
+void
+VoidFs::execSEND_PACKED(Signal* signal)
+{
+  jamEntry();
 }
 
 void 
