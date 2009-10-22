@@ -1465,7 +1465,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         ((part_syntax= generate_partition_syntax(table->part_info,
                                                   &part_syntax_len,
                                                   FALSE,
-                                                  show_table_options))))
+                                                  show_table_options,
+                                                  NULL, NULL))))
     {
        packet->append(STRING_WITH_LEN("\n/*!50100"));
        packet->append(part_syntax, part_syntax_len);
@@ -4847,16 +4848,23 @@ get_partition_column_description(partition_info *part_info,
     {
       char buffer[MAX_STR_SIZE_PF];
       String str(buffer, sizeof(buffer), &my_charset_bin);
-      String *res= col_val->item_expression->val_str(&str);
+      Item *item= col_val->item_expression;
+
+      if (!(item= part_info->get_column_item(item,
+                              part_info->part_field_array[i])))
+      {
+        DBUG_RETURN(1);
+      }
+      String *res= item->val_str(&str);
       if (!res)
       {
         my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
         DBUG_RETURN(1);
       }
-      if (col_val->item_expression->result_type() == STRING_RESULT)
+      if (item->result_type() == STRING_RESULT)
         tmp_str.append("'");
       tmp_str.append(*res);
-      if (col_val->item_expression->result_type() == STRING_RESULT)
+      if (item->result_type() == STRING_RESULT)
         tmp_str.append("'");
     }
     if (i != num_elements - 1)

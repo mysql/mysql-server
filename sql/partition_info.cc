@@ -1876,6 +1876,34 @@ int partition_info::fix_func_partition(THD *thd,
   DBUG_RETURN(FALSE);
 }
 
+/*
+  Get column item with a proper character set according to the field
+
+  SYNOPSIS
+    get_column_item()
+    item                     Item object to start with
+    field                    Field for which the item will be compared to
+
+  RETURN VALUES
+    NULL                     Error
+    item                     Returned item
+*/
+
+Item* partition_info::get_column_item(Item *item, Field *field)
+{
+  if (field->result_type() == STRING_RESULT &&
+      item->collation.collation != field->charset())
+  {
+    if (!(item= convert_charset_partition_constant(item,
+                                                   field->charset())))
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      return NULL;
+    }
+  }
+  return item;
+}
+
 
 /*
   Evaluate VALUES functions for column list values
@@ -1921,6 +1949,12 @@ bool partition_info::fix_column_value_functions(THD *thd,
       {
         uchar *val_ptr;
         uint len= field->pack_length();
+        if (!(column_item= get_column_item(column_item,
+                                           field)))
+        {
+          result= TRUE;
+          goto end;
+        }
         if (column_item->save_in_field(field, TRUE))
         {
           my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
