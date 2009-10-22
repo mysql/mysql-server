@@ -390,7 +390,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 
 
 /**
-  Implementation of Drop_table_error_handler::handle_error().
+  Implementation of Drop_table_error_handler::handle_condition().
   The reason in having this implementation is to silence technical low-level
   warnings during DROP TABLE operation. Currently we don't want to expose
   the following warnings during DROP TABLE:
