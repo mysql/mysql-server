@@ -89,6 +89,7 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_LAST_BIT};
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
+enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -424,6 +425,8 @@ struct system_variables
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 
+  /* Error messages */
+  MY_LOCALE *lc_messages;
   /* Locale Support */
   MY_LOCALE *lc_time_names;
 
@@ -1808,6 +1811,11 @@ public:
   partition_info *work_part_info;
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Debug Sync facility. See debug_sync.cc. */
+  struct st_debug_sync_control *debug_sync_control;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   THD();
   ~THD();
 
@@ -2364,13 +2372,15 @@ my_eof(THD *thd)
 class sql_exchange :public Sql_alloc
 {
 public:
+  enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
   char *file_name;
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
   CHARSET_INFO *cs;
-  sql_exchange(char *name,bool dumpfile_flag);
+  sql_exchange(char *name, bool dumpfile_flag,
+               enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
 };
 
@@ -2644,7 +2654,32 @@ public:
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
-  uint	field_count,sum_func_count,func_count;
+  /**
+    Number of normal fields in the query, including those referred to
+    from aggregate functions. Hence, "SELECT `field1`,
+    SUM(`field2`) from t1" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint	field_count; 
+  /**
+    Number of fields in the query that have functions. Includes both
+    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND).
+    Also counts functions referred to from aggregate functions, i.e.,
+    "SELECT SUM(RAND())" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint  func_count;  
+  /**
+    Number of fields in the query that have aggregate functions. Note
+    that the optimizer may choose to optimize away these fields by
+    replacing them with constants, in which case sum_func_count will
+    need to be updated.
+
+    @see opt_sum_query, count_field_types
+  */
+  uint  sum_func_count;   
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
@@ -2909,7 +2944,8 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes();
+  int do_deletes();
+  int do_table_deletes(TABLE *table, bool ignore);
   bool send_eof();
   inline ha_rows num_deleted()
   {

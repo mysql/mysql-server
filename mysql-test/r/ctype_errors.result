@@ -1,0 +1,32 @@
+Start of 5.4 tests
+CREATE TABLE t1(f1 INT);
+SET lc_messages=ru_RU;
+SHOW VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	ru_RU
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: \0422\0430\0431\043B\0438\0446\0430 't1' \0443\0436\0435 \0441\0443\0449\0435\0441\0442\0432\0443\0435\0442
+SET NAMES utf8;
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: Таблица 't1' уже существует
+SHOW VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	en_US
+CREATE TABLE t1(f1 INT);
+ERROR 42S01: Table 't1' already exists
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	en_US
+SET GLOBAL lc_messages=ru_RU;
+SHOW GLOBAL VARIABLES LIKE 'lc_messages';
+Variable_name	Value
+lc_messages	ru_RU
+SET GLOBAL lc_messages=en_US;
+DROP TABLE t1;
+drop table `ק`;
+ERROR 42S02: Unknown table 'ק'
+SET lc_messages=cs_CZ;
+SET NAMES UTF8;
+USE nonexistant;
+ERROR 42000: Nezn-Bámá databáze 'nonexistant'
+End of 5.4 tests

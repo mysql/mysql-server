@@ -725,7 +725,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     share->avg_row_length= uint4korr(head+34);
     share->row_type= (row_type) head[40];
-    share->table_charset= get_charset((uint) head[38],MYF(0));
+    share->table_charset= get_charset((((uint) head[41]) << 8) + 
+                                        (uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
   if (!share->table_charset)
@@ -1184,12 +1185,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
       {
-        if (!strpos[14])
+        uint csid= strpos[14] + (((uint) strpos[11]) << 8);
+        if (!csid)
           charset= &my_charset_bin;
-        else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+        else if (!(charset= get_charset(csid, MYF(0))))
         {
           error= 5; // Unknown or unavailable charset
-          errarg= (int) strpos[14];
+          errarg= (int) csid;
           goto err;
         }
       }
@@ -2457,8 +2459,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length;
-    uint tmp;
+    uint key_length, tmp_key_length, tmp, csid;
     bzero((char*) fileinfo,64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2498,8 +2499,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
-    fileinfo[38]= (create_info->default_table_charset ?
-		   create_info->default_table_charset->number : 0);
+    csid= (create_info->default_table_charset ?
+           create_info->default_table_charset->number : 0);
+    fileinfo[38]= (uchar) csid;
     /*
       In future versions, we will store in fileinfo[39] the values of the
       TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
@@ -2507,7 +2509,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
-    fileinfo[41]= 0;
+    fileinfo[41]= (uchar) (csid >> 8);
     fileinfo[42]= 0;
     fileinfo[43]= 0;
     fileinfo[44]= 0;
@@ -3339,7 +3341,12 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 
 /**
-  Hide errors which show view underlying table information
+  Hide errors which show view underlying table information. 
+  There are currently two mechanisms at work that handle errors for views,
+  this one and a more general mechanism based on an Internal_error_handler,
+  see Show_create_error_handler. The latter handles errors encountered during
+  execution of SHOW CREATE VIEW, while the machanism using this method is
+  handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler
 
@@ -3348,6 +3355,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
+  if (thd->get_internal_handler())
+    return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
@@ -4631,7 +4640,8 @@ Item_subselect *TABLE_LIST::containing_subselect()
     (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
-    st_table::force_index and st_table::covering_keys.
+    st_table::force_index, st_table::force_index_order, 
+    st_table::force_index_group and st_table::covering_keys.
 
     Current implementation of the runtime does not allow mixing FORCE INDEX
     and USE INDEX, so this is checked here. Then the FORCE INDEX list 
@@ -4759,14 +4769,28 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
+    if (!index_order[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_order= TRUE;
+      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
+    }
+
+    if (!index_group[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_group= TRUE;
+      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
+    }
+
+    /*
+      TODO: get rid of tbl->force_index (on if any FORCE INDEX is specified) and
+      create tbl->force_index_join instead.
+      Then use the correct force_index_XX instead of the global one.
+    */
     if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_order[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_group[INDEX_HINT_FORCE].is_clear_all())
+        tbl->force_index_group || tbl->force_index_order)
     {
       tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
-      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
-      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
     }
 
     /* apply USE INDEX */

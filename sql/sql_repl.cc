@@ -623,7 +623,7 @@ impossible position";
       */
       {
 	log.error=0;
-	bool read_packet = 0, fatal_error = 0;
+	bool read_packet = 0;
 
 #ifndef DBUG_OFF
 	if (max_binlog_dump_events && !left_events--)
@@ -645,7 +645,7 @@ impossible position";
 	*/
 
 	pthread_mutex_lock(log_lock);
-	switch (Log_event::read_log_event(&log, packet, (pthread_mutex_t*)0)) {
+	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
 	  pthread_mutex_unlock(log_lock);
@@ -671,8 +671,8 @@ impossible position";
 
 	default:
 	  pthread_mutex_unlock(log_lock);
-	  fatal_error = 1;
-	  break;
+          test_for_non_eof_log_read_errors(error, &errmsg);
+          goto err;
 	}
 
 	if (read_packet)
@@ -701,12 +701,6 @@ impossible position";
 	  */
 	}
 
-	if (fatal_error)
-	{
-	  errmsg = "error reading log entry";
-          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-	  goto err;
-	}
 	log.error=0;
       }
     }

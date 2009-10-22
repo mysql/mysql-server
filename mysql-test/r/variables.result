@@ -812,16 +812,16 @@ select @@lc_time_names;
 @@lc_time_names
 en_US
 LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=108;
-select @@lc_time_names;
-@@lc_time_names
-zh_HK
-LC_TIME_NAMES: testing a number beyond the valid ID range:
 set lc_time_names=109;
-ERROR HY000: Unknown locale: '109'
 select @@lc_time_names;
 @@lc_time_names
-zh_HK
+el_GR
+LC_TIME_NAMES: testing a number beyond the valid ID range:
+set lc_time_names=110;
+ERROR HY000: Unknown locale: '110'
+select @@lc_time_names;
+@@lc_time_names
+el_GR
 LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
 select @@lc_time_names;
@@ -864,7 +864,7 @@ select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
 set global sql_mode=repeat('a',80);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 End of 4.1 tests
 create table t1 (a int);
 select a into @x from t1;
@@ -1176,18 +1176,18 @@ ERROR HY000: Variable 'init_file' is a read only variable
 SET @@global.init_file= 'x';
 ERROR HY000: Variable 'init_file' is a read only variable
 #
-SHOW VARIABLES like 'language';
+SHOW VARIABLES like 'lc_messages_dir';
 Variable_name	Value
-language	#
-SELECT @@session.language;
-ERROR HY000: Variable 'language' is a GLOBAL variable
-SELECT @@global.language;
-@@global.language
+lc_messages_dir	#
+SELECT @@session.lc_messages_dir;
+ERROR HY000: Variable 'lc_messages_dir' is a GLOBAL variable
+SELECT @@global.lc_messages_dir;
+@@global.lc_messages_dir
 #
-SET @@session.language= 'x';
-ERROR HY000: Variable 'language' is a read only variable
-SET @@global.language= 'x';
-ERROR HY000: Variable 'language' is a read only variable
+SET @@session.lc_messages_dir= 'x';
+ERROR HY000: Variable 'lc_messages_dir' is a read only variable
+SET @@global.lc_messages_dir= 'x';
+ERROR HY000: Variable 'lc_messages_dir' is a read only variable
 #
 SHOW VARIABLES like 'large_page_size';
 Variable_name	Value

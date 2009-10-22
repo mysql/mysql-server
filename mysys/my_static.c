@@ -92,6 +92,14 @@ void (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
 void (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
 
+#if defined(ENABLED_DEBUG_SYNC)
+/**
+  Global pointer to be set if callback function is defined
+  (e.g. in mysqld). See sql/debug_sync.cc.
+*/
+void (*debug_sync_C_callback_ptr)(const char *, size_t);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 #ifdef __WIN__
 /* from my_getsystime.c */
 ulonglong query_performance_frequency, query_performance_offset;

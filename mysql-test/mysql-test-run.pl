@@ -226,6 +226,7 @@ my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $opt_callgrind;
+my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
 our $opt_warnings= 1;
 
@@ -816,7 +817,6 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
-	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -867,6 +867,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
@@ -956,12 +957,12 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
-                                    "$basedir/sql/share/english",
-                                    "$basedir/share/english");
+  $path_language=   mtr_path_exists("$basedir/share/mysql",
+                                    "$basedir/sql/share",
+                                    "$basedir/share");
 
 
-  my $path_share= dirname($path_language);
+  my $path_share= $path_language;
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   if (using_extern())
@@ -1433,7 +1434,7 @@ sub collect_mysqld_features {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
-  mtr_add_arg($args, "--language=%s", $path_language);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
@@ -1812,7 +1813,7 @@ sub environment_setup {
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
   }
   else
   {
@@ -2701,7 +2702,7 @@ sub mysql_install_db {
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
   my $install_basedir= $mysqld->value('basedir');
-  my $install_lang= $mysqld->value('language');
+  my $install_lang= $mysqld->value('lc-messages-dir');
   my $install_chsdir= $mysqld->value('character-sets-dir');
 
   mtr_report("Installing system database...");
@@ -2724,7 +2725,7 @@ sub mysql_install_db {
 		$path_vardir_trace);
   }
 
-  mtr_add_arg($args, "--language=%s", $install_lang);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
@@ -4178,6 +4179,11 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s", "--core-file");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout);
+
   return $args;
 }
 
@@ -5287,6 +5293,8 @@ Misc options
                         to turn off.
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
+                        actions. Disable facility with NUM=0.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
   experimental=<file>   Refer to list of tests considered experimental;

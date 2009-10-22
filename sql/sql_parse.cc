@@ -1447,7 +1447,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
-    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+#ifndef DBUG_OFF
+    bool debug_simulate= FALSE;
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
+    if (debug_simulate)
+    {
+      /*
+        Simulate a reload without a attached thread session.
+        Provides a environment similar to that of when the
+        server receives a SIGHUP signal and reloads caches
+        and flushes tables.
+      */
+      bool res;
+      my_pthread_setspecific_ptr(THR_THD, NULL);
+      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
+                                NULL, &not_used);
+      my_pthread_setspecific_ptr(THR_THD, thd);
+      if (!res)
+        my_ok(thd);
+      break;
+    }
+#endif
+    if (!reload_acl_and_cache(thd, options, NULL, &not_used))
       my_ok(thd);
     break;
   }
@@ -6314,6 +6335,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
@@ -7761,7 +7783,10 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
     return FALSE;
 
   if (!no_error)
-    my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
+  {
+    ErrConvString err(str->str, str->length, cs);
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
+  }
   return TRUE;
 }
 
