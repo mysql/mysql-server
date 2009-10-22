@@ -3663,9 +3663,11 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     ndb_binlog_thread_running= -1;
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
+
+    DBUG_LEAVE;                               // Must match DBUG_ENTER()
     my_thread_end();
     pthread_exit(0);
-    DBUG_RETURN(NULL);
+    return NULL;                              // Avoid compiler warnings
   }
   lex_start(thd);
 
@@ -4376,10 +4378,11 @@ err:
   (void) pthread_cond_signal(&injector_cond);
 
   DBUG_PRINT("exit", ("ndb_binlog_thread"));
-  my_thread_end();
 
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
+  my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 bool

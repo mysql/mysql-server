@@ -57,5 +57,5 @@ if (`select @result = 0`){
   skip OK;
 }
 --enable_query_log
-echo ^ Found warnings!!;
+echo ^ Found warnings in $log_error;
 exit;

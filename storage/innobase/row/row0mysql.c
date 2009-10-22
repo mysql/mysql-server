@@ -510,7 +510,7 @@ handle_new_error:
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
 		if (row_rollback_on_timeout) {
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			break;
 		}
 		/* fall through */
@@ -526,7 +526,7 @@ handle_new_error:
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
 
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
+			trx_general_rollback_for_mysql(trx, savept);
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
@@ -548,7 +548,7 @@ handle_new_error:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		break;
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
@@ -866,18 +866,22 @@ row_update_statistics_if_needed(
 }
 
 /*********************************************************************//**
-Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
 UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	mutex_enter(&kernel_mutex);
+	if (lock_trx_holds_autoinc_locks(trx)) {
+		mutex_enter(&kernel_mutex);
 
-	lock_release_autoinc_locks(trx);
+		lock_release_autoinc_locks(trx);
 
-	mutex_exit(&kernel_mutex);
+		mutex_exit(&kernel_mutex);
+	}
 }
 
 /*********************************************************************//**
@@ -1767,7 +1771,6 @@ row_create_table_for_mysql(
 	const char*	table_name;
 	ulint		table_name_len;
 	ulint		err;
-	ulint		i;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -1800,15 +1803,6 @@ err_exit:
 			" of the MyISAM type!\n",
 			table->name);
 		goto err_exit;
-	}
-
-	/* Check that no reserved column names are used. */
-	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-		if (dict_col_name_is_reserved(
-			    dict_table_get_col_name(table, i))) {
-
-			goto err_exit;
-		}
 	}
 
 	trx_start_if_not_started(trx);
@@ -1885,7 +1879,7 @@ err_exit:
 
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 	}
 
 	switch (err) {
@@ -2053,7 +2047,7 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
@@ -2121,7 +2115,7 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 
 		row_drop_table_for_mysql(name, trx, FALSE);
 
@@ -2488,7 +2482,7 @@ row_discard_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		dict_table_change_id_in_cache(table, new_id);
@@ -2497,7 +2491,7 @@ row_discard_tablespace_for_mysql(
 
 		if (!success) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 
 			err = DB_ERROR;
@@ -2949,7 +2943,7 @@ next_rec:
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
@@ -3590,7 +3584,7 @@ row_delete_constraint(
 
 	if ((err == DB_SUCCESS) && !strchr(id, '/')) {
 		/* Old format < 4.0.18 constraints have constraint ids
-		<number>_<number>. We only try deleting them if the
+		NUMBER_NUMBER. We only try deleting them if the
 		constraint name does not contain a '/' character, otherwise
 		deleting a new format constraint named 'foo/bar' from
 		database 'baz' would remove constraint 'bar' from database
@@ -3854,7 +3848,7 @@ end:
 			      "InnoDB: succeed.\n", stderr);
 		}
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		/* The following call will also rename the .ibd data file if
@@ -3863,7 +3857,7 @@ end:
 		if (!dict_table_rename_in_cache(table, new_name,
 						!new_is_tmp)) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
@@ -3903,7 +3897,7 @@ end:
 			ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 		}
 	}

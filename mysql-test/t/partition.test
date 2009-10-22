@@ -62,6 +62,19 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
+# Bug#44059: rec_per_key on empty partition gives weird optimiser results
+#
+create table t1 (a int, b int, key(a))
+partition by list (a)
+( partition p0 values in (1),
+  partition p1 values in (2));
+insert into t1 values (1,1),(2,1),(2,2),(2,3);
+show indexes from t1;
+analyze table t1;
+show indexes from t1;
+drop table t1;
+
+#
 # Bug#36001: Partitions: spelling and using some error messages
 #
 --error ER_FOREIGN_KEY_ON_PARTITIONED

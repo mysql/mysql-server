@@ -2566,7 +2566,7 @@ SELECT format(12345678901234567890.123, 3, NULL);
 format(12345678901234567890.123, 3, NULL)
 12,345,678,901,234,567,890.123
 Warnings:
-Warning	1647	Unknown locale: 'NULL'
+Warning	1649	Unknown locale: 'NULL'
 SELECT format(12345678901234567890.123, 3, 'ar_AE');
 format(12345678901234567890.123, 3, 'ar_AE')
 12,345,678,901,234,567,890.123
@@ -2686,5 +2686,5 @@ SELECT format(123, 1, 'Non-existent-locale');
 format(123, 1, 'Non-existent-locale')
 123.0
 Warnings:
-Warning	1647	Unknown locale: 'Non-existent-locale'
+Warning	1649	Unknown locale: 'Non-existent-locale'
 End of 5.4 tests

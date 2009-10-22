@@ -17,6 +17,7 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
+#include "debug_sync.h"
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -112,7 +113,7 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
 static bool
-has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables);
+has_write_table_with_auto_increment(TABLE_LIST *tables);
 
 
 extern "C" uchar *table_cache_key(const uchar *record, size_t *length,
@@ -956,6 +957,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
     close_old_data_files(thd,thd->open_tables,1,1);
     mysql_ha_flush(thd);
+    DEBUG_SYNC(thd, "after_flush_unlock");
 
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
@@ -2309,7 +2311,8 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= 0;
+  table->force_index= table->force_index_order= table->force_index_group= 0;
   table->status=STATUS_NO_RECORD;
   DBUG_RETURN(FALSE);
 }
@@ -2967,7 +2970,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= 0;
+  table->force_index= table->force_index_order= table->force_index_group= 0;
   table->status=STATUS_NO_RECORD;
   table->insert_values= 0;
   table->fulltext_searched= 0;
@@ -5283,17 +5287,21 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
       /*
-        If we have >= 2 different tables to update with auto_inc columns,
-        statement-based binlogging won't work. We can solve this problem in
-        mixed mode by switching to row-based binlogging:
+        A query that modifies autoinc column in sub-statement can make the 
+        master and slave inconsistent.
+        We can solve these problems in mixed mode by switching to binlogging 
+        if at least one updated table is used by sub-statement
       */
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-          has_two_write_locked_tables_with_auto_increment(tables))
+      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing 
+         warnings, but it will be removed by fixing bug#45827 */
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables && 
+          has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
       {
         thd->lex->set_stmt_unsafe();
-        thd->set_current_stmt_binlog_row_based_if_mixed();
       }
     }
+
+    DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
                                         lock_flag, need_reopen)))
@@ -8821,47 +8829,31 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
 
 
 /*
-  Tells if two (or more) tables have auto_increment columns and we want to
-  lock those tables with a write lock.
+  Check if one (or more) write tables have auto_increment columns.
 
-  SYNOPSIS
-    has_two_write_locked_tables_with_auto_increment
-      tables        Table list
+  @param[in] tables Table list
+
+  @retval 0 if at least one write tables has an auto_increment column
+  @retval 1 otherwise
 
   NOTES:
     Call this function only when you have established the list of all tables
     which you'll want to update (including stored functions, triggers, views
     inside your statement).
-
-  RETURN
-    0  No
-    1  Yes
 */
 
 static bool
-has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
+has_write_table_with_auto_increment(TABLE_LIST *tables)
 {
-  char *first_table_name= NULL, *first_db;
-  LINT_INIT(first_db);
-
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->placeholder() &&
         table->table->found_next_number_field &&
         (table->lock_type >= TL_WRITE_ALLOW_WRITE))
-    {
-      if (first_table_name == NULL)
-      {
-        first_table_name= table->table_name;
-        first_db= table->db;
-        DBUG_ASSERT(first_db);
-      }
-      else if (strcmp(first_db, table->db) ||
-               strcmp(first_table_name, table->table_name))
-        return 1;
-    }
+      return 1;
   }
+
   return 0;
 }
 
