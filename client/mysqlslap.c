@@ -423,6 +423,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   stats *sptr;
   conclusions conclusion;
   unsigned long long client_limit;
+  int sysret;
 
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
@@ -463,7 +464,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
     if (pre_system)
-      system(pre_system);
+      if ((sysret= system(pre_system)) != 0)
+        fprintf(stderr, "Warning: Execution of pre_system option returned %d.\n", 
+                sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -478,7 +481,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_statements(mysql, post_statements);
 
     if (post_system)
-      system(post_system);
+      if ((sysret= system(post_system)) != 0)
+        fprintf(stderr, "Warning: Execution of post_system option returned %d.\n", 
+                sysret);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)

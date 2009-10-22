@@ -559,12 +559,6 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
-#define PURIFY_OR_LINT_INIT(var) var=0
-#else
-#define PURIFY_OR_LINT_INIT(var)
-#endif
-
 /* 
    Suppress uninitialized variable warning without generating code.
 
