@@ -1,3 +1,6 @@
+#ifndef MY_LIBWRAP_INCLUDED
+#define MY_LIBWRAP_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -25,3 +28,4 @@ extern int my_hosts_access(struct request_info *req);
 extern char *my_eval_client(struct request_info *req);
 
 #endif /* HAVE_LIBWRAP */
+#endif /* MY_LIBWRAP_INCLUDED */

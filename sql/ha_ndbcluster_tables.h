@@ -1,3 +1,6 @@
+#ifndef HA_NDBCLUSTER_TABLES_INCLUDED
+#define HA_NDBCLUSTER_TABLES_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
@@ -21,3 +24,5 @@
 #define OLD_NDB_APPLY_TABLE "apply_status"
 #define NDB_SCHEMA_TABLE "ndb_schema"
 #define OLD_NDB_SCHEMA_TABLE "schema"
+
+#endif /* HA_NDBCLUSTER_TABLES_INCLUDED */

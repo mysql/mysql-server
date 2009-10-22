@@ -78,3 +78,4 @@ parts.partition_syntax_ndb
 parts.partition_alter1_1_2_ndb
 parts.partition_basic_ndb
 parts.partition_mgm_lc0_ndb
+
