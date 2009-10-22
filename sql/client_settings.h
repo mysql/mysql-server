@@ -14,6 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef CLIENT_SETTINGS_INCLUDED
+#define CLIENT_SETTINGS_INCLUDED
+#else
+#error You have already included an client_settings.h and it should not be included twice
+#endif /* CLIENT_SETTINGS_INCLUDED */
+
 #include <thr_alarm.h>
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \

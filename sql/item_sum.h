@@ -1,3 +1,6 @@
+#ifndef ITEM_SUM_INCLUDED
+#define ITEM_SUM_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1413,3 +1416,5 @@ public:
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 };
+
+#endif /* ITEM_SUM_INCLUDED */
