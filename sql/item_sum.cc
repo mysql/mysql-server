@@ -847,7 +847,7 @@ bool Aggregator_distinct::setup(THD *thd)
     DBUG_ENTER("Item_sum_distinct::setup");
     /* It's legal to call setup() more than once when in a subquery */
     if (tree)
-      return FALSE;
+      DBUG_RETURN(FALSE);
 
     /*
       Virtual table and the tree are created anew on each re-execution of
@@ -855,7 +855,7 @@ bool Aggregator_distinct::setup(THD *thd)
       mem_root.
     */
     if (field_list.push_back(&field_def))
-      return TRUE;
+      DBUG_RETURN(TRUE);
 
     item_sum->null_value= item_sum->maybe_null= 1;
     item_sum->quick_group= 0;
@@ -871,7 +871,7 @@ bool Aggregator_distinct::setup(THD *thd)
     }
 
     if (always_null)
-      return FALSE;
+      DBUG_RETURN(FALSE);
 
     enum enum_field_types field_type;
 
@@ -884,7 +884,7 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->unsigned_flag);
 
     if (! (table= create_virtual_tmp_table(thd, field_list)))
-      return TRUE;
+      DBUG_RETURN(TRUE);
 
     /* XXX: check that the case of CHAR(0) works OK */
     tree_key_length= table->s->reclength - table->s->null_bytes;
