@@ -8,6 +8,18 @@
 drop table if exists t1;
 --enable_warnings
 
+#
+# BUG#48163, Dagger in UCS2 not working as partition value
+#
+create table t1 (a varchar(2) character set ucs2)
+partition by list column_list (a)
+(partition p0 values in (0x2020),
+ partition p1 values in (''));
+show create table t1;
+insert into t1 values ('');
+insert into t1 values (_ucs2 0x2020);
+drop table t1;
+
 create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range column_list(a,b,c,d)
 subpartition by hash (to_seconds(d))
@@ -18,18 +30,8 @@ subpartitions 4
   partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
-#show create table t1;
+show create table t1;
 drop table t1;
-
-#
-# BUG#48163, Dagger in UCS2 not working as partition value
-#
-#create table t1 (a varchar(2) character set ucs2)
-#partition by list column_list (a)
-#(partition p0 values in (0x2020),
-# partition p1 values in (''));
-#insert into t1 values ('');
-#drop table t1;
 
 --error ER_NULL_IN_VALUES_LESS_THAN
 create table t1 (a int, b int)
