@@ -656,7 +656,7 @@ typedef struct st_mysql_methods
   MYSQL_RES * (*use_result)(MYSQL *mysql);
   void (*fetch_lengths)(unsigned long *to, 
 			MYSQL_ROW column, unsigned int field_count);
-  void (*flush_use_result)(MYSQL *mysql);
+  void (*flush_use_result)(MYSQL *mysql, my_bool flush_all_results);
 #if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
@@ -716,6 +716,7 @@ my_bool STDCALL mysql_rollback(MYSQL * mysql);
 my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
 my_bool STDCALL mysql_more_results(MYSQL *mysql);
 int STDCALL mysql_next_result(MYSQL *mysql);
+int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt);
 void STDCALL mysql_close(MYSQL *sock);
 
 

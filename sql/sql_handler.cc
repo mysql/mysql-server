@@ -548,7 +548,7 @@ retry:
                     tables->db, tables->alias, &it, 0))
     goto err;
 
-  protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  protocol->send_result_set_metadata(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -670,18 +670,11 @@ retry:
       continue;
     if (num_rows >= offset_limit_cnt)
     {
-      Item *item;
       protocol->prepare_for_resend();
-      it.rewind();
-      while ((item=it++))
-      {
-	if (item->send(thd->protocol, &buffer))
-	{
-	  protocol->free();                             // Free used
-	  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	  goto err;
-	}
-      }
+
+      if (protocol->send_result_set_row(&list))
+        goto err;
+
       protocol->write();
     }
     num_rows++;

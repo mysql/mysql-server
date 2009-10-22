@@ -90,7 +90,7 @@ class Materialized_cursor: public Server_side_cursor
 public:
   Materialized_cursor(select_result *result, TABLE *table);
 
-  int fill_item_list(THD *thd, List<Item> &send_fields);
+  int fill_item_list(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
   virtual int open(JOIN *join __attribute__((unused)));
   virtual void fetch(ulong num_rows);
@@ -115,7 +115,7 @@ public:
   Materialized_cursor *materialized_cursor;
   Select_materialize(select_result *result_arg)
     :result(result_arg), materialized_cursor(0) {}
-  virtual bool send_fields(List<Item> &list, uint flags);
+  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
 };
 
 
@@ -376,12 +376,12 @@ Sensitive_cursor::open(JOIN *join_arg)
   join->change_result(result);
   /*
     Send fields description to the client; server_status is sent
-    in 'EOF' packet, which follows send_fields().
-    We don't simply use SEND_EOF flag of send_fields because we also
+    in 'EOF' packet, which follows send_result_set_metadata().
+    We don't simply use SEND_EOF flag of send_result_set_metadata because we also
     want to flush the network buffer, which is done only in a standalone
     send_eof().
   */
-  result->send_fields(*join->fields, Protocol::SEND_NUM_ROWS);
+  result->send_result_set_metadata(*join->fields, Protocol::SEND_NUM_ROWS);
   thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
   result->send_eof();
   thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
@@ -566,14 +566,14 @@ Materialized_cursor::Materialized_cursor(select_result *result_arg,
   Preserve the original metadata that would be sent to the client.
 
   @param thd Thread identifier.
-  @param send_fields List of fields that would be sent.
+  @param send_result_set_metadata List of fields that would be sent.
 */
 
-int Materialized_cursor::fill_item_list(THD *thd, List<Item> &send_fields)
+int Materialized_cursor::fill_item_list(THD *thd, List<Item> &send_result_set_metadata)
 {
   Query_arena backup_arena;
   int rc;
-  List_iterator_fast<Item> it_org(send_fields);
+  List_iterator_fast<Item> it_org(send_result_set_metadata);
   List_iterator_fast<Item> it_dst(item_list);
   Item *item_org;
   Item *item_dst;
@@ -583,7 +583,7 @@ int Materialized_cursor::fill_item_list(THD *thd, List<Item> &send_fields)
   if ((rc= table->fill_item_list(&item_list)))
     goto end;
 
-  DBUG_ASSERT(send_fields.elements == item_list.elements);
+  DBUG_ASSERT(send_result_set_metadata.elements == item_list.elements);
 
   /*
     Unless we preserve the original metadata, it will be lost,
@@ -623,17 +623,17 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   {
     /*
       Now send the result set metadata to the client. We need to
-      do it here, as in Select_materialize::send_fields the items
-      for column types are not yet created (send_fields requires
+      do it here, as in Select_materialize::send_result_set_metadata the items
+      for column types are not yet created (send_result_set_metadata requires
       a list of items). The new types may differ from the original
       ones sent at prepare if some of them were altered by MySQL
       HEAP tables mechanism -- used when create_tmp_field_from_item
       may alter the original column type.
 
-      We can't simply supply SEND_EOF flag to send_fields, because
-      send_fields doesn't flush the network buffer.
+      We can't simply supply SEND_EOF flag to send_result_set_metadata, because
+      send_result_set_metadata doesn't flush the network buffer.
     */
-    rc= result->send_fields(item_list, Protocol::SEND_NUM_ROWS);
+    rc= result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     result->send_eof();
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
@@ -717,7 +717,7 @@ Materialized_cursor::~Materialized_cursor()
  Select_materialize
 ****************************************************************************/
 
-bool Select_materialize::send_fields(List<Item> &list, uint flags)
+bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
