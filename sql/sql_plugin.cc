@@ -368,7 +368,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_UDF_NO_PATHS, MYF(0));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_UDF_NO_PATHS));
+      sql_print_error("%s", ER_DEFAULT(ER_UDF_NO_PATHS));
     DBUG_RETURN(0);
   }
   /* If this dll is already loaded just increase ref_count. */

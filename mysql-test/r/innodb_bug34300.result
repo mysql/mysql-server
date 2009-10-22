@@ -6,4 +6,5 @@ SELECT f4, f8 FROM bug34300;
 f4	f8
 xxx	zzz
 DROP TABLE bug34300;
+SET @@global.max_allowed_packet=1048576;
 SET @@global.max_allowed_packet=default;
