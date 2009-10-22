@@ -27,6 +27,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "sql_prepare.h"
 #include "probes_mysql.h"
 
 /**
@@ -452,7 +453,7 @@ static void handle_bootstrap_impl(THD *thd)
       /* purecov: begin tested */
       if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
       {
-        net_end_statement(thd);
+        thd->protocol->end_statement();
         bootstrap_error= 1;
         break;
       }
@@ -493,7 +494,7 @@ static void handle_bootstrap_impl(THD *thd)
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
-    net_end_statement(thd);
+    thd->protocol->end_statement();
 
 #if defined(ENABLED_PROFILING)
     thd->profiling.finish_current_query();
@@ -818,7 +819,7 @@ bool do_command(THD *thd)
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
-    net_end_statement(thd);
+    thd->protocol->end_statement();
 
     if (net->error != 3)
     {
@@ -1235,7 +1236,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *beginning_of_next_stmt= (char*) end_of_stmt;
 
-      net_end_statement(thd);
+      thd->protocol->end_statement();
       query_cache_end_of_result(thd);
       /*
         Multiple queries exits, execute them individually
@@ -1608,7 +1609,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd->transaction.stmt.reset();
 
-  net_end_statement(thd);
+  thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
   thd->proc_info= "closing tables";

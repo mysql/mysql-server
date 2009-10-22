@@ -922,7 +922,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
       DBUG_RETURN(TRUE);
     }
   }

@@ -957,7 +957,7 @@ static bool login_connection(THD *thd)
   my_net_set_write_timeout(net, connect_timeout);
 
   error= check_connection(thd);
-  net_end_statement(thd);
+  thd->protocol->end_statement();
 
   if (error)
   {						// Wrong permissions
