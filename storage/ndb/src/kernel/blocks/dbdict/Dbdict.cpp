@@ -24133,10 +24133,6 @@ Dbdict::trans_commit_wait_gci(Signal* signal)
   Uint32 curr_gci_hi = signal->theData[1];
   Uint32 curr_gci_lo = signal->theData[2];
 
-  ndbout_c("%u %u - %u %u",
-           gci_hi, gci_lo,
-           curr_gci_hi, curr_gci_lo);
-
   if (!getNodeState().getStarted())
   {
     jam();
