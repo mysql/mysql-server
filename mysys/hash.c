@@ -332,13 +332,8 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 {
   int flag;
   size_t idx,halfbuff,hash_nr,first_index;
-  uchar *ptr_to_rec,*ptr_to_rec2;
-  HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
-
-  LINT_INIT(gpos);
-  LINT_INIT(gpos2);
-  LINT_INIT(ptr_to_rec);
-  LINT_INIT(ptr_to_rec2);
+  uchar *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
+  HASH_LINK *data,*empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
 
   if (HASH_UNIQUE & info->flags)
   {

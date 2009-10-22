@@ -398,6 +398,28 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   my_bool can_deadlock= test(data->owner->info->n_cursors);
   DBUG_ENTER("wait_for_lock");
 
+  /*
+    One can use this to signal when a thread is going to wait for a lock.
+    See debug_sync.cc.
+
+    Beware of waiting for a signal here. The lock has aquired its mutex.
+    While waiting on a signal here, the locking thread could not aquire
+    the mutex to release the lock. One could lock up the table
+    completely.
+
+    In detail it works so: When thr_lock() tries to acquire a table
+    lock, it locks the lock->mutex, checks if it can have the lock, and
+    if not, it calls wait_for_lock(). Here it unlocks the table lock
+    while waiting on a condition. The sync point is located before this
+    wait for condition. If we have a waiting action here, we hold the
+    the table locks mutex all the time. Any attempt to look at the table
+    lock by another thread blocks it immediately on lock->mutex. This
+    can easily become an unexpected and unobvious blockage. So be
+    warned: Do not request a WAIT_FOR action for the 'wait_for_lock'
+    sync point unless you really know what you do.
+  */
+  DEBUG_SYNC_C("wait_for_lock");
+
   if (!in_wait_list)
   {
     (*wait->last)=data;				/* Wait for lock */

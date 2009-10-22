@@ -21,7 +21,16 @@
 # those trees.
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+
+# Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
+# CMakeLists.txt still needs to work with previous versions of MySQL.
+IF (MYSQL_VERSION_ID GREATER "50137")
+	INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+ENDIF (MYSQL_VERSION_ID GREATER "50137")
+
+IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
+	SET(WIN64 TRUE)
+ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
@@ -36,10 +45,10 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+IF (MSVC AND $(WIN64))
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+ENDIF (MSVC AND $(WIN64))
 
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
@@ -74,5 +83,20 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
-ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
-MYSQL_STORAGE_ENGINE(INNOBASE)
+ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
+
+IF (MYSQL_VERSION_ID GREATER "50137")
+	IF (WITH_INNOBASE_STORAGE_ENGINE)
+		MYSQL_STORAGE_ENGINE(INNOBASE)
+	ELSE (WITH_INNOBASE_STORAGE_ENGINE)
+		SET (INNODB_SOURCES ${INNOBASE_SOURCES})
+		MYSQL_STORAGE_ENGINE(INNODB)
+	ENDIF (WITH_INNOBASE_STORAGE_ENGINE)
+ELSE (MYSQL_VERSION_ID GREATER "50137")
+	IF (NOT SOURCE_SUBLIBS)
+		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
+		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
+		# Require mysqld_error.h, which is built as part of the GenError
+		ADD_DEPENDENCIES(innobase GenError)
+	ENDIF (NOT SOURCE_SUBLIBS)
+ENDIF (MYSQL_VERSION_ID GREATER "50137")

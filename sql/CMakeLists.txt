@@ -64,6 +64,7 @@ SET (SQL_SOURCE
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
                sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
+               debug_sync.cc debug_sync.h
                sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
