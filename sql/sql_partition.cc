@@ -151,6 +151,38 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
+  Convert constants in VALUES definition to the character set the
+  corresponding field uses.
+
+  SYNOPSIS
+    convert_charset_partition_constant()
+    item                                Item to convert
+    cs                                  Character set to convert to
+
+  RETURN VALUE
+    NULL                                Error
+    item                                New converted item
+*/
+
+Item* convert_charset_partition_constant(Item *item, CHARSET_INFO *cs)
+{
+  THD *thd= current_thd;
+  Name_resolution_context *context= &thd->lex->current_select->context;
+  TABLE_LIST *save_list= context->table_list;
+  const char *save_where= thd->where;
+
+  item= item->safe_charset_converter(cs);
+  context->table_list= NULL;
+  thd->where= "convert character set partition constant";
+  if (!item || item->fix_fields(thd, (Item**)NULL))
+    item= NULL;
+  thd->where= save_where;
+  context->table_list= save_list;
+  return item;
+}
+
+
+/*
   A support function to check if a name is in a list of strings
 
   SYNOPSIS
@@ -512,7 +544,9 @@ static bool set_up_field_array(TABLE *table,
           do
           {
             field_name= it++;
-            if (!strcmp(field_name, field->field_name))
+            if (!my_strcasecmp(system_charset_info,
+                               field_name,
+                               field->field_name))
               break;
           } while (++inx < num_fields);
           if (inx == num_fields)
@@ -1984,11 +2018,67 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
+static int check_part_field(Create_field *sql_field,
+                            bool *need_cs_check)
+{
+  *need_cs_check= FALSE;
+  if (sql_field->sql_type == MYSQL_TYPE_TIMESTAMP)
+    goto error;
+  if (sql_field->sql_type < MYSQL_TYPE_VARCHAR ||
+      sql_field->sql_type == MYSQL_TYPE_NEWDECIMAL)
+    return FALSE;
+  if (sql_field->sql_type >= MYSQL_TYPE_TINY_BLOB &&
+      sql_field->sql_type <= MYSQL_TYPE_BLOB)
+  {
+    my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
+    return TRUE;
+  }
+  switch (sql_field->sql_type)
+  {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VAR_STRING:
+      if (sql_field->length > MAX_STR_SIZE_PF)
+        goto error;
+      *need_cs_check= TRUE;
+      return FALSE;
+      break;
+    default:
+      goto error;
+  }
+error:
+  my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
+           sql_field->field_name);
+  return TRUE;
+}
+
+static Create_field* get_sql_field(char *field_name,
+                                   Alter_info *alter_info)
+{
+  List_iterator<Create_field> it(alter_info->create_list);
+  Create_field *sql_field;
+  DBUG_ENTER("get_sql_field");
+
+  while ((sql_field= it++))
+  {
+    if (!(my_strcasecmp(system_charset_info,
+                        sql_field->field_name,
+                        field_name)))
+    {
+      DBUG_RETURN(sql_field);
+    }
+  }
+  DBUG_RETURN(NULL);
+}
+
 static int add_column_list_values(File fptr, partition_info *part_info,
-                                  part_elem_value *list_value)
+                                  part_elem_value *list_value,
+                                  HA_CREATE_INFO *create_info,
+                                  Alter_info *alter_info)
 {
   int err= 0;
   uint i;
+  List_iterator<char> it(part_info->part_field_list);
   uint num_elements= part_info->part_field_list.elements;
   bool use_parenthesis= (part_info->part_type == LIST_PARTITION &&
                          part_info->num_columns > 1U);
@@ -1998,6 +2088,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
   for (i= 0; i < num_elements; i++)
   {
     part_column_list_val *col_val= &list_value->col_val_array[i];
+    char *field_name= it++;
     if (col_val->max_value)
       err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
     else if (col_val->null_value)
@@ -2011,7 +2102,45 @@ static int add_column_list_values(File fptr, partition_info *part_info,
         err+= add_string(fptr, "NULL");
       else
       {
-        String *res= item_expr->val_str(&str);
+        String *res;
+        CHARSET_INFO *field_cs;
+
+        /*
+          This function is called at a very early stage, even before
+          we have prepared the sql_field objects. Thus we have to
+          find the proper sql_field object and get the character set
+          from that object.
+        */
+        if (create_info)
+        {
+          Create_field *sql_field;
+          bool need_cs_check= FALSE;
+
+          if (!(sql_field= get_sql_field(field_name,
+                                         alter_info)))
+          {
+            my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+            return 1;
+          }
+          if (check_part_field(sql_field, &need_cs_check))
+            return 1;
+          if (need_cs_check)
+            field_cs= get_sql_field_charset(sql_field, create_info);
+          else
+            field_cs= NULL;
+        }
+        else
+          field_cs= part_info->part_field_array[i]->charset();
+        if (field_cs && field_cs != item_expr->collation.collation)
+        {
+          if (!(item_expr= convert_charset_partition_constant(item_expr,
+                                                              field_cs)))
+          {
+            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+            return 1;
+          }
+        }
+        res= item_expr->val_str(&str);
         if (!res)
         {
           my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
@@ -2033,7 +2162,9 @@ static int add_column_list_values(File fptr, partition_info *part_info,
 }
 
 static int add_partition_values(File fptr, partition_info *part_info,
-                                partition_element *p_elem)
+                                partition_element *p_elem,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info)
 {
   int err= 0;
 
@@ -2045,7 +2176,8 @@ static int add_partition_values(File fptr, partition_info *part_info,
       List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
       part_elem_value *list_value= list_val_it++;
       err+= add_begin_parenthesis(fptr);
-      err+= add_column_list_values(fptr, part_info, list_value);
+      err+= add_column_list_values(fptr, part_info, list_value,
+                                   create_info, alter_info);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -2087,7 +2219,8 @@ static int add_partition_values(File fptr, partition_info *part_info,
       part_elem_value *list_value= list_val_it++;
 
       if (part_info->column_list)
-        err+= add_column_list_values(fptr, part_info, list_value);
+        err+= add_column_list_values(fptr, part_info, list_value,
+                                     create_info, alter_info);
       else
       {
         if (!list_value->unsigned_flag)
@@ -2116,6 +2249,8 @@ end:
     use_sql_alloc              Allocate buffer from sql_alloc if true
                                otherwise use my_malloc
     show_partition_options     Should we display partition options
+    create_info                Info generated by parser
+    alter_info                 Info generated by parser
 
   RETURN VALUES
     NULL error
@@ -2144,7 +2279,9 @@ end:
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length,
                                 bool use_sql_alloc,
-                                bool show_partition_options)
+                                bool show_partition_options,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
@@ -2263,7 +2400,8 @@ char *generate_partition_syntax(partition_info *part_info,
         first= FALSE;
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
-        err+= add_partition_values(fptr, part_info, part_elem);
+        err+= add_partition_values(fptr, part_info, part_elem,
+                                   create_info, alter_info);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
         {

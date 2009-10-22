@@ -1222,6 +1222,8 @@ int prepare_create_field(Create_field *sql_field,
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
+CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
+                                    HA_CREATE_INFO *create_info);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info,
@@ -1611,6 +1613,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
                            uint *fast_alter_partition);
+char *generate_partition_syntax(partition_info *part_info,
+                                uint *buf_length, bool use_sql_alloc,
+                                bool show_partition_options,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info);
 #endif
 
 /* bits for last argument to remove_table_from_cache() */
