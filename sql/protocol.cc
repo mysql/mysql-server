@@ -28,6 +28,7 @@
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+/* Declared non-static only because of the embedded library. */
 bool net_send_error_packet(THD *, uint, const char *, const char *);
 /* Declared non-static only because of the embedded library. */
 bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *);
@@ -141,6 +142,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
 bool net_send_error(THD *thd, uint sql_errno, const char *err,
                     const char* sqlstate)
 {
+  bool error;
   DBUG_ENTER("net_send_error");
 
   DBUG_ASSERT(!thd->spcont);
@@ -148,7 +150,6 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
   DBUG_ASSERT(err);
 
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
-  bool error;
 
   if (sqlstate == NULL)
     sqlstate= mysql_errno_to_sqlstate(sql_errno);
@@ -470,6 +471,12 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
   packet is "buffered" in the diagnostics area and sent to the client
   in the end of statement.
 
+  @note This method defines a template, but delegates actual 
+  sending of data to virtual Protocol::send_{ok,eof,error}. This
+  allows for implementation of protocols that "intercept" ok/eof/error
+  messages, and store them in memory, etc, instead of sending to
+  the client.
+
   @pre  The diagnostics area is assigned or disabled. It can not be empty
         -- we assume that every SQL statement or COM_* command
         generates OK, ERROR, or EOF status.
@@ -484,47 +491,94 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
           Diagnostics_area::is_sent is set for debugging purposes only.
 */
 
-void net_end_statement(THD *thd)
+void Protocol::end_statement()
 {
+  DBUG_ENTER("Protocol::end_statement");
   DBUG_ASSERT(! thd->stmt_da->is_sent);
+  bool error= FALSE;
 
   /* Can not be true, but do not take chances in production. */
   if (thd->stmt_da->is_sent)
-    return;
-
-  bool error= FALSE;
+    DBUG_VOID_RETURN;
 
   switch (thd->stmt_da->status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
-    error= net_send_error(thd,
-                          thd->stmt_da->sql_errno(),
-                          thd->stmt_da->message(),
-                          thd->stmt_da->get_sqlstate());
+    error= send_error(thd->stmt_da->sql_errno(),
+                      thd->stmt_da->message(),
+                      thd->stmt_da->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
-    error= net_send_eof(thd,
-                        thd->stmt_da->server_status(),
-                        thd->stmt_da->statement_warn_count());
+    error= send_eof(thd->stmt_da->server_status(),
+                    thd->stmt_da->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
-    error= net_send_ok(thd,
-                       thd->stmt_da->server_status(),
-                       thd->stmt_da->statement_warn_count(),
-                       thd->stmt_da->affected_rows(),
-                       thd->stmt_da->last_insert_id(),
-                       thd->stmt_da->message());
+    error= send_ok(thd->stmt_da->server_status(),
+                   thd->stmt_da->statement_warn_count(),
+                   thd->stmt_da->affected_rows(),
+                   thd->stmt_da->last_insert_id(),
+                   thd->stmt_da->message());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
   case Diagnostics_area::DA_EMPTY:
   default:
     DBUG_ASSERT(0);
-    error= net_send_ok(thd, thd->server_status, 0, 0, 0, NULL);
+    error= send_ok(thd->server_status, 0, 0, 0, NULL);
     break;
   }
   if (!error)
     thd->stmt_da->is_sent= TRUE;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  A default implementation of "OK" packet response to the client.
+
+  Currently this implementation is re-used by both network-oriented
+  protocols -- the binary and text one. They do not differ
+  in their OK packet format, which allows for a significant simplification
+  on client side.
+*/
+
+bool Protocol::send_ok(uint server_status, uint statement_warn_count,
+                       ulonglong affected_rows, ulonglong last_insert_id,
+                       const char *message)
+{
+  DBUG_ENTER("Protocol::send_ok");
+
+  DBUG_RETURN(net_send_ok(thd, server_status, statement_warn_count,
+                          affected_rows, last_insert_id, message));
+}
+
+
+/**
+  A default implementation of "EOF" packet response to the client.
+
+  Binary and text protocol do not differ in their EOF packet format.
+*/
+
+bool Protocol::send_eof(uint server_status, uint statement_warn_count)
+{
+  DBUG_ENTER("Protocol::send_eof");
+
+  DBUG_RETURN(net_send_eof(thd, server_status, statement_warn_count));
+}
+
+
+/**
+  A default implementation of "ERROR" packet response to the client.
+
+  Binary and text protocol do not differ in ERROR packet format.
+*/
+
+bool Protocol::send_error(uint sql_errno, const char *err_msg,
+                          const char *sql_state)
+{
+  DBUG_ENTER("Protocol::send_error");
+
+  DBUG_RETURN(net_send_error_packet(thd, sql_errno, err_msg, sql_state));
 }
 
 
@@ -581,9 +635,10 @@ void Protocol::init(THD *thd_arg)
   for the error.
 */
 
-void Protocol::end_partial_result_set(THD *thd)
+void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd, thd->server_status, 0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status,
+               0 /* no warnings, we're inside SP */);
 }
 
 
@@ -616,16 +671,16 @@ bool Protocol::flush()
     1	Error  (Note that in this case the error is not sent to the
     client)
 */
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;
-  uchar buff[80];
+  uchar buff[MAX_FIELD_WIDTH];
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("send_result_set_metadata");
 
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
@@ -770,7 +825,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     write_eof_packet(thd, &thd->net, thd->server_status,
                      thd->warning_info->statement_warn_count());
   }
-  DBUG_RETURN(prepare_for_send(list));
+  DBUG_RETURN(prepare_for_send(list->elements));
 
 err:
   my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES),
@@ -786,6 +841,47 @@ bool Protocol::write()
                            packet->length()));
 }
 #endif /* EMBEDDED_LIBRARY */
+
+
+/**
+  Send one result set row.
+
+  @param row_items a collection of column values for that row
+
+  @return Error status.
+    @retval TRUE  Error.
+    @retval FALSE Success.
+*/
+
+bool Protocol::send_result_set_row(List<Item> *row_items)
+{
+  char buffer[MAX_FIELD_WIDTH];
+  String str_buffer(buffer, sizeof (buffer), &my_charset_bin);
+  List_iterator_fast<Item> it(*row_items);
+
+  DBUG_ENTER("Protocol::send_result_set_row");
+
+  for (Item *item= it++; item; item= it++)
+  {
+    if (item->send(this, &str_buffer))
+    {
+      // If we're out of memory, reclaim some, to help us recover.
+      this->free();
+      DBUG_RETURN(TRUE);
+    }
+    /* Item::send() may generate an error. If so, abort the loop. */
+    if (thd->is_error())
+      DBUG_RETURN(TRUE);
+
+    /*
+      Reset str_buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    str_buffer.set(buffer, sizeof(buffer), &my_charset_bin);
+  }
+
+  DBUG_RETURN(FALSE);
+}
 
 
 /**
@@ -833,7 +929,6 @@ bool Protocol::store(I_List<i_string>* str_list)
     len--;					// Remove last ','
   return store((char*) tmp.ptr(), len,  tmp.charset());
 }
-
 
 /****************************************************************************
   Functions to handle the simple (default) protocol where everything is
@@ -1113,6 +1208,53 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
   return net_store_data((uchar*) buff, length);
 }
 
+/**
+  Assign OUT-parameters to user variables.
+
+  @param sp_params  List of PS/SP parameters (both input and output).
+
+  @return Error status.
+    @retval FALSE Success.
+    @retval TRUE  Error.
+*/
+
+bool Protocol_text::send_out_parameters(List<Item_param> *sp_params)
+{
+  DBUG_ASSERT(sp_params->elements ==
+              thd->lex->prepared_stmt_params.elements);
+
+  List_iterator_fast<Item_param> item_param_it(*sp_params);
+  List_iterator_fast<LEX_STRING> user_var_name_it(thd->lex->prepared_stmt_params);
+
+  while (true)
+  {
+    Item_param *item_param= item_param_it++;
+    LEX_STRING *user_var_name= user_var_name_it++;
+
+    if (!item_param || !user_var_name)
+      break;
+
+    if (!item_param->get_out_param_info())
+      continue; // It's an IN-parameter.
+
+    Item_func_set_user_var *suv=
+      new Item_func_set_user_var(*user_var_name, item_param);
+    /*
+      Item_func_set_user_var is not fixed after construction, call
+      fix_fields().
+    */
+    if (suv->fix_fields(thd, NULL))
+      return TRUE;
+
+    if (suv->check(FALSE))
+      return TRUE;
+
+    if (suv->update())
+      return TRUE;
+  }
+
+  return FALSE;
+}
 
 /****************************************************************************
   Functions to handle the binary protocol used with prepared statements
@@ -1133,14 +1275,13 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
    [..]..[[length]data]              data
 ****************************************************************************/
 
-bool Protocol_binary::prepare_for_send(List<Item> *item_list)
+bool Protocol_binary::prepare_for_send(uint num_columns)
 {
-  Protocol::prepare_for_send(item_list);
+  Protocol::prepare_for_send(num_columns);
   bit_fields= (field_count+9)/8;
-  if (packet->alloc(bit_fields+1))
-    return 1;
+  return packet->alloc(bit_fields+1);
+
   /* prepare_for_resend will be called after this one */
-  return 0;
 }
 
 
@@ -1327,4 +1468,81 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm)
     length=0;
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
+}
+
+/**
+  Send a result set with OUT-parameter values by means of PS-protocol.
+
+  @param sp_params  List of PS/SP parameters (both input and output).
+
+  @return Error status.
+    @retval FALSE Success.
+    @retval TRUE  Error.
+*/
+
+bool Protocol_binary::send_out_parameters(List<Item_param> *sp_params)
+{
+  if (!(thd->client_capabilities & CLIENT_PS_MULTI_RESULTS))
+  {
+    /* The client does not support OUT-parameters. */
+    return FALSE;
+  }
+
+  List<Item> out_param_lst;
+
+  {
+    List_iterator_fast<Item_param> item_param_it(*sp_params);
+
+    while (true)
+    {
+      Item_param *item_param= item_param_it++;
+
+      if (!item_param)
+        break;
+
+      if (!item_param->get_out_param_info())
+        continue; // It's an IN-parameter.
+
+      if (out_param_lst.push_back(item_param))
+        return TRUE;
+    }
+  }
+
+  if (!out_param_lst.elements)
+    return FALSE;
+
+  /*
+    We have to set SERVER_PS_OUT_PARAMS in THD::server_status, because it
+    is used in send_result_set_metadata().
+  */
+
+  thd->server_status|= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
+
+  /* Send meta-data. */
+  if (send_result_set_metadata(&out_param_lst, SEND_NUM_ROWS | SEND_EOF))
+    return TRUE;
+
+  /* Send data. */
+
+  prepare_for_resend();
+
+  if (send_result_set_row(&out_param_lst))
+    return TRUE;
+
+  if (write())
+    return TRUE;
+
+  /* Restore THD::server_status. */
+  thd->server_status&= ~SERVER_PS_OUT_PARAMS;
+
+  /*
+    Reset SERVER_MORE_RESULTS_EXISTS bit, because this is the last packet
+    for sure.
+  */
+  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+
+  /* Send EOF-packet. */
+  net_send_eof(thd, thd->server_status, 0);
+
+  return FALSE;
 }

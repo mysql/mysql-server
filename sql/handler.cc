@@ -1644,7 +1644,7 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
@@ -4434,7 +4434,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
