@@ -60,8 +60,6 @@ INSERT INTO t VALUES (1,2,"a");
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-master: Unexpected columns in binlog (update row event)
-slave: Unexpected columns in binlog (update row event)
 ###################################
 # UNIQUE KEY NOT NULL
 ###################################

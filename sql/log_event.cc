@@ -8495,6 +8495,8 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     TODO: Add safety measures against infinite looping. 
    */
 
+  m_table->mark_columns_per_binlog_row_image();
+
   while ((error= table->file->ha_write_row(table->record[0])))
   {
     if (error == HA_ERR_LOCK_DEADLOCK ||
@@ -8511,7 +8513,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
         - or because the information which key is not available
       */
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(error);
+      goto error;
     }
     /*
        We need to retrieve the old row into record[1] to be able to
@@ -8533,7 +8535,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
-        DBUG_RETURN(error);
+        goto error;
       }
     }
     else
@@ -8543,7 +8545,8 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       if (table->file->extra(HA_EXTRA_FLUSH_CACHE))
       {
         DBUG_PRINT("info",("Error when setting HA_EXTRA_FLUSH_CACHE"));
-        DBUG_RETURN(my_errno);
+        error= my_errno;
+        goto error;
       }
 
       if (key.get() == NULL)
@@ -8552,7 +8555,8 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
         if (key.get() == NULL)
         {
           DBUG_PRINT("info",("Can't allocate key buffer"));
-          DBUG_RETURN(ENOMEM);
+          error= ENOMEM;
+          goto error;
         }
       }
 
@@ -8568,7 +8572,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
-        DBUG_RETURN(error);
+        goto error;
       }
     }
 
@@ -8630,7 +8634,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
         table->file->print_error(error, MYF(0));
       }
       
-      DBUG_RETURN(error);
+      goto error;
     }
     else
     {
@@ -8639,12 +8643,14 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       {
         DBUG_PRINT("info",("ha_delete_row() returns error %d",error));
         table->file->print_error(error, MYF(0));
-        DBUG_RETURN(error);
+        goto error;
       }
       /* Will retry ha_write_row() with the offending row removed. */
     }
   }
 
+error:
+  m_table->default_column_bitmaps();
   DBUG_RETURN(error);
 }
 
