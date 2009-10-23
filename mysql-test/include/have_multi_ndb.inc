@@ -23,7 +23,6 @@ if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 }
 enable_query_log;
 
@@ -37,7 +36,6 @@ if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 }
 enable_query_log;
 }
