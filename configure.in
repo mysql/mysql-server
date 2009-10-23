@@ -15,7 +15,7 @@ AC_CANONICAL_SYSTEM
 # MySQL version number.
 #
 # Note: the following line must be parseable by win/configure.js:GetVersion()
-AM_INIT_AUTOMAKE(mysql, 5.1.38-maria-beta)
+AM_INIT_AUTOMAKE(mysql, 5.2.0-alpha)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
