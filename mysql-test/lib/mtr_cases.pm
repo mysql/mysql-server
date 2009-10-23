@@ -545,11 +545,11 @@ sub collect_one_suite($)
       push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
       if ($new_test->{combination})
       {
-        $new_test->{combination}.= ' + InnoDB plugin';
+        $new_test->{combination}.= '+innodb_plugin';
       }
       else
       {
-        $new_test->{combination}= 'InnoDB plugin';
+        $new_test->{combination}= 'innodb_plugin';
       }
       push(@new_cases, $new_test);
     }
@@ -1042,6 +1042,17 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $tinfo->{'need_ssl'} )
+  {
+    # This is a test that needs ssl
+    if ( ! $::opt_ssl_supported ) {
+      # SSL is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No SSL support";
+      return $tinfo;
+    }
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -1122,6 +1133,7 @@ my @tags=
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
+ ["include/have_ssl.inc", "need_ssl", 1],
 );
 
 

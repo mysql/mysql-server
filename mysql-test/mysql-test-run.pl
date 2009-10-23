@@ -144,7 +144,7 @@ our @opt_extra_mysqld_opt;
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
-my $opt_ssl_supported;
+our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
@@ -323,7 +323,8 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    $opt_parallel= 8 if ($opt_parallel > 8);
+    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
+    $opt_parallel= $max_par if ($opt_parallel > $max_par);
     $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
     $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
     $opt_parallel= 1 if ($opt_parallel < 1);
@@ -519,7 +520,8 @@ sub run_test_server ($$$) {
 	      }
 	    }
 	    $num_saved_datadir++;
-	    $num_failed_test++ unless $result->{retries};
+	    $num_failed_test++ unless ($result->{retries} ||
+                                       $result->{exp_fail});
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
@@ -738,6 +740,7 @@ sub run_worker ($) {
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
+      stop_all_servers($opt_shutdown_timeout);
       exit(0);
     }
     else {
@@ -1337,6 +1340,9 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
+
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
   }
@@ -1794,7 +1800,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+  if ($mysql_version_id >= 50100) {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
@@ -3012,7 +3018,8 @@ test case was executed:\n";
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
 	"The server $proc crashed while running ".
-	"'check testcase $mode test'";
+	"'check testcase $mode test'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
@@ -3130,7 +3137,8 @@ sub run_on_all($$)
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}.=
-	"The server $proc crashed while running '$run'";
+	"The server $proc crashed while running '$run'".
+	get_log_from_proc($proc, $tinfo->{name});
     }
 
     # Kill any check processes still running
@@ -3244,6 +3252,12 @@ sub run_testcase ($) {
 
   mtr_verbose("Running test:", $tinfo->{name});
 
+  # Allow only alpanumerics pluss _ - + . in combination names
+  my $combination= $tinfo->{combination};
+  if ($combination && $combination !~ /^\w[-\w\.\+]+$/)
+  {
+    mtr_error("Combination '$combination' contains illegal characters");
+  }
   # -------------------------------------------------------
   # Init variables that can change between each test case
   # -------------------------------------------------------
@@ -3436,14 +3450,14 @@ sub run_testcase ($) {
 	my $check_res;
 	if ( restart_forced_by_test() )
 	{
-	  stop_all_servers();
+	  stop_all_servers($opt_shutdown_timeout);
 	}
 	elsif ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
 	{
 	  if ($check_res == 1) {
 	    # Test case had sideeffects, not fatal error, just continue
-	    stop_all_servers();
+	    stop_all_servers($opt_shutdown_timeout);
 	    mtr_report("Resuming tests...\n");
 	  }
 	  else {
@@ -3524,7 +3538,8 @@ sub run_testcase ($) {
     {
       # Server failed, probably crashed
       $tinfo->{comment}=
-	"Server $proc failed during test run";
+	"Server $proc failed during test run" .
+	get_log_from_proc($proc, $tinfo->{name});
 
       # ----------------------------------------------------
       # It's not mysqltest that has exited, kill it
@@ -3579,12 +3594,11 @@ sub run_testcase ($) {
 }
 
 
+# Extract server log from after the last occurrence of named test
+# Return as an array of lines
 #
-# Perform a rough examination of the servers
-# error log and write all lines that look
-# suspicious into $error_log.warnings
-#
-sub extract_warning_lines ($$) {
+
+sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
@@ -3636,8 +3650,37 @@ sub extract_warning_lines ($$) {
       }
     }
   }
+  return @lines;
+}
 
-  # Write all suspicious lines to $error_log.warnings file
+# Get log from server identified from its $proc object, from named test
+# Return as a single string
+#
+
+sub get_log_from_proc ($$) {
+  my ($proc, $name)= @_;
+  my $srv_log= "";
+
+  foreach my $mysqld (mysqlds()) {
+    if ($mysqld->{proc} eq $proc) {
+      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      last;
+    }
+  }
+  return $srv_log;
+}
+
+# Perform a rough examination of the servers
+# error log and write all lines that look
+# suspicious into $error_log.warnings
+#
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
+
+  my @lines= extract_server_log($error_log, $tname);
+
+# Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
   my $Fwarn = IO::File->new($warning_log, "w")
     or die("Could not open file '$warning_log' for writing: $!");
@@ -3645,14 +3688,9 @@ sub extract_warning_lines ($$) {
 
   my @patterns =
     (
-     # The patterns for detection of [Warning] and [ERROR]
-     # in the server log files have been faulty for a longer period
-     # and correcting them shows a few additional harmless warnings.
-     # Thus those patterns are temporarily removed from the list
-     # of patterns. For more info see BUG#42408
      qr/^Warning:|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
-     qr/^==.* at 0x/,
+     qr/^==\d*==/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
@@ -3825,7 +3863,8 @@ sub check_warnings ($) {
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
-	"The server $proc crashed while running 'check warnings'";
+	"The server $proc crashed while running 'check warnings'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
@@ -4084,6 +4123,7 @@ sub mysqld_stop {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--character-sets-dir=%s", $mysqld->value('character-sets-dir'));
   mtr_add_arg($args, "--user=%s", $opt_user);
   mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--port=%d", $mysqld->value('port'));
@@ -4281,7 +4321,8 @@ sub mysqld_start ($$) {
 				 $opt_start_timeout,
 				 $mysqld->{'proc'}))
   {
-    mtr_error("Failed to start mysqld $mysqld->name()");
+    my $mname= $mysqld->name();
+    mtr_error("Failed to start mysqld $mname with command $exe");
   }
 
   # Remember options used when starting
@@ -4292,11 +4333,12 @@ sub mysqld_start ($$) {
 
 
 sub stop_all_servers () {
+  my $shutdown_timeout = $_[0] or 0;
 
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-  My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
+  My::SafeProcess::shutdown($shutdown_timeout,
 			    started(all_servers()));
 
   # Remove pidfiles
@@ -4667,7 +4709,8 @@ sub start_servers($) {
       my $logfile= $mysqld->value('#log-error');
       if ( defined $logfile and -f $logfile )
       {
-	$tinfo->{logfile}= mtr_fromfile($logfile);
+        my @srv_lines= extract_server_log($logfile, $tinfo->{name});
+	$tinfo->{logfile}= "Server log is:\n" . join ("", @srv_lines);
       }
       else
       {
@@ -5084,7 +5127,6 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--alignment=8");
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
