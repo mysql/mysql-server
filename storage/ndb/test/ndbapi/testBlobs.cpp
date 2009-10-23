@@ -175,6 +175,7 @@ printusage()
     << "  -bug 27018  middle partial part write clobbers rest of part" << endl
     << "  -bug 27370  Potential inconsistent blob reads for ReadCommitted reads" << endl
     << "  -bug 36756  Handling execute(.., abortOption) and Blobs " << endl
+    << "  -bug 45768  execute(Commit) after failing blob batch " << endl
     ;
 }
 
@@ -3154,6 +3155,129 @@ bugtest_36756()
   return 0;
 }
 
+
+static int
+bugtest_45768()
+{
+  /* Transaction inserting using blobs has an early error 
+     resulting in kernel-originated rollback.
+     Api then calls execute(Commit) which chokes on Blob
+     objects
+     
+   */
+  DBG("bugtest_45768 : Batched blob transaction with abort followed by commit");
+  
+  const int numIterations = 5;
+
+  for (int iteration=0; iteration < numIterations; iteration++)
+  {
+    /* Recalculate and insert different tuple every time to 
+     * get different keys(and therefore nodes), and
+     * different length Blobs, including zero length
+     * and NULL
+     */
+    calcTups(true);
+    
+    const Uint32 totalRows = 100; 
+    const Uint32 preExistingTupNum =  totalRows / 2;
+    
+    Tup& tupExists = g_tups[ preExistingTupNum ];
+    
+    /* Setup table with just 1 row present */
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->insertTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+    CHK(getBlobHandles(g_opr) == 0);
+    
+    CHK(setBlobValue(tupExists) == 0);
+    
+    CHK(g_con->execute(Commit) == 0);
+    g_con->close();
+
+    DBG("Iteration : " << iteration);
+    
+    /* Now do batched insert, including a TUP which already
+     * exists
+     */
+    int rc = 0;
+    int retries = 10;
+
+    do
+    {
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      
+      for (Uint32 tupNum = 0; tupNum < totalRows ; tupNum++)
+      {
+        Tup& tup = g_tups[ tupNum ];
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        CHK(g_opr->insertTuple() == 0);
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
+        
+        CHK(getBlobHandles(g_opr) == 0);
+        CHK(setBlobValue(tup) == 0);
+      }
+      
+      /* Now execute NoCommit */
+      int rc = g_con->execute(NdbTransaction::NoCommit);
+      
+      CHK(rc == -1);
+
+      if (g_con->getNdbError().code == 630)
+        break; /* Expected */
+      
+      CHK(g_con->getNdbError().code == 1218); // Send buffers overloaded
+     
+      DBG("Send Buffers overloaded, retrying");
+      sleep(1);
+      g_con->close();
+    } while (retries--);
+
+    CHK(g_con->getNdbError().code == 630);
+            
+    /* Now execute Commit */
+    rc = g_con->execute(NdbTransaction::Commit);
+
+    CHK(rc == -1);
+    /* Transaction aborted already */
+    CHK(g_con->getNdbError().code == 4350);
+
+    g_con->close();
+    
+    /* Now delete the 'existing'row */
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->deleteTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+
+    CHK(g_con->execute(Commit) == 0);
+    g_con->close();
+  }
+
+  g_opr= 0;
+  g_con= 0;
+  g_bh1= 0;
+
+  return 0;
+}
+
+
+
 // main
 
 // from here on print always
@@ -4019,7 +4143,8 @@ static struct {
   { 4088, bugtest_4088 },
   { 27018, bugtest_27018 },
   { 27370, bugtest_27370 },
-  { 36756, bugtest_36756 }
+  { 36756, bugtest_36756 },
+  { 45768, bugtest_45768 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)

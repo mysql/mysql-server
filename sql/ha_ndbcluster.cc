@@ -9372,11 +9372,11 @@ static int connect_callback()
   return 0;
 }
 
+#ifdef HAVE_NDB_BINLOG
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
   DBUG_ENTER("ndb_wait_setup_func_impl");
 
-#ifdef HAVE_NDB_BINLOG
   pthread_mutex_lock(&ndbcluster_mutex);
 
   struct timespec abstime;
@@ -9408,18 +9408,13 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   pthread_mutex_unlock(&ndbcluster_mutex);
 
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
-#else
-  ndb_setup_complete = 1;
-  DBUG_RETURN(0);
-#endif
 }
+
+extern wait_cond_timed_func ndb_wait_setup_func;
+#endif
 
 extern int ndb_dictionary_is_mysqld;
 extern pthread_mutex_t LOCK_plugin;
-
-#ifdef HAVE_NDB_BINLOG
-extern wait_cond_timed_func ndb_wait_setup_func;
-#endif
 
 static int ndbcluster_init(void *p)
 {
