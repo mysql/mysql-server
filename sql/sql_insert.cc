@@ -2202,6 +2202,11 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
     DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
                            (ulong) row->forced_insert_id));
   }
+  
+  /* Copy the original write set */
+  bitmap_clear_all(di->table->write_set);
+  bitmap_union(di->table->write_set, table->write_set);
+  di->table->file->column_bitmaps_signal();
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -2568,7 +2573,13 @@ bool Delayed_insert::handle_inserts(void)
   pthread_mutex_unlock(&mutex);
 
   table->next_number_field=table->found_next_number_field;
-  table->use_all_columns();
+  /* 
+     needed for some autoinc not null fields.
+     Otherwise, one would hit an assertion
+     when the insert tried to read the field.
+  */
+  bitmap_set_all(table->read_set);
+  table->mark_columns_needed_for_insert();
 
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock))
