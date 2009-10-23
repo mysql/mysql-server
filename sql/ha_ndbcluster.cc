@@ -144,6 +144,14 @@ static uint ndbcluster_alter_partition_flags()
 static int ndbcluster_inited= 0;
 int ndbcluster_terminating= 0;
 
+/* 
+   Indicator and CONDVAR used to delay client and slave
+   connections until Ndb has Binlog setup
+   (bug#46955)
+*/
+int ndb_setup_complete= 0;
+pthread_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
+
 extern Ndb* g_ndb;
 
 uchar g_node_id_map[max_ndb_nodes];
@@ -7757,8 +7765,54 @@ static int connect_callback()
   return 0;
 }
 
+static int ndb_wait_setup_func_impl(ulong max_wait)
+{
+  DBUG_ENTER("ndb_wait_setup_func_impl");
+
+#ifdef HAVE_NDB_BINLOG
+  pthread_mutex_lock(&ndbcluster_mutex);
+
+  struct timespec abstime;
+  set_timespec(abstime, 1);
+  
+  while (!ndb_setup_complete && max_wait)
+  {
+    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete, 
+                                   &ndbcluster_mutex,
+                                   &abstime);
+    if (rc)
+    {
+      if (rc == ETIMEDOUT)
+      {
+        DBUG_PRINT("info", ("1s elapsed waiting"));
+        max_wait--;
+        set_timespec(abstime, 1); /* 1 second from now*/
+      }
+      else
+      {
+        DBUG_PRINT("info", ("Bad pthread_cond_timedwait rc : %u",
+                            rc));
+        assert(false);
+        break;
+      }
+    }
+  }
+
+  pthread_mutex_unlock(&ndbcluster_mutex);
+
+  DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
+#else
+  ndb_setup_complete = 1;
+  DBUG_RETURN(0);
+#endif
+}
+
 extern int ndb_dictionary_is_mysqld;
 extern pthread_mutex_t LOCK_plugin;
+
+#ifdef HAVE_NDB_BINLOG
+extern wait_cond_timed_func ndb_wait_setup_func;
+#endif
 
 static int ndbcluster_init(void *p)
 {
@@ -7778,9 +7832,11 @@ static int ndbcluster_init(void *p)
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
   pthread_cond_init(&COND_ndb_util_ready, NULL);
+  pthread_cond_init(&COND_ndb_setup_complete, NULL);
   ndb_util_thread_running= -1;
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
+  ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
   ndbcluster_global_schema_lock_init();
 
@@ -7835,6 +7891,7 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    pthread_cond_destroy(&COND_ndb_setup_complete);
     ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
@@ -7853,9 +7910,14 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    pthread_cond_destroy(&COND_ndb_setup_complete);
     ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
+
+#ifdef HAVE_NDB_BINLOG
+  ndb_wait_setup_func= ndb_wait_setup_func_impl;
+#endif
 
   pthread_mutex_lock(&LOCK_plugin);
 
@@ -7917,6 +7979,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_ready);
+  pthread_cond_destroy(&COND_ndb_setup_complete);
   ndbcluster_global_schema_lock_deinit();
   DBUG_RETURN(0);
 }

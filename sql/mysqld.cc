@@ -478,6 +478,8 @@ my_bool opt_ndb_log_update_as_write;
 my_bool opt_ndb_log_updated_only;
 my_bool opt_ndb_log_orig;
 my_bool opt_ndb_log_bin;
+ulong opt_ndb_wait_setup;
+wait_cond_timed_func ndb_wait_setup_func= 0;
 #endif
 
 extern const char *ndb_distribution_names[];
@@ -4471,11 +4473,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   start_handle_manager();
 
-  sql_print_information(ER(ER_STARTUP),my_progname,server_version,
-                        ((unix_sock == INVALID_SOCKET) ? (char*) ""
-                                                       : mysqld_unix_port),
-                         mysqld_port,
-                         MYSQL_COMPILATION_COMMENT);
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   Service.SetRunning();
 #endif
@@ -4487,6 +4484,28 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   pthread_cond_signal(&COND_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
 
+#ifdef HAVE_NDB_BINLOG
+  /* 
+     Give ndb opportunity to initialise more things after
+     mysqld_server_started is true
+  */
+  if (ndb_wait_setup_func)
+  {
+    if (ndb_wait_setup_func(opt_ndb_wait_setup))
+    {
+      sql_print_warning("NDB : Tables not available after %lu seconds."
+                        "  Consider increasing --ndb-wait-setup value",
+                        opt_ndb_wait_setup);
+    }
+  }
+#endif
+
+  sql_print_information(ER(ER_STARTUP),my_progname,server_version,
+                        ((unix_sock == INVALID_SOCKET) ? (char*) ""
+                                                       : mysqld_unix_port),
+                         mysqld_port,
+                         MYSQL_COMPILATION_COMMENT);
+  
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
@@ -5558,6 +5577,7 @@ enum options_mysqld
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_WAIT_CONNECTED,
   OPT_NDB_CLUSTER_CONNECTION_POOL,
+  OPT_NDB_WAIT_SETUP,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_NDB_DISTRIBUTION,
   OPT_NDB_INDEX_STAT_ENABLE,
@@ -6178,6 +6198,10 @@ master-ssl",
    "ndb_binlog_index table.",
    (uchar**) &ndb_log_binlog_index, (uchar**) &ndb_log_binlog_index,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  { "ndb-wait-setup", OPT_NDB_WAIT_SETUP,
+    "Time (in seconds) for mysqld to wait for Ndb engine setup to complete",
+    (uchar**) &opt_ndb_wait_setup, (uchar**) &opt_ndb_wait_setup,
+    0, GET_ULONG, REQUIRED_ARG, 15, 0, LONG_TIMEOUT, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
