@@ -1198,10 +1198,8 @@ private:
   uint32 m_save_val;
 };
 
-#ifdef HAVE_NDB_BINLOG
 extern int ndb_setup_complete;
 extern pthread_cond_t COND_ndb_setup_complete;
-#endif
 
 /*
    ndb_notify_tables_writable
@@ -1211,12 +1209,10 @@ extern pthread_cond_t COND_ndb_setup_complete;
 */ 
 static void ndb_notify_tables_writable()
 {
-#ifdef HAVE_NDB_BINLOG
   pthread_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
   pthread_cond_broadcast(&COND_ndb_setup_complete);
   pthread_mutex_unlock(&ndbcluster_mutex);
-#endif
 }
 
 /*
