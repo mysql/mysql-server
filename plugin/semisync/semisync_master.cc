@@ -45,6 +45,18 @@ char rpl_semi_sync_master_wait_no_slave = 1;
 
 static int getWaitTime(const struct timeval& start_tv);
 
+#ifdef __WIN__
+static int gettimeofday(struct timeval *tv, void *tz)
+{
+  unsigned int ticks;
+  ticks= GetTickCount();
+  tv->tv_usec= ticks*1000;
+  tv->tv_sec= ticks/1000;
+
+  return 0;
+}
+#endif /* __WIN__ */
+
 /*******************************************************************************
  *
  * <ActiveTranx> class : manage all active transaction nodes
@@ -728,6 +740,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         int diff_usecs = start_tv.tv_usec + wait_timeout_ * TIME_THOUSAND;
 
         /* Calcuate the waiting period. */
+#ifdef __WIN__
+        abstime.tv.i64 = (__int64)start_tv.tv_sec * TIME_MILLION * 10;
+        abstime.tv.i64 += (__int64)diff_usecs * 10;
+        abstime.max_timeout_msec= (long)wait_timeout_;
+#else
         abstime.tv_sec = start_tv.tv_sec;
         if (diff_usecs < TIME_MILLION)
 	{
@@ -742,6 +759,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
           }
           abstime.tv_nsec = diff_usecs * TIME_THOUSAND;
         }
+#endif /* __WIN__ */
 
         /* In semi-synchronous replication, we wait until the binlog-dump
          * thread has received the reply on the relevant binlog segment from the

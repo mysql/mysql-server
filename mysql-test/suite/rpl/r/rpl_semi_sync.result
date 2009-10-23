@@ -397,7 +397,7 @@ Rpl_semi_sync_slave_status	OFF
 # Test non-semi-sync slave connect to semi-sync master
 #
 set sql_log_bin=0;
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'libsemisync_master.so';
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
 set global rpl_semi_sync_master_timeout= 5000;
 /* 5s */
 set sql_log_bin=1;
@@ -416,7 +416,7 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 include/stop_slave.inc
 [ reinstall semi-sync slave plugin and disable semi-sync ]
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'libsemisync_slave.so';
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
 set global rpl_semi_sync_slave_enabled= 0;
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 Variable_name	Value
