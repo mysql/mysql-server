@@ -752,8 +752,8 @@ statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statist
 columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	COLUMN_COMMENT
-user	Host	NULL	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		NULL	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
-user	User	NULL	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		NULL	mysql		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
 drop table t1;
 drop table t2;
 drop table t3;
