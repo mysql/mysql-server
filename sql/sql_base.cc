@@ -6010,7 +6010,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       table_name && table_name[0] &&
       (my_strcasecmp(table_alias_charset, table_list->alias, table_name) ||
        (db_name && db_name[0] && table_list->db && table_list->db[0] &&
-        strcmp(db_name, table_list->db))))
+        (table_list->schema_table ?
+         my_strcasecmp(system_charset_info, db_name, table_list->db) :
+         strcmp(db_name, table_list->db)))))
     DBUG_RETURN(0);
 
   *actual_table= NULL;
