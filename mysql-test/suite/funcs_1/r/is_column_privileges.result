@@ -29,7 +29,7 @@ DROP FUNCTION test.f1;
 DESCRIBE          information_schema.COLUMN_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -39,7 +39,7 @@ SHOW CREATE TABLE information_schema.COLUMN_PRIVILEGES;
 Table	Create Table
 COLUMN_PRIVILEGES	CREATE TEMPORARY TABLE `COLUMN_PRIVILEGES` (
   `GRANTEE` varchar(81) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
   `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
@@ -49,7 +49,7 @@ COLUMN_PRIVILEGES	CREATE TEMPORARY TABLE `COLUMN_PRIVILEGES` (
 SHOW COLUMNS FROM information_schema.COLUMN_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -86,91 +86,91 @@ SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	INSERT	NO
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	t1	f2	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	t1	f3	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict	t1	f2	SELECT	NO
-'testuser3'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f1	INSERT	NO
+'testuser1'@'localhost'	def	db_datadict	t1	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	t1	f2	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	t1	f3	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	t1	f2	SELECT	NO
+'testuser3'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
 GRANT UPDATE(f3)     ON db_datadict.t1 TO 'testuser1'@'localhost'
 WITH GRANT OPTION;
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	INSERT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f2	UPDATE	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f3	UPDATE	YES
-'testuser2'@'localhost'	NULL	db_datadict	t1	f2	SELECT	NO
-'testuser3'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f1	INSERT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f1	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f2	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f3	UPDATE	YES
+'testuser2'@'localhost'	def	db_datadict	t1	f2	SELECT	NO
+'testuser3'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	INSERT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f1	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f2	UPDATE	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	t1	f3	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f1	INSERT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f1	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f2	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	t1	f3	UPDATE	YES
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	NULL	db_datadict	t1	f2	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	t1	f2	SELECT	NO
 # Establish connection testuser3 (user=testuser3)
 # FIXME: Is it correct that granted TABLES do not occur in COLUMN_PRIVILEGES?
 SELECT * FROM information_schema.table_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee,table_schema,table_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	db_datadict	t1	INSERT	YES
-'testuser3'@'localhost'	NULL	db_datadict	t1	SELECT	YES
+'testuser3'@'localhost'	def	db_datadict	t1	INSERT	YES
+'testuser3'@'localhost'	def	db_datadict	t1	SELECT	YES
 SELECT * FROM information_schema.schema_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	db_datadict	ALTER	NO
-'testuser3'@'localhost'	NULL	db_datadict	ALTER ROUTINE	NO
-'testuser3'@'localhost'	NULL	db_datadict	CREATE	NO
-'testuser3'@'localhost'	NULL	db_datadict	CREATE ROUTINE	NO
-'testuser3'@'localhost'	NULL	db_datadict	CREATE TEMPORARY TABLES	NO
-'testuser3'@'localhost'	NULL	db_datadict	CREATE VIEW	NO
-'testuser3'@'localhost'	NULL	db_datadict	DELETE	NO
-'testuser3'@'localhost'	NULL	db_datadict	DROP	NO
-'testuser3'@'localhost'	NULL	db_datadict	EVENT	NO
-'testuser3'@'localhost'	NULL	db_datadict	EXECUTE	NO
-'testuser3'@'localhost'	NULL	db_datadict	INDEX	NO
-'testuser3'@'localhost'	NULL	db_datadict	INSERT	NO
-'testuser3'@'localhost'	NULL	db_datadict	LOCK TABLES	NO
-'testuser3'@'localhost'	NULL	db_datadict	REFERENCES	NO
-'testuser3'@'localhost'	NULL	db_datadict	SELECT	NO
-'testuser3'@'localhost'	NULL	db_datadict	SHOW VIEW	NO
-'testuser3'@'localhost'	NULL	db_datadict	TRIGGER	NO
-'testuser3'@'localhost'	NULL	db_datadict	UPDATE	NO
+'testuser3'@'localhost'	def	db_datadict	ALTER	NO
+'testuser3'@'localhost'	def	db_datadict	ALTER ROUTINE	NO
+'testuser3'@'localhost'	def	db_datadict	CREATE	NO
+'testuser3'@'localhost'	def	db_datadict	CREATE ROUTINE	NO
+'testuser3'@'localhost'	def	db_datadict	CREATE TEMPORARY TABLES	NO
+'testuser3'@'localhost'	def	db_datadict	CREATE VIEW	NO
+'testuser3'@'localhost'	def	db_datadict	DELETE	NO
+'testuser3'@'localhost'	def	db_datadict	DROP	NO
+'testuser3'@'localhost'	def	db_datadict	EVENT	NO
+'testuser3'@'localhost'	def	db_datadict	EXECUTE	NO
+'testuser3'@'localhost'	def	db_datadict	INDEX	NO
+'testuser3'@'localhost'	def	db_datadict	INSERT	NO
+'testuser3'@'localhost'	def	db_datadict	LOCK TABLES	NO
+'testuser3'@'localhost'	def	db_datadict	REFERENCES	NO
+'testuser3'@'localhost'	def	db_datadict	SELECT	NO
+'testuser3'@'localhost'	def	db_datadict	SHOW VIEW	NO
+'testuser3'@'localhost'	def	db_datadict	TRIGGER	NO
+'testuser3'@'localhost'	def	db_datadict	UPDATE	NO
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
+'testuser3'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
 GRANT SELECT(f1, f3) ON db_datadict.t1 TO 'testuser2'@'localhost';
 # FIXME: Is it intended that *my* grants to others are *NOT* shown here?
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	db_datadict	t1	f3	SELECT	YES
+'testuser3'@'localhost'	def	db_datadict	t1	f3	SELECT	YES
 # Switch to connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	NULL	db_datadict	t1	f1	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict	t1	f2	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict	t1	f3	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	t1	f1	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	t1	f2	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	t1	f3	SELECT	NO
 # Switch to connection default and close connections testuser1,testuser2,testuser3
 DROP DATABASE db_datadict;
 DROP USER 'testuser1'@'localhost';
@@ -209,8 +209,8 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -221,8 +221,8 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -235,9 +235,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -248,9 +248,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -264,9 +264,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -277,9 +277,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -291,9 +291,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -304,9 +304,9 @@ SELECT * FROM information_schema.column_privileges
 WHERE table_name = 'my_table'
 ORDER BY grantee, table_schema,table_name,column_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f1	UPDATE	NO
-'testuser1'@'localhost'	NULL	db_datadict	my_table	f3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f1	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	my_table	f3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'

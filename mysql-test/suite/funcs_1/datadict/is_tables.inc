@@ -43,7 +43,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 # Ensure that the INFORMATION_SCHEMA.TABLES table has the following columns,
 # in the following order:
 #
-# TABLE_CATALOG (always shows NULL),
+# TABLE_CATALOG (always shows 'def'),
 # TABLE_SCHEMA (shows the name of the database, or schema, in which an
 #       accessible table resides),
 # TABLE_NAME (shows the name of a table which the current user may access),
@@ -81,9 +81,9 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Note: Retrieval of information within information_schema.columns about
 #       information_schema.tables is in is_columns_is.test.
 
-# Show that TABLE_CATALOG is always NULL.
+# Show that TABLE_CATALOG is always 'def'.
 SELECT table_catalog, table_schema, table_name
-FROM information_schema.tables WHERE table_catalog IS NOT NULL;
+FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> 'def';
 
 
 --echo ################################################################################

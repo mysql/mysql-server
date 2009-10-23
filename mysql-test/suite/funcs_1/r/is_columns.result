@@ -28,7 +28,7 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -50,7 +50,7 @@ COLUMN_COMMENT	varchar(255)	NO
 SHOW CREATE TABLE information_schema.COLUMNS;
 Table	Create Table
 COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
   `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
@@ -72,7 +72,7 @@ COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -92,7 +92,7 @@ EXTRA	varchar(27)	NO
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(255)	NO			
 SELECT table_catalog, table_schema, table_name, column_name
-FROM information_schema.columns WHERE table_catalog IS NOT NULL;
+FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
 table_catalog	table_schema	table_name	column_name
 ###############################################################################
 # Testcase 3.2.6.2 + 3.2.6.3: INFORMATION_SCHEMA.COLUMNS accessible information
@@ -118,16 +118,16 @@ SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select,insert,update,references	
-NULL	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
-NULL	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	PRI	auto_increment	select,insert,update,references	
-NULL	db_datadict	t2	f1	1		NO	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		select,insert,update,references	
-NULL	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
-NULL	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	db_datadict	t2	f4	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	PRI		select,insert,update,references	
-NULL	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select,insert,update,references	
-NULL	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select,insert,update,references	
+def	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select,insert,update,references	
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
+def	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
+def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	PRI	auto_increment	select,insert,update,references	
+def	db_datadict	t2	f1	1		NO	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		select,insert,update,references	
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
+def	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
+def	db_datadict	t2	f4	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)	PRI		select,insert,update,references	
+def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select,insert,update,references	
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select,insert,update,references	
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
@@ -149,9 +149,9 @@ SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select	
-NULL	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select	
-NULL	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select	
+def	db_datadict	t1	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	MUL		select	
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select	
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(1)			select	
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
@@ -166,8 +166,8 @@ SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema, table_name, ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	db_datadict	t2	f1	1		NO	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		insert	
-NULL	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			insert	
+def	db_datadict	t2	f1	1		NO	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	PRI		insert	
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			insert	
 SHOW COLUMNS FROM db_datadict.t1;
 ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 't1'
 SHOW COLUMNS FROM db_datadict.t2;
@@ -194,7 +194,7 @@ DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = <engine_type>;
 SELECT * FROM information_schema.columns
 WHERE table_name = 't1_my_table';
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_table
 COLUMN_NAME	f1
@@ -399,7 +399,7 @@ AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
 SELECT * FROM information_schema.columns
 WHERE table_name = 't1_my_tablex'
 ORDER BY table_name, column_name;
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_tablex
 COLUMN_NAME	col1
@@ -418,7 +418,7 @@ COLUMN_KEY
 EXTRA	
 PRIVILEGES	select,insert,update,references
 COLUMN_COMMENT	
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_tablex
 COLUMN_NAME	col2

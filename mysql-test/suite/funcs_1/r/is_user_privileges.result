@@ -29,27 +29,108 @@ DROP FUNCTION test.f1;
 DESCRIBE          information_schema.USER_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
 IS_GRANTABLE	varchar(3)	NO			
 SHOW CREATE TABLE information_schema.USER_PRIVILEGES;
 Table	Create Table
 USER_PRIVILEGES	CREATE TEMPORARY TABLE `USER_PRIVILEGES` (
   `GRANTEE` varchar(81) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
   `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.USER_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
 IS_GRANTABLE	varchar(3)	NO			
 SELECT grantee, table_catalog, privilege_type
 FROM information_schema.user_privileges
 WHERE table_catalog IS NOT NULL;
 grantee	table_catalog	privilege_type
+'root'@'localhost'	def	SELECT
+'root'@'localhost'	def	INSERT
+'root'@'localhost'	def	UPDATE
+'root'@'localhost'	def	DELETE
+'root'@'localhost'	def	CREATE
+'root'@'localhost'	def	DROP
+'root'@'localhost'	def	RELOAD
+'root'@'localhost'	def	SHUTDOWN
+'root'@'localhost'	def	PROCESS
+'root'@'localhost'	def	FILE
+'root'@'localhost'	def	REFERENCES
+'root'@'localhost'	def	INDEX
+'root'@'localhost'	def	ALTER
+'root'@'localhost'	def	SHOW DATABASES
+'root'@'localhost'	def	SUPER
+'root'@'localhost'	def	CREATE TEMPORARY TABLES
+'root'@'localhost'	def	LOCK TABLES
+'root'@'localhost'	def	EXECUTE
+'root'@'localhost'	def	REPLICATION SLAVE
+'root'@'localhost'	def	REPLICATION CLIENT
+'root'@'localhost'	def	CREATE VIEW
+'root'@'localhost'	def	SHOW VIEW
+'root'@'localhost'	def	CREATE ROUTINE
+'root'@'localhost'	def	ALTER ROUTINE
+'root'@'localhost'	def	CREATE USER
+'root'@'localhost'	def	EVENT
+'root'@'localhost'	def	TRIGGER
+'root'@'gluh'	def	SELECT
+'root'@'gluh'	def	INSERT
+'root'@'gluh'	def	UPDATE
+'root'@'gluh'	def	DELETE
+'root'@'gluh'	def	CREATE
+'root'@'gluh'	def	DROP
+'root'@'gluh'	def	RELOAD
+'root'@'gluh'	def	SHUTDOWN
+'root'@'gluh'	def	PROCESS
+'root'@'gluh'	def	FILE
+'root'@'gluh'	def	REFERENCES
+'root'@'gluh'	def	INDEX
+'root'@'gluh'	def	ALTER
+'root'@'gluh'	def	SHOW DATABASES
+'root'@'gluh'	def	SUPER
+'root'@'gluh'	def	CREATE TEMPORARY TABLES
+'root'@'gluh'	def	LOCK TABLES
+'root'@'gluh'	def	EXECUTE
+'root'@'gluh'	def	REPLICATION SLAVE
+'root'@'gluh'	def	REPLICATION CLIENT
+'root'@'gluh'	def	CREATE VIEW
+'root'@'gluh'	def	SHOW VIEW
+'root'@'gluh'	def	CREATE ROUTINE
+'root'@'gluh'	def	ALTER ROUTINE
+'root'@'gluh'	def	CREATE USER
+'root'@'gluh'	def	EVENT
+'root'@'gluh'	def	TRIGGER
+'root'@'127.0.0.1'	def	SELECT
+'root'@'127.0.0.1'	def	INSERT
+'root'@'127.0.0.1'	def	UPDATE
+'root'@'127.0.0.1'	def	DELETE
+'root'@'127.0.0.1'	def	CREATE
+'root'@'127.0.0.1'	def	DROP
+'root'@'127.0.0.1'	def	RELOAD
+'root'@'127.0.0.1'	def	SHUTDOWN
+'root'@'127.0.0.1'	def	PROCESS
+'root'@'127.0.0.1'	def	FILE
+'root'@'127.0.0.1'	def	REFERENCES
+'root'@'127.0.0.1'	def	INDEX
+'root'@'127.0.0.1'	def	ALTER
+'root'@'127.0.0.1'	def	SHOW DATABASES
+'root'@'127.0.0.1'	def	SUPER
+'root'@'127.0.0.1'	def	CREATE TEMPORARY TABLES
+'root'@'127.0.0.1'	def	LOCK TABLES
+'root'@'127.0.0.1'	def	EXECUTE
+'root'@'127.0.0.1'	def	REPLICATION SLAVE
+'root'@'127.0.0.1'	def	REPLICATION CLIENT
+'root'@'127.0.0.1'	def	CREATE VIEW
+'root'@'127.0.0.1'	def	SHOW VIEW
+'root'@'127.0.0.1'	def	CREATE ROUTINE
+'root'@'127.0.0.1'	def	ALTER ROUTINE
+'root'@'127.0.0.1'	def	CREATE USER
+'root'@'127.0.0.1'	def	EVENT
+'root'@'127.0.0.1'	def	TRIGGER
 ##########################################################################
 # Testcases 3.2.16.2+3.2.16.3+3.2.16.4: INFORMATION_SCHEMA.USER_PRIVILEGES
 #           accessible information
@@ -70,10 +151,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -87,10 +168,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -102,7 +183,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -124,10 +205,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	SELECT	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	SELECT	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -141,10 +222,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	SELECT	YES
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	SELECT	YES
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -156,7 +237,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	SELECT	YES
+'testuser1'@'localhost'	def	SELECT	YES
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -173,8 +254,8 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 'user'
@@ -186,7 +267,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser3'@'localhost' for table 'user'
@@ -201,10 +282,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -216,7 +297,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -229,7 +310,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -247,10 +328,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -262,7 +343,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -281,7 +362,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -303,10 +384,10 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
-'testuser2'@'localhost'	NULL	INSERT	NO
-'testuser2'@'localhost'	NULL	UPDATE	NO
-'testuser3'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
+'testuser2'@'localhost'	def	INSERT	NO
+'testuser2'@'localhost'	def	UPDATE	NO
+'testuser3'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
@@ -318,7 +399,7 @@ SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -349,7 +430,7 @@ CREATE USER 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	USAGE	NO
+'testuser1'@'localhost'	def	USAGE	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -357,8 +438,8 @@ GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	SELECT	NO
-'testuser1'@'localhost'	NULL	FILE	NO
+'testuser1'@'localhost'	def	SELECT	NO
+'testuser1'@'localhost'	def	FILE	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost'
