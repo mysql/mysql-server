@@ -11,3 +11,4 @@
 ##############################################################################
 
 rpl_get_master_version_and_clock:  # Bug#46931 2009-10-17 joro rpl.rpl_get_master_version_and_clock fails
+rpl_cross_version               : BUG#43913 2009-10-22 luis rpl_cross_version fails with symptom in described in bug report
