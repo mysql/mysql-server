@@ -2897,13 +2897,11 @@ AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' C
 AC_OUTPUT
 
 echo
-echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
-echo "latest release, upcoming features, and other information to make your"
-echo "work or play with MySQL more productive. There you can also find"
-echo "information about mailing lists for MySQL discussion."
+echo "You can find information about MariaDB at"
+echo http://askmonty.org/wiki/index.php/MariaDB
 echo
 echo "Remember to check the platform specific part of the reference manual for"
-echo "hints about installing MySQL on your platform. Also have a look at the"
+echo "hints about installing MariaDB on your platform. Also have a look at the"
 echo "files in the Docs directory."
 echo
 
@@ -2922,5 +2920,5 @@ echo "---"
 
 # The following text is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
-echo "Thank you for choosing MySQL!"
+echo "Thank you for choosing MariaDB!"
 echo

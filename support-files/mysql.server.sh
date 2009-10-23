@@ -77,7 +77,12 @@ else
     datadir="$basedir/data"
   fi
   sbindir="$basedir/sbin"
-  libexecdir="$basedir/libexec"
+  if test -f "$basedir/bin/mysqld"
+  then
+    libexecdir="$basedir/bin"
+  else
+    libexecdir="$basedir/libexec"
+  fi
 fi
 
 # datadir_set is used to determine if datadir was set (and so should be
@@ -126,6 +131,12 @@ parse_server_arguments() {
 		      datadir="$basedir/data"
 		    fi
 		    sbindir="$basedir/sbin"
+                    if test -f "$basedir/bin/mysqld"
+                    then
+                      libexecdir="$basedir/bin"
+                    else
+                      libexecdir="$basedir/libexec"
+                    fi
 		    libexecdir="$basedir/libexec"
         ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'`
