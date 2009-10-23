@@ -394,11 +394,11 @@ show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v0	select `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v1	select `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v3	select `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v4	select `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v0	select `information_schema`.`schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v1	select `information_schema`.`tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`information_schema`.`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select `information_schema`.`columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`information_schema`.`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v3	select `information_schema`.`character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`information_schema`.`character_sets`.`CHARACTER_SET_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v4	select `information_schema`.`collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`information_schema`.`collations`.`COLLATION_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -1487,7 +1487,7 @@ AS SELECT *
 FROM information_schema.tables;
 SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
 VIEW_DEFINITION
-select `tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`tables`.`TABLE_NAME` AS `TABLE_NAME`,`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`tables`.`ENGINE` AS `ENGINE`,`tables`.`VERSION` AS `VERSION`,`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`tables`.`DATA_FREE` AS `DATA_FREE`,`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`tables`.`CREATE_TIME` AS `CREATE_TIME`,`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`tables`.`CHECK_TIME` AS `CHECK_TIME`,`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`tables`.`CHECKSUM` AS `CHECKSUM`,`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`
+select `information_schema`.`tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`information_schema`.`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`information_schema`.`tables`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`information_schema`.`tables`.`ENGINE` AS `ENGINE`,`information_schema`.`tables`.`VERSION` AS `VERSION`,`information_schema`.`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`information_schema`.`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`information_schema`.`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`information_schema`.`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`information_schema`.`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`information_schema`.`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`information_schema`.`tables`.`DATA_FREE` AS `DATA_FREE`,`information_schema`.`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`information_schema`.`tables`.`CREATE_TIME` AS `CREATE_TIME`,`information_schema`.`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`information_schema`.`tables`.`CHECK_TIME` AS `CHECK_TIME`,`information_schema`.`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`information_schema`.`tables`.`CHECKSUM` AS `CHECKSUM`,`information_schema`.`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`information_schema`.`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`
 DROP VIEW v1;
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME ='information_schema';
@@ -1699,3 +1699,10 @@ EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE EVENT_OBJECT_SCHEMA='test';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+SELECT *
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+LEFT JOIN INFORMATION_SCHEMA.COLUMNS 
+USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME) 
+WHERE COLUMNS.TABLE_SCHEMA = 'test' 
+AND COLUMNS.TABLE_NAME = 't1';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
