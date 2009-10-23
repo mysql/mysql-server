@@ -368,7 +368,8 @@ public:
   virtual int end_bulk_insert();
 private:
   ha_rows guess_bulk_insert_rows();
-  void start_part_bulk_insert(uint part_id);
+  void start_part_bulk_insert(THD *thd, uint part_id);
+  long estimate_read_buffer_size(long original_size);
 public:
 
   virtual bool is_fatal_error(int error, uint flags)
@@ -773,10 +774,10 @@ public:
     if (m_handler_status < handler_initialized ||
         m_handler_status >= handler_closed)
       DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
-    else
-      DBUG_RETURN((m_file[0]->ha_table_flags() &
-                   ~(PARTITION_DISABLED_TABLE_FLAGS)) |
-                  (PARTITION_ENABLED_TABLE_FLAGS));
+
+    DBUG_RETURN((m_file[0]->ha_table_flags() &
+                 ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+                (PARTITION_ENABLED_TABLE_FLAGS));
   }
 
   /*

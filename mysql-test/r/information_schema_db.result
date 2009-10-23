@@ -139,7 +139,7 @@ show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
 v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'testdb_1.v7' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -171,7 +171,7 @@ show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
 v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'testdb_1.v7' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 revoke insert(f1) on v3 from testdb_2@localhost;
 revoke select,show view on v5 from testdb_2@localhost;
 use testdb_1;
@@ -189,7 +189,8 @@ ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view testdb_1.v7;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view v4;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	latin1	latin1_swedish_ci
 show fields from v4;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	

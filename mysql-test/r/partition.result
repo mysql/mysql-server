@@ -50,6 +50,21 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (733969) ENGINE = MyISAM,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 DROP TABLE t1;
+create table t1 (a int, b int, key(a))
+partition by list (a)
+( partition p0 values in (1),
+partition p1 values in (2));
+insert into t1 values (1,1),(2,1),(2,2),(2,3);
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE	
+drop table t1;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 ENGINE=MyISAM
 PARTITION BY HASH (a);

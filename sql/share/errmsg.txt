@@ -4702,7 +4702,7 @@ ER_NOT_SUPPORTED_YET 42000
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
         nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d: '%-.128s' from master when reading data from binary log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.128s'"
         ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
         ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
         por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
@@ -6201,6 +6201,13 @@ ER_TOO_MANY_CONCURRENT_TRXS
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
 
+ER_DEBUG_SYNC_TIMEOUT
+  eng "debug sync point wait timed out"
+  ger "Debug Sync Point Wartezeit überschritten"
+ER_DEBUG_SYNC_HIT_LIMIT
+  eng "debug sync point hit limit reached"
+  ger "Debug Sync Point Hit Limit erreicht"
+
 ER_DUP_SIGNAL_SET 42000
         eng "Duplicate condition information item '%s'"
 
@@ -6228,3 +6235,5 @@ WARN_COND_ITEM_TRUNCATED
 ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
+ER_UNKNOWN_LOCALE                                                                                                                                                                    
+        eng "Unknown locale: '%-.64s'"

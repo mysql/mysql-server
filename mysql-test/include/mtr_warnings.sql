@@ -173,6 +173,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -220,7 +221,7 @@ BEGIN
     WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT file_name, line
+    SELECT line
         FROM error_log WHERE suspicious=1;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed

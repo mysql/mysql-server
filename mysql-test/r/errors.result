@@ -55,3 +55,32 @@ Error	1054	Unknown column 'b' in 'field list'
 INSERT INTO t1 SELECT b FROM t1;
 ERROR 42S22: Unknown column 'b' in 'field list'
 DROP TABLE t1;
+SET NAMES utf8;
+SET sql_quote_show_create= _binary x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+SET sql_quote_show_create=_latin1 x'5452DC45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+SET sql_quote_show_create='TRÜE';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+SET sql_quote_show_create=TRÜE;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+SET NAMES latin1;
+SET sql_quote_show_create= _binary x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR�E'
+SET sql_quote_show_create=_latin1 x'5452DC45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR�E'
+SET sql_quote_show_create='TR.E';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR.E'
+SET sql_quote_show_create=TR.E;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'E'
+SET NAMES binary;
+SET sql_quote_show_create= _binary x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+SET sql_quote_show_create=_latin1 x'5452DC45';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
