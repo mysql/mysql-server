@@ -222,6 +222,10 @@ const char *client_errors[]=
 };
 #endif
 
+const char** get_client_errmsgs()
+{
+  return client_errors;
+}
 
 /*
   Register client error messages for use with my_error().
@@ -235,7 +239,7 @@ const char *client_errors[]=
 
 void init_client_errs(void)
 {
-  (void) my_error_register(client_errors, CR_ERROR_FIRST, CR_ERROR_LAST);
+  (void) my_error_register(get_client_errmsgs, CR_ERROR_FIRST, CR_ERROR_LAST);
 }
 
 

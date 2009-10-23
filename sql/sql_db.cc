@@ -1451,11 +1451,11 @@ cmp_db_names(const char *db1_name,
 {
   return
          /* db1 is NULL and db2 is NULL */
-         !db1_name && !db2_name ||
+         (!db1_name && !db2_name) ||
 
          /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
-         db1_name && db2_name &&
-         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0;
+         (db1_name && db2_name &&
+         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
 }
 
 

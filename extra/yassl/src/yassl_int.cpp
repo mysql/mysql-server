@@ -1833,7 +1833,7 @@ SSL_CTX::GetCA_List() const
 }
 
 
-const VerifyCallback SSL_CTX::getVerifyCallback() const
+VerifyCallback SSL_CTX::getVerifyCallback() const
 {
     return verifyCallback_;
 }

@@ -368,7 +368,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_UDF_NO_PATHS, MYF(0));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_UDF_NO_PATHS));
+      sql_print_error("%s", ER_DEFAULT(ER_UDF_NO_PATHS));
     DBUG_RETURN(0);
   }
   /* If this dll is already loaded just increase ref_count. */
@@ -396,7 +396,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, errno, errmsg);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, errmsg);
+      sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dlpath, errno, errmsg);
     DBUG_RETURN(0);
   }
   /* Determine interface version */
@@ -406,7 +406,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_interface_version_sym);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), plugin_interface_version_sym);
+      sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
+                      plugin_interface_version_sym);
     DBUG_RETURN(0);
   }
   plugin_dl.version= *(int *)sym;
@@ -419,7 +420,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
                "plugin interface version mismatch");
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, 0,
+      sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dlpath, 0,
                       "plugin interface version mismatch");
     DBUG_RETURN(0);
   }
@@ -430,7 +431,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_declarations_sym);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), plugin_declarations_sym);
+      sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
+                      plugin_declarations_sym);
     DBUG_RETURN(0);
   }
 
@@ -450,7 +452,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (report & REPORT_TO_USER)
         my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), sizeof_st_plugin_sym);
       if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), sizeof_st_plugin_sym);
+        sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), sizeof_st_plugin_sym);
       DBUG_RETURN(0);
 #else
       /*
@@ -475,7 +477,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (report & REPORT_TO_USER)
         my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
       if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+        sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), plugin_dl.dl.length);
       DBUG_RETURN(0);
     }
     /*
@@ -500,7 +502,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), plugin_dl.dl.length);
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -514,7 +516,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
+      sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);
@@ -523,7 +525,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (report & REPORT_TO_USER)
     my_error(ER_FEATURE_DISABLED, MYF(0), "plugin", "HAVE_DLOPEN");
   if (report & REPORT_TO_LOG)
-    sql_print_error(ER(ER_FEATURE_DISABLED), "plugin", "HAVE_DLOPEN");
+    sql_print_error(ER_DEFAULT(ER_FEATURE_DISABLED), "plugin", "HAVE_DLOPEN");
   DBUG_RETURN(0);
 #endif
 }
@@ -726,7 +728,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     if (report & REPORT_TO_USER)
       my_error(ER_UDF_EXISTS, MYF(0), name->str);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_UDF_EXISTS), name->str);
+      sql_print_error(ER_DEFAULT(ER_UDF_EXISTS), name->str);
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
@@ -756,7 +758,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         if (report & REPORT_TO_USER)
           my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dl->str, 0, buf);
         if (report & REPORT_TO_LOG)
-          sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dl->str, 0, buf);
+          sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dl->str, 0, buf);
         goto err;
       }
       tmp.plugin= plugin;
@@ -788,7 +790,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   if (report & REPORT_TO_USER)
     my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), name->str);
   if (report & REPORT_TO_LOG)
-    sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), name->str);
+    sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), name->str);
 err:
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);

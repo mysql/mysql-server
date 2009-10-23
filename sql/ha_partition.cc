@@ -1045,7 +1045,7 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return TRUE;
   }
 
@@ -1337,10 +1337,10 @@ void ha_partition::cleanup_new_partition(uint part_count)
     m_file= m_added_file;
     m_added_file= NULL;
 
+    external_lock(ha_thd(), F_UNLCK);
     /* delete_table also needed, a bit more complex */
     close();
 
-    m_added_file= m_file;
     m_file= save_m_file;
   }
   DBUG_VOID_RETURN;
@@ -3111,7 +3111,7 @@ int ha_partition::write_row(uchar * buf)
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
-  start_part_bulk_insert(part_id);
+  start_part_bulk_insert(thd, part_id);
 
   tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
   error= m_file[part_id]->ha_write_row(buf);
@@ -3175,7 +3175,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
 
   m_last_part= new_part_id;
-  start_part_bulk_insert(new_part_id);
+  start_part_bulk_insert(thd, new_part_id);
   if (new_part_id == old_part_id)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
@@ -3432,17 +3432,63 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   Check if start_bulk_insert has been called for this partition,
   if not, call it and mark it called
 */
-void ha_partition::start_part_bulk_insert(uint part_id)
+void ha_partition::start_part_bulk_insert(THD *thd, uint part_id)
 {
+  long old_buffer_size;
   if (!bitmap_is_set(&m_bulk_insert_started, part_id) &&
       bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
   {
+    old_buffer_size= thd->variables.read_buff_size;
+    /* Update read_buffer_size for this partition */
+    thd->variables.read_buff_size= estimate_read_buffer_size(old_buffer_size);
     m_file[part_id]->ha_start_bulk_insert(guess_bulk_insert_rows());
     bitmap_set_bit(&m_bulk_insert_started, part_id);
+    thd->variables.read_buff_size= old_buffer_size;
   }
   m_bulk_inserted_rows++;
 }
 
+/*
+  Estimate the read buffer size for each partition.
+  SYNOPSIS
+    ha_partition::estimate_read_buffer_size()
+    original_size  read buffer size originally set for the server
+  RETURN VALUE
+    estimated buffer size.
+  DESCRIPTION
+    If the estimated number of rows to insert is less than 10 (but not 0)
+    the new buffer size is same as original buffer size.
+    In case of first partition of when partition function is monotonic 
+    new buffer size is same as the original buffer size.
+    For rest of the partition total buffer of 10*original_size is divided 
+    equally if number of partition is more than 10 other wise each partition
+    will be allowed to use original buffer size.
+*/
+long ha_partition::estimate_read_buffer_size(long original_size)
+{
+  /*
+    If number of rows to insert is less than 10, but not 0,
+    return original buffer size.
+  */
+  if (estimation_rows_to_insert && (estimation_rows_to_insert < 10))
+    return (original_size);
+  /*
+    If first insert/partition and monotonic partition function,
+    allow using buffer size originally set.
+   */
+  if (!m_bulk_inserted_rows &&
+      m_part_func_monotonicity_info != NON_MONOTONIC &&
+      m_tot_parts > 1)
+    return original_size;
+  /*
+    Allow total buffer used in all partition to go up to 10*read_buffer_size.
+    11*read_buffer_size in case of monotonic partition function.
+  */
+
+  if (m_tot_parts < 10)
+      return original_size;
+  return (original_size * 10 / m_tot_parts);
+}
 
 /*
   Try to predict the number of inserts into this partition.
@@ -5115,8 +5161,9 @@ int ha_partition::info(uint flag)
       If the handler doesn't support statistics, it should set all of the
       above to 0.
 
-      We will allow the first handler to set the rec_per_key and use
-      this as an estimate on the total table.
+      We first scans through all partitions to get the one holding most rows.
+      We will then allow the handler with the most rows to set
+      the rec_per_key and use this as an estimate on the total table.
 
       max_data_file_length:     Maximum data file length
       We ignore it, is only used in
@@ -5128,14 +5175,33 @@ int ha_partition::info(uint flag)
       ref_length:               We set this to the value calculated
       and stored in local object
       create_time:              Creation time of table
-      Set by first handler
 
-      So we calculate these constants by using the variables on the first
-      handler.
+      So we calculate these constants by using the variables from the
+      handler with most rows.
     */
-    handler *file;
+    handler *file, **file_array;
+    ulonglong max_records= 0;
+    uint32 i= 0;
+    uint32 handler_instance= 0;
 
-    file= m_file[0];
+    file_array= m_file;
+    do
+    {
+      file= *file_array;
+      /* Get variables if not already done */
+      if (!(flag & HA_STATUS_VARIABLE) ||
+          !bitmap_is_set(&(m_part_info->used_partitions),
+                         (file_array - m_file)))
+        file->info(HA_STATUS_VARIABLE);
+      if (file->stats.records > max_records)
+      {
+        max_records= file->stats.records;
+        handler_instance= i;
+      }
+      i++;
+    } while (*(++file_array));
+
+    file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;

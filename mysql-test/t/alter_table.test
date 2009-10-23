@@ -1000,6 +1000,52 @@ ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#45567: Fast ALTER TABLE broken for enum and set
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a ENUM('a1','a2'));
+INSERT INTO t1 VALUES ('a1'),('a2');
+--enable_info
+--echo # No copy: No modification
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2');
+--echo # No copy: Add new enumeration to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a3');
+--echo # Copy: Modify and add new to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','xx','a5');
+--echo # Copy: Remove from the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','xx');
+--echo # Copy: Add new enumeration
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a0','xx');
+--echo # No copy: Add new enumerations to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a0','xx','a5','a6');
+--disable_info
+DROP TABLE t1;
+
+CREATE TABLE t1 (a SET('a1','a2'));
+INSERT INTO t1 VALUES ('a1'),('a2');
+--enable_info
+--echo # No copy: No modification
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2');
+--echo # No copy: Add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a3');
+--echo # Copy: Modify and add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','xx','a5');
+--echo # Copy: Remove from the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','xx');
+--echo # Copy: Add new member
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx');
+--echo # No copy: Add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx','a5','a6');
+--echo # Copy: Numerical incrase (pack lenght)
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx','a5','a6','a7','a8','a9','a10');
+--disable_info
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 #

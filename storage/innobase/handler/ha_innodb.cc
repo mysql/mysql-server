@@ -72,6 +72,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
+#include "buf0lru.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -106,6 +107,9 @@ extern "C" {
 #include "i_s.h"
 
 #ifndef MYSQL_SERVER
+# ifndef MYSQL_PLUGIN_IMPORT
+#  define MYSQL_PLUGIN_IMPORT /* nothing */
+# endif /* MYSQL_PLUGIN_IMPORT */
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
@@ -152,6 +156,10 @@ static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
+/** Percentage of the buffer pool to reserve for 'old' blocks.
+Connected to buf_LRU_old_ratio. */
+static uint innobase_old_blocks_pct;
+
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
 
@@ -166,9 +174,7 @@ file formats in the configuration file, but can only be set to any
 of the supported file formats during runtime. */
 static char*	innobase_file_format_check		= NULL;
 
-/* The following has a misleading name: starting from 4.0.5, this also
-affects Windows: */
-static char*	innobase_unix_file_flush_method		= NULL;
+static char*	innobase_file_flush_method		= NULL;
 
 /* Below we have boolean-valued start-up parameters, and their default
 values */
@@ -214,14 +220,33 @@ static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
-static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd, 
+static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
 static int innobase_savepoint(handlerton *hton, THD* thd, void *savepoint);
-static int innobase_release_savepoint(handlerton *hton, THD* thd, 
+static int innobase_release_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
+
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if index name matches a
+					reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name);	/* in: table name */
+
+/* "GEN_CLUST_INDEX" is the name reserved for Innodb default
+system primary index. */
+static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
@@ -492,10 +517,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
   (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
-  {"buffer_pool_read_ahead_rnd",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
-  {"buffer_pool_read_ahead_seq",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_seq, SHOW_LONG},
+  {"buffer_pool_read_ahead",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
+  {"buffer_pool_read_ahead_evicted",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_evicted, SHOW_LONG},
   {"buffer_pool_read_requests",
   (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG},
   {"buffer_pool_reads",
@@ -865,17 +890,14 @@ convert_error_code_to_mysql(
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* Once MySQL add the appropriate code to errmsg.txt then
-		we can get rid of this #ifdef. NOTE: The code checked by
-		the #ifdef is the suggested name for the error condition
-		and the actual error code name could very well be different.
-		This will require some monitoring, ie. the status
-		of this request on our part.*/
-#ifdef ER_TOO_MANY_CONCURRENT_TRXS
-		return(ER_TOO_MANY_CONCURRENT_TRXS);
-#else
+		/* New error code HA_ERR_TOO_MANY_CONCURRENT_TRXS is only
+		available in 5.1.38 and later, but the plugin should still
+		work with previous versions of MySQL. */
+#ifdef HA_ERR_TOO_MANY_CONCURRENT_TRXS
+		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
+#else /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 		return(HA_ERR_RECORD_FILE_FULL);
-#endif
+#endif /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
@@ -949,7 +971,23 @@ innobase_get_cset_width(
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
 	} else {
-		ut_a(cset == 0);
+		THD*	thd = current_thd;
+
+		if (thd && thd_sql_command(thd) == SQLCOM_DROP_TABLE) {
+
+			/* Fix bug#46256: allow tables to be dropped if the
+			collation is not found, but issue a warning. */
+			if ((global_system_variables.log_warnings)
+			    && (cset != 0)){
+
+				sql_print_warning(
+					"Unknown collation #%lu.", cset);
+			}
+		} else {
+
+			ut_a(cset == 0);
+		}
+
 		*mbminlen = *mbmaxlen = 0;
 	}
 }
@@ -2173,7 +2211,7 @@ innobase_change_buffering_inited_ok:
 
 	/* --------------------------------------------------*/
 
-	srv_file_flush_method_str = innobase_unix_file_flush_method;
+	srv_file_flush_method_str = innobase_file_flush_method;
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
@@ -2227,6 +2265,9 @@ innobase_change_buffering_inited_ok:
 
 	ut_a(0 == strcmp(my_charset_latin1.name, "latin1_swedish_ci"));
 	srv_latin1_ordering = my_charset_latin1.sort_order;
+
+	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
+		innobase_old_blocks_pct, FALSE);
 
 	innobase_commit_concurrency_init_default();
 
@@ -2481,6 +2522,19 @@ retry:
 			}
 		}
 
+		/* The following calls to read the MySQL binary log
+		file name and the position return consistent results:
+		1) Other InnoDB transactions cannot intervene between
+		these calls as we are holding prepare_commit_mutex.
+		2) Binary logging of other engines is not relevant
+		to InnoDB as all InnoDB requires is that committing
+		InnoDB transactions appear in the same order in the
+		MySQL binary log as they appear in InnoDB logs.
+		3) A MySQL log file rotation cannot happen because
+		MySQL protects against this by having a counter of
+		transactions in prepared state and it only allows
+		a rotation when the counter drops to zero. See
+		LOCK_prep_xids and COND_prep_xids in log.cc. */
 		trx->mysql_log_file_name = mysql_bin_log_file_name();
 		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
 
@@ -3127,7 +3181,7 @@ retry:
 
 		if (is_part) {
 			sql_print_error("Failed to open table %s after "
-					"%lu attemtps.\n", norm_name,
+					"%lu attempts.\n", norm_name,
 					retries);
 		}
 
@@ -5028,6 +5082,11 @@ ha_innobase::index_read(
 
 	index = prebuilt->index;
 
+	if (UNIV_UNLIKELY(index == NULL)) {
+		prebuilt->index_usable = FALSE;
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	/* Note that if the index for which the search template is built is not
 	necessarily prebuilt->index, but can also be the clustered index */
 
@@ -5187,6 +5246,7 @@ ha_innobase::change_active_index(
 	if (UNIV_UNLIKELY(!prebuilt->index)) {
 		sql_print_warning("InnoDB: change_active_index(%u) failed",
 				  keynr);
+		prebuilt->index_usable = FALSE;
 		DBUG_RETURN(1);
 	}
 
@@ -5679,6 +5739,28 @@ create_table_def(
 			}
 		}
 
+		/* First check whether the column to be added has a
+		system reserved name. */
+		if (dict_col_name_is_reserved(field->field_name)){
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column name '%s'. '%s' is a "
+				"reserved name. Please try to "
+				"re-create the table with a "
+				"different column name.",
+				table->name, (char*) field->field_name,
+				(char*) field->field_name);
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			error = DB_ERROR;
+			goto error_ret;
+		}
+
 		dict_mem_table_add_col(table, table->heap,
 			(char*) field->field_name,
 			col_type,
@@ -5692,6 +5774,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
+error_ret:
 	error = convert_error_code_to_mysql(error, flags, NULL);
 
 	DBUG_RETURN(error);
@@ -5729,6 +5812,9 @@ create_index(
 	key = form->key_info + key_num;
 
 	n_fields = key->key_parts;
+
+	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
+	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
 	ind_type = 0;
 
@@ -5838,8 +5924,8 @@ create_clustered_index_when_no_primary(
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
-
-	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+	index = dict_mem_index_create(table_name,
+				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
 
 	error = row_create_index_for_mysql(index, trx, NULL);
@@ -6265,14 +6351,6 @@ ha_innobase::create(
 		flags = DICT_TF_COMPACT;
 	}
 
-	error = create_table_def(trx, form, norm_name,
-		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags);
-
-	if (error) {
-		goto cleanup;
-	}
-
 	/* Look for a primary key */
 
 	primary_key_no= (form->s->primary_key != MAX_KEY ?
@@ -6283,6 +6361,22 @@ ha_innobase::create(
 	the primary key is always number 0, if it exists */
 
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(trx, form, norm_name)) {
+		error = -1;
+		goto cleanup;
+	}
+
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		flags);
+
+	if (error) {
+		goto cleanup;
+	}
+
 
 	/* Create the keys */
 
@@ -8468,6 +8562,7 @@ ha_innobase::store_lock(
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
+			|| sql_command == SQLCOM_REPLACE_SELECT
 			|| sql_command == SQLCOM_UPDATE
 			|| sql_command == SQLCOM_CREATE_TABLE)) {
 
@@ -8475,10 +8570,11 @@ ha_innobase::store_lock(
 			option set or this session is using READ COMMITTED
 			isolation level and isolation level of the transaction
 			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT or UPDATE ... = (SELECT ...) or
-			CREATE  ... SELECT... without FOR UPDATE or
-			IN SHARE MODE in select, then we use consistent
-			read for select. */
+			INSERT INTO...SELECT or REPLACE INTO...SELECT
+			or UPDATE ... = (SELECT ...) or CREATE  ...
+			SELECT... without FOR UPDATE or IN SHARE
+			MODE in select, then we use consistent read
+			for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
@@ -9634,6 +9730,25 @@ innodb_adaptive_hash_index_update(
 	}
 }
 
+/****************************************************************//**
+Update the system variable innodb_old_blocks_pct using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_old_blocks_pct_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
+		*static_cast<const uint*>(save), TRUE);
+}
+
 /*************************************************************//**
 Check if it is a valid value of innodb_change_buffering.  This function is
 registered as a callback with MySQL.
@@ -9707,6 +9822,46 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if an index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name)	/* in: table name */
+{
+	KEY*		key;
+	uint		key_num;	/* index number */
+
+	for (key_num = 0; key_num < form->s->keys; key_num++) {
+		key = form->key_info + key_num;
+
+		if (innobase_strcasecmp(key->name,
+					innobase_index_reserve_name) == 0) {
+			/* Push warning to mysql */
+			push_warning_printf((THD*) trx->mysql_thd,
+					    MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    ER_CANT_CREATE_TABLE,
+					    "Cannot Create Index with name "
+					    "'%s'. The name is reserved "
+					    "for the system default primary "
+					    "index.",
+					    innobase_index_reserve_name);
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
@@ -9775,7 +9930,7 @@ static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   " or 2 (write at commit, flush once per second).",
   NULL, NULL, 1, 0, 2, 0);
 
-static MYSQL_SYSVAR_STR(flush_method, innobase_unix_file_flush_method,
+static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "With which method to flush data.", NULL, NULL, NULL);
 
@@ -9871,7 +10026,7 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   NULL, NULL, 500L, 1L, ~0L, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
@@ -9909,6 +10064,18 @@ static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
   NULL, NULL, 1, 1, 10, 0);
+
+static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of the buffer pool to reserve for 'old' blocks.",
+  NULL, innodb_old_blocks_pct_update, 100 * 3 / 8, 5, 95, 0);
+
+static MYSQL_SYSVAR_UINT(old_blocks_time, buf_LRU_old_threshold_ms,
+  PLUGIN_VAR_RQCMDARG,
+  "Move blocks to the 'new' end of the buffer pool if the first access"
+  " was at least this many milliseconds ago."
+  " The timeout is disabled if 0 (the default).",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -10008,6 +10175,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_flushing),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(mirrored_log_groups),
+  MYSQL_SYSVAR(old_blocks_pct),
+  MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),

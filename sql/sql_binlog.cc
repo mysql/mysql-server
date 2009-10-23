@@ -56,17 +56,20 @@ void mysql_client_binlog_statement(THD* thd)
     Format_description_event.
   */
   my_bool have_fd_event= TRUE;
-  if (!thd->rli_fake)
+  int err;
+  Relay_log_info *rli;
+  rli= thd->rli_fake;
+  if (!rli)
   {
-    thd->rli_fake= new Relay_log_info;
+    rli= thd->rli_fake= new Relay_log_info;
 #ifdef HAVE_purify
-    thd->rli_fake->is_fake= TRUE;
+    rli->is_fake= TRUE;
 #endif
     have_fd_event= FALSE;
   }
-  if (thd->rli_fake && !thd->rli_fake->relay_log.description_event_for_exec)
+  if (rli && !rli->relay_log.description_event_for_exec)
   {
-    thd->rli_fake->relay_log.description_event_for_exec=
+    rli->relay_log.description_event_for_exec=
       new Format_description_log_event(4);
     have_fd_event= FALSE;
   }
@@ -78,16 +81,16 @@ void mysql_client_binlog_statement(THD* thd)
   /*
     Out of memory check
   */
-  if (!(thd->rli_fake &&
-        thd->rli_fake->relay_log.description_event_for_exec &&
+  if (!(rli &&
+        rli->relay_log.description_event_for_exec &&
         buf))
   {
     my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
     goto end;
   }
 
-  thd->rli_fake->sql_thd= thd;
-  thd->rli_fake->no_storage= TRUE;
+  rli->sql_thd= thd;
+  rli->no_storage= TRUE;
 
   for (char const *strptr= thd->lex->comment.str ;
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
@@ -170,8 +173,7 @@ void mysql_client_binlog_statement(THD* thd)
       }
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    thd->rli_fake->relay_log.
-                                      description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
@@ -209,18 +211,10 @@ void mysql_client_binlog_statement(THD* thd)
         reporting.
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-      if (apply_event_and_update_pos(ev, thd, thd->rli_fake, FALSE))
-      {
-        delete ev;
-        /*
-          TODO: Maybe a better error message since the BINLOG statement
-          now contains several events.
-        */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
-        goto end;
-      }
+      err= ev->apply_event(rli);
+#else
+      err= 0;
 #endif
-
       /*
         Format_description_log_event should not be deleted because it
         will be used to read info about the relay log's format; it
@@ -228,8 +222,17 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev;
+        delete ev; 
       ev= 0;
+      if (err)
+      {
+        /*
+          TODO: Maybe a better error message since the BINLOG statement
+          now contains several events.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
+        goto end;
+      }
     }
   }
 
@@ -238,7 +241,7 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
-  thd->rli_fake->clear_tables_to_lock();
+  rli->clear_tables_to_lock();
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }

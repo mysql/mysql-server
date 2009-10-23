@@ -16,7 +16,7 @@ DROP EVENT Lower_case;
 SET NAMES cp1251;
 CREATE EVENT долен_регистър_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
 CREATE EVENT ДоЛеН_регистър_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
-ERROR HY000: Event 'Р”РѕР›РµРќ_СЂРµРіРёСЃС‚СЉСЂ_1251' already exists
+ERROR HY000: Event 'ДоЛеН_регистър_1251' already exists
 DROP EVENT ДоЛеН_регистър_1251;
 SET NAMES utf8;
 CREATE EVENT РґРѕР»РµРЅ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;

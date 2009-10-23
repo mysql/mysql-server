@@ -788,7 +788,11 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
 cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
+  {
     *t_file=t_file2;                            /* Copy result file */
+    t_file->current_pos= &t_file->write_pos;
+    t_file->current_end= &t_file->write_end;
+  }
 
   DBUG_RETURN(*maxbuffer >= MERGEBUFF2);        /* Return 1 if interrupted */
 } /* merge_many_buff */
