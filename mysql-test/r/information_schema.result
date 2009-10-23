@@ -641,7 +641,7 @@ TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 use test;
 show tables;
 Tables_in_test
@@ -1643,3 +1643,41 @@ TEST_RESULT
 OK
 SET TIMESTAMP=DEFAULT;
 End of 5.1 tests.
+create table information_schema.t1 (f1 INT);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop table information_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop temporary table if exists information_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create temporary table information_schema.t1 (f1 INT);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop view information_schema.v1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create view information_schema.v1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create trigger mysql.trg1 after insert on information_schema.t1 for each row set @a=1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create table t1 select * from information_schema.t1;
+ERROR 42S02: Unknown table 't1' in information_schema
+CREATE TABLE t1(f1 char(100));
+REPAIR TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CHECKSUM TABLE t1, information_schema.tables;
+Table	Checksum
+test.t1	0
+information_schema.tables	0
+ANALYZE TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CHECK TABLE t1, information_schema.tables;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+information_schema.tables	check	note	The storage engine for the table doesn't support check
+OPTIMIZE TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+RENAME TABLE v1 to v2, information_schema.tables to t2;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+LOCK TABLES t1 READ, information_schema.tables READ;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE t1;
