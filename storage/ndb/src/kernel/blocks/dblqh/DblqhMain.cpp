@@ -18273,6 +18273,7 @@ void Dblqh::findPageRef(Signal* signal, CommitLogRecord* commitLogRecord)
     for (Uint32 i = 0; i<extra; i++)
     {
       jam();
+      Uint32 prevPtrI = loopPtr.i;
       loopPtr.i = loopPtr.p->logPageWord[ZNEXT_PAGE];
       if (loopPtr.i == RNIL)
       {
@@ -18291,7 +18292,7 @@ void Dblqh::findPageRef(Signal* signal, CommitLogRecord* commitLogRecord)
           Ptr<LogPageRecord> tmp;
           tmp.i = pagePtr.i;
           tmp.p = reinterpret_cast<LogPageRecord*>(pagePtr.p);
-          tmp.p->logPageWord[ZPREV_PAGE] = loopPtr.i;
+          tmp.p->logPageWord[ZPREV_PAGE] = prevPtrI;
           loopPtr.p->logPageWord[ZNEXT_PAGE] = tmp.i;
           loopPtr.i = tmp.i;
         }
@@ -21531,58 +21532,63 @@ Dblqh::get_node_status(Uint32 nodeId) const
 #define MIN_REDO_PAGES_FREE 64
 
 void
-Dblqh::evict(RedoPageCache& cache, Uint32 cnt)
+Dblqh::do_evict(RedoPageCache& cache, Ptr<RedoCacheLogPageRecord> pagePtr)
 {
   LogPageRecordPtr save = logPagePtr;
+  cache.m_lru.remove(pagePtr);
+  cache.m_hash.remove(pagePtr);
+  if (0)
+  ndbout_c("evict part: %u file: %u page: %u cnoOfLogPages: %u",
+           pagePtr.p->m_part_no,
+           pagePtr.p->m_file_no,
+           pagePtr.p->m_page_no,
+           cnoOfLogPages);
+
+  logPagePtr.i = pagePtr.i;
+  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+
+  Ptr<LogPageRecord> prevPagePtr, nextPagePtr;
+  prevPagePtr.i = logPagePtr.p->logPageWord[ZPREV_PAGE];
+  nextPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
+  if (prevPagePtr.i != RNIL)
+  {
+    jam();
+    /**
+     * Remove ZNEXT pointer from prevPagePtr
+     *   so we don't try to "serve" multi-page request
+     *   if next-page has been evicted
+     */
+    ptrCheckGuard(prevPagePtr, clogPageFileSize, logPageRecord);
+    ndbrequire(prevPagePtr.p->logPageWord[ZNEXT_PAGE] == logPagePtr.i);
+    prevPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+  }
+
+  if (nextPagePtr.i != RNIL)
+  {
+    jam();
+    /**
+     * Remove ZPREV pointer from nextPagePtr
+     *   so don't try to do above if prev has been evicted
+     */
+    ptrCheckGuard(nextPagePtr, clogPageFileSize, logPageRecord);
+    ndbrequire(nextPagePtr.p->logPageWord[ZPREV_PAGE] == logPagePtr.i);
+    nextPagePtr.p->logPageWord[ZPREV_PAGE] = RNIL;
+  }
+
+  releaseLogpage(0);
+  logPagePtr = save;
+}
+
+void
+Dblqh::evict(RedoPageCache& cache, Uint32 cnt)
+{
   while (cnoOfLogPages < (cnt + MIN_REDO_PAGES_FREE) && !cache.m_lru.isEmpty())
   {
     jam();
     Ptr<RedoCacheLogPageRecord> pagePtr;
     cache.m_lru.last(pagePtr);
-    cache.m_lru.remove(pagePtr);
-    cache.m_hash.remove(pagePtr);
-    if (0)
-    ndbout_c("evict part: %u file: %u page: %u cnoOfLogPages: %u",
-             pagePtr.p->m_part_no,
-             pagePtr.p->m_file_no,
-             pagePtr.p->m_page_no,
-             cnoOfLogPages);
-
-    logPagePtr.i = pagePtr.i;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
-
-    Ptr<LogPageRecord> prevPagePtr, nextPagePtr;
-    prevPagePtr.i = logPagePtr.p->logPageWord[ZPREV_PAGE];
-    nextPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
-    if (prevPagePtr.i != RNIL)
-    {
-      jam();
-      /**
-       * Remove ZNEXT pointer from prevPagePtr
-       *   so we don't try to "serve" multi-page request
-       *   if next-page has been evicted
-       */
-      ptrCheckGuard(prevPagePtr, clogPageFileSize, logPageRecord);
-      ndbrequire(prevPagePtr.p->logPageWord[ZNEXT_PAGE] == logPagePtr.i);
-      prevPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
-
-    }
-
-    if (nextPagePtr.i != RNIL)
-    {
-      jam();
-      /**
-       * Remove ZPREV pointer from nextPagePtr
-       *   so don't try to do above if prev has been evicted
-       */
-      ptrCheckGuard(nextPagePtr, clogPageFileSize, logPageRecord);
-      ndbrequire(nextPagePtr.p->logPageWord[ZPREV_PAGE] == logPagePtr.i);
-      nextPagePtr.p->logPageWord[ZPREV_PAGE] = RNIL;
-    }
-
-    releaseLogpage(0);
+    do_evict(cache, pagePtr);
   }
-  logPagePtr = save;
 }
 
 void
@@ -21622,12 +21628,11 @@ Dblqh::addCachePages(RedoPageCache& cache,
       key.m_page_no = startPageNo + i;
       key.m_file_no = filePtr.p->fileNo;
       Ptr<RedoCacheLogPageRecord> tmp;
-      cache.m_hash.remove(tmp, key);
-      if (!tmp.isNull())
+      if (cache.m_hash.find(tmp, key))
       {
         jam();
-        cache.m_lru.remove(tmp);
         found = true;
+        do_evict(cache, tmp);
       }
     }
 
