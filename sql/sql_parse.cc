@@ -6338,7 +6338,19 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
                                       INFORMATION_SCHEMA_NAME.str))
   {
-    ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
+    ST_SCHEMA_TABLE *schema_table;
+    if (ptr->updating &&
+        /* Special cases which are processed by commands itself */
+        lex->sql_command != SQLCOM_CHECK &&
+        lex->sql_command != SQLCOM_CHECKSUM)
+    {
+      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+               thd->security_ctx->priv_user,
+               thd->security_ctx->priv_host,
+               INFORMATION_SCHEMA_NAME.str);
+      DBUG_RETURN(0);
+    }
+    schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
          ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0 || 
