@@ -2489,7 +2489,7 @@ inline bool is_user_table(TABLE * table)
   return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /*
    function type for timed wait on some condition
    max_seconds
