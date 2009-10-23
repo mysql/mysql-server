@@ -4560,7 +4560,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
     bootstrap(stdin);
-    unireg_abort(bootstrap_error ? 1 : 0);
+    if (!kill_in_progress)
+      unireg_abort(bootstrap_error ? 1 : 0);
+    else
+    {
+      sleep(2);                                 // Wait for kill
+      exit(0);
+    }
   }
   if (opt_init_file)
   {

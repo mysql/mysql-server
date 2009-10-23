@@ -239,8 +239,8 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # ----------------------------------------------------------------------
 
   cd scripts
-  rm -f mysql_install_db
-  @MAKE@ mysql_install_db \
+  rm -f mysql_install_db mysqld_safe mysql_fix_privilege_tables
+  @MAKE@ mysql_install_db mysqld_safe mysql_fix_privilege_tables \
     prefix=. \
     bindir=./bin \
     sbindir=./bin \
@@ -257,7 +257,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     sbindir=./bin \
     scriptdir=./bin \
     libexecdir=./bin \
-    pkgdatadir=@pkgdatadir@
+    pkgdatadir=./share 
   cd ..
 
   # ----------------------------------------------------------------------
@@ -319,6 +319,33 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # Create empty data directories, set permission (FIXME why?)
   mkdir       $DEST/data $DEST/data/mysql $DEST/data/test
   chmod o-rwx $DEST/data $DEST/data/mysql $DEST/data/test
+
+  # Remove not needed files
+  rm $DEST/share/mysql/errmsg.txt
+
+  # Remove NDB files
+  rm -f $DEST/share/mysql/ndb-config-2-node.ini \
+      $DEST/share/mysql/config*
+
+  #
+  # Move things to make them easier to find in tar installation
+  #
+  mv $DEST/libexec/* $DEST/bin
+  mv $DEST/share/man $DEST
+  mv $DEST/share/mysql/binary-configure $DEST/configure
+  mv $DEST/share/mysql/*.sql $DEST/share
+  mv $DEST/share/mysql/*.cnf $DEST/share/mysql/*.server $DEST/share/mysql/mysql-log-rotate $DEST/support-files
+  rmdir $DEST/libexec
+
+  #
+  # Move some scripts that are only run once to 'scripts' directory
+  # but add symbolic links instead to old place for compatibility
+  #
+  for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables
+  do
+    mv $DEST/bin/$i $DEST/scripts
+    ln -s "../scripts/$i" $DEST/bin/$i
+  done
 
   # ----------------------------------------------------------------------
   # Create the result tar file
@@ -496,12 +523,21 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
     $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution \
     $BASE/bin/make_win_* \
     $BASE/bin/setsomevars $BASE/support-files/Makefile* \
-    $BASE/support-files/*.sh
+    $BASE/support-files/*.sh \
+    $BASE/share/mysql/errmsg.txt
+
+# Remove NDB files
+rm -f $BASE/share/ndb-config-2-node.ini \
+      $BASE/share/mysql/config*
 
 #
-# Copy system dependent files
+# Move things to make things easier to find in tar installation
 #
-./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+
+mv $BASE/share/man $BASE
+mv $BASE/share/mysql/binary-configure $BASE/configure
+mv $BASE/share/mysql/*.sql $BASE/share
+mv $BASE/share/mysql/*.cnf $BASE/share/mysql/*.server $BASE/share/mysql/mysql-log-rotate $BASE/support-files
 
 #
 # Remove system dependent files
@@ -514,12 +550,6 @@ rm -f   $BASE/support-files/magic \
         $BASE/support-files/build-tags \
         $BASE/support-files/MySQL-shared-compat.spec \
         $BASE/INSTALL-BINARY
-
-# Clean up if we did this from a bk tree
-if [ -d $BASE/sql-bench/SCCS ] ; then
-  find $BASE/share -name SCCS -print | xargs rm -rf
-  find $BASE/sql-bench -name SCCS -print | xargs rm -rf
-fi
 
 BASE2=$TMP/$NEW_NAME
 rm -rf $BASE2

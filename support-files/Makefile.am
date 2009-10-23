@@ -53,7 +53,9 @@ pkgsupp_DATA =		my-small.cnf \
 			ndb-config-2-node.ini
 
 pkgsupp_SCRIPTS =	mysql.server \
-			mysqld_multi.server
+			mysqld_multi.server \
+	                binary-configure \
+			mysql-log-rotate
 
 aclocaldir =		$(datadir)/aclocal
 aclocal_DATA =		mysql.m4
