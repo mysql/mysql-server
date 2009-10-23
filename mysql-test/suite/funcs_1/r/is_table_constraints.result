@@ -28,7 +28,7 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.TABLE_CONSTRAINTS;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_CATALOG	varchar(512)	NO			
 CONSTRAINT_SCHEMA	varchar(64)	NO			
 CONSTRAINT_NAME	varchar(64)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
@@ -37,7 +37,7 @@ CONSTRAINT_TYPE	varchar(64)	NO
 SHOW CREATE TABLE information_schema.TABLE_CONSTRAINTS;
 Table	Create Table
 TABLE_CONSTRAINTS	CREATE TEMPORARY TABLE `TABLE_CONSTRAINTS` (
-  `CONSTRAINT_CATALOG` varchar(512) DEFAULT NULL,
+  `CONSTRAINT_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `CONSTRAINT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `CONSTRAINT_NAME` varchar(64) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
@@ -46,7 +46,7 @@ TABLE_CONSTRAINTS	CREATE TEMPORARY TABLE `TABLE_CONSTRAINTS` (
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TABLE_CONSTRAINTS;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_CATALOG	varchar(512)	NO			
 CONSTRAINT_SCHEMA	varchar(64)	NO			
 CONSTRAINT_NAME	varchar(64)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
@@ -57,6 +57,30 @@ table_schema, table_name
 FROM information_schema.table_constraints
 WHERE constraint_catalog IS NOT NULL;
 constraint_catalog	constraint_schema	constraint_name	table_schema	table_name
+def	mysql	PRIMARY	mysql	columns_priv
+def	mysql	PRIMARY	mysql	db
+def	mysql	PRIMARY	mysql	event
+def	mysql	PRIMARY	mysql	func
+def	mysql	PRIMARY	mysql	help_category
+def	mysql	name	mysql	help_category
+def	mysql	PRIMARY	mysql	help_keyword
+def	mysql	name	mysql	help_keyword
+def	mysql	PRIMARY	mysql	help_relation
+def	mysql	PRIMARY	mysql	help_topic
+def	mysql	name	mysql	help_topic
+def	mysql	PRIMARY	mysql	host
+def	mysql	PRIMARY	mysql	ndb_binlog_index
+def	mysql	PRIMARY	mysql	plugin
+def	mysql	PRIMARY	mysql	proc
+def	mysql	PRIMARY	mysql	procs_priv
+def	mysql	PRIMARY	mysql	servers
+def	mysql	PRIMARY	mysql	tables_priv
+def	mysql	PRIMARY	mysql	time_zone
+def	mysql	PRIMARY	mysql	time_zone_leap_second
+def	mysql	PRIMARY	mysql	time_zone_name
+def	mysql	PRIMARY	mysql	time_zone_transition
+def	mysql	PRIMARY	mysql	time_zone_transition_type
+def	mysql	PRIMARY	mysql	user
 #########################################################################################
 # Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.TABLE_CONSTRAINTS accessible information
 #########################################################################################
@@ -81,10 +105,10 @@ SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema,table_name, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	db_datadict	my_idx1	db_datadict	t1	UNIQUE
-NULL	db_datadict	my_idx2	db_datadict	t1	UNIQUE
-NULL	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
-NULL	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY
+def	db_datadict	my_idx1	db_datadict	t1	UNIQUE
+def	db_datadict	my_idx2	db_datadict	t1	UNIQUE
+def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
+def	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY
 SHOW INDEXES FROM db_datadict.t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###
@@ -105,9 +129,9 @@ SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'db_datadict'
 ORDER BY table_schema,table_name, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	db_datadict	my_idx1	db_datadict	t1	UNIQUE
-NULL	db_datadict	my_idx2	db_datadict	t1	UNIQUE
-NULL	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
+def	db_datadict	my_idx1	db_datadict	t1	UNIQUE
+def	db_datadict	my_idx2	db_datadict	t1	UNIQUE
+def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
 SHOW INDEXES FROM db_datadict.t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###

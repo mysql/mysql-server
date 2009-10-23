@@ -29,7 +29,7 @@ DROP FUNCTION test.f1;
 DESCRIBE          information_schema.SCHEMA_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
 IS_GRANTABLE	varchar(3)	NO			
@@ -37,7 +37,7 @@ SHOW CREATE TABLE information_schema.SCHEMA_PRIVILEGES;
 Table	Create Table
 SCHEMA_PRIVILEGES	CREATE TEMPORARY TABLE `SCHEMA_PRIVILEGES` (
   `GRANTEE` varchar(81) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
   `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
@@ -45,13 +45,45 @@ SCHEMA_PRIVILEGES	CREATE TEMPORARY TABLE `SCHEMA_PRIVILEGES` (
 SHOW COLUMNS FROM information_schema.SCHEMA_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
 IS_GRANTABLE	varchar(3)	NO			
 SELECT GRANTEE, TABLE_CATALOG, TABLE_SCHEMA, PRIVILEGE_TYPE
 FROM information_schema.schema_privileges WHERE table_catalog IS NOT NULL;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
+''@'%'	def	test	SELECT
+''@'%'	def	test	INSERT
+''@'%'	def	test	UPDATE
+''@'%'	def	test	DELETE
+''@'%'	def	test	CREATE
+''@'%'	def	test	DROP
+''@'%'	def	test	REFERENCES
+''@'%'	def	test	INDEX
+''@'%'	def	test	ALTER
+''@'%'	def	test	CREATE TEMPORARY TABLES
+''@'%'	def	test	LOCK TABLES
+''@'%'	def	test	CREATE VIEW
+''@'%'	def	test	SHOW VIEW
+''@'%'	def	test	CREATE ROUTINE
+''@'%'	def	test	EVENT
+''@'%'	def	test	TRIGGER
+''@'%'	def	test\_%	SELECT
+''@'%'	def	test\_%	INSERT
+''@'%'	def	test\_%	UPDATE
+''@'%'	def	test\_%	DELETE
+''@'%'	def	test\_%	CREATE
+''@'%'	def	test\_%	DROP
+''@'%'	def	test\_%	REFERENCES
+''@'%'	def	test\_%	INDEX
+''@'%'	def	test\_%	ALTER
+''@'%'	def	test\_%	CREATE TEMPORARY TABLES
+''@'%'	def	test\_%	LOCK TABLES
+''@'%'	def	test\_%	CREATE VIEW
+''@'%'	def	test\_%	SHOW VIEW
+''@'%'	def	test\_%	CREATE ROUTINE
+''@'%'	def	test\_%	EVENT
+''@'%'	def	test\_%	TRIGGER
 ###############################################################################
 # Testcase 3.2.15.2-3.2.15.4 INFORMATION_SCHEMA.SCHEMA_PRIVILEGES accessibility
 ###############################################################################
@@ -86,8 +118,8 @@ SELECT * FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict_1	INSERT	NO
-'testuser1'@'localhost'	NULL	db_datadict_4	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict_1	INSERT	NO
+'testuser1'@'localhost'	def	db_datadict_4	SELECT	YES
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -106,9 +138,9 @@ SELECT * FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	NULL	db_datadict_1	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict_3	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict_4	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict_1	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict_3	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict_4	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
 SHOW GRANTS FOR 'testuser2'@'localhost';
@@ -122,11 +154,11 @@ SELECT * FROM information_schema.schema_privileges
 WHERE table_schema LIKE 'db_datadict%'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict_1	INSERT	NO
-'testuser1'@'localhost'	NULL	db_datadict_4	SELECT	YES
-'testuser2'@'localhost'	NULL	db_datadict_1	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict_3	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict_4	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict_1	INSERT	NO
+'testuser1'@'localhost'	def	db_datadict_4	SELECT	YES
+'testuser2'@'localhost'	def	db_datadict_1	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict_3	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict_4	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -168,98 +200,98 @@ SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	UPDATE	NO
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	UPDATE	NO
 # Switch to connection default
 GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	UPDATE	NO
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	NO
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+'testuser1'@'localhost'	def	db_datadict	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	UPDATE	NO
 # Switch to connection default
 GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	UPDATE	YES
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	UPDATE	YES
 # Switch to connection default
 DROP SCHEMA db_datadict;
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	UPDATE	YES
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
-'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	UPDATE	YES
 # Switch to connection default
 REVOKE UPDATE ON db_datadict.* FROM 'testuser1'@'localhost';
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	def	db_datadict	SELECT	YES
 # Switch to connection default
 RENAME USER 'testuser1'@'localhost' TO 'the_user'@'localhost';
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+'the_user'@'localhost'	def	db_datadict	SELECT	YES
 # Switch to connection testuser1
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+'the_user'@'localhost'	def	db_datadict	SELECT	YES
 # Close connection testuser1
 # Establish connection the_user (user=the_user)
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+'the_user'@'localhost'	def	db_datadict	SELECT	YES
 # Close connection the_user
 # Switch to connection default
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'
 ORDER BY grantee,table_schema,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+'the_user'@'localhost'	def	db_datadict	SELECT	YES
 DROP USER 'the_user'@'localhost';
 SELECT * FROM information_schema.schema_privileges
 WHERE table_schema = 'db_datadict'

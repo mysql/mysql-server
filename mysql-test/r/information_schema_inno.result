@@ -8,22 +8,22 @@ FOREIGN KEY (id, t2_id) REFERENCES t2(t1_id, id)  ON DELETE CASCADE) ENGINE=INNO
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	PRIMARY	test	t1	PRIMARY KEY
-NULL	test	PRIMARY	test	t2	PRIMARY KEY
-NULL	test	t2_ibfk_1	test	t2	FOREIGN KEY
-NULL	test	t2_ibfk_2	test	t2	FOREIGN KEY
-NULL	test	PRIMARY	test	t3	PRIMARY KEY
-NULL	test	t3_ibfk_1	test	t3	FOREIGN KEY
+def	test	PRIMARY	test	t1	PRIMARY KEY
+def	test	PRIMARY	test	t2	PRIMARY KEY
+def	test	t2_ibfk_1	test	t2	FOREIGN KEY
+def	test	t2_ibfk_2	test	t2	FOREIGN KEY
+def	test	PRIMARY	test	t3	PRIMARY KEY
+def	test	t3_ibfk_1	test	t3	FOREIGN KEY
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	NULL	test	t1	id	1	NULL	NULL	NULL	NULL
-NULL	test	PRIMARY	NULL	test	t2	id	1	NULL	NULL	NULL	NULL
-NULL	test	t2_ibfk_1	NULL	test	t2	t1_id	1	1	test	t1	id
-NULL	test	t2_ibfk_2	NULL	test	t2	t1_id	1	1	test	t1	id
-NULL	test	PRIMARY	NULL	test	t3	id	1	NULL	NULL	NULL	NULL
-NULL	test	t3_ibfk_1	NULL	test	t3	id	1	1	test	t2	t1_id
-NULL	test	t3_ibfk_1	NULL	test	t3	t2_id	2	2	test	t2	id
+def	test	PRIMARY	def	test	t1	id	1	NULL	NULL	NULL	NULL
+def	test	PRIMARY	def	test	t2	id	1	NULL	NULL	NULL	NULL
+def	test	t2_ibfk_1	def	test	t2	t1_id	1	1	test	t1	id
+def	test	t2_ibfk_2	def	test	t2	t1_id	1	1	test	t1	id
+def	test	PRIMARY	def	test	t3	id	1	NULL	NULL	NULL	NULL
+def	test	t3_ibfk_1	def	test	t3	id	1	1	test	t2	t1_id
+def	test	t3_ibfk_1	def	test	t3	t2_id	2	2	test	t2	id
 drop table t3, t2, t1;
 CREATE TABLE t1(a1 INT NOT NULL, a2 INT NOT NULL,
 PRIMARY KEY(a1, a2)) ENGINE=INNODB;

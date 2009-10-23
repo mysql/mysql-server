@@ -85,9 +85,9 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Note: Retrieval of information within information_schema.columns about
 #       information_schema.columns is in is_columns_is.test.
 
-# Show that TABLE_CATALOG is always NULL.
+# Show that TABLE_CATALOG is always 'def'.
 SELECT table_catalog, table_schema, table_name, column_name
-FROM information_schema.columns WHERE table_catalog IS NOT NULL;
+FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
 
 
 --echo ###############################################################################

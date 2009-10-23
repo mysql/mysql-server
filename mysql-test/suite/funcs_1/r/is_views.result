@@ -28,7 +28,7 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.VIEWS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 VIEW_DEFINITION	longtext	NO		NULL	
@@ -41,7 +41,7 @@ COLLATION_CONNECTION	varchar(32)	NO
 SHOW CREATE TABLE information_schema.VIEWS;
 Table	Create Table
 VIEWS	CREATE TEMPORARY TABLE `VIEWS` (
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
   `VIEW_DEFINITION` longtext NOT NULL,
@@ -54,7 +54,7 @@ VIEWS	CREATE TEMPORARY TABLE `VIEWS` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.VIEWS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 VIEW_DEFINITION	longtext	NO		NULL	
@@ -88,19 +88,19 @@ GRANT SHOW VIEW, CREATE VIEW ON db_datadict.* TO 'testuser2'@'localhost';
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 # Establish connection test_no_views (user=test_no_views)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
@@ -128,7 +128,7 @@ CREATE VIEW test.t1_view AS SELECT DISTINCT f1 FROM test.t1_table;
 SELECT * FROM information_schema.views
 WHERE table_name LIKE 't1_%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 SELECT table_name,definer FROM information_schema.views
 WHERE table_name = 't1_view';
 table_name	definer

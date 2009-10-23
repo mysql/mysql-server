@@ -31,8 +31,8 @@ Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'wl2818_trg1'. The
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-NULL	mysqltest_db1	wl2818_trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL	INSERT INTO t2 VALUES(CURRENT_USER())	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	mysqltest_db1	wl2818_trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	INSERT INTO t2 VALUES(CURRENT_USER())	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		mysqltest_dfn@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	wl2818_trg1	INSERT	def	mysqltest_db1	t1	0	NULL	INSERT INTO t2 VALUES(CURRENT_USER())	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	wl2818_trg2	INSERT	def	mysqltest_db1	t1	0	NULL	INSERT INTO t2 VALUES(CURRENT_USER())	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		mysqltest_dfn@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TRIGGER wl2818_trg1;
 Warnings:
 Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'wl2818_trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.

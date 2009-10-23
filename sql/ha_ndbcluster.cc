@@ -10449,7 +10449,8 @@ static int ndbcluster_fill_files_table(handlerton *hton,
           continue;
         ERR_RETURN(ndberr);
       }
-
+      table->field[IS_FILES_TABLE_CATALOG]->store(STRING_WITH_LEN("def"),
+                                                  system_charset_info);
       table->field[IS_FILES_FILE_NAME]->set_notnull();
       table->field[IS_FILES_FILE_NAME]->store(elt.name, strlen(elt.name),
                                               system_charset_info);

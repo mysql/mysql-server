@@ -28,7 +28,7 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.EVENTS;
 Field	Type	Null	Key	Default	Extra
-EVENT_CATALOG	varchar(64)	YES		NULL	
+EVENT_CATALOG	varchar(64)	NO			
 EVENT_SCHEMA	varchar(64)	NO			
 EVENT_NAME	varchar(64)	NO			
 DEFINER	varchar(77)	NO			
@@ -55,7 +55,7 @@ DATABASE_COLLATION	varchar(32)	NO
 SHOW CREATE TABLE information_schema.EVENTS;
 Table	Create Table
 EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
-  `EVENT_CATALOG` varchar(64) DEFAULT NULL,
+  `EVENT_CATALOG` varchar(64) NOT NULL DEFAULT '',
   `EVENT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `EVENT_NAME` varchar(64) NOT NULL DEFAULT '',
   `DEFINER` varchar(77) NOT NULL DEFAULT '',
@@ -82,7 +82,7 @@ EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.EVENTS;
 Field	Type	Null	Key	Default	Extra
-EVENT_CATALOG	varchar(64)	YES		NULL	
+EVENT_CATALOG	varchar(64)	NO			
 EVENT_SCHEMA	varchar(64)	NO			
 EVENT_NAME	varchar(64)	NO			
 DEFINER	varchar(77)	NO			
