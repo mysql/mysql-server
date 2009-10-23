@@ -2095,7 +2095,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       err+= add_string(fptr, "NULL");
     else
     {
-      char buffer[MAX_STR_SIZE_PF];
+      char buffer[3 * MAX_STR_SIZE_PF + 10];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item_expr= col_val->item_expression;
       if (item_expr->null_value)

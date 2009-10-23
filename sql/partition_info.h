@@ -19,7 +19,7 @@
 
 #include "partition_element.h"
 
-#define MAX_STR_SIZE_PF 512
+#define MAX_STR_SIZE_PF 2048
 
 class partition_info;
 
