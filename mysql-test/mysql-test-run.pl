@@ -1818,25 +1818,39 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find semisync plugins
   # --------------------------------------------------------------------------
-  my $lib_semisync_master_plugin=
-      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_master.so"),
-		      "$basedir/plugin/semisync/.libs/libsemisync_master.so",
-                      "$basedir/lib/mysql/plugin/libsemisync_master.so");
-  my $lib_semisync_slave_plugin=
-      mtr_file_exists(vs_config_dirs('plugin/semisync',"libsemisync_slave.so"),
-		      "$basedir/plugin/semisync/.libs/libsemisync_slave.so",
-                      "$basedir/lib/mysql/plugin/libsemisync_slave.so");
-  if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
-  {
-    $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
-    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
-    $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
-  }
-  else
-  {
-    $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
-    $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
-    $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
+  if (!$opt_embedded_server) {
+    my $semisync_master_filename;
+    my $semisync_slave_filename;
+    if (IS_WINDOWS)
+    {
+       $semisync_master_filename = "semisync_master.dll";
+       $semisync_slave_filename = "semisync_slave.dll";
+    }
+    else
+    {
+       $semisync_master_filename = "libsemisync_master.so";
+       $semisync_slave_filename = "libsemisync_slave.so";
+    }
+    my $lib_semisync_master_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_master_filename),
+		      "$basedir/plugin/semisync/.libs/" . $semisync_master_filename,
+                      "$basedir/lib/mysql/plugin/" . $semisync_master_filename);
+    my $lib_semisync_slave_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_slave_filename),
+		      "$basedir/plugin/semisync/.libs/" . $semisync_slave_filename,
+                      "$basedir/lib/mysql/plugin/" . $semisync_slave_filename);
+    if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
+    {
+      $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
+      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
+      $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
+    }
+    else
+    {
+      $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
+      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
+      $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
+    }
   }
 
   # ----------------------------------------------------
