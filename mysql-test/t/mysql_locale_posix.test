@@ -18,11 +18,11 @@
 #
 
 --disable_query_log
---exec locale -a > var/tmp/locale_a.output 2>/dev/null || true
+--exec locale -a > $MYSQLTEST_VARDIR/tmp/locale_a.output 2>/dev/null || true
 SET @file=REPLACE(LOAD_FILE('../../tmp/locale_a.output'), '-', '');
 # make it case insensitive
 SET @file=CAST(@file AS CHAR CHARACTER SET latin1) COLLATE latin1_swedish_ci;
---remove_file var/tmp/locale_a.output
+--remove_file $MYSQLTEST_VARDIR/tmp/locale_a.output
 
 if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nde_DE.iso88591\n%')`)
 {
