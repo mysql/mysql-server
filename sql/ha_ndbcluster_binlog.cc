@@ -1198,6 +1198,27 @@ private:
   uint32 m_save_val;
 };
 
+#ifdef HAVE_NDB_BINLOG
+extern int ndb_setup_complete;
+extern pthread_cond_t COND_ndb_setup_complete;
+#endif
+
+/*
+   ndb_notify_tables_writable
+   
+   Called to notify any waiting threads that Ndb tables are
+   now writable
+*/ 
+static void ndb_notify_tables_writable()
+{
+#ifdef HAVE_NDB_BINLOG
+  pthread_mutex_lock(&ndbcluster_mutex);
+  ndb_setup_complete= 1;
+  pthread_cond_broadcast(&COND_ndb_setup_complete);
+  pthread_mutex_unlock(&ndbcluster_mutex);
+#endif
+}
+
 /*
   Ndb has no representation of the database schema objects.
   The mysql.ndb_schema table contains the latest schema operations
@@ -1406,6 +1427,12 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: ndb tables writable");
       close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+      
+      /* 
+         Signal any waiting thread that ndb table setup is
+         now complete
+      */
+      ndb_notify_tables_writable();
     }
     pthread_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
@@ -5750,6 +5777,12 @@ restart_cluster_failure:
   if (ndb_extra_logging)
     sql_print_information("NDB Binlog: ndb tables writable");
   close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+
+  /* 
+     Signal any waiting thread that ndb table setup is
+     now complete
+  */
+  ndb_notify_tables_writable();
 
   {
     static char db[]= "";
