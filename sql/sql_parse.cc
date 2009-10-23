@@ -300,7 +300,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_COLUMN_TYPES]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
@@ -3471,9 +3470,6 @@ end_with_restore_list:
     break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);
-    break;
-  case SQLCOM_SHOW_COLUMN_TYPES:
-    res= mysqld_show_column_types(thd);
     break;
   case SQLCOM_SHOW_ENGINE_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
