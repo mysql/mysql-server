@@ -2963,6 +2963,14 @@ NdbBlob::preCommit()
   DBUG_PRINT("info", ("this=%p op=%p con=%p", this, theNdbOp, theNdbCon));
   if (theState == Invalid)
     DBUG_RETURN(-1);
+  if (unlikely((theState == Prepared) && 
+               (theNdbCon->commitStatus() == NdbTransaction::Aborted)))
+  {
+    /* execute(Commit) called after transaction aborted from kernel
+     * Do nothing here - the call will fail later.
+     */
+    DBUG_RETURN(0);
+  }
   assert(theState == Active);
   assert(isKeyOp());
   if (isInsertOp() || isUpdateOp() || isWriteOp()) {
