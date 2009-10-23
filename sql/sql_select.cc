@@ -648,8 +648,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   this->group= group_list != 0;
   unit= unit_arg;
 
+  if (tmp_table_param.sum_func_count && !group_list)
+    implicit_grouping= TRUE;
+
 #ifdef RESTRICTED_GROUP
-  if (sum_func_count && !group_list && (func_count || field_count))
+  if (implicit_grouping)
   {
     my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
     goto err;
@@ -885,15 +888,23 @@ JOIN::optimize()
   }
 #endif
 
-  /* Optimize count(*), min() and max() */
-  if (tables_list && tmp_table_param.sum_func_count && ! group_list)
+  /* 
+     Try to optimize count(*), min() and max() to const fields if
+     there is implicit grouping (aggregate functions but no
+     group_list). In this case, the result set shall only contain one
+     row. 
+  */
+  if (tables_list && implicit_grouping)
   {
     int res;
     /*
       opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
       to the WHERE conditions,
-      or 1 if all items were resolved,
+      or 1 if all items were resolved (optimized away),
       or 0, or an error number HA_ERR_...
+
+      If all items were resolved by opt_sum_query, there is no need to
+      open any tables.
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
@@ -1239,13 +1250,22 @@ JOIN::optimize()
       sort_and_group= 0;
   }
 
-  // Can't use sort on head table if using row cache
+  // Can't use sort on head table if using join buffering
   if (full_join)
   {
-    if (group_list)
-      simple_group=0;
-    if (order)
-      simple_order=0;
+    TABLE *stable= (sort_by_table == (TABLE *) 1 ? 
+      join_tab[const_tables].table : sort_by_table);
+    /* 
+      FORCE INDEX FOR ORDER BY can be used to prevent join buffering when
+      sorting on the first table.
+    */
+    if (!stable || !stable->force_index_order)
+    {
+      if (group_list)
+        simple_group= 0;
+      if (order)
+        simple_order= 0;
+    }
   }
 
   /*
@@ -2035,7 +2055,8 @@ JOIN::exec()
     count_field_types(select_lex, &curr_join->tmp_table_param, 
                       *curr_all_fields, 0);
   
-  if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
+  if (curr_join->group || curr_join->implicit_grouping ||
+      curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
     if (make_group_fields(this, curr_join))
@@ -2270,7 +2291,7 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.cleanup();
+    tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
@@ -3330,12 +3351,12 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
      @retval FALSE  it's something else
 */
 
-inline static bool
+static bool
 is_local_field (Item *field)
 {
-  field= field->real_item();
-  return field->type() == Item::FIELD_ITEM && 
-    !((Item_field *)field)->depended_from;
+  return field->real_item()->type() == Item::FIELD_ITEM
+    && !(field->used_tables() & OUTER_REF_TABLE_BIT)
+    && !((Item_field *)field->real_item())->depended_from;
 }
 
 
@@ -10904,6 +10925,12 @@ Next_select_func setup_end_select_func(JOIN *join)
   }
   else
   {
+    /* 
+       Choose method for presenting result to user. Use end_send_group
+       if the query requires grouping (has a GROUP BY clause and/or one or
+       more aggregate functions). Use end_send if the query should not
+       be grouped.
+     */
     if ((join->sort_and_group ||
          (join->procedure && join->procedure->flags & PROC_GROUP)) &&
         !tmp_tbl->precomputed_group_by)

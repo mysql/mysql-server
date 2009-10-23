@@ -639,9 +639,11 @@ err:
   if (recovery_captain)
     mysql_close(recovery_captain);
   delete thd;
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);
+  return 0;                                     // Avoid compiler warnings
 }
 #endif
 

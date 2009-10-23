@@ -384,7 +384,7 @@ static void debug_wait_for_kill(const char *info)
   thd= current_thd;
   prev_info= thd->proc_info;
   thd->proc_info= info;
-  sql_print_information(info);
+  sql_print_information("%s", info);
   while(!thd->killed)
     my_sleep(1000);
   thd->killed= THD::NOT_KILLED;

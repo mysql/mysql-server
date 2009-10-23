@@ -582,6 +582,128 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 }
 
 
+/**
+   An Internal_error_handler that suppresses errors regarding views'
+   underlying tables that occur during privilege checking within SHOW CREATE
+   VIEW commands. This happens in the cases when
+
+   - A view's underlying table (e.g. referenced in its SELECT list) does not
+     exist. There should not be an error as no attempt was made to access it
+     per se.
+
+   - Access is denied for some table, column, function or stored procedure
+     such as mentioned above. This error gets raised automatically, since we
+     can't untangle its access checking from that of the view itself.
+ */
+class Show_create_error_handler : public Internal_error_handler {
+  
+  TABLE_LIST *m_top_view;
+  bool m_handling;
+  Security_context *m_sctx;
+
+  char m_view_access_denied_message[MYSQL_ERRMSG_SIZE];
+  char *m_view_access_denied_message_ptr;
+
+public:
+
+  /**
+     Creates a new Show_create_error_handler for the particular security
+     context and view. 
+
+     @thd Thread context, used for security context information if needed.
+     @top_view The view. We do not verify at this point that top_view is in
+     fact a view since, alas, these things do not stay constant.
+  */
+  explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) : 
+    m_top_view(top_view), m_handling(FALSE),
+    m_view_access_denied_message_ptr(NULL) 
+  {
+    
+    m_sctx = test(m_top_view->security_ctx) ?
+      m_top_view->security_ctx : thd->security_ctx;
+  }
+
+  /**
+     Lazy instantiation of 'view access denied' message. The purpose of the
+     Show_create_error_handler is to hide details of underlying tables for
+     which we have no privileges behind ER_VIEW_INVALID messages. But this
+     obviously does not apply if we lack privileges on the view itself.
+     Unfortunately the information about for which table privilege checking
+     failed is not available at this point. The only way for us to check is by
+     reconstructing the actual error message and see if it's the same.
+  */
+  char* get_view_access_denied_message() 
+  {
+    if (!m_view_access_denied_message_ptr)
+    {
+      m_view_access_denied_message_ptr= m_view_access_denied_message;
+      my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
+                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  m_sctx->priv_user,
+                  m_sctx->host_or_ip, m_top_view->get_table_name());
+    }
+    return m_view_access_denied_message_ptr;
+  }
+
+  bool handle_condition(THD *thd, uint sql_errno, const char */* sqlstate */,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char *message, MYSQL_ERROR **/* cond_hdl */)
+  {
+    /* 
+       The handler does not handle the errors raised by itself.
+       At this point we know if top_view is really a view.
+    */
+    if (m_handling || !m_top_view->view)
+      return FALSE;
+
+    m_handling= TRUE;
+
+    bool is_handled;
+    
+    switch (sql_errno)
+    {
+    case ER_TABLEACCESS_DENIED_ERROR:
+      if (!strcmp(get_view_access_denied_message(), message))
+      {
+        /* Access to top view is not granted, don't interfere. */
+        is_handled= FALSE;
+        break;
+      }
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_VIEW_NO_EXPLAIN: /* Error was anonymized, ignore all the same. */
+    case ER_PROCACCESS_DENIED_ERROR:
+      is_handled= TRUE;
+      break;
+
+    case ER_NO_SUCH_TABLE:
+      /* Established behavior: warn if underlying tables are missing. */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_VIEW_INVALID,
+                          ER(ER_VIEW_INVALID),
+                          m_top_view->get_db_name(),
+                          m_top_view->get_table_name());
+      is_handled= TRUE;
+      break;
+
+    case ER_SP_DOES_NOT_EXIST:
+      /* Established behavior: warn if underlying functions are missing. */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_VIEW_INVALID,
+                          ER(ER_VIEW_INVALID),
+                          m_top_view->get_db_name(),
+                          m_top_view->get_table_name());
+      is_handled= TRUE;
+      break;
+    default:
+      is_handled= FALSE;
+    }
+
+    m_handling= FALSE;
+    return is_handled;
+  }
+};
+
+
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
@@ -595,26 +717,13 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   /* We want to preserve the tree for views. */
   thd->lex->view_prepare_mode= TRUE;
 
-  /* Only one table for now, but VIEW can involve several tables */
-  if (open_normal_and_derived_tables(thd, table_list, 0))
   {
-    if (!table_list->view ||
-        (thd->is_error() && thd->stmt_da->sql_errno() != ER_VIEW_INVALID))
+    Show_create_error_handler view_error_suppressor(thd, table_list);
+    thd->push_internal_handler(&view_error_suppressor);
+    bool error= open_normal_and_derived_tables(thd, table_list, 0);
+    thd->pop_internal_handler();
+    if (error && thd->is_error())
       DBUG_RETURN(TRUE);
-
-    /*
-      Clear all messages with 'error' level status and
-      issue a warning with 'warning' level status in 
-      case of invalid view and last error is ER_VIEW_INVALID
-    */
-    thd->warning_info->clear_warning_info(thd->query_id);
-    thd->clear_error();
-
-    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_VIEW_INVALID,
-                        ER(ER_VIEW_INVALID),
-                        table_list->view_db.str,
-                        table_list->view_name.str);
   }
 
   /* TODO: add environment variables show when it become possible */
@@ -1874,7 +1983,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                     tmp->mysys_var->current_cond ?
                     "Waiting on cond" : NullS);
 #else
-      val= (char *) "Writing to net";
+      val= (char *) (tmp->proc_info ? tmp->proc_info : NullS);
 #endif
       if (val)
       {
@@ -3549,7 +3658,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
     handlerton *tmp_db_type= share->db_type();
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     bool is_partitioned= FALSE;
+#endif
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else if (share->tmp_table)
@@ -3920,7 +4031,9 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
 
-  for (cs= all_charsets ; cs < all_charsets+255 ; cs++)
+  for (cs= all_charsets ;
+       cs < all_charsets + array_elements(all_charsets) ;
+       cs++)
   {
     CHARSET_INFO *tmp_cs= cs[0];
     if (tmp_cs && (tmp_cs->state & MY_CS_PRIMARY) && 
@@ -4025,7 +4138,9 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  for (cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  for (cs= all_charsets ;
+       cs < all_charsets + array_elements(all_charsets)  ;
+       cs++ )
   {
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
@@ -4033,7 +4148,9 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
          (tmp_cs->state & MY_CS_HIDDEN) ||
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
-    for (cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    for (cl= all_charsets;
+         cl < all_charsets + array_elements(all_charsets)  ;
+         cl ++)
     {
       CHARSET_INFO *tmp_cl= cl[0];
       if (!tmp_cl || !(tmp_cl->state & MY_CS_AVAILABLE) || 
@@ -4066,17 +4183,22 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
   CHARSET_INFO **cs;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  for (cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  for (cs= all_charsets ;
+       cs < all_charsets + array_elements(all_charsets) ;
+       cs++ )
   {
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
     if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
-    for (cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    for (cl= all_charsets;
+         cl < all_charsets + array_elements(all_charsets) ;
+         cl ++)
     {
       CHARSET_INFO *tmp_cl= cl[0];
-      if (!tmp_cl || !(tmp_cl->state & MY_CS_AVAILABLE) || 
+      if (!tmp_cl || !(tmp_cl->state & MY_CS_AVAILABLE) ||
+          (tmp_cl->state & MY_CS_HIDDEN) ||
           !my_charset_same(tmp_cs,tmp_cl))
 	continue;
       restore_record(table, s->default_values);

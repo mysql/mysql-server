@@ -472,6 +472,13 @@ public:
   /* maximum possible display length */
   virtual uint32 max_display_length()= 0;
 
+  /**
+    Whether a field being created is compatible with a existing one.
+
+    Used by the ALTER TABLE code to evaluate whether the new definition
+    of a table is compatible with the old definition so that it can
+    determine if data needs to be copied over (table data change).
+  */
   virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
@@ -1862,7 +1869,6 @@ public:
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
 private:
   int do_save_field_metadata(uchar *first_byte);
-  bool compare_enum_values(TYPELIB *values);
   uint is_equal(Create_field *new_field);
 };
 

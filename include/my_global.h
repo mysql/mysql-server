@@ -410,6 +410,7 @@ C_MODE_END
 #ifndef stdin
 #include <stdio.h>
 #endif
+#include <stdarg.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -556,12 +557,6 @@ int	__void__;
 #define LINT_INIT(var)	var=0			/* No uninitialize-warning */
 #else
 #define LINT_INIT(var)
-#endif
-
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
-#define PURIFY_OR_LINT_INIT(var) var=0
-#else
-#define PURIFY_OR_LINT_INIT(var)
 #endif
 
 /* 

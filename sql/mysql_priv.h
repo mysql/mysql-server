@@ -144,6 +144,14 @@ enum Derivation
 };
 
 
+typedef struct my_locale_errmsgs
+{
+  const char *language;
+  const char **errmsgs;
+} MY_LOCALE_ERRMSGS;
+
+extern char err_shared_dir[];
+
 typedef struct my_locale_st
 {
   uint  number;
@@ -156,28 +164,41 @@ typedef struct my_locale_st
   TYPELIB *ab_day_names;
   uint max_month_name_length;
   uint max_day_name_length;
+  uint decimal_point;
+  uint thousand_sep;
+  const char *grouping;
+  MY_LOCALE_ERRMSGS *errmsgs;
 #ifdef __cplusplus 
   my_locale_st(uint number_par,
                const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
                TYPELIB *day_names_par, TYPELIB *ab_day_names_par,
-               uint max_month_name_length_par, uint max_day_name_length_par) : 
+               uint max_month_name_length_par, uint max_day_name_length_par,
+               uint decimal_point_par, uint thousand_sep_par,
+               const char *grouping_par, MY_LOCALE_ERRMSGS *errmsgs_par) :
     number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
     day_names(day_names_par), ab_day_names(ab_day_names_par),
     max_month_name_length(max_month_name_length_par),
-    max_day_name_length(max_day_name_length_par)
+    max_day_name_length(max_day_name_length_par),
+    decimal_point(decimal_point_par),
+    thousand_sep(thousand_sep_par),
+    grouping(grouping_par),
+    errmsgs(errmsgs_par)
   {}
 #endif
 } MY_LOCALE;
 
 extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
+extern MY_LOCALE *my_default_lc_messages;
 extern MY_LOCALE *my_default_lc_time_names;
 
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
+
+void cleanup_errmsgs(void);
 
 /*************************************************************************/
 
@@ -1826,6 +1847,8 @@ extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
 void sql_perror(const char *message);
+bool read_texts(const char *file_name, const char *language,
+                const char ***point, uint error_messages);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
@@ -1918,7 +1941,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern char language[FN_REFLEN];
+extern char lc_messages_dir[FN_REFLEN];
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
@@ -2031,7 +2054,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
-       LOCK_prepared_stmt_count,
+       LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count;
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
@@ -2271,10 +2294,9 @@ enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
   EXPLAIN_PARTITIONS_VERBOSE,
-  EXPLAIN_PARTITIONS_AS_COMMENT,
-  EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING
+  EXPLAIN_PARTITIONS_AS_COMMENT
 };
-uint explain_filename(const char *from, char *to, uint to_length,
+uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
                       enum_explain_filename_mode explain_mode);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
@@ -2428,6 +2450,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
 }

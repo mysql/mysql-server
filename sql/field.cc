@@ -1139,11 +1139,12 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
   /* Test if we get an empty string or wrong integer */
   if (str == int_end || error == MY_ERRNO_EDOM)
   {
-    push_numerical_conversion_warning(table->in_use, str, length,
-                                      cs, "integer",
-                                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                                      field_name, 
-                                      table->in_use->warning_info->current_row_for_warning());
+    ErrConvString err(str, length, cs);
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
+                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        "integer", err.ptr(), field_name,
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
     return 1;
   }
   /* Test if we have garbage at the end of the given string. */
@@ -2701,11 +2702,13 @@ int Field_new_decimal::store(const char *from, uint length,
                            &decimal_value)) &&
       table->in_use->abort_on_warning)
   {
-    push_numerical_conversion_warning(table->in_use, from, length,
-                                      &my_charset_bin, "decimal", 
-                                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                                      field_name, 
-                                      table->in_use->warning_info->current_row_for_warning());
+    ErrConvString errmsg(from, length, &my_charset_bin);
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        "decimal", errmsg.ptr(), field_name,
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
+
     DBUG_RETURN(err);
   }
 
@@ -2719,11 +2722,13 @@ int Field_new_decimal::store(const char *from, uint length,
     break;
   case E_DEC_BAD_NUM:
     {
-      push_numerical_conversion_warning(table->in_use, from, length,
-                                        &my_charset_bin, "decimal", 
-                                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                                        field_name, 
-                                        table->in_use->warning_info->current_row_for_warning());
+      ErrConvString errmsg(from, length, &my_charset_bin);
+      push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          "decimal", errmsg.ptr(), field_name,
+                          (ulong) table->in_use->warning_info->
+                          current_row_for_warning());
       my_decimal_set_zero(&decimal_value);
       break;
     }
@@ -4586,10 +4591,11 @@ warn:
     char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
     String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
     str= val_str(&tmp, 0);
+    ErrConvString err(str);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        str->c_ptr());
+                        err.ptr());
   }
   return res;
 }
@@ -6627,8 +6633,11 @@ double Field_string::val_real(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-     push_numerical_conversion_warning(current_thd, (char*)ptr, field_length, 
-                                      cs, "DOUBLE", ER_TRUNCATED_WRONG_VALUE);
+    ErrConvString err((char*) ptr, field_length, cs);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        err.ptr());
   }
   return result;
 }
@@ -6648,8 +6657,11 @@ longlong Field_string::val_int(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    push_numerical_conversion_warning(current_thd, (char*)ptr, field_length, 
-                                      cs, "INTEGER", ER_TRUNCATED_WRONG_VALUE);
+    ErrConvString err((char*) ptr, field_length, cs);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE, 
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER", err.ptr());
   }
   return result;
 }
@@ -6681,8 +6693,11 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
                           charset(), decimal_value);
   if (!table->in_use->no_errors && err)
   {
-    push_numerical_conversion_warning(current_thd, (char*)ptr, field_length, 
-                                      charset(), "DECIMAL", ER_TRUNCATED_WRONG_VALUE);
+    ErrConvString errmsg((char*) ptr, field_length, charset());
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE, 
+                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        "DECIMAL", errmsg.ptr());
   }
 
   return decimal_value;
@@ -8865,38 +8880,81 @@ bool Field::eq_def(Field *field)
 
 
 /**
+  Compare the first t1::count type names.
+
+  @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
+*/
+
+static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+{
+  for (uint i= 0; i < t1->count; i++)
+    if (my_strnncoll(charset,
+                     (const uchar*) t1->type_names[i],
+                     t1->type_lengths[i],
+                     (const uchar*) t2->type_names[i],
+                     t2->type_lengths[i]))
+      return FALSE;
+  return TRUE;
+}
+
+/**
   @return
   returns 1 if the fields are equally defined
 */
 
 bool Field_enum::eq_def(Field *field)
 {
+  TYPELIB *values;
+
   if (!Field::eq_def(field))
-    return 0;
-  return compare_enum_values(((Field_enum*) field)->typelib);
-}
+    return FALSE;
 
+  values= ((Field_enum*) field)->typelib;
 
-bool Field_enum::compare_enum_values(TYPELIB *values)
-{
+  /* Definition must be strictly equal. */
   if (typelib->count != values->count)
     return FALSE;
-  for (uint i= 0; i < typelib->count; i++)
-    if (my_strnncoll(field_charset,
-                     (const uchar*) typelib->type_names[i],
-                     typelib->type_lengths[i],
-                     (const uchar*) values->type_names[i],
-                     values->type_lengths[i]))
-      return FALSE;
-  return TRUE;
+
+  return compare_type_names(field_charset, typelib, values);
 }
 
+
+/**
+  Check whether two fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they retain the same
+  pack length and if new members are added to the end of the list.
+
+  @return IS_EQUAL_YES if fields are compatible.
+          IS_EQUAL_NO otherwise.
+*/
 
 uint Field_enum::is_equal(Create_field *new_field)
 {
-  if (!Field_str::is_equal(new_field))
-    return 0;
-  return compare_enum_values(new_field->interval);
+  TYPELIB *values= new_field->interval;
+
+  /*
+    The fields are compatible if they have the same flags,
+    type, charset and have the same underlying length.
+  */
+  if (compare_str_field_flags(new_field, flags) ||
+      new_field->sql_type != real_type() ||
+      new_field->charset != field_charset ||
+      new_field->pack_length != pack_length())
+    return IS_EQUAL_NO;
+
+  /*
+    Changing the definition of an ENUM or SET column by adding a new
+    enumeration or set members to the end of the list of valid member
+    values only alters table metadata and not table data.
+  */
+  if (typelib->count > values->count)
+    return IS_EQUAL_NO;
+
+  /* Check whether there are modification before the end. */
+  if (! compare_type_names(field_charset, typelib, new_field->interval))
+    return IS_EQUAL_NO;
+
+  return IS_EQUAL_YES;
 }
 
 

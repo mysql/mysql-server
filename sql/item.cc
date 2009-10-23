@@ -264,10 +264,11 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
   {
+    ErrConvString err(res);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
-                        str_value.c_ptr());
+                        err.ptr());
   }
   return decimal_value;
 }
@@ -2456,6 +2457,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
   tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
+    ErrConvString err(cptr, cs);
     /*
       We can use str_value.ptr() here as Item_string is gurantee to put an
       end \0 here.
@@ -2463,7 +2465,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }
@@ -2493,10 +2495,11 @@ longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
       (err > 0 ||
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
+    ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }
@@ -6492,9 +6495,26 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   /* view fild reference must be defined */
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
-  if (!(*ref)->fixed &&
-      ((*ref)->fix_fields(thd, ref)))
+  if ((*ref)->fixed)
+  {
+    Item *ref_item= (*ref)->real_item();
+    if (ref_item->type() == Item::FIELD_ITEM)
+    {
+      /*
+        In some cases we need to update table read set(see bug#47150).
+        If ref item is FIELD_ITEM and fixed then field and table
+        have proper values. So we can use them for update.
+      */
+      Field *fld= ((Item_field*) ref_item)->field;
+      DBUG_ASSERT(fld && fld->table);
+      if (thd->mark_used_columns == MARK_COLUMNS_READ)
+        bitmap_set_bit(fld->table->read_set, fld->field_index);
+    }
+  }
+  else if (!(*ref)->fixed &&
+           ((*ref)->fix_fields(thd, ref)))
     return TRUE;
+
   return Item_direct_ref::fix_fields(thd, reference);
 }
 

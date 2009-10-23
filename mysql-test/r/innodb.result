@@ -2725,7 +2725,7 @@ create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A\x00' for key 'PRIMARY'
 insert into t2 values (0x41),(0x4120);
 insert into t3 values (0x41),(0x4120),(0x4100);
 ERROR 23000: Duplicate entry 'A ' for key 'PRIMARY'
