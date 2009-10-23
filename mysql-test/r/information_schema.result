@@ -1681,3 +1681,21 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 LOCK TABLES t1 READ, information_schema.tables READ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP TABLE t1;
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	KEY_COLUMN_USAGE	ALL	NULL	NULL	NULL	NULL	NULL	Open_full_table; Scanned all databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	PARTITIONS	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	REFERENTIAL_CONSTRAINTS	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TABLE_CONSTRAINTS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 0 databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE EVENT_OBJECT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
