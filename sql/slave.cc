@@ -2904,7 +2904,7 @@ int check_temp_dir(char* tmp_file)
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern wait_cond_timed_func ndb_wait_setup_func;
 extern ulong opt_ndb_wait_setup;
 #endif
@@ -3032,7 +3032,7 @@ pthread_handler_t handle_slave_sql(void *arg)
 #endif
   DBUG_ASSERT(rli->sql_thd == thd);
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* 
      Give ndb opportunity to initialise more things before the slave
      SQL thread starts trying to write into Ndb

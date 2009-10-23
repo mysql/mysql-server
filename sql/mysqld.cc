@@ -470,6 +470,8 @@ ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
+ulong opt_ndb_wait_setup;
+wait_cond_timed_func ndb_wait_setup_func= 0;
 ulong ndb_report_thresh_binlog_epoch_slip= 0;
 ulong ndb_report_thresh_binlog_mem_usage= 0;
 my_bool ndb_log_binlog_index= FALSE;
@@ -478,10 +480,7 @@ my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
 my_bool opt_ndb_log_bin= FALSE;
 my_bool opt_ndb_log_empty_epochs= FALSE;
-#ifdef HAVE_NDB_BINLOG
-ulong opt_ndb_wait_setup;
-wait_cond_timed_func ndb_wait_setup_func= 0;
-#endif
+
 
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
@@ -4485,7 +4484,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   pthread_cond_signal(&COND_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* 
      Give ndb opportunity to initialise more things after
      mysqld_server_started is true
@@ -6203,16 +6202,16 @@ master-ssl",
    "ndb_binlog_index table.",
    (uchar**) &ndb_log_binlog_index, (uchar**) &ndb_log_binlog_index,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  { "ndb-wait-setup", OPT_NDB_WAIT_SETUP,
-    "Time (in seconds) for mysqld to wait for Ndb engine setup to complete",
-    (uchar**) &opt_ndb_wait_setup, (uchar**) &opt_ndb_wait_setup,
-    0, GET_ULONG, REQUIRED_ARG, 15, 0, LONG_TIMEOUT, 0, 0, 0},
   {"ndb-log-empty-epochs", OPT_NDB_LOG_EMPTY_EPOCHS,
    "",
    (uchar**) &opt_ndb_log_empty_epochs,
    (uchar**) &opt_ndb_log_empty_epochs,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  { "ndb-wait-setup", OPT_NDB_WAIT_SETUP,
+    "Time (in seconds) for mysqld to wait for Ndb engine setup to complete",
+    (uchar**) &opt_ndb_wait_setup, (uchar**) &opt_ndb_wait_setup,
+    0, GET_ULONG, REQUIRED_ARG, 15, 0, LONG_TIMEOUT, 0, 0, 0},
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
    "select count(*), disable for faster queries.",
