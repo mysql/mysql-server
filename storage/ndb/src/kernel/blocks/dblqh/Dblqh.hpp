@@ -3012,6 +3012,7 @@ private:
   } m_redo_page_cache;
 
   void evict(RedoPageCache&, Uint32 cnt);
+  void do_evict(RedoPageCache&, Ptr<RedoCacheLogPageRecord>);
   void addCachePages(RedoPageCache&,
                      Uint32 partNo,
                      Uint32 startPageNo,
