@@ -1391,9 +1391,6 @@ SET TIMESTAMP=DEFAULT;
 
 --echo End of 5.1 tests.
 
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
 #
 # Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
 # 
@@ -1431,3 +1428,18 @@ DROP TABLE t1, information_schema.tables;
 --error ER_DBACCESS_DENIED_ERROR
 LOCK TABLES t1 READ, information_schema.tables READ;
 DROP TABLE t1;
+
+#
+# Bug#39270 I_S optimization algorithm does not work properly in some cases
+#
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA='test';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+  WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE EVENT_OBJECT_SCHEMA='test';
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
