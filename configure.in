@@ -2847,7 +2847,7 @@ do
 done
 AC_SUBST(sql_union_dirs)
 
-# Some usefull subst
+# Some useful subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
 
