@@ -10210,11 +10210,6 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
               MYSQL_YYABORT;
           }
-        | COLUMN_SYM TYPES_SYM
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_COLUMN_TYPES;
-          }
         | TABLE_SYM TYPES_SYM
           {
             LEX *lex=Lex;

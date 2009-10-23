@@ -1923,7 +1923,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_PROCESSLIST:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PRIVILEGES:
-  case SQLCOM_SHOW_COLUMN_TYPES:
   case SQLCOM_SHOW_ENGINE_LOGS:
   case SQLCOM_SHOW_ENGINE_STATUS:
   case SQLCOM_SHOW_ENGINE_MUTEX:
