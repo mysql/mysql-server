@@ -51,9 +51,16 @@ DELETE FROM test3.t3 WHERE a=1;
 
 flush logs;
 
+--echo #
+--echo # mysqlbinlog output
+--echo # --base64-output = decode-rows
+--echo # --rewrite-db = test1->new_test1
+--echo # --rewrite-db = test3->new_test3
+--echo #
+
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
---exec $MYSQL_BINLOG --rewrite-db="test1->new_test1" --rewrite-db="test3->new_test3" -v -v $MYSQLD_DATADIR/master-bin.000001
+--replace_regex /server id [0-9]*/server id #/ /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
+--exec $MYSQL_BINLOG  --base64-output=decode-rows --rewrite-db="test1->new_test1" --rewrite-db="test3->new_test3" -v -v $MYSQLD_DATADIR/master-bin.000001
 
 DROP DATABASE test1;
 DROP DATABASE test2;
