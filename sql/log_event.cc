@@ -1121,7 +1121,7 @@ failed my_b_read"));
     goto err;
   }
   if ((res= read_log_event(buf, data_len, &error, description_event)))
-    res->register_temp_buf(buf);
+    res->register_temp_buf(buf, TRUE);
 
 err:
   UNLOCK_MUTEX;
@@ -8007,16 +8007,26 @@ Table_map_log_event::~Table_map_log_event()
 
 
 #ifdef MYSQL_CLIENT
+
 /*
-  Reset db name. This function assumes that temp_buf member contains event
-  representation taken from a binary log. It resets m_dbnam and m_dblen and
-  rewrites temp_buf with new db name.
-  On success returns 0, on failure return non-zero value.
+  Rewrite database name for the event to name specified by new_db
+  SYNOPSIS
+    new_db   Database name to change to
+    new_len  Length
+    desc     Event describing binlog that we're writing to.
+
+  DESCRIPTION
+    Reset db name. This function assumes that temp_buf member contains event
+    representation taken from a binary log. It resets m_dbnam and m_dblen and
+    rewrites temp_buf with new db name.
+
+  RETURN 
+    0     - Success
+    other - Error
 */
-int Table_map_log_event::rewrite_db(
-  const char* new_db,
-  size_t new_len,
-  const Format_description_log_event* desc)
+
+int Table_map_log_event::rewrite_db(const char* new_db, size_t new_len,
+                                    const Format_description_log_event* desc)
 {
   DBUG_ENTER("Table_map_log_event::rewrite_db");
   DBUG_ASSERT(temp_buf);
@@ -8039,8 +8049,9 @@ int Table_map_log_event::rewrite_db(
 
   if (!new_temp_buf)
   {
-    sql_print_error("Table_map_log_event::rewrite_dbname: "
-      "failed to allocate new temp_buf (%d bytes required)", event_new_len);
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new temp_buf (%d bytes required)",
+                    event_new_len);
     DBUG_RETURN(-1);
   }
 
@@ -8065,7 +8076,7 @@ int Table_map_log_event::rewrite_db(
 
   // Reregister temp buf
   free_temp_buf();
-  register_temp_buf(new_temp_buf);
+  register_temp_buf(new_temp_buf, TRUE);
 
   // Reset m_dbnam and m_dblen members
   m_dblen= new_len;
@@ -8083,9 +8094,9 @@ int Table_map_log_event::rewrite_db(
 
   if (!m_memory)
   {
-    sql_print_error("Table_map_log_event::rewrite_dbname: "
-      "failed to allocate new m_memory (%d + %d + %d bytes required)",
-      m_dblen + 1, m_tbllen + 1, m_colcnt);
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new m_memory (%d + %d + %d bytes required)",
+                    m_dblen + 1, m_tbllen + 1, m_colcnt);
     DBUG_RETURN(-1);
   }
 

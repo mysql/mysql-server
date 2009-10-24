@@ -8188,6 +8188,7 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
+    /* See also OPT_REWRITE_DB handling in client/mysqlbinlog.cc */
     char* key = argument,*p, *val;
 
     if (!(p= strstr(argument, "->")))

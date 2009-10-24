@@ -45,6 +45,7 @@ Rpl_filter::~Rpl_filter()
 }
 
 
+#ifndef MYSQL_CLIENT
 /*
   Returns true if table should be logged/replicated 
 
@@ -129,6 +130,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
               !do_table_inited && !wild_do_table_inited);
 }
 
+#endif
 
 /*
   Checks whether a db matches some do_db and ignore_db rules

@@ -25,6 +25,10 @@
 #define NOT_FIXED_DEC			31
 #endif
 
+#ifdef MYSQL_CLIENT
+#error Attempt to use server-side sql_string on client. Use client/sql_string.h
+#endif 
+
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);

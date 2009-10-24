@@ -35,13 +35,10 @@
 #include "log_event.h"
 #include "sql_common.h"
 
-/* Needed for Rlp_filter */
-struct TABLE_LIST;
-
 /* Needed for Rpl_filter */
 CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
 
-#include "../sql/sql_string.h"  // needed for Rpl_filter
+#include "sql_string.h"  // needed for Rpl_filter
 #include "sql_list.h"           // needed for Rpl_filter
 #include "rpl_filter.h"
 
@@ -628,12 +625,13 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
-  Prints "use <db>" statement when current db is to be changed.
+  Print "use <db>" statement when current db is to be changed.
 
   We have to control emiting USE statements according to rewrite-db options.
   We have to do it here (see process_event() below) and to suppress
   producing USE statements by corresponding log event print-functions.
 */
+
 void print_use_stmt(PRINT_EVENT_INFO* pinfo, const char* db, size_t db_len)
 {
   // pinfo->db is the current db.
@@ -1021,14 +1019,16 @@ err:
   retval= ERROR_STOP;
 end:
   rec_count++;
+  
   /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
+    Destroy the log_event object. 
+    MariaDB MWL#36: mainline does this:
+      If reading from a remote host,
+      set the temp_buf to NULL so that memory isn't freed twice.
+    We no longer do that, we use Rpl_filter::event_owns_temp_buf instead.
   */
   if (ev)
   {
-    if (remote_opt)
-      ev->temp_buf= 0;
     if (destroy_evt) /* destroy it later if not set (ignored table map) */
       delete ev;
   }
@@ -1385,6 +1385,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_REWRITE_DB:    // db_from->db_to
   {
+    /* See also handling of OPT_REPLICATE_REWRITE_DB in sql/mysqld.cc */
     char* ptr;
     char* key= argument;  // db-from
     char* val;            // db-to
@@ -1395,20 +1396,22 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
     // Where val begins
     if (!(ptr= strstr(argument, "->")))
-    { sql_print_error("Bad syntax in rewrite-db: missing '->'!\n");
+    {
+      sql_print_error("Bad syntax in rewrite-db: missing '->'!\n");
       return 1;
     }
     val= ptr + 2;
     while (*val && my_isspace(&my_charset_latin1, *val))
       val++;
 
-    // Write /0 and skip blanks at the end of key
+    // Write \0 and skip blanks at the end of key
     *ptr-- = 0;
     while (my_isspace(&my_charset_latin1, *ptr) && ptr > argument)
       *ptr-- = 0;
 
     if (!*key)
-    { sql_print_error("Bad syntax in rewrite-db: empty db-from!\n");
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-from!\n");
       return 1;
     }
 
@@ -1419,7 +1422,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     *ptr= 0;
 
     if (!*val)
-    { sql_print_error("Bad syntax in rewrite-db: empty db-to!\n");
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-to!\n");
       return 1;
     }
 
@@ -1691,7 +1695,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       If reading from a remote host, ensure the temp_buf for the
       Log_event class is pointing to the incoming stream.
     */
-    ev->register_temp_buf((char *) net->read_pos + 1);
+    ev->register_temp_buf((char *) net->read_pos + 1, FALSE);
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||
@@ -2211,15 +2215,6 @@ int main(int argc, char** argv)
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
 
-/* Redefinition for Rpl_filter::tables_ok() */
-struct TABLE_LIST
-{
-  TABLE_LIST() {}
-  TABLE_LIST *next_global, **prev_global;
-  bool  updating;
-  char* db;
-  char* table_name;
-};
 
 void *sql_alloc(size_t size)
 {
@@ -2236,7 +2231,7 @@ void *sql_alloc(size_t size)
 #include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
-#include "../sql/sql_string.cc"
+#include "sql_string.cc"
 #include "sql_list.cc"
 #include "rpl_filter.cc"
 

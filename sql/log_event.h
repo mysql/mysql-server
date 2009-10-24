@@ -873,6 +873,13 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+  
+  /*
+    TRUE <=> this event 'owns' temp_buf and should call my_free() when done
+    with it
+  */
+  bool event_owns_temp_buf;
+
   /*
     Timestamp on the master(for debugging and replication of
     NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
@@ -1014,12 +1021,17 @@ public:
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
   virtual ~Log_event() { free_temp_buf();}
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool must_free) 
+  { 
+    temp_buf= buf; 
+    event_owns_temp_buf= must_free;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      if (event_owns_temp_buf)
+        my_free(temp_buf, MYF(0));
       temp_buf = 0;
     }
   }

@@ -42,7 +42,9 @@ public:
  
   /* Checks - returns true if ok to replicate/log */
 
-  bool tables_ok(const char* db, TABLE_LIST* tables);
+#ifndef MYSQL_CLIENT
+  bool tables_ok(const char* db, TABLE_LIST *tables);
+#endif 
   bool db_ok(const char* db);
   bool db_ok_with_wild_table(const char *db);
 
