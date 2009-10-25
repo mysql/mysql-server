@@ -278,6 +278,7 @@ Binlog_transmit_observer transmit_observer = {
 
 DEF_SHOW_FUNC(status, SHOW_BOOL)
 DEF_SHOW_FUNC(clients, SHOW_LONG)
+DEF_SHOW_FUNC(wait_sessions, SHOW_LONG)
 DEF_SHOW_FUNC(trx_wait_time, SHOW_LONGLONG)
 DEF_SHOW_FUNC(trx_wait_num, SHOW_LONGLONG)
 DEF_SHOW_FUNC(net_wait_time, SHOW_LONGLONG)
@@ -301,8 +302,8 @@ static SHOW_VAR semi_sync_master_status_vars[]= {
    (char*) &rpl_semi_sync_master_no_transactions,
    SHOW_LONG},
   {"Rpl_semi_sync_master_wait_sessions",
-   (char*) &rpl_semi_sync_master_wait_sessions,
-   SHOW_LONG},
+   (char*) &SHOW_FNAME(wait_sessions),
+   SHOW_FUNC},
   {"Rpl_semi_sync_master_no_times",
    (char*) &rpl_semi_sync_master_off_times,
    SHOW_LONG},
