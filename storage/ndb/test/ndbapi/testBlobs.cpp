@@ -3193,6 +3193,7 @@ bugtest_45768()
       CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
       CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
     }
+    setUDpartId(tupExists, g_opr);
     CHK(getBlobHandles(g_opr) == 0);
     
     CHK(setBlobValue(tupExists) == 0);
@@ -3223,7 +3224,8 @@ bugtest_45768()
           CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
           CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
         }
-        
+        setUDpartId(tup, g_opr);
+
         CHK(getBlobHandles(g_opr) == 0);
         CHK(setBlobValue(tup) == 0);
       }
@@ -3258,6 +3260,7 @@ bugtest_45768()
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->deleteTuple() == 0);
+    setUDpartId(tupExists, g_opr);
     CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
