@@ -4564,7 +4564,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
     bootstrap(stdin);
-    unireg_abort(bootstrap_error ? 1 : 0);
+    if (!kill_in_progress)
+      unireg_abort(bootstrap_error ? 1 : 0);
+    else
+    {
+      sleep(2);                                 // Wait for kill
+      exit(0);
+    }
   }
   if (opt_init_file)
   {
@@ -4716,7 +4722,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -6636,7 +6642,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
 
   {"test-ignore-wrong-options", OPT_TEST_IGNORE_WRONG_OPTIONS,
-   "Ignore wrong enums values in command line arguments. Usefull only for test scripts",
+   "Ignore wrong enums values in command line arguments. Useful only for test scripts",
    (uchar**) &opt_ignore_wrong_options, (uchar**) &opt_ignore_wrong_options,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
@@ -7176,7 +7182,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (uchar**) &my_thread_stack_size,
    (uchar**) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024L*128L, (longlong) ULONG_MAX, 0, 1024, 0},
+   (sizeof(void*)<=4)?1024L*128L: ((256-16)*1024L), (longlong) ULONG_MAX, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
     (uchar**) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],

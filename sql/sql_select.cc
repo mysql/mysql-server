@@ -11813,7 +11813,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   {
 #if !defined(DBUG_OFF) && defined(NOT_USING_ITEM_EQUAL)
     /*
-      This test could be very usefull to find bugs in the optimizer
+      This test could be very useful to find bugs in the optimizer
       where we would call this function with an expression that can't be
       evaluated yet. We can't have this enabled by default as long as
       have items like Item_equal, that doesn't report they are const but
