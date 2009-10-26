@@ -1,0 +1,115 @@
+#
+# Locking related tests which use DEBUG_SYNC facility.
+#
+--source include/have_debug_sync.inc
+# We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
+--source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+
+--echo #
+--echo # Test for bug #45143 "All connections hang on concurrent ALTER TABLE".
+--echo #
+--echo # Concurrent execution of statements which required weak write lock
+--echo # (TL_WRITE_ALLOW_WRITE) on several instances of the same table and
+--echo # statements which tried to acquire stronger write lock (TL_WRITE,
+--echo # TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+--echo # Create auxiliary connections used through the test.
+connect (con_bug45143_1,localhost,root,,test,,);
+connect (con_bug45143_3,localhost,root,,test,,);
+connect (con_bug45143_2,localhost,root,,test,,);
+connection default;
+--echo # Reset DEBUG_SYNC facility before using it.
+set debug_sync= 'RESET';
+--echo # Turn off logging so calls to locking subsystem performed
+--echo # for general_log table won't interfere with our test.
+set @old_general_log = @@global.general_log;
+set @@global.general_log= OFF;
+
+create table t1 (i int) engine=InnoDB;
+insert into t1 values (1);
+--echo # Prepare user lock which will be used for resuming execution of
+--echo # the first statement after it acquires TL_WRITE_ALLOW_WRITE lock.
+select get_lock("lock_bug45143_wait", 0);
+
+--echo # Switch to connection 'con_bug45143_1'.
+connection con_bug45143_1;
+--echo # Sending:
+--send insert into t1 values (get_lock("lock_bug45143_wait", 100));
+
+--echo # Switch to connection 'con_bug45143_2'.
+connection con_bug45143_2;
+--echo # Wait until the above INSERT takes TL_WRITE_ALLOW_WRITE lock on 't1'
+--echo # and then gets blocked on user lock 'lock_bug45143_wait'.
+let $wait_condition= select count(*)= 1 from information_schema.processlist
+                       where state= 'User lock' and
+                             info='insert into t1 values (get_lock("lock_bug45143_wait", 100))';
+--source include/wait_condition.inc
+--echo # Ensure that upcoming SELECT waits after acquiring TL_WRITE_ALLOW_WRITE
+--echo # lock for the first instance of 't1'.
+set debug_sync='thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send select count(*) > 0 from t1 as a, t1 as b for update;
+
+--echo # Switch to connection 'con_bug45143_3'.
+connection con_bug45143_3;
+--echo # Wait until the above SELECT ... FOR UPDATE is blocked after
+--echo # acquiring lock for the the first instance of 't1'.
+set debug_sync= 'now WAIT_FOR parked';
+--echo # Send LOCK TABLE statement which will try to get TL_WRITE lock on 't1':
+--send lock table t1 write;
+
+--echo # Switch to connection 'default'.
+connection default;
+--echo # Wait until this LOCK TABLES statement starts waiting for table lock.
+let $wait_condition= select count(*)= 1 from information_schema.processlist
+                       where state= 'Locked' and
+                             info='lock table t1 write';
+--source include/wait_condition.inc
+--echo # Allow SELECT ... FOR UPDATE to resume.
+--echo # Since it already has TL_WRITE_ALLOW_WRITE lock on the first instance
+--echo # of 't1' it should be able to get lock on the second instance without
+--echo # waiting, even although there is another thread which has such lock
+--echo # on this table and also there is a thread waiting for a TL_WRITE on it.
+set debug_sync= 'now SIGNAL go';
+
+--echo # Switch to connection 'con_bug45143_2'.
+connection con_bug45143_2;
+--echo # Reap SELECT ... FOR UPDATE
+--reap
+
+--echo # Switch to connection 'default'.
+connection default;
+--echo # Resume execution of the INSERT statement.
+select release_lock("lock_bug45143_wait");
+
+--echo # Switch to connection 'con_bug45143_1'.
+connection con_bug45143_1;
+--echo # Reap INSERT statement.
+--reap
+
+--echo # Switch to connection 'con_bug45143_3'.
+connection con_bug45143_3;
+--echo # Reap LOCK TABLES statement.
+--reap
+unlock tables;
+
+--echo # Switch to connection 'default'.
+connection default;
+--echo # Do clean-up.
+disconnect con_bug45143_1;
+disconnect con_bug45143_2;
+disconnect con_bug45143_3;
+set debug_sync= 'RESET';
+set @@global.general_log= @old_general_log;
+drop table t1;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
