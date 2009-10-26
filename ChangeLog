@@ -1,3 +1,10 @@
+2009-10-26	The InnoDB Team
+
+	* row/row0ins.c:
+	When allocating a data tuple, zero out the system fields in order
+	to avoid Valgrind warnings about uninitialized fields in
+	dtuple_validate().
+
 2009-10-19	The InnoDB Team
 
 	* mysql-test/innodb_information_schema.test:
