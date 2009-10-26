@@ -12,8 +12,10 @@ AC_CANONICAL_SYSTEM
 # in mysqlbinlog.cc / check_master_version().
 #
 # When merging new MySQL releases, update the version number to match the
-# MySQL version number, but reset the maria subrelease (-beta1).
-AM_INIT_AUTOMAKE(mysql, 5.1.38-MariaDB-beta1)
+# MySQL version number.
+#
+# Note: the following line must be parseable by win/configure.js:GetVersion()
+AM_INIT_AUTOMAKE(mysql, 5.1.38-maria-beta)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -2845,7 +2847,7 @@ do
 done
 AC_SUBST(sql_union_dirs)
 
-# Some usefull subst
+# Some useful subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
 
@@ -2895,13 +2897,11 @@ AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' C
 AC_OUTPUT
 
 echo
-echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
-echo "latest release, upcoming features, and other information to make your"
-echo "work or play with MySQL more productive. There you can also find"
-echo "information about mailing lists for MySQL discussion."
+echo "You can find information about MariaDB at"
+echo http://askmonty.org/wiki/index.php/MariaDB
 echo
 echo "Remember to check the platform specific part of the reference manual for"
-echo "hints about installing MySQL on your platform. Also have a look at the"
+echo "hints about installing MariaDB on your platform. Also have a look at the"
 echo "files in the Docs directory."
 echo
 
@@ -2920,5 +2920,5 @@ echo "---"
 
 # The following text is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
-echo "Thank you for choosing MySQL!"
+echo "Thank you for choosing MariaDB!"
 echo

@@ -156,6 +156,8 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS)  --comment=ps    --force --timer \
 	        --skip-ndbcluster --ps-protocol
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=PBXT --mysqld=--default-storage-engine=pbxt --suite=pbxt
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
@@ -171,8 +173,6 @@ test-bt:
 	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=funcs2 --suite=funcs_2
-	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=partitions --suite=parts
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=stress --suite=stress
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \

@@ -559,12 +559,11 @@ static int upgrade_already_done(void)
   if (!(in= my_fopen(upgrade_info_file, O_RDONLY, MYF(0))))
     return 0; /* Could not open file => not sure */
 
-  /*
-    Read from file, don't care if it fails since it
-    will be detected by the strncmp
-  */
   bzero(buf, sizeof(buf));
-  fgets(buf, sizeof(buf), in);
+  if (!fgets(buf, sizeof(buf), in))
+  {
+    /* Ignore, will be detected by strncmp() below */
+  }
 
   my_fclose(in, MYF(0));
 

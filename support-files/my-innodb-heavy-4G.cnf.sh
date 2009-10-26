@@ -174,7 +174,7 @@ default-storage-engine = MYISAM
 # memory, while if you use your own stack hungry UDF functions or your
 # OS requires more stack for some operations, you might need to set this
 # to a higher value.
-thread_stack = 192K
+thread_stack = 240K
 
 # Set the default transaction isolation level. Levels available are:
 # READ-UNCOMMITTED, READ-COMMITTED, REPEATABLE-READ, SERIALIZABLE

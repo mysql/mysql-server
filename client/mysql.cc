@@ -3812,8 +3812,9 @@ static int
 com_edit(String *buffer,char *line __attribute__((unused)))
 {
   char	filename[FN_REFLEN],buff[160];
-  int	fd,tmp;
+  int	fd,tmp,error;
   const char *editor;
+  MY_STAT stat_arg;
 
   if ((fd=create_temp_file(filename,NullS,"sql", O_CREAT | O_WRONLY,
 			   MYF(MY_WME))) < 0)
@@ -3829,9 +3830,13 @@ com_edit(String *buffer,char *line __attribute__((unused)))
       !(editor = (char *)getenv("VISUAL")))
     editor = "vi";
   strxmov(buff,editor," ",filename,NullS);
-  (void) system(buff);
+  if ((error= system(buff)))
+  {
+    char errmsg[100];
+    sprintf(errmsg, "Command '%.40s' failed", buff);
+    put_info(errmsg, INFO_ERROR, 0, NullS);
+  }
 
-  MY_STAT stat_arg;
   if (!my_stat(filename,&stat_arg,MYF(MY_WME)))
     goto err;
   if ((fd = my_open(filename,O_RDONLY, MYF(MY_WME))) < 0)

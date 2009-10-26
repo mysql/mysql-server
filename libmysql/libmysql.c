@@ -1432,7 +1432,8 @@ mysql_get_server_info(MYSQL *mysql)
 
 my_bool STDCALL mariadb_connection(MYSQL *mysql)
 {
-  return strinstr(mysql->server_version, "MariaDB") != 0;
+  return (strinstr(mysql->server_version, "MariaDB") != 0 ||
+          strinstr(mysql->server_version, "-maria-") != 0);
 }
 
 const char * STDCALL

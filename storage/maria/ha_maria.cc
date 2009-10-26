@@ -28,6 +28,7 @@
 #include <my_bit.h>
 #include "ha_maria.h"
 #include "trnman_public.h"
+#include "trnman.h"
 
 C_MODE_START
 #include "maria_def.h"
@@ -265,7 +266,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error(fmt, args);
     return;
   }
 
@@ -917,6 +918,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
+
+  file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -1616,7 +1619,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
     param.db_name= table->s->db.str;
     param.table_name= table->s->table_name.str;
     param.testflag= 0;
-    _ma_check_print_error(&param, errmsg);
+    _ma_check_print_error(&param, "%s", errmsg);
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
   DBUG_RETURN(HA_ADMIN_OK);
@@ -3237,6 +3240,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
     No engine data is needed.
   */
   *engine_data= 0;
+
+  if (file->s->now_transactional && file->s->have_versioning)
+    return (file->trn->trid >= file->s->state.last_change_trn);
 
   /*
     If a concurrent INSERT has happened just before the currently processed

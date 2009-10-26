@@ -295,7 +295,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   DBUG_RETURN(error);
 
 err:
-  sql_print_error(msg);
+  sql_print_error("%s", msg);
   end_io_cache(&rli->info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));

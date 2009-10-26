@@ -139,7 +139,9 @@ typedef long long longlong;
 #include <mysql.h>
 #include <ctype.h>
 
+#if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static pthread_mutex_t LOCK_hostname;
+#endif
 
 #ifdef HAVE_DLOPEN
 
@@ -205,7 +207,7 @@ char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
 **		try to keep the error message less than 80 bytes long!
 **
 ** This function should return 1 if something goes wrong. In this case
-** message should contain something usefull!
+** message should contain something useful!
 **************************************************************************/
 
 #define MAXMETAPH 8

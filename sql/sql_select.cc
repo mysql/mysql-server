@@ -9819,7 +9819,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char  *tmpname,path[FN_REFLEN];
+  char  *tmpname,path[FN_REFLEN], tmp_table_name[50];
   uchar	*pos, *group_buff, *bitmaps;
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
@@ -9846,12 +9846,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
+    sprintf(tmp_table_name, "%s_%lx_%i", tmp_file_prefix,
             current_pid, temp_pool_slot);
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
+    sprintf(tmp_table_name, "%s%lx_%lx_%x", tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
   }
 
@@ -9859,7 +9859,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     No need to change table name to lower case as we are only creating
     MyISAM, Maria or HEAP tables here
   */
-  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+  fn_format(path, tmp_table_name, mysql_tmpdir, "",
+            MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   if (group)
   {
@@ -9905,7 +9906,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         sizeof(*key_part_info)*(param->group_parts+1),
                         &param->start_recinfo,
                         sizeof(*param->recinfo)*(field_count*2+4),
-                        &tmpname, (uint) strlen(path)+1,
+                        &tmpname, (uint) strlen(tmp_table_name)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
                         &bitmaps, bitmap_buffer_size(field_count)*2,
@@ -9924,7 +9925,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
-  strmov(tmpname,path);
+  strmov(tmpname, tmp_table_name);
   /* make table according to fields */
 
   bzero((char*) table,sizeof(*table));
@@ -11812,7 +11813,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   {
 #if !defined(DBUG_OFF) && defined(NOT_USING_ITEM_EQUAL)
     /*
-      This test could be very usefull to find bugs in the optimizer
+      This test could be very useful to find bugs in the optimizer
       where we would call this function with an expression that can't be
       evaluated yet. We can't have this enabled by default as long as
       have items like Item_equal, that doesn't report they are const but

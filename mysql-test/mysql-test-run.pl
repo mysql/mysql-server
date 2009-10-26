@@ -1018,7 +1018,8 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
+  $path_language=   mtr_path_exists("$basedir/share/mariadb/english",
+                                    "$basedir/share/mysql/english",
                                     "$basedir/sql/share/english",
                                     "$basedir/share/english");
 
@@ -1887,6 +1888,7 @@ sub environment_setup {
   my $lib_udf_example=
     mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
 		    "$basedir/sql/.libs/udf_example.so",
+                    "$basedir/lib/mariadb/plugin/udf_example.so",
                     "$basedir/lib/mysql/plugin/udf_example.so",);
 
   if ( $lib_udf_example )
@@ -1915,6 +1917,7 @@ sub environment_setup {
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
 		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
                       "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
@@ -1931,6 +1934,7 @@ sub environment_setup {
   my $lib_simple_parser=
     mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
 		    "$basedir/plugin/fulltext/.libs/mypluglib.so",
+                    "$basedir/lib/mariadb/plugin/mypluglib.so",
                     "$basedir/lib/mysql/plugin/mypluglib.so",);
 
   $ENV{'SIMPLE_PARSER'}=
@@ -2074,6 +2078,7 @@ sub environment_setup {
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
 		    "$basedir/share/mysql_fix_privilege_tables.sql",
+		    "$basedir/share/mariadb/mysql_fix_privilege_tables.sql",
 		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
@@ -2397,7 +2402,7 @@ sub check_ndbcluster_support ($) {
 
   if ( ! $mysqld_variables{'ndb-connectstring'} )
   {
-    mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
+    #mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_skip_ndbcluster= 2;
     return;
   }
@@ -2826,7 +2831,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--loose-skip-innodb");
-  mtr_add_arg($args, "--loose-skip-falcon");
+  mtr_add_arg($args, "--loose-skip-pbxt");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--loose-skip-maria");
   mtr_add_arg($args, "--disable-sync-frm");
@@ -2870,8 +2875,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
-			      "share", "scripts"],
+			     ["mysql", "sql/share", "share/mariadb",
+			      "share/mysql", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 

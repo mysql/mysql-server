@@ -4830,7 +4830,8 @@ bool flush_error_log()
       size_t bytes;
       uchar buf[IO_SIZE];
 
-      freopen(err_temp,"a+",stderr);
+      if (!freopen(err_temp,"a+",stderr))
+        sql_print_error("Couldn't reopen stderr");
       setbuf(stderr, NULL);
       (void) my_delete(err_renamed, MYF(0));
       my_rename(log_error_file,err_renamed,MYF(0));

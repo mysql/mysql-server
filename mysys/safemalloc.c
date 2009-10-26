@@ -158,7 +158,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
-			sf_malloc_max_memory,lineno, filename));
+			(ulong) sf_malloc_max_memory,lineno, filename));
     if (MyFlags & MY_FAE)
       exit(1);
     DBUG_RETURN ((void*) 0);
@@ -436,7 +436,7 @@ void TERMINATE(FILE *file, uint flag)
 /*
   Report where a piece of memory was allocated
 
-  This is usefull to call from withing a debugger
+  This is useful to call from withing a debugger
 */
 
 void sf_malloc_report_allocated(void *memory)

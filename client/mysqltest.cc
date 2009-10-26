@@ -100,6 +100,7 @@ static my_bool display_result_vertically= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0;
+static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
 static my_bool server_initialized= 0;
@@ -289,7 +290,7 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
-  Q_MOVE_FILE,
+  Q_MOVE_FILE, Q_ENABLE_PREPARE_WARNINGS, Q_DISABLE_PREPARE_WARNINGS,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -387,6 +388,8 @@ const char *command_names[]=
   "send_shutdown",
   "shutdown_server",
   "move_file",
+  "enable_prepare_warnings",
+  "disable_prepare_warnings",
 
   0
 };
@@ -6929,8 +6932,17 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
       mysql_free_result(res);     /* Free normal result set with meta data */
 
-      /* Clear prepare warnings */
-      dynstr_set(&ds_prepare_warnings, NULL);
+      /*
+        Normally, if there is a result set, we do not show warnings from the
+        prepare phase. This is because some warnings are generated both during
+        prepare and execute; this would generate different warning output
+        between normal and ps-protocol test runs.
+
+        The --enable_prepare_warnings command can be used to change this so
+        that warnings from both the prepare and execute phase are shown.
+      */
+      if (!disable_warnings && !prepare_warnings_enabled)
+        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
@@ -7754,6 +7766,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
+      case Q_ENABLE_PREPARE_WARNINGS:  prepare_warnings_enabled=1; break;
+      case Q_DISABLE_PREPARE_WARNINGS: prepare_warnings_enabled=0; break;
       case Q_ENABLE_INFO:        disable_info=0; break;
       case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;

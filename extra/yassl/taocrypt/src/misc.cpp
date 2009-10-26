@@ -166,12 +166,14 @@ word Crop(word value, unsigned int size)
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
 
+#ifdef NOT_USED
 #ifndef _MSC_VER
     static jmp_buf s_env;
     static void SigIllHandler(int)
     {
         longjmp(s_env, 1);
     }
+#endif
 #endif
 
 

@@ -1100,7 +1100,7 @@ mysql-stress-test.pl --stress-basedir=<dir> --stress-suite-basedir=<dir> --serve
       they specified in the list file. 
       
 --sleep-time=<time in seconds>
-  Delay between test execution. Could be usefull in continued testsing 
+  Delay between test execution. Could be useful in continued testsing 
   when one of instance of stress script perform periodical cleanup or
   recreating of some database objects
 
@@ -1109,7 +1109,7 @@ mysql-stress-test.pl --stress-basedir=<dir> --stress-suite-basedir=<dir> --serve
 
 --check-tests-file
   Check file with list of tests. If file was modified it will force to
-  reread list of tests. Could be usefull in continued testing for
+  reread list of tests. Could be useful in continued testing for
   adding/removing tests without script interruption 
 
 --mysqltest=/path/to/mysqltest binary
