@@ -4117,8 +4117,17 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   ErrorInfo error;
   const OpInfo& info = getOpInfo(op_ptr);
   (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
-  ndbrequire(!hasError(error));
   releaseSections(handle);
+  if (unlikely(hasError(error)))
+  {
+    jam();
+    char msg[128];
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Failure to recreate object during restart, error %u"
+                         " Please follow instructions from \'perror --ndb %u\'"
+                         ,error.errorCode, error.errorCode);
+    progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
+  }
   ndbrequire(!hasError(error));
 
   c_restartRecord.m_op_cnt++;
@@ -4217,6 +4226,16 @@ Dbdict::restartDropObj(Signal* signal,
   const OpInfo& info = getOpInfo(op_ptr);
   (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
   releaseSections(handle);
+  if (unlikely(hasError(error)))
+  {
+    jam();
+    char msg[128];
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Failure to drop object during restart, error %u"
+                         " Please follow instructions from \'perror --ndb %u\'"
+                         ,error.errorCode, error.errorCode);
+    progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
+  }
   ndbrequire(!hasError(error));
 
   c_restartRecord.m_op_cnt++;
