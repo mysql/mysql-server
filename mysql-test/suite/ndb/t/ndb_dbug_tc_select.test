@@ -1,6 +1,7 @@
 -- source include/have_ndb.inc
-# We are using some debug-only features in this test
---source include/have_debug.inc
+
+# Test is using error insert, check that binaries support it
+--source have_ndb_error_insert.inc
 
 --disable_warnings
 drop table if exists t1,t2;
