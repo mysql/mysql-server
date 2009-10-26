@@ -288,8 +288,28 @@ void Dbtc::execCONTINUEB(Signal* signal)
     ApiConnectRecordPtr transPtr;
     transPtr.i = Tdata0;
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
-    transPtr.p->triggerPending = false;
-    executeTriggers(signal, &transPtr);
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(8082))
+    {
+      /* Max of 100000 TRIGGER_PENDING TcContinueBs to 
+       * single ApiConnectRecord
+       * See testBlobs -bug 45768
+       */
+      if (++transPtr.p->continueBCount > 100000)
+      {
+        ndbrequire(false);
+      }
+    }
+#endif
+    /* Check that ConnectRecord is for the same Trans Id */
+    if (likely((transPtr.p->transid[0] == Tdata1) &&
+               (transPtr.p->transid[1] == Tdata2)))
+    {
+      ndbrequire(transPtr.p->triggerPending);
+      transPtr.p->triggerPending = false;
+      /* Try executing triggers now */
+      executeTriggers(signal, &transPtr);
+    }
     return;
   case TcContinueB::DelayTCKEYCONF:
     jam();
@@ -2462,6 +2482,10 @@ void Dbtc::initApiConnectRec(Signal* signal,
     releaseAllSeizedIndexOperations(regApiPtr);
 
   c_counters.ctransCount = TtransCount + 1;
+
+#ifdef ERROR_INSERT
+  regApiPtr->continueBCount = 0;
+#endif
 }//Dbtc::initApiConnectRec()
 
 int
@@ -13555,17 +13579,36 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
     // No more triggers, continue transaction after last executed trigger has
     // reurned (in execLQHKEYCONF or execLQHKEYREF)
     } else {
-      // Wait until transaction is ready to execute a trigger
+
       jam();
-      if (!regApiPtr->triggerPending) {
+      /* Not in correct state to fire triggers yet, need to wait
+       * (or keep waiting)
+       */
+
+      if ((regApiPtr->apiConnectstate == CS_RECEIVING) ||
+          (regApiPtr->apiConnectstate == CS_REC_COMMITTING))
+      {
+        // Wait until transaction is ready to execute a trigger
         jam();
-        regApiPtr->triggerPending = true;
-        signal->theData[0] = TcContinueB::TRIGGER_PENDING;
-        signal->theData[1] = transPtr->i;
-        sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+        if (!regApiPtr->triggerPending) {
+          jam();
+          regApiPtr->triggerPending = true;
+          signal->theData[0] = TcContinueB::TRIGGER_PENDING;
+          signal->theData[1] = transPtr->i;
+          signal->theData[2] = regApiPtr->transid[0];
+          signal->theData[3] = regApiPtr->transid[1];
+          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+        }
+        // else  
+        // We are already waiting for a pending trigger (CONTINUEB)
       }
-      // else  
-      // We are already waiting for a pending trigger (CONTINUEB)
+      else
+      {
+        /* Transaction has started aborting.  
+         * Forget about unprocessed triggers
+         */
+        ndbrequire(regApiPtr->apiConnectstate == CS_ABORTING);
+      }
     }
   }
 }
