@@ -481,7 +481,11 @@ pthread_handler_t handle_bootstrap(void *arg)
         break;
       }
       buff= (char*) thd->net.buff;
-      fgets(buff + length, thd->net.max_packet - length, file);
+      if (!fgets(buff + length, thd->net.max_packet - length, file))
+      {
+        bootstrap_error= 1;
+        break;
+      }
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }

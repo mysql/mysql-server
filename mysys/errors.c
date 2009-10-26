@@ -50,7 +50,8 @@ const char * NEAR globerrs[GLOBERRS]=
   "Collation '%s' is not a compiled collation and is not specified in the '%s' file",
   "File '%s' not found (Errcode: %d)",
   "File '%s' (fileno: %d) was not closed",
-  "Can't change mode for file '%s' to 0x%lx (Error: %d)"
+  "Can't change mode for file '%s' to 0x%lx (Error: %d)",
+  "Warning: Can't copy ownership for file '%s' (Error: %d)"
 };
 
 void init_glob_errs(void)
@@ -92,6 +93,7 @@ void init_glob_errs()
   EE(EE_FILENOTFOUND)	= "File '%s' not found (Errcode: %d)";
   EE(EE_FILE_NOT_CLOSED) = "File '%s' (fileno: %d) was not closed";
   EE(EE_CANT_CHMOD)    = "Can't change mode for file '%s' to 0x%lx (Error: %d)";
+  EE(EE_CANT_COPY_OWNERSHIP)= "Warning: Can't copy ownership for file '%s' (Error: %d)";
 }
 #endif
 

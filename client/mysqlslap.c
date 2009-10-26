@@ -472,7 +472,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
     if (pre_system)
-      system(pre_system);
+      if (system(pre_system)) { /* Ignore for now */ }
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -487,7 +487,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_statements(mysql, post_statements);
 
     if (post_system)
-      system(post_system);
+      if (system(post_system)) { /* Ignore for now */ }
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)

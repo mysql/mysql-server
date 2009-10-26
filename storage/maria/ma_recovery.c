@@ -199,13 +199,17 @@ int maria_recovery_from_log(void)
   int res= 1;
   FILE *trace_file;
   uint warnings_count;
+#ifdef EXTRA_DEBUG
+  char name_buff[FN_REFLEN];
+#endif
   DBUG_ENTER("maria_recovery_from_log");
 
   DBUG_ASSERT(!maria_in_recovery);
   maria_in_recovery= TRUE;
 
 #ifdef EXTRA_DEBUG
-  trace_file= fopen("maria_recovery.trace", "a+");
+  fn_format(name_buff, "maria_recovery.trace", maria_data_root, "", MYF(0));
+  trace_file= my_fopen(name_buff, O_WRONLY|O_APPEND|O_CREAT, MYF(MY_WME));
 #else
   trace_file= NULL; /* no trace file for being fast */
 #endif
@@ -222,7 +226,7 @@ int maria_recovery_from_log(void)
              warnings_count);
   }
   if (trace_file)
-    fclose(trace_file);
+    my_fclose(trace_file, MYF(0));
   maria_in_recovery= FALSE;
   DBUG_RETURN(res);
 }

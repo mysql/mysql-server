@@ -1157,7 +1157,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1179,7 +1179,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -5803,7 +5803,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
