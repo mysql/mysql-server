@@ -96,6 +96,9 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_RESOURCE_ALLOC_ERROR, XCE,
     "Resource allocation error, please review the configuration"},
 
+   {NDBD_EXIT_NO_MORE_REDOLOG, XCR,
+    "Fatal error due to end of REDO log. Increase NoOfFragmentLogFiles or FragmentLogFileSize" },
+
    /* this error message is complemented by additional info when
       generated, such as signal, and text
    */
