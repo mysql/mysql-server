@@ -222,8 +222,8 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($;$) {
-  my ($tests, $dont_error)= @_;
+sub mtr_report_stats ($$;$) {
+  my ($prefix, $tests, $dont_error)= @_;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -327,6 +327,9 @@ sub mtr_report_stats ($;$) {
       print "\n\n";
     }
   }
+
+  # Print summary line prefix
+  print "$prefix: ";
 
   # Print a list of testcases that failed
   if ( $tot_failed != 0 )
