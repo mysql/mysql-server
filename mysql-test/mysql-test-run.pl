@@ -411,7 +411,7 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  mtr_report_stats($completed);
+  mtr_report_stats("Completed", $completed);
 
   exit(0);
 }
@@ -533,7 +533,7 @@ sub run_test_server ($$$) {
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
-	      mtr_report_stats($completed, 1);
+	      mtr_report_stats("Too many failed", $completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
@@ -665,7 +665,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
-      mtr_report_stats($completed, 1);
+      mtr_report_stats("Timeout", $completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
