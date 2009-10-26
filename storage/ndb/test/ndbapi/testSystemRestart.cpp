@@ -1823,9 +1823,6 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     nodeGroupMap.set(nodeGroups[node]);
   }
 
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
-  NdbLogEventHandle handle = 
-    ndb_mgm_create_logevent_handle(res.handle, filter);
   struct ndb_logevent event;
 
   Uint32 i = 0;
@@ -1833,6 +1830,10 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   {
     int val = DumpStateOrd::DihMinTimeBetweenLCP;
     CHECK(res.dumpStateAllNodes(&val, 1) == 0);
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle = 
+      ndb_mgm_create_logevent_handle(res.handle, filter);
     
     Bitmask<256/32> notstopped = nodeGroupMap;
     while(!notstopped.isclear())
@@ -1897,6 +1898,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     
     while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
           event.type != NDB_LE_LocalCheckpointCompleted);
+
+    ndb_mgm_destroy_logevent_handle(&handle);
     
     i++;
   }
