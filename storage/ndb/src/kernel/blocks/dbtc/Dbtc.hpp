@@ -768,6 +768,10 @@ public:
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
     DLList<TcIndexOperation> theSeizedIndexOperations;
+
+#ifdef ERROR_INSERT
+    Uint32 continueBCount;  // ERROR_INSERT 8082
+#endif
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;

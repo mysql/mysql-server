@@ -27,6 +27,7 @@
 #include <NdbTest.hpp>
 #include <NdbTick.h>
 #include <my_sys.h>
+#include <NdbRestarter.hpp>
 
 #include <ndb_rand.h>
 
@@ -3279,6 +3280,43 @@ bugtest_45768()
   return 0;
 }
 
+static int bugtest_48040()
+{
+  /* When batch of operations triggers unique index 
+   * maint triggers (which fire back to TC) and 
+   * TC is still receiving ops in batch from the API
+   * TC uses ContinueB to self to defer trigger
+   * processing until all operations have been
+   * received.
+   * If the transaction starts aborting (due to some
+   * problem in the original operations) while the
+   * ContinueB is 'in-flight', the ContinueB never
+   * terminates and causes excessive CPU consumption
+   *
+   * This testcase sets an ERROR INSERT to detect
+   * the excessive ContinueB use in 1 transaction,
+   * and runs bugtest_bug45768 to generate the 
+   * scenario
+   */
+  NdbRestarter restarter;
+  
+  DBG("bugtest 48040 - Infinite ContinueB loop in TC abort + unique");
+
+  restarter.waitConnected();
+
+  int rc = restarter.insertErrorInAllNodes(8082);
+
+  DBG(" Initial error insert rc" << rc << endl);
+  
+  rc = bugtest_45768();
+
+  /* Give time for infinite loop to build */
+  sleep(10);
+  restarter.insertErrorInAllNodes(0);
+
+  return rc;
+}
+
 
 
 // main
@@ -4147,7 +4185,8 @@ static struct {
   { 27018, bugtest_27018 },
   { 27370, bugtest_27370 },
   { 36756, bugtest_36756 },
-  { 45768, bugtest_45768 }
+  { 45768, bugtest_45768 },
+  { 48040, bugtest_48040 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
