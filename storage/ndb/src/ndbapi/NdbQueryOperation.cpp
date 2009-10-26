@@ -411,7 +411,11 @@ NdbRecAttr*
 NdbQueryOperation::getValue(const NdbDictionary::Column* column, 
 			    char* resultBuffer)
 {
-  return m_impl.getValue(column, resultBuffer);
+  if (unlikely(column==NULL)) {
+    m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
+    return NULL;
+  }
+  return m_impl.getValue(NdbColumnImpl::getImpl(*column), resultBuffer);
 }
 
 int
@@ -420,9 +424,10 @@ NdbQueryOperation::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
-  // FIXME: Errors must be set in the NdbError object owned by this operation.
-  if (unlikely(rec==0 || resBuffer==0))
-    return QRY_REQ_ARG_IS_NULL;
+  if (unlikely(rec==0 || resBuffer==0)) {
+    m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
+    return -1;
+  }
   return m_impl.setResultRowBuf(rec, resBuffer, result_mask);
 }
 
@@ -433,8 +438,10 @@ NdbQueryOperation::setResultRowRef (
                        const unsigned char* result_mask)
 {
   // FIXME: Errors must be set in the NdbError object owned by this operation.
-  if (unlikely(rec==0))
-    return QRY_REQ_ARG_IS_NULL;
+  if (unlikely(rec==0)) {
+    m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
+    return -1;
+  }
   return m_impl.setResultRowRef(rec, bufRef, result_mask);
 }
 
@@ -456,8 +463,7 @@ NdbQueryOperation::isRowChanged() const
 ///////////////////////////////////////////
 
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
-                           const NdbQueryDefImpl& queryDef, 
-                           NdbQueryImpl* next):
+                           const NdbQueryDefImpl& queryDef):
   m_interface(*this),
   m_state(Initial),
   m_error(),
@@ -467,7 +473,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_countOperations(0),
   m_tcKeyConfReceived(false),
   m_pendingStreams(0),
-  m_next(next),
+  m_next(NULL),
   m_queryDef(queryDef),
   m_parallelism(0),
   m_maxBatchRows(0),
@@ -509,18 +515,28 @@ NdbQueryImpl::~NdbQueryImpl()
   m_state = Destructed;
 }
 
+void
+NdbQueryImpl::postFetchRelease()
+{
+  if (m_operations != NULL) {
+    for (unsigned i=0; i<m_countOperations; i++)
+    { m_operations[i].postFetchRelease();
+    }
+  }
+}
+
+
 //static
 NdbQueryImpl*
 NdbQueryImpl::buildQuery(NdbTransaction& trans, 
-                         const NdbQueryDefImpl& queryDef, 
-                         NdbQueryImpl* next)
+                         const NdbQueryDefImpl& queryDef)
 {
   if (queryDef.getNoOfOperations()==0) {
     trans.setErrorCode(QRY_HAS_ZERO_OPERATIONS);
     return NULL;
   }
 
-  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef, next);
+  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (query==NULL) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
   }
@@ -610,7 +626,7 @@ NdbQuery::NextResultOutcome
 NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
 {
   if (unlikely(m_state < Executing || m_state >= Closed)) {
-    assert (m_state!=Destructed);
+    assert (m_state >= Initial && m_state < Destructed);
     if (m_state == Failed)
       setErrorCode(QRY_IN_ERROR_STATE);
     else
@@ -677,11 +693,12 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
   const Uint32 rowNo = resultStream->m_receiver.getCurrentRow();
   const char* const rootBuff = resultStream->m_receiver.get_row();
   assert(rootBuff!=NULL || 
-         root.m_resultStyle==NdbQueryOperationImpl::Style_None);
-  assert(rootBuff!=NULL);
-  if (root.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecAttr) {
+         (root.m_firstRecAttr==NULL && root.m_ndbRecord==NULL));
+  root.m_isRowNull = false;
+  if (root.m_firstRecAttr != NULL) {
     root.fetchRecAttrResults(resultStream->m_streamNo);
-  } else if (root.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecord) {
+  }
+  if (root.m_ndbRecord != NULL) {
     if (root.m_resultRef!=NULL) {
       // Set application pointer to point into internal buffer.
       *root.m_resultRef = rootBuff;
@@ -692,8 +709,7 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
              ->m_row_size);
     }
   }
-  /* Make results from non-root operation availabel to the user.*/
-  if (getQueryDef().isScanQuery()) {
+  if (m_queryDef.isScanQuery()) {
     for (Uint32 i = 0; i<root.getNoOfChildOperations(); i++) {
       /* For each child, fetch the right row.*/
       root.getChildOperation(i)
@@ -713,9 +729,10 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       if (operation.m_isRowNull==false) {
         const char* buff = resultStream->m_receiver.get_row();
 
-        if (operation.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecAttr) {
+        if (operation.m_firstRecAttr != NULL) {
           operation.fetchRecAttrResults(0);
-        } else if (operation.m_resultStyle==NdbQueryOperationImpl::Style_NdbRecord) {
+        }
+        if (operation.m_ndbRecord != NULL) {
           if(operation.m_resultRef!=NULL){
             // Set application pointer to point into internal buffer.
             *operation.m_resultRef = buff;
@@ -771,6 +788,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
           const int sent = sendFetchMore(m_transaction.getConnectedNodeId(),false);
           if (sent==0) {  // EOF reached?
             m_state = EndOfData;
+            postFetchRelease();
             return FetchResult_scanComplete;
           } else if (unlikely(sent<0)) {
             return FetchResult_sendFail;
@@ -816,6 +834,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
        *  - or, the application called nextResult() twice for a lookup query.
        */
       m_state = EndOfData;
+      postFetchRelease();
       return FetchResult_scanComplete;
     }else{
       /* Move stream from receiver thread's container to application 
@@ -864,7 +883,7 @@ NdbQueryImpl::closeSingletonScans()
 int
 NdbQueryImpl::close(bool forceSend)
 {
-  assert (m_state != Destructed);
+  assert (m_state >= Initial && m_state < Destructed);
   Ndb* const ndb = m_transaction.getNdb();
 
   // TODO?: Unsure if we may also need to send a close to datanodes if we
@@ -956,6 +975,7 @@ NdbQueryImpl::close(bool forceSend)
     m_scanTransaction = NULL;
   }
 
+  postFetchRelease();
   m_state = Closed;
   return 0;
 } //NdbQueryImpl::close
@@ -963,7 +983,7 @@ NdbQueryImpl::close(bool forceSend)
 void
 NdbQueryImpl::release()
 { 
-  assert (m_state != Destructed);
+  assert (m_state >= Initial && m_state < Destructed);
   if (m_state != Closed) {
     close(true);  // Ignore any errors, explicit ::close() first if errors are of interest
   }
@@ -1032,7 +1052,7 @@ int
 NdbQueryImpl::prepareSend()
 {
   if (unlikely(m_state != Defined)) {
-    assert (m_state!=Destructed);
+    assert (m_state >= Initial && m_state < Destructed);
     if (m_state == Failed) 
       setErrorCodeAbort(QRY_IN_ERROR_STATE);
     else
@@ -1167,7 +1187,7 @@ int
 NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 {
   if (unlikely(m_state != Prepared)) {
-    assert (m_state!=Destructed);
+    assert (m_state >= Initial && m_state < Destructed);
     if (m_state == Failed) 
       setErrorCodeAbort(QRY_IN_ERROR_STATE);
     else
@@ -1386,6 +1406,10 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     m_transaction.OpSent();
   } // if
 
+  // Shrink memory footprint by removing structures not required after ::execute()
+  m_keyInfo.releaseExtend();
+  m_attrInfo.releaseExtend();
+
   /* Todo : Consider calling NdbOperation::postExecuteRelease()
    * Ideally it should be called outside TP mutex, so not added
    * here yet
@@ -1507,13 +1531,12 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_children(def.getNoOfChildOperations()),
   m_resultStreams(NULL),
   m_params(),
-  m_userProjection(def.getTable()),
-  m_resultStyle(Style_None),
   m_batchBuffer(NULL),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
   m_isRowNull(true),
   m_ndbRecord(NULL),
+  m_read_mask(NULL),
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL)
 { 
@@ -1528,34 +1551,58 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   }
 }
 
-NdbQueryOperationImpl::~NdbQueryOperationImpl(){
+NdbQueryOperationImpl::~NdbQueryOperationImpl()
+{
+  // We expect ::postFetchRelease to have deleted fetch related structures when fetch completed.
+  // Either by fetching through last row, or calling ::close() which forcefully terminates fetch
+  assert (m_batchBuffer == NULL);
+  assert (m_resultStreams == NULL);
+  assert (m_firstRecAttr == NULL);
+} //NdbQueryOperationImpl::~NdbQueryOperationImpl()
 
+/**
+ * Release what we want need anymore after last available row has been 
+ * returned from datanodes.
+ */ 
+void
+NdbQueryOperationImpl::postFetchRelease()
+{
+  if (m_batchBuffer) {
 #ifndef NDEBUG // Buffer overrun check activated.
-  { const size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
-    assert(m_batchBuffer==NULL ||
-           (m_batchBuffer[bufLen+0] == 'a' &&
-            m_batchBuffer[bufLen+1] == 'b' &&
-            m_batchBuffer[bufLen+2] == 'c' &&
-            m_batchBuffer[bufLen+3] == 'd'));
-  }
+    { const size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
+      assert(m_batchBuffer[bufLen+0] == 'a' &&
+             m_batchBuffer[bufLen+1] == 'b' &&
+             m_batchBuffer[bufLen+2] == 'c' &&
+             m_batchBuffer[bufLen+3] == 'd');
+    }
 #endif
-  delete[] m_batchBuffer;
+    delete[] m_batchBuffer;
+    m_batchBuffer = NULL;
+  }
+
   if (m_resultStreams) {
     for(Uint32 i = 0; i<getQuery().getParallelism(); i ++){
       delete m_resultStreams[i];
     }
     delete[] m_resultStreams;
+    m_resultStreams = NULL;
   }
 
   Ndb* const ndb = m_queryImpl.getNdbTransaction().getNdb();
   NdbRecAttr* recAttr = m_firstRecAttr;
-  while (recAttr != NULL)
-  {
+  while (recAttr != NULL) {
     NdbRecAttr* saveRecAttr = recAttr;
     recAttr = recAttr->next();
     ndb->releaseRecAttr(saveRecAttr);
   }
-}
+  m_firstRecAttr = NULL;
+
+  // Set API exposed info to indicate NULL-row
+  m_isRowNull = true;
+  if (m_resultRef!=NULL) {
+    *m_resultRef = NULL;
+  }
+} //NdbQueryOperationImpl::postFetchRelease()
 
 
 Uint32
@@ -1587,13 +1634,13 @@ NdbQueryOperationImpl::getValue(
                             const char* anAttrName,
                             char* resultBuffer)
 {
-  const NdbDictionary::Column* const column 
+  const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrName);
   if(unlikely(column==NULL)){
     getQuery().setErrorCodeAbort(Err_UnknownColumn);
     return NULL;
   } else {
-    return getValue(column, resultBuffer);
+    return getValue(*column, resultBuffer);
   }
 }
 
@@ -1602,45 +1649,38 @@ NdbQueryOperationImpl::getValue(
                             Uint32 anAttrId, 
                             char* resultBuffer)
 {
-  const NdbDictionary::Column* const column 
+  const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrId);
   if(unlikely(column==NULL)){
     getQuery().setErrorCodeAbort(Err_UnknownColumn);
     return NULL;
   } else {
-    return getValue(column, resultBuffer);
+    return getValue(*column, resultBuffer);
   }
 }
 
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
-                            const NdbDictionary::Column* column, 
+                            const NdbColumnImpl& column, 
                             char* resultBuffer)
 {
   if (unlikely(getQuery().m_state != NdbQueryImpl::Defined)) {
-    assert (getQuery().m_state!=NdbQueryImpl::Destructed);
-    if (getQuery().m_state == NdbQueryImpl::Failed) 
+    int state = getQuery().m_state;
+    assert (state >= NdbQueryImpl::Initial && state < NdbQueryImpl::Destructed);
+
+    if (state == NdbQueryImpl::Failed) 
       getQuery().setErrorCode(QRY_IN_ERROR_STATE);
     else
       getQuery().setErrorCode(QRY_ILLEGAL_STATE);
     return NULL;
   }
-  if(unlikely(m_resultStyle == Style_NdbRecord)){
-    getQuery().setErrorCode(Err_MixRecAttrAndRecord);
-    return NULL;
-  }
-  m_resultStyle = Style_NdbRecAttr;
-  const int addResult = m_userProjection.addColumn(*column);
-  if(unlikely(addResult !=0)){
-    getQuery().setErrorCode(addResult);
-    return NULL;
-  }
   Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
   NdbRecAttr* const recAttr = ndb->getRecAttr();
-  if(unlikely(recAttr == NULL)){
+  if(unlikely(recAttr == NULL)) {
     getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+    return NULL;
   }
-  if(unlikely(recAttr->setup(column, resultBuffer))){
+  if(unlikely(recAttr->setup(&column, resultBuffer))) {
     ndb->releaseRecAttr(recAttr);
     getQuery().setErrorCodeAbort(Err_MemoryAlloc);
     return NULL;
@@ -1656,10 +1696,6 @@ NdbQueryOperationImpl::getValue(
   return recAttr;
 }
 
-static bool isSetInMask(const unsigned char* mask, int bitNo){
-  return mask[bitNo>>3] & 1<<(bitNo&7);
-}
-
 int
 NdbQueryOperationImpl::setResultRowBuf (
                        const NdbRecord *rec,
@@ -1667,8 +1703,10 @@ NdbQueryOperationImpl::setResultRowBuf (
                        const unsigned char* result_mask)
 {
   if (unlikely(getQuery().m_state != NdbQueryImpl::Defined)) {
-    assert (getQuery().m_state!=NdbQueryImpl::Destructed);
-    if (getQuery().m_state == NdbQueryImpl::Failed) 
+    int state = getQuery().m_state;
+    assert (state >= NdbQueryImpl::Initial && state < NdbQueryImpl::Destructed);
+
+    if (state == NdbQueryImpl::Failed) 
       getQuery().setErrorCode(QRY_IN_ERROR_STATE);
     else
       getQuery().setErrorCode(QRY_ILLEGAL_STATE);
@@ -1681,24 +1719,14 @@ NdbQueryOperationImpl::setResultRowBuf (
     getQuery().setErrorCode(Err_DifferentTabForKeyRecAndAttrRec);
     return -1;
   }
-  if(unlikely(m_resultStyle==Style_NdbRecAttr)){
-    /* Cannot mix NdbRecAttr and NdbRecord methods in one operation. */
-    getQuery().setErrorCode(Err_MixRecAttrAndRecord);
-    return -1;
-  }else if(unlikely(m_resultStyle==Style_NdbRecord)){
+  if (unlikely(m_ndbRecord != NULL)) {
     getQuery().setErrorCode(QRY_RESULT_ROW_ALREADY_DEFINED);
     return -1;
   }
   m_ndbRecord = rec;
-  m_resultStyle = Style_NdbRecord;
+  m_read_mask = result_mask;
   m_resultBuffer = resBuffer;
   assert(m_batchBuffer==NULL);
-    for(Uint32 i = 0; i<rec->noOfColumns; i++){
-    if(likely(result_mask==NULL || isSetInMask(result_mask, i))){
-      m_userProjection.addColumn(*m_operationDef.getTable()
-                                 .getColumn(rec->columns[i].column_no));
-    }
-  }
   return 0;
 }
 
@@ -1755,10 +1783,10 @@ NdbQueryOperationImpl::updateChildResult(Uint32 streamNo, Uint32 rowNo){
     * iterate over results using an indexed structure.*/
     resultStream.m_receiver.setCurrentRow(rowNo);
     const char* buff = resultStream.m_receiver.get_row();
-    assert(buff!=NULL || m_resultStyle==Style_None);
-    if(m_resultStyle==Style_NdbRecAttr){
+    if (m_firstRecAttr != NULL) {
       fetchRecAttrResults(streamNo);
-    }else if(m_resultStyle==Style_NdbRecord){
+    }
+    if (m_ndbRecord != NULL) {
       if(m_resultRef!=NULL){
         // Set application pointer to point into internal buffer.
         *m_resultRef = buff;
@@ -1791,89 +1819,84 @@ NdbQueryOperationImpl::isRowChanged() const
   return true;
 }
 
-// Constructor.
-NdbQueryOperationImpl::UserProjection
-::UserProjection(const NdbDictionary::Table& tab):
-  m_columnCount(0),
-  m_noOfColsInTable(tab.getNoOfColumns()),
-  m_mask(),
-  m_isOrdered(true),
-  m_maxColNo(-1){
-  assert(m_noOfColsInTable<=MAX_ATTRIBUTES_IN_TABLE);
+static bool isSetInMask(const unsigned char* mask, int bitNo)
+{
+  return mask[bitNo>>3] & 1<<(bitNo&7);
 }
 
 int
-NdbQueryOperationImpl::UserProjection
-::addColumn(const NdbDictionary::Column& col){
-  const int colNo = col.getColumnNo();
-  assert(colNo<m_noOfColsInTable);
-  if(unlikely(m_mask.get(colNo))){
-    return QRY_DUPLICATE_COLUMN_IN_PROJ;
-  }
+NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo) const
+{
+  size_t startPos = attrInfo.getSize();
+  attrInfo.append(0U);  // Temp write firste 'length' word, update later
 
-  if(colNo<=m_maxColNo){
-    m_isOrdered = false;
-  }
-  m_maxColNo = MAX(colNo, m_maxColNo);
-  m_columns[m_columnCount++] = &col;
-  assert(m_columnCount<=MAX_ATTRIBUTES_IN_TABLE);
-  m_mask.set(colNo);
-  return 0;
-}
-
-int
-NdbQueryOperationImpl::UserProjection::serialize(Uint32Buffer& buffer,
-                                                 ResultStyle resultStyle, 
-                                                 bool withCorrelation) const{
   /**
-   * If the columns in the projections are ordered according to ascending
-   * column number, we can pack the projection more compactly.
+   * If the columns in the projections are specified as 
+   * in NdbRecord format, attrId are assumed to be ordered ascending.
+   * In this form the projection spec. can be packed as
+   * a single bitmap.
    */
-  size_t startPos = buffer.getSize();
-  buffer.append(0U);  // Temp write firste 'length' word, update later
-  switch(resultStyle){
-  case Style_NdbRecord:
-    assert(m_isOrdered);
-    // Special case: get all columns.
-    if(m_columnCount==m_noOfColsInTable){
+  if (m_ndbRecord != NULL) {
+    Bitmask<MAXNROFATTRIBUTESINWORDS> readMask;
+    Uint32 requestedCols= 0;
+    Uint32 maxAttrId= 0;
+
+    for (Uint32 i= 0; i<m_ndbRecord->noOfColumns; i++)
+    {
+      const NdbRecord::Attr *col= &m_ndbRecord->columns[i];
+      Uint32 attrId= col->attrId;
+
+      if (m_read_mask == NULL || isSetInMask(m_read_mask, i))
+      { if (attrId > maxAttrId)
+          maxAttrId= attrId;
+
+        readMask.set(attrId);
+        requestedCols++;
+      }
+    }
+
+    // Test for special case, get all columns:
+    if (requestedCols == (unsigned)m_operationDef.getTable().getNoOfColumns()) {
       Uint32 ah;
-      AttributeHeader::init(&ah, AttributeHeader::READ_ALL, m_columnCount);
-      buffer.append(ah);
-    }else{
+      AttributeHeader::init(&ah, AttributeHeader::READ_ALL, requestedCols);
+      attrInfo.append(ah);
+    } else if (requestedCols > 0) {
       /* Serialize projection as a bitmap.*/
-      const Uint32 wordCount = 1+m_maxColNo/32; // Size of mask.
-      Uint32* dst = buffer.alloc(wordCount+1);
+      const Uint32 wordCount = 1+maxAttrId/32; // Size of mask.
+      Uint32* dst = attrInfo.alloc(wordCount+1);
       AttributeHeader::init(dst, 
                             AttributeHeader::READ_PACKED, 4*wordCount);
-      memcpy(dst+1, &m_mask, 4*wordCount);
+      memcpy(dst+1, &readMask, 4*wordCount);
     }
-    break;
-  case Style_NdbRecAttr: {
-    /* Serialize projection as a list of column numbers.*/
-    Uint32* dst = buffer.alloc(m_columnCount);
-    for(int i = 0; i<m_columnCount; i++){
-      AttributeHeader::init(dst+i,
-                            m_columns[i]->getColumnNo(),
-                            0);
-    }
-    break;
+  } // if (m_ndbRecord...)
+
+  /** Projection is specified in RecAttr format.
+   *  This may also be combined with the NdbRecord format.
+   */
+  const NdbRecAttr* recAttr = m_firstRecAttr;
+  /* Serialize projection as a list of Attribute id's.*/
+  while (recAttr) {
+    Uint32 ah;
+    AttributeHeader::init(&ah,
+                          recAttr->attrId(),
+                          0);
+    attrInfo.append(ah);
+    recAttr = recAttr->next();
   }
-  case Style_None:
-    assert(m_columnCount==0);
-    break;
-  default:
-    assert(false);
-  }
-  if(withCorrelation){
+
+  bool withCorrelation = getRoot().getQueryDef().isScanQuery();
+  if (withCorrelation) {
     Uint32 ah;
     AttributeHeader::init(&ah, AttributeHeader::READ_ANY_VALUE, 0);
-    buffer.append(ah);
+    attrInfo.append(ah);
   }
+
   // Size of projection in words.
-  size_t length = buffer.getSize() - startPos - 1 ;
-  buffer.put(startPos, length);
+  size_t length = attrInfo.getSize() - startPos - 1 ;
+  attrInfo.put(startPos, length);
   return 0;
-}
+} // NdbQueryOperationImpl::serializeProject
+
 
 int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
 {
@@ -1966,7 +1989,7 @@ NdbQueryOperationImpl::prepareReceiver()
                           0 /*read_range_no*/, 
                           rowSize,
                           &m_batchBuffer[m_batchByteSize*i],
-                          m_userProjection.getColumnCount());
+                          0);
     m_resultStreams[i]->m_receiver.prepareSend();
   }
 
@@ -2000,7 +2023,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
       // parameter values has been serialized as part of NdbTransaction::createQuery()
       // Only need to append it to rest of the serialized arguments
       requestInfo |= DABits::PI_KEY_PARAMS;
-      attrInfo.append(m_params);    
+      attrInfo.append(m_params);
     }
 
     QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos));
@@ -2048,10 +2071,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   }
 
   requestInfo |= DABits::PI_ATTR_LIST;
-  const int error = 
-    m_userProjection.serialize(attrInfo,
-                               m_resultStyle,
-                               getRoot().getQueryDef().isScanQuery());
+  const int error = serializeProject(attrInfo);
   if (unlikely(error)) {
     return error;
   }
@@ -2083,6 +2103,10 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   }
   ndbout << endl;
 #endif
+
+  // Parameter values was appended to AttrInfo, shrink param buffer
+  // to reduce memory footprint.
+  m_params.releaseExtend();
 
   return 0;
 } // NdbQueryOperationImpl::prepareAttrInfo

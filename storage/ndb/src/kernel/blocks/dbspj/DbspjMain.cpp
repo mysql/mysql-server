@@ -50,6 +50,14 @@
 #define DEBUG_CRASH()
 #endif
 
+
+#undef DEBUG
+#undef DEBUG_LQHKEYREQ
+#undef DEBUG_SCAN_FRAGREQ
+
+#define DEBUG(x)
+
+
 /** A noop for now.*/
 void Dbspj::execREAD_CONFIG_REQ(Signal* signal) 
 {
@@ -623,6 +631,7 @@ Dbspj::build(Build_context& ctx,
       goto error;
     }
 
+#if defined(DEBUG_LQHKEYREQ) || defined(DEBUG_SCAN_FRAGREQ)
     printf("node: ");
     for (Uint32 i = 0; i<node_len; i++)
       printf("0x%.8x ", m_buffer0[i]);
@@ -632,6 +641,7 @@ Dbspj::build(Build_context& ctx,
     for (Uint32 i = 0; i<param_len; i++)
       printf("0x%.8x ", m_buffer1[i]);
     printf("\n");
+#endif
 
     err = DbspjErr::UnknowQueryOperation;
     if (unlikely(node_op != param_op))
@@ -997,8 +1007,11 @@ Dbspj::execTRANSID_AI(Signal* signal)
     handle.getSection(dataPtr, 0);
     handle.clear();
   }
+
+#if defined(DEBUG_LQHKEYREQ) || defined(DEBUG_SCAN_FRAGREQ)
   printf("execTRANSID_AI: ");
   print(dataPtr, stdout);
+#endif
 
   /**
    * build easy-access-array for row

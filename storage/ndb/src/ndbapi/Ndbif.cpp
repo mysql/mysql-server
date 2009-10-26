@@ -426,7 +426,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	switch(tRec->getType()){
 	case NdbReceiver::NDB_OPERATION:
 	case NdbReceiver::NDB_INDEX_OPERATION:
-	  if(tCon->OpCompleteSuccess() != -1){
+	  if(tCon->OpCompleteSuccess() != -1){ //More completions pending?
 	    completedTransaction(tCon);
 	  }
 	  return;
@@ -442,7 +442,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
                                           (Uint32) NO_WAIT : tWaitState);
             break;
           } else {
-            if (tCon->OpCompleteSuccess() != -1) {
+            if (tCon->OpCompleteSuccess() != -1) { //More completions pending?
               completedTransaction(tCon);
             }
             return;
@@ -533,13 +533,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = receiver->getTransaction();
       if (tCon != NULL) {
         if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
-          if(receiver->getType()==NdbReceiver::NDB_QUERY_OPERATION){
-            // TODO SPJ: Has to check rewrite of this logic as 
-            //           NdbOperation linked to NdbQuery has now gone away.
-            // NOTE: Prev NdbOperation arg to ::OpCompleteFailure is
-            //       never used.
-            if(receiver->m_query_operation_impl->execTCKEYREF(aSignal) &&
-               tCon->OpCompleteFailure(NULL) != -1){  // TODO + FIXME?
+          if (receiver->getType()==NdbReceiver::NDB_QUERY_OPERATION) {
+            if (receiver->m_query_operation_impl->execTCKEYREF(aSignal) &&
+               tCon->OpCompleteFailure() != -1) {
               completedTransaction(tCon);
               return;
             }

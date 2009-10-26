@@ -80,10 +80,16 @@ class NdbLinkedOperandImpl;
  */
 class Uint32Buffer{
 public:
-  STATIC_CONST(initSize = 256); // Initial buffer size, extend on demand but probably sufficent
+
+//#define TEST_Uint32Buffer
+
+#if defined(TEST_Uint32Buffer)
+  STATIC_CONST(initSize = 1);  // Small size to force test of buffer expand.
+#else
+  STATIC_CONST(initSize = 32); // Initial buffer size, extend on demand but probably sufficent
+#endif
 
   explicit Uint32Buffer():
-    m_extension(NULL),
     m_array(m_local),
     m_avail(initSize),
     m_size(0),
@@ -91,7 +97,20 @@ public:
   {}
 
   ~Uint32Buffer() {
-    delete[] m_extension;
+    if (unlikely(m_array != m_local)) {
+      delete[] m_array;
+    }
+  }
+
+  /**
+   *  Explicit release of buffer to shrink memory footprint.
+   */
+  void releaseExtend() {
+    if (unlikely(m_array != m_local)) {
+      delete[] m_array;
+    }
+    m_array = NULL;
+    m_size = 0;
   }
 
   /**
@@ -106,15 +125,22 @@ public:
       if (unlikely(m_memoryExhausted)) {
         return NULL;
       }
+#if defined(TEST_Uint32Buffer)
+      size_t newSize = reqSize; // -> Always expand on next alloc
+#else
+      size_t newSize = reqSize*2;
+#endif
 //    ndbout << "Uint32Buffer::alloc() Extend buffer from: " << m_avail
 //           << ", to: " << newSize << endl;
-      Uint32* newBuf = new Uint32[reqSize*2];
+      Uint32* newBuf = new Uint32[newSize];
       if (likely(newBuf!=NULL)) {
         assert(newBuf);
         memcpy (newBuf, m_array, m_size*sizeof(Uint32));
-        delete[] m_extension;
-        m_array = m_extension = newBuf;
-        m_avail = reqSize*2;
+        if (m_array != m_local) {
+          delete[] m_array;
+        }
+        m_array = newBuf;
+        m_avail = newSize;
       } else {
         m_size = m_avail;
         m_memoryExhausted = true;
@@ -202,14 +228,10 @@ private:
   Uint32Buffer& operator=(Uint32Buffer&);
 
 private:
-  /* TODO: replace array with something that can grow and allocate from a 
-   * pool as needed..*/
-  Uint32  m_local[initSize];
-  Uint32* m_extension;
-
-  Uint32* m_array;  // Refers m_local,  or m_extension if large buffer
-  Uint32  m_avail;
-  Uint32  m_size;  // <= m_avail
+  Uint32  m_local[initSize]; // Initial static bufferspace
+  Uint32* m_array;           // Refers m_local initially, or extended large buffer
+  Uint32  m_avail;           // Available buffer space
+  Uint32  m_size;            // Actuall size <= m_avail
   bool m_memoryExhausted;
 };
 
