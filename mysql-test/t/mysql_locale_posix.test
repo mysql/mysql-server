@@ -20,8 +20,13 @@
 --disable_query_log
 --exec locale -a > $MYSQLTEST_VARDIR/tmp/locale_a.output 2>/dev/null || true
 SET @file=REPLACE(LOAD_FILE('../../tmp/locale_a.output'), '-', '');
-# make it case insensitive
-SET @file=CAST(@file AS CHAR CHARACTER SET latin1) COLLATE latin1_swedish_ci;
+#
+# Note, file content must be case sensitive.
+# Some platforms are case sensitive regarding to locale name.
+# For example, on HP-UX
+# LANG=cs_CZ.iso88592 - works fine
+# LANG=cs_CZ.ISO88592 - does not work
+#
 --remove_file $MYSQLTEST_VARDIR/tmp/locale_a.output
 
 if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nde_DE.iso88591\n%')`)
@@ -92,11 +97,11 @@ DROP DATABASE IF EXISTS `ó`;
 # _latin1 0xB3 = SUPERSCRIPT THREE
 #
 --echo
---echo ISO8859-1
---exec LC_ALL=fi_FI.ISO8859-1 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=fi_FI.ISO8859-1 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=fi_FI.ISO8859-1 $MYSQL_SHOW --default-character-set=auto ó
---exec LC_ALL=fi_FI.ISO8859-1 $MYSQL_CHECK --default-character-set=auto "ó"
+--echo iso88591
+--exec LC_ALL=fi_FI.iso88591 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=fi_FI.iso88591 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=fi_FI.iso88591 $MYSQL_SHOW --default-character-set=auto ó
+--exec LC_ALL=fi_FI.iso88591 $MYSQL_CHECK --default-character-set=auto "ó"
 
 
 #  {"iso885913",      "latin7",   my_cs_exact},
@@ -122,11 +127,11 @@ DROP DATABASE IF EXISTS `ó`;
 # _latin2 0xB3 = LATIN SMALL LETTER L WITH STROKE
 #
 --echo
---echo ISO8859-2
---exec LC_ALL=cs_CZ.ISO8859-2 $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=cs_CZ.ISO8859-2 $MYSQLADMIN --character-sets-dir=$CHARSETSDIR  -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=cs_CZ.ISO8859-2 $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
---exec LC_ALL=cs_CZ.ISO8859-1 $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR--default-character-set=auto "ó"
+--echo iso88592
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=cs_CZ.iso88592 $MYSQLADMIN --character-sets-dir=$CHARSETSDIR  -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR--default-character-set=auto "ó"
 
 
 #  {"iso88597",       "greek",    my_cs_exact},
@@ -157,11 +162,11 @@ DROP DATABASE IF EXISTS `ó`;
 #
 
 --echo
---echo KOI8-R
---exec LC_ALL=ru_RU.KOI8-R $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=ru_RU.KOI8-R $MYSQLADMIN --character-sets-dir=$CHARSETSDIR -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=ru_RU.KOI8-R $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
---exec LC_ALL=ru_RU.ISO8859-1 $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR --default-character-set=auto "ó"
+--echo koi8r
+--exec LC_ALL=ru_RU.koi8r $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=ru_RU.koi8r $MYSQLADMIN --character-sets-dir=$CHARSETSDIR -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR --default-character-set=auto "ó"
 
 
 #  {"Shift_JIS",      "sjis",     my_cs_exact},
