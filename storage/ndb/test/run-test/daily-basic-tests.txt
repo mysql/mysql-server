@@ -848,6 +848,10 @@ max-time: 300
 cmd: testBlobs
 args: -bug 45768 -skip p
 
+max-time: 300
+cmd: testBlobs
+args: -bug 48040 -skip p
+
 max-time: 5000
 cmd: testOIBasic
 args: -case abcdefz
