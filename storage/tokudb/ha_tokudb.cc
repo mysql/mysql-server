@@ -4838,6 +4838,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     uchar* row_desc_buff = NULL;
     KEY* prim_key = NULL;
     char* fn_ret = NULL;
+    uint version;
+    uint capabilities;
 
     pthread_mutex_lock(&tokudb_meta_mutex);
     bzero(&row_descriptor, sizeof(row_descriptor));
@@ -4947,31 +4949,32 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         }
     }
 
+    error = db_create(&status_block, db_env, 0);
+    if (error) { goto cleanup; }
 
     /* Create status.tokudb and save relevant metadata */
-    if (!(error = (db_create(&status_block, db_env, 0)))) {
-        make_name(newname, name, "status");
-        fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
-        if (fn_ret == NULL) {
-            error = HA_ERR_INTERNAL_ERROR;
-            goto cleanup;
-        }
-
-        if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
-            uint version = HA_TOKU_VERSION;
-            uint capabilities = HA_TOKU_CAP;
-            
-            error = write_metadata(status_block, hatoku_version,&version,sizeof(version));
-            if (error) { goto cleanup; }
-
-            error = write_metadata(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
-            if (error) { goto cleanup; }
-
-            error = write_auto_inc_create(status_block, create_info->auto_increment_value);
-            if (error) { goto cleanup; }
-
-        }
+    make_name(newname, name, "status");
+    fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+    if (fn_ret == NULL) {
+        error = HA_ERR_INTERNAL_ERROR;
+        goto cleanup;
     }
+
+    error = status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0);
+    if (error) { goto cleanup; }
+
+    version = HA_TOKU_VERSION;
+    capabilities = HA_TOKU_CAP;
+    
+    error = write_metadata(status_block, hatoku_version,&version,sizeof(version));
+    if (error) { goto cleanup; }
+
+    error = write_metadata(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
+    if (error) { goto cleanup; }
+
+    error = write_auto_inc_create(status_block, create_info->auto_increment_value);
+    if (error) { goto cleanup; }
+
 
     error = add_table_to_metadata(name, form);
     if (error) {
