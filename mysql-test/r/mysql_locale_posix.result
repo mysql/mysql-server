@@ -4,7 +4,7 @@ DROP DATABASE IF EXISTS `Ăł`;
 DROP DATABASE IF EXISTS `цЁ`;
 DROP DATABASE IF EXISTS `ó`;
 
-ISO8859-1
+iso88591
 @@character_set_client
 latin1
 Database: ó
@@ -13,7 +13,7 @@ Database: ó
 +--------+
 +--------+
 
-ISO8859-2
+iso88592
 @@character_set_client
 latin2
 Database: ó
@@ -22,7 +22,7 @@ Database: ó
 +--------+
 +--------+
 
-KOI8-R
+koi8r
 @@character_set_client
 koi8r
 Database: ó
