@@ -19528,8 +19528,10 @@ void Dblqh::writeNextLog(Signal* signal)
     openNextLogfile(signal);
     logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
   }//if
-  if (logFilePtr.p->fileNo == logPartPtr.p->logTailFileNo) {
-    if (logFilePtr.p->currentMbyte == logPartPtr.p->logTailMbyte) {
+  if (logFilePtr.p->fileNo == logPartPtr.p->logTailFileNo) 
+  {
+    if (logFilePtr.p->currentMbyte == logPartPtr.p->logTailMbyte)
+    {
       jam();
 /* -------------------------------------------------- */
 /*       THE HEAD AND TAIL HAS MET. THIS SHOULD NEVER */
@@ -19538,6 +19540,17 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       CAN INVOKE THIS SYSTEM CRASH. HOWEVER ONLY   */
 /*       VERY SERIOUS TIMING PROBLEMS.                */
 /* -------------------------------------------------- */
+      signal->theData[0] = 2398;
+      execDUMP_STATE_ORD(signal);
+      char buf[100];
+      BaseString::snprintf(buf, sizeof(buf), 
+                           "Head/Tail met in REDO log, logpart: %u"
+                           " file: %u mbyte: %u",
+                           logPartPtr.i,
+                           logFilePtr.p->fileNo,
+                           logFilePtr.p->currentMbyte);
+
+      progError(__LINE__, NDBD_EXIT_NO_MORE_REDOLOG, buf);
       systemError(signal, __LINE__);
     }//if
   }//if
@@ -20519,6 +20532,37 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       signal->theData[8] = Uint32(mb >> 32);
       signal->theData[9] = Uint32(mb);
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 10, JBB);
+    }
+  }
+
+  if(arg == 2398)
+  {
+    jam();
+
+    if (cstartRecReq < SRR_REDO_COMPLETE)
+    {
+      jam();
+      return;
+    }
+
+    for(Uint32 i = 0; i<4; i++)
+    {
+      logPartPtr.i = i;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+      
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+      ndbout_c("REDO part: %u HEAD: file: %u mbyte: %u TAIL: file: %u mbyte: %u total: %llu free: %llu (mb)",
+               i, 
+               head.m_file_no, head.m_mbyte,
+               tail.m_file_no, tail.m_mbyte,
+               total, mb);
     }
   }
 

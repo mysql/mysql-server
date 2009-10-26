@@ -97,6 +97,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NDBASSERT                   2343
 #define NDBD_EXIT_INVALID_CONFIG              2350
 #define NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY   2351
+#define NDBD_EXIT_NO_MORE_REDOLOG             2354
 
 /* Errorcodes for fatal resource errors */
 #define NDBD_EXIT_RESOURCE_ALLOC_ERROR        2500
