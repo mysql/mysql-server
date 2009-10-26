@@ -325,7 +325,8 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    $opt_parallel= 8 if ($opt_parallel > 8);
+    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
+    $opt_parallel= $max_par if ($opt_parallel > $max_par);
     $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
     $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
     $opt_parallel= 1 if ($opt_parallel < 1);
@@ -4131,6 +4132,12 @@ sub mysqld_arguments ($$$) {
 
   # Check if "extra_opt" contains skip-log-bin
   my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
+
+  # Check if this specific mysqld is running without log-bin
+  if (not $mysqld->option("log-bin"))
+  {
+    $skip_binlog = 1;
+  }
 
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
