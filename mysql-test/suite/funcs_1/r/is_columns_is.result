@@ -7,6 +7,29 @@ NULL	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	32	96	NU
 NULL	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	2		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	CHARACTER_SETS	DESCRIPTION	3		NO	varchar	60	180	NULL	NULL	utf8	utf8_general_ci	varchar(60)			select	
 NULL	information_schema	CHARACTER_SETS	MAXLEN	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(3)			select	
+NULL	information_schema	CLIENT_STATISTICS	ACCESS_DENIED	22	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	BINLOG_BYTES_WRITTEN	9	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	BUSY_TIME	5	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double			select	
+NULL	information_schema	CLIENT_STATISTICS	BYTES_RECEIVED	7	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	BYTES_SENT	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	CLIENT	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	CLIENT_STATISTICS	COMMIT_TRANSACTIONS	18	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	CONCURRENT_CONNECTIONS	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	CONNECTED_TIME	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	CPU_TIME	6	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double			select	
+NULL	information_schema	CLIENT_STATISTICS	DENIED_CONNECTIONS	20	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	EMPTY_QUERIES	23	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	LOST_CONNECTIONS	21	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	OTHER_COMMANDS	17	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROLLBACK_TRANSACTIONS	19	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROWS_DELETED	12	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROWS_INSERTED	13	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROWS_READ	10	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROWS_SENT	11	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	ROWS_UPDATED	14	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	SELECT_COMMANDS	15	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	TOTAL_CONNECTIONS	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	CLIENT_STATISTICS	UPDATE_COMMANDS	16	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 NULL	information_schema	COLLATIONS	CHARACTER_SET_NAME	2		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	COLLATIONS	COLLATION_NAME	1		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(11)			select	
@@ -113,6 +136,10 @@ NULL	information_schema	GLOBAL_STATUS	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NU
 NULL	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
+NULL	information_schema	INDEX_STATISTICS	INDEX_NAME	3		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INDEX_STATISTICS	ROWS_READ	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	INDEX_STATISTICS	TABLE_NAME	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	fix_count	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	flush_type	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	lru_position	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
@@ -358,6 +385,11 @@ NULL	information_schema	TABLE_PRIVILEGES	PRIVILEGE_TYPE	5		NO	varchar	64	192	NUL
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED_X_INDEXES	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	TABLE_STATISTICS	ROWS_READ	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	TABLE_STATISTICS	TABLE_NAME	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	TABLE_STATISTICS	TABLE_SCHEMA	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
@@ -384,6 +416,29 @@ NULL	information_schema	USER_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	u
 NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	USER_PRIVILEGES	TABLE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
+NULL	information_schema	USER_STATISTICS	ACCESS_DENIED	22	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	BINLOG_BYTES_WRITTEN	9	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	BUSY_TIME	5	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double			select	
+NULL	information_schema	USER_STATISTICS	BYTES_RECEIVED	7	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	BYTES_SENT	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	COMMIT_TRANSACTIONS	18	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	CONCURRENT_CONNECTIONS	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	CONNECTED_TIME	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	CPU_TIME	6	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double			select	
+NULL	information_schema	USER_STATISTICS	DENIED_CONNECTIONS	20	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	EMPTY_QUERIES	23	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	LOST_CONNECTIONS	21	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	OTHER_COMMANDS	17	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROLLBACK_TRANSACTIONS	19	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROWS_DELETED	12	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROWS_INSERTED	13	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROWS_READ	10	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROWS_SENT	11	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	ROWS_UPDATED	14	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	SELECT_COMMANDS	15	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	UPDATE_COMMANDS	16	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+NULL	information_schema	USER_STATISTICS	USER	1		NO	varchar	48	144	NULL	NULL	utf8	utf8_general_ci	varchar(48)			select	
 NULL	information_schema	VIEWS	CHARACTER_SET_CLIENT	9		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	COLLATION_CONNECTION	10		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -439,6 +494,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
 NULL	decimal	NULL	NULL
+NULL	double	NULL	NULL
 NULL	int	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
@@ -461,6 +517,29 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	CHARACTER_SETS	DESCRIPTION	varchar	60	180	utf8	utf8_general_ci	varchar(60)
 NULL	information_schema	CHARACTER_SETS	MAXLEN	bigint	NULL	NULL	NULL	NULL	bigint(3)
+3.0000	information_schema	CLIENT_STATISTICS	CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	CLIENT_STATISTICS	TOTAL_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	CONCURRENT_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	CONNECTED_TIME	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BUSY_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	CLIENT_STATISTICS	CPU_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	CLIENT_STATISTICS	BYTES_RECEIVED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BYTES_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BINLOG_BYTES_WRITTEN	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_DELETED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_INSERTED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_UPDATED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	SELECT_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	UPDATE_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	OTHER_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	COMMIT_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROLLBACK_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	DENIED_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	LOST_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ACCESS_DENIED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	EMPTY_QUERIES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	COLLATIONS	COLLATION_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	COLLATIONS	CHARACTER_SET_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint(11)
@@ -567,6 +646,10 @@ NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) uns
 3.0000	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	INDEX_STATISTICS	TABLE_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	INDEX_STATISTICS	INDEX_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INDEX_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	INNODB_BUFFER_POOL_PAGES	page_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
@@ -812,6 +895,11 @@ NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) un
 3.0000	information_schema	TABLE_PRIVILEGES	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLE_PRIVILEGES	PRIVILEGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLE_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	TABLE_STATISTICS	TABLE_SCHEMA	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	TABLE_STATISTICS	TABLE_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	TABLE_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED_X_INDEXES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	TRIGGERS	TRIGGER_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	TRIGGERS	TRIGGER_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TRIGGERS	TRIGGER_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -838,6 +926,29 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	USER_PRIVILEGES	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	USER_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	USER_STATISTICS	USER	varchar	48	144	utf8	utf8_general_ci	varchar(48)
+NULL	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	CONCURRENT_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	CONNECTED_TIME	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BUSY_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	USER_STATISTICS	CPU_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	USER_STATISTICS	BYTES_RECEIVED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BYTES_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BINLOG_BYTES_WRITTEN	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_DELETED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_INSERTED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_UPDATED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	SELECT_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	UPDATE_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	OTHER_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	COMMIT_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROLLBACK_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	DENIED_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	LOST_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ACCESS_DENIED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	EMPTY_QUERIES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	VIEWS	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	VIEWS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	VIEWS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)

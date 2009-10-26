@@ -7,6 +7,29 @@ NULL	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	32	96	NU
 NULL	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	2		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 NULL	information_schema	CHARACTER_SETS	DESCRIPTION	3		NO	varchar	60	180	NULL	NULL	utf8	utf8_general_ci	varchar(60)				
 NULL	information_schema	CHARACTER_SETS	MAXLEN	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(3)				
+NULL	information_schema	CLIENT_STATISTICS	ACCESS_DENIED	22	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	BINLOG_BYTES_WRITTEN	9	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	BUSY_TIME	5	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double				
+NULL	information_schema	CLIENT_STATISTICS	BYTES_RECEIVED	7	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	BYTES_SENT	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	CLIENT	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	CLIENT_STATISTICS	COMMIT_TRANSACTIONS	18	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	CONCURRENT_CONNECTIONS	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	CONNECTED_TIME	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	CPU_TIME	6	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double				
+NULL	information_schema	CLIENT_STATISTICS	DENIED_CONNECTIONS	20	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	EMPTY_QUERIES	23	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	LOST_CONNECTIONS	21	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	OTHER_COMMANDS	17	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROLLBACK_TRANSACTIONS	19	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROWS_DELETED	12	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROWS_INSERTED	13	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROWS_READ	10	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROWS_SENT	11	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	ROWS_UPDATED	14	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	SELECT_COMMANDS	15	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	TOTAL_CONNECTIONS	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	CLIENT_STATISTICS	UPDATE_COMMANDS	16	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
 NULL	information_schema	COLLATIONS	CHARACTER_SET_NAME	2		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 NULL	information_schema	COLLATIONS	COLLATION_NAME	1		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 NULL	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(11)				
@@ -113,6 +136,100 @@ NULL	information_schema	GLOBAL_STATUS	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NU
 NULL	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+NULL	information_schema	INDEX_STATISTICS	INDEX_NAME	3		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INDEX_STATISTICS	ROWS_READ	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	INDEX_STATISTICS	TABLE_NAME	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	fix_count	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	flush_type	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	lru_position	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	page_no	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	page_type	1	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	space_id	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	compressed	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	fix_count	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	flush_type	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	lru_position	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	next_page_no	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	page_no	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	part_len	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	space_id	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	accessed	9	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	data_size	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	dirty	11	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	fix_count	14	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	flush_type	15	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	hashed	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	index_name	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	lru_position	13	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	modified	10	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	n_recs	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	old	12	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	page_no	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	schema_name	1	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	space_id	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	table_name	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	INNODB_CMP	compress_ops	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP	compress_ops_ok	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP	compress_time	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP	page_size	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(5)				
+NULL	information_schema	INNODB_CMP	uncompress_ops	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP	uncompress_time	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM	pages_free	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM	pages_used	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM	page_size	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(5)				
+NULL	information_schema	INNODB_CMPMEM	relocation_ops	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21)				
+NULL	information_schema	INNODB_CMPMEM	relocation_time	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM_RESET	pages_free	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM_RESET	pages_used	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMPMEM_RESET	page_size	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(5)				
+NULL	information_schema	INNODB_CMPMEM_RESET	relocation_ops	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21)				
+NULL	information_schema	INNODB_CMPMEM_RESET	relocation_time	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP_RESET	compress_ops	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP_RESET	compress_ops_ok	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP_RESET	compress_time	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP_RESET	page_size	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(5)				
+NULL	information_schema	INNODB_CMP_RESET	uncompress_ops	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_CMP_RESET	uncompress_time	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
+NULL	information_schema	INNODB_INDEX_STATS	fields	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_INDEX_STATS	index_name	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INNODB_INDEX_STATS	index_size	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_INDEX_STATS	leaf_pages	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_INDEX_STATS	row_per_keys	4		NO	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)				
+NULL	information_schema	INNODB_INDEX_STATS	table_name	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INNODB_LOCKS	lock_data	10	NULL	YES	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)				
+NULL	information_schema	INNODB_LOCKS	lock_id	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)				
+NULL	information_schema	INNODB_LOCKS	lock_index	6	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+NULL	information_schema	INNODB_LOCKS	lock_mode	3		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
+NULL	information_schema	INNODB_LOCKS	lock_page	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_LOCKS	lock_rec	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_LOCKS	lock_space	7	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_LOCKS	lock_table	5		NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+NULL	information_schema	INNODB_LOCKS	lock_trx_id	2		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)				
+NULL	information_schema	INNODB_LOCKS	lock_type	4		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
+NULL	information_schema	INNODB_LOCK_WAITS	blocking_lock_id	4		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)				
+NULL	information_schema	INNODB_LOCK_WAITS	blocking_trx_id	3		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)				
+NULL	information_schema	INNODB_LOCK_WAITS	requested_lock_id	2		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)				
+NULL	information_schema	INNODB_LOCK_WAITS	requesting_trx_id	1		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)				
+NULL	information_schema	INNODB_RSEG	curr_size	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_RSEG	max_size	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_RSEG	page_no	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_RSEG	rseg_id	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_RSEG	space_id	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_RSEG	zip_size	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TABLE_STATS	clust_size	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TABLE_STATS	modified	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TABLE_STATS	other_size	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TABLE_STATS	rows	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TABLE_STATS	table_name	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	INNODB_TRX	trx_id	1		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)				
+NULL	information_schema	INNODB_TRX	trx_mysql_thread_id	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
+NULL	information_schema	INNODB_TRX	trx_query	8	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+NULL	information_schema	INNODB_TRX	trx_requested_lock_id	4	NULL	YES	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)				
+NULL	information_schema	INNODB_TRX	trx_started	3	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
+NULL	information_schema	INNODB_TRX	trx_state	2		NO	varchar	13	39	NULL	NULL	utf8	utf8_general_ci	varchar(13)				
+NULL	information_schema	INNODB_TRX	trx_wait_started	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime				
+NULL	information_schema	INNODB_TRX	trx_weight	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned				
 NULL	information_schema	KEY_COLUMN_USAGE	COLUMN_NAME	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 NULL	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
@@ -167,6 +284,7 @@ NULL	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bi
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext				
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(7)				
+NULL	information_schema	PROCESSLIST	TIME_MS	9	0.000	NO	decimal	NULL	NULL	22	3	NULL	NULL	decimal(22,3)				
 NULL	information_schema	PROCESSLIST	USER	2		NO	varchar	16	48	NULL	NULL	utf8	utf8_general_ci	varchar(16)				
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
@@ -264,6 +382,11 @@ NULL	information_schema	TABLE_PRIVILEGES	PRIVILEGE_TYPE	5		NO	varchar	64	192	NUL
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	TABLE_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED_X_INDEXES	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	TABLE_STATISTICS	ROWS_READ	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	TABLE_STATISTICS	TABLE_NAME	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
+NULL	information_schema	TABLE_STATISTICS	TABLE_SCHEMA	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)				
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext				
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)				
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)				
@@ -290,6 +413,29 @@ NULL	information_schema	USER_PRIVILEGES	GRANTEE	1		NO	varchar	81	243	NULL	NULL	u
 NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)				
 NULL	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	USER_PRIVILEGES	TABLE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
+NULL	information_schema	USER_STATISTICS	ACCESS_DENIED	22	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	BINLOG_BYTES_WRITTEN	9	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	BUSY_TIME	5	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double				
+NULL	information_schema	USER_STATISTICS	BYTES_RECEIVED	7	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	BYTES_SENT	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	COMMIT_TRANSACTIONS	18	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	CONCURRENT_CONNECTIONS	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	CONNECTED_TIME	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	CPU_TIME	6	0	NO	double	NULL	NULL	21	NULL	NULL	NULL	double				
+NULL	information_schema	USER_STATISTICS	DENIED_CONNECTIONS	20	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	EMPTY_QUERIES	23	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	LOST_CONNECTIONS	21	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	OTHER_COMMANDS	17	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROLLBACK_TRANSACTIONS	19	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROWS_DELETED	12	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROWS_INSERTED	13	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROWS_READ	10	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROWS_SENT	11	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	ROWS_UPDATED	14	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	SELECT_COMMANDS	15	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	UPDATE_COMMANDS	16	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)				
+NULL	information_schema	USER_STATISTICS	USER	1		NO	varchar	48	144	NULL	NULL	utf8	utf8_general_ci	varchar(48)				
 NULL	information_schema	VIEWS	CHARACTER_SET_CLIENT	9		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)				
 NULL	information_schema	VIEWS	COLLATION_CONNECTION	10		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
@@ -300,6 +446,10 @@ NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NUL
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
 NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext				
+NULL	information_schema	XTRADB_ENHANCEMENTS	comment	3		NO	varchar	100	300	NULL	NULL	utf8	utf8_general_ci	varchar(100)				
+NULL	information_schema	XTRADB_ENHANCEMENTS	description	2		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)				
+NULL	information_schema	XTRADB_ENHANCEMENTS	link	4		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)				
+NULL	information_schema	XTRADB_ENHANCEMENTS	name	1		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)				
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -340,6 +490,8 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
+NULL	decimal	NULL	NULL
+NULL	double	NULL	NULL
 NULL	int	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
@@ -362,6 +514,29 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	CHARACTER_SETS	DESCRIPTION	varchar	60	180	utf8	utf8_general_ci	varchar(60)
 NULL	information_schema	CHARACTER_SETS	MAXLEN	bigint	NULL	NULL	NULL	NULL	bigint(3)
+3.0000	information_schema	CLIENT_STATISTICS	CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	CLIENT_STATISTICS	TOTAL_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	CONCURRENT_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	CONNECTED_TIME	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BUSY_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	CLIENT_STATISTICS	CPU_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	CLIENT_STATISTICS	BYTES_RECEIVED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BYTES_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	BINLOG_BYTES_WRITTEN	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_DELETED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_INSERTED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROWS_UPDATED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	SELECT_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	UPDATE_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	OTHER_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	COMMIT_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ROLLBACK_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	DENIED_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	LOST_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	ACCESS_DENIED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	CLIENT_STATISTICS	EMPTY_QUERIES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	COLLATIONS	COLLATION_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	COLLATIONS	CHARACTER_SET_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint(11)
@@ -468,6 +643,100 @@ NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) uns
 3.0000	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	INDEX_STATISTICS	TABLE_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	INDEX_STATISTICS	INDEX_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INDEX_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+3.0000	information_schema	INNODB_BUFFER_POOL_PAGES	page_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	lru_position	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	fix_count	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES	flush_type	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	compressed	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	part_len	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	next_page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	lru_position	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	fix_count	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	flush_type	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	schema_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	table_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	index_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	n_recs	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	data_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	hashed	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	accessed	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	modified	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	dirty	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	old	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	lru_position	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	fix_count	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	flush_type	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_CMP	page_size	int	NULL	NULL	NULL	NULL	int(5)
+NULL	information_schema	INNODB_CMP	compress_ops	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP	compress_ops_ok	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP	compress_time	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP	uncompress_ops	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP	uncompress_time	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM	page_size	int	NULL	NULL	NULL	NULL	int(5)
+NULL	information_schema	INNODB_CMPMEM	pages_used	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM	pages_free	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM	relocation_ops	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	INNODB_CMPMEM	relocation_time	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM_RESET	page_size	int	NULL	NULL	NULL	NULL	int(5)
+NULL	information_schema	INNODB_CMPMEM_RESET	pages_used	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM_RESET	pages_free	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMPMEM_RESET	relocation_ops	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	INNODB_CMPMEM_RESET	relocation_time	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP_RESET	page_size	int	NULL	NULL	NULL	NULL	int(5)
+NULL	information_schema	INNODB_CMP_RESET	compress_ops	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP_RESET	compress_ops_ok	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP_RESET	compress_time	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP_RESET	uncompress_ops	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	INNODB_CMP_RESET	uncompress_time	int	NULL	NULL	NULL	NULL	int(11)
+3.0000	information_schema	INNODB_INDEX_STATS	table_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	INNODB_INDEX_STATS	index_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INNODB_INDEX_STATS	fields	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_INDEX_STATS	row_per_keys	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+NULL	information_schema	INNODB_INDEX_STATS	index_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_INDEX_STATS	leaf_pages	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_LOCKS	lock_id	varchar	81	243	utf8	utf8_general_ci	varchar(81)
+3.0000	information_schema	INNODB_LOCKS	lock_trx_id	varchar	18	54	utf8	utf8_general_ci	varchar(18)
+3.0000	information_schema	INNODB_LOCKS	lock_mode	varchar	32	96	utf8	utf8_general_ci	varchar(32)
+3.0000	information_schema	INNODB_LOCKS	lock_type	varchar	32	96	utf8	utf8_general_ci	varchar(32)
+3.0000	information_schema	INNODB_LOCKS	lock_table	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	information_schema	INNODB_LOCKS	lock_index	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	information_schema	INNODB_LOCKS	lock_space	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_LOCKS	lock_page	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_LOCKS	lock_rec	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_LOCKS	lock_data	varchar	8192	24576	utf8	utf8_general_ci	varchar(8192)
+3.0000	information_schema	INNODB_LOCK_WAITS	requesting_trx_id	varchar	18	54	utf8	utf8_general_ci	varchar(18)
+3.0000	information_schema	INNODB_LOCK_WAITS	requested_lock_id	varchar	81	243	utf8	utf8_general_ci	varchar(81)
+3.0000	information_schema	INNODB_LOCK_WAITS	blocking_trx_id	varchar	18	54	utf8	utf8_general_ci	varchar(18)
+3.0000	information_schema	INNODB_LOCK_WAITS	blocking_lock_id	varchar	81	243	utf8	utf8_general_ci	varchar(81)
+NULL	information_schema	INNODB_RSEG	rseg_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_RSEG	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_RSEG	zip_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_RSEG	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_RSEG	max_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_RSEG	curr_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_TABLE_STATS	table_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INNODB_TABLE_STATS	rows	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_TABLE_STATS	clust_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_TABLE_STATS	other_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_TABLE_STATS	modified	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_TRX	trx_id	varchar	18	54	utf8	utf8_general_ci	varchar(18)
+3.0000	information_schema	INNODB_TRX	trx_state	varchar	13	39	utf8	utf8_general_ci	varchar(13)
+NULL	information_schema	INNODB_TRX	trx_started	datetime	NULL	NULL	NULL	NULL	datetime
+3.0000	information_schema	INNODB_TRX	trx_requested_lock_id	varchar	81	243	utf8	utf8_general_ci	varchar(81)
+NULL	information_schema	INNODB_TRX	trx_wait_started	datetime	NULL	NULL	NULL	NULL	datetime
+NULL	information_schema	INNODB_TRX	trx_weight	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_TRX	trx_mysql_thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_TRX	trx_query	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -523,6 +792,7 @@ NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
 NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	PROCESSLIST	STATE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PROCESSLIST	INFO	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+NULL	information_schema	PROCESSLIST	TIME_MS	decimal	NULL	NULL	NULL	NULL	decimal(22,3)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -619,6 +889,11 @@ NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) un
 3.0000	information_schema	TABLE_PRIVILEGES	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLE_PRIVILEGES	PRIVILEGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLE_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	TABLE_STATISTICS	TABLE_SCHEMA	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+3.0000	information_schema	TABLE_STATISTICS	TABLE_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	TABLE_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	TABLE_STATISTICS	ROWS_CHANGED_X_INDEXES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	TRIGGERS	TRIGGER_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	TRIGGERS	TRIGGER_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TRIGGERS	TRIGGER_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -645,6 +920,29 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	USER_PRIVILEGES	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	USER_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	USER_STATISTICS	USER	varchar	48	144	utf8	utf8_general_ci	varchar(48)
+NULL	information_schema	USER_STATISTICS	TOTAL_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	CONCURRENT_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	CONNECTED_TIME	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BUSY_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	USER_STATISTICS	CPU_TIME	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	USER_STATISTICS	BYTES_RECEIVED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BYTES_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	BINLOG_BYTES_WRITTEN	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_READ	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_SENT	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_DELETED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_INSERTED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROWS_UPDATED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	SELECT_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	UPDATE_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	OTHER_COMMANDS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	COMMIT_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ROLLBACK_TRANSACTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	DENIED_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	LOST_CONNECTIONS	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	ACCESS_DENIED	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	USER_STATISTICS	EMPTY_QUERIES	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	VIEWS	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	VIEWS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	VIEWS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -655,3 +953,7 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	VIEWS	SECURITY_TYPE	varchar	7	21	utf8	utf8_general_ci	varchar(7)
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
+3.0000	information_schema	XTRADB_ENHANCEMENTS	name	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+3.0000	information_schema	XTRADB_ENHANCEMENTS	description	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+3.0000	information_schema	XTRADB_ENHANCEMENTS	comment	varchar	100	300	utf8	utf8_general_ci	varchar(100)
+3.0000	information_schema	XTRADB_ENHANCEMENTS	link	varchar	255	765	utf8	utf8_general_ci	varchar(255)
