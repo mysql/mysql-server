@@ -139,7 +139,9 @@ typedef long long longlong;
 #include <mysql.h>
 #include <ctype.h>
 
+#if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static pthread_mutex_t LOCK_hostname;
+#endif
 
 #ifdef HAVE_DLOPEN
 

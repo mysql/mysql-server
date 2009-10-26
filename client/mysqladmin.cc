@@ -1042,8 +1042,8 @@ static int drop_db(MYSQL *mysql, const char *db)
     puts("Any data stored in the database will be destroyed.\n");
     printf("Do you really want to drop the '%s' database [y/N] ",db);
     fflush(stdout);
-    VOID(fgets(buf,sizeof(buf)-1,stdin));
-    if ((*buf != 'y') && (*buf != 'Y'))
+    if (fgets(buf,sizeof(buf)-1,stdin) == 0 ||
+        (*buf != 'y') && (*buf != 'Y'))
     {
       puts("\nOK, aborting database drop!");
       return -1;

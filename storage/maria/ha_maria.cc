@@ -266,7 +266,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error(fmt, args);
     return;
   }
 
@@ -1619,7 +1619,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
     param.db_name= table->s->db.str;
     param.table_name= table->s->table_name.str;
     param.testflag= 0;
-    _ma_check_print_error(&param, errmsg);
+    _ma_check_print_error(&param, "%s", errmsg);
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
   DBUG_RETURN(HA_ADMIN_OK);

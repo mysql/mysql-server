@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <my_dir.h>
 #include <m_string.h>
 #include "mysys_err.h"
@@ -94,7 +95,10 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     if (MyFlags & MY_LINK_WARNING)
       my_error(EE_LINK_WARNING,MYF(ME_BELL+ME_WAITTANG),from,statbuf.st_nlink);
   }
-  VOID(chown(to, statbuf.st_uid, statbuf.st_gid));	/* Copy ownership */
+  if (chown(to, statbuf.st_uid, statbuf.st_gid))
+  {
+    my_error(EE_CANT_COPY_OWNERSHIP, MYF(ME_JUST_WARNING), to);
+  }
 #endif /* !__WIN__ && !__NETWARE__ */
 
 #ifndef VMS

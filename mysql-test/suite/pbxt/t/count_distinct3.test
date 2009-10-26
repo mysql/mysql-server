@@ -11,6 +11,7 @@ CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
 
 --disable_query_log
 SET @rnd_max= 2147483647;
+begin;
 let $1 = 1000;
 while ($1)
 {
@@ -21,6 +22,7 @@ while ($1)
   INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
   dec $1;
 }
+commit;
 set @@read_buffer_size=2*1024*1024;
 CREATE TABLE t2 SELECT * FROM t1;
 INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;

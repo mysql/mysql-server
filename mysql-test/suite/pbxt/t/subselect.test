@@ -814,12 +814,14 @@ create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 disable_query_log;
 # making table large enough
+begin;
 let $1 = 10000;
 while ($1)
  {
   eval insert into t1 values (rand()*100000+200,rand()*100000); 
   dec $1;
  }
+commit;
 enable_query_log;
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
@@ -2557,6 +2559,7 @@ CREATE TABLE t2 (x int auto_increment, y int, z int,
                  PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
 
 disable_query_log;
+begin;
 let $1=3000;
 while ($1)
 {
@@ -2570,6 +2573,7 @@ while ($1)
   } 
   dec $1;
 }
+commit;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
@@ -3156,11 +3160,13 @@ insert into t1 values(1,1),(2,2), (3, 3);
 let $i=10000;
 --disable_query_log
 --disable_warnings
+begin;
 while ($i)
 {
   eval insert into t2 values (-1 , $i/5000 + 1, '$i');
   dec $i;
 }
+commit;
 --enable_warnings
 --enable_query_log
 set session sort_buffer_size= 33*1024;

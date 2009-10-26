@@ -4293,9 +4293,13 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 {
   char buf[256];
   if (type == OPT_GLOBAL)
+  {
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+  }
   else
+  {
     DBUG_EXPLAIN(buf, sizeof(buf));
+  }
   return (uchar*) thd->strdup(buf);
 }
 
