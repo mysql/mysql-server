@@ -27,6 +27,8 @@
 #include "Bitmask.hpp"
 
 // Forward declarations
+class NdbTableImpl;
+class NdbIndexImpl;
 class NdbApiSignal;
 class NdbResultStream;
 class NdbParamOperand;
@@ -49,8 +51,8 @@ public:
   /** Factory method which instantiate a query from its definition.
    (There is no public constructor.)*/
   static NdbQueryImpl* buildQuery(NdbTransaction& trans, 
-                                  const NdbQueryDefImpl& queryDef, 
-                                  NdbQueryImpl* next);
+                                  const NdbQueryDefImpl& queryDef);
+
   /** Return number of operations in query.*/
   Uint32 getNoOfOperations() const;
 
@@ -136,6 +138,8 @@ public:
   /** Get next query in same transaction.*/
   NdbQueryImpl* getNext() const
   { return m_next; }
+  void setNext(NdbQueryImpl* next)
+  { m_next = next; }
 
   /** Get the maximal number of rows that may be returned in a single 
    * transaction.*/
@@ -239,7 +243,7 @@ private:
   /** Number of streams not yet completed within the current batch.*/
   Uint32 m_pendingStreams;
   /** Next query in same transaction.*/
-  NdbQueryImpl* const m_next;
+  NdbQueryImpl* m_next;
   /** Definition of this query.*/
   const NdbQueryDefImpl& m_queryDef;
 
@@ -269,10 +273,12 @@ private:
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
              NdbTransaction& trans,
-             const NdbQueryDefImpl& queryDef,
-             NdbQueryImpl* next);
+             const NdbQueryDefImpl& queryDef);
 
   ~NdbQueryImpl();
+
+  /** Release resources after scan has returned last available result */
+  void postFetchRelease();
 
   /** Get more scan results, ask for the next batch if necessary.*/
   FetchResult fetchMoreResults(bool forceSend);
@@ -341,7 +347,7 @@ public:
 
   NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer);
   NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* resultBuffer);
+  NdbRecAttr* getValue(const NdbColumnImpl&, char* resultBuffer);
 
   int setResultRowBuf (const NdbRecord *rec,
                        char* resBuffer,
@@ -378,53 +384,6 @@ public:
   { return m_interface; }
 
 private:
-  /** NdbRecord and NdbRecAttr may not be combined. Also, results may not 
-   * be requested for all operations.*/
-  enum ResultStyle{
-    Style_None,       // Not set yet.
-    Style_NdbRecord,  // Use old style result retrieval.
-    Style_NdbRecAttr, // Use NdbRecord.
-  };
- 
-  /** This class represents a projection that shall be sent to the 
-   * application.*/
-  class UserProjection{
-  public:
-    explicit UserProjection(const NdbDictionary::Table& tab);
-
-    /** Add a column to the projection.
-     * @return Possible error code.*/ 
-    int addColumn(const NdbDictionary::Column& col);
-    
-    /** Make a serialize representation of this object, to be sent to the 
-     * SPJ block.
-     * @param dst Buffer for storing serialized projection.
-     * @param style NdbRecord, NdbRecattr or empty projection.
-     * @param withCorrelation Include correlation data in projection.
-     * @return Possible error code.*/
-    int serialize(Uint32Buffer& buffer, 
-                  ResultStyle resultStyle, 
-                  bool withCorrelation) const;
-    
-    /** Get number of columns.*/
-    int getColumnCount() const {return m_columnCount;}
-
-  private:
-    /** The columns that consitutes the projection.*/
-    const NdbDictionary::Column* m_columns[MAX_ATTRIBUTES_IN_TABLE];
-    /** The number of columns in the projection.*/
-    int m_columnCount;
-    /** The number of columns in the table that the operation refers to.*/
-    const int m_noOfColsInTable;
-    /** User Projection, represented as a bitmap (indexed with column numbers).*/
-    Bitmask<MAXNROFATTRIBUTESINWORDS> m_mask;
-    /** True if columns were added in ascending order (ordered according to 
-     * column number).*/
-    bool m_isOrdered;
-    /** Highest column number seen so far.*/
-    int m_maxColNo;
-  }; // class UserProjection
-
   STATIC_CONST (MAGIC = 0xfade1234);
 
   /** Interface for the application developer.*/
@@ -443,28 +402,27 @@ private:
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
 
-  /** For processing results from this operation.*/
+  /** For processing results from this operation (Array of).*/
   NdbResultStream** m_resultStreams;
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
-  /** Projection to be sent to the application.*/
-  UserProjection m_userProjection;
-  /** NdbRecord, NdbRecAttr or none.*/
-  ResultStyle m_resultStyle;
-  /** For temporary storing one result batch.*/
+
+  /** Internally allocated buffer for temporary storing one result batch.*/
   char* m_batchBuffer;
-  /** Buffer for final storage of result.*/
+  /** User specified buffer for final storage of result.*/
   char* m_resultBuffer;
-  /** Pointer to application pointer that should be set to point to the 
-   * current row.
+  /** User specified pointer to application pointer that should be 
+   * set to point to the current row inside m_batchBuffer
    * @see NdbQueryOperationImpl::setResultRowRef */
   const char** m_resultRef;
   /** True if this operation gave no result for the current row.*/
   bool m_isRowNull;
   /** Batch size for scans or lookups with scan parents.*/
   Uint32 m_batchByteSize;
-  /** Result record.*/
+
+  /** Result record & optional bitmask to disable read of selected cols.*/
   const NdbRecord* m_ndbRecord;
+  const unsigned char* m_read_mask;
 
   /** Head & tail of NdbRecAttr list defined by this operation.
     * Used for old-style result retrieval (using getValue()).*/
@@ -474,6 +432,9 @@ private:
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
+
+  /** Release resources after scan has returned last available result */
+  void postFetchRelease();
 
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
@@ -490,6 +451,8 @@ private:
   /** Serialize parameter values.
    *  @return possible error code.*/
   int serializeParams(const constVoidPtr paramValues[]);
+
+  int serializeProject(Uint32Buffer& attrInfo) const;
 
   /** Construct and prepare receiver streams for result processing. */
   int prepareReceiver();

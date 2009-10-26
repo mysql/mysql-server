@@ -1571,7 +1571,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   // not dirty read
   if(! (theOperationType == ReadRequest && theDirtyIndicator))
   {
-    theNdbCon->OpCompleteFailure(this);
+    theNdbCon->OpCompleteFailure();
     return -1;
   }
   
@@ -1581,7 +1581,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
    */
   if(theReceiver.m_expected_result_length)
   {
-    return theNdbCon->OpCompleteFailure(this);
+    return theNdbCon->OpCompleteFailure();
   }
   
   return -1;

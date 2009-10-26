@@ -916,9 +916,8 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure(NdbOperation*);
+  int	OpCompleteFailure();
   int	OpCompleteSuccess();
-  void	CompletedOperations();	        // Move active ops to list of completed
  
   void	OpSent();			// Operation Sent with success
   
@@ -935,7 +934,7 @@ private:
   bool releaseScanOperation(NdbIndexScanOperation** listhead,
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
-  void releaseExecutedScanOperation(NdbIndexScanOperation*);
+//void releaseExecutedScanOperation(NdbIndexScanOperation*);
 
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
@@ -1014,7 +1013,6 @@ private:
 
   NdbOperation*	theFirstExecOpInList;	    // First executing operation in list
   NdbOperation*	theLastExecOpInList;	    // Last executing operation in list.
-
 
   NdbOperation*	theCompletedFirstOp;	    // First & last operation in completed 
   NdbOperation*	theCompletedLastOp;         // operation list.

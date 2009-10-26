@@ -2,6 +2,9 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 
+#include <iostream>
+#include <stdio.h>
+
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
@@ -13,7 +16,7 @@
 
 #ifdef NDEBUG
 // Some asserts have side effects, and there is no other error handling anyway.
-#define ASSERT_ALWAYS(cond) if(!(cond)){abort();}
+#define ASSERT_ALWAYS(cond) if(unlikely(!(cond))){abort();}
 #else
 #define ASSERT_ALWAYS assert
 #endif
@@ -169,8 +172,6 @@ void TestThread::run(){
       ASSERT_ALWAYS(pthread_mutex_unlock(&m_mutex)==0);
       return;
     }
-
-    NdbTransaction* const trans = m_ndb.startTransaction();
     
     if(m_params->m_useLinkedOperations){
       NdbQueryBuilder builder(m_ndb);
@@ -187,7 +188,21 @@ void TestThread::run(){
             queryDef->release();
           }
           NdbQueryOperationDef* parentOpDef = NULL;
-          if(m_params->m_scanLength>0){
+          if(m_params->m_scanLength==0){
+            const NdbQueryOperand* rootKey[] = {  
+              builder.constValue(0), //a
+              NULL
+            };
+            parentOpDef = builder.readTuple(tab, rootKey);
+          }else if(m_params->m_scanLength==1){ //Pruned scan
+            const NdbQueryOperand* const key[] = {
+              builder.constValue(m_params->m_scanLength),
+              NULL
+            };
+
+            const NdbQueryIndexBound eqBound(key);
+            parentOpDef = builder.scanIndex(index, tab, &eqBound);
+          }else{
             const NdbQueryOperand* const highKey[] = {
               builder.constValue(m_params->m_scanLength),
               NULL
@@ -195,12 +210,6 @@ void TestThread::run(){
 
             const NdbQueryIndexBound bound(NULL, false, highKey, false);
             parentOpDef = builder.scanIndex(index, tab, &bound);
-          }else{
-            const NdbQueryOperand* rootKey[] = {  
-              builder.constValue(0), //a
-              NULL
-            };
-            parentOpDef = builder.readTuple(tab, rootKey);
           }
           
           for(int i = 0; i<m_params->m_depth; i++){
@@ -213,6 +222,7 @@ void TestThread::run(){
           queryDef = builder.prepare();
         }
         
+        NdbTransaction* const trans = m_ndb.startTransaction();
         // Execute query.
         NdbQuery* const query = trans->createQuery(queryDef, NULL);
         for(int i = 0; i<m_params->m_depth+1; i++){
@@ -222,6 +232,7 @@ void TestThread::run(){
                               NULL);
         }
         ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
+        int cnt=0;
         while(true){
           const NdbQuery::NextResultOutcome outcome 
             = query->nextResult(true, false);
@@ -229,35 +240,60 @@ void TestThread::run(){
             break;
           }
           ASSERT_ALWAYS(outcome== NdbQuery::NextResult_gotRow);
+          cnt++;
         }
+        ASSERT_ALWAYS(cnt== MAX(1,m_params->m_scanLength));
         query->close();
+        m_ndb.closeTransaction(trans);
       }
     }else{ // non-linked
       Row row = {0, 0};
       for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
+        NdbTransaction* const trans = m_ndb.startTransaction();
         if(m_params->m_scanLength>0){
           const KeyRow highKey = { m_params->m_scanLength };
-          const NdbIndexScanOperation::IndexBound bound = {
-            NULL, // Low key
-            0, // Low key count.
-            false, // Low key inclusive
-            reinterpret_cast<const char*>(&highKey),
-            1, // High key count.
-            false, // High key inclusive.
-            0
-          };
+          NdbIndexScanOperation* scanOp = NULL;
+          if(m_params->m_scanLength==1){ // Pruned scan
+            const NdbIndexScanOperation::IndexBound bound = {
+              reinterpret_cast<const char*>(&highKey),
+              1, // Low key count.
+              true, // Low key inclusive
+              reinterpret_cast<const char*>(&highKey),
+              1, // High key count.
+              true, // High key inclusive.
+              0
+            };
           
-          NdbIndexScanOperation* const scanOp = 
-            trans->scanIndex(indexRec, 
-                             resultRec, 
-                             NdbOperation::LM_Dirty,
-                             NULL, // Result mask
-                             &bound);
+            scanOp = 
+              trans->scanIndex(indexRec, 
+                               resultRec, 
+                               NdbOperation::LM_Dirty,
+                               NULL, // Result mask
+                               &bound);
+          }else{
+            const NdbIndexScanOperation::IndexBound bound = {
+              NULL, // Low key
+              0, // Low key count.
+              false, // Low key inclusive
+              reinterpret_cast<const char*>(&highKey),
+              1, // High key count.
+              false, // High key inclusive.
+              0
+            };
+          
+            scanOp = 
+              trans->scanIndex(indexRec, 
+                               resultRec, 
+                               NdbOperation::LM_Dirty,
+                               NULL, // Result mask
+                               &bound);
+          }
           ASSERT_ALWAYS(scanOp != NULL);
 
           ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
           
           // Iterate over scan result
+          int cnt = 0;
           while(true){
             const Row* scanRow = NULL;
             const int retVal = 
@@ -268,6 +304,7 @@ void TestThread::run(){
               break;
             }
             ASSERT_ALWAYS(retVal== 0);
+            cnt++;
             //ndbout << "ScanRow: " << scanRow->a << " " << scanRow->b << endl;
             row = *scanRow;
             
@@ -285,13 +322,13 @@ void TestThread::run(){
               //ndbout << "LookupRow: " << row.a << " " << row.b << endl;
             }
           }
+          ASSERT_ALWAYS(cnt== m_params->m_scanLength);
         }else{ 
           // Root is lookup.
           for(int i = 0; i < m_params->m_depth+1; i++){
             const KeyRow key = {row.b};
             const NdbOperation* const lookupOp = 
               trans->readTuple(keyRec, 
-
                                reinterpret_cast<const char*>(&key),
                                resultRec,
                                reinterpret_cast<char*>(&row),
@@ -300,9 +337,9 @@ void TestThread::run(){
             ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
           }
         }//if(m_params->m_isScan)
+        m_ndb.closeTransaction(trans);
       }//for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++)
     }
-    m_ndb.closeTransaction(trans);
     ASSERT_ALWAYS(m_params != NULL);
     m_params = NULL;
     ASSERT_ALWAYS(pthread_cond_signal(&m_condition)==0);
@@ -362,7 +399,7 @@ static void makeDatabase(const char* host, int port, int rowCount){
   }
 }
 
-void printHeading(){
+void printHeading(TestParameters& param){
   ndbout << endl << "Use linked; Thread count; Iterations; Scan length;"
     " Depth; Def re-use; Duration (ms); Tuples per sec;" << endl;
 }
@@ -410,17 +447,17 @@ TestThread** threads = NULL;
 
 void testLookupDepth(){
   TestParameters param;
-  param.m_iterations = 200;
+  param.m_iterations = 1000;
   param.m_useLinkedOperations = false;
-  param.m_scanLength = 0;//50;
+  param.m_scanLength = 0;
   param.m_queryDefReuse = 0;
 
-  printHeading();
+  printHeading(param);
   for(int i = 0; i<20; i++){
     param.m_depth = i;
     runTest(threads, threadCount, param);
   }
-  printHeading();
+  printHeading(param);
   param.m_useLinkedOperations = true;
   for(int i = 0; i<20; i++){
     param.m_depth = i;
@@ -428,18 +465,18 @@ void testLookupDepth(){
   }
 }
 
-void testScanDepth(){
+void testScanDepth(int n){
   TestParameters param;
-  param.m_iterations = 50;
+  param.m_iterations = 200;
   param.m_useLinkedOperations = false;
-  param.m_scanLength = 50;
+  param.m_scanLength = n;
   param.m_queryDefReuse = 0;
-  printHeading();
+  printHeading(param);
   for(int i = 0; i<10; i++){
     param.m_depth = i;
     runTest(threads, threadCount, param);
   }
-  printHeading();
+  printHeading(param);
   param.m_useLinkedOperations = true;
   for(int i = 0; i<10; i++){
     param.m_depth = i;
@@ -479,7 +516,10 @@ int main(int argc, char* argv[]){
     }
     sleep(1);
 
-    testScanDepth();
+    testScanDepth(1);
+    testScanDepth(2);
+    testScanDepth(5);
+    testScanDepth(50);
     testLookupDepth();
  
     for(int i = 0; i<threadCount; i++){

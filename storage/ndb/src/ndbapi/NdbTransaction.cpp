@@ -272,6 +272,31 @@ NdbTransaction::handleExecuteCompletion()
     theFirstExecOpInList = NULL;
     theLastExecOpInList = NULL;
   }//if
+
+  /***************************************************************************
+   *	  Move non-Scan queries from the list of executing queries
+   *      to list of completed. Scan queries remains in the exec-list
+   **************************************************************************/
+  NdbQueryImpl* tExecQuery = m_firstExecQuery;
+  if (tExecQuery != NULL) {
+    NdbQueryImpl* prev = NULL;
+    while (tExecQuery != NULL) {
+      NdbQueryImpl* next = tExecQuery->getNext();
+      if (!tExecQuery->getQueryDef().isScanQuery()) {
+        // Unlink from exec-query list
+        if (prev==NULL)
+          m_firstExecQuery = next;
+        else
+          prev->setNext(next);
+
+        // Insert into completed-query list:
+        tExecQuery->setNext(m_firstCompletedQuery);
+        m_firstCompletedQuery = tExecQuery;
+      }
+      prev = tExecQuery;
+      tExecQuery = next;
+    }
+  }
   theSendStatus = InitState;
   return;
 }//NdbTransaction::handleExecuteCompletion()
@@ -1162,10 +1187,12 @@ NdbTransaction::releaseOperations()
 void 
 NdbTransaction::releaseCompletedOperations()
 {
+  releaseQueries(m_firstCompletedQuery);
+  m_firstCompletedQuery = NULL;
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
-}//NdbTransaction::releaseOperations()
+}//NdbTransaction::releaseCompletedOperations()
 
 /******************************************************************************
 void releaseQueries();
@@ -1177,10 +1204,7 @@ NdbTransaction::releaseQueries(NdbQueryImpl* query)
 {
   while (query != NULL) {
     NdbQueryImpl* next = query->getNext();
-
-    // TODO: Decide how the released NdbQueryImpl objects should be handled - 
-    // Maybe recycled on a Ndb owned freeList? - Currently we leak them
-//  delete query;  // Can't delete either as d'tor is private to avoid missuse
+    query->release();
     query = next;
   }
 }//NdbTransaction::releaseQueries
@@ -1207,6 +1231,7 @@ void releaseScanOperation();
 
 Remark:         Release scan op when hupp'ed trans closed (save memory)
 ******************************************************************************/
+#if 0
 void 
 NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
@@ -1217,6 +1242,7 @@ NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
   
   DBUG_VOID_RETURN;
 }//NdbTransaction::releaseExecutedScanOperation()
+#endif
 
 bool
 NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
@@ -2237,11 +2263,10 @@ int OpCompletedFailure();
 
 Return Value:  Return 0 : OpCompleteSuccess was successful.
                Return -1: In all other case.
-Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbTransaction::OpCompleteFailure(NdbOperation* op)
+NdbTransaction::OpCompleteFailure()
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
@@ -2852,22 +2877,20 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 			    const void* const paramValues[],
 			    NdbOperation::LockMode lock_mode)
 {
-  NdbQueryDefImpl& queryDef = def->getImpl();
-  NdbQueryImpl* query 
-    = NdbQueryImpl::buildQuery(*this, queryDef, m_firstQuery);
-
+  NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());
   if (query == NULL) {
     return NULL; // Error code for transaction is already set.
   }
 
-  m_firstQuery = query;
-
-  int error = query->assignParameters(paramValues);
+  const int error = query->assignParameters(paramValues);
   if (unlikely(error != 0)) {
     setErrorCode(error);
     query->release();
     return NULL;
   }
+
+  query->setNext(m_firstQuery);
+  m_firstQuery = query;
 
   return &query->getInterface();
 }
