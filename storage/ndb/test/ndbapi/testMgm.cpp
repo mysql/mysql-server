@@ -1744,12 +1744,12 @@ check_set_config_wrong_config_length(NdbMgmd& mgmd)
   if (res){
     /*
       There are now additional 20 bytes of junk that has been
-      sent to  mgmd, send a new line and read the result to get rid of it
+      sent to mgmd, reconnect to get rid of it
     */
-    Properties args, reply;
-    if (!mgmd.call("", args,
-                   NULL, reply))
+    if (!mgmd.disconnect())
       return false;
+    if (!mgmd.connect())
+       return false;
   }
   return res;
 }
