@@ -148,8 +148,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
                            (hash_get_key) acl_entry_get_key,
                            (hash_free_key) free,
-                           lower_case_file_system ?
-                           system_charset_info : &my_charset_bin);
+                           &my_charset_utf8_bin);
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
@@ -2092,12 +2091,13 @@ public:
   ulong sort;
   uint key_length;
   GRANT_NAME(const char *h, const char *d,const char *u,
-             const char *t, ulong p);
-  GRANT_NAME (TABLE *form);
+             const char *t, ulong p, bool is_routine);
+  GRANT_NAME (TABLE *form, bool is_routine);
   virtual ~GRANT_NAME() {};
   virtual bool ok() { return privs != 0; }
   void set_user_details(const char *h, const char *d,
-                        const char *u, const char *t);
+                        const char *u, const char *t,
+                        bool is_routine);
 };
 
 
@@ -2116,7 +2116,8 @@ public:
 
 
 void GRANT_NAME::set_user_details(const char *h, const char *d,
-                                  const char *u, const char *t)
+                                  const char *u, const char *t,
+                                  bool is_routine)
 {
   /* Host given by user */
   update_hostname(&host, strdup_root(&memex, h));
@@ -2131,7 +2132,7 @@ void GRANT_NAME::set_user_details(const char *h, const char *d,
   if (tname != t)
   {
     tname= strdup_root(&memex, t);
-    if (lower_case_table_names)
+    if (lower_case_table_names || is_routine)
       my_casedn_str(files_charset_info, tname);
   }
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
@@ -2140,22 +2141,22 @@ void GRANT_NAME::set_user_details(const char *h, const char *d,
 }
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
-                       const char *t, ulong p)
+                       const char *t, ulong p, bool is_routine)
   :db(0), tname(0), privs(p)
 {
-  set_user_details(h, d, u, t);
+  set_user_details(h, d, u, t, is_routine);
 }
 
 GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                 	 const char *t, ulong p, ulong c)
-  :GRANT_NAME(h,d,u,t,p), cols(c)
+  :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
   (void) hash_init(&hash_columns,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
 }
 
 
-GRANT_NAME::GRANT_NAME(TABLE *form)
+GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
 {
   update_hostname(&host, get_field(&memex, form->field[0]));
   db=    get_field(&memex,form->field[1]);
@@ -2173,6 +2174,9 @@ GRANT_NAME::GRANT_NAME(TABLE *form)
   if (lower_case_table_names)
   {
     my_casedn_str(files_charset_info, db);
+  }
+  if (lower_case_table_names || is_routine)
+  {
     my_casedn_str(files_charset_info, tname);
   }
   key_length = ((uint) strlen(db) + (uint) strlen(user) +
@@ -2185,7 +2189,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form)
 
 
 GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
-  :GRANT_NAME(form)
+  :GRANT_NAME(form, FALSE)
 {
   byte key[MAX_KEY_LENGTH];
 
@@ -3170,7 +3174,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       }
       grant_name= new GRANT_NAME(Str->host.str, db_name,
 				 Str->user.str, table_name,
-				 rights);
+				 rights, TRUE);
       if (!grant_name)
       {
         result= TRUE;
@@ -3395,13 +3399,13 @@ static my_bool grant_load(TABLE_LIST *tables)
                                                            THR_MALLOC);
   DBUG_ENTER("grant_load");
 
-  (void) hash_init(&column_priv_hash,system_charset_info,
+  (void) hash_init(&column_priv_hash, &my_charset_utf8_bin,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
-  (void) hash_init(&proc_priv_hash,system_charset_info,
+  (void) hash_init(&proc_priv_hash, &my_charset_utf8_bin,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   0,0);
-  (void) hash_init(&func_priv_hash,system_charset_info,
+  (void) hash_init(&func_priv_hash, &my_charset_utf8_bin,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   0,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -3457,7 +3461,7 @@ static my_bool grant_load(TABLE_LIST *tables)
     {
       GRANT_NAME *mem_check;
       HASH *hash;
-      if (!(mem_check=new GRANT_NAME(p_table)))
+      if (!(mem_check=new GRANT_NAME(p_table, TRUE)))
       {
 	/* This could only happen if we are out memory */
 	grant_option= FALSE;
@@ -5199,7 +5203,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
           host name
         */
         grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                   user_to->user.str, grant_name->tname);
+                                     user_to->user.str, grant_name->tname,
+                                     TRUE);
 
         /*
           Since username is part of the hash key, when the user name
@@ -5806,7 +5811,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     for (counter= 0, revoked= 0 ; counter < hash->records ; )
     {
       GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, counter);
-      if (!my_strcasecmp(system_charset_info, grant_proc->db, sp_db) &&
+      if (!my_strcasecmp(&my_charset_utf8_bin, grant_proc->db, sp_db) &&
 	  !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
         LEX_USER lex_user;
