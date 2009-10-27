@@ -1924,7 +1924,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       int errval = acclst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -1943,7 +1943,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       int errval = tuplst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -1965,7 +1965,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
 
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -6708,7 +6708,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
       int errval = lst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
