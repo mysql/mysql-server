@@ -18,6 +18,14 @@
 
 class sys_var;
 
+#ifdef DBUG_OFF
+#define plugin_ref_to_int(A) A
+#define plugin_int_to_ref(A) A
+#else
+#define plugin_ref_to_int(A) (A ? A[0] : NULL)
+#define plugin_int_to_ref(A) &(A)
+#endif
+
 /*
   the following flags are valid for plugin_init()
 */

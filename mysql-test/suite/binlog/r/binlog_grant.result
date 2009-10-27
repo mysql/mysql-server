@@ -13,16 +13,16 @@ set session sql_log_bin = 1;
 set global sql_log_bin = 1;
 ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
 set session sql_log_bin = 1;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 **** Variable BINLOG_FORMAT ****
 [root]
 set global binlog_format = row;
 set session binlog_format = row;
 [plain]
 set global binlog_format = row;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 set session binlog_format = row;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 **** Clean up ****
 set global binlog_format = @saved_binlog_format;
 drop user mysqltest_1@localhost;

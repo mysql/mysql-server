@@ -1546,6 +1546,23 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
 }
 
 
+bool sys_var_uint_ptr::check(THD *thd, set_var *var)
+{
+  var->save_result.ulong_value= (ulong) var->value->val_uint();
+  return 0;
+}
+
+bool sys_var_uint_ptr::update(THD *thd, set_var *var)
+{
+  *value= (uint) var->save_result.ulong_value;
+  return 0;
+}
+
+void sys_var_uint_ptr::set_default(THD *thd, enum_var_type type)
+{
+  *value= (uint) option_limits->def_value;
+}
+
 sys_var_long_ptr::
 sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
@@ -3135,6 +3152,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 
   ulonglong org_options= thd->options;
 
+  /*
+    If we are setting AUTOCOMMIT=1 and it was not already 1, then we
+    need to commit any outstanding transactions.
+   */
+  if (var->save_result.ulong_value != 0 &&
+      (thd->options & OPTION_NOT_AUTOCOMMIT) &&
+      ha_commit(thd))
+    return 1;
+
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
   else
@@ -3148,8 +3174,6 @@ static bool set_option_autocommit(THD *thd, set_var *var)
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-      if (ha_commit(thd))
-	return 1;
     }
     else
     {
