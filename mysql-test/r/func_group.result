@@ -1477,3 +1477,47 @@ COUNT(*)
 SET SQL_MODE=default;
 DROP TABLE t1;
 End of 5.0 tests
+#
+# BUG#47280 - strange results from count(*) with order by multiple 
+#             columns without where/group
+# 
+# 
+# Initialize test
+# 
+CREATE TABLE t1 (
+pk INT NOT NULL,
+i INT,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,11),(2,12),(3,13);
+#
+# Start test
+# All the following queries shall return 1 record
+#
+
+# Masking all correct values {11...13} for column i in this result. 
+SELECT MAX(pk) as max, i
+FROM t1
+ORDER BY max;
+max	i
+3	#
+
+EXPLAIN
+SELECT MAX(pk) as max, i
+FROM t1
+ORDER BY max;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+
+# Only 11 is correct for collumn i in this result
+SELECT MAX(pk) as max, i
+FROM t1
+WHERE pk<2
+ORDER BY max;
+max	i
+1	11
+#
+# Cleanup
+#
+DROP TABLE t1;
+End of 5.1 tests

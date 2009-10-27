@@ -41,6 +41,14 @@ efgh	efgh
 ijkl	ijkl
 DROP TABLE t1;
 #
+# Bug#45645 Mysql server close all connection and restart using lower function
+#
+CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+INSERT INTO t1 (a) VALUES ('hello!');
+SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
+a
+DROP TABLE t1;
+#
 # Bug#43827 Server closes connections and restarts
 #
 CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
@@ -321,3 +329,11 @@ Vv
 Xx
 YyÝýỲỳỴỵỶỷỸỹ
 drop table t1;
+Bug#46448 trailing spaces are not ignored when user collation maps space != 0x20
+set names latin1;
+show collation like 'latin1_test';
+Collation	Charset	Id	Default	Compiled	Sortlen
+latin1_test	latin1	99		Yes	1
+select "foo" = "foo " collate latin1_test;
+"foo" = "foo " collate latin1_test
+1

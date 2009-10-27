@@ -1433,7 +1433,7 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
-    Parser_state parser_state(thd, thd->query, thd->query_length);
+    Parser_state parser_state(thd, thd->query(), thd->query_length());
     lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))

@@ -4077,7 +4077,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
 
   if ((!is_empty) && (!written_bin_log) &&
       (!thd->lex->no_write_to_binlog))
-    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),
@@ -6235,7 +6235,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
@@ -6302,7 +6302,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_6") ||
         write_log_rename_frm(lpt) ||
         (not_completed= FALSE) ||
@@ -6392,7 +6392,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||

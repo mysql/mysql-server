@@ -185,8 +185,8 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, size_t a_length,
     }
     for (end= a + a_length-length; a < end ; a++)
     {
-      if (map[*a] != ' ')
-	return (map[*a] < ' ') ? -swap : swap;
+      if (map[*a] != map[' '])
+	return (map[*a] < map[' ']) ? -swap : swap;
     }
   }
   return res;

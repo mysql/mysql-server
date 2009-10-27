@@ -5709,6 +5709,27 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
+
   if (param->using_real_indexes)
     optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                           key_part->part);
@@ -5891,6 +5912,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  /*
+    Any sargable predicate except "<=>" involving NULL as a constant is always
+    FALSE
+  */
+  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
+  {
+    tree= &null_element;
+    goto end;
+  }
+  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -6512,6 +6544,63 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 }
 
 
+/**
+   Combine two range expression under a common OR. On a logical level, the
+   transformation is key_or( expr1, expr2 ) => expr1 OR expr2.
+
+   Both expressions are assumed to be in the SEL_ARG format. In a logic sense,
+   theformat is reminiscent of DNF, since an expression such as the following
+
+   ( 1 < kp1 < 10 AND p1 ) OR ( 10 <= kp2 < 20 AND p2 )
+
+   where there is a key consisting of keyparts ( kp1, kp2, ..., kpn ) and p1
+   and p2 are valid SEL_ARG expressions over keyparts kp2 ... kpn, is a valid
+   SEL_ARG condition. The disjuncts appear ordered by the minimum endpoint of
+   the first range and ranges must not overlap. It follows that they are also
+   ordered by maximum endpoints. Thus
+
+   ( 1 < kp1 <= 2 AND ( kp2 = 2 OR kp2 = 3 ) ) OR kp1 = 3
+
+   Is a a valid SER_ARG expression for a key of at least 2 keyparts.
+   
+   For simplicity, we will assume that expr2 is a single range predicate,
+   i.e. on the form ( a < x < b AND ... ). It is easy to generalize to a
+   disjunction of several predicates by subsequently call key_or for each
+   disjunct.
+
+   The algorithm iterates over each disjunct of expr1, and for each disjunct
+   where the first keypart's range overlaps with the first keypart's range in
+   expr2:
+   
+   If the predicates are equal for the rest of the keyparts, or if there are
+   no more, the range in expr2 has its endpoints copied in, and the SEL_ARG
+   node in expr2 is deallocated. If more ranges became connected in expr1, the
+   surplus is also dealocated. If they differ, two ranges are created.
+   
+   - The range leading up to the overlap. Empty if endpoints are equal.
+
+   - The overlapping sub-range. May be the entire range if they are equal.
+
+   Finally, there may be one more range if expr2's first keypart's range has a
+   greater maximum endpoint than the last range in expr1.
+
+   For the overlapping sub-range, we recursively call key_or. Thus in order to
+   compute key_or of
+
+     (1) ( 1 < kp1 < 10 AND 1 < kp2 < 10 ) 
+
+     (2) ( 2 < kp1 < 20 AND 4 < kp2 < 20 )
+
+   We create the ranges 1 < kp <= 2, 2 < kp1 < 10, 10 <= kp1 < 20. For the
+   first one, we simply hook on the condition for the second keypart from (1)
+   : 1 < kp2 < 10. For the second range 2 < kp1 < 10, key_or( 1 < kp2 < 10, 4
+   < kp2 < 20 ) is called, yielding 1 < kp2 < 20. For the last range, we reuse
+   the range 4 < kp2 < 20 from (2) for the second keypart. The result is thus
+   
+   ( 1  <  kp1 <= 2 AND 1 < kp2 < 10 ) OR
+   ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
+   ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
+*/
 static SEL_ARG *
 key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 {
@@ -6663,7 +6752,21 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 	  key1=key1->tree_delete(save);
 	}
         last->copy_min(tmp);
-	if (last->copy_min(key2) || last->copy_max(key2))
+        bool full_range= last->copy_min(key2);
+        if (!full_range)
+        {
+          if (last->next && key2->cmp_max_to_min(last->next) >= 0)
+          {
+            last->max_value= last->next->min_value;
+            if (last->next->min_flag & NEAR_MIN)
+              last->max_flag&= ~NEAR_MAX;
+            else
+              last->max_flag|= NEAR_MAX;
+          }
+          else
+            full_range= last->copy_max(key2);
+        }
+	if (full_range)
 	{					// Full range
 	  key1->free_tree();
 	  for (; key2 ; key2=key2->next)
@@ -6673,8 +6776,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 	  return 0;
 	}
       }
-      key2=key2->next;
-      continue;
     }
 
     if (cmp >= 0 && tmp->cmp_min_to_min(key2) < 0)
