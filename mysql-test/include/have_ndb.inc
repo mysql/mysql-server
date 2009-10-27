@@ -21,14 +21,6 @@ if (!`select @have_ndb`){
   skip Need ndb engine;
 }
 
--- let have_embedded=`select version() like '%embedded%'`
-if ($have_embedded)
-{
-# Embedded server does not have 'wait_setup' mechanism
-# so must use script to wait till it's started up
---source include/ndb_not_readonly.inc
-}
-
 #
 # cleanup
 #
