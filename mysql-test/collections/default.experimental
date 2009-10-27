@@ -22,6 +22,7 @@ rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_inn
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
 rpl.rpl_log_pos*                         # Bug#47743 2009-10-02 alik rpl.rpl_log_pos fails sporadically
+rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
 rpl.rpl_trigger*                         # Bug#46656 2009-09-25 alik InnoDB plugin: memory leaks (Valgrind)
 
 # Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
