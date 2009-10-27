@@ -1,3 +1,6 @@
+#ifndef SQL_MAP_INCLUDED
+#define SQL_MAP_INCLUDED
+
 /* Copyright (C) 2000-2001, 2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -60,3 +63,5 @@ public:
     return file->map;
   }
 };
+
+#endif /* SQL_MAP_INCLUDED */

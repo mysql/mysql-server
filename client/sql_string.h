@@ -1,3 +1,6 @@
+#ifndef CLIENT_SQL_STRING_INCLUDED
+#define CLIENT_SQL_STRING_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -353,3 +356,5 @@ public:
     return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
   }
 };
+
+#endif /* CLIENT_SQL_STRING_INCLUDED */

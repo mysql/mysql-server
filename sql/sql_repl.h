@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef SQL_REPL_INCLUDED
+#define SQL_REPL_INCLUDED
+
 #include "rpl_filter.h"
 
 #ifdef HAVE_REPLICATION
@@ -65,3 +68,4 @@ int init_replication_sys_vars();
 
 #endif /* HAVE_REPLICATION */
 
+#endif /* SQL_REPL_INCLUDED */
