@@ -155,8 +155,8 @@ public:
         error("connect: ndb_get_version failed");
         return false;
     }
-    printf("connected to ndb_mgmd version %d.%d.%d\n",
-            major, minor, build);
+    //printf("connected to ndb_mgmd version %d.%d.%d\n",
+    //        major, minor, build);
 
     if ((m_nodeid = ndb_mgm_get_mgmd_nodeid(m_handle)) == 0){
       error("connect: could not get nodeid of connected mgmd");
