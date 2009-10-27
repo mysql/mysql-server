@@ -17,8 +17,6 @@ DROP DATABASE IF EXISTS mysql_test;
 --echo
 CREATE DATABASE mysql_test;
 CREATE TABLE mysql_test.t1(a INT);
-CREATE TABLE mysql_test.t2(b INT);
-CREATE TABLE mysql_test.t3(c INT);
 
 --echo
 SET SESSION DEBUG = "+d,bug43138";
