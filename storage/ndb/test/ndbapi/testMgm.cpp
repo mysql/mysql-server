@@ -1211,7 +1211,8 @@ check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
   assert(nodeId && nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   nodeType = (nodeType + 1) / NDB_MGM_NODE_TYPE_MAX;
-  assert(nodeType > NDB_MGM_NODE_TYPE_MIN && nodeType < NDB_MGM_NODE_TYPE_MAX);
+  assert(nodeType >= NDB_MGM_NODE_TYPE_MIN &&
+         nodeType <= NDB_MGM_NODE_TYPE_MAX);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
