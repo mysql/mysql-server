@@ -111,21 +111,18 @@ SELECT a,b,x FROM t1_int ORDER BY a;
 SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;
 SELECT a,b,x FROM t1_char ORDER BY a;
 
-# Each of these inserts should generate an error and stop the slave
-
 connection master;
 INSERT INTO t9 VALUES (2);
 sync_slave_with_master;
 # Now slave is guaranteed to be running
 connection master;
 INSERT INTO t1_nodef VALUES (1,2);
-connection slave;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 35 <Last_IO_Errno> 36 <Last_IO_Error> 38 <Last_SQL_Error>
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+
+# Last insert on wider slave table succeeds while slave sql sql_mode permits.
+# The previous version of the above test expected slave sql to stop.
+# bug#38173 relaxed conditions to stop only with the strict mode.
+sync_slave_with_master;
+select count(*) from t1_nodef;
 
 #
 # Replicating to tables with fewer columns at the end works as of WL#3228

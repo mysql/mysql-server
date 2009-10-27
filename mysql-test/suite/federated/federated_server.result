@@ -197,13 +197,13 @@ select * from federated.t1;
 id	name
 1	this is legitimate
 alter server s1 options (database 'db_bogus');
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 flush tables;
 select * from federated.t1;
 id	name
 1	this is legitimate
 alter server s1 options (database 'db_bogus');
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 flush tables;
 select * from federated.t1;
 id	name
@@ -214,7 +214,7 @@ select * from federated.t1;
 id	name
 2	this is bogus
 drop server if exists 's1';
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
 DATABASE 'db_legitimate',
@@ -223,7 +223,7 @@ PASSWORD '',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 drop server 's1';
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',

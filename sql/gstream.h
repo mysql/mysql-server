@@ -1,3 +1,6 @@
+#ifndef GSTREAM_INCLUDED
+#define GSTREAM_INCLUDED
+
 /* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -73,3 +76,5 @@ protected:
   char *m_err_msg;
   CHARSET_INFO *m_charset;
 };
+
+#endif /* GSTREAM_INCLUDED */
