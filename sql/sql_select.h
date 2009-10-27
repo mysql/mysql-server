@@ -1,3 +1,6 @@
+#ifndef SQL_SELECT_INCLUDED
+#define SQL_SELECT_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -758,3 +761,4 @@ inline bool optimizer_flag(THD *thd, uint flag)
   return (thd->variables.optimizer_switch & flag);
 }
 
+#endif /* SQL_SELECT_INCLUDED */

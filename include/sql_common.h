@@ -1,3 +1,6 @@
+#ifndef SQL_COMMON_INCLUDED
+#define SQL_COMMON_INCLUDED
+
 /* Copyright (C) 2003-2004, 2006 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
@@ -48,3 +51,4 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
 
+#endif /* SQL_COMMON_INCLUDED */

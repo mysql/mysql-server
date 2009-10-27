@@ -1,3 +1,6 @@
+#ifndef ITEM_TIMEFUNC_INCLUDED
+#define ITEM_TIMEFUNC_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1032,3 +1035,5 @@ public:
     maybe_null= 1;
   }
 };
+
+#endif /* ITEM_TIMEFUNC_INCLUDED */

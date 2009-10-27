@@ -1,3 +1,6 @@
+#ifndef SQL_SERVERS_INCLUDED
+#define SQL_SERVERS_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -41,3 +44,5 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
 /* lookup functions */
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
                                    FOREIGN_SERVER *server_buffer);
+
+#endif /* SQL_SERVERS_INCLUDED */

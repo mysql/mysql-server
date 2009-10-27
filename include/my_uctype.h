@@ -1,3 +1,6 @@
+#ifndef MY_UCTYPE_INCLUDED
+#define MY_UCTYPE_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -1477,3 +1480,4 @@ MY_UNI_CTYPE my_uni_ctype[256]={
 };
 
 
+#endif /* MY_UCTYPE_INCLUDED */
