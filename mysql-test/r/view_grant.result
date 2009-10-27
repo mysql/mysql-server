@@ -1218,3 +1218,22 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug #46019: ERROR 1356 When selecting from within another 
+#  view that has Group By
+#
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 (a INT);
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT a FROM t1 GROUP BY a;
+CREATE SQL SECURITY INVOKER VIEW v2 AS SELECT a FROM v1;
+CREATE USER mysqluser1;
+GRANT SELECT ON TABLE t1 TO mysqluser1;
+GRANT SELECT, SHOW VIEW ON TABLE v1 TO mysqluser1;
+GRANT SELECT, SHOW VIEW ON TABLE v2 TO mysqluser1;
+SELECT a FROM v1;
+a
+SELECT a FROM v2;
+a
+DROP USER mysqluser1;
+DROP DATABASE mysqltest1;

@@ -103,6 +103,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
+# include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -1096,6 +1097,10 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
 #endif
 
+#ifdef UNIV_LOG_LSN_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!\n");
+#endif /* UNIV_LOG_LSN_DEBUG */
 #ifdef UNIV_MEM_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
@@ -1106,34 +1111,7 @@ innobase_start_or_create_for_mysql(void)
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
-# ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	fprintf(stderr,
-		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
-# else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	fprintf(stderr,
-		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
-# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#elif defined(HAVE_SOLARIS_ATOMICS)
-# ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	fprintf(stderr,
-		"InnoDB: Mutexes and rw_locks use Solaris atomic functions.\n");
-# else
-	fprintf(stderr,
-		"InnoDB: Mutexes use Solaris atomic functions.\n");
-# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#elif HAVE_WINDOWS_ATOMICS
-# ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	fprintf(stderr,
-		"InnoDB: Mutexes and rw_locks use Windows interlocked functions.\n");
-# else
-	fprintf(stderr,
-		"InnoDB: Mutexes use Windows interlocked functions.\n");
-# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
-	fprintf(stderr,
-		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+	fprintf(stderr, "InnoDB: %s\n", IB_ATOMICS_STARTUP_MSG);
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1829,7 +1807,7 @@ innobase_start_or_create_for_mysql(void)
 		/* Actually, we did not change the undo log format between
 		4.0 and 4.1.1, and we would not need to run purge to
 		completion. Note also that the purge algorithm in 4.1.1
-		can process the the history list again even after a full
+		can process the history list again even after a full
 		purge, because our algorithm does not cut the end of the
 		history list in all cases so that it would become empty
 		after a full purge. That mean that we may purge 4.0 type

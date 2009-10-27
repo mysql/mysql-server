@@ -69,6 +69,10 @@ require "mtr_misc.pl";
 my $do_test_reg;
 my $skip_test_reg;
 
+# Related to adding InnoDB plugin combinations
+my $lib_innodb_plugin;
+my $do_innodb_plugin;
+
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
 
@@ -102,6 +106,17 @@ sub collect_test_cases ($$) {
 
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
+
+  $lib_innodb_plugin=
+    my_find_file($::basedir,
+		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
+		  "lib/mysql/plugin", "lib/plugin"],
+		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
+		  "ha_innodb_plugin.sl"],
+		 NOT_REQUIRED);
+  $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
+		      !(IS_WINDOWS && $::opt_embedded_server) &&
+		      $lib_innodb_plugin);
 
   foreach my $suite (split(",", $suites))
   {
@@ -484,20 +499,16 @@ sub collect_one_suite($)
   # ----------------------------------------------------------------------
   # Testing InnoDB plugin.
   # ----------------------------------------------------------------------
-  my $lib_innodb_plugin=
-    mtr_file_exists(::vs_config_dirs('storage/innodb_plugin', 'ha_innodb_plugin.dll'),
-                    "$::basedir/storage/innodb_plugin/.libs/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.dll");
-  if ($::mysql_version_id >= 50100 && !(IS_WINDOWS && $::opt_embedded_server) &&
-      $lib_innodb_plugin)
+  if ($do_innodb_plugin)
   {
     my @new_cases;
     my $sep= (IS_WINDOWS) ? ';' : ':';
 
     foreach my $test (@cases)
     {
-      next if ($test->{'skip'} || !$test->{'innodb_test'});
+      next if (!$test->{'innodb_test'});
+      # If skipped due to no builtin innodb, we can still run it with plugin
+      next if ($test->{'skip'} && $test->{comment} ne "No innodb support");
       # Exceptions
       next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
       next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
@@ -521,7 +532,7 @@ sub collect_one_suite($)
         }
         else
         {
-          $new_test->{$key}= $value;
+          $new_test->{$key}= $value unless ($key eq 'skip');
         }
       }
       my $plugin_filename= basename($lib_innodb_plugin);
@@ -534,11 +545,11 @@ sub collect_one_suite($)
       push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
       if ($new_test->{combination})
       {
-        $new_test->{combination}.= ' + InnoDB plugin';
+        $new_test->{combination}.= '+innodb_plugin';
       }
       else
       {
-        $new_test->{combination}= 'InnoDB plugin';
+        $new_test->{combination}= 'innodb_plugin';
       }
       push(@new_cases, $new_test);
     }
@@ -981,8 +992,11 @@ sub collect_one_test_case {
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;
+      # This comment is checked for running with innodb plugin (see above),
+      # please keep that in mind if changing the text.
       $tinfo->{'comment'}= "No innodb support";
-      return $tinfo;
+      # But continue processing if we may run it with innodb plugin
+      return $tinfo unless $do_innodb_plugin;
     }
   }
   else
@@ -1024,6 +1038,17 @@ sub collect_one_test_case {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Not run for embedded server";
+      return $tinfo;
+    }
+  }
+
+  if ( $tinfo->{'need_ssl'} )
+  {
+    # This is a test that needs ssl
+    if ( ! $::opt_ssl_supported ) {
+      # SSL is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No SSL support";
       return $tinfo;
     }
   }
@@ -1108,6 +1133,7 @@ my @tags=
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
+ ["include/have_ssl.inc", "need_ssl", 1],
 );
 
 
