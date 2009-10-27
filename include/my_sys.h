@@ -877,6 +877,7 @@ extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
+extern const char *args_separator;
 extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,

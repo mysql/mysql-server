@@ -22,6 +22,17 @@
 
   @file
 */
+
+/** 
+   Some of defines are need in parser even though replication is not 
+   compiled in (embedded).
+*/
+
+/**
+   The maximum is defined as (ULONG_MAX/1000) with 4 bytes ulong
+*/
+#define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
+
 #ifdef HAVE_REPLICATION
 
 #include "log.h"
@@ -32,7 +43,6 @@
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
-
 
 // Forward declarations
 class Relay_log_info;
@@ -134,6 +144,7 @@ extern ulonglong relay_log_space_limit;
 #define SLAVE_FORCE_ALL 4
 
 int init_slave();
+int init_recovery(Master_info* mi, const char** errmsg);
 void init_slave_skip_errors(const char* arg);
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);

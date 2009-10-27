@@ -121,6 +121,7 @@ int handle_options(int *argc, char ***argv,
   const struct my_option *optp;
   uchar* *value;
   int error, i;
+  my_bool is_cmdline_arg= 1;
 
   LINT_INIT(opt_found);
   /* handle_options() assumes arg0 (program name) always exists */
@@ -130,10 +131,34 @@ int handle_options(int *argc, char ***argv,
   (*argv)++; /*      --- || ----      */
   init_variables(longopts, init_one_value);
 
+  /*
+    Search for args_separator, if found, then the first part of the
+    arguments are loaded from configs
+  */
+  for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
+  {
+    if (*pos == args_separator)
+    {
+      is_cmdline_arg= 0;
+      break;
+    }
+  }
+
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
     char **first= pos;
     char *cur_arg= *pos;
+    if (!is_cmdline_arg && (cur_arg == args_separator))
+    {
+      is_cmdline_arg= 1;
+
+      /* save the separator too if skip unkown options  */
+      if (my_getopt_skip_unknown)
+        (*argv)[argvpos++]= cur_arg;
+      else
+        (*argc)--;
+      continue;
+    }
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
       char *argument=    0;
@@ -426,8 +451,12 @@ invalid value '%s'",
 	}
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
-	  /* Check if there are more arguments after this one */
-	  if (!*++pos)
+	  /* Check if there are more arguments after this one,
+
+             Note: options loaded from config file that requires value
+             should always be in the form '--option=value'.
+           */
+	  if (!is_cmdline_arg || !*++pos)
 	  {
 	    if (my_getopt_print_errors)
               my_getopt_error_reporter(ERROR_LEVEL,

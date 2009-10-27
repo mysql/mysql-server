@@ -117,7 +117,7 @@ CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW
 SET @new_sum = 0;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 
 ---> connection: default
 use mysqltest_db1;
@@ -471,7 +471,7 @@ SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_schema = 'db1';
 trigger_name
 SHOW CREATE TRIGGER db1.trg;
-ERROR 42000: Access denied; you need the TRIGGER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the TRIGGER privilege(s) for this operation
 DROP USER 'no_rights'@'localhost';
 DROP DATABASE db1;
 End of 5.1 tests.

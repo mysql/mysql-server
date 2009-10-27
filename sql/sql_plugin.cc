@@ -19,14 +19,6 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-#ifdef DBUG_OFF
-#define plugin_ref_to_int(A) A
-#define plugin_int_to_ref(A) A
-#else
-#define plugin_ref_to_int(A) (A ? A[0] : NULL)
-#define plugin_int_to_ref(A) &(A)
-#endif
-
 extern struct st_mysql_plugin *mysqld_builtins[];
 
 /**
@@ -54,7 +46,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
-  { C_STRING_WITH_LEN("INFORMATION SCHEMA") }
+  { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("REPLICATION") },
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -93,7 +86,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -101,7 +95,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 
 static bool initialized= 0;

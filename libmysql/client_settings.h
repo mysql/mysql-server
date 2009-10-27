@@ -13,6 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef CLIENT_SETTINGS_INCLUDED
+#define CLIENT_SETTINGS_INCLUDED
+#else
+#error You have already included an client_settings.h and it should not be included twice
+#endif /* CLIENT_SETTINGS_INCLUDED */
+
 extern uint		mysql_port;
 extern char *	mysql_unix_port;
 
