@@ -1376,7 +1376,7 @@ innobase_start_or_create_for_mysql(void)
 		sum_of_new_sizes += srv_data_file_sizes[i];
 	}
 
-	if (sum_of_new_sizes < 640) {
+	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Error: tablespace size must be"
 			" at least 10 MB\n");
