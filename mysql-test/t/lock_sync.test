@@ -4,6 +4,9 @@
 --source include/have_debug_sync.inc
 # We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
 --source include/have_innodb.inc
+# Until bug#41971 'Thread state on embedded server is always "Writing to net"'
+# is fixed this test can't be run on embedded version of server.
+--source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
