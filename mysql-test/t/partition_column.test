@@ -9,6 +9,21 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# BUG#48165, sql_mode gives error
+#
+set @@sql_mode=allow_invalid_dates;
+--error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+create table t1 (a char, b char, c date)
+partition by range column_list (a,b,c)
+( partition p0 values less than (0,0,to_days('3000-11-31')));
+
+--error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+create table t1 (a char, b char, c date)
+partition by range column_list (a,b,c)
+( partition p0 values less than (0,0,'3000-11-31'));
+set @@sql_mode='';
+
+#
 # BUG#48163, Dagger in UCS2 not working as partition value
 #
 create table t1 (a varchar(2) character set ucs2)
