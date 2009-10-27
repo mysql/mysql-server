@@ -1278,24 +1278,28 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   if (nodeCount < 4)
     return NDBT_OK;
 
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
-  NdbLogEventHandle handle = 
-    ndb_mgm_create_logevent_handle(restarter.handle, filter);
-
   struct ndb_logevent event;
   int master = restarter.getMasterNodeId();
   do {
     int node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
     int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
     
+    ndbout_c("node1: %u node2: %u", node1, node2);
+
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
     restarter.dumpStateAllNodes(val2, 2);
     int dump[] = { DumpStateOrd::DihSetTimeBetweenGcp, 30000 };
     restarter.dumpStateAllNodes(dump, 2);
     
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
     while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
           event.type != NDB_LE_GlobalCheckpointCompleted);
     
+    ndb_mgm_destroy_logevent_handle(&handle);
+
     CHECK(restarter.insertErrorInAllNodes(932) == 0);
     
     CHECK(restarter.insertErrorInNode(node1, 7183) == 0);
@@ -1324,12 +1328,19 @@ runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
  records);
 
 
-  while(i<=loops && result != NDBT_FAILED){
+  while(i<=loops && result != NDBT_FAILED)
+  {
     g_info << "Loop " << i << "/"<< loops <<" started" << endl;
-    CHECK(restarter.restartAll(false, true, false) == 0);
-    NdbSleep_SecSleep(3);
+    if (i == 0)
+    {
+      CHECK(restarter.restartAll(false, true, false) == 0); // graceful
+    }
+    else
+    {
+      CHECK(restarter.restartAll(false, true, true) == 0); // abort
+    }
     CHECK(restarter.waitClusterNoStart() == 0);
-    restarter.insertErrorInAllNodes(6007);
+    restarter.insertErrorInAllNodes(6024);
     CHECK(restarter.startAll()== 0);
     CHECK(restarter.waitClusterStarted() == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
