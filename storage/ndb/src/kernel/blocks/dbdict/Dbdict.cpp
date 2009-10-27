@@ -1011,8 +1011,10 @@ void Dbdict::execFSREADCONF(Signal* signal)
     readSchemaConf(signal ,fsPtr);
     break;
   case FsConnectRecord::READ_TAB_FILE1:
-    if(ERROR_INSERTED(6007)){
+    if(ERROR_INSERTED(6024))
+    {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer = fsConf->userPointer;
       fsRef->setErrorCode(fsRef->errorCode, NDBD_EXIT_AFS_UNKNOWN);
