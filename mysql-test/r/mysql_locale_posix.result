@@ -31,7 +31,7 @@ Database: ó
 +--------+
 +--------+
 
-UTF-8
+utf8
 @@character_set_client
 utf8
 Database: ó
