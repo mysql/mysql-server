@@ -1852,6 +1852,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
 {
   const uchar *value0= value;
   const uchar *null_bits= value;
+  uint null_bit_index= 0;
   char typestr[64]= "";
   
   value+= (m_width + 7) / 8;
@@ -1860,7 +1861,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   
   for (size_t i= 0; i < td->size(); i ++)
   {
-    int is_null= (null_bits[i / 8] >> (i % 8))  & 0x01;
+    int is_null= (null_bits[null_bit_index / 8] 
+                  >> (null_bit_index % 8))  & 0x01;
 
     if (bitmap_is_set(cols_bitmap, i) == 0)
       continue;
@@ -1897,6 +1899,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     }
     
     my_b_printf(file, "\n");
+    
+    null_bit_index++;
   }
   return value - value0;
 }
@@ -3039,7 +3043,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
@@ -3133,7 +3137,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
     }
     else
@@ -3145,7 +3149,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query, thd->query_length))
+      if (mysql_test_parse_for_slave(thd, thd->query(), thd->query_length()))
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
@@ -3155,7 +3159,7 @@ Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; . Query: '%s'", expected_error, thd->query);
+START SLAVE; . Query: '%s'", expected_error, thd->query());
         thd->is_slave_error= 1;
       }
       goto end;
@@ -3163,7 +3167,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
 
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
 
@@ -3855,6 +3859,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  int ret= 0;
   DBUG_ENTER("Format_description_log_event::do_apply_event");
 
 #ifdef USING_TRANSACTIONS
@@ -3896,17 +3901,21 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
       0, then 96, then jump to first really asked event (which is
       >96). So this is ok.
     */
-    DBUG_RETURN(Start_log_event_v3::do_apply_event(rli));
+    ret= Start_log_event_v3::do_apply_event(rli);
   }
-  DBUG_RETURN(0);
+
+  if (!ret)
+  {
+    /* Save the information describing this binlog */
+    delete rli->relay_log.description_event_for_exec;
+    const_cast<Relay_log_info *>(rli)->relay_log.description_event_for_exec= this;
+  }
+
+  DBUG_RETURN(ret);
 }
 
 int Format_description_log_event::do_update_pos(Relay_log_info *rli)
 {
-  /* save the information describing this binlog */
-  delete rli->relay_log.description_event_for_exec;
-  rli->relay_log.description_event_for_exec= this;
-
   if (server_id == (uint32) ::server_id)
   {
     /*
@@ -4489,8 +4498,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
-  DBUG_ASSERT(thd->query == 0);
-  thd->query_length= 0;                         // Should not be needed
+  DBUG_ASSERT(thd->query() == 0);
+  thd->set_query_inner(NULL, 0);               // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -7502,6 +7511,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
+    DBUG_RETURN(error);
   }
   /*
     This code would ideally be placed in do_update_pos() instead, but
@@ -7529,6 +7539,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
+
+  if (get_flags(STMT_END_F))
+    if ((error= rows_event_stmt_cleanup(rli, thd)))
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
 
   DBUG_RETURN(error);
 }
@@ -7628,33 +7646,19 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
   if (get_flags(STMT_END_F))
   {
-    if ((error= rows_event_stmt_cleanup(rli, thd)) == 0)
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-      */
-      rli->stmt_done(log_pos, when);
-
-      /*
-        Clear any errors pushed in thd->net.last_err* if for example "no key
-        found" (as this is allowed). This is a safety measure; apparently
-        those errors (e.g. when executing a Delete_rows_log_event of a
-        non-existing row, like in rpl_row_mystery22.test,
-        thd->net.last_error = "Can't find record in 't1'" and last_errno=1032)
-        do not become visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-    {
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
-    }
+    /*
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+    */
+    rli->stmt_done(log_pos, when);
+    /*
+      Clear any errors in thd->net.last_err*. It is not known if this is
+      needed or not. It is believed that any errors that may exist in
+      thd->net.last_err* are allowed. Examples of errors are "key not
+      found", which is produced in the test case rpl_row_conflicts.test
+    */
+    thd->clear_error();
   }
   else
   {

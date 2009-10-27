@@ -1518,5 +1518,36 @@ CREATE TABLE t3 select * from t1;
 checksum table t3;
 drop table t1,t2,t3;
 
+
+#
+# BUG#47073 - valgrind errs, corruption,failed repair of partition,
+#             low myisam_sort_buffer_size
+#
+CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
+INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),
+                     (6,'0'),(7,'0');
+INSERT INTO t1 SELECT a+10,b FROM t1;
+INSERT INTO t1 SELECT a+20,b FROM t1;
+INSERT INTO t1 SELECT a+40,b FROM t1;
+INSERT INTO t1 SELECT a+80,b FROM t1;
+INSERT INTO t1 SELECT a+160,b FROM t1;
+INSERT INTO t1 SELECT a+320,b FROM t1;
+INSERT INTO t1 SELECT a+640,b FROM t1;
+INSERT INTO t1 SELECT a+1280,b FROM t1;
+INSERT INTO t1 SELECT a+2560,b FROM t1;
+INSERT INTO t1 SELECT a+5120,b FROM t1;
+SET myisam_sort_buffer_size=4;
+REPAIR TABLE t1;
+
+# !!! Disabled until additional fix for BUG#47073 is pushed.
+#SET myisam_repair_threads=2;
+# May report different values depending on threads activity.
+#--replace_regex /changed from [0-9]+/changed from #/
+#REPAIR TABLE t1;
+#SET myisam_repair_threads=@@global.myisam_repair_threads;
+
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 

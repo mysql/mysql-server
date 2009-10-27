@@ -334,16 +334,18 @@ bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
+  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  bool save_abort_on_warning= thd->abort_on_warning;
+  bool save_stmt_modified_non_trans_table= 
+    thd->transaction.stmt.modified_non_trans_table;
 
   DBUG_ENTER("sp_eval_expr");
 
   if (!*expr_item_ptr)
-    DBUG_RETURN(TRUE);
+    goto error;
 
   if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
-    DBUG_RETURN(TRUE);
-
-  bool err_status= FALSE;
+    goto error;
 
   /*
     Set THD flags to emit warnings/errors in case of overflow/type errors
@@ -352,10 +354,6 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
     Save original values and restore them after save.
   */
   
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
@@ -370,13 +368,18 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning= save_abort_on_warning;
   thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
-  if (thd->is_error())
-  {
-    /* Return error status if something went wrong. */
-    err_status= TRUE;
-  }
+  if (!thd->is_error())
+    DBUG_RETURN(FALSE);
 
-  DBUG_RETURN(err_status);
+error:
+  /*
+    In case of error during evaluation, leave the result field set to NULL.
+    Sic: we can't do it in the beginning of the function because the 
+    result field might be needed for its own re-evaluation, e.g. case of 
+    set x = x + 1;
+  */
+  result_field->set_null();
+  DBUG_RETURN (TRUE);
 }
 
 
@@ -2826,8 +2829,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  query= thd->query;
-  query_length= thd->query_length;
+  query= thd->query();
+  query_length= thd->query_length();
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -2840,10 +2843,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd,
-					  thd->query, thd->query_length) <= 0)
+          thd->query(), 
+          thd->query_length()) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 

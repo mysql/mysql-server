@@ -1219,3 +1219,191 @@ explain select * from t2 where a=1000 and b<11;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	5	const	502	Using where
 drop table t1, t2;
+CREATE TABLE t1( a INT, b INT, KEY( a, b ) );
+CREATE TABLE t2( a INT, b INT, KEY( a, b ) );
+CREATE TABLE t3( a INT, b INT, KEY( a, b ) );
+INSERT INTO t1( a, b ) 
+VALUES (0, 1), (1, 2), (1, 4), (2, 3), (5, 0), (9, 7);
+INSERT INTO t2( a, b ) 
+VALUES ( 1, 1), ( 2, 1), ( 3, 1), ( 4, 1), ( 5, 1),
+( 6, 1), ( 7, 1), ( 8, 1), ( 9, 1), (10, 1), 
+(11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
+(16, 1), (17, 1), (18, 1), (19, 1), (20, 1);
+INSERT INTO t2 SELECT a, 2 FROM t2 WHERE b = 1;
+INSERT INTO t2 SELECT a, 3 FROM t2 WHERE b = 1;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t3
+VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),
+(6, 0), (7, 0), (8, 0), (9, 0), (10, 0);
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+a	b
+1	1
+2	1
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+15	3
+16	1
+16	3
+17	1
+17	3
+18	1
+18	3
+19	1
+19	3
+20	1
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	10	NULL	50	Using where; Using index
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+a	b
+1	1
+2	1
+3	1
+4	1
+5	1
+5	2
+6	1
+6	2
+7	1
+7	2
+8	1
+8	2
+9	1
+9	2
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+15	3
+16	1
+16	3
+17	1
+17	3
+18	1
+18	3
+19	1
+19	3
+20	1
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	10	NULL	50	Using where; Using index
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+a	b
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+7	0
+8	0
+9	0
+EXPLAIN
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	a	a	5	NULL	8	Using where; Using index
+DROP TABLE t1, t2, t3;
+#
+# Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES (1), (NULL);
+SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
+a
+DROP TABLE t1;
+End of 5.1 tests
