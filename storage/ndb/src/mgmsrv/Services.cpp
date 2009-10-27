@@ -1957,6 +1957,37 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
 }
 
 
+static bool
+clear_dynamic_ports_from_config(Config* config)
+{
+  ConfigIter iter(config, CFG_SECTION_CONNECTION);
+
+  for(;iter.valid();iter.next()) {
+    Uint32 n1, n2;
+    if (iter.get(CFG_CONNECTION_NODE_1, &n1) != 0 &&
+        iter.get(CFG_CONNECTION_NODE_2, &n2) != 0)
+      return false;
+
+    Uint32 port_value;
+    if (iter.get(CFG_CONNECTION_SERVER_PORT, &port_value) != 0)
+      return false;
+
+    int port = (int)port_value;
+    if (port < 0)
+    {
+      // Found a dynamic port with value in config, clear it by updating
+      // the already existing value
+      Uint32 zero_port = 0;
+      ConfigValues::Iterator i2(config->m_configValues->m_config,
+                                iter.m_config);
+      if (!i2.set(CFG_CONNECTION_SERVER_PORT, zero_port))
+        return false;
+    }
+  }
+  return true;
+}
+
+
 void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
 {
   BaseString result("Ok");
@@ -2015,6 +2046,15 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     delete decoded;
 
     Config new_config(cvf.getConfigValues());
+
+    // Remove any dynamic ports from the new config
+    if (!clear_dynamic_ports_from_config(&new_config))
+    {
+      result.assfmt("INTERNAL ERROR: Failed to clear dynamic "
+                    "ports from config");
+      goto done;
+    }
+
     (void)m_mgmsrv.change_config(new_config, result);
   }
 

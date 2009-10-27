@@ -596,9 +596,39 @@ ConfigManager::commitConfigChange(void)
 }
 
 
+static void
+check_no_dynamic_ports_in_config(const Config* config)
+{
+  bool ok = true;
+  ConfigIter iter(config, CFG_SECTION_CONNECTION);
+
+  for(;iter.valid();iter.next()) {
+    Uint32 n1, n2;
+    require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0 &&
+            iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
+
+    Uint32 port_value;
+    require(iter.get(CFG_CONNECTION_SERVER_PORT, &port_value) == 0);
+
+    int port = (int)port_value;
+    if (port < 0)
+    {
+      g_eventLogger->error("INTERNAL ERROR: Found dynamic ports with "
+                           "value in config, n1: %d, n2: %d, port: %u",
+                           n1, n2, port);
+      ok = false;
+    }
+  }
+  require(ok);
+}
+
+
 void
 ConfigManager::set_config(Config* new_config)
 {
+  // Check that config does not contain any dynamic ports
+  check_no_dynamic_ports_in_config(new_config);
+
   delete m_config;
   m_config = new_config;
 
