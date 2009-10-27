@@ -182,17 +182,17 @@ DROP DATABASE IF EXISTS `ó`;
 #  {"utf-8",          "utf8",     my_cs_exact},
 
 --echo 
---echo UTF-8
---exec LC_ALL=en_US.UTF-8 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=en_US.UTF-8 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=en_US.UTF-8 $MYSQL_SHOW --default-character-set=auto ó
---exec LC_ALL=en_US.UTF-8 $MYSQL_SHOW --default-character-set=auto "Ã³"
---exec LC_ALL=en_US.UTF-8 $MYSQL_SHOW --default-character-set=auto "Ăł"
---exec LC_ALL=en_US.UTF-8 $MYSQL_SHOW --default-character-set=auto "цЁ"
---exec LC_ALL=en_US.UTF-8 $MYSQL_CHECK --default-character-set=auto ó
---exec LC_ALL=en_US.UTF-8 $MYSQL_CHECK --default-character-set=auto "Ã³"
---exec LC_ALL=en_US.UTF-8 $MYSQL_CHECK --default-character-set=auto "Ăł"
---exec LC_ALL=en_US.UTF-8 $MYSQL_CHECK --default-character-set=auto "цЁ"
+--echo utf8
+--exec LC_ALL=en_US.utf8 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=en_US.utf8 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto ó
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "Ã³"
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "Ăł"
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "цЁ"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto ó
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "Ã³"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "Ăł"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "цЁ"
 
 SHOW DATABASES LIKE 'Ã³';
 SHOW DATABASES LIKE 'Ăł';
