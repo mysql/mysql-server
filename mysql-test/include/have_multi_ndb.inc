@@ -21,12 +21,6 @@ if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
-if ($have_embedded)
-{
-  # Embedded server does not have 'wait_setup' mechanism
-  # so must use script to wait till it's started up
-  --source include/ndb_not_readonly.inc
-}
 }
 enable_query_log;
 
