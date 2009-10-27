@@ -4620,7 +4620,7 @@ ER_USER_LIMIT_REACHED 42000
         swe "Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)"
 ER_SPECIFIC_ACCESS_DENIED_ERROR 42000 
         nla "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie"
-        eng "Access denied; you need the %-.128s privilege for this operation"
+        eng "Access denied; you need (at least one of) the %-.128s privilege(s) for this operation"
         ger "Kein Zugriff. Hierfür wird die Berechtigung %-.128s benötigt"
         ita "Accesso non consentito. Serve il privilegio %-.128s per questa operazione"
         por "Acesso negado. Você precisa o privilégio %-.128s para essa operação"
@@ -6237,3 +6237,7 @@ ER_COND_ITEM_TOO_LONG
 
 ER_UNKNOWN_LOCALE                                                                                                                                                                    
         eng "Unknown locale: '%-.64s'"
+
+ER_SLAVE_IGNORE_SERVER_IDS
+  eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
+

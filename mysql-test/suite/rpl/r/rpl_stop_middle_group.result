@@ -1,0 +1,61 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table tm (a int auto_increment primary key) engine=myisam;
+create table ti (a int auto_increment primary key) engine=innodb;
+set @@global.debug="+d,stop_slave_middle_group";
+begin;
+insert into ti set a=null;
+insert into tm set a=null;
+commit;
+SELECT "NO" AS Last_SQL_Error, @check as `true`;
+Last_SQL_Error	true
+NO	1
+select count(*) as one from tm;
+one
+1
+select count(*) as one from ti;
+one
+1
+set @@global.debug="-d";
+include/start_slave.inc
+truncate table tm;
+truncate table ti;
+set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,incomplete_group_in_relay_log";
+begin;
+insert into ti set a=null;
+insert into tm set a=null;
+commit;
+SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
+Last_SQL_Error	true
+Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
+select count(*) as one  from tm;
+one
+1
+select count(*) as zero from ti;
+zero
+0
+set @@global.debug="-d";
+stop slave;
+truncate table tm;
+include/start_slave.inc
+set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,incomplete_group_in_relay_log";
+update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
+SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
+Last_SQL_Error	true
+Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
+select max(a) as two from tm;
+two
+2
+select max(a) as one from ti;
+one
+1
+set @@global.debug="-d";
+drop table tm, ti;
+include/stop_slave.inc
+drop table tm, ti;

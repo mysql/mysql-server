@@ -1,3 +1,6 @@
+#ifndef MYSYS_MY_STATIC_INCLUDED
+#define MYSYS_MY_STATIC_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -72,3 +75,5 @@ extern ulonglong query_performance_frequency, query_performance_offset;
 extern sigset_t my_signals;		/* signals blocked by mf_brkhant */
 #endif
 C_MODE_END
+
+#endif /* MYSYS_MY_STATIC_INCLUDED */

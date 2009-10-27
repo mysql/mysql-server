@@ -1,0 +1,3 @@
+MYSQL_PLUGIN(semisync,[Semi-synchronous Replication Plugin],
+        [Semi-synchronous replication plugin.])
+MYSQL_PLUGIN_DYNAMIC(semisync,   [libsemisync_master.la libsemisync_slave.la])
