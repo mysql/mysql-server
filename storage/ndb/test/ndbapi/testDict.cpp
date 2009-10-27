@@ -7194,6 +7194,15 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << pDic->getNdbError() << endl;
     }
+    if (pDic->getNdbError().code == 1224)
+    {
+      /**
+       * To many fragments is an acceptable error
+       *   depending on configuration used for test-case
+       */
+      result = NDBT_OK;
+      goto end;
+    }
     CHECK2(result == 0,
            "failed to alter");
 
@@ -7219,6 +7228,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
       if (res.getNumDbNodes() > 1)
       {
         int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        ndbout_c("performing node-restart of node %d", nodeId);
         CHECK2(res.restartOneDbNode(nodeId,
                                     false,
                                     true,
@@ -7232,6 +7242,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
       }
     case 1:
     {
+      ndbout_c("performing system restart");
       CHECK2(res.restartAll(false, true, false) == 0,
              "restart all failed");
       CHECK2(res.waitClusterNoStart() == 0,
