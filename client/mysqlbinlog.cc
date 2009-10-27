@@ -38,8 +38,8 @@
 /* Needed for Rpl_filter */
 CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
 
-#include "sql_string.h"  // needed for Rpl_filter
-#include "sql_list.h"           // needed for Rpl_filter
+#include "sql_string.h"   // needed for Rpl_filter
+#include "sql_list.h"     // needed for Rpl_filter
 #include "rpl_filter.h"
 
 Rpl_filter *binlog_filter;
@@ -1190,7 +1190,8 @@ that may lead to an endless loop.",
    (uchar**) &open_files_limit, (uchar**) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
   {"rewrite-db", OPT_REWRITE_DB,
-   "Updates to a database with a different name than the original.",
+   "Updates to a database with a different name than the original. \
+Example: rewrite-db='from->to'.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
