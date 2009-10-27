@@ -566,6 +566,29 @@ int init_embedded_server(int argc, char **argv, char **groups)
   }
 
   execute_ddl_log_recovery();
+  
+  /* Signal successful initialization */
+  pthread_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= 1;
+  pthread_cond_signal(&COND_server_started);
+  pthread_mutex_unlock(&LOCK_server_started);
+  
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* 
+     Give ndb opportunity to initialise more things after
+     mysqld_server_started is true
+  */
+  if (ndb_wait_setup_func)
+  {
+    if (ndb_wait_setup_func(opt_ndb_wait_setup))
+    {
+      fprintf(stderr, "NDB : Tables not available after %lu seconds."
+              "  Consider increasing --ndb-wait-setup value",
+              opt_ndb_wait_setup);
+    }
+  }
+#endif
+  
   return 0;
 }
 
