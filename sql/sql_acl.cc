@@ -5206,8 +5206,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
           is renamed, the hash key is changed. Update the hash to
           ensure that the position matches the new hash key value
         */
-        hash_update(&column_priv_hash, (byte *)grant_name,
-                    grant_name->hash_key, grant_name->key_length);
+        hash_update(&column_priv_hash, (byte*) grant_name,
+                    (byte *) grant_name->hash_key, grant_name->key_length);
 	break;
       }
     }
