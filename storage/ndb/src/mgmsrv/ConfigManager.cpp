@@ -2336,7 +2336,7 @@ check_dynamic_port_configured(const Config* config,
   if (port != 0)
   {
     // Dynamic ports is zero in configuration
-    msg.assfmt("Server port for %d -> %d is not marked as dynamic, value: %d",
+    msg.assfmt("Server port for %d -> %d is not marked as dynamic, value: %u",
                node1, node2, port);
     return false;
   }
