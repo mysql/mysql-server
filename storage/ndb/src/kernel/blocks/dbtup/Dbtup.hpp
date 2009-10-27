@@ -2429,16 +2429,6 @@ public:
   Uint32 read_lcp_keys(Uint32, const Uint32 * src, Uint32 len, Uint32 *dst);
 private:
 
-  /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
-  static inline Uint32 count_bits(Uint32 x)
-  {
-    x= x - ((x>>1) & 0x55555555);
-    x= (x & 0x33333333) + ((x>>2) & 0x33333333);
-    x= (x + (x>>4)) & 0x0f0f0f0f;
-    x= (x*0x01010101) >> 24;
-    return x;
-  }
-
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void setUpQueryRoutines(Tablerec* regTabPtr);

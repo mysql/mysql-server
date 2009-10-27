@@ -921,9 +921,9 @@ Dbtup::readDynFixedSizeShrunkenNotNULL(Uint8* outBuffer,
   Uint32 *bm_mask_ptr= regTabPtr->dynFixSizeMask;
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
-  Uint32 bit_count= count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
+  Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
   for(Uint32 i=0; i<bm_pos; i++)
-    bit_count+= count_bits(bm_mask_ptr[i] & bm_ptr[i]);
+    bit_count+= BitmaskImpl::count_bits(bm_mask_ptr[i] & bm_ptr[i]);
 
   /* Now compute the data pointer from the row length. */
   Uint32 attr_descriptor= req_struct->attr_descriptor;
@@ -1067,9 +1067,9 @@ Dbtup::readDynBigFixedSizeShrunkenNotNULL(Uint8* outBuffer,
   Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask;
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
-  Uint32 bit_count= count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
+  Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
   for(Uint32 i=0; i<bm_pos; i++)
-    bit_count+= count_bits(bm_mask_ptr[i] & bm_ptr[i]);
+    bit_count+= BitmaskImpl::count_bits(bm_mask_ptr[i] & bm_ptr[i]);
 
   /* Now find the data pointer and length from the offset array. */
   Uint32 attr_descriptor= req_struct->attr_descriptor;
@@ -1318,9 +1318,9 @@ Dbtup::readDynVarSizeShrunkenNotNULL(Uint8* outBuffer,
   Uint32 *bm_mask_ptr= regTabPtr->dynVarSizeMask;
   Uint32 bm_pos= AttributeOffset::getNullFlagOffset(attrDes2);
   Uint32 prevMask= (1 << (pos & 31)) - 1;
-  Uint32 bit_count= count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
+  Uint32 bit_count= BitmaskImpl::count_bits(prevMask & bm_mask_ptr[bm_pos] & bm_ptr[bm_pos]);
   for(Uint32 i=0; i<bm_pos; i++)
-    bit_count+= count_bits(bm_mask_ptr[i] & bm_ptr[i]);
+    bit_count+= BitmaskImpl::count_bits(bm_mask_ptr[i] & bm_ptr[i]);
 
   /* Now find the data pointer and length from the offset array. */
   //Uint16* offset_array = req_struct->m_var_data[MM].m_dyn_offset_arr_ptr;
