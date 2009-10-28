@@ -480,9 +480,9 @@ public:
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
         key_tree->part != last_part &&
-	key_tree->next_key_part->part == key_tree->part+1 &&
-	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
-	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+        key_tree->next_key_part->part == key_tree->part+1 &&
+        !(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
+        key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
       res+= key_tree->next_key_part->store_max_key(key,
                                                    range_key,
                                                    range_key_flag,
@@ -3137,8 +3137,9 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   bool set_full_part_if_bad_ret= FALSE;
   bool ignore_part_fields= ppar->ignore_part_fields;
   bool did_set_ignore_part_fields= FALSE;
+  RANGE_OPT_PARAM *range_par= &(ppar->range_param);
 
-  if (check_stack_overrun(ppar->range_param.thd, 3*STACK_MIN_SIZE, NULL))
+  if (check_stack_overrun(range_par->thd, 3*STACK_MIN_SIZE, NULL))
     return -1;
 
   if (key_tree->left != &null_element)
@@ -3234,11 +3235,11 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       else
         flag= key_tree->min_flag | key_tree->max_flag;
       
-      if (tmp_min_key != ppar->range_param.min_key)
+      if (tmp_min_key != range_par->min_key)
         flag&= ~NO_MIN_RANGE;
       else
         flag|= NO_MIN_RANGE;
-      if (tmp_max_key != ppar->range_param.max_key)
+      if (tmp_max_key != range_par->max_key)
         flag&= ~NO_MAX_RANGE;
       else
         flag|= NO_MAX_RANGE;
@@ -3265,10 +3266,10 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
              get_part_iter_for_interval(ppar->part_info,
                                         FALSE,
                                         store_length_array,
-                                        ppar->range_param.min_key,
-                                        ppar->range_param.max_key,
-                                    tmp_min_key - ppar->range_param.min_key,
-                                    tmp_max_key - ppar->range_param.max_key,
+                                        range_par->min_key,
+                                        range_par->max_key,
+                                        tmp_min_key - range_par->min_key,
+                                        tmp_max_key - range_par->max_key,
                                         flag,
                                         &ppar->part_iter);
         if (!res)
@@ -3304,8 +3305,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
     {
       PARTITION_ITERATOR subpart_iter;
       DBUG_EXECUTE("info", dbug_print_segment_range(key_tree,
-                                                    ppar->range_param.
-                                                    key_parts););
+                                                    range_par->key_parts););
       res= ppar->part_info->
            get_subpart_iter_for_interval(ppar->part_info,
                                          TRUE,
@@ -7649,13 +7649,13 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
       tmp_min_keypart+=
       key_tree->next_key_part->store_min_key(param->key[idx],
                                              &tmp_min_key,
-					     &tmp_min_flag,
+                                             &tmp_min_flag,
                                              MAX_KEY);
     if (!tmp_max_flag)
       tmp_max_keypart+=
       key_tree->next_key_part->store_max_key(param->key[idx],
                                              &tmp_max_key,
-					     &tmp_max_flag,
+                                             &tmp_max_flag,
                                              MAX_KEY);
     min_key_length= (uint) (tmp_min_key - param->min_key);
     max_key_length= (uint) (tmp_max_key - param->max_key);
