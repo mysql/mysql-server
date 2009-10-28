@@ -89,3 +89,9 @@ DROP USER mysqltest1@'%';
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 eval set GLOBAL sql_mode=default;
+
+#
+# Test the --upgrade-system-tables option
+#
+--exec $MYSQL_UPGRADE --upgrade-system-tables
+
