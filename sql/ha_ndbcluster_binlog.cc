@@ -5479,6 +5479,9 @@ enum Binlog_thread_state
   BCCC_restart= 2
 };
 
+extern ulong ndb_report_thresh_binlog_epoch_slip;
+extern ulong ndb_report_thresh_binlog_mem_usage;
+
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
   THD *thd; /* needs to be first for thread_stack */
