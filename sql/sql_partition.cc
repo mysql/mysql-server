@@ -2027,35 +2027,57 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
-static int check_part_field(Create_field *sql_field,
+static int check_part_field(enum_field_types sql_type,
+                            const char *field_name,
+                            Item_result *result_type,
                             bool *need_cs_check)
 {
-  *need_cs_check= FALSE;
-  if (sql_field->sql_type == MYSQL_TYPE_TIMESTAMP)
-    goto error;
-  if (sql_field->sql_type < MYSQL_TYPE_VARCHAR ||
-      sql_field->sql_type == MYSQL_TYPE_NEWDECIMAL)
-    return FALSE;
-  if (sql_field->sql_type >= MYSQL_TYPE_TINY_BLOB &&
-      sql_field->sql_type <= MYSQL_TYPE_BLOB)
+  if (sql_type >= MYSQL_TYPE_TINY_BLOB &&
+      sql_type <= MYSQL_TYPE_BLOB)
   {
     my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
     return TRUE;
   }
-  switch (sql_field->sql_type)
+  switch (sql_type)
   {
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_INT24:
+      *result_type= INT_RESULT;
+      *need_cs_check= FALSE;
+      return FALSE;
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+      *result_type= STRING_RESULT;
+      *need_cs_check= FALSE;
+      return FALSE;
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
+      *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
-      break;
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_GEOMETRY:
+      goto error;
     default:
       goto error;
   }
 error:
   my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
-           sql_field->field_name);
+           field_name);
   return TRUE;
 }
 
@@ -2111,6 +2133,8 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       {
         String *res;
         CHARSET_INFO *field_cs;
+        bool need_cs_check= FALSE;
+        Item_result result_type= STRING_RESULT;
 
         /*
           This function is called at a very early stage, even before
@@ -2121,7 +2145,6 @@ static int add_column_list_values(File fptr, partition_info *part_info,
         if (create_info)
         {
           Create_field *sql_field;
-          bool need_cs_check= FALSE;
 
           if (!(sql_field= get_sql_field(field_name,
                                          alter_info)))
@@ -2129,7 +2152,10 @@ static int add_column_list_values(File fptr, partition_info *part_info,
             my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
             return 1;
           }
-          if (check_part_field(sql_field, &need_cs_check))
+          if (check_part_field(sql_field->sql_type,
+                               sql_field->field_name,
+                               &result_type,
+                               &need_cs_check))
             return 1;
           if (need_cs_check)
             field_cs= get_sql_field_charset(sql_field, create_info);
@@ -2137,7 +2163,20 @@ static int add_column_list_values(File fptr, partition_info *part_info,
             field_cs= NULL;
         }
         else
-          field_cs= part_info->part_field_array[i]->charset();
+        {
+          Field *field= part_info->part_field_array[i];
+          result_type= field->result_type();
+          if (check_part_field(field->real_type(),
+                               field->field_name,
+                               &result_type,
+                               &need_cs_check))
+            return 1;
+          DBUG_ASSERT(result_type == field->result_type());
+          if (need_cs_check)
+            field_cs= field->charset();
+          else
+            field_cs= NULL;
+        }
         if (field_cs && field_cs != item_expr->collation.collation)
         {
           if (!(item_expr= convert_charset_partition_constant(item_expr,
@@ -2147,24 +2186,34 @@ static int add_column_list_values(File fptr, partition_info *part_info,
             return 1;
           }
         }
-        res= item_expr->val_str(&str);
-        if (!res)
+        if (result_type != item_expr->result_type())
         {
-          my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
           return 1;
         }
-        if (item_expr->result_type() == STRING_RESULT)
+        if (result_type == INT_RESULT)
         {
+          longlong val;
+          val= item_expr->val_int();
+          err+= add_int(fptr, val);
+        }
+        else
+        {
+          res= item_expr->val_str(&str);
+          if (!res)
+          {
+            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+            return 1;
+          }
           if (field_cs)
           {
             err+= add_string(fptr,"_");
             err+= add_string(fptr, field_cs->csname);
           }
           err+= add_string(fptr,"'");
-        }
-        err+= add_string_object(fptr, res);
-        if (item_expr->result_type() == STRING_RESULT)
+          err+= add_string_object(fptr, res);
           err+= add_string(fptr,"'");
+        }
       }
     }
     if (i != (num_elements - 1))
