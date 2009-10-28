@@ -51,9 +51,6 @@ class Ndb_event_data;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
-extern ulong ndb_cache_check_time;
-extern ulong ndb_report_thresh_binlog_epoch_slip;
-extern ulong ndb_report_thresh_binlog_mem_usage;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
