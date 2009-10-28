@@ -2094,8 +2094,10 @@ JOIN::exec()
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 				      1, TRUE) || 
-        prepare_sum_aggregators (curr_join->sum_funcs, !curr_join->join_tab ||
-                                !curr_join->join_tab->is_using_agg_loose_index_scan()) ||
+        prepare_sum_aggregators(curr_join->sum_funcs,
+                                !curr_join->join_tab ||
+                                !curr_join->join_tab->
+                                  is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
         thd->is_fatal_error)
       DBUG_VOID_RETURN;
@@ -4008,7 +4010,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
       join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
     return false;
 
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
+  if (join->make_sum_func_list(join->all_fields, join->fields_list, true))
     return false;
 
   for (sum_item_ptr= join->sum_funcs; *sum_item_ptr; sum_item_ptr++)
@@ -15477,10 +15479,10 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
 static bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 {
   Item_sum *func;
-  DBUG_ENTER("setup_sum_funcs");
+  DBUG_ENTER("prepare_sum_aggregators");
   while ((func= *(func_ptr++)))
   {
-    if (func->set_aggregator(need_distinct && func->with_distinct ?
+    if (func->set_aggregator(need_distinct && func->has_with_distinct() ?
                              Aggregator::DISTINCT_AGGREGATOR :
                              Aggregator::SIMPLE_AGGREGATOR))
       DBUG_RETURN(TRUE);
