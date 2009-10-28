@@ -1779,6 +1779,11 @@ bool fix_partition_func(THD *thd, TABLE *table,
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
   }
+  if (unlikely(part_info->check_partition_field_length()))
+  {
+    my_error(ER_PARTITION_FIELDS_TOO_LONG, MYF(0));
+    goto end;
+  }
   check_range_capable_PF(table);
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
@@ -2038,8 +2043,6 @@ static int check_part_field(Create_field *sql_field,
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VAR_STRING:
-      if (sql_field->length > MAX_STR_SIZE_PF)
-        goto error;
       *need_cs_check= TRUE;
       return FALSE;
       break;
@@ -2095,7 +2098,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       err+= add_string(fptr, "NULL");
     else
     {
-      char buffer[3 * MAX_STR_SIZE_PF + 10];
+      char buffer[MAX_KEY_LENGTH];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item_expr= col_val->item_expression;
       if (item_expr->null_value)
@@ -7729,6 +7732,18 @@ void create_subpartition_name(char *out, const char *in1,
   else if (name_variant == RENAMED_PART_NAME)
     strxmov(out, in1, "#P#", transl_part_name,
             "#SP#", transl_subpart_name, "#REN#", NullS);
+}
+
+uint get_partition_field_store_length(Field *field)
+{
+  uint store_length;
+
+  store_length= field->key_length();
+  if (field->real_maybe_null())
+    store_length+= HA_KEY_NULL_LENGTH;
+  if (field->real_type() == MYSQL_TYPE_VARCHAR)
+    store_length+= HA_KEY_BLOB_LENGTH;
+  return store_length;
 }
 #endif
 

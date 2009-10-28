@@ -3600,12 +3600,8 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   {
     key_part->key=          0;
     key_part->part=	    part;
-    key_part->store_length= key_part->length= (uint16) (*field)->key_length();
-    if ((*field)->real_maybe_null())
-      key_part->store_length+= HA_KEY_NULL_LENGTH;
-    if ((*field)->type() == MYSQL_TYPE_BLOB || 
-        (*field)->real_type() == MYSQL_TYPE_VARCHAR)
-      key_part->store_length+= HA_KEY_BLOB_LENGTH;
+    key_part->length= (uint16)get_partition_field_store_length(*field);
+    key_part->store_length= key_part->length;
 
     DBUG_PRINT("info", ("part %u length %u store_length %u", part,
                          key_part->length, key_part->store_length));

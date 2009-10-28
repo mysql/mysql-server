@@ -4846,7 +4846,7 @@ get_partition_column_description(partition_info *part_info,
       tmp_str.append("NULL");
     else
     {
-      char buffer[3 * MAX_STR_SIZE_PF + 10];
+      char buffer[MAX_KEY_LENGTH];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item= col_val->item_expression;
 

@@ -9,6 +9,23 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# BUG#48164, too long partition fields causes crash
+#
+--error ER_PARTITION_FIELDS_TOO_LONG
+create table t1 (a varchar(1500), b varchar(1570))
+partition by list column_list(a,b)
+( partition p0 values in (('a','b')));
+
+create table t1 (a varchar(1023) character set utf8 collate utf8_spanish2_ci)
+partition by range column_list(a)
+( partition p0 values less than ('CZ'),
+  partition p1 values less than ('CH'),
+  partition p2 values less than ('D'));
+insert into t1 values ('czz'),('chi'),('ci'),('cg');
+select * from t1 where a between 'cg' AND 'ci';
+drop table t1;
+
+#
 # BUG#48165, sql_mode gives error
 #
 set @@sql_mode=allow_invalid_dates;

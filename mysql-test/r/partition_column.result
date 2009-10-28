@@ -1,4 +1,19 @@
 drop table if exists t1;
+create table t1 (a varchar(1500), b varchar(1570))
+partition by list column_list(a,b)
+( partition p0 values in (('a','b')));
+ERROR HY000: The total length of the partitioning fields is too large
+create table t1 (a varchar(1023) character set utf8 collate utf8_spanish2_ci)
+partition by range column_list(a)
+( partition p0 values less than ('CZ'),
+partition p1 values less than ('CH'),
+partition p2 values less than ('D'));
+insert into t1 values ('czz'),('chi'),('ci'),('cg');
+select * from t1 where a between 'cg' AND 'ci';
+a
+ci
+cg
+drop table t1;
 set @@sql_mode=allow_invalid_dates;
 create table t1 (a char, b char, c date)
 partition by range column_list (a,b,c)

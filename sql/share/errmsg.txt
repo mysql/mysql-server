@@ -6222,3 +6222,5 @@ ER_ROW_SINGLE_PARTITION_FIELD_ERROR
         eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
 ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
+ER_PARTITION_FIELDS_TOO_LONG
+  eng "The total length of the partitioning fields is too large"
