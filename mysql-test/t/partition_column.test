@@ -56,8 +56,8 @@ create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range column_list(a,b,c,d)
 subpartition by hash (to_seconds(d))
 subpartitions 4
-( partition p0 values less than (1, 0, MAXVALUE, 0),
-  partition p1 values less than (1, 'a', MAXVALUE, TO_DAYS('1999-01-01')),
+( partition p0 values less than (1, 0, MAXVALUE, '1900-01-01'),
+  partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
   partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
   partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
