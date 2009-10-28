@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2008 MySQL AB, Sun Microsystems Inc. 2008-2009
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -171,16 +171,16 @@ typedef struct st_partition_iter
 
   SYNOPSIS
     get_partitions_in_range_iter()
-      part_info   Partitioning info
+      part_info            Partitioning info
       is_subpart
-      store_length_array Length of fields packed in opt_range_key format
-      min_val     Left edge,  field value in opt_range_key format
-      max_val     Right edge, field value in opt_range_key format
-      min_len     Length of minimum value
-      max_len     Length of maximum value
-      flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
-                  NO_MAX_RANGE
-      part_iter   Iterator structure to be initialized
+      store_length_array   Length of fields packed in opt_range_key format
+      min_val              Left edge,  field value in opt_range_key format
+      max_val              Right edge, field value in opt_range_key format
+      min_len              Length of minimum value
+      max_len              Length of maximum value
+      flags                Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
+                           NO_MAX_RANGE
+      part_iter            Iterator structure to be initialized
 
   DESCRIPTION
     Functions with this signature are used to perform "Partitioning Interval
