@@ -64,6 +64,8 @@ extern void ndb_end_internal();
 }
 #endif
 
+static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
+
 const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
 TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
                                     "", ndb_distribution_names, NULL };
@@ -5413,9 +5415,9 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   {
     /* We don't know how many will be inserted, guess */
     m_rows_to_insert=
-      (m_autoincrement_prefetch > NDB_DEFAULT_AUTO_PREFETCH)
+      (m_autoincrement_prefetch > DEFAULT_AUTO_PREFETCH)
       ? m_autoincrement_prefetch
-      : NDB_DEFAULT_AUTO_PREFETCH;
+      : DEFAULT_AUTO_PREFETCH;
     m_autoincrement_prefetch= m_rows_to_insert;
   }
   else
@@ -8111,7 +8113,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
-  m_autoincrement_prefetch((ha_rows) NDB_DEFAULT_AUTO_PREFETCH),
+  m_autoincrement_prefetch(DEFAULT_AUTO_PREFETCH),
   m_cond(NULL),
   m_multi_cursor(NULL)
 {
