@@ -1344,6 +1344,36 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
 
 
 /*
+  Check that partition fields and subpartition fields are not too long
+
+  SYNOPSIS
+    check_partition_field_length()
+
+  RETURN VALUES
+    TRUE                             Total length was too big
+    FALSE                            Length is ok
+*/
+
+bool partition_info::check_partition_field_length()
+{
+  uint store_length= 0;
+  uint i;
+  DBUG_ENTER("partition_info::check_partition_field_length");
+
+  for (i= 0; i < num_part_fields; i++)
+    store_length+= get_partition_field_store_length(part_field_array[i]);
+  if (store_length > MAX_KEY_LENGTH)
+    DBUG_RETURN(TRUE);
+  store_length= 0;
+  for (i= 0; i < num_subpart_fields; i++)
+    store_length+= get_partition_field_store_length(subpart_field_array[i]);
+  if (store_length > MAX_KEY_LENGTH)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Set up buffers and arrays for fields requiring preparation
   SYNOPSIS
     set_up_charset_field_preps()
