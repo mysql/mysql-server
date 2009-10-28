@@ -361,8 +361,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4.0) tablespace ts1,
 partition x2 values less than (8) tablespace ts2);
-ERROR 42000: VALUES value must be of same type as partition function near ') tablespace ts1,
-partition x2 values less than (8) tablespace ts2)' at line 8
+ERROR HY000: VALUES value must be of same type as partition function
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -412,8 +411,7 @@ partition by list (a)
 partitions 2
 (partition x1 values less than 4,
 partition x2 values less than (5));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
-partition x2 values less than (5))' at line 8
+ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -423,7 +421,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than maxvalue,
 partition x2 values less than (5));
-ERROR 42000: MAXVALUE can only be used in last partition definition near '))' at line 9
+ERROR HY000: MAXVALUE can only be used in last partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -433,7 +431,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than maxvalue,
 partition x2 values less than maxvalue);
-ERROR 42000: MAXVALUE can only be used in last partition definition near 'maxvalue)' at line 9
+ERROR HY000: MAXVALUE can only be used in last partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -602,8 +600,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4.0, 12+8),
 partition x2 values in (3, 21));
-ERROR 42000: VALUES value must be of same type as partition function near ' 12+8),
-partition x2 values in (3, 21))' at line 8
+ERROR HY000: VALUES value must be of same type as partition function
 CREATE TABLE t1 (
 a int not null,
 b int not null,

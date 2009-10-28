@@ -180,7 +180,7 @@ partitions 3
 (partition x1, partition x2);
 
 #
-# Partition by key specified 3 partitions but only defined 2 => error
+# Partition by hash, random function
 #
 --error 1064
 CREATE TABLE t1 (
@@ -193,7 +193,7 @@ partitions 2
 (partition x1, partition x2);
 
 #
-# Partition by key specified 3 partitions but only defined 2 => error
+# Partition by range, random function
 #
 --error 1064
 CREATE TABLE t1 (
@@ -206,7 +206,7 @@ partitions 2
 (partition x1 values less than (0), partition x2 values less than (2));
 
 #
-# Partition by key specified 3 partitions but only defined 2 => error
+# Partition by list, random function
 #
 --error 1064
 CREATE TABLE t1 (
@@ -452,7 +452,7 @@ partitions 2
 #
 # Partition by range, inconsistent partition function and constants
 #
---error 1064
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -522,7 +522,7 @@ partitions 2
 #
 # Partition by range, missing parenthesis
 #
---error 1064
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -536,7 +536,7 @@ partitions 2
 #
 # Partition by range, maxvalue in wrong place
 #
---error 1064
+--error ER_PARTITION_MAXVALUE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -550,7 +550,7 @@ partitions 2
 #
 # Partition by range, maxvalue in several places
 #
---error 1064
+--error ER_PARTITION_MAXVALUE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -765,7 +765,7 @@ partitions 2
 #
 # Partition by list, wrong constant result type (not INT)
 #
---error 1064
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
