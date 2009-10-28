@@ -41,7 +41,7 @@ let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
 
 # Slow running test
---include/big_test.inc
+--source include/big_test.inc
 # This test relies on connecting externally from mysqltest, doesn't
 # work with embedded.
 --source include/not_embedded.inc
