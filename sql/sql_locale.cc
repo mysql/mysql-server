@@ -26,7 +26,7 @@
 enum err_msgs_index
 {
   en_US= 0, cs_CZ, da_DK, nl_NL, et_EE, fr_FR, de_DE, el_GR, hu_HU, it_IT,
-  ja_JP, ko_KR, no_NO, nn_NO, pl_PL, pt_PT, ro_RO, ru_RU, sr_CS,  sk_SK,
+  ja_JP, ko_KR, no_NO, nn_NO, pl_PL, pt_PT, ro_RO, ru_RU, sr_RS,  sk_SK,
   es_ES, sv_SE, uk_UA
 } ERR_MSGS_INDEX;
 
@@ -1716,41 +1716,41 @@ MY_LOCALE my_locale_sq_AL
 );
 /***** LOCALE END sq_AL *****/
 
-/***** LOCALE BEGIN sr_YU: Servian - Yugoslavia *****/
-static const char *my_locale_month_names_sr_YU[13] = 
+/***** LOCALE BEGIN sr_RS: Serbian - Serbia *****/
+static const char *my_locale_month_names_sr_RS[13] = 
  {"januar","februar","mart","april","maj","juni","juli","avgust","septembar","oktobar","novembar","decembar", NullS };
-static const char *my_locale_ab_month_names_sr_YU[13] = 
+static const char *my_locale_ab_month_names_sr_RS[13] = 
  {"jan","feb","mar","apr","maj","jun","jul","avg","sep","okt","nov","dec", NullS };
-static const char *my_locale_day_names_sr_YU[8] = 
+static const char *my_locale_day_names_sr_RS[8] = 
  {"ponedeljak","utorak","sreda","četvrtak","petak","subota","nedelja", NullS };
-static const char *my_locale_ab_day_names_sr_YU[8] = 
+static const char *my_locale_ab_day_names_sr_RS[8] = 
  {"pon","uto","sre","čet","pet","sub","ned", NullS };
-static TYPELIB my_locale_typelib_month_names_sr_YU = 
- { array_elements(my_locale_month_names_sr_YU)-1, "", my_locale_month_names_sr_YU, NULL };
-static TYPELIB my_locale_typelib_ab_month_names_sr_YU = 
- { array_elements(my_locale_ab_month_names_sr_YU)-1, "", my_locale_ab_month_names_sr_YU, NULL };
-static TYPELIB my_locale_typelib_day_names_sr_YU = 
- { array_elements(my_locale_day_names_sr_YU)-1, "", my_locale_day_names_sr_YU, NULL };
-static TYPELIB my_locale_typelib_ab_day_names_sr_YU = 
- { array_elements(my_locale_ab_day_names_sr_YU)-1, "", my_locale_ab_day_names_sr_YU, NULL };
-MY_LOCALE my_locale_sr_YU
+static TYPELIB my_locale_typelib_month_names_sr_RS = 
+ { array_elements(my_locale_month_names_sr_RS)-1, "", my_locale_month_names_sr_RS, NULL };
+static TYPELIB my_locale_typelib_ab_month_names_sr_RS = 
+ { array_elements(my_locale_ab_month_names_sr_RS)-1, "", my_locale_ab_month_names_sr_RS, NULL };
+static TYPELIB my_locale_typelib_day_names_sr_RS = 
+ { array_elements(my_locale_day_names_sr_RS)-1, "", my_locale_day_names_sr_RS, NULL };
+static TYPELIB my_locale_typelib_ab_day_names_sr_RS = 
+ { array_elements(my_locale_ab_day_names_sr_RS)-1, "", my_locale_ab_day_names_sr_RS, NULL };
+MY_LOCALE my_locale_sr_RS
 (
   48,
-  "sr_YU",
-  "Servian - Yugoslavia",
+  "sr_RS",
+  "Serbian - Serbia",
   FALSE,
-  &my_locale_typelib_month_names_sr_YU,
-  &my_locale_typelib_ab_month_names_sr_YU,
-  &my_locale_typelib_day_names_sr_YU,
-  &my_locale_typelib_ab_day_names_sr_YU,
+  &my_locale_typelib_month_names_sr_RS,
+  &my_locale_typelib_ab_month_names_sr_RS,
+  &my_locale_typelib_day_names_sr_RS,
+  &my_locale_typelib_ab_day_names_sr_RS,
   9,
   10,
-  '.',        /* decimal point sr_YU */
-  '\0',       /* thousands_sep sr_YU */
-  "\x80",     /* grouping      sr_YU */
-  &global_errmsgs[sr_CS]
+  '.',        /* decimal point sr_RS */
+  '\0',       /* thousands_sep sr_RS */
+  "\x80",     /* grouping      sr_RS */
+  &global_errmsgs[sr_RS]
 );
-/***** LOCALE END sr_YU *****/
+/***** LOCALE END sr_RS *****/
 
 /***** LOCALE BEGIN sv_SE: Swedish - Sweden *****/
 static const char *my_locale_month_names_sv_SE[13] = 
@@ -3281,7 +3281,7 @@ MY_LOCALE *my_locales[]=
     &my_locale_sk_SK,
     &my_locale_sl_SI,
     &my_locale_sq_AL,
-    &my_locale_sr_YU,
+    &my_locale_sr_RS,
     &my_locale_ta_IN,
     &my_locale_te_IN,
     &my_locale_th_TH,

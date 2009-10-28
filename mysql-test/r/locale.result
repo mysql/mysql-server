@@ -46,4 +46,14 @@ SELECT format(123456.789, 3, 'el_GR');
 format(123456.789, 3, 'el_GR')
 123456.789
 DROP TABLE t1;
+#
+# Bug#46633 Obsolete Serbian locale name
+#
+set lc_messages=sr_YU;
+ERROR HY000: Unknown locale: 'sr_YU'
+set lc_messages=sr_RS;
+set lc_time_names=sr_RS;
+select format(123456.789, 3, 'sr_RS');
+format(123456.789, 3, 'sr_RS')
+123456.789
 End of 5.4 tests

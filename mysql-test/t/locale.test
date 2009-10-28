@@ -31,4 +31,13 @@ SELECT a, date_format(a,'%b') as abmon, monthname(a) as mon FROM t1 ORDER BY a;
 SELECT format(123456.789, 3, 'el_GR');
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#46633 Obsolete Serbian locale name
+--echo #
+--error ER_UNKNOWN_LOCALE
+set lc_messages=sr_YU;
+set lc_messages=sr_RS;
+set lc_time_names=sr_RS;
+select format(123456.789, 3, 'sr_RS');
+
 --echo End of 5.4 tests

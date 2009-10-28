@@ -4,7 +4,7 @@
 # Test "mysqladmin ping"
 #
 
---exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 
 
 #
@@ -19,7 +19,7 @@ EOF
 
 --replace_regex /.*mysqladmin.*: unknown/mysqladmin: unknown/
 --error 7
---exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
+--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 
 # When mysqladmin finds "loose-database" in .cnf file it shall print
@@ -30,6 +30,6 @@ loose-database=db2
 EOF
 
 --replace_regex /Warning: .*mysqladmin.*: unknown/Warning: mysqladmin: unknown/
---exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
+--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
