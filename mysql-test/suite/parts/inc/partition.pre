@@ -152,6 +152,7 @@ ENGINE = MEMORY;
 --echo #     Logging of <max_row> INSERTs into t0_template suppressed
 --disable_query_log
 let $num= `SELECT @max_row`;
+begin;
 while ($num)
 {
   eval INSERT INTO t0_template
@@ -160,6 +161,7 @@ f_charbig = '===$num===';
 
   dec $num;
 }
+commit;
 --enable_query_log
 
 # Auxiliary table used for comparisons of table definitions and file lists

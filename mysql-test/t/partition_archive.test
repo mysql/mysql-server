@@ -94,11 +94,13 @@ CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 
 --disable_query_log
 let $n= 100;
+begin;
 while ($n)
 {
   insert into t1 (f1) values (repeat('a',25));
   dec $n;
 }
+commit;
 --enable_query_log
 
 show create table t1;

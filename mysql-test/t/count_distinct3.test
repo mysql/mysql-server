@@ -14,6 +14,7 @@ CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
 --disable_query_log
 SET @rnd_max= 2147483647;
 let $1 = 1000;
+begin;
 while ($1)
 {
   SET @rnd= RAND();
@@ -23,7 +24,7 @@ while ($1)
   INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
   dec $1;
 }
-
+commit;
 # We increase the size of t1 here.
 SET @orig_myisam_sort_buffer_size = @@session.myisam_sort_buffer_size;
 SET session myisam_sort_buffer_size=20000000;

@@ -25,6 +25,8 @@
 let $debug= 0;
 let $do_long_tests= 1;
 
+#
+--include/big_test.inc
 # The server must support partitioning.
 --source include/have_partition.inc
 
