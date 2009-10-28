@@ -66,13 +66,6 @@ TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
 const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
 enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 
-/*
-  Provided for testing purposes to be able to run full test suite
-  with --ndbcluster option without getting warnings about cluster
-  not being connected
-*/
-my_bool ndbcluster_silent= 0;
-
 // Default value for parallelism
 static const int parallelism= 0;
 
@@ -8800,10 +8793,8 @@ err:
                              share->key, share->use_count));
     free_share(&share);
   }
-  /*
-    ndbcluster_silent - avoid "cluster disconnected error"
-  */
-  if (ndb_error.code && (!ndbcluster_silent || ndb_error.code != 4009))
+
+  if (ndb_error.code)
   {
     ERR_RETURN(ndb_error);
   }
@@ -8828,12 +8819,6 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
   {
-    /*
-      ndbcluster_silent
-      - avoid "cluster failure" warning if cluster is not connected
-    */
-    if (ndbcluster_silent && dict->getNdbError().code == 4009)
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
     ERR_RETURN(dict->getNdbError());
   }
   for (uint i= 0 ; i < list.count ; i++)
