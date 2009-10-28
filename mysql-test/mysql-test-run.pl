@@ -2402,7 +2402,7 @@ sub check_ndbcluster_support ($) {
 
   if ( ! $mysqld_variables{'ndb-connectstring'} )
   {
-    mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
+    #mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_skip_ndbcluster= 2;
     return;
   }

@@ -2131,8 +2131,8 @@ void win_install_sigabrt_handler(void)
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
 #define DEBUGGER_ATTACH_TIMEOUT 120
 /*
-  Wait for debugger to attach and break into debugger. If debugger is not attached,
-  resume after timeout.
+  Wait for debugger to attach and break into debugger. If debugger is
+  not attached, resume after timeout.
 */
 static void wait_for_debugger(int timeout_sec)
 {
@@ -3879,7 +3879,8 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        freopen(log_error_file, "a+", stderr);
+        if (!(freopen(log_error_file, "a+", stderr)))
+          sql_print_warning("Couldn't reopen stderr");
         setbuf(stderr, NULL);
       }
     }
@@ -4518,8 +4519,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifdef __WIN__
   if (!opt_console)
   {
-    freopen(log_error_file,"a+",stdout);
-    freopen(log_error_file,"a+",stderr);
+    if (!freopen(log_error_file,"a+",stdout) ||
+        !freopen(log_error_file,"a+",stderr))
+    {
+      sql_print_warning("Couldn't reopen stdout or stderr");
+    }
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
@@ -4589,7 +4593,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
     bootstrap(stdin);
-    unireg_abort(bootstrap_error ? 1 : 0);
+    if (!kill_in_progress)
+      unireg_abort(bootstrap_error ? 1 : 0);
+    else
+    {
+      sleep(2);                                 // Wait for kill
+      exit(0);
+    }
   }
   if (opt_init_file)
   {
@@ -4741,7 +4751,7 @@ default_service_handling(char **argv,
     if (opt_delim= strchr(extra_opt, '='))
     {
       size_t length= ++opt_delim - extra_opt;
-      strnmov(pos, extra_opt, length);
+      pos= strnmov(pos, extra_opt, length);
     }
     else
       opt_delim= extra_opt;
@@ -5772,7 +5782,7 @@ enum options_mysqld
   OPT_RECORD_RND_BUFFER, OPT_DIV_PRECINCREMENT, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
-  OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
+  OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING, OPT_DEBUG_FLUSH,
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
@@ -5993,6 +6003,8 @@ struct my_option my_long_options[] =
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    (uchar**) &opt_my_crc_dbug_check, (uchar**) &opt_my_crc_dbug_check,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
+  {"debug-flush", OPT_DEBUG_FLUSH, "Default debug log with flush after write",
+   (uchar**) 0, (uchar**) 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
@@ -6661,7 +6673,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
 
   {"test-ignore-wrong-options", OPT_TEST_IGNORE_WRONG_OPTIONS,
-   "Ignore wrong enums values in command line arguments. Usefull only for test scripts",
+   "Ignore wrong enums values in command line arguments. Useful only for test scripts",
    (uchar**) &opt_ignore_wrong_options, (uchar**) &opt_ignore_wrong_options,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
@@ -7201,7 +7213,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (uchar**) &my_thread_stack_size,
    (uchar**) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024L*128L, (longlong) ULONG_MAX, 0, 1024, 0},
+   (sizeof(void*)<=4)?1024L*128L: ((256-16)*1024L), (longlong) ULONG_MAX, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
     (uchar**) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
@@ -8111,6 +8123,9 @@ mysqld_get_one_option(int optid,
 
   switch(optid) {
 #ifndef DBUG_OFF
+  case OPT_DEBUG_FLUSH:
+    argument= IF_WIN(default_dbug_option, (char*) "d:t:i:O,/tmp/mysqld.trace");
+  /* fall through */
   case '#':
     if (!argument)
       argument= (char*) default_dbug_option;

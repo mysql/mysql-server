@@ -66,6 +66,7 @@ main(void)
     ok(cmp == 0, "Comparing encode-decode result");
     if (cmp != 0)
     {
+      /* FIXME: This only prints last value of the compared strings */
       char buf[80];
       diag("       --------- src ---------   --------- dst ---------");
       for (k= 0; k<src_len; k+=8)
@@ -84,7 +85,7 @@ main(void)
           unsigned char c= dst[k+l];
           sprintf(buf, "%.2x ", (unsigned)c);
         }
-        diag(buf);
+        diag("%s", buf);
       }
       diag("src length: %.8x, dst length: %.8x\n",
            (uint) src_len, (uint) dst_len);

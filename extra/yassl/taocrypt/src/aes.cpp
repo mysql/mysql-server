@@ -52,6 +52,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
             in  += BLOCK_SIZE;
         }
     else if (mode_ == CBC)    
+    {
         if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
@@ -78,6 +79,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+    }
 }
 
 #endif // DO_AES_ASM

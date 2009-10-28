@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <my_dir.h> /* for stat */
 #include <m_string.h>
 #if defined(HAVE_UTIME_H)
@@ -96,7 +97,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 	DBUG_RETURN(0);			/* File copyed but not stat */
     VOID(chmod(to, stat_buff.st_mode & 07777)); /* Copy modes */
 #if !defined(__WIN__) && !defined(__NETWARE__)
-    VOID(chown(to, stat_buff.st_uid,stat_buff.st_gid)); /* Copy ownership */
+    if (chown(to, stat_buff.st_uid,stat_buff.st_gid))
+    {
+      my_error(EE_CANT_COPY_OWNERSHIP, MYF(ME_JUST_WARNING), to);
+    }
 #endif
 #if !defined(VMS) && !defined(__ZTC__)
     if (MyFlags & MY_COPYTIME)

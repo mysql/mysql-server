@@ -77,7 +77,12 @@ else
     datadir="$basedir/data"
   fi
   sbindir="$basedir/sbin"
-  libexecdir="$basedir/libexec"
+  if test -f "$basedir/bin/mysqld"
+  then
+    libexecdir="$basedir/bin"
+  else
+    libexecdir="$basedir/libexec"
+  fi
 fi
 
 # datadir_set is used to determine if datadir was set (and so should be
@@ -126,6 +131,12 @@ parse_server_arguments() {
 		      datadir="$basedir/data"
 		    fi
 		    sbindir="$basedir/sbin"
+                    if test -f "$basedir/bin/mysqld"
+                    then
+                      libexecdir="$basedir/bin"
+                    else
+                      libexecdir="$basedir/libexec"
+                    fi
 		    libexecdir="$basedir/libexec"
         ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'`
@@ -434,9 +445,36 @@ case "$mode" in
       fi
     fi
     ;;
-    *)
+  'configtest')
+    # Safeguard (relative paths, core dumps..)
+    cd $basedir
+    echo $echo_n "Testing MySQL configuration syntax"
+    daemon=$bindir/mysqld
+    if test -x $libexecdir/mysqld
+    then
+      daemon=$libexecdir/mysqld
+    elif test -x $sbindir/mysqld
+    then
+      daemon=$sbindir/mysqld
+    elif test -x `which mysqld`
+    then
+      daemon=`which mysqld`
+    else
+      log_failure_msg "Unable to locate the mysqld binary!"
+      exit 1
+    fi
+    help_out=`$daemon --help 2>&1`; r=$?
+    if test "$r" != 0 ; then
+      log_failure_msg "$help_out"
+      log_failure_msg "There are syntax errors in the server configuration. Please fix them!"
+    else
+      log_success_msg "Syntax OK"
+    fi
+    exit $r
+    ;;
+  *)
       # usage
-      echo "Usage: $0  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
+      echo "Usage: $0  {start|stop|restart|reload|force-reload|status|configtest}  [ MySQL server options ]"
       exit 1
     ;;
 esac

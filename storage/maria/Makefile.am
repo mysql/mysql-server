@@ -32,7 +32,7 @@ SUBDIRS =		. unittest
 
 EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_test_big.sh \
 			ma_ft_stem.c CMakeLists.txt plug.in ma_test_recovery
-pkgdata_DATA =		ma_test_all ma_test_all.res ma_test_recovery
+pkgdata_DATA =		
 pkglib_LIBRARIES =	libmaria.a
 bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log \
 			maria_dump_log

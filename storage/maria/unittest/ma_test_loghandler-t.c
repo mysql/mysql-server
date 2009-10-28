@@ -113,10 +113,8 @@ static my_bool check_content(uchar *ptr, ulong length)
 
 void read_ok(TRANSLOG_HEADER_BUFFER *rec)
 {
-  char buff[80];
-  my_snprintf(buff, sizeof(buff), "read record type: %u  LSN: (%lu,0x%lx)",
-           rec->type, LSN_IN_PARTS(rec->lsn));
-  ok(1, buff);
+  ok(1, "read record type: %u  LSN: (%lu,0x%lx)",
+     rec->type, LSN_IN_PARTS(rec->lsn));
 }
 
 /*

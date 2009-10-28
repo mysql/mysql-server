@@ -1,25 +1,20 @@
+MariaDB and MySQL have identical install methods. In this document we
+describe how to install MariaDB; However all documentation at www.mysql.com
+also applies.
 
-2.9. Installing MySQL from tar.gz Packages on Other Unix-Like Systems
 
-   This section covers the installation of MySQL binary distributions
+2.9. Installing MariaDB from tar.gz Packages on Other Unix-Like Systems
+
+   This section covers the installation of MariaDB binary distributions
    that are provided for various platforms in the form of compressed
-   tar files (files with a .tar.gz extension). See Section 2.1.2.4,
-   "MySQL Binaries Compiled by Sun Microsystems, Inc.," for a
-   detailed list.
+   tar files (files with a .tar.gz extension).
 
-   To obtain MySQL, see Section 2.1.3, "How to Get MySQL."
-
-   MySQL tar file binary distributions have names of the form
-   mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
+   MariaDB tar file binary distributions have names of the form
+   mariadb-VERSION-OS.tar.gz, where VERSION is a number (for example,
    5.1.39), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
-   In addition to these generic packages, we also offer binaries in
-   platform-specific package formats for selected platforms. See
-   Section 2.2, "Standard MySQL Installation Using a Binary
-   Distribution," for more information on how to install these.
-
-   You need the following tools to install a MySQL tar file binary
+   You need the following tools to install a MariaDB tar file binary
    distribution:
 
      * GNU gunzip to uncompress the distribution.
@@ -33,11 +28,14 @@
        program. On other systems with a deficient tar, you should
        install GNU tar first.
 
-   If you run into problems and need to file a bug report, please use
-   the instructions in Section 1.6, "How to Report Bugs or Problems."
+   If you run into problems and need to file a bug report,
+   please report them to: http://bugs.launchpad.net/maria
+
+   See the instructions in Section 1.6, "How to Report Bugs or Problems."
 
    The basic commands that you must execute to install and use a
-   MySQL binary distribution are:
+   MariaDB binary distribution are:
+
 shell> groupadd mysql
 shell> useradd -g mysql mysql
 shell> cd /usr/local
@@ -53,7 +51,7 @@ shell> bin/mysqld_safe --user=mysql &
 
 Note
 
-   This procedure does not set up any passwords for MySQL accounts.
+   This procedure does not set up any passwords for MariaDB accounts.
    After following the procedure, proceed to Section 2.11,
    "Post-Installation Setup and Testing."
 
@@ -80,8 +78,8 @@ shell> useradd -g mysql mysql
 shell> cd /usr/local
 
     3. Obtain a distribution file using the instructions in Section
-       2.1.3, "How to Get MySQL." For a given release, binary
-       distributions for all platforms are built from the same MySQL
+       2.1.3, "How to Get MariaDB." For a given release, binary
+       distributions for all platforms are built from the same MariaDB
        source distribution.
 
     4. Unpack the distribution, which creates the installation
@@ -106,7 +104,7 @@ shell> cd mysql
           + The bin directory contains client programs and the
             server. You should add the full path name of this
             directory to your PATH environment variable so that your
-            shell finds the MySQL programs properly. See Section
+            shell finds the MariaDB programs properly. See Section
             2.14, "Environment Variables."
 
           + The scripts directory contains the mysql_install_db
@@ -126,8 +124,8 @@ shell> chgrp -R mysql .
        the mysql user. The second changes the group attribute to the
        mysql group.
 
-    7. If you have not installed MySQL before, you must create the
-       MySQL data directory and initialize the grant tables:
+    7. If you have not installed MariaDB before, you must create the
+       MariaDB data directory and initialize the grant tables:
 shell> scripts/mysql_install_db --user=mysql
        If you run the command as root, include the --user option as
        shown. If you run the command while logged in as that user,
@@ -137,25 +135,26 @@ shell> scripts/mysql_install_db --user=mysql
        After creating or updating the grant tables, you need to
        restart the server manually.
 
-    8. Most of the MySQL installation can be owned by root if you
+    8. Most of the MariaDB installation can be owned by root if you
        like. The exception is that the data directory must be owned
        by mysql. To accomplish this, run the following commands as
        root in the installation directory:
+
 shell> chown -R root .
 shell> chown -R mysql data
 
-    9. If you want MySQL to start automatically when you boot your
+    9. If you want MariaDB to start automatically when you boot your
        machine, you can copy support-files/mysql.server to the
        location where your system has its startup files. More
        information can be found in the support-files/mysql.server
        script itself and in Section 2.11.2.2, "Starting and Stopping
-       MySQL Automatically."
+       MariaDB Automatically."
    10. You can set up new accounts using the bin/mysql_setpermission
        script if you install the DBI and DBD::mysql Perl modules. See
        Section 4.6.14, "mysql_setpermission --- Interactively Set
        Permissions in Grant Tables." For Perl module installation
        instructions, see Section 2.15, "Perl Installation Notes."
-   11. If you would like to use mysqlaccess and have the MySQL
+   11. If you would like to use mysqlaccess and have the MariaDB
        distribution in some nonstandard location, you must change the
        location where mysqlaccess expects to find the mysql client.
        Edit the bin/mysqlaccess script at approximately line 18.
@@ -166,7 +165,7 @@ $MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
        error will occur when you run mysqlaccess.
 
    After everything has been unpacked and installed, you should test
-   your distribution. To start the MySQL server, use the following
+   your distribution. To start the MariaDB server, use the following
    command:
 shell> bin/mysqld_safe --user=mysql &
 
@@ -185,7 +184,7 @@ shell> bin/mysqld_safe --user=mysql &
 
 Note
 
-   The accounts that are listed in the MySQL grant tables initially
+   The accounts that are listed in the MariaDB grant tables initially
    have no passwords. After starting the server, you should set up
    passwords for them using the instructions in Section 2.11,
    "Post-Installation Setup and Testing."
