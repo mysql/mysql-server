@@ -21,6 +21,20 @@
 #define ASSERT_ALWAYS assert
 #endif
 
+/**
+ * Helper debugging macros
+ */
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+
+#define APIERROR(error) { \
+  PRINT_ERROR((error).code,(error).message); \
+  exit(-1); }
+
+
+
 //const char* databaseName = "TEST_DB";
 //const char* tableName = "T";
 const char* databaseName = "PTDB";
@@ -179,6 +193,8 @@ void TestThread::run(){
       const NdbQueryDef* queryDef = NULL;
       const Row** resultPtrs = new const Row*[m_params->m_depth+1];
       
+      NdbTransaction* trans = NULL;
+
       for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
         //ndbout << "Starting next iteration " << endl;
         // Build query definition if needed.
@@ -222,7 +238,9 @@ void TestThread::run(){
           queryDef = builder.prepare();
         }
         
-        NdbTransaction* const trans = m_ndb.startTransaction();
+        if (!trans) {
+          trans = m_ndb.startTransaction();
+        }
         // Execute query.
         NdbQuery* const query = trans->createQuery(queryDef, NULL);
         for(int i = 0; i<m_params->m_depth+1; i++){
@@ -231,7 +249,10 @@ void TestThread::run(){
                               reinterpret_cast<const char*&>(resultPtrs[i]),
                               NULL);
         }
-        ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
+        int res = trans->execute(NoCommit);
+        if (res != 0)
+          APIERROR(trans->getNdbError());
+        ASSERT_ALWAYS(res == 0);
         int cnt=0;
         while(true){
           const NdbQuery::NextResultOutcome outcome 
@@ -241,15 +262,25 @@ void TestThread::run(){
           }
           ASSERT_ALWAYS(outcome== NdbQuery::NextResult_gotRow);
           cnt++;
+//        if (m_params->m_scanLength==0)
+//          break;
         }
         ASSERT_ALWAYS(cnt== MAX(1,m_params->m_scanLength));
-        query->close();
+//      query->close();
+        if ((iterNo % 5) == 0) {
+          m_ndb.closeTransaction(trans);
+          trans = NULL;
+        }
+      }
+      if (trans) {
         m_ndb.closeTransaction(trans);
+        trans = NULL;
       }
     }else{ // non-linked
       Row row = {0, 0};
+      NdbTransaction* const trans = m_ndb.startTransaction();
       for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
-        NdbTransaction* const trans = m_ndb.startTransaction();
+//      NdbTransaction* const trans = m_ndb.startTransaction();
         if(m_params->m_scanLength>0){
           const KeyRow highKey = { m_params->m_scanLength };
           NdbIndexScanOperation* scanOp = NULL;
@@ -304,7 +335,6 @@ void TestThread::run(){
               break;
             }
             ASSERT_ALWAYS(retVal== 0);
-            cnt++;
             //ndbout << "ScanRow: " << scanRow->a << " " << scanRow->b << endl;
             row = *scanRow;
             
@@ -321,8 +351,12 @@ void TestThread::run(){
               ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
               //ndbout << "LookupRow: " << row.a << " " << row.b << endl;
             }
+            cnt++;
+//          if (m_params->m_scanLength==0)
+//            break;
           }
           ASSERT_ALWAYS(cnt== m_params->m_scanLength);
+          scanOp->close(false,true);
         }else{ 
           // Root is lookup.
           for(int i = 0; i < m_params->m_depth+1; i++){
@@ -337,8 +371,9 @@ void TestThread::run(){
             ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
           }
         }//if(m_params->m_isScan)
-        m_ndb.closeTransaction(trans);
+//      m_ndb.closeTransaction(trans);
       }//for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++)
+      m_ndb.closeTransaction(trans);
     }
     ASSERT_ALWAYS(m_params != NULL);
     m_params = NULL;

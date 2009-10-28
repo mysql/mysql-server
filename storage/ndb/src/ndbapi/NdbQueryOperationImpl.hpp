@@ -110,7 +110,7 @@ public:
   void setErrorCodeAbort(int aErrorCode);
 
   /** Assign supplied parameter values to the parameter placeholders
-   *  Created when the query was defined.
+   *  created when the query was defined.
    *  Values are *copied* into this NdbQueryImpl object:
    *  Memory location used as source for parameter values don't have
    *  to be valid after this assignment.
@@ -155,6 +155,19 @@ public:
 
   /** Process SCAN_TABCONF w/ EndOfData which is a 'Close Scan Reply'. */
   void execCLOSE_SCAN_REP();
+
+  /** Determines if query has completed and may be garbage collected
+   *  A query is considder complete when it either:
+   *  - Has returned all its rows to the client m_state == EndOfData.
+   *  - Has been closed by the client (m_state == Closed)
+   *  - Has encountered a failure (m_state == Failed)
+   *  - Is a lookup query which has been executed. (single row fetched)
+   */
+  bool hasCompleted() const
+  { return m_state >= EndOfData ||
+           (!m_queryDef.isScanQuery() && m_state >= Executing); 
+  }
+  
 
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values

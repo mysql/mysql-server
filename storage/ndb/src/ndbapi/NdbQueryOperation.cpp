@@ -32,6 +32,11 @@
 #include "NdbApiSignal.hpp"
 #include "NdbTransaction.hpp"
 
+#if 0
+#define DEBUG_CRASH() assert(false)
+#else
+#define DEBUG_CRASH()
+#endif
 
 //#define TEST_SCANREQ
 
@@ -45,7 +50,7 @@ STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
 STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
-STATIC_CONST( tupleNotFound = 0xffffffff);
+STATIC_CONST(tupleNotFound = 0xffffffff);
 
 /** Set to true to trace incomming signals.*/
 const bool traceSignals = false;
@@ -334,11 +339,9 @@ NdbQuery::nextResult(bool fetchAllowed, bool forceSend)
 }
 
 void
-NdbQuery::close(bool forceSend, bool release)
+NdbQuery::close(bool forceSend)
 {
   m_impl.close(forceSend);
-  if (release)
-    m_impl.release();
 }
 
 NdbTransaction*
@@ -631,6 +634,7 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       setErrorCode(QRY_IN_ERROR_STATE);
     else
       setErrorCode(QRY_ILLEGAL_STATE);
+    DEBUG_CRASH();
     return NdbQuery::NextResult_error;
   }
 
@@ -1057,6 +1061,7 @@ NdbQueryImpl::prepareSend()
       setErrorCodeAbort(QRY_IN_ERROR_STATE);
     else
       setErrorCodeAbort(QRY_ILLEGAL_STATE);
+    DEBUG_CRASH();
     return -1;
   }
 
@@ -1192,6 +1197,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
       setErrorCodeAbort(QRY_IN_ERROR_STATE);
     else
       setErrorCodeAbort(QRY_ILLEGAL_STATE);
+    DEBUG_CRASH();
     return -1;
   }
 
@@ -1672,6 +1678,7 @@ NdbQueryOperationImpl::getValue(
       getQuery().setErrorCode(QRY_IN_ERROR_STATE);
     else
       getQuery().setErrorCode(QRY_ILLEGAL_STATE);
+    DEBUG_CRASH();
     return NULL;
   }
   Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
@@ -1710,6 +1717,7 @@ NdbQueryOperationImpl::setResultRowBuf (
       getQuery().setErrorCode(QRY_IN_ERROR_STATE);
     else
       getQuery().setErrorCode(QRY_ILLEGAL_STATE);
+    DEBUG_CRASH();
     return -1;
   }
   if (rec->tableId != 
