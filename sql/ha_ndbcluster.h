@@ -35,7 +35,6 @@
 #include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-#define NDB_DEFAULT_AUTO_PREFETCH 32
 
 
 class Ndb;             // Forward declaration
