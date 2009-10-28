@@ -1,3 +1,6 @@
+#ifndef PARTITION_INFO_INCLUDED
+#define PARTITION_INFO_INCLUDED
+
 /* Copyright 2006-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -314,3 +317,5 @@ void init_all_partitions_iterator(partition_info *part_info,
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
+
+#endif /* PARTITION_INFO_INCLUDED */

@@ -1,3 +1,6 @@
+#ifndef LEX_INCLUDED
+#define LEX_INCLUDED
+
 /* Copyright (C) 2000-2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -248,6 +251,7 @@ static SYMBOL symbols[] = {
   { "IDENTIFIED",	SYM(IDENTIFIED_SYM)},
   { "IF",		SYM(IF)},
   { "IGNORE",		SYM(IGNORE_SYM)},
+  { "IGNORE_SERVER_IDS", SYM(IGNORE_SERVER_IDS_SYM)},
   { "IMPORT",		SYM(IMPORT)},
   { "IN",		SYM(IN_SYM)},
   { "INDEX",		SYM(INDEX_SYM)},
@@ -327,6 +331,7 @@ static SYMBOL symbols[] = {
   { "MASTER_SSL_KEY",   SYM(MASTER_SSL_KEY_SYM)},
   { "MASTER_SSL_VERIFY_SERVER_CERT", SYM(MASTER_SSL_VERIFY_SERVER_CERT_SYM)},
   { "MASTER_USER",           SYM(MASTER_USER_SYM)},
+  { "MASTER_HEARTBEAT_PERIOD", SYM(MASTER_HEARTBEAT_PERIOD_SYM)},
   { "MATCH",		SYM(MATCH)},
   { "MAX_CONNECTIONS_PER_HOUR", SYM(MAX_CONNECTIONS_PER_HOUR)},
   { "MAX_QUERIES_PER_HOUR", SYM(MAX_QUERIES_PER_HOUR)},
@@ -435,6 +440,7 @@ static SYMBOL symbols[] = {
   { "REDUNDANT",	SYM(REDUNDANT_SYM)},
   { "REFERENCES",	SYM(REFERENCES)},
   { "REGEXP",		SYM(REGEXP)},
+  { "RELAYLOG",         SYM(RELAYLOG_SYM)},
   { "RELAY_LOG_FILE",   SYM(RELAY_LOG_FILE_SYM)},
   { "RELAY_LOG_POS",    SYM(RELAY_LOG_POS_SYM)},
   { "RELAY_THREAD",     SYM(RELAY_THREAD)},
@@ -649,3 +655,5 @@ static SYMBOL sql_functions[] = {
   { "VAR_POP",		SYM(VARIANCE_SYM)},
   { "VAR_SAMP",		SYM(VAR_SAMP_SYM)},
 };
+
+#endif /* LEX_INCLUDED */

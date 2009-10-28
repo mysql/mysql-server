@@ -1,3 +1,6 @@
+#ifndef ITEM_XMLFUNC_INCLUDED
+#define ITEM_XMLFUNC_INCLUDED
+
 /* Copyright (C) 2000-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -61,3 +64,4 @@ public:
   String *val_str(String *);
 };
 
+#endif /* ITEM_XMLFUNC_INCLUDED */

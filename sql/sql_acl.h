@@ -1,3 +1,6 @@
+#ifndef SQL_ACL_INCLUDED
+#define SQL_ACL_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -283,3 +286,4 @@ bool has_any_table_level_privileges(THD *thd, ulong required_access,
 #define check_grant_db(A,B) 0
 #define has_any_table_level_privileges(A,B,C) 0
 #endif
+#endif /* SQL_ACL_INCLUDED */

@@ -25,9 +25,7 @@ grant select on t to x@y;
 #
 rollback;
 show grants for x@y;
---replace_result $VERSION VERSION
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
-show binlog events;
+source include/show_binlog_events.inc;
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -37,9 +35,7 @@ revoke select on t from x@y;
 commit;
 select * from t;
 show grants for x@y;
---replace_result $VERSION VERSION
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
-show binlog events;
+source include/show_binlog_events.inc;
 drop user x@y;
 drop database d1;
 --sync_slave_with_master

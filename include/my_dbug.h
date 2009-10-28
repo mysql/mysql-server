@@ -45,6 +45,7 @@ extern "C" {
 #if !defined(DBUG_OFF) && !defined(_lint)
 struct _db_code_state_;
 extern	int _db_keyword_(struct _db_code_state_ *cs, const char *keyword);
+extern  int _db_keywords_(const char *, const char *);
 extern  int _db_strict_keyword_(const char *keyword);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
@@ -69,6 +70,7 @@ extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
+extern  const char* _db_get_func_(void);
 
 #ifdef __cplusplus
 
@@ -124,6 +126,20 @@ extern FILE *_db_fp_(void);
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define IF_DBUG(A) A
+#define _DBUG_MAX_FUNC_NAME_ 255
+#define DBUG_CHECK_CRASH(func, op) \
+        do { \
+          if (_db_keywords_((func), (op))) \
+            { abort(); } \
+        } while (0)
+#define DBUG_CRASH_ENTER(func) \
+  DBUG_ENTER(func); DBUG_CHECK_CRASH(func, "_crash_enter")
+#define DBUG_CRASH_RETURN(val) \
+  do {DBUG_CHECK_CRASH(_db_get_func_(), "_crash_return"); \
+    DBUG_RETURN(val);} while(0)
+#define DBUG_CRASH_VOID_RETURN \
+  do {DBUG_CHECK_CRASH (_db_get_func_(), "_crash_return"); \
+    DBUG_VOID_RETURN;} while(0)
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -152,6 +168,9 @@ extern FILE *_db_fp_(void);
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define IF_DBUG(A)
+#define DBUG_CRASH_ENTER(func)
+#define DBUG_CRASH_RETURN(val)      do { return(val); } while(0)
+#define DBUG_CRASH_VOID_RETURN      do { return; } while(0)
 #endif
 #ifdef	__cplusplus
 }

@@ -1,3 +1,6 @@
+#ifndef STRUCTS_INCLUDED
+#define STRUCTS_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -357,3 +360,5 @@ public:
   Discrete_interval* get_tail() const { return tail; };
   Discrete_interval* get_current() const { return current; };
 };
+
+#endif /* STRUCTS_INCLUDED */

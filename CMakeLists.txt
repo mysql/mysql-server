@@ -291,6 +291,10 @@ FOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
   ADD_SUBDIRECTORY(${DIR})
 ENDFOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
 
+# Add subdirectories for semisync plugin
+IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+  ADD_SUBDIRECTORY(plugin/semisync)
+ENDIF(NOT WITHOUT_DYNAMIC_PLUGINS)
 
 # FIXME "debug" only needed if build type is "Debug", but
 # CMAKE_BUILD_TYPE is not set during configure time.

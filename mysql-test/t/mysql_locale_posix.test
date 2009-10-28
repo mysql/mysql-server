@@ -1,0 +1,205 @@
+--source include/not_windows.inc
+--source include/have_case_sensitive_file_system.inc
+
+
+#
+# Note, please keep this file UTF-8 compatible.
+# After editing, make sure that
+#  "file mysql_locale_posix.test"
+# says
+#   "UTF-8 Unicode text"
+# or
+#   "UTF-8 Unicode English text"
+#
+
+
+#
+# Check if we're running on a POSIX-locale machine
+#
+
+--disable_query_log
+--exec locale -a > $MYSQLTEST_VARDIR/tmp/locale_a.output 2>/dev/null || true
+SET @file=REPLACE(LOAD_FILE('../../tmp/locale_a.output'), '-', '');
+#
+# Note, file content must be case sensitive.
+# Some platforms are case sensitive regarding to locale name.
+# For example, on HP-UX
+# LANG=cs_CZ.iso88592 - works fine
+# LANG=cs_CZ.ISO88592 - does not work
+#
+--remove_file $MYSQLTEST_VARDIR/tmp/locale_a.output
+
+if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nde_DE.iso88591\n%')`)
+{
+  Skip Need POSIX locale de_DE.iso88591;
+}
+
+if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nru_RU.koi8r\n%')`)
+{
+  Skip Need POSIX locale ru_RU.koi8r;
+}
+
+if (`SELECT (IFNULL(@file,'') NOT LIKE '%\ncs_CZ.iso88592\n%')`)
+{
+  Skip Need POSIX locale cs_CZ.iso88592;
+}
+
+if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nen_US.utf8\n%')`)
+{
+  Skip Need POSIX locale en_US.utf8;
+}
+--enable_query_log
+
+
+
+SET NAMES utf8;
+
+--disable_warnings
+DROP DATABASE IF EXISTS `Ã³`;
+DROP DATABASE IF EXISTS `Ăł`;
+DROP DATABASE IF EXISTS `цЁ`;
+DROP DATABASE IF EXISTS `ó`;
+--enable_warnings
+
+#
+# Test some of the OS-to-MySQL character set mappings
+#
+
+
+#  {"ANSI_X3.4-1968", "ascii",    my_cs_exact},
+#  {"ansi1251",       "cp1251",   my_cs_exact},
+#  {"armscii8",       "armscii8", my_cs_exact},
+#  {"ASCII",          "ascii",    my_cs_exact},
+#  {"Big5",           "big5",     my_cs_exact},
+#  {"cp1251",         "cp1251",   my_cs_exact},
+#  {"cp1255",         "cp1255",   my_cs_exact},
+#  {"CP866",          "cp866",    my_cs_exact},
+#  {"eucCN",          "gb2312",   my_cs_exact},
+#  {"eucJP",          "ujis",     my_cs_exact},
+#  {"eucKR",          "euckr",    my_cs_exact},
+#
+#  {"gb18030",        "gb18030",  my_cs_exact},
+#
+#  {"gb2312",         "gb2312",   my_cs_exact},
+#  {"gbk",            "gbk",      my_cs_exact},
+#  {"georgianps",     "geostd8",  my_cs_exact},
+#  {"IBM-1252",       "cp1252",   my_cs_exact},
+#
+#  {"iso88591",       "latin1",   my_cs_approx},
+#  {"ISO_8859-1",     "latin1",   my_cs_approx},
+#  {"ISO8859-1",      "latin1",   my_cs_approx},
+#  {"ISO-8859-1",     "latin1",   my_cs_approx},
+
+
+#
+# _utf8 0xC3B3 = LATIN SMALL LETTER O WITH ACUTE
+# _latin1 0xC3 = LATIN CAPITAL LETTER A WITH TILDE
+# _latin1 0xB3 = SUPERSCRIPT THREE
+#
+--echo
+--echo iso88591
+--exec LC_ALL=fi_FI.iso88591 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=fi_FI.iso88591 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=fi_FI.iso88591 $MYSQL_SHOW --default-character-set=auto ó
+--exec LC_ALL=fi_FI.iso88591 $MYSQL_CHECK --default-character-set=auto "ó"
+
+
+#  {"iso885913",      "latin7",   my_cs_exact},
+#  {"ISO_8859-13",    "latin7",   my_cs_exact},
+#  {"ISO8859-13",     "latin7",   my_cs_exact},
+#  {"ISO-8859-13",    "latin7",   my_cs_exact},
+#
+#  {"iso885915",      "latin9",   my_cs_exact},
+#  {"ISO_8859-15",    "latin9",   my_cs_exact},
+#  {"ISO8859-15",     "latin9",   my_cs_exact},
+#  {"ISO-8859-15",    "latin9",   my_cs_exact},
+#
+#  {"iso88592",       "latin2",   my_cs_exact},
+#  {"ISO_8859-2",     "latin2",   my_cs_exact},
+#  {"ISO8859-2",      "latin2",   my_cs_exact},
+#  {"ISO-8859-2",     "latin2",   my_cs_exact},
+#
+
+
+#
+# _utf8 0xC3B3 = LATIN SMALL LETTER O WITH ACUTE
+# _latin2 0xC3 = LATIN CAPITAL LETTER A WITH BREVE
+# _latin2 0xB3 = LATIN SMALL LETTER L WITH STROKE
+#
+--echo
+--echo iso88592
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=cs_CZ.iso88592 $MYSQLADMIN --character-sets-dir=$CHARSETSDIR  -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR--default-character-set=auto "ó"
+
+
+#  {"iso88597",       "greek",    my_cs_exact},
+#  {"ISO_8859-7",     "greek",    my_cs_exact},
+#  {"ISO8859-7",      "greek",    my_cs_exact},
+#  {"ISO-8859-7",     "greek",    my_cs_exact},
+#
+#  {"iso88598",       "hebrew",   my_cs_exact},
+#  {"ISO_8859-8",     "hebrew",   my_cs_exact},
+#  {"ISO8859-8",      "hebrew",   my_cs_exact},
+#  {"ISO-8859-8",     "hebrew",   my_cs_exact},
+#
+#  {"iso88599",       "latin5",   my_cs_exact},
+#  {"ISO_8859-9",     "latin5",   my_cs_exact},
+#  {"ISO8859-9",      "latin5",   my_cs_exact},
+#  {"ISO-8859-9",     "latin5",   my_cs_exact},
+#
+#  {"koi8r",          "koi8r",    my_cs_exact},
+#  {"KOI8-R",         "koi8r",    my_cs_exact},
+#  {"koi8u",          "koi8u",    my_cs_exact},
+#  {"KOI8-U",         "koi8u",    my_cs_exact},
+#
+
+#
+# _utf8 0xC3B3 = LATIN SMALL LETTER O WITH ACUTE
+# _koi8r  0xC3 = CYRILLIC SMALL LETTER TSE
+# _koi8r  0xB3 = CYRILLIC CAPITAL LETTER IO
+#
+
+--echo
+--echo koi8r
+--exec LC_ALL=ru_RU.koi8r $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=ru_RU.koi8r $MYSQLADMIN --character-sets-dir=$CHARSETSDIR -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR --default-character-set=auto "ó"
+
+
+#  {"Shift_JIS",      "sjis",     my_cs_exact},
+#  {"SJIS",           "sjis",     my_cs_exact},
+#
+#  {"tis620",         "tis620",   my_cs_exact},
+#
+#  {"ujis",           "ujis",     my_cs_exact},
+#
+#  {"US-ASCII",       "ascii",    my_cs_exact},
+#
+#  {"utf8",           "utf8",     my_cs_exact},
+#  {"utf-8",          "utf8",     my_cs_exact},
+
+--echo 
+--echo utf8
+--exec LC_ALL=en_US.utf8 $MYSQL --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=en_US.utf8 $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto ó
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "Ã³"
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "Ăł"
+--exec LC_ALL=en_US.utf8 $MYSQL_SHOW --default-character-set=auto "цЁ"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto ó
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "Ã³"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "Ăł"
+--exec LC_ALL=en_US.utf8 $MYSQL_CHECK --default-character-set=auto "цЁ"
+
+SHOW DATABASES LIKE 'Ã³';
+SHOW DATABASES LIKE 'Ăł';
+SHOW DATABASES LIKE 'цЁ';
+SHOW DATABASES LIKE 'ó';
+
+DROP DATABASE `Ã³`;
+DROP DATABASE `Ăł`;
+DROP DATABASE `цЁ`;
+DROP DATABASE `ó`;

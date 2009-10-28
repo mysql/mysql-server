@@ -1,3 +1,6 @@
+#ifndef SCHEDULER_INCLUDED
+#define SCHEDULER_INCLUDED
+
 /* Copyright (C) 2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -58,3 +61,5 @@ enum pool_command_op
 
 class thd_scheduler
 {};
+
+#endif /* SCHEDULER_INCLUDED */
