@@ -6,6 +6,7 @@ grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaa
 grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 connection slave;
 start slave;
+source include/wait_for_slave_to_start.inc;
 connection master;
 --disable_warnings
 drop table if exists t1;

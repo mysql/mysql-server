@@ -134,7 +134,7 @@ then
   exit 1
 fi
 
-cmd="$bindir/mysql --no-defaults --force --user=$user --host=$host"
+cmd="$bindir/mysql --no-defaults --default-character-set=latin1 --force --user=$user --host=$host"
 if test ! -z "$port"; then
   cmd="$cmd --port=$port"
 fi

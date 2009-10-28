@@ -1251,7 +1251,7 @@ drop trigger trg1_0;
 create definer=not_ex_user@localhost trigger trg1_0
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_0-yes';
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 create definer=current_user trigger trg1_1
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_1-yes';
@@ -1284,7 +1284,7 @@ GRANT SELECT, INSERT, UPDATE, TRIGGER ON `priv_db`.`t1` TO 'test_yesprivs'@'loca
 create definer=not_ex_user@localhost trigger trg1_3
 after UPDATE on t1 for each row
 set @var1 = 'trig 1_3-yes';
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 select current_user;
 current_user
 root@localhost

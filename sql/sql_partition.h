@@ -1,3 +1,6 @@
+#ifndef SQL_PARTITION_INCLUDED
+#define SQL_PARTITION_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
@@ -209,3 +212,4 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
 
 #include "partition_info.h"
 
+#endif /* SQL_PARTITION_INCLUDED */

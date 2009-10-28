@@ -121,7 +121,7 @@ grant insert on v1 to testdb_2@localhost;
 create view v5 as select f1 from t1;
 grant select, show view on v5 to testdb_2@localhost;
 create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 use testdb_1;
 create view v6 as select f1 from t1;
 grant select, show view on v6 to testdb_2@localhost;

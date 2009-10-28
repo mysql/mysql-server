@@ -1665,6 +1665,27 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword)
 /*
  *  FUNCTION
  *
+ *      _db_keywords_    test keyword formed by a set of strings for member
+ *                       of keyword list
+ *
+ *  DESCRIPTION
+ *
+ *      This function is similar to _db_keyword but receives a set of strings to
+ *      be concatenated in order to make the keyword to be compared.
+ */
+
+BOOLEAN _db_keywords_(const char *function, const char *type)
+{
+  char dest[_DBUG_MAX_FUNC_NAME_ + 1];
+
+  strxnmov(dest, _DBUG_MAX_FUNC_NAME_, function, type, NULL);
+
+  return _db_strict_keyword_(dest);
+}
+
+/*
+ *  FUNCTION
+ *
  *      Indent    indent a line to the given indentation level
  *
  *  SYNOPSIS
@@ -2279,6 +2300,13 @@ void _db_unlock_file_()
   get_code_state_or_return;
   cs->locked=0;
   pthread_mutex_unlock(&THR_LOCK_dbug);
+}
+
+const char* _db_get_func_(void)
+{
+  CODE_STATE *cs= 0;
+  get_code_state_or_return NULL;
+  return cs->func;
 }
 
 /*

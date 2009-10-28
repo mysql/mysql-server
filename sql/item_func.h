@@ -1,3 +1,6 @@
+#ifndef ITEM_FUNC_INCLUDED
+#define ITEM_FUNC_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -1718,3 +1721,4 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
+#endif /* ITEM_FUNC_INCLUDED */

@@ -1,3 +1,6 @@
+#ifndef HA_PARTITION_INCLUDED
+#define HA_PARTITION_INCLUDED
+
 /* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
@@ -1103,3 +1106,5 @@ public:
     virtual void append_create_info(String *packet)
   */
 };
+
+#endif /* HA_PARTITION_INCLUDED */

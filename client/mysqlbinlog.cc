@@ -1349,7 +1349,6 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
@@ -2001,8 +2000,9 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
+  load_defaults("my", load_default_groups, &argc, &argv);
+  defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
-  defaults_argv=argv;
 
   if (!argc)
   {
