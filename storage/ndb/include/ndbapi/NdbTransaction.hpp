@@ -847,6 +847,7 @@ private:
    * Release completed operations
    */
   void releaseCompletedOperations();
+  void releaseCompletedQueries();
 
   typedef Uint64 TimeMillis_t;
   /**************************************************************************
@@ -1071,9 +1072,9 @@ private:
   int report_node_failure(Uint32 id);
 
   // Query operation (aka multicursor)
-  NdbQueryImpl* m_firstQuery;           // First query in defining list.
-  NdbQueryImpl* m_firstExecQuery;       // First executing query in list
-  NdbQueryImpl* m_firstCompletedQuery;  // First completed query in list
+  NdbQueryImpl* m_firstQuery;        // First query in defining list.
+  NdbQueryImpl* m_firstExecQuery;    // First query to send for execution
+  NdbQueryImpl* m_firstActiveQuery;  // First query actively executing, or completed
 
   // Scan operations
   bool m_waitForReply;     

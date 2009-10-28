@@ -123,7 +123,7 @@ public:
   /**
    * Close query
    */
-  void close(bool forceSend = false, bool release = false);
+  void close(bool forceSend = false);
 
   /** 
    * @name Error Handling

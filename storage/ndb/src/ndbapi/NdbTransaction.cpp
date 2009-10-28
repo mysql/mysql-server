@@ -79,7 +79,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   // Composite query operations
   m_firstQuery(NULL),
   m_firstExecQuery(NULL),
-  m_firstCompletedQuery(NULL),
+  m_firstActiveQuery(NULL),
   // Scan operations
   m_waitForReply(true),
   m_theFirstScanOperation(NULL),
@@ -158,7 +158,7 @@ NdbTransaction::init()
   // Query operations
   m_firstQuery            = NULL;
   m_firstExecQuery        = NULL;
-  m_firstCompletedQuery   = NULL;
+  m_firstActiveQuery      = NULL;
 
   // Scan operations
   m_waitForReply          = true;
@@ -238,6 +238,7 @@ NdbTransaction::restart(){
   DBUG_ENTER("NdbTransaction::restart");
   if(theCompletionStatus == CompletedSuccess){
     releaseCompletedOperations();
+    releaseCompletedQueries();
 
     theTransactionId = theNdb->allocate_transaction_id();
 
@@ -273,30 +274,6 @@ NdbTransaction::handleExecuteCompletion()
     theLastExecOpInList = NULL;
   }//if
 
-  /***************************************************************************
-   *	  Move non-Scan queries from the list of executing queries
-   *      to list of completed. Scan queries remains in the exec-list
-   **************************************************************************/
-  NdbQueryImpl* tExecQuery = m_firstExecQuery;
-  if (tExecQuery != NULL) {
-    NdbQueryImpl* prev = NULL;
-    while (tExecQuery != NULL) {
-      NdbQueryImpl* next = tExecQuery->getNext();
-      if (!tExecQuery->getQueryDef().isScanQuery()) {
-        // Unlink from exec-query list
-        if (prev==NULL)
-          m_firstExecQuery = next;
-        else
-          prev->setNext(next);
-
-        // Insert into completed-query list:
-        tExecQuery->setNext(m_firstCompletedQuery);
-        m_firstCompletedQuery = tExecQuery;
-      }
-      prev = tExecQuery;
-      tExecQuery = next;
-    }
-  }
   theSendStatus = InitState;
   return;
 }//NdbTransaction::handleExecuteCompletion()
@@ -672,6 +649,12 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   if (theError.code != 4012)
     theError.code = 0;
 
+  /***************************************************************************
+   * Eager garbage collect queries which has completed execution 
+   * w/ all its results made available to client.
+   **************************************************************************/
+  releaseCompletedQueries();
+
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
     // Execute any cursor operations
@@ -796,10 +779,7 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
        * and thus we set the sendStatus to ensure that the send method
        * will put it into the completed array.
        ***********************************************************************/
-      theSendStatus = (m_firstExecQuery!=NULL)
-          ? sendOperations   // Queries require ::doSend() to ::sendSignal()
-          : sendCompleted;   // Completed as ::executeCursor also ::sendSignal()
-
+      theSendStatus = sendCompleted;
       DBUG_VOID_RETURN;
     }//if
   }
@@ -807,18 +787,23 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   theCompletionStatus = NotCompleted;
 
   // Prepare sending of all pending NdbQuery's
-  NdbQueryImpl* query = m_firstQuery;
-  while (query!=NULL) {
-    const int tReturnCode = query->prepareSend();
-    if (tReturnCode == -1) {
-      theSendStatus = sendABORTfail;
-      DBUG_VOID_RETURN;
-    }//if
-
-    query = query->getNext();
+  if (m_firstQuery) {
+    NdbQueryImpl* query = m_firstQuery;
+    NdbQueryImpl* last = NULL;
+    while (query!=NULL) {
+      const int tReturnCode = query->prepareSend();
+      if (tReturnCode == -1) {
+        theSendStatus = sendABORTfail;
+        DBUG_VOID_RETURN;
+      }//if
+      last  = query;
+      query = query->getNext();
+    }
+    assert (m_firstExecQuery==NULL);
+    last->setNext(m_firstExecQuery);
+    m_firstExecQuery = m_firstQuery;
+    m_firstQuery = NULL;
   }
-  m_firstExecQuery = m_firstQuery;
-  m_firstQuery = NULL;
 
   // Prepare sending of all pending (non-scan) NdbOperations's
   NdbOperation* tOp = theFirstOpInList;
@@ -945,17 +930,26 @@ NdbTransaction::doSend()
     assert (m_firstExecQuery!=NULL || theFirstExecOpInList!=NULL);
 
     bool hasLookupQueries = false;
-    NdbQueryImpl* query = m_firstExecQuery;
-    while (query!=NULL) {
-      hasLookupQueries |= !query->getQueryDef().isScanQuery();
-      NdbQueryImpl* tNext = query->getNext();
-      const bool lastFlag = (tNext == NULL);
-      const int tReturnCode = query->doSend(theDBnode, lastFlag);
-      if (tReturnCode == -1) {
-        theReturnStatus = ReturnFailure;
-        break;
-      }
-      query = tNext;
+    if (m_firstExecQuery!=NULL) {
+      NdbQueryImpl* query = m_firstExecQuery;
+      NdbQueryImpl* last  = NULL;
+      while (query!=NULL) {
+        hasLookupQueries |= !query->getQueryDef().isScanQuery();
+        NdbQueryImpl* next = query->getNext();
+        const bool lastFlag = (next == NULL);
+        const int tReturnCode = query->doSend(theDBnode, lastFlag);
+        if (tReturnCode == -1) {
+          theReturnStatus = ReturnFailure;
+          break;
+        }
+        last  = query;
+        query = next;
+      } // while
+
+      // Append to list of active queries
+      last->setNext(m_firstActiveQuery);
+      m_firstActiveQuery = m_firstExecQuery;
+      m_firstExecQuery = NULL;
     }
 
     NdbOperation * tOp = theFirstExecOpInList;
@@ -1162,7 +1156,7 @@ NdbTransaction::releaseOperations()
   
   releaseQueries(m_firstQuery);
   releaseQueries(m_firstExecQuery);
-  releaseQueries(m_firstCompletedQuery);
+  releaseQueries(m_firstActiveQuery);
   releaseOps(theCompletedFirstOp);
   releaseOps(theFirstOpInList);
   releaseOps(theFirstExecOpInList);
@@ -1180,19 +1174,47 @@ NdbTransaction::releaseOperations()
   m_firstExecutedScanOp = NULL;
   m_firstQuery = NULL;
   m_firstExecQuery = NULL;
-  m_firstCompletedQuery = NULL;
+  m_firstActiveQuery = NULL;
 
 }//NdbTransaction::releaseOperations()
 
 void 
 NdbTransaction::releaseCompletedOperations()
 {
-  releaseQueries(m_firstCompletedQuery);
-  m_firstCompletedQuery = NULL;
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
 }//NdbTransaction::releaseCompletedOperations()
+
+
+void 
+NdbTransaction::releaseCompletedQueries()
+{
+  /**
+   * Find & release all active queries which as completed.
+   */
+  NdbQueryImpl* prev  = NULL;
+  NdbQueryImpl* query = m_firstActiveQuery;
+  while (query != NULL) {
+    NdbQueryImpl* next = query->getNext();
+
+    if (query->hasCompleted()) {
+      // Unlink from completed-query list
+      if (prev)
+        prev->setNext(next);
+      else
+        m_firstActiveQuery = next;
+
+      query->release();
+    } else {
+      prev = query;
+    }
+    query = next;
+  } // while
+
+
+}//NdbTransaction::releaseCompletedQueries()
+
 
 /******************************************************************************
 void releaseQueries();

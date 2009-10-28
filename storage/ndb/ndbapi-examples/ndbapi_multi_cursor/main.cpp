@@ -60,7 +60,7 @@
 ******************************************************/
 struct ManagerRow
 {
-  char   dept_no[8];
+  char   dept_no[4];
   Uint32 emp_no;
   Int32  from_date;
   Int32  to_date;
@@ -70,7 +70,7 @@ struct ManagerRow
 struct ManagerPKRow
 {
   Uint32 emp_no;
-  char   dept_no[8+1];
+  char   dept_no[4];
 };
 
 struct EmployeeRow
@@ -95,7 +95,7 @@ struct SalaryRow
 const char* employeeDef = 
 "CREATE TABLE employees ("
 "    emp_no      INT             NOT NULL,"
-"    dept_no     VARCHAR(4)         NOT NULL,"   // Temporary added OJA
+"    dept_no     CHAR(4)         NOT NULL,"   // Temporary added OJA
 "    birth_date  DATE            NOT NULL,"
 "    first_name  VARCHAR(14)     NOT NULL,"
 "    last_name   VARCHAR(16)     NOT NULL,"
@@ -106,7 +106,7 @@ const char* employeeDef =
 
 const char* departmentsDef = 
 "CREATE TABLE departments ("
-"    dept_no     VARCHAR(4)         NOT NULL,"
+"    dept_no     CHAR(4)         NOT NULL,"
 "    dept_name   VARCHAR(40)     NOT NULL,"
 "    PRIMARY KEY (dept_no),"
 "    UNIQUE  KEY (dept_name))"
@@ -114,7 +114,7 @@ const char* departmentsDef =
 
 const char* dept_managerDef = 
 "CREATE TABLE dept_manager ("
-"   dept_no      VARCHAR(4)         NOT NULL,"
+"   dept_no      CHAR(4)         NOT NULL,"
 "   emp_no       INT             NOT NULL,"
 "   from_date    DATE            NOT NULL,"
 "   to_date      DATE            NOT NULL,"
@@ -132,7 +132,7 @@ const char* dept_managerDef =
 const char* dept_empDef = 
 "CREATE TABLE dept_emp ("
 "    emp_no      INT             NOT NULL,"
-"    dept_no     VARCHAR(4)         NOT NULL,"
+"    dept_no     CHAR(4)         NOT NULL,"
 "    from_date   DATE            NOT NULL,"
 "    to_date     DATE            NOT NULL,"
 "    KEY         (emp_no),"
@@ -311,6 +311,39 @@ int testQueryBuilder(Ndb &myNdb)
 
   if (!employee || !manager || !salary) 
     APIERROR(myDict->getNdbError());
+
+  ////////////////////////////////////////////////
+  // Prepare alternatine non-default NdbRecords for MANAGER table
+  ////////////////////////////////////////////////
+  NdbRecord *rowManagerRecord;
+
+  {
+    const NdbDictionary::Column *manager_dept_no;
+    const NdbDictionary::Column *manager_emp_no;
+    const NdbDictionary::Column *manager_from_date;
+    const NdbDictionary::Column *manager_to_date;
+
+    manager_dept_no = manager->getColumn("dept_no");
+    if (manager_dept_no == NULL) APIERROR(myDict->getNdbError());
+    manager_emp_no = manager->getColumn("emp_no");
+    if (manager_emp_no == NULL) APIERROR(myDict->getNdbError());
+    manager_from_date = manager->getColumn("from_date");
+    if (manager_from_date == NULL) APIERROR(myDict->getNdbError());
+    manager_to_date = manager->getColumn("to_date");
+    if (manager_to_date == NULL) APIERROR(myDict->getNdbError());
+
+    const NdbDictionary::RecordSpecification mngSpec[] = {
+      {manager_emp_no,    offsetof(ManagerRow, emp_no),    0,0},
+//      {manager_dept_no,   offsetof(ManagerRow, dept_no),   0,0},
+//      {manager_from_date, offsetof(ManagerRow, from_date), 0,0},
+      {manager_to_date,   offsetof(ManagerRow, to_date),   0,0}
+    };
+
+    rowManagerRecord = 
+      myDict->createRecord(manager, mngSpec, 2, sizeof(mngSpec[0]));
+    if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+  }
+
 
   /**
    * Some very basic examples which are actually not Query*Trees*, but rather
@@ -844,18 +877,21 @@ int testQueryBuilder(Ndb &myNdb)
     }
 
 #ifdef USE_RECATTR
-    printf("manager  emp_no: %d\n", value_q6[0][1]->u_32_value());
-    printf("employee emp_no: %d\n", value_q6[1][0]->u_32_value());
+    printf("manager  emp_no: %d, NULL:%d\n",
+            value_q6[0][1]->u_32_value(), myQuery->getQueryOperation(0U)->isRowNULL());
+    printf("employee emp_no: %d, NULL:%d\n",
+            value_q6[1][0]->u_32_value(), myQuery->getQueryOperation(1U)->isRowNULL());
 #else
     // NOW: Result is available in row buffers
-    printf("manager  emp_no: %d\n", managerRow.emp_no);
-    printf("employee emp_no: %d\n", employeeRow.emp_no);
+    printf("manager  emp_no: %d, NULL:%d\n",
+            managerRow.emp_no, myQuery->getQueryOperation(0U)->isRowNULL());
+    printf("employee emp_no: %d, NULL:%d\n",
+            employeeRow.emp_no, myQuery->getQueryOperation(1U)->isRowNULL());
 #endif
     cnt++;
   };
   printf("EOF, %d rows\n", cnt);
   myQuery->close();
-//q6->release();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
@@ -926,31 +962,29 @@ int testQueryBuilder(Ndb &myNdb)
     NdbQueryOperation* op = myQuery->getQueryOperation(i);
     const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
 
-    value_q6_1[i][0] =  op->getValue(table->getColumn(0));
     value_q6_1[i][1] =  op->getValue(table->getColumn(1));
+    value_q6_1[i][0] =  op->getValue(table->getColumn(0));
   }
 #else
 {
   int err;
+//int mask = 0x03;
   const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
   if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   assert(myQuery->getNoOfOperations()==2);
   NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
-  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow /*, (const unsigned char*)&mask*/);
   assert (err==0);
-//if (err == NULL) APIERROR(op0->getNdbError());
+  if (err) APIERROR(myQuery->getNdbError());
 
-/****/
   const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
   if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
 
   NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
-  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow  /*, (const unsigned char*)&mask*/);
   assert (err==0);
-//if (err == NULL) APIERROR(op1->getNdbError());
-/****/
-
+  if (err) APIERROR(myQuery->getNdbError());
 }
 #endif
 
@@ -975,19 +1009,22 @@ int testQueryBuilder(Ndb &myNdb)
     }
 
 #ifdef USE_RECATTR
-    printf("manager  emp_no: %d\n", value_q6_1[0][1]->u_32_value());
-    printf("employee emp_no: %d\n", value_q6_1[1][0]->u_32_value());
+    printf("manager  emp_no: %d, NULL:%d\n",
+            value_q6_1[0][1]->u_32_value(), myQuery->getQueryOperation(0U)->isRowNULL());
+    printf("employee emp_no: %d, NULL:%d\n",
+            value_q6_1[1][0]->u_32_value(), myQuery->getQueryOperation(1U)->isRowNULL());
 #else
     // NOW: Result is available in row buffers
-    printf("manager  emp_no: %d\n", managerRow.emp_no);
-    printf("employee emp_no: %d\n", employeeRow.emp_no);
+    printf("manager  emp_no: %d, NULL:%d\n",
+            managerRow.emp_no, myQuery->getQueryOperation(0U)->isRowNULL());
+    printf("employee emp_no: %d, NULL:%d\n",
+            employeeRow.emp_no, myQuery->getQueryOperation(1)->isRowNULL());
 #endif
     cnt++;
   };
 
   printf("EOF, %d rows\n", cnt);
   myQuery->close();
-//q6_1->release();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
