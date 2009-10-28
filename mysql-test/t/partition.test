@@ -1680,6 +1680,7 @@ create table t1
 
 insert into t1 values (null,null);
 --disable_query_log
+begin;
 let $cnt= 1000;
 while ($cnt)
 {
@@ -1687,6 +1688,7 @@ while ($cnt)
   update t1 set s2 = 2;
   dec $cnt;
 }
+commit;
 --enable_query_log
 
 drop table t1;
@@ -1804,11 +1806,13 @@ CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
                     PARTITION pa11 values less than MAXVALUE);
 --disable_query_log
 let $n= 15;
+begin;
 while ($n)
 {
   insert into t1 (user) values ('mysql');
   dec $n;
 }
+commit;
 --enable_query_log
 show create table t1;
 drop table t1;

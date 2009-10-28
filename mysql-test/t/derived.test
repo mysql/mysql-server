@@ -45,14 +45,16 @@ select * from (select * from t1 where t1.a=(select t2.a from t2 where t2.a=t1.a)
 explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 drop table t1, t2;
 create table t1(a int not null, t char(8), index(a));
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 10000;
 while ($1)
  {
   eval insert into t1 values ($1,'$1'); 
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 drop table t1;

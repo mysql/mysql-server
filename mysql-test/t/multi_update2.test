@@ -48,13 +48,14 @@ CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL) ;
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4);
 let $1=19;
 set @d=4;
+begin;
 while ($1)
 {
   eval INSERT INTO t1 SELECT a+@d,b+@d FROM t1;
   eval SET @d=@d*2;
   dec $1;
 }
-
+commit;
 --enable_query_log
 ALTER TABLE t1 ADD INDEX i1(a);
 DELETE FROM t1 WHERE a > 2000000;

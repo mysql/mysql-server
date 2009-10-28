@@ -74,11 +74,13 @@ show create table t3;
 let $count=255;
 --echo $count inserts;
 --disable_query_log
+begin;
 while ($count)
 {
 eval insert into t3 values ($count);
 dec $count;
 }
+commit;
 --enable_query_log
 select hex(a) from t3 where a=b'01010101';
 delete from t3 where a=b'01010101';
@@ -96,11 +98,13 @@ show create table t4;
 let $count=32;
 --echo $count inserts;
 --disable_query_log
+begin;
 while ($count)
 {
 eval insert into t4 values ($count);
 dec $count;
 }
+commit;
 --enable_query_log
 select hex(a) from t4 where a=b'00000001';
 delete from t4 where a=b'00000001';

@@ -811,7 +811,8 @@ create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
-disable_query_log;
+--disable_query_log
+begin;
 # making table large enough
 let $1 = 10000;
 while ($1)
@@ -819,7 +820,8 @@ while ($1)
   eval insert into t1 values (rand()*100000+200,rand()*100000);
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
@@ -2607,7 +2609,8 @@ CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
                  PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
 
-disable_query_log;
+--disable_query_log
+begin;
 let $1=3000;
 while ($1)
 {
@@ -2621,7 +2624,8 @@ while ($1)
   }
   dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 
 SET SESSION sort_buffer_size = 32 * 1024;
 SELECT SQL_NO_CACHE COUNT(*)
@@ -3222,11 +3226,13 @@ insert into t1 values(1,1),(2,2), (3, 3);
 let $i=10000;
 --disable_query_log
 --disable_warnings
+begin;
 while ($i)
 {
   eval insert into t2 values (-1 , $i/5000 + 1, '$i');
   dec $i;
 }
+commit;
 --enable_warnings
 --enable_query_log
 set session sort_buffer_size= 33*1024;

@@ -69,11 +69,13 @@ CREATE TABLE  t1(f1 VARCHAR(200), f2 TEXT);
 INSERT INTO  t1 VALUES ('foo', 'foo1'), ('bar', 'bar1');
 let $i=9;
 --disable_query_log
+begin;
 while ($i)
 {
  INSERT INTO t1 SELECT * FROM t1; 
  dec $i; 
 }
+commit;
 --enable_query_log
 FLUSH TABLE t1; 
 --echo # Compress the table using MYISAMPACK tool

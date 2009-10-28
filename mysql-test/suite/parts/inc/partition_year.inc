@@ -24,11 +24,13 @@ delete from t2;
 let $count=255;
 --echo $count inserts;
 --disable_query_log
+begin;
 while ($count)
 {
 eval insert into t2 values (1901+$count);
 dec $count;
 }
+commit;
 --enable_query_log
 select count(*) from t2;
 select * from t2;

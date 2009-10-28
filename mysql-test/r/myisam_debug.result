@@ -12,16 +12,6 @@ CREATE TABLE `t2` (
 KEY (id1), KEY(id)
 ) ENGINE=MyISAM;
 INSERT INTO t2 (id) VALUES (123);
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
-INSERT INTO t2 (id) SELECT id  FROM t2;
 # Switch to insert Connection
 SET SESSION debug='+d,wait_in_enable_indexes';
 # Send insert data

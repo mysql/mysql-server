@@ -116,10 +116,6 @@ CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
 start_ts DATETIME, end_ts DATETIME,
 start_cached INTEGER, end_cached INTEGER);
 CREATE TABLE t1 (f1 BIGINT);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (1);
 INSERT INTO t_history
 SET attempt = 4 - 4 + 1, start_ts = NOW(),
 start_cached = 0;

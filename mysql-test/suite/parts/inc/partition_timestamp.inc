@@ -23,12 +23,15 @@ select * from t2;
 delete from t2;
 let $count=59;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t2 values (19710101000000+$count);
 dec $count;
 }
+commit;
+--enable_query_log
 select count(*) from t2;
 select * from t2;
 drop table t2;
@@ -44,11 +47,15 @@ partition quarter4 values less than (13)
 show create table t3;
 let $count=12;
 --echo $count inserts;
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t3 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
 dec $count;
 }
+commit;
+--enable_query_log
 select count(*) from t3;
 select * from t3;
 drop table t3;
@@ -64,11 +71,15 @@ partition quarter4 values in (10,11,12)
 show create table t4;
 let $count=12;
 --echo $count inserts;
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t4 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
 dec $count;
 }
+commit;
+--enable_query_log
 select count(*) from t4;
 select * from t4;
 drop table t4;
