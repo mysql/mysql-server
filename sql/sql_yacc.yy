@@ -8249,7 +8249,7 @@ udf_expr:
 sum_expr:
           AVG_SYM '(' in_sum_expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_sum_avg($3);
+            $$= new (YYTHD->mem_root) Item_sum_avg($3, FALSE);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8357,7 +8357,7 @@ sum_expr:
           }
         | SUM_SYM '(' in_sum_expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_sum_sum($3);
+            $$= new (YYTHD->mem_root) Item_sum_sum($3, FALSE);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
