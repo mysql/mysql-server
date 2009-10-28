@@ -36,7 +36,6 @@
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
-
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
 class NdbTransaction;  // Forward declaration
