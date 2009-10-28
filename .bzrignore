@@ -1139,6 +1139,7 @@ libmysqld/protocol_cursor.cc
 libmysqld/records.cc
 libmysqld/repl_failsafe.cc
 libmysqld/rpl_filter.cc
+libmysqld/rpl_handler.cc
 libmysqld/rpl_injector.cc
 libmysqld/rpl_record.cc
 libmysqld/rpl_record_old.cc
