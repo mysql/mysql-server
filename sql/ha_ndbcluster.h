@@ -49,9 +49,6 @@ class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 
-// connectstring to cluster if given by mysqld
-extern const char *ndbcluster_connectstring;
-
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
