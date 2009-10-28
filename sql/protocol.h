@@ -1,3 +1,6 @@
+#ifndef PROTOCOL_INCLUDED
+#define PROTOCOL_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -204,3 +207,4 @@ uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);
 
+#endif /* PROTOCOL_INCLUDED */

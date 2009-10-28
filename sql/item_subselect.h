@@ -1,3 +1,6 @@
+#ifndef ITEM_SUBSELECT_INCLUDED
+#define ITEM_SUBSELECT_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -579,4 +582,4 @@ inline bool Item_subselect::is_uncacheable() const
   return engine->uncacheable();
 }
 
-
+#endif /* ITEM_SUBSELECT_INCLUDED */

@@ -1,3 +1,6 @@
+#ifndef TABLE_INCLUDED
+#define TABLE_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -1735,3 +1738,4 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
 
 size_t max_row_length(TABLE *table, const uchar *data);
 
+#endif /* TABLE_INCLUDED */

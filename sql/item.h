@@ -1,3 +1,6 @@
+#ifndef ITEM_INCLUDED
+#define ITEM_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -3152,3 +3155,5 @@ extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(Field *field, Item *item);
+
+#endif /* ITEM_INCLUDED */

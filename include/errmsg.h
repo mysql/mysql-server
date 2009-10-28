@@ -1,3 +1,6 @@
+#ifndef ERRMSG_INCLUDED
+#define ERRMSG_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -101,3 +104,4 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_ERROR_LAST  /*Copy last error nr:*/  2058
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
+#endif /* ERRMSG_INCLUDED */

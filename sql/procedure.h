@@ -1,3 +1,6 @@
+#ifndef PROCEDURE_INCLUDED
+#define PROCEDURE_INCLUDED
+
 /* Copyright (C) 2000-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -149,3 +152,5 @@ public:
 
 Procedure *setup_procedure(THD *thd,ORDER *proc_param,select_result *result,
 			   List<Item> &field_list,int *error);
+
+#endif /* PROCEDURE_INCLUDED */
