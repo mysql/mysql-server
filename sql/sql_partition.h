@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, Sun Microsystems Inc. 2008-2009
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -68,15 +68,13 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
 void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           TABLE *table, handler *file, HA_CREATE_INFO *info);
-void set_linear_hash_mask(partition_info *part_info, uint no_parts);
+void set_linear_hash_mask(partition_info *part_info, uint num_parts);
 bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
-char *generate_partition_syntax(partition_info *part_info,
-                                uint *buf_length, bool use_sql_alloc,
-                                bool show_partition_options);
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
 void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
+uint get_partition_field_store_length(Field *field);
 void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
@@ -99,6 +97,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
+Item* convert_charset_partition_constant(Item *item, CHARSET_INFO *cs);
 
 /*
   A "Get next" function for partition iterator.
@@ -176,11 +175,14 @@ typedef struct st_partition_iter
   SYNOPSIS
     get_partitions_in_range_iter()
       part_info   Partitioning info
-      is_subpart  
-      min_val     Left edge,  field value in opt_range_key format.
-      max_val     Right edge, field value in opt_range_key format. 
+      is_subpart
+      store_length_array Length of fields packed in opt_range_key format
+      min_val     Left edge,  field value in opt_range_key format
+      max_val     Right edge, field value in opt_range_key format
+      min_len     Length of minimum value
+      max_len     Length of maximum value
       flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
-                  NO_MAX_RANGE.
+                  NO_MAX_RANGE
       part_iter   Iterator structure to be initialized
 
   DESCRIPTION
@@ -194,8 +196,9 @@ typedef struct st_partition_iter
     The set of partitions is returned by initializing an iterator in *part_iter
 
   NOTES
-    There are currently two functions of this type:
+    There are currently three functions of this type:
      - get_part_iter_for_interval_via_walking
+     - get_part_iter_for_interval_cols_via_map
      - get_part_iter_for_interval_via_mapping
 
   RETURN 
@@ -206,7 +209,9 @@ typedef struct st_partition_iter
 
 typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             bool is_subpart,
+                                            uint32 *store_length_array,
                                             uchar *min_val, uchar *max_val,
+                                            uint min_len, uint max_len,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
 

@@ -2052,6 +2052,18 @@ protected:
   virtual ~Create_func_to_days() {}
 };
 
+class Create_func_to_seconds : public Create_func_arg1
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1);
+
+  static Create_func_to_seconds s_singleton;
+
+protected:
+  Create_func_to_seconds() {}
+  virtual ~Create_func_to_seconds() {}
+};
+
 
 #ifdef HAVE_SPATIAL
 class Create_func_touches : public Create_func_arg2
@@ -4505,6 +4517,15 @@ Create_func_to_days::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_to_seconds Create_func_to_seconds::s_singleton;
+
+Item*
+Create_func_to_seconds::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_to_seconds(arg1);
+}
+
+
 #ifdef HAVE_SPATIAL
 Create_func_touches Create_func_touches::s_singleton;
 
@@ -4942,6 +4963,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
   { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
+  { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
   { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},
   { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},

@@ -610,8 +610,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY RANGE(f_int1)
 ( PARTITION part1 VALUES LESS THAN (NULL),
 PARTITION part2 VALUES LESS THAN (1000));
-ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '),
-PARTITION part2 VALUES LESS THAN (1000))' at line 9
+ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
 #  3.5.1.2 VALUE LESS THAN (NULL) is not allowed
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -623,8 +622,7 @@ f_charbig VARCHAR(1000)
 PARTITION BY RANGE(f_int1)
 ( PARTITION part1 VALUES LESS THAN (NULL),
 PARTITION part2 VALUES LESS THAN (1000));
-ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '),
-PARTITION part2 VALUES LESS THAN (1000))' at line 9
+ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
 #  3.5.2 NULL in LIST partitioning clause
 #  3.5.2.1 VALUE IN (NULL)
 CREATE TABLE t1 (

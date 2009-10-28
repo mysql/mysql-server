@@ -6240,4 +6240,21 @@ ER_UNKNOWN_LOCALE
 
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
-
+ER_SAME_NAME_PARTITION_FIELD
+  eng "Duplicate partition field name '%-.192s'"
+ER_PARTITION_COLUMN_LIST_ERROR
+  eng "Inconsistency in usage of column lists for partitioning"
+ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+  eng "Partition column values of incorrect type"
+ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
+  eng "Too many fields in '%-.192s'"
+ER_MAXVALUE_IN_VALUES_IN
+  eng "Cannot use MAXVALUE as value in VALUES IN"
+ER_TOO_MANY_VALUES_ERROR
+  eng "Cannot have more than one value for this type of %-.64s partitioning"
+ER_ROW_SINGLE_PARTITION_FIELD_ERROR
+  eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
+ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+  eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
+ER_PARTITION_FIELDS_TOO_LONG
+  eng "The total length of the partitioning fields is too large"

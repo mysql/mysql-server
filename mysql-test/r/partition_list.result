@@ -54,6 +54,17 @@ subpartitions 2
 partition p1 values in (1),
 partition pnull values in (null, 2),
 partition p3 values in (3));
+select partition_method, partition_expression, partition_description
+from information_schema.partitions where table_name = "t1";
+partition_method	partition_expression	partition_description
+LIST	a	0
+LIST	a	0
+LIST	a	1
+LIST	a	1
+LIST	a	NULL,2
+LIST	a	NULL,2
+LIST	a	3
+LIST	a	3
 insert into t1 values (0,0),(0,1),(1,0),(1,1),(null,0),(null,1);
 insert into t1 values (2,0),(2,1),(3,0),(3,1);
 explain partitions select * from t1 where a is null;
