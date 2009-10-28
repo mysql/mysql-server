@@ -1780,13 +1780,18 @@ grab_range_lock(RANGE_LOCK_REQUEST request) {
 //This is the user level callback function given to ydb layer functions like
 //toku_c_getf_first
 
+typedef struct __toku_is_write_op {
+    BOOL is_write_op;
+} WRITE_OP;
+
 typedef struct query_context_base_t {
     BRT_CURSOR  c;
     DB_TXN     *txn;
     DB         *db;
     void       *f_extra;
-    BOOL        do_locking;
     int         r_user_callback;
+    BOOL        do_locking;
+    BOOL        is_write_op;
 } *QUERY_CONTEXT_BASE, QUERY_CONTEXT_BASE_S;
 
 typedef struct query_context_t {
@@ -1803,13 +1808,15 @@ typedef struct query_context_with_input_t {
 
 
 static void
-query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, void *extra) {
+query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, WRITE_OP is_write_op, void *extra) {
     context->c       = dbc_struct_i(c)->c;
     context->txn     = dbc_struct_i(c)->txn;
     context->db      = c->dbp;
     context->f_extra = extra;
+    context->is_write_op = is_write_op.is_write_op;
     u_int32_t lock_flags = get_prelocked_flags(flag, dbc_struct_i(c)->txn);
     flag &= ~lock_flags;
+    if (context->is_write_op) lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
     assert(flag==0);
     context->do_locking = (BOOL)(context->db->i->lt!=NULL && !lock_flags);
     context->r_user_callback = 0;
@@ -1817,13 +1824,22 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, void
 
 static void
 query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    query_context_base_init(&context->base, c, flag, extra);
+    WRITE_OP is_write = {FALSE};
+    query_context_base_init(&context->base, c, flag, is_write, extra);
+    context->f = f;
+}
+
+static void
+query_context_init_write_op(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    WRITE_OP is_write = {TRUE};
+    query_context_base_init(&context->base, c, flag, is_write, extra);
     context->f = f;
 }
 
 static void
 query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
-    query_context_base_init(&context->base, c, flag, extra);
+    WRITE_OP is_write = {FALSE};
+    query_context_base_init(&context->base, c, flag, is_write, extra);
     context->f         = f;
     context->input_key = key;
     context->input_val = val;
@@ -1850,7 +1866,7 @@ toku_c_del(DBC * c, u_int32_t flags) {
     else {
         if (do_locking) {
             QUERY_CONTEXT_S context;
-            query_context_init(&context, c, lock_flags, NULL, NULL);
+            query_context_init_write_op(&context, c, lock_flags, NULL, NULL);
             //We do not need a read lock, we must already have it.
             r = toku_c_getf_current_binding(c, DB_PRELOCKED, c_del_callback, &context);
         }
@@ -1872,6 +1888,7 @@ c_del_callback(DBT const *key, DBT const *val, void *extra) {
     int r;
 
     assert(context->do_locking);
+    assert(context->is_write_op);
     assert(key!=NULL);
     assert(val!=NULL);
     //Lock:
@@ -2667,7 +2684,8 @@ typedef struct {
 
 static void
 query_context_heaviside_init(QUERY_CONTEXT_HEAVISIDE context, DBC *c, u_int32_t flag, YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra, HEAVI_WRAPPER wrapper) {
-    query_context_base_init(&context->base, c, flag, extra);
+    WRITE_OP is_write = {FALSE};
+    query_context_base_init(&context->base, c, flag, is_write, extra);
     context->f       = f;
     context->wrapper = wrapper;
 }

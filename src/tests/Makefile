@@ -110,6 +110,7 @@ BDB_DONTRUN_TESTS = \
 	backwards_10_each_le_and_msg \
 	test_dupsort_set_range_reverse \
 	test_dupsort_get_both_range_reverse \
+	test_cursor_delete_2119 \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
