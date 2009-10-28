@@ -71,6 +71,7 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
 void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
+uint get_partition_field_store_length(Field *field);
 void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,

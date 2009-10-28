@@ -19,8 +19,6 @@
 
 #include "partition_element.h"
 
-#define MAX_STR_SIZE_PF 2048
-
 class partition_info;
 
 /* Some function typedefs */
@@ -298,6 +296,7 @@ public:
                      char *end_token, bool is_subpart);
   static int compare_column_values(const void *a, const void *b);
   bool set_up_charset_field_preps();
+  bool check_partition_field_length();
   bool init_column_part();
   bool add_column_list_value(THD *thd, Item *item);
 private:
