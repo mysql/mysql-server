@@ -62,6 +62,7 @@ int do_append = 0;
 int do_checkpoint_period = 0;
 u_int32_t checkpoint_period = 0;
 static const char *log_dir = NULL;
+static int commitflags = 0;
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -277,7 +278,7 @@ static void insert (long long v) {
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
 	    n_insertions_since_txn_began=0;
-	    r = tid->commit(tid, 0); assert(r==0);
+	    r = tid->commit(tid, commitflags); assert(r==0);
             tid = NULL;
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
             do_prelock(db, tid);
@@ -360,6 +361,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
+    fprintf(stderr, "    --nosync              commit with nosync\n");
     fprintf(stderr, "    --singlex             (implies -x) Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
     fprintf(stderr, "    --singlex-child       (implies -x) Run the whole job as a single transaction, do all work a child of that transaction.\n");
     fprintf(stderr, "    --finish-child-first  Commit/abort child before doing so to parent (no effect if no child).\n");
@@ -498,6 +500,8 @@ int main (int argc, const char *argv[]) {
             if (i+1 >= argc) return print_usage(argv[9]);
             do_checkpoint_period = 1;
             checkpoint_period = (u_int32_t) atoi(argv[++i]);
+        } else if (strcmp(arg, "--nosync") == 0) {
+            commitflags += DB_TXN_NOSYNC;
         } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             if (atoi(argv[++i]))
