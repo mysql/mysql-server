@@ -312,7 +312,7 @@ PARTITION BY RANGE(f_int1)
 --echo #------------------------------------------------------------------------
 --echo #  3.5.1 NULL in RANGE partitioning clause
 --echo #  3.5.1.1 VALUE LESS THAN (NULL) is not allowed
---error ER_PARSE_ERROR
+--error ER_NULL_IN_VALUES_LESS_THAN
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -320,7 +320,7 @@ PARTITION BY RANGE(f_int1)
 ( PARTITION part1 VALUES LESS THAN (NULL),
   PARTITION part2 VALUES LESS THAN (1000));
 --echo #  3.5.1.2 VALUE LESS THAN (NULL) is not allowed
---error ER_PARSE_ERROR
+--error ER_NULL_IN_VALUES_LESS_THAN
 eval CREATE TABLE t1 (
 $column_list
 )

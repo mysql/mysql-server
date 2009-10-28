@@ -1,7 +1,7 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,8 @@
 
 enum partition_keywords
 { 
-  PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR
+  PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
+  PKW_COLUMNS
 };
 
 /*
@@ -114,7 +115,7 @@ private:
 
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
-  uint m_no_locks;                       // For engines like ha_blackhole, which needs no locks
+  uint m_num_locks;                       // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write,read
   int m_lock_type;                       // Remembers type of last
                                          // external_lock
@@ -246,10 +247,10 @@ public:
                                 size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
   virtual int rename_partitions(const char *path);
-  bool get_no_parts(const char *name, uint *no_parts)
+  bool get_no_parts(const char *name, uint *num_parts)
   {
     DBUG_ENTER("ha_partition::get_no_parts");
-    *no_parts= m_tot_parts;
+    *num_parts= m_tot_parts;
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);

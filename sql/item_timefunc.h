@@ -76,6 +76,24 @@ public:
 };
 
 
+class Item_func_to_seconds :public Item_int_func
+{
+public:
+  Item_func_to_seconds(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "to_seconds"; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null=1; 
+  }
+  enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+};
+
+
 class Item_func_dayofmonth :public Item_int_func
 {
 public:
