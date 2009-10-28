@@ -1009,13 +1009,11 @@ buf_LRU_old_init(void)
 	the adjust function to move the LRU_old pointer to the right
 	position */
 
-	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-
-	while (bpage != NULL) {
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage != NULL;
+	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
 		ut_ad(bpage->in_LRU_list);
 		ut_ad(buf_page_in_file(bpage));
 		buf_page_set_old(bpage, TRUE);
-		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
 	buf_pool->LRU_old = UT_LIST_GET_FIRST(buf_pool->LRU);
