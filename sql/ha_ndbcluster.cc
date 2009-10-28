@@ -55,14 +55,8 @@
 extern ulong opt_ndb_cache_check_time;
 
 // ndb interface initialization/cleanup
-#ifdef  __cplusplus
-extern "C" {
-#endif
-extern void ndb_init_internal();
-extern void ndb_end_internal();
-#ifdef  __cplusplus
-}
-#endif
+extern "C" void ndb_init_internal();
+extern "C" void ndb_end_internal();
 
 static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
 
