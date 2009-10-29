@@ -93,5 +93,6 @@ eval set GLOBAL sql_mode=default;
 #
 # Test the --upgrade-system-tables option
 #
---exec $MYSQL_UPGRADE --upgrade-system-tables
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --skip-verbose --upgrade-system-tables
 
