@@ -34,10 +34,11 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#46633 Obsolete Serbian locale name
 --echo #
---error ER_UNKNOWN_LOCALE
-set lc_messages=sr_YU;
-set lc_messages=sr_RS;
-set lc_time_names=sr_RS;
-select format(123456.789, 3, 'sr_RS');
+SET lc_messages=sr_YU;
+SHOW VARIABLES LIKE 'lc_messages';
+SET lc_messages=sr_RS;
+SHOW VARIABLES LIKE 'lc_messages';
+SET lc_time_names=sr_RS;
+SELECT format(123456.789, 3, 'sr_RS');
 
 --echo End of 5.4 tests
