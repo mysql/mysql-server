@@ -48,41 +48,41 @@ while($i)
   if (`SELECT $i=4`)
   {
     -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when different
-    -- echo ####                 indexes exist on master and slave and PKE
-    -- echo ####                 is not declared in a column that does not
-    -- echo ####                 exist on the slave.
-    -- echo ####                 Master: PK --> Slave: PK, UK, K, none
+    -- echo #### Requirement: Replication must not break when different
+    -- echo ####              indexes exist on master and slave and PKE
+    -- echo ####              is not declared in a column that does not
+    -- echo ####              exist on the slave.
+    -- echo ####              Master: PK --> Slave: PK, UK, K, none
   }
 
   if (`SELECT $i=8`)
   {
     -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when different
-    -- echo ####                 indexes exist on master and slave and PKE
-    -- echo ####                 is not declared in a column that does not
-    -- echo ####                 exist on the slave.
-    -- echo ####                 Master: UK --> Slave: PK, UK, K, none
+    -- echo #### Requirement: Replication must not break when different
+    -- echo ####              indexes exist on master and slave and PKE
+    -- echo ####              is not declared in a column that does not
+    -- echo ####              exist on the slave.
+    -- echo ####              Master: UK --> Slave: PK, UK, K, none
   }
 
   if (`SELECT $i=12`)
   {
     -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when different
-    -- echo ####                 indexes exist on master and slave and PKE
-    -- echo ####                 is not declared in a column that does not
-    -- echo ####                 exist on the slave.
-    -- echo ####                 Master: K --> Slave: PK, UK, K, none
+    -- echo #### Requirement: Replication must not break when different
+    -- echo ####              indexes exist on master and slave and PKE
+    -- echo ####              is not declared in a column that does not
+    -- echo ####              exist on the slave.
+    -- echo ####              Master: K --> Slave: PK, UK, K, none
   }
 
   if (`SELECT $i=16`)
   {
     -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when different
-    -- echo ####                 indexes exist on master and slave and PKE
-    -- echo ####                 is not declared in a column that does not
-    -- echo ####                 exist on the slave.
-    -- echo ####                 Master: none --> Slave: PK, UK, K, none
+    -- echo #### Requirement: Replication must not break when different
+    -- echo ####              indexes exist on master and slave and PKE
+    -- echo ####              is not declared in a column that does not
+    -- echo ####              exist on the slave.
+    -- echo ####              Master: none --> Slave: PK, UK, K, none
   }
 
   if (`SELECT $i=1`) {
