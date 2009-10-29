@@ -1129,7 +1129,7 @@ struct buf_page_struct{
 					debugging */
 #endif /* UNIV_DEBUG */
 	unsigned	old:1;		/*!< TRUE if the block is in the old
-					blocks in the LRU list */
+					blocks in buf_pool->LRU_old */
 	unsigned	freed_page_clock:31;/*!< the value of
 					buf_pool->freed_page_clock
 					when this block was the last
@@ -1393,8 +1393,7 @@ struct buf_pool_struct{
 					the block to which LRU_old points
 					onward, including that block;
 					see buf0lru.c for the restrictions
-					on this value; not defined if
-					LRU_old == NULL;
+					on this value; 0 if LRU_old == NULL;
 					NOTE: LRU_old_len must be adjusted
 					whenever LRU_old shrinks or grows! */
 
