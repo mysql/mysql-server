@@ -3605,8 +3605,8 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   {
     key_part->key=          0;
     key_part->part=	    part;
-    key_part->length= (uint16)get_partition_field_store_length(*field);
-    key_part->store_length= key_part->length;
+    key_part->length= (uint16)(*field)->key_length();
+    key_part->store_length= (uint16)get_partition_field_store_length(*field);
 
     DBUG_PRINT("info", ("part %u length %u store_length %u", part,
                          key_part->length, key_part->store_length));
