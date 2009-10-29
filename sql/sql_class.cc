@@ -3722,19 +3722,20 @@ void THD::binlog_prepare_row_images(TABLE *table)
    */
 
   DBUG_PRINT_BITSET("debug", "table->read_set (before preparing): %s", table->read_set);
+  THD *thd= table->in_use;
 
   /** 
     if there is a primary key in the table (ie, user declared PK or a
     non-null unique index) and we dont want to ship the entire image.
    */
   if (table->s->primary_key < MAX_KEY &&
-      (opt_binlog_row_image_id < BINLOG_ROW_IMAGE_FULL))
+      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL))
   {
     DBUG_ASSERT(table->read_set != &table->tmp_set);
 
     bitmap_clear_all(&table->tmp_set);
 
-    switch(opt_binlog_row_image_id)
+    switch(thd->variables.binlog_row_image)
     {
       case BINLOG_ROW_IMAGE_MINIMAL:
         /* MINIMAL: Mark only PK */
