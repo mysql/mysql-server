@@ -1745,28 +1745,48 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
                              bool *suppress_warnings)
 {
   uchar buf[1024], *pos= buf;
-  uint report_host_len, report_user_len=0, report_password_len=0;
+  uint report_host_len=0, report_user_len=0, report_password_len=0;
   DBUG_ENTER("register_slave_on_master");
 
   *suppress_warnings= FALSE;
-  if (!report_host)
+  if (report_host)
+    report_host_len= strlen(report_host);
+  if (report_host_len > HOSTNAME_LENGTH)
+  {
+    sql_print_warning("The length of report_host is %d. "
+                      "It is larger than the max length(%d), so this "
+                      "slave cannot be registered to the master.",
+                      report_host_len, HOSTNAME_LENGTH);
     DBUG_RETURN(0);
-  report_host_len= strlen(report_host);
+  }
+
   if (report_user)
     report_user_len= strlen(report_user);
+  if (report_user_len > USERNAME_LENGTH)
+  {
+    sql_print_warning("The length of report_user is %d. "
+                      "It is larger than the max length(%d), so this "
+                      "slave cannot be registered to the master.",
+                      report_user_len, USERNAME_LENGTH);
+    DBUG_RETURN(0);
+  }
+
   if (report_password)
     report_password_len= strlen(report_password);
-  /* 30 is a good safety margin */
-  if (report_host_len + report_user_len + report_password_len + 30 >
-      sizeof(buf))
-    DBUG_RETURN(0);                                     // safety
+  if (report_password_len > MAX_PASSWORD_LENGTH)
+  {
+    sql_print_warning("The length of report_password is %d. "
+                      "It is larger than the max length(%d), so this "
+                      "slave cannot be registered to the master.",
+                      report_password_len, MAX_PASSWORD_LENGTH);
+    DBUG_RETURN(0);
+  }
 
   int4store(pos, server_id); pos+= 4;
   pos= net_store_data(pos, (uchar*) report_host, report_host_len);
   pos= net_store_data(pos, (uchar*) report_user, report_user_len);
   pos= net_store_data(pos, (uchar*) report_password, report_password_len);
   int2store(pos, (uint16) report_port); pos+= 2;
-  int4store(pos, rpl_recovery_rank);    pos+= 4;
   /* The master will fill in master_id */
   int4store(pos, 0);                    pos+= 4;
 

@@ -34,3 +34,5 @@ libsemisync_slave_la_LDFLAGS =	-module
 libsemisync_slave_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_slave_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_slave_la_SOURCES = semisync.cc semisync_slave.cc semisync_slave_plugin.cc
+
+EXTRA_DIST=		CMakeLists.txt plug.in
