@@ -77,7 +77,7 @@ a
 2004-01-01 11:59:29
 drop table t1;
 create table t1 (a int, b char(20))
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (1));
 ERROR 42000: Inconsistency in usage of column lists for partitioning near '))' at line 3
 create table t1 (a int, b char(20))
@@ -89,7 +89,7 @@ partition by range(a)
 (partition p0 values less than (1,"b"));
 ERROR HY000: Cannot have more than one value for this type of RANGE partitioning
 create table t1 (a int, b char(20))
-partition by range column_list(b)
+partition by range columns(b)
 (partition p0 values less than ("b"));
 drop table t1;
 create table t1 (a int)

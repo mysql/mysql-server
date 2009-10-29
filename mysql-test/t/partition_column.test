@@ -13,11 +13,11 @@ drop table if exists t1;
 #
 --error ER_PARTITION_FIELDS_TOO_LONG
 create table t1 (a varchar(1500), b varchar(1570))
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in (('a','b')));
 
 create table t1 (a varchar(1023) character set utf8 collate utf8_spanish2_ci)
-partition by range column_list(a)
+partition by range columns(a)
 ( partition p0 values less than ('CZ'),
   partition p1 values less than ('CH'),
   partition p2 values less than ('D'));
@@ -31,12 +31,12 @@ drop table t1;
 set @@sql_mode=allow_invalid_dates;
 --error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
 create table t1 (a char, b char, c date)
-partition by range column_list (a,b,c)
+partition by range columns (a,b,c)
 ( partition p0 values less than (0,0,to_days('3000-11-31')));
 
 --error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
 create table t1 (a char, b char, c date)
-partition by range column_list (a,b,c)
+partition by range columns (a,b,c)
 ( partition p0 values less than (0,0,'3000-11-31'));
 set @@sql_mode='';
 
@@ -44,7 +44,7 @@ set @@sql_mode='';
 # BUG#48163, Dagger in UCS2 not working as partition value
 #
 create table t1 (a varchar(2) character set ucs2)
-partition by list column_list (a)
+partition by list columns (a)
 (partition p0 values in (0x2020),
  partition p1 values in (''));
 show create table t1;
@@ -53,7 +53,7 @@ insert into t1 values (_ucs2 0x2020);
 drop table t1;
 
 create table t1 (a int, b char(10), c varchar(25), d datetime)
-partition by range column_list(a,b,c,d)
+partition by range columns(a,b,c,d)
 subpartition by hash (to_seconds(d))
 subpartitions 4
 ( partition p0 values less than (1, 0, MAXVALUE, '1900-01-01'),
@@ -67,16 +67,16 @@ drop table t1;
 
 --error ER_NULL_IN_VALUES_LESS_THAN
 create table t1 (a int, b int)
-partition by range column_list (a,b)
+partition by range columns (a,b)
 (partition p0 values less than (NULL, maxvalue));
 
 --error ER_MAXVALUE_IN_VALUES_IN, ER_PARSE_ERROR
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in ((maxvalue, 0)));
 
 create table t1 (a int, b int)
-partition by list column_list (a,b)
+partition by list columns (a,b)
 ( partition p0 values in ((0,0)));
 --error ER_MAXVALUE_IN_VALUES_IN, ER_PARSE_ERROR
 alter table t1 add partition
@@ -90,7 +90,7 @@ create table t1 (a int, b int)
 partition by key (a,a);
 --error ER_SAME_NAME_PARTITION_FIELD
 create table t1 (a int, b int)
-partition by list column_list(a,a)
+partition by list columns(a,a)
 ( partition p values in ((1,1)));
 
 #
@@ -108,7 +108,7 @@ select * from t1 where a <= 1;
 drop table t1;
 
 create table t1 (a int signed)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (1, 3, 5, 7, 9, NULL),
   partition p1 values in (2, 4, 6, 8, 0));
 insert into t1 values (NULL),(0),(1),(2),(2),(4),(4),(4),(8),(8);
@@ -119,7 +119,7 @@ select * from t1 where a <= 1;
 drop table t1;
 
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in ((1, NULL), (2, NULL), (NULL, NULL)),
   partition p1 values in ((1,1), (2,2)),
   partition p2 values in ((3, NULL), (NULL, 1)));
@@ -167,12 +167,12 @@ drop table t1;
 
 --error ER_PARSE_ERROR
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (2, 1),
   partition p1 values in ((4), (NULL), (3)));
 
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (2, 1),
   partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
@@ -189,7 +189,7 @@ show create table t1;
 drop table t1;
 
 create table t1 (a int, b char(10), c varchar(5), d int)
-partition by range column_list(a,b,c)
+partition by range columns(a,b,c)
 subpartition by key (c,d)
 subpartitions 3
 ( partition p0 values less than (1,'abc','abc'),
@@ -209,7 +209,7 @@ select * from t1 where (a = 1 AND b < 'd' AND (c = 'b' OR (c = 'c' AND d = 1)) O
 drop table t1;
 
 create table t1 (a int, b varchar(2), c int)
-partition by range column_list (a, b, c)
+partition by range columns (a, b, c)
 (partition p0 values less than (1, 'A', 1),
  partition p1 values less than (1, 'B', 1));
 select partition_method, partition_expression, partition_description
@@ -221,7 +221,7 @@ select * from t1 where a = 1 AND b <= 'A' and c = 1;
 drop table t1;
 
 create table t1 (a char, b char, c char)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in ('a'));
 insert into t1 (a) values ('a');
 select * from t1 where a = 'a';
@@ -229,47 +229,47 @@ drop table t1;
 
 --error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
 create table t1 (d time)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
   partition p1 values less than ('2040-01-01'));
 
 --error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 create table t1 (d timestamp)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
   partition p1 values less than ('2040-01-01'));
 
 --error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 create table t1 (d bit(1))
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than (0),
   partition p1 values less than (1));
 
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (maxvalue, 10));
 drop table t1;
 
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
   partition p1 values less than ('2009-01-01'));
 drop table t1;
 
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('1999-01-01'),
   partition p1 values less than ('2000-01-01'));
 drop table t1;
 
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
   partition p1 values less than ('3000-01-01'));
 drop table t1;
 
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p2 values less than (99,99),
  partition p1 values less than (99,999));
 
@@ -284,21 +284,21 @@ drop table t1;
 
 --error ER_PARSE_ERROR
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 (partition p0 values in ((maxvalue,maxvalue)));
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (maxvalue,maxvalue));
 drop table t1;
 
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 (partition p0 values in (0));
 select partition_method from information_schema.partitions where table_name='t1';
 drop table t1;
 
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than ('H23456'),
  partition p1 values less than ('M23456'));
 insert into t1 values ('F23456');
@@ -307,28 +307,28 @@ drop table t1;
 
 -- error 1054
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than (H23456),
  partition p1 values less than (M23456));
 
 -- error ER_RANGE_NOT_INCREASING_ERROR
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than (23456),
  partition p1 values less than (23456));
 
 -- error 1064
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (10));
 
 -- error ER_PARTITION_COLUMN_LIST_ERROR
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (1,1,1);
 
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (1, 0),
  partition p1 values less than (2, maxvalue),
  partition p2 values less than (3, 3),
@@ -340,7 +340,7 @@ insert into t1 values (0,1),(1,1),(2,1),(3,1),(3,4),(4,9),(9,1);
 select * from t1;
 
 alter table t1
-partition by range column_list(b,a)
+partition by range columns(b,a)
 (partition p0 values less than (1,2),
  partition p1 values less than (3,3),
  partition p2 values less than (9,5));
@@ -374,7 +374,7 @@ select * from t1 where b < 4;
 drop table t1;
 
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 subpartition by hash (b)
 subpartitions 2
 (partition p0 values in ((0,0), (1,1)),
@@ -384,7 +384,7 @@ insert into t1 values (1000,1000);
 drop table t1;
 
 create table t1 (a char, b char, c char)
-partition by range column_list(a,b,c)
+partition by range columns(a,b,c)
 ( partition p0 values less than ('a','b','c'));
 alter table t1 add partition
 (partition p1 values less than ('b','c','d'));

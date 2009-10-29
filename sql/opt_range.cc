@@ -3251,7 +3251,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
 
       /*
         We need to call the interval mapper if we have a condition which
-        makes sense to prune on. In the example of a COLUMN_LIST on a and
+        makes sense to prune on. In the example of COLUMNS on a and
         b it makes sense if we have a condition on a, or conditions on
         both a and b. If we only have conditions on b it might make sense
         but this is a harder case we will solve later. For the harder case

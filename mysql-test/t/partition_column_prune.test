@@ -8,7 +8,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
 create table t1 (a char, b char, c char)
-partition by range column_list(a,b,c)
+partition by range columns(a,b,c)
 ( partition p0 values less than ('a','b','c'));
 insert into t1 values ('a', NULL, 'd');
 explain partitions select * from t1 where a = 'a' AND c = 'd';
@@ -16,7 +16,7 @@ select * from t1 where a = 'a' AND c = 'd';
 drop table t1;
 
 ## COLUMN_LIST partition pruning tests
-create table t1 (a int not null) partition by range column_list(a) (
+create table t1 (a int not null) partition by range columns(a) (
   partition p0 values less than (10),
   partition p1 values less than (20),
   partition p2 values less than (30),
@@ -46,7 +46,7 @@ explain partitions select * from t2 where a > 35 and a < 45;
 drop table t1, t2;
 
 create table t1 (a int not null, b int not null ) 
-partition by range column_list(a,b) (
+partition by range columns(a,b) (
   partition p01 values less than (2,10),
   partition p02 values less than (2,20),
   partition p03 values less than (2,30),
