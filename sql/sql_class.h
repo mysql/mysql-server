@@ -355,6 +355,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  ulong binlog_row_image; 
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly

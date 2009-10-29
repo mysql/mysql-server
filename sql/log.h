@@ -610,6 +610,7 @@ enum enum_binlog_row_image {
   BINLOG_ROW_IMAGE_NOBLOB= 1,
   BINLOG_ROW_IMAGE_FULL= 2
 };
+extern TYPELIB binlog_row_image_typelib;
 
 enum enum_binlog_format {
   /*

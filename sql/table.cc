@@ -4562,11 +4562,14 @@ void st_table::mark_columns_per_binlog_row_image()
   if ((mysql_bin_log.is_open() && in_use &&
        in_use->current_stmt_binlog_row_based))
   {
+
+    THD *thd= current_thd;
+
     /* if there is no PK, then mark all columns for the BI. */
     if (s->primary_key >= MAX_KEY)
       bitmap_set_all(read_set);
 
-    switch (opt_binlog_row_image_id)
+    switch (thd->variables.binlog_row_image)
     {
       case BINLOG_ROW_IMAGE_FULL:
         if (s->primary_key < MAX_KEY)

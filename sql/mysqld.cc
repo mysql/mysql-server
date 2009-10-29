@@ -7798,6 +7798,8 @@ static int mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+  global_system_variables.binlog_row_image= BINLOG_ROW_IMAGE_FULL;
+
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -8067,7 +8069,7 @@ mysqld_get_one_option(int optid,
   {
     int id;
     id= find_type_or_exit(argument, &binlog_row_image_typelib, opt->name);
-    opt_binlog_row_image_id= id - 1;
+    global_system_variables.binlog_row_image= opt_binlog_row_image_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
