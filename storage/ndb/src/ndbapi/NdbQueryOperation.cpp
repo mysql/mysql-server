@@ -816,8 +816,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
       while (m_fullStreams.top()!=NULL) {
         // We should never receive empty 'm_fullStreams'
         assert(m_fullStreams.top()->m_receiver.hasResults());
-        m_applStreams.push(*m_fullStreams.top());
-        m_fullStreams.pop();
+        m_applStreams.push(*m_fullStreams.pop());
       }
       if (m_applStreams.top() != NULL) {
         return FetchResult_ok;
@@ -843,8 +842,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
     }else{
       /* Move stream from receiver thread's container to application 
        *  thread's container.*/
-      m_applStreams.push(*m_fullStreams.top());
-      m_fullStreams.pop();
+      m_applStreams.push(*m_fullStreams.pop());
       assert(m_fullStreams.top()==NULL); // Only one stream for lookups.
       assert(m_applStreams.top()->m_receiver.hasResults());
       return FetchResult_ok;
@@ -996,7 +994,8 @@ NdbQueryImpl::release()
 }
 
 void
-NdbQueryImpl::setErrorCodeAbort(int aErrorCode){
+NdbQueryImpl::setErrorCodeAbort(int aErrorCode)
+{
   m_error.code = aErrorCode;
   m_transaction.theErrorLine = 0;
   m_transaction.theErrorOperation = NULL;
@@ -1005,28 +1004,29 @@ NdbQueryImpl::setErrorCodeAbort(int aErrorCode){
 }
 
 bool 
-NdbQueryImpl::execTCKEYCONF(){
+NdbQueryImpl::execTCKEYCONF()
+{
   if(traceSignals){
     ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingStreams=" 
            << m_pendingStreams << endl;
   }
   assert(!getQueryDef().isScanQuery());
+  assert(!m_tcKeyConfReceived);
   m_tcKeyConfReceived = true;
-  if(m_pendingStreams==0){
-    for(Uint32 i = 0; i < getNoOfOperations(); i++){
+  if (m_pendingStreams==0) {
+    for (Uint32 i = 0; i < getNoOfOperations(); i++) {
       assert(getQueryOperation(i).isBatchComplete());
     }
-  }
-  if(m_pendingStreams==0){
     closeSingletonScans();
     return true;
-  }else{
+  } else {
     return false;
   }
 }
 
 void 
-NdbQueryImpl::execCLOSE_SCAN_REP(){
+NdbQueryImpl::execCLOSE_SCAN_REP()
+{
   if(traceSignals){
     ndbout << "NdbQueryImpl::execCLOSE_SCAN_REP()" << endl;
   }
@@ -1035,19 +1035,18 @@ NdbQueryImpl::execCLOSE_SCAN_REP(){
 }
 
 bool 
-NdbQueryImpl::countPendingStreams(int increment){
+NdbQueryImpl::countPendingStreams(int increment)
+{
   m_pendingStreams += increment;
-  if(m_pendingStreams==0 && m_tcKeyConfReceived){
-    for(Uint32 i = 0; i < getNoOfOperations(); i++){
+  if (m_pendingStreams==0 && m_tcKeyConfReceived) {
+    for (Uint32 i = 0; i < getNoOfOperations(); i++) {
       assert(getQueryOperation(i).isBatchComplete());
     }
-  }
-  if(m_pendingStreams==0 && m_tcKeyConfReceived){
-    if(!getQueryDef().isScanQuery()){
+    if (!getQueryDef().isScanQuery()) {
       closeSingletonScans();
     }
     return true;
-  }else{
+  } else {
     return false;
   }
 }

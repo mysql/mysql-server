@@ -187,7 +187,7 @@ private:
   public:
     explicit StreamStack();
 
-    ~StreamStack(){
+    ~StreamStack() {
       delete[] m_array;
     }
 
@@ -199,14 +199,14 @@ private:
       return m_current>=0 ? m_array[m_current] : NULL; 
     }
 
-    void pop(){ 
+    NdbResultStream* pop() { 
       assert(m_current>=0);
-      m_current--;
+      return m_array[m_current--];
     }
     
     void push(NdbResultStream& stream);
 
-    void clear(){
+    void clear() {
       m_current = -1;
     }
 
