@@ -183,12 +183,11 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   get_object(p,si->host, "Failed to register slave: too long 'report-host'");
   get_object(p,si->user, "Failed to register slave: too long 'report-user'");
   get_object(p,si->password, "Failed to register slave; too long 'report-password'");
-  if (p+10 > p_end)
+  /*6 is the total length of port and master_id*/
+  if (p+6 != p_end)
     goto err;
   si->port= uint2korr(p);
   p += 2;
-  si->rpl_recovery_rank= uint4korr(p);
-  p += 4;
   if (!(si->master_id= uint4korr(p)))
     si->master_id= server_id;
   si->thd= thd;
@@ -669,8 +668,6 @@ bool show_slave_hosts(THD* thd)
     field_list.push_back(new Item_empty_string("Password",20));
   }
   field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Rpl_recovery_rank", 7,
-					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Master_id", 10,
 					   MYSQL_TYPE_LONG));
 
@@ -692,7 +689,6 @@ bool show_slave_hosts(THD* thd)
       protocol->store(si->password, &my_charset_bin);
     }
     protocol->store((uint32) si->port);
-    protocol->store((uint32) si->rpl_recovery_rank);
     protocol->store((uint32) si->master_id);
     if (protocol->write())
     {
