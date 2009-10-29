@@ -419,6 +419,10 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	return toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
     }
 
+    HANDLE_EXTRA_FLAGS(env, flags, 
+                       DB_CREATE|DB_PRIVATE|DB_INIT_LOG|DB_INIT_TXN|DB_RECOVER|DB_INIT_MPOOL|DB_INIT_LOCK|DB_THREAD);
+
+
     // DB_CREATE means create if env does not exist, and Tokudb requires it because
     // Tokudb requries DB_PRIVATE.
     if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {

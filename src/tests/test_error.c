@@ -31,7 +31,7 @@ test_main (int argc, char *argv[]) {
 	r = db_env_create(&env, 0); assert(r==0);
 	env->set_errfile(env,0); // Turn off those annoying errors
 	r = env->open(env, ENVDIR, -1, 0644);
-	assert(r==EINVAL);
+	CKERR2(r, EINVAL);
 	assert(n_handle_error==0);
 	r = env->close(env, 0); assert(r==0);
     }
