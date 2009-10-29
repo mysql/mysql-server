@@ -68,7 +68,7 @@ const LEX_STRING partition_keywords[]=
   { C_STRING_WITH_LEN("KEY") },
   { C_STRING_WITH_LEN("MAXVALUE") },
   { C_STRING_WITH_LEN("LINEAR ") },
-  { C_STRING_WITH_LEN(" COLUMN_LIST") }
+  { C_STRING_WITH_LEN(" COLUMNS") }
 };
 static const char *part_str= "PARTITION";
 static const char *subpart_str= "SUBPARTITION";
@@ -6925,7 +6925,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     (1) is applicable for "PARTITION BY <RANGE|LIST>(func(t.field))", where
     func is a monotonic function.
 
-    (2) is applicable for "PARTITION BY <RANGE|LIST> COLUMN_LIST (field_list)
+    (2) is applicable for "PARTITION BY <RANGE|LIST> COLUMNS (field_list)
 
     (3) is applicable for 
       "[SUB]PARTITION BY <any-partitioning-type>(any_func(t.integer_field))"
@@ -7624,7 +7624,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
   DESCRIPTION
     This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in
-    part_info->list_array[i] (list_col_array[i] for COLUMN_LIST LIST
+    part_info->list_array[i] (list_col_array[i] for COLUMNS LIST
     partitioning) where i runs over [min_idx, max_idx] interval.
     The function conforms to partition_iter_func type.
 
