@@ -1,10 +1,10 @@
 drop table if exists t1;
 create table t1 (a varchar(1500), b varchar(1570))
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in (('a','b')));
 ERROR HY000: The total length of the partitioning fields is too large
 create table t1 (a varchar(1023) character set utf8 collate utf8_spanish2_ci)
-partition by range column_list(a)
+partition by range columns(a)
 ( partition p0 values less than ('CZ'),
 partition p1 values less than ('CH'),
 partition p2 values less than ('D'));
@@ -16,16 +16,16 @@ cg
 drop table t1;
 set @@sql_mode=allow_invalid_dates;
 create table t1 (a char, b char, c date)
-partition by range column_list (a,b,c)
+partition by range columns (a,b,c)
 ( partition p0 values less than (0,0,to_days('3000-11-31')));
 ERROR HY000: Partition column values of incorrect type
 create table t1 (a char, b char, c date)
-partition by range column_list (a,b,c)
+partition by range columns (a,b,c)
 ( partition p0 values less than (0,0,'3000-11-31'));
 ERROR HY000: Partition column values of incorrect type
 set @@sql_mode='';
 create table t1 (a varchar(2) character set ucs2)
-partition by list column_list (a)
+partition by list columns (a)
 (partition p0 values in (0x2020),
 partition p1 values in (''));
 show create table t1;
@@ -33,14 +33,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST  COLUMN_LIST(a)
+/*!50100 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (_ucs2'  ') ENGINE = MyISAM,
  PARTITION p1 VALUES IN (_ucs2'') ENGINE = MyISAM) */
 insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
 drop table t1;
 create table t1 (a int, b char(10), c varchar(25), d datetime)
-partition by range column_list(a,b,c,d)
+partition by range columns(a,b,c,d)
 subpartition by hash (to_seconds(d))
 subpartitions 4
 ( partition p0 values less than (1, 0, MAXVALUE, '1900-01-01'),
@@ -50,22 +50,22 @@ partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMN_LIST	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
-RANGE COLUMN_LIST	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	a,b,c,d	1,'0',MAXVALUE,'1900-01-01'
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -74,7 +74,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(25) DEFAULT NULL,
   `d` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE  COLUMN_LIST(a,b,c,d)
+/*!50100 PARTITION BY RANGE  COLUMNS(a,b,c,d)
 SUBPARTITION BY HASH (to_seconds(d))
 SUBPARTITIONS 4
 (PARTITION p0 VALUES LESS THAN (1,_latin1'0',MAXVALUE,'1900-01-01') ENGINE = MyISAM,
@@ -83,15 +83,15 @@ SUBPARTITIONS 4
  PARTITION p3 VALUES LESS THAN (1,MAXVALUE,MAXVALUE,MAXVALUE) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b int)
-partition by range column_list (a,b)
+partition by range columns (a,b)
 (partition p0 values less than (NULL, maxvalue));
 ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in ((maxvalue, 0)));
 Got one of the listed errors
 create table t1 (a int, b int)
-partition by list column_list (a,b)
+partition by list columns (a,b)
 ( partition p0 values in ((0,0)));
 alter table t1 add partition
 (partition p1 values in (maxvalue, maxvalue));
@@ -101,7 +101,7 @@ create table t1 (a int, b int)
 partition by key (a,a);
 ERROR HY000: Duplicate partition field name 'a'
 create table t1 (a int, b int)
-partition by list column_list(a,a)
+partition by list columns(a,a)
 ( partition p values in ((1,1)));
 ERROR HY000: Duplicate partition field name 'a'
 create table t1 (a int signed)
@@ -123,7 +123,7 @@ a
 0
 drop table t1;
 create table t1 (a int signed)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (1, 3, 5, 7, 9, NULL),
 partition p1 values in (2, 4, 6, 8, 0));
 insert into t1 values (NULL),(0),(1),(2),(2),(4),(4),(4),(8),(8);
@@ -141,23 +141,23 @@ a
 0
 drop table t1;
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 ( partition p0 values in ((1, NULL), (2, NULL), (NULL, NULL)),
 partition p1 values in ((1,1), (2,2)),
 partition p2 values in ((3, NULL), (NULL, 1)));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-LIST COLUMN_LIST	a,b	(1,NULL),(2,NULL),(NULL,NULL)
-LIST COLUMN_LIST	a,b	(1,1),(2,2)
-LIST COLUMN_LIST	a,b	(3,NULL),(NULL,1)
+LIST COLUMNS	a,b	(1,NULL),(2,NULL),(NULL,NULL)
+LIST COLUMNS	a,b	(1,1),(2,2)
+LIST COLUMNS	a,b	(3,NULL),(NULL,1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST  COLUMN_LIST(a,b)
+/*!50100 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0 VALUES IN ((1,NULL),(2,NULL),(NULL,NULL)) ENGINE = MyISAM,
  PARTITION p1 VALUES IN ((1,1),(2,2)) ENGINE = MyISAM,
  PARTITION p2 VALUES IN ((3,NULL),(NULL,1)) ENGINE = MyISAM) */
@@ -191,7 +191,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST  COLUMN_LIST(a,b)
+/*!50100 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0 VALUES IN ((1,NULL),(2,NULL),(NULL,NULL)) ENGINE = MyISAM,
  PARTITION p1 VALUES IN ((1,1),(2,2)) ENGINE = MyISAM,
  PARTITION p2 VALUES IN ((3,NULL),(NULL,1)) ENGINE = MyISAM) */
@@ -227,25 +227,25 @@ insert into t1 values (5);
 ERROR HY000: Table has no partition for value 5
 drop table t1;
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (2, 1),
 partition p1 values in ((4), (NULL), (3)));
 ERROR 42000: Row expressions in VALUES IN only allowed for multi-field column partitioning near '))' at line 4
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in (2, 1),
 partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-LIST COLUMN_LIST	a	2,1
-LIST COLUMN_LIST	a	4,NULL,3
+LIST COLUMNS	a	2,1
+LIST COLUMNS	a	4,NULL,3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST  COLUMN_LIST(a)
+/*!50100 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (2,1) ENGINE = MyISAM,
  PARTITION p1 VALUES IN (4,NULL,3) ENGINE = MyISAM) */
 insert into t1 values (1);
@@ -260,12 +260,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST  COLUMN_LIST(a)
+/*!50100 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (2,1) ENGINE = MyISAM,
  PARTITION p1 VALUES IN (4,NULL,3) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b char(10), c varchar(5), d int)
-partition by range column_list(a,b,c)
+partition by range columns(a,b,c)
 subpartition by key (c,d)
 subpartitions 3
 ( partition p0 values less than (1,'abc','abc'),
@@ -275,18 +275,18 @@ partition p3 values less than (4,'abc','abc'));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMN_LIST	a,b,c	1,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	1,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	1,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	2,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	2,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	2,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	3,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	3,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	3,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	4,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	4,'abc','abc'
-RANGE COLUMN_LIST	a,b,c	4,'abc','abc'
+RANGE COLUMNS	a,b,c	1,'abc','abc'
+RANGE COLUMNS	a,b,c	1,'abc','abc'
+RANGE COLUMNS	a,b,c	1,'abc','abc'
+RANGE COLUMNS	a,b,c	2,'abc','abc'
+RANGE COLUMNS	a,b,c	2,'abc','abc'
+RANGE COLUMNS	a,b,c	2,'abc','abc'
+RANGE COLUMNS	a,b,c	3,'abc','abc'
+RANGE COLUMNS	a,b,c	3,'abc','abc'
+RANGE COLUMNS	a,b,c	3,'abc','abc'
+RANGE COLUMNS	a,b,c	4,'abc','abc'
+RANGE COLUMNS	a,b,c	4,'abc','abc'
+RANGE COLUMNS	a,b,c	4,'abc','abc'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -295,7 +295,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(5) DEFAULT NULL,
   `d` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE  COLUMN_LIST(a,b,c)
+/*!50100 PARTITION BY RANGE  COLUMNS(a,b,c)
 SUBPARTITION BY KEY (c,d)
 SUBPARTITIONS 3
 (PARTITION p0 VALUES LESS THAN (1,_latin1'abc',_latin1'abc') ENGINE = MyISAM,
@@ -313,14 +313,14 @@ a	b	c	d
 1	b	c	1
 drop table t1;
 create table t1 (a int, b varchar(2), c int)
-partition by range column_list (a, b, c)
+partition by range columns (a, b, c)
 (partition p0 values less than (1, 'A', 1),
 partition p1 values less than (1, 'B', 1));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-RANGE COLUMN_LIST	a,b,c	1,'A',1
-RANGE COLUMN_LIST	a,b,c	1,'B',1
+RANGE COLUMNS	a,b,c	1,'A',1
+RANGE COLUMNS	a,b,c	1,'B',1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -328,7 +328,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE  COLUMN_LIST(a,b,c)
+/*!50100 PARTITION BY RANGE  COLUMNS(a,b,c)
 (PARTITION p0 VALUES LESS THAN (1,_latin1'A',1) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (1,_latin1'B',1) ENGINE = MyISAM) */
 insert into t1 values (1, 'A', 1);
@@ -340,7 +340,7 @@ a	b	c
 1	A	1
 drop table t1;
 create table t1 (a char, b char, c char)
-partition by list column_list(a)
+partition by list columns(a)
 ( partition p0 values in ('a'));
 insert into t1 (a) values ('a');
 select * from t1 where a = 'a';
@@ -348,41 +348,41 @@ a	b	c
 a	NULL	NULL
 drop table t1;
 create table t1 (d time)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
 partition p1 values less than ('2040-01-01'));
 ERROR HY000: Partition column values of incorrect type
 create table t1 (d timestamp)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
 partition p1 values less than ('2040-01-01'));
 ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
 create table t1 (d bit(1))
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than (0),
 partition p1 values less than (1));
 ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (maxvalue, 10));
 drop table t1;
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
 partition p1 values less than ('2009-01-01'));
 drop table t1;
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('1999-01-01'),
 partition p1 values less than ('2000-01-01'));
 drop table t1;
 create table t1 (d date)
-partition by range column_list(d)
+partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
 partition p1 values less than ('3000-01-01'));
 drop table t1;
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p2 values less than (99,99),
 partition p1 values less than (99,999));
 insert into t1 values (99,998);
@@ -397,22 +397,22 @@ data_type
 int
 drop table t1;
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 (partition p0 values in ((maxvalue,maxvalue)));
 ERROR 42000: Cannot use MAXVALUE as value in VALUES IN near 'maxvalue,maxvalue)))' at line 3
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (maxvalue,maxvalue));
 drop table t1;
 create table t1 (a int)
-partition by list column_list(a)
+partition by list columns(a)
 (partition p0 values in (0));
 select partition_method from information_schema.partitions where table_name='t1';
 partition_method
-LIST COLUMN_LIST
+LIST COLUMNS
 drop table t1;
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than ('H23456'),
 partition p1 values less than ('M23456'));
 insert into t1 values ('F23456');
@@ -421,25 +421,25 @@ a
 F23456
 drop table t1;
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than (H23456),
 partition p1 values less than (M23456));
 ERROR 42S22: Unknown column 'H23456' in 'field list'
 create table t1 (a char(6))
-partition by range column_list(a)
+partition by range columns(a)
 (partition p0 values less than (23456),
 partition p1 values less than (23456));
 ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (10));
 ERROR 42000: Inconsistency in usage of column lists for partitioning near '))' at line 3
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (1,1,1);
 ERROR HY000: Inconsistency in usage of column lists for partitioning
 create table t1 (a int, b int)
-partition by range column_list(a,b)
+partition by range columns(a,b)
 (partition p0 values less than (1, 0),
 partition p1 values less than (2, maxvalue),
 partition p2 values less than (3, 3),
@@ -457,7 +457,7 @@ a	b
 4	9
 9	1
 alter table t1
-partition by range column_list(b,a)
+partition by range columns(b,a)
 (partition p0 values less than (1,2),
 partition p1 values less than (3,3),
 partition p2 values less than (9,5));
@@ -509,7 +509,7 @@ a	b
 9	1
 drop table t1;
 create table t1 (a int, b int)
-partition by list column_list(a,b)
+partition by list columns(a,b)
 subpartition by hash (b)
 subpartitions 2
 (partition p0 values in ((0,0), (1,1)),
@@ -517,7 +517,7 @@ partition p1 values in ((1000,1000)));
 insert into t1 values (1000,1000);
 drop table t1;
 create table t1 (a char, b char, c char)
-partition by range column_list(a,b,c)
+partition by range columns(a,b,c)
 ( partition p0 values less than ('a','b','c'));
 alter table t1 add partition
 (partition p1 values less than ('b','c','d'));

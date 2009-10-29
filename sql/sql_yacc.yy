@@ -611,7 +611,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATE_SYM                   /* SQL-2003-R */
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
-%token  COLUMN_LIST_SYM
 %token  COLUMN_SYM                    /* SQL-2003-R */
 %token  COLUMN_NAME_SYM               /* SQL-2003-N */
 %token  COMMENT_SYM
@@ -4121,7 +4120,7 @@ part_field_item:
         ;
 
 part_column_list:
-          COLUMN_LIST_SYM '(' part_field_list ')'
+          COLUMNS '(' part_field_list ')'
           {
             partition_info *part_info= Lex->part_info;
             part_info->column_list= TRUE;

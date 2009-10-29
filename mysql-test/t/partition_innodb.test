@@ -10,7 +10,7 @@ drop table if exists t1;
 #
 create table t1 (a varchar(5))
 engine=memory
-partition by range column_list(a)
+partition by range columns(a)
 ( partition p0 values less than ('m'),
   partition p1 values less than ('za'));
 insert into t1 values  ('j');
@@ -19,7 +19,7 @@ drop table t1;
 
 create table t1 (a varchar(5))
 engine=myisam
-partition by range column_list(a)
+partition by range columns(a)
 ( partition p0 values less than ('m'),
   partition p1 values less than ('za'));
 insert into t1 values  ('j');
@@ -28,7 +28,7 @@ drop table t1;
 
 create table t1 (a varchar(5))
 engine=innodb
-partition by range column_list(a)
+partition by range columns(a)
 ( partition p0 values less than ('m'),
   partition p1 values less than ('za'));
 insert into t1 values  ('j');
