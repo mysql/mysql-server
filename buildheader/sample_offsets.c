@@ -105,6 +105,8 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
     STRUCT_SETUP(DB_ENV, txn_stat, "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
     STRUCT_SETUP(DB_ENV, txn_begin, "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, dbremove, "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, dbrename, "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)");
     sort_and_dump_fields("db_env", sizeof(DB_ENV));
 }
 

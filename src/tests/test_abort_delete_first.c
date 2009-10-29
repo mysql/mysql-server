@@ -119,7 +119,8 @@ do_abort_delete_first_or_last(int N,
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
 #if defined(TOKUDB) && defined(__unix__)
-    r=system("../../newbrt/brtdump " ENVDIR "/foo.db > /dev/null");
+    r=system("../../utils/tokudb_dump_static -h " ENVDIR " foo.db > /dev/null");
+    CKERR(r);
 #endif
 }
 

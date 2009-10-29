@@ -15,7 +15,7 @@
 DB_ENV *env;
 DB *db;
 const char dbname[] = "foo.db";
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG;
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_PRIVATE|DB_INIT_TXN;
 
 static void
 open_em (void)

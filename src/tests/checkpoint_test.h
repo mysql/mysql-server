@@ -207,28 +207,60 @@ db_delete(DICTIONARY d) {
     null_dictionary(d);
 }
 
-
+// Create a new dictionary (dest) with a new dname that has same contents as given dictionary (src).
+// Method:
+//  create new dictionary
+//  close new dictionary
+//  get inames of both dictionaries
+//  copy file (by iname) of src to dest
+//  open dest dictionary
 static void UU()
 dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
+    int r;
+
     assert(dest->db == NULL);
-
-    char source[MAX_NAME*2 + sizeof(ENVDIR "/")];
-    fill_full_name(src, source, sizeof(source));
-
     *dest = *src;
     dest->db = NULL;
     dest->num++;
 
-    char target[MAX_NAME*2 + sizeof(ENVDIR "/")];
-    fill_full_name(dest, target, sizeof(target));
+    db_startup(dest, open_txn);
+    db_shutdown(dest);
+
+    char dest_dname[MAX_NAME*2];
+    fill_name(dest, dest_dname, sizeof(dest_dname));
+
+    char src_dname[MAX_NAME*2];
+    fill_name(src, src_dname, sizeof(src_dname));
+
+    DBT dest_dname_dbt;
+    DBT dest_iname_dbt;
+    DBT src_dname_dbt;
+    DBT src_iname_dbt;
+
+    dbt_init(&dest_dname_dbt, dest_dname, strlen(dest_dname)+1);
+    dbt_init(&dest_iname_dbt, NULL, 0);
+    dest_iname_dbt.flags |= DB_DBT_MALLOC;
+    r = env->get_iname(env, &dest_dname_dbt, &dest_iname_dbt);
+    CKERR(r);
+
+    dbt_init(&src_dname_dbt, src_dname, strlen(src_dname)+1);
+    dbt_init(&src_iname_dbt, NULL, 0);
+    src_iname_dbt.flags |= DB_DBT_MALLOC;
+    r = env->get_iname(env, &src_dname_dbt, &src_iname_dbt);
+    CKERR(r);
+
+    char * src_iname = src_iname_dbt.data;
+    char * dest_iname = dest_iname_dbt.data;
 
     int bytes;
 
-    char command[sizeof("cp ") + sizeof(source)+ sizeof(" ") + sizeof(target)];
-    bytes = snprintf(command, sizeof(command), "cp %s %s", source, target);
-        assert(bytes<(int)sizeof(command));
+    char command[sizeof("cp -f ") + strlen(src_iname)+ strlen(ENVDIR"/ " ENVDIR"/ ") + strlen(dest_iname)];
+    bytes = snprintf(command, sizeof(command), "cp -f "ENVDIR"/%s "ENVDIR"/%s", src_iname, dest_iname);
+    assert(bytes<(int)sizeof(command));
 
-    int r;
+    toku_free(src_iname);
+    toku_free(dest_iname);
+
     r = system(command);
         CKERR(r);
     db_startup(dest, open_txn);

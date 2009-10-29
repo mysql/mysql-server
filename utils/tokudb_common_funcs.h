@@ -7,22 +7,30 @@
 #include "tokudb_common.h"
 
 //DB_ENV->err disabled since it does not use db_strerror
-#define PRINT_ERROR(retval, ...)                                        \
+#define PRINT_ERROR(retval, ...)                                  \
+do {                                                              \
 if (0) g.dbenv->err(g.dbenv, retval, __VA_ARGS__);                \
 else {                                                            \
+   fprintf(stderr, "\tIn %s:%d %s()\n", __FILE__, __LINE__, __FUNCTION__); \
    fprintf(stderr, "%s: %s:", g.progname, db_strerror(retval));   \
    fprintf(stderr, __VA_ARGS__);                                  \
    fprintf(stderr, "\n");                                         \
-}
+   fflush(stderr);                                                \
+}                                                                 \
+} while (0)
 
 //DB_ENV->err disabled since it does not use db_strerror, errx does not exist.
 #define PRINT_ERRORX(...)                                               \
+do {                                                              \
 if (0) g.dbenv->err(g.dbenv, 0, __VA_ARGS__);                     \
 else {                                                            \
+   fprintf(stderr, "\tIn %s:%d %s()\n", __FILE__, __LINE__, __FUNCTION__); \
    fprintf(stderr, "%s: ", g.progname);                           \
    fprintf(stderr, __VA_ARGS__);                                  \
    fprintf(stderr, "\n");                                         \
-}
+   fflush(stderr);                                                \
+}                                                                 \
+} while (0)
 
 int   strtoint32  (char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
 int   strtouint32 (char* str, u_int32_t* num, u_int32_t min, u_int32_t max, int base);

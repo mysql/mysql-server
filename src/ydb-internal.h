@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
 
@@ -17,9 +18,7 @@ struct __toku_lock_tree;
 struct __toku_db_internal {
     DB *db; // A pointer back to the DB.
     int freed;
-    char *fname;
-    char *full_fname;
-    //int fd;
+    int opened;
     u_int32_t open_flags;
     int open_mode;
     BRT brt;
@@ -27,6 +26,10 @@ struct __toku_db_internal {
     struct __toku_lock_tree* lt;
     toku_db_id* db_id;
     struct simple_dbt skey, sval; // static key and value
+    BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function)
+    BOOL val_compare_was_set;
+    char *dname;    // dname is constant for this handle (handle must be closed before file is renamed)
+    struct list dbs_that_must_close_before_abort;
 };
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
@@ -48,16 +51,18 @@ struct __toku_db_env_internal {
     char *dir;                  /* A malloc'd copy of the directory. */
     char *tmp_dir;
     char *lg_dir;
-    char **data_dirs;
+    char *data_dir;
     int (*bt_compare)  (DB *, const DBT *, const DBT *);
     int (*dup_compare) (DB *, const DBT *, const DBT *);
-    u_int32_t n_data_dirs;
     //void (*noticecall)(DB_ENV *, db_notices);
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
     toku_ltm* ltm;
     struct list open_txns;
+    DB *directory; //Maps dnames to inames
+    DB *persistent_environment; //Stores environment settings, can be used for upgrade
+    OMT open_dbs; //Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
 };
 
 /* *********************************************************

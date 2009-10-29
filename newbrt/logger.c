@@ -562,24 +562,39 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn) {
     return open_logfile(logger);
 }
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags) {
+// fname is the iname
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, DESCRIPTOR descriptor_p) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum, bs, mode, treeflags);
-    if (r!=0) return r;
-    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), filenum, bs);
+    BYTESTRING bs_fname = { .len=strlen(fname), .data = (char *) fname };
+    BYTESTRING bs_descriptor = { .len=descriptor_p->dbt.size, .data = descriptor_p->dbt.data };
+    // fsync log on fcreate
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, descriptor_p->version, bs_descriptor);
     return r;
 }
 
+
+// fname is the iname 
+int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_int8_t was_open) {
+    if (txn==0) return 0;
+    if (txn->logger->is_panicked) return EINVAL;
+    BYTESTRING bs = { .len=strlen(fname), .data = (char *) fname };
+    //No fsync.
+    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), was_open, filenum, bs);
+    return r;
+}
+
+
+
+
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
-int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
+int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fopen (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, filenum);
+    return toku_log_fopen (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, filenum, treeflags);
 }
 
 static int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
@@ -1063,3 +1078,27 @@ LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger) {
     return lsn;
 }
 
+LSN
+toku_logger_get_next_lsn(TOKULOGGER logger) {
+    return logger->lsn;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// remove_finalize_callback is set when environment is created so that when 
+// a file removal is committed (or a file creation is aborted), the brt
+// layer can call the ydb-layer callback to clean up the lock tree.
+
+
+// called from toku_env_open()
+void 
+toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(int, void *), void * extra) {
+    logger->remove_finalize_callback = funcp;
+    logger->remove_finalize_callback_extra = extra;
+}
+
+// called when a transaction that deleted a file is committed, or
+// when a transaction that created a file is aborted.
+void
+toku_logger_call_remove_finalize_callback(TOKULOGGER logger, int fd) {
+    logger->remove_finalize_callback(fd, logger->remove_finalize_callback_extra);
+}

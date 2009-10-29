@@ -49,13 +49,13 @@ setup (u_int32_t flags) {
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
     r = db_env_create(&dbenv, 0); assert(r == 0);
-    r = dbenv->open(dbenv, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = dbenv->open(dbenv, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
     if (flags) {
         r = dbp->set_flags(dbp, flags);                                       CKERR(r);
     }    
-    r = dbp->open(dbp, NULL, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
+    r = dbp->open(dbp, NULL, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 }
 
 static void

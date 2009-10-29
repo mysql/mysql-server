@@ -249,7 +249,7 @@ int create_init_env()
 
    /* Open the dbenvironment. */
    g.is_private = false;
-   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
+   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
    //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
    
    /*
@@ -269,7 +269,7 @@ int create_init_env()
    //TODO: Do we want to support transactions/logging even in single-process mode?
    //Maybe if the db already exists.
    //If db does not exist.. makes sense not to log or have transactions
-   REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
+   //REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
 
    retval = dbenv->open(dbenv, g.homedir ? g.homedir : ".", flags, 0);

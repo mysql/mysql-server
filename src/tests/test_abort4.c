@@ -116,9 +116,31 @@ do_nothing(DBT const *UU(a), DBT  const *UU(b), void *UU(c)) {
 
 static void
 verify_and_tear_down(int close_first) {
-    toku_struct_stat temp;
     int r;
-    r = toku_stat(ENVDIR "/foo.db", &temp);
+    {
+        char *filename;
+#if USE_TDB
+        {
+            DBT dname;
+            DBT iname;
+            dbt_init(&dname, "foo.db", sizeof("foo.db"));
+            dbt_init(&iname, NULL, 0);
+            iname.flags |= DB_DBT_MALLOC;
+            r = env->get_iname(env, &dname, &iname);
+            CKERR(r);
+            filename = iname.data;
+            assert(filename);
+        }
+#else
+        filename = toku_xstrdup("foo.db");
+#endif
+	toku_struct_stat statbuf;
+        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
+        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
+        toku_free(filename);
+	r = toku_stat(fullfile, &statbuf);
+	assert(r==0);
+    }
     CKERR(r);
     if (close_first) {
         r=db->close(db, 0); CKERR(r);

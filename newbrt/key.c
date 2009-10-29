@@ -96,7 +96,7 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 #endif
 
 int
-toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+toku_builtin_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 

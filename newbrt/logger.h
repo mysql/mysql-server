@@ -42,8 +42,9 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // Returns: 0 if success
 int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags);
-int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum);
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags, DESCRIPTOR descriptor_p);
+int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_int8_t was_open);
+int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
 
 int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len);
 int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v);
@@ -88,6 +89,9 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
 TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
 LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger);
+LSN toku_logger_get_next_lsn(TOKULOGGER logger);
+void toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(int, void *), void * extra);
+void toku_logger_call_remove_finalize_callback(TOKULOGGER logger, int fd);
 
 int toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed);
 
@@ -148,3 +152,4 @@ toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 //        release the outlock
 
 #endif
+

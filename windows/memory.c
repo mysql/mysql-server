@@ -90,11 +90,25 @@ toku_free_n(void* p, size_t size __attribute__((unused)))
 }
 
 void *
+toku_xmemdup (const void *v, size_t len)
+{
+    void *r=toku_xmalloc(len);
+    memcpy(r,v,len);
+    return r;
+}
+
+void *
 toku_memdup (const void *v, size_t len)
 {
     void *r=toku_malloc(len);
     if (r) memcpy(r,v,len);
     return r;
+}
+
+char *
+toku_xstrdup (const char *s)
+{
+    return toku_xmemdup(s, strlen(s)+1);
 }
 
 char *

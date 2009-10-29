@@ -110,6 +110,7 @@ BDB_DONTRUN_TESTS = \
 	backwards_10_each_le_and_msg \
 	test_dupsort_set_range_reverse \
 	test_dupsort_get_both_range_reverse \
+	recover-compare-db \
 	test_cursor_delete_2119 \
 #\ ends prev line
 
@@ -156,11 +157,10 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_txn_abort \
 	test_db_no_env \
 #\ ends prev line
-ifneq ($(OS_CHOICE),windows)
-    TDB_TESTS_THAT_SHOULD_FAIL+= \
-	test_db_remove \
+#ifneq ($(OS_CHOICE),windows)
+#    TDB_TESTS_THAT_SHOULD_FAIL+= \
 #\ ends prev line
-endif
+#endif
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 	test_log8.recover \
@@ -198,7 +198,6 @@ TLRECOVER = 2 3 4 5 6 7 8 9 10
 
 EXTRA_TDB_TESTS = \
 	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
-#	test_db_assoc3.tdbrun_wasbad \# Obsolete right now.
 #\ ends prev line
 
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
@@ -300,8 +299,11 @@ endif
 	./$< --no-shutdown                                                                      && \
 	rm -rf dir.$*.c.tdb.recover                                                             && \
 	mkdir dir.$*.c.tdb.recover                                                              && \
+	cp dir.$*.c.tdb/tokudb.directory   dir.$*.c.tdb.recover/                                && \
+	cp dir.$*.c.tdb/tokudb.environment dir.$*.c.tdb.recover/                                && \
+	cp dir.$*.c.tdb/*.tokulog          dir.$*.c.tdb.recover/                                && \
 	echo doing recovery &&\
-	$(VGRIND) ../../newbrt/tdb-recover dir.$*.c.tdb.recover dir.$*.c.tdb                    && \
+	$(VGRIND) ../../newbrt/tdb-recover dir.$*.c.tdb.recover dir.$*.c.tdb.recover            && \
 	echo dump and compare &&\
 	$(TDBDUMP) -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
 	$(TDBDUMP) -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
@@ -421,44 +423,6 @@ libs:
 
 test_db_curs4.tdb$(BINSUF): trace.h
 test_db_curs4.bdb$(BINSUF): trace.h
-test_db_assoc3.tdb$(BINSUF) test_db_assoc3.bdb$(BINSUF): test.h
-
-
-# This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
-test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb$(BINSUF)
-	./$< --seed=1 --count=200
-	./$< --seed=1 --count=200 --more
-	./$< --seed=1 --count=200 --more
-	./$< --seed=1 --count=200 --more
-	./$< --seed=1 --count=200 --more
-	./$< --seed=1 --count=200 --more
-	./$< --seed=1 --count=200 --more
-# serialize these two tests since they use the same directory
-test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
-
-
-.phony: build_primary_db build_name_db  build_expire_db
-test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF):
-	mkdir $@
-build_primary_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
-build_name_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
-build_expire_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
-
-test_v6v7_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF) build_primary_db  build_name_db build_expire_db
-	(cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb$(BINSUF) --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
-
-test_db_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF)
-	$(VGRIND) ./$< --seed=2 --count=100000 $(VERBVERBOSE) && \
-	              $(VGRIND) ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
-
-# Give up on VGRIND for bdbrun
-test_db_assoc3.bdbrun: test_db_assoc3.bdb$(BINSUF) $(WINDOWS_BDB_LIB_NAME)
-	./$< --seed=2 --count=100000        $(VERBVERBOSE) && \
-	              ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
-
 # a bunch of little tests designed to run in parallel
 test_get_both_range.tdbrun: \
  tgbr_256_a.tdbrun tgbr_256_b.tdbrun tgbr_256_c.tdbrun \

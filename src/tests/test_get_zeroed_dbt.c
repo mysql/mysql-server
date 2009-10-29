@@ -18,10 +18,10 @@ test_get (int dup_mode) {
     int fnamelen = sizeof(ENVDIR) + 30;
     char fname[fnamelen];
     int r;
-    snprintf(fname, fnamelen, "%s/test%d.db", ENVDIR, dup_mode);
+    snprintf(fname, fnamelen, "test%d.db", dup_mode);
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
     r = db_create (&db, env, 0);                                        assert(r == 0);

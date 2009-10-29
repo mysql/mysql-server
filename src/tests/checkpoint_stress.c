@@ -227,7 +227,7 @@ run_test (int iter, int die) {
 
     int recovery_flags = 0;
     if ( do_log_recover ) {
-        recovery_flags += DB_INIT_LOG;
+        recovery_flags += DB_INIT_LOG|DB_INIT_TXN;
         if ( iter != 0 )
             recovery_flags += DB_RECOVER;
     }

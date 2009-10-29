@@ -6,7 +6,13 @@ TOKUROOT=./
 include $(TOKUROOT)toku_include/Makefile.include
 default: build
 
-SRCDIRS = $(OS_CHOICE) newbrt src/range_tree src/lock_tree src cxx utils db-benchmark-test db-benchmark-test-cxx
+ifeq ($(TOKU_SKIP_CXX),1)
+    SRCDIRS_CXX =
+else
+    SRCDIRS_CXX = cxx db-benchmark-test-cxx
+endif
+
+SRCDIRS = $(OS_CHOICE) newbrt src/range_tree src/lock_tree src utils db-benchmark-test $(SRCDIRS_CXX)
 BUILDDIRS = $(SRCDIRS) man/texi
 
 newbrt.dir: $(OS_CHOICE).dir

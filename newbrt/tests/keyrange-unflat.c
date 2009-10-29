@@ -18,7 +18,7 @@ static void test_flat (void) {
     // set the cachetable to size 1 so that things won't fit.
     int r = toku_brt_create_cachetable(&ct, 1, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
     BRT t;
-    r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);   assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);   assert(r==0);
     u_int64_t i;
     // permute the numbers from 0 (inclusive) to limit (exclusive)
     permute[0]=0;

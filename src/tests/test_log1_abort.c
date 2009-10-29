@@ -41,8 +41,8 @@ test_main (int UU(argc), char UU(*argv[])) {
 	r=db->put(db, tid, &key, &data, 0);
 	CKERR(r);
     }
-    r=tid->abort(tid);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
+    r=tid->abort(tid);    assert(r==0);
     r=env->close(env, 0);     assert(r==0);
     {
 	toku_struct_stat statbuf;

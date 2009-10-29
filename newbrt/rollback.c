@@ -94,6 +94,8 @@ static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void
     return r;
 }
 
+//Commit each entry in the rollback (rolltmp) log.
+//If the transaction has a parent, it just promotes its information to its parent.
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
     if (txn->parent!=0) {
@@ -150,6 +152,9 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         r = toku_maybe_spill_rollbacks(txn->parent);
         assert(r==0);
 
+        //If this transaction needs an fsync (if it commits)
+        //save that in the parent.  Since the commit really happens in the root txn.
+        txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
     } else {
         // do the commit calls and free everything
         // we do the commit calls in reverse order too.

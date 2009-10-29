@@ -370,9 +370,9 @@ heaviside_next(const DBT *key, const DBT *val, void *extra_h) {
     struct extra_heavi *e=extra_h;
 
     int cmp;
-    cmp = toku_default_compare_fun(db, key, &e->key);
+    cmp = toku_builtin_compare_fun(db, key, &e->key);
     if (cmp != 0) return cmp;
-    if (val) cmp = toku_default_compare_fun(db, val, &e->val);
+    if (val) cmp = toku_builtin_compare_fun(db, val, &e->val);
     if (cmp != 0) return cmp;
     return -1; //Return negative on <=, positive on >
 }

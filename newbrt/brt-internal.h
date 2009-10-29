@@ -116,6 +116,7 @@ struct brtnode {
 	struct leaf {
 	    struct subtree_estimates leaf_stats; // actually it is exact.
 	    OMT buffer;
+            LEAFLOCK_POOL leaflock_pool;
 	    LEAFLOCK leaflock;
 	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
             unsigned int seqinsert;         /* number of sequential inserts to this leaf */
@@ -335,5 +336,8 @@ int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);
 int toku_maybe_upgrade_brt(BRT t);
 int toku_db_badformat(void);
+
+int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p);
+int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p);
 
 #endif

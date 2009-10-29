@@ -11,6 +11,8 @@ struct fieldinfo db_env_fields32[] = {
   {"void *app_private", 36, 4},
   {"void *api1_internal", 212, 4},
   {"int  (*close) (DB_ENV *, u_int32_t)", 244, 4},
+  {"int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)", 248, 4},
+  {"int  (*dbrename) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)", 252, 4},
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 256, 4},
   {"int  (*open) (DB_ENV *, const char *, u_int32_t, int)", 264, 4},
   {"int  (*set_data_dir) (DB_ENV *, const char *)", 272, 4},
