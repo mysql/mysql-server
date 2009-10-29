@@ -1113,18 +1113,18 @@ Dbspj::lookup_build(Build_context& ctx,
       dst->savePointId = savePointId;
       dst->scanInfo = 0;
       dst->attrLen = 0;
-      dst->variableData[0] = reference();
-      dst->variableData[1] = treeNodePtr.i;
+      /** Initialy set reply ref to client, do_send will set SPJ refs if non-LEAF */
+      dst->variableData[0] = ctx.m_resultRef;
+      dst->variableData[1] = param->resultData;  
       Uint32 requestInfo = 0;
       LqhKeyReq::setOperation(requestInfo, ZREAD);
       LqhKeyReq::setApplicationAddressFlag(requestInfo, 1);
       LqhKeyReq::setDirtyFlag(requestInfo, 1);
       LqhKeyReq::setSimpleFlag(requestInfo, 1);
-      LqhKeyReq::setNormalProtocolFlag(requestInfo, 1);
+      LqhKeyReq::setNormalProtocolFlag(requestInfo, 0);  // Assume T_LEAF 
       LqhKeyReq::setAnyValueFlag(requestInfo, 1);
       dst->requestInfo = requestInfo;
     }
-
 
     err = DbspjErr::InvalidTreeNodeSpecification;
     if (unlikely(node->len < QN_LookupNode::NodeSize))
@@ -1262,6 +1262,14 @@ Dbspj::lookup_send(Signal* signal,
   req->variableData[2] = requestPtr.p->m_rootResultData;
   req->variableData[3] = treeNodePtr.p->m_send.m_correlation;
 
+  if (!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()))
+  {
+    // Non-LEAF want reply to SPJ instead of ApiClient.
+    LqhKeyReq::setNormalProtocolFlag(req->requestInfo, 1);
+    req->variableData[0] = reference();
+    req->variableData[1] = treeNodePtr.i;
+  }
+
   SectionHandle handle(this);
 
   Uint32 ref = treeNodePtr.p->m_send.m_ref;
@@ -1326,10 +1334,11 @@ Dbspj::lookup_send(Signal* signal,
              JBB, &handle);
 
   Uint32 add = 2;
-  if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
+  if (treeNodePtr.p->isLeaf())
   {
     jam();
-    add = 1;
+    /** Lookup queries leaf nodes should not reply to SPJ */ 
+    add = requestPtr.p->isLookup() ? 0 : 1;
   }
   treeNodePtr.p->m_lookup_data.m_outstanding += add;
 
@@ -1339,6 +1348,15 @@ Dbspj::lookup_send(Signal* signal,
                                                        treeNodePtr,
                                                        root,
                                                        GSN_LQHKEYREQ);
+
+  /** Lookup leaf-request may finish immediately - LQH reply directly to API */ 
+  if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
+  {
+    jam();
+    ndbrequire(requestPtr.p->isLookup());
+    ndbrequire(treeNodePtr.p->isLeaf());
+    nodeFinished(signal, requestPtr, treeNodePtr);
+  }
 }
 
 void
@@ -1363,7 +1381,7 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
                                                    requestPtr, childPtr,rowRef);
     }
   }
-
+  ndbrequire(!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()));
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding);
   treeNodePtr.p->m_lookup_data.m_outstanding --;
 
@@ -1387,6 +1405,9 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 {
   if (requestPtr.p->isLookup())
   {
+    /* CONF/REF not requested for lookup-Leaf: */
+    ndbrequire(!treeNodePtr.p->isLeaf());
+
     /**
      * Scan-request does not need to
      *   send TCKEYREF...
@@ -1416,7 +1437,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
   }
 
   Uint32 cnt = 2;
-  if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
+  if (treeNodePtr.p->isLeaf())  // Can't be a lookup-Leaf, asserted above
     cnt = 1;
 
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding >= cnt);
@@ -1440,6 +1461,7 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
                              Ptr<Request> requestPtr,
                              Ptr<TreeNode> treeNodePtr)
 {
+  ndbrequire(!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()));
   ndbrequire(treeNodePtr.p->m_lookup_data.m_outstanding);
   treeNodePtr.p->m_lookup_data.m_outstanding --;
 
@@ -1449,6 +1471,7 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
                                                        treeNodePtr,
                                                        root,
                                                        GSN_LQHKEYCONF);
+
   if (treeNodePtr.p->m_lookup_data.m_outstanding == 0)
   {
     jam();
@@ -2086,7 +2109,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
 
   treeNodePtr.p->m_scanfrag_data.m_scan_status = done;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;
-  if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
+  if (treeNodePtr.p->isLeaf())
   {
     /**
      * If this is a leaf node, then no rows will be sent to the SPJ block,

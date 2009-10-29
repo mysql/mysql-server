@@ -377,6 +377,8 @@ public:
       T_END = 0
     };
 
+    bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
+
     Uint32 m_bits;
     Uint32 m_state;
     const Uint32 m_node_no;
