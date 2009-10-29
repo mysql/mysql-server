@@ -570,6 +570,51 @@ SELECT * FROM City
         AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
 
 
+DROP INDEX Population ON City;
+DROP INDEX Name ON City;
+
+# The pattern of the WHERE condition used in the following query is
+#   (key1|2_p1=c AND range(key1_p2)) OR (key1|2_p1=c AND range(key2_p2))
+# We get an index merge retrieval over key1, key2 for it
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+        Country='USA' AND Name LIKE 'Pa%';
+
+# The following 2 queries check that the plans
+# for the previous plan is valid
+
+SELECT * FROM City USE INDEX()
+  WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+        Country='USA' AND Name LIKE 'Pa%';
+
+SELECT * FROM City
+  WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+        Country='USA' AND Name LIKE 'Pa%';
+
+
+# The pattern of the WHERE condition used in the following query is
+#   key1|2_p1=c AND (range(key1_p2) OR range(key2_p2))
+# We get an index merge retrieval over key1, key2 for it
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Country='USA' AND 
+        (Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+
+# The following 2 queries check that the plans
+# for the previous plan is valid
+
+SELECT * FROM City
+  WHERE Country='USA' AND 
+        (Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+
+SELECT * FROM City
+  WHERE Country='USA' AND 
+        (Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+
+
 DROP DATABASE world;
 
 use test;

@@ -262,6 +262,11 @@ public:
   uint8 part;					// Which key part
   uint8 maybe_null;
   /* 
+    The ordinal number the least significant component encountered the ranges
+    of the SEL_ARG tree (the first component has number 1) 
+  */
+  uint max_part_no; 
+  /* 
     Number of children of this element in the RB-tree, plus 1 for this
     element itself.
   */
@@ -737,12 +742,12 @@ public:
   uint real_keynr[MAX_KEY];
   /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
   uint alloced_sel_args; 
+  KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
 };
 
 class PARAM : public RANGE_OPT_PARAM
 {
 public:
-  KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
   ha_rows quick_rows[MAX_KEY];
   longlong baseflag;
   uint max_key_part, range_count;
@@ -2172,6 +2177,7 @@ SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
   min_value=arg.min_value;
   max_value=arg.max_value;
   next_key_part=arg.next_key_part;
+  max_part_no= arg.max_part_no;
   use_count=1; elements=1;
 }
 
@@ -2189,7 +2195,7 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
   :min_flag(0), max_flag(0), maybe_flag(0), maybe_null(f->real_maybe_null()),
    elements(1), use_count(1), field(f), min_value((uchar*) min_value_arg),
    max_value((uchar*) max_value_arg), next(0),prev(0),
-   next_key_part(0),color(BLACK),type(KEY_RANGE)
+   next_key_part(0), color(BLACK), type(KEY_RANGE), max_part_no(1)
 {
   left=right= &null_element;
 }
@@ -2202,6 +2208,7 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
    field(field_), min_value(min_value_), max_value(max_value_),
    next(0),prev(0),next_key_part(0),color(BLACK),type(KEY_RANGE)
 {
+  max_part_no= part+1;
   left=right= &null_element;
 }
 
@@ -2244,6 +2251,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
   increment_use_count(1);
   tmp->color= color;
   tmp->elements= this->elements;
+  tmp->max_part_no= max_part_no;
   return tmp;
 }
 
@@ -7000,14 +7008,14 @@ bool sel_trees_can_be_ored(RANGE_OPT_PARAM* param,
       ordable_keys       bitmap of SEL_ARG trees that can be ored
 
   DESCRIPTION
-    For two trees tree1 and tree2 and the bitmap ordable_keys containing
-    bits for indexes that have SEL_ARG trees in range parts of both trees
-    and these SEL_ARG trees can be ored the function checks if there are
-    indexes for which SEL_ARG trees must be ored. Two SEL_ARG trees for the
-    same index must be ored if all indexes for which SEL_SRG trees from the
-    range parts of tree1 anf tree2 that can be ored have the same field as 
-    their major index component. 
-
+    For two trees tree1 and tree2 the function checks whether they must be
+    ored. The function assumes that the bitmap ordable_keys contains bits for
+    those corresponding pairs of SEL_ARG trees from tree1 and tree2 that can
+    be ored.
+    We believe that tree1 and tree2 must be ored if any pair of SEL_ARG trees
+    r1 and r2, such that r1 is from tree1 and r2 is from tree2 and both
+    of them are marked in ordable_keys, can be merged.
+    
   NOTE
     The function sel_trees_must_be_ored as a rule is used in pair with the
     function sel_trees_can_be_ored.
@@ -7031,21 +7039,31 @@ bool sel_trees_must_be_ored(RANGE_OPT_PARAM* param,
   if (!tmp.is_clear_all())
     DBUG_RETURN(FALSE);
 
-  Field *field= 0;
-  uint part;
-  int key_no;
-  key_map::Iterator it(oredable_keys);
-  while ((key_no= it++) != key_map::Iterator::BITMAP_END)
+  int idx1, idx2;
+  key_map::Iterator it1(oredable_keys);
+  while ((idx1= it1++) != key_map::Iterator::BITMAP_END)
   {
-    SEL_ARG *key1= tree1->keys[key_no];
-    if (!field)
+    KEY_PART *key1_init= param->key[idx1]+tree1->keys[idx1]->part;
+    KEY_PART *key1_end= param->key[idx1]+tree1->keys[idx1]->max_part_no;
+    key_map::Iterator it2(oredable_keys);
+    while ((idx2= it2++) != key_map::Iterator::BITMAP_END)
     {
-      field= key1->field;
-      part= key1->part;
+      if (idx2 <= idx1)
+        continue;
+      
+      KEY_PART *key2_init= param->key[idx2]+tree2->keys[idx2]->part;
+      KEY_PART *key2_end= param->key[idx2]+tree2->keys[idx2]->max_part_no;
+      KEY_PART *part1, *part2;
+      for (part1= key1_init, part2= key2_init;
+           part1 < key1_end && part2 < key2_end;
+           part1++, part2++)
+      { 
+        if (!part1->field->eq(part2->field))
+          DBUG_RETURN(FALSE);
+      }
     }
-    else if (!field->eq(key1->field))
-      DBUG_RETURN(FALSE);
   }
+      
   DBUG_RETURN(TRUE);
 }  
 
@@ -7342,6 +7360,7 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
   if (!key1)
     return &null_element;			// Impossible ranges
   key1->use_count++;
+  key1->max_part_no= max(key2->max_part_no, key2->part+1);
   return key1;
 }
 
@@ -7441,6 +7460,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
+  uint max_part_no= max(key1->max_part_no, key2->max_part_no);
 
   while (e1 && e2)
   {
@@ -7478,6 +7498,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
   key2->free_tree();
   if (!new_tree)
     return &null_element;			// Impossible range
+  new_tree->max_part_no= max_part_no;
   return new_tree;
 }
 
@@ -7556,6 +7577,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
   // Add tree at key2 to tree at key1
   bool key2_shared=key2->use_count != 0;
   key1->maybe_flag|=key2->maybe_flag;
+
+  uint max_part_no= max(key1->max_part_no, key2->max_part_no);
 
   for (key2=key2->first(); key2; )
   {
@@ -7749,6 +7772,7 @@ end:
     key2=next;
   }
   key1->use_count++;
+  key1->max_part_no= max_part_no;
   return key1;
 }
 

@@ -1077,6 +1077,68 @@ ID BETWEEN 3500 AND 3800) AND Country='USA'
         AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
 ID	Name	Country	Population
 3798	Phoenix	USA	1321045
+DROP INDEX Population ON City;
+DROP INDEX Name ON City;
+EXPLAIN
+SELECT * FROM City
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName	CountryPopulation,CountryName	7,38	NULL	8	Using sort_union(CountryPopulation,CountryName); Using where
+SELECT * FROM City USE INDEX()
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+EXPLAIN
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName	CountryPopulation,CountryName	7,38	NULL	8	Using sort_union(CountryPopulation,CountryName); Using where
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
 DROP DATABASE world;
 use test;
 CREATE TABLE t1 (
