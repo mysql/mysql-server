@@ -466,6 +466,10 @@ buf_page_set_old(
 	ut_ad(bpage->in_LRU_list);
 
 #ifdef UNIV_LRU_DEBUG
+	ut_a((buf_pool->LRU_old_len == 0) == (buf_pool->LRU_old == NULL));
+	/* If a block is flagged "old", the LRU_old list must exist. */
+	ut_a(!old || buf_pool->LRU_old);
+
 	if (UT_LIST_GET_PREV(LRU, bpage) && UT_LIST_GET_NEXT(LRU, bpage)) {
 		const buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
 		const buf_page_t*	next = UT_LIST_GET_NEXT(LRU, bpage);
@@ -473,6 +477,7 @@ buf_page_set_old(
 			ut_a(prev->old == old);
 		} else {
 			ut_a(!prev->old);
+			ut_a(buf_pool->LRU_old == (old ? bpage : next));
 		}
 	}
 #endif /* UNIV_LRU_DEBUG */

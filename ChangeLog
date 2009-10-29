@@ -1,3 +1,9 @@
+2009-10-29	The InnoDB Team
+
+	* buf/buf0lru.c, buf/buf0buf.c, include/buf0buf.h, include/buf0buf.ic:
+	Fix corruption of the buf_pool->LRU_old list and improve debug
+	assertions.
+
 2009-10-26	The InnoDB Team
 
 	* row/row0ins.c:
