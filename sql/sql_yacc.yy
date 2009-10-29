@@ -10469,23 +10469,13 @@ show_param:
           }
         | PROCEDURE CODE_SYM sp_name
           {
-#ifdef DBUG_OFF
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-#else
             Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
             Lex->spname= $3;
-#endif
           }
         | FUNCTION_SYM CODE_SYM sp_name
           {
-#ifdef DBUG_OFF
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-#else
             Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
             Lex->spname= $3;
-#endif
           }
         | CREATE EVENT_SYM sp_name
           {
