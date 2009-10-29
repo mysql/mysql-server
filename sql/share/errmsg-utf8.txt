@@ -6241,3 +6241,6 @@ ER_UNKNOWN_LOCALE
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
 
+ER_QUERY_CACHE_DISABLED
+  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
+
