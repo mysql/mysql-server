@@ -231,6 +231,18 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # ----------------------------------------------------------------------
   set -e
 
+  #
+  # Check that the client is compiled with libmysqlclient.a
+  #
+  if test -f ./client/.libs/mysql
+  then
+    echo ""
+    echo "The MySQL clients are compiled dynamicly, which is not allowed for"
+    echo "a MySQL binary tar file.  Please configure with"
+    echo "--with-client-ldflags=-all-static and try again"
+    exit 1;
+  fi
+
   # ----------------------------------------------------------------------
   # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
   # i.e. makes access relative the current directory. This matches
