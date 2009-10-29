@@ -4658,10 +4658,10 @@ create_sp_error:
       }
       break;
     }
-#ifndef DBUG_OFF
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
     {
+#ifndef DBUG_OFF
       sp_head *sp;
 
       if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
@@ -4678,8 +4678,12 @@ create_sp_error:
         goto error;
       }
       break;
-    }
+#else
+      my_error(ER_FEATURE_DISABLED, MYF(0),
+               "SHOW PROCEDURE|FUNCTION CODE", "--with-debug");
+      goto error;
 #endif // ifndef DBUG_OFF
+    }
   case SQLCOM_SHOW_CREATE_TRIGGER:
     {
       if (lex->spname->m_name.length > NAME_LEN)
