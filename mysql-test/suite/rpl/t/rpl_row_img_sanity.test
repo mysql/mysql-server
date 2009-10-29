@@ -1,0 +1,1046 @@
+#
+#  Description
+#  ===========
+#
+#  This test case checks whether binlog files contain
+#  Before and After image values as expected.
+#
+#  Configuration is done using the --binlog-row-image
+#  option. 
+#
+#  How it works
+#  ============
+#
+#  The test case is implemented such that master and slave
+#  create a table with different types of keys. Then, deletes
+#  and updates are performed in the master. The resulting
+#  output of mysqlbinlog -v issued on the binlogs generated 
+#  is then searched for the pattern expected wrt before and 
+#  after images.
+#
+#  See also WL#5096.
+
+
+-- let $TMP_FILE= $MYSQLTEST_VARDIR/tmp/rpl_row_img_sanity.tmp
+
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+-- connection master
+
+-- echo ###################################
+-- echo # NO KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NULLABLE
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # PRIMARY KEY
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, primary key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NOT NULL
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (partial write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (delayed write row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n###   \@3=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- remove_file $TMP_FILE
+
+#
+#  Description
+#  ===========
+#
+#  This test case checks whether binlog files contain
+#  Before and After image values as expected.
+#
+#  Configuration is done using the --binlog-row-image
+#  option. 
+#
+#  How it works
+#  ============
+#
+#  The test case is implemented such that master and slave
+#  create a table with different types of keys. Then, deletes
+#  and updates are performed in the master. The resulting
+#  output of mysqlbinlog -v issued on the binlogs generated 
+#  is then searched for the pattern expected wrt before and 
+#  after images.
+#
+#  See also WL#5096.
+
+-- source include/master-slave-reset.inc
+-- connection master
+# global so that flush tables restarts the 
+# insert dealyed thread
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+FLUSH TABLES;
+-- connection slave
+# global so that SQL thread also gets the change
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+
+-- source include/stop_slave.inc
+-- source include/start_slave.inc
+-- connection master
+
+-- echo ###################################
+-- echo # NO KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NULLABLE
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # PRIMARY KEY
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NOT NULL
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # PK (contains blob)
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=NULL\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=NULL\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n### SET\n###   \@1=2\n###   \@2=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3='a'\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # PK (does not contain blob, but blob is updated)
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c3='b' WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=0\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=0\n###   \@3='a'\n# at/m);
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=0\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=0\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='b'\n/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=0\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=0\n###   \@3='a'\n# at/m);
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=1000\n###   \@2=0\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10000\n###   \@2=0\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n### SET\n###   \@1=1\n###   \@2=2\n###   \@3='b'\n/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n/m);
+  close(FILE);
+EOF
+
+-- remove_file $TMP_FILE
+
+
+#
+#  Description
+#  ===========
+#
+#  This test case checks whether binlog files contain
+#  Before and After image values as expected.
+#
+#  Configuration is done using the --binlog-row-image
+#  option. 
+#
+#  How it works
+#  ============
+#
+#  The test case is implemented such that master and slave
+#  create a table with different types of keys. Then, deletes
+#  and updates are performed in the master. The resulting
+#  output of mysqlbinlog -v issued on the binlogs generated 
+#  is then searched for the pattern expected wrt before and 
+#  after images.
+#
+#  See also WL#5096.
+
+-- source include/master-slave-reset.inc
+-- connection master
+# global so that flush tables restarts the 
+# insert dealyed thread
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+FLUSH TABLES;
+-- connection slave
+# global so that SQL thread also gets the change
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+
+-- source include/stop_slave.inc
+-- source include/start_slave.inc
+-- connection master
+
+-- echo ###################################
+-- echo # NO KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # KEYS
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NULLABLE
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n###   \@2=2\n###   \@3=3\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n###   \@2=2\n###   \@3=3\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # PRIMARY KEY
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int, c2 int, c3 int, primary key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  close(FILE);
+EOF
+
+-- echo ###################################
+-- echo # UNIQUE KEY NOT NULL
+-- echo ###################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "master: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "master: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "master: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "master: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  close(FILE);
+EOF
+
+-- connection slave
+
+-- let $MYSQLD_DATADIR= `select @@datadir;`
+-- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let BINLOG_CONTENTS= $TMP_FILE
+
+perl;
+  $binlog= $ENV{'BINLOG_CONTENTS'};
+  open(FILE, "$binlog") or die("Unable to open $log_error: $!\n");
+  my $contents = do { local $/; <FILE> };
+  print "slave: Unexpected columns in binlog (insert row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=10\n###   \@2=20\n# at/m);
+  print "slave: Unexpected columns in binlog (insert delayed row event)\n" if not ($contents =~ /### INSERT INTO test\.t\n### SET\n###   \@1=100\n###   \@2=200\n# at/m);
+  print "slave: Unexpected columns in binlog (update row event)\n" if not ($contents =~ /### UPDATE test\.t\n### WHERE\n###   \@1=1\n### SET\n###   \@1=2\n# at/m);
+  print "slave: Unexpected columns in binlog (delete row event)\n" if not ($contents =~ /### DELETE FROM test\.t\n### WHERE\n###   \@1=2\n# at/m);
+  close(FILE);
+EOF
+
+## CLEAN UP
+
+-- connection master
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+
+-- connection slave
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+
+-- remove_file $TMP_FILE

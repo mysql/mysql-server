@@ -1,0 +1,334 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+###################################
+# NO KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NULLABLE
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# PRIMARY KEY
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, primary key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NOT NULL
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+include/stop_slave.inc
+include/start_slave.inc
+###################################
+# NO KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NULLABLE
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# PRIMARY KEY
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NOT NULL
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# PK (contains blob)
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# PK (does not contain blob, but blob is updated)
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c3='b' WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+include/stop_slave.inc
+include/start_slave.inc
+###################################
+# NO KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# KEYS
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NULLABLE
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# PRIMARY KEY
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 int, primary key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+###################################
+# UNIQUE KEY NOT NULL
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, unique key(c1));
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t(c1,c2) VALUES (10,20);
+INSERT DELAYED INTO t(c1,c2) VALUES (100,200);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
