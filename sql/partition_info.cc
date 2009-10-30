@@ -2062,10 +2062,8 @@ int partition_info::fix_parser_data(THD *thd)
 {
   List_iterator<partition_element> it(partitions);
   partition_element *part_elem;
-  part_elem_value *val;
   uint num_elements;
   uint i= 0, j, k;
-  int result;
   DBUG_ENTER("partition_info::fix_parser_data");
 
   if (!(part_type == RANGE_PARTITION ||

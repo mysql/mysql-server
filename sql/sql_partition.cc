@@ -1818,46 +1818,6 @@ static int add_write(File fptr, const char *buf, uint len)
     return 1;
 }
 
-static int add_string(File fptr, const char *string);
-
-static int write_hex_char(File fptr, uint number)
-{
-  char buf[2];
-  char c= '0';
-  /* Write number between 0 and 15 as 0-9,A-F */
-  if (number < 10)
-    c+= number;
-  else
-  {
-    c= 'A';
-    c+= (number - 10);
-  }
-  buf[0]= c;
-  buf[1]= 0;
-  return add_string(fptr, (const char*)buf);
-}
-
-static int add_hex_string_object(File fptr, String *string)
-{
-  uint len= string->length();
-  uint i;
-  const char *ptr= string->ptr();
-  char c;
-  int err;
-  uint low, high;
-  err= add_string(fptr, "0x");
-  for (i= 0; i < len; i++)
-  {
-    c= *ptr;
-    ptr++;
-    high= c >> 4;
-    low= c & 15;
-    err+= write_hex_char(fptr, high);
-    err+= write_hex_char(fptr, low);
-  }
-  return err;
-}
-
 static int add_string_object(File fptr, String *string)
 {
   return add_write(fptr, string->ptr(), string->length());
@@ -2095,7 +2055,7 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
       *result_type= STRING_RESULT;
-      *need_cs_check= FALSE;
+      *need_cs_check= TRUE;
       return FALSE;
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
@@ -2138,6 +2098,69 @@ static Create_field* get_sql_field(char *field_name,
     }
   }
   DBUG_RETURN(NULL);
+}
+
+int get_converted_part_value_from_string(Item *item,
+                                         String *res,
+                                         CHARSET_INFO *field_cs,
+                                         String *val_conv,
+                                         bool use_hex)
+{
+  String val;
+  uint dummy_errors;
+  uint len, high, low, i;
+  const char *ptr;
+  char buf[3];
+
+  if (!res)
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    return 1;
+  }
+  if (item->result_type() == INT_RESULT)
+  {
+    longlong value= item->val_int();
+    val_conv->set(value, system_charset_info);
+    return 0;
+  }
+  val_conv->length(0);
+  if (!field_cs || res->length() == 0)
+  {
+    val_conv->append("'");
+    if (res->length() != 0)
+      val_conv->append(*res);
+    val_conv->append("'");
+    return 0;
+  }
+  if (field_cs && use_hex)
+  {
+    val_conv->append("_");
+    val_conv->append(field_cs->csname);
+    val_conv->append(" ");
+  }
+  if (use_hex)
+  {
+    val_conv->append("0x");
+    len= res->length();
+    ptr= res->ptr();
+    for (i= 0; i < len; i++)
+    {
+      high= (*ptr) >> 4;
+      low= (*ptr) & 0x0F;
+      buf[0]= _dig_vec_upper[high];
+      buf[1]= _dig_vec_upper[low];
+      buf[2]= 0;
+      val_conv->append((const char*)buf);
+      ptr++;
+    }
+  }
+  else
+  {
+    val.copy(res->ptr(), res->length(), field_cs,
+             system_charset_info, &dummy_errors);
+    append_unescaped(val_conv, val.ptr(), val.length());
+  }
+  return 0;
 }
 
 static int add_column_list_values(File fptr, partition_info *part_info,
@@ -2231,42 +2254,14 @@ static int add_column_list_values(File fptr, partition_info *part_info,
           my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
           return 1;
         }
-        if (result_type == INT_RESULT)
         {
-          longlong val;
-          val= item_expr->val_int();
-          err+= add_int(fptr, val);
-        }
-        else
-        {
+          String val_conv;
           res= item_expr->val_str(&str);
-          if (!res)
-          {
-            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+          if (get_converted_part_value_from_string(item_expr, res,
+                                                   field_cs, &val_conv,
+                                                   (bool)(alter_info != NULL)))
             return 1;
-          }
-          if (field_cs)
-          {
-            err+= add_string(fptr,"_");
-            err+= add_string(fptr, field_cs->csname);
-            err+= add_space(fptr);
-            if (res->length())
-            {
-              err+= add_hex_string_object(fptr, res);
-            }
-            else
-            {
-              err+= add_string(fptr,"'");
-              err+= add_string(fptr,"'");
-            }
-
-          }
-          else
-          {
-            err+= add_string(fptr,"'");
-            err+= add_string_object(fptr, res);
-            err+= add_string(fptr,"'");
-          }
+          err+= add_string_object(fptr, &val_conv);
         }
       }
     }

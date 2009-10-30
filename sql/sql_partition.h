@@ -75,6 +75,11 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
 uint get_partition_field_store_length(Field *field);
+int get_converted_part_value_from_string(Item *item,
+                                         String *res,
+                                         CHARSET_INFO *cs,
+                                         String *val_conv,
+                                         bool use_hex);
 void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
