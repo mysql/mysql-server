@@ -34,8 +34,8 @@ t1	CREATE TABLE `t1` (
   `a` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST  COLUMNS(a)
-(PARTITION p0 VALUES IN (_ucs2'  ') ENGINE = MyISAM,
- PARTITION p1 VALUES IN (_ucs2'') ENGINE = MyISAM) */
+(PARTITION p0 VALUES IN (_ucs2 0x2020) ENGINE = MyISAM,
+ PARTITION p1 VALUES IN (_ucs2 '') ENGINE = MyISAM) */
 insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
 drop table t1;
@@ -77,9 +77,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE  COLUMNS(a,b,c,d)
 SUBPARTITION BY HASH (to_seconds(d))
 SUBPARTITIONS 4
-(PARTITION p0 VALUES LESS THAN (1,_latin1'0',MAXVALUE,'1900-01-01') ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (1,_latin1'a',MAXVALUE,'1999-01-01') ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN (1,_latin1'a',MAXVALUE,MAXVALUE) ENGINE = MyISAM,
+(PARTITION p0 VALUES LESS THAN (1,_latin1 0x30,MAXVALUE,'1900-01-01') ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (1,_latin1 0x61,MAXVALUE,'1999-01-01') ENGINE = MyISAM,
+ PARTITION p2 VALUES LESS THAN (1,_latin1 0x61,MAXVALUE,MAXVALUE) ENGINE = MyISAM,
  PARTITION p3 VALUES LESS THAN (1,MAXVALUE,MAXVALUE,MAXVALUE) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b int)
@@ -298,10 +298,10 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE  COLUMNS(a,b,c)
 SUBPARTITION BY KEY (c,d)
 SUBPARTITIONS 3
-(PARTITION p0 VALUES LESS THAN (1,_latin1'abc',_latin1'abc') ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (2,_latin1'abc',_latin1'abc') ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN (3,_latin1'abc',_latin1'abc') ENGINE = MyISAM,
- PARTITION p3 VALUES LESS THAN (4,_latin1'abc',_latin1'abc') ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (1,_latin1 0x616263,_latin1 0x616263) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (2,_latin1 0x616263,_latin1 0x616263) ENGINE = MyISAM,
+ PARTITION p2 VALUES LESS THAN (3,_latin1 0x616263,_latin1 0x616263) ENGINE = MyISAM,
+ PARTITION p3 VALUES LESS THAN (4,_latin1 0x616263,_latin1 0x616263) ENGINE = MyISAM) */
 insert into t1 values (1,'a','b',1),(2,'a','b',2),(3,'a','b',3);
 insert into t1 values (1,'b','c',1),(2,'b','c',2),(3,'b','c',3);
 insert into t1 values (1,'c','d',1),(2,'c','d',2),(3,'c','d',3);
@@ -329,8 +329,8 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE  COLUMNS(a,b,c)
-(PARTITION p0 VALUES LESS THAN (1,_latin1'A',1) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (1,_latin1'B',1) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (1,_latin1 0x41,1) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (1,_latin1 0x42,1) ENGINE = MyISAM) */
 insert into t1 values (1, 'A', 1);
 explain partitions select * from t1 where a = 1 AND b <= 'A' and c = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
