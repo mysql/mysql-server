@@ -2,8 +2,8 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 
-#include <iostream>
-#include <stdio.h>
+//#include <iostream>
+//#include <stdio.h>
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -21,6 +21,7 @@
 #define ASSERT_ALWAYS assert
 #endif
 
+#if 0
 /**
  * Helper debugging macros
  */
@@ -32,7 +33,7 @@
 #define APIERROR(error) { \
   PRINT_ERROR((error).code,(error).message); \
   exit(-1); }
-
+#endif
 
 
 //const char* databaseName = "TEST_DB";
@@ -250,8 +251,8 @@ void TestThread::run(){
                               NULL);
         }
         int res = trans->execute(NoCommit);
-        if (res != 0)
-          APIERROR(trans->getNdbError());
+        //        if (res != 0)
+        //          APIERROR(trans->getNdbError());
         ASSERT_ALWAYS(res == 0);
         int cnt=0;
         while(true){

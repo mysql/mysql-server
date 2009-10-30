@@ -50,6 +50,7 @@ class NdbEventOperation;
 class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
+class NdbQuery;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
@@ -413,6 +414,11 @@ class ha_ndbcluster: public handler
                               const key_range *end_key,
                               bool eq_range, bool sorted,
                               uchar* buf);
+  int read_range_first_to_buf_pushed(const Ha_pushed_join_params* pushed_params,
+				     const key_range *start_key
+				     //const key_range *end_key,
+				     //bool eq_range, bool sorted,
+				     );
   int read_range_next();
   int alter_tablespace(st_alter_tablespace *info);
 
@@ -576,6 +582,14 @@ static void set_tabname(const char *pathname, char *tabname);
 
   int alter_table_phase3(THD *thd, TABLE *table);
 
+  virtual bool isNdb()
+  { return true; }
+
+  /*virtual int index_read_map_pushed(uchar * buf[], const uchar * key,
+    key_part_map keypart_map, int nTabs)*/
+  virtual int index_read_pushed(const Ha_pushed_join_params* pushed_params,
+				const uchar *key, uint key_len);
+
 private:
 #ifdef HAVE_NDB_BINLOG
   int delete_row_conflict_fn(enum_conflict_fn_type cft,
@@ -643,6 +657,9 @@ private:
                         const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
+  int pk_read_pushed(const Ha_pushed_join_params* pushed_params, 
+		     const uchar *key, uint key_len,
+		     uint32 *part_id);  
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
                          bool sorted, bool descending, uchar* buf,
@@ -717,6 +734,11 @@ private:
                                                const uchar *key, uchar *buf,
                                                NdbOperation::LockMode lm,
                                                Uint32 *ppartition_id);
+  NdbQuery* pk_unique_index_read_key_pushed(const Ha_pushed_join_params* pushed_params,
+					    uint idx, 
+					    const uchar *key, 
+					    NdbOperation::LockMode lm,
+					    Uint32 *ppartition_id);
   int read_multi_range_fetch_next();
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
