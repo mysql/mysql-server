@@ -5079,8 +5079,8 @@ greedy_search(JOIN      *join,
       the interleaving state to the one of the non-extended partial plan 
       on exit.
     */
-    IF_DBUG(bool is_interleave_error= )
-    check_interleaving_with_nj (best_table);
+    bool is_interleave_error __attribute__((unused))= 
+      check_interleaving_with_nj (best_table);
     /* This has been already checked by best_extension_by_limited_search */
     DBUG_ASSERT(!is_interleave_error);
 
@@ -15045,7 +15045,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy= NULL;
-  IF_DBUG(Copy_field *copy_start);
+  Copy_field *copy_start __attribute__((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
@@ -15058,7 +15058,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     goto err2;
 
   param->copy_funcs.empty();
-  IF_DBUG(copy_start= copy);
+  copy_start= copy;
   for (i= 0; (pos= li++); i++)
   {
     Field *field;

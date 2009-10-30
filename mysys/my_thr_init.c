@@ -387,6 +387,15 @@ const char *my_thread_name(void)
   }
   return tmp->name;
 }
+
+/* Return pointer to DBUG for holding current state */
+
+extern void **my_thread_var_dbug()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp && tmp->init ? &tmp->dbug : 0;
+}
 #endif /* DBUG_OFF */
 
 

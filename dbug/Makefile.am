@@ -23,19 +23,20 @@ libdbug_a_SOURCES =     dbug.c sanity.c
 EXTRA_DIST =            CMakeLists.txt example1.c example2.c example3.c \
                         user.r monty.doc dbug_add_tags.pl \
                         my_main.c main.c factorial.c dbug_analyze.c \
-						CMakeLists.txt
+                        CMakeLists.txt tests.c tests-t.pl
 NROFF_INC =             example1.r example2.r example3.r main.r \
                         factorial.r output1.r output2.r output3.r \
                         output4.r output5.r
-CLEANFILES =            $(NROFF_INC) user.t user.ps
+CLEANFILES =            $(NROFF_INC) user.t user.ps tests-t
 
 
 # Must be linked with libs that are not compiled yet
-noinst_PROGRAMS =       factorial dbug_analyze
+noinst_PROGRAMS =       factorial dbug_analyze tests
 factorial_SOURCES =     my_main.c factorial.c
+tests_SOURCES =         tests.c
 dbug_analyze_SOURCES =  dbug_analyze.c
 
-all:            user.t user.ps
+all:            user.t user.ps tests-t
 
 user.t:         user.r $(NROFF_INC)
 		-nroff -mm user.r > $@
@@ -61,5 +62,7 @@ output5.r:      factorial
 		@RM@ -f $@
 		@SED@ -e 's!\\!\\\\!g' $< > $@
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+# a hack to have executable in builddir, not in srcdir
+tests-t:        tests-t.pl
+		cp -f $(srcdir)/tests-t.pl ./tests-t
+

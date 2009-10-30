@@ -1701,9 +1701,11 @@ uchar *sys_var_debug_sync::value_ptr(THD *thd,
 
 static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 {
-  IF_DBUG(const char *dsp_name= action->sync_point.c_ptr());
-  IF_DBUG(const char *sig_emit= action->signal.c_ptr());
-  IF_DBUG(const char *sig_wait= action->wait_for.c_ptr());
+#ifndef DBUG_OFF
+  const char *dsp_name= action->sync_point.c_ptr();
+  const char *sig_emit= action->signal.c_ptr();
+  const char *sig_wait= action->wait_for.c_ptr();
+#endif
   DBUG_ENTER("debug_sync_execute");
   DBUG_ASSERT(thd);
   DBUG_ASSERT(action);

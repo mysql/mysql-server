@@ -131,7 +131,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       mysql_port = MYSQL_PORT;
 #ifndef MSDOS
       {
-	struct servent *serv_ptr;
+	struct servent *serv_ptr __attribute__((unused));
 	char	*env;
 
         /*

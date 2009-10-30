@@ -1200,14 +1200,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-      IF_DBUG({
-          int new_event_type=
-            description_event->event_type_permutation[event_type];
-          DBUG_PRINT("info",
-                     ("converting event type %d to %d (%s)",
-                      event_type, new_event_type,
-                      get_type_str((Log_event_type)new_event_type)));
-        });
+#ifndef DBUG_OFF
+      int new_event_type=
+        description_event->event_type_permutation[event_type];
+      DBUG_PRINT("info",
+                 ("converting event type %d to %d (%s)",
+                  event_type, new_event_type,
+                  get_type_str((Log_event_type)new_event_type)));
+#endif
       event_type= description_event->event_type_permutation[event_type];
     }
 
@@ -3609,10 +3609,12 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     */
     if (post_header_len)
     {
+#ifndef DBUG_OFF      
       // Allows us to sanity-check that all events initialized their
       // events (see the end of this 'if' block).
-      IF_DBUG(memset(post_header_len, 255,
-                     number_of_event_types*sizeof(uint8)););
+      memset(post_header_len, 255,
+                     number_of_event_types*sizeof(uint8));
+#endif
 
       /* Note: all event types must explicitly fill in their lengths here. */
       post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
@@ -3666,11 +3668,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
 
       // Sanity-check that all post header lengths are initialized.
-      IF_DBUG({
-          int i;
-          for (i=0; i<number_of_event_types; i++)
-            assert(post_header_len[i] != 255);
-        });
+      int i;
+      for (i=0; i<number_of_event_types; i++)
+        DBUG_ASSERT(post_header_len[i] != 255);
     }
     break;
 

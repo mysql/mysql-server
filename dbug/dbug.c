@@ -57,28 +57,47 @@
  *      seismo!bpa!sjuvax!bbanerje
  *
  *      Michael Widenius:
- *      DBUG_DUMP       - To dump a block of memory.
- *      PUSH_FLAG "O"   - To be used insted of "o" if we
- *                        want flushing after each write
- *      PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
- *                        of creating a new one.
- *      Check of malloc on entry/exit (option "S")
+ *        DBUG_DUMP       - To dump a block of memory.
+ *        PUSH_FLAG "O"   - To be used insted of "o" if we
+ *                          want flushing after each write
+ *        PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
+ *                          of creating a new one.
+ *        Check of malloc on entry/exit (option "S")
  *
- *      DBUG_EXECUTE_IF
- *      incremental mode (-#+t:-d,info ...)
- *      DBUG_SET, _db_explain_
- *      thread-local settings
+ *      Sergei Golubchik:
+ *        DBUG_EXECUTE_IF
+ *        incremental mode (-#+t:-d,info ...)
+ *        DBUG_SET, _db_explain_
+ *        thread-local settings
+ *        negative lists (-#-d,info => everything but "info")
+ *
+ *        function/ syntax
+ *        (the logic is - think of a call stack as of a path.
+ *        "function" means only this function, "function/" means the hierarchy.
+ *        in the future, filters like function1/function2 could be supported.
+ *        following this logic glob(7) wildcards are supported.)
  *
  */
 
+/*
+  We can't have SAFE_MUTEX defined here as this will cause recursion
+  in pthread_mutex_lock
+*/
 
+#undef SAFE_MUTEX
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
+
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#else
+#define fnmatch(A,B,C) strcmp(A,B)
+#endif
+
 #if defined(MSDOS) || defined(__WIN__)
 #include <process.h>
 #endif
-
 
 #ifndef DBUG_OFF
 
@@ -95,21 +114,24 @@
  *      The following flags are used to determine which
  *      capabilities the user has enabled with the settings
  *      push macro.
+ *
+ *      TRACE_ON is also used in _db_stack_frame_->level
+ *      (until we add flags to _db_stack_frame_, increasing it by 4 bytes)
  */
 
-#define TRACE_ON        000001  /* Trace enabled */
-#define DEBUG_ON        000002  /* Debug enabled */
-#define FILE_ON         000004  /* File name print enabled */
-#define LINE_ON         000010  /* Line number print enabled */
-#define DEPTH_ON        000020  /* Function nest level print enabled */
-#define PROCESS_ON      000040  /* Process name print enabled */
-#define NUMBER_ON       000100  /* Number each line of output */
-#define PROFILE_ON      000200  /* Print out profiling code */
-#define PID_ON          000400  /* Identify each line with process id */
-#define TIMESTAMP_ON    001000  /* timestamp every line of output */
-#define SANITY_CHECK_ON 002000  /* Check safemalloc on DBUG_ENTER */
-#define FLUSH_ON_WRITE  004000  /* Flush on every write */
-#define OPEN_APPEND     010000  /* Open for append      */
+#define DEBUG_ON        (1 <<  1)  /* Debug enabled */
+#define FILE_ON         (1 <<  2)  /* File name print enabled */
+#define LINE_ON         (1 <<  3)  /* Line number print enabled */
+#define DEPTH_ON        (1 <<  4)  /* Function nest level print enabled */
+#define PROCESS_ON      (1 <<  5)  /* Process name print enabled */
+#define NUMBER_ON       (1 <<  6)  /* Number each line of output */
+#define PROFILE_ON      (1 <<  7)  /* Print out profiling code */
+#define PID_ON          (1 <<  8)  /* Identify each line with process id */
+#define TIMESTAMP_ON    (1 <<  9)  /* timestamp every line of output */
+#define SANITY_CHECK_ON (1 << 10)  /* Check safemalloc on DBUG_ENTER */
+#define FLUSH_ON_WRITE  (1 << 11)  /* Flush on every write */
+#define OPEN_APPEND     (1 << 12)  /* Open for append      */
+#define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)
@@ -119,11 +141,7 @@
  *      Typedefs to make things more obvious.
  */
 
-#ifndef __WIN__
-typedef int BOOLEAN;
-#else
-#define BOOLEAN BOOL
-#endif
+#define BOOLEAN my_bool
 
 /*
  *      Make it easy to change storage classes if necessary.
@@ -139,7 +157,7 @@ typedef int BOOLEAN;
  * (G?) which allowed the user to specify this.
  *
  * If the automatic variables get allocated on the stack in
- * reverse order from their declarations, then define AUTOS_REVERSE.
+ * reverse order from their declarations, then define AUTOS_REVERSE to 1.
  * This is used by the code that keeps track of stack usage.  For
  * forward allocation, the difference in the dbug frame pointers
  * represents stack used by the callee function.  For reverse allocation,
@@ -154,6 +172,8 @@ typedef int BOOLEAN;
 
 #ifdef M_I386           /* predefined by xenix 386 compiler */
 #define AUTOS_REVERSE 1
+#else
+#define AUTOS_REVERSE 0
 #endif
 
 /*
@@ -164,7 +184,11 @@ typedef int BOOLEAN;
 static void perror();          /* Fake system/library error print routine */
 #endif
 
+#ifdef SAFEMALLOC
 IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
+#else
+#define _sanity(X,Y) (1)
+#endif
 
 /*
  *      The user may specify a list of functions to trace or
@@ -174,8 +198,17 @@ IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
 
 struct link {
     struct link *next_link;   /* Pointer to the next link */
-    char   str[1];        /* Pointer to link's contents */
+    char   flags;
+    char   str[1];            /* Pointer to link's contents */
 };
+
+/* flags for struct link and return flags of InList */
+#define SUBDIR          1 /* this MUST be 1 */
+#define INCLUDE         2
+#define EXCLUDE         4
+/* this is not a struct link flag, but only a return flags of InList */
+#define MATCHED     65536
+#define NOT_MATCHED     0
 
 /*
  *      Debugging settings can be pushed or popped off of a
@@ -188,18 +221,18 @@ struct link {
  */
 
 struct settings {
-  int flags;                    /* Current settings flags */
-  int maxdepth;                 /* Current maximum trace depth */
-  uint delay;                   /* Delay after each output line */
-  int sub_level;                /* Sub this from code_state->level */
-  FILE *out_file;               /* Current output stream */
-  FILE *prof_file;              /* Current profiling stream */
-  char name[FN_REFLEN];         /* Name of output file */
-  struct link *functions;       /* List of functions */
-  struct link *p_functions;     /* List of profiled functions */
-  struct link *keywords;        /* List of debug keywords */
-  struct link *processes;       /* List of process names */
-  struct settings *next;        /* Next settings in the list */
+  uint flags;                   /* Current settings flags               */
+  uint maxdepth;                /* Current maximum trace depth          */
+  uint delay;                   /* Delay after each output line         */
+  uint sub_level;               /* Sub this from code_state->level      */
+  FILE *out_file;               /* Current output stream                */
+  FILE *prof_file;              /* Current profiling stream             */
+  char name[FN_REFLEN];         /* Name of output file                  */
+  struct link *functions;       /* List of functions                    */
+  struct link *p_functions;     /* List of profiled functions           */
+  struct link *keywords;        /* List of debug keywords               */
+  struct link *processes;       /* List of process names                */
+  struct settings *next;        /* Next settings in the list            */
 };
 
 #define is_shared(S, V) ((S)->next && (S)->next->V == (S)->V)
@@ -212,18 +245,19 @@ struct settings {
 static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
+my_bool _dbug_on_= TRUE;	 /* FALSE if no debugging at all */
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */
-  const char *func;             /* Name of current user function */
-  const char *file;             /* Name of current user file */
-  char **framep;                /* Pointer to current frame */
-  struct settings *stack;       /* debugging settings */
-  const char *jmpfunc;          /* Remember current function for setjmp */
-  const char *jmpfile;          /* Remember current file for setjmp */
-  int lineno;                   /* Current debugger output line number */
-  int level;                    /* Current function nesting level */
-  int jmplevel;                 /* Remember nesting level at setjmp() */
+  const char *func;             /* Name of current user function            */
+  const char *file;             /* Name of current user file                */
+  struct _db_stack_frame_ *framep; /* Pointer to current frame              */
+  struct settings *stack;       /* debugging settings                       */
+  const char *jmpfunc;          /* Remember current function for setjmp     */
+  const char *jmpfile;          /* Remember current file for setjmp         */
+  int lineno;                   /* Current debugger output line number      */
+  uint level;                   /* Current function nesting level           */
+  int jmplevel;                 /* Remember nesting level at setjmp()       */
 
 /*
  *      The following variables are used to hold the state information
@@ -244,12 +278,16 @@ typedef struct _db_code_state_ {
   The test below is so we could call functions with DBUG_ENTER before
   my_thread_init().
 */
-#define get_code_state_or_return if (!cs && !((cs=code_state()))) return
+#define get_code_state_if_not_set_or_return if (!cs && !((cs=code_state()))) return
+#define get_code_state_or_return if (!((cs=code_state()))) return
 
         /* Handling lists */
-static struct link *ListAdd(struct link *, const char *, const char *);
-static struct link *ListDel(struct link *, const char *, const char *);
+#define ListAdd(A,B,C) ListAddDel(A,B,C,INCLUDE)
+#define ListDel(A,B,C) ListAddDel(A,B,C,EXCLUDE)
+static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
+static int InList(struct link *linkp,const char *cp);
+static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
         /* OpenClose debug output stream */
@@ -260,10 +298,18 @@ static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
 static void FreeState (CODE_STATE *cs, struct settings *state, int free_state);
         /* Test for tracing enabled */
-static BOOLEAN DoTrace(CODE_STATE *cs);
+static int DoTrace(CODE_STATE *cs);
+/*
+  return values of DoTrace.
+  Can also be used as bitmask: ret & DO_TRACE
+*/
+#define DO_TRACE        1
+#define DONT_TRACE      2
+#define ENABLE_TRACE    3
+#define DISABLE_TRACE   4
 
         /* Test to see if file is writable */
-#if !(!defined(HAVE_ACCESS) || defined(MSDOS))
+#if defined(HAVE_ACCESS) && !defined(MSDOS)
 static BOOLEAN Writable(const char *pathname);
         /* Change file owner and group */
 static void ChangeOwner(CODE_STATE *cs, char *pathname);
@@ -275,10 +321,10 @@ static void DoPrefix(CODE_STATE *cs, uint line);
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
-static BOOLEAN InList(struct link *linkp,const char *cp);
-static void dbug_flush(CODE_STATE *);
+static void DbugFlush(CODE_STATE *);
 static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
+static void DbugFprintf(FILE *stream, const char* format, va_list args);
 
 #ifndef THREAD
         /* Open profile output stream */
@@ -322,34 +368,39 @@ static unsigned long Clock(void);
 
 #ifdef THREAD
 #include <my_pthread.h>
-pthread_mutex_t THR_LOCK_dbug;
+static pthread_mutex_t THR_LOCK_dbug;
 
 static CODE_STATE *code_state(void)
 {
-  CODE_STATE *cs=0;
-  struct st_my_thread_var *tmp;
+  CODE_STATE *cs, **cs_ptr;
+
+  /*
+    _dbug_on_ is reset if we don't plan to use any debug commands at all and
+    we want to run on maximum speed
+   */
+  if (!_dbug_on_)
+    return 0;
 
   if (!init_done)
   {
+    init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
-    init_done=TRUE;
   }
 
-  if ((tmp=my_thread_var))
+  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+    return 0;                                   /* Thread not initialised */
+  if (!(cs= *cs_ptr))
   {
-    if (!(cs=(CODE_STATE *) tmp->dbug))
-    {
-      cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
-      bzero((uchar*) cs,sizeof(*cs));
-      cs->process= db_process ? db_process : "dbug";
-      cs->func="?func";
-      cs->file="?file";
-      cs->stack=&init_settings;
-      tmp->dbug= (void*) cs;
-    }
+    cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
+    bzero((uchar*) cs,sizeof(*cs));
+    cs->process= db_process ? db_process : "dbug";
+    cs->func="?func";
+    cs->file="?file";
+    cs->stack=&init_settings;
+    *cs_ptr= cs;
   }
   return cs;
 }
@@ -403,20 +454,19 @@ static CODE_STATE *code_state(void)
 
 void _db_process_(const char *name)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
 
   if (!db_process)
     db_process= name;
-  
+
   get_code_state_or_return;
   cs->process= name;
 }
 
-
 /*
  *  FUNCTION
  *
- *      DbugParse       parse control string and set current debugger setting
+ *      DbugParse  parse control string and set current debugger settings
  *
  *  DESCRIPTION
  *
@@ -438,15 +488,17 @@ void _db_process_(const char *name)
  *
  *      For convenience, any leading "-#" is stripped off.
  *
+ *  RETURN
+ *      1 - a list of functions ("f" flag) was possibly changed
+ *      0 - a list of functions was not changed
  */
 
-static void DbugParse(CODE_STATE *cs, const char *control)
+int DbugParse(CODE_STATE *cs, const char *control)
 {
   const char *end;
-  int rel=0;
+  int rel, f_used=0;
   struct settings *stack;
 
-  get_code_state_or_return;
   stack= cs->stack;
 
   if (control[0] == '-' && control[1] == '#')
@@ -455,6 +507,7 @@ static void DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
+    FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
@@ -497,7 +550,6 @@ static void DbugParse(CODE_STATE *cs, const char *control)
   {
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
     if (sign) control++;
-    if (!rel) sign=0;
     c= *control++;
     if (*control == ',') control++;
     /* XXX when adding new cases here, don't forget _db_explain_ ! */
@@ -526,6 +578,7 @@ static void DbugParse(CODE_STATE *cs, const char *control)
       stack->delay= atoi(control);
       break;
     case 'f':
+      f_used= 1;
       if (sign < 0 && control == end)
       {
         if (!is_shared(stack,functions))
@@ -664,8 +717,111 @@ static void DbugParse(CODE_STATE *cs, const char *control)
     control=end+1;
     end= DbugStrTok(control);
   }
+  return !rel || f_used;
 }
 
+#define framep_trace_flag(cs, frp) (frp ?                                    \
+                                     frp->level & TRACE_ON :                 \
+                              (ListFlags(cs->stack->functions) & INCLUDE) ?  \
+                                       0 : (uint)TRACE_ON)
+
+void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
+                          struct _db_stack_frame_ *framep)
+{
+  if (framep->prev)
+    FixTraceFlags_helper(cs, framep->func, framep->prev);
+
+  cs->func= func;
+  cs->level= framep->level & ~TRACE_ON;
+  framep->level= cs->level | framep_trace_flag(cs, framep->prev);
+  /*
+    we don't set cs->framep correctly, even though DoTrace uses it.
+    It's ok, because cs->framep may only affect DO_TRACE/DONT_TRACE return
+    values, but we ignore them here anyway
+  */
+  switch(DoTrace(cs)) {
+  case ENABLE_TRACE:
+    framep->level|= TRACE_ON;
+    break;
+  case DISABLE_TRACE:
+    framep->level&= ~TRACE_ON;
+    break;
+  }
+}
+
+#define fflags(cs) cs->stack->out_file ? ListFlags(cs->stack->functions) : TRACE_ON;
+
+void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
+{
+  const char *func;
+  uint new_fflags, traceon, level;
+  struct _db_stack_frame_ *framep;
+
+  /*
+    first (a.k.a. safety) check:
+    if we haven't started tracing yet, no call stack at all - we're safe.
+  */
+  framep=cs->framep;
+  if (framep == 0)
+    return;
+
+  /*
+    Ok, the tracing has started, call stack isn't empty.
+
+    second check: does the new list have a SUBDIR rule ?
+  */
+  new_fflags=fflags(cs);
+  if (new_fflags & SUBDIR)
+    goto yuck;
+
+  /*
+    Ok, new list doesn't use SUBDIR.
+
+    third check: we do NOT need to re-scan if
+    neither old nor new lists used SUBDIR flag and if a default behavior
+    (whether an unlisted function is traced) hasn't changed.
+    Default behavior depends on whether there're INCLUDE elements in the list.
+  */
+  if (!(old_fflags & SUBDIR) && !((new_fflags^old_fflags) & INCLUDE))
+    return;
+
+  /*
+    Ok, old list may've used SUBDIR, or defaults could've changed.
+
+    fourth check: are we inside a currently active SUBDIR rule ?
+    go up the call stack, if TRACE_ON flag ever changes its value - we are.
+  */
+  for (traceon=framep->level; framep; framep=framep->prev)
+    if ((traceon ^ framep->level) & TRACE_ON)
+      goto yuck;
+
+  /*
+    Ok, TRACE_ON flag doesn't change in the call stack.
+
+    fifth check: but is the top-most value equal to a default one ?
+  */
+  if (((traceon & TRACE_ON) != 0) == ((new_fflags & INCLUDE) == 0))
+    return;
+
+yuck:
+  /*
+    Yuck! function list was changed, and one of the currently active rules
+    was possibly affected. For example, a tracing could've been enabled or
+    disabled for a function somewhere up the call stack.
+    To react correctly, we must go up the call stack all the way to
+    the top and re-match rules to set TRACE_ON bit correctly.
+
+    We must traverse the stack forwards, not backwards.
+    That's what a recursive helper is doing.
+    It'll destroy two CODE_STATE fields, save them now.
+  */
+  func= cs->func;
+  level= cs->level;
+  FixTraceFlags_helper(cs, func, cs->framep);
+  /* now we only need to restore CODE_STATE fields, and we're done */
+  cs->func= func;
+  cs->level= level;
+}
 
 /*
  *  FUNCTION
@@ -683,18 +839,20 @@ static void DbugParse(CODE_STATE *cs, const char *control)
  *      parses the control string, and sets up a current debug
  *      settings. Pushes a new debug settings if the current is
  *      set to the initial debugger settings.
+ *
  */
 
-void _db_set_(CODE_STATE *cs, const char *control)
+void _db_set_(const char *control)
 {
+  CODE_STATE *cs;
+  uint old_fflags;
   get_code_state_or_return;
-
+  old_fflags=fflags(cs);
   if (cs->stack == &init_settings)
     PushState(cs);
-
-  DbugParse(cs, control);
+  if (DbugParse(cs, control))
+    FixTraceFlags(old_fflags, cs);
 }
-
 
 /*
  *  FUNCTION
@@ -716,10 +874,25 @@ void _db_set_(CODE_STATE *cs, const char *control)
 
 void _db_push_(const char *control)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
+  uint old_fflags;
   get_code_state_or_return;
+  old_fflags=fflags(cs);
   PushState(cs);
-  DbugParse(cs, control);
+  if (DbugParse(cs, control))
+    FixTraceFlags(old_fflags, cs);
+}
+
+
+/**
+  Returns TRUE if session-local settings have been set.
+*/
+
+int _db_is_pushed_()
+{
+  CODE_STATE *cs= NULL;
+  get_code_state_or_return FALSE;
+  return (cs->stack != &init_settings);
 }
 
 /*
@@ -765,15 +938,18 @@ void _db_set_init_(const char *control)
 void _db_pop_()
 {
   struct settings *discard;
-  CODE_STATE *cs=0;
+  uint old_fflags;
+  CODE_STATE *cs;
 
   get_code_state_or_return;
 
   discard= cs->stack;
-  if (discard->next != NULL)
+  if (discard != &init_settings)
   {
+    old_fflags=fflags(cs);
     cs->stack= discard->next;
     FreeState(cs, discard, 1);
+    FixTraceFlags(old_fflags, cs);
   }
 }
 
@@ -798,11 +974,16 @@ void _db_pop_()
         buf=strnmov(buf, (S), len+1);           \
         if (buf >= end) goto overflow;          \
       } while (0)
-#define list_to_buf(l)  do {                    \
+#define list_to_buf(l, f)  do {                 \
         struct link *listp=(l);                 \
         while (listp)                           \
         {                                       \
-          str_to_buf(listp->str);               \
+          if (listp->flags & (f))               \
+          {                                     \
+            str_to_buf(listp->str);             \
+            if (listp->flags & SUBDIR)          \
+              char_to_buf('/');                 \
+          }                                     \
           listp=listp->next_link;               \
         }                                       \
       } while (0)
@@ -842,9 +1023,18 @@ void _db_pop_()
 #define op_list_to_buf(C, val, cond) do {       \
         if ((cond))                             \
         {                                       \
+          int f=ListFlags(val);                 \
           colon_to_buf;                         \
           char_to_buf((C));                     \
-          list_to_buf(val);                     \
+          if (f & INCLUDE)                      \
+            list_to_buf(val, INCLUDE);          \
+          if (f & EXCLUDE)                      \
+          {                                     \
+            colon_to_buf;                       \
+            char_to_buf('-');                   \
+            char_to_buf((C));                   \
+            list_to_buf(val, EXCLUDE);          \
+          }                                     \
         }                                       \
       } while (0)
 #define op_bool_to_buf(C, cond) do {            \
@@ -859,7 +1049,7 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
 {
   char *start=buf, *end=buf+len-4;
 
-  get_code_state_or_return *buf=0;
+  get_code_state_if_not_set_or_return *buf=0;
 
   op_list_to_buf('d', cs->stack->keywords, DEBUGGING);
   op_int_to_buf ('D', cs->stack->delay, 0);
@@ -927,15 +1117,11 @@ int _db_explain_init_(char *buf, size_t len)
  *
  *  SYNOPSIS
  *
- *      VOID _db_enter_(_func_, _file_, _line_,
- *                       _sfunc_, _sfile_, _slevel_, _sframep_)
+ *      VOID _db_enter_(_func_, _file_, _line_, _stack_frame_)
  *      char *_func_;           points to current function name
  *      char *_file_;           points to current file name
  *      int _line_;             called from source line number
- *      char **_sfunc_;         save previous _func_
- *      char **_sfile_;         save previous _file_
- *      int *_slevel_;          save previous nesting level
- *      char ***_sframep_;      save previous frame pointer
+ *      struct _db_stack_frame_ allocated on the caller's stack
  *
  *  DESCRIPTION
  *
@@ -959,55 +1145,66 @@ int _db_explain_init_(char *buf, size_t len)
  */
 
 void _db_enter_(const char *_func_, const char *_file_,
-                uint _line_, const char **_sfunc_, const char **_sfile_,
-                uint *_slevel_, char ***_sframep_ __attribute__((unused)))
+                uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
-  int save_errno=errno;
-  CODE_STATE *cs=0;
-  get_code_state_or_return;
+  int save_errno;
+  CODE_STATE *cs;
+  if (!((cs=code_state())))
+  {
+    _stack_frame_->level= 0; /* Set to avoid valgrind warnings if dbug is enabled later */
+    _stack_frame_->prev= 0;
+    return;
+  }
+  save_errno= errno;
 
-  *_sfunc_= cs->func;
-  *_sfile_= cs->file;
+  _stack_frame_->func= cs->func;
+  _stack_frame_->file= cs->file;
   cs->func=  _func_;
   cs->file=  _file_;
-  *_slevel_=  ++cs->level;
+  _stack_frame_->prev= cs->framep;
+  _stack_frame_->level= ++cs->level | framep_trace_flag(cs, cs->framep);
+  cs->framep= _stack_frame_;
 #ifndef THREAD
-  *_sframep_= cs->framep;
-  cs->framep= (char **) _sframep_;
   if (DoProfile(cs))
   {
     long stackused;
-    if (*cs->framep == NULL)
+    if (cs->framep->prev == NULL)
       stackused= 0;
     else
     {
-      stackused= ((long)(*cs->framep)) - ((long)(cs->framep));
+      stackused= (char*)(cs->framep->prev) - (char*)(cs->framep);
       stackused= stackused > 0 ? stackused : -stackused;
     }
     (void) fprintf(cs->stack->prof_file, PROF_EFMT , Clock(), cs->func);
-#ifdef AUTOS_REVERSE
-    (void) fprintf(cs->stack->prof_file, PROF_SFMT, cs->framep, stackused, *_sfunc_);
-#else
     (void) fprintf(cs->stack->prof_file, PROF_SFMT, (ulong) cs->framep, stackused,
-                    cs->func);
-#endif
+                   AUTOS_REVERSE ? _stack_frame_->func : cs->func);
     (void) fflush(cs->stack->prof_file);
   }
 #endif
-  if (DoTrace(cs))
-  {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix(cs, _line_);
-    Indent(cs, cs->level);
-    (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
-    dbug_flush(cs);                       /* This does a unlock */
-  }
-#ifdef SAFEMALLOC
-  if (cs->stack->flags & SANITY_CHECK_ON)
-    if (_sanity(_file_,_line_))               /* Check of safemalloc */
+  switch (DoTrace(cs)) {
+  case ENABLE_TRACE:
+    cs->framep->level|= TRACE_ON;
+    if (!TRACING) break;
+    /* fall through */
+  case DO_TRACE:
+    if ((cs->stack->flags & SANITY_CHECK_ON) && _sanity(_file_,_line_))
       cs->stack->flags &= ~SANITY_CHECK_ON;
-#endif
+    if (TRACING)
+    {
+      if (!cs->locked)
+        pthread_mutex_lock(&THR_LOCK_dbug);
+      DoPrefix(cs, _line_);
+      Indent(cs, cs->level);
+      (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
+      DbugFlush(cs);                       /* This does a unlock */
+    }
+    break;
+  case DISABLE_TRACE:
+    cs->framep->level&= ~TRACE_ON;
+    /* fall through */
+  case DONT_TRACE:
+    break;
+  }
   errno=save_errno;
 }
 
@@ -1018,11 +1215,9 @@ void _db_enter_(const char *_func_, const char *_file_,
  *
  *  SYNOPSIS
  *
- *      VOID _db_return_(_line_, _sfunc_, _sfile_, _slevel_)
+ *      VOID _db_return_(_line_, _stack_frame_)
  *      int _line_;             current source line number
- *      char **_sfunc_;         where previous _func_ is to be retrieved
- *      char **_sfile_;         where previous _file_ is to be retrieved
- *      int *_slevel_;          where previous level was stashed
+ *      struct _db_stack_frame_ allocated on the caller's stack
  *
  *  DESCRIPTION
  *
@@ -1034,51 +1229,52 @@ void _db_enter_(const char *_func_, const char *_file_,
  */
 
 /* helper macro */
-void _db_return_(uint _line_, const char **_sfunc_,
-                 const char **_sfile_, uint *_slevel_)
+void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
   int save_errno=errno;
-  CODE_STATE *cs=0;
+  uint _slevel_= _stack_frame_->level & ~TRACE_ON;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
-  if (cs->level != (int) *_slevel_)
+  if (cs->level != _slevel_)
   {
     if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_MISSING_RETURN, cs->process,
                    cs->func);
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
   else
   {
-#ifdef SAFEMALLOC
-    if (cs->stack->flags & SANITY_CHECK_ON)
-    {
-      if (_sanity(*_sfile_,_line_))
-        cs->stack->flags &= ~SANITY_CHECK_ON;
-    }
-#endif
 #ifndef THREAD
     if (DoProfile(cs))
       (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
 #endif
-    if (DoTrace(cs))
+    if (DoTrace(cs) & DO_TRACE)
     {
-      if (!cs->locked)
-        pthread_mutex_lock(&THR_LOCK_dbug);
-      DoPrefix(cs, _line_);
-      Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
-      dbug_flush(cs);
+      if ((cs->stack->flags & SANITY_CHECK_ON) &&
+          _sanity(_stack_frame_->file,_line_))
+        cs->stack->flags &= ~SANITY_CHECK_ON;
+      if (TRACING)
+      {
+        if (!cs->locked)
+          pthread_mutex_lock(&THR_LOCK_dbug);
+        DoPrefix(cs, _line_);
+        Indent(cs, cs->level);
+        (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+        DbugFlush(cs);
+      }
     }
   }
-  cs->level= *_slevel_-1;
-  cs->func= *_sfunc_;
-  cs->file= *_sfile_;
-#ifndef THREAD
+  /*
+    Check to not set level < 0. This can happen if DBUG was disabled when
+    function was entered and enabled in function.
+  */
+  cs->level= _slevel_ != 0 ? _slevel_ - 1 : 0;
+  cs->func= _stack_frame_->func;
+  cs->file= _stack_frame_->file;
   if (cs->framep != NULL)
-    cs->framep= (char **) *cs->framep;
-#endif
+    cs->framep= cs->framep->prev;
   errno=save_errno;
 }
 
@@ -1105,7 +1301,7 @@ void _db_return_(uint _line_, const char **_sfunc_,
 
 void _db_pargs_(uint _line_, const char *keyword)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   cs->u_line= _line_;
   cs->u_keyword= keyword;
@@ -1141,13 +1337,12 @@ void _db_pargs_(uint _line_, const char *keyword)
 void _db_doprnt_(const char *format,...)
 {
   va_list args;
-
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   va_start(args,format);
 
-  if (_db_keyword_(cs, cs->u_keyword))
+  if (_db_keyword_(cs, cs->u_keyword, 0))
   {
     int save_errno=errno;
     if (!cs->locked)
@@ -1158,12 +1353,23 @@ void _db_doprnt_(const char *format,...)
     else
       (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
     (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    (void) vfprintf(cs->stack->out_file, format, args);
-    (void) fputc('\n',cs->stack->out_file);
-    dbug_flush(cs);
+    DbugFprintf(cs->stack->out_file, format, args);
+    DbugFlush(cs);
     errno=save_errno;
   }
   va_end(args);
+}
+
+/*
+ * fprintf clone with consistent, platform independent output for 
+ * problematic formats like %p, %zd and %lld.
+ */
+static void DbugFprintf(FILE *stream, const char* format, va_list args)
+{
+  char cvtbuf[1024];
+  size_t len;
+  len = my_vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
+  (void) fprintf(stream, "%s\n", cvtbuf);
 }
 
 
@@ -1190,11 +1396,10 @@ void _db_dump_(uint _line_, const char *keyword,
 {
   int pos;
   char dbuff[90];
-
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
-  if (_db_keyword_(cs, keyword))
+  if (_db_keyword_(cs, keyword, 0))
   {
     if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
@@ -1226,7 +1431,7 @@ void _db_dump_(uint _line_, const char *keyword,
       fputc(' ',cs->stack->out_file);
     }
     (void) fputc('\n',cs->stack->out_file);
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
 }
 
@@ -1234,93 +1439,75 @@ void _db_dump_(uint _line_, const char *keyword,
 /*
  *  FUNCTION
  *
- *      ListAdd    add to the list modifiers from debug control string
- *
- *  SYNOPSIS
- *
- *      static struct link *ListAdd(listp, ctlp, end)
- *      struct link *listp;
- *      char *ctlp;
- *      char *end;
+ *      ListAddDel    modify the list according to debug control string
  *
  *  DESCRIPTION
  *
  *      Given pointer to a comma separated list of strings in "cltp",
- *      parses the list, and adds it to listp, returning a pointer
- *      to the new list
+ *      parses the list, and modifies "listp", returning a pointer
+ *      to the new list.
  *
- *      Note that since each link is added at the head of the list,
- *      the final list will be in "reverse order", which is not
- *      significant for our usage here.
+ *      The mode of operation is defined by "todo" parameter.
  *
+ *      If it is INCLUDE, elements (strings from "cltp") are added to the
+ *      list, they will have INCLUDE flag set. If the list already contains
+ *      the string in question, new element is not added, but a flag of
+ *      the existing element is adjusted (INCLUDE bit is set, EXCLUDE bit
+ *      is removed).
+ *
+ *      If it is EXCLUDE, elements are added to the list with the EXCLUDE
+ *      flag set. If the list already contains the string in question,
+ *      it is removed, new element is not added.
  */
 
-static struct link *ListAdd(struct link *head,
-                             const char *ctlp, const char *end)
-{
-  const char *start;
-  struct link *new_malloc;
-  int len;
-
-  while (ctlp < end)
-  {
-    start= ctlp;
-    while (ctlp < end && *ctlp != ',')
-      ctlp++;
-    len=ctlp-start;
-    new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
-    memcpy(new_malloc->str, start, len);
-    new_malloc->str[len]=0;
-    new_malloc->next_link= head;
-    head= new_malloc;
-    ctlp++;
-  }
-  return head;
-}
-
-/*
- *  FUNCTION
- *
- *      ListDel    remove from the list modifiers in debug control string
- *
- *  SYNOPSIS
- *
- *      static struct link *ListDel(listp, ctlp, end)
- *      struct link *listp;
- *      char *ctlp;
- *      char *end;
- *
- *  DESCRIPTION
- *
- *      Given pointer to a comma separated list of strings in "cltp",
- *      parses the list, and removes these strings from the listp,
- *      returning a pointer to the new list.
- *
- */
-
-static struct link *ListDel(struct link *head,
-                             const char *ctlp, const char *end)
+static struct link *ListAddDel(struct link *head, const char *ctlp,
+                               const char *end, int todo)
 {
   const char *start;
   struct link **cur;
-  int len;
+  size_t len;
+  int subdir;
 
-  while (ctlp < end)
+  ctlp--;
+next:
+  while (++ctlp < end)
   {
     start= ctlp;
+    subdir=0;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
     len=ctlp-start;
-    cur=&head;
-    do
+    if (start[len-1] == '/')
     {
-      while (*cur && !strncmp((*cur)->str, start, len))
+      len--;
+      subdir=SUBDIR;
+    }
+    if (len == 0) continue;
+    for (cur=&head; *cur; cur=&((*cur)->next_link))
+    {
+      if (!strncmp((*cur)->str, start, len))
       {
-        struct link *delme=*cur;
-        *cur=(*cur)->next_link;
-        free((void*) delme);
+        if ((*cur)->flags & todo)  /* same action ? */
+          (*cur)->flags|= subdir;  /* just merge the SUBDIR flag */
+        else if (todo == EXCLUDE)
+        {
+          struct link *delme=*cur;
+          *cur=(*cur)->next_link;
+          free((void*) delme);
+        }
+        else
+        {
+          (*cur)->flags&=~(EXCLUDE & SUBDIR);
+          (*cur)->flags|=INCLUDE | subdir;
+        }
+        goto next;
       }
-    } while (*cur && *(cur=&((*cur)->next_link)));
+    }
+    *cur= (struct link *) DbugMalloc(sizeof(struct link)+len);
+    memcpy((*cur)->str, start, len);
+    (*cur)->str[len]=0;
+    (*cur)->flags=todo | subdir;
+    (*cur)->next_link=0;
   }
   return head;
 }
@@ -1352,7 +1539,7 @@ static struct link *ListCopy(struct link *orig)
 {
   struct link *new_malloc;
   struct link *head;
-  int len;
+  size_t len;
 
   head= NULL;
   while (orig != NULL)
@@ -1361,6 +1548,7 @@ static struct link *ListCopy(struct link *orig)
     new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
     memcpy(new_malloc->str, orig->str, len);
     new_malloc->str[len]= 0;
+    new_malloc->flags=orig->flags;
     new_malloc->next_link= head;
     head= new_malloc;
     orig= orig->next_link;
@@ -1373,47 +1561,52 @@ static struct link *ListCopy(struct link *orig)
  *
  *      InList    test a given string for member of a given list
  *
- *  SYNOPSIS
- *
- *      static BOOLEAN InList(linkp, cp)
- *      struct link *linkp;
- *      char *cp;
- *
  *  DESCRIPTION
  *
  *      Tests the string pointed to by "cp" to determine if it is in
  *      the list pointed to by "linkp".  Linkp points to the first
- *      link in the list.  If linkp is NULL then the string is treated
- *      as if it is in the list (I.E all strings are in the null list).
+ *      link in the list.  If linkp is NULL or contains only EXCLUDE
+ *      elements then the string is treated as if it is in the list.
  *      This may seem rather strange at first but leads to the desired
  *      operation if no list is given.  The net effect is that all
  *      strings will be accepted when there is no list, and when there
  *      is a list, only those strings in the list will be accepted.
  *
+ *  RETURN
+ *      combination of SUBDIR, INCLUDE, EXCLUDE, MATCHED flags
+ *
  */
 
-static BOOLEAN InList(struct link *linkp, const char *cp)
+static int InList(struct link *linkp, const char *cp)
 {
-  REGISTER struct link *scan;
-  REGISTER BOOLEAN result;
+  int result;
 
-  if (linkp == NULL)
-    result= TRUE;
-  else
+  for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    result= FALSE;
-    for (scan= linkp; scan != NULL; scan= scan->next_link)
-    {
-      if (!strcmp(scan->str, cp))
-      {
-        result= TRUE;
-        break;
-      }
-    }
+    if (!fnmatch(linkp->str, cp, 0))
+      return linkp->flags;
+    if (!(linkp->flags & EXCLUDE))
+      result=NOT_MATCHED;
+    if (linkp->flags & SUBDIR)
+      result|=SUBDIR;
   }
   return result;
 }
 
+/*
+ *  FUNCTION
+ *
+ *      ListFlags    returns aggregated list flags (ORed over all elements)
+ *
+ */
+
+static uint ListFlags(struct link *linkp)
+{
+  uint f;
+  for (f=0; linkp != NULL; linkp= linkp->next_link)
+    f|= linkp->flags;
+  return f;
+}
 
 /*
  *  FUNCTION
@@ -1440,8 +1633,8 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
+  bzero(new_malloc, sizeof(*new_malloc));
   new_malloc->next= cs->stack;
-  new_malloc->out_file= NULL;
   cs->stack= new_malloc;
 }
 
@@ -1472,11 +1665,17 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
     FreeList(state->processes);
   if (!is_shared(state, p_functions))
     FreeList(state->p_functions);
+
   if (!is_shared(state, out_file))
     DBUGCloseFile(cs, state->out_file);
-  (void) fflush(cs->stack->out_file);
-  if (state->prof_file)
+  else
+    (void) fflush(state->out_file);
+
+  if (!is_shared(state, prof_file))
     DBUGCloseFile(cs, state->prof_file);
+  else
+    (void) fflush(state->prof_file);
+
   if (free_state)
     free((void*) state);
 }
@@ -1503,8 +1702,12 @@ void _db_end_()
 {
   struct settings *discard;
   static struct settings tmp;
-  CODE_STATE *cs=0;
-
+  CODE_STATE *cs;
+  /*
+    Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
+    called after dbug was initialized
+  */
+  _dbug_on_= 1;
   get_code_state_or_return;
 
   while ((discard= cs->stack))
@@ -1538,25 +1741,30 @@ void _db_end_()
  *
  *      DoTrace    check to see if tracing is current enabled
  *
- *  SYNOPSIS
- *
- *      static BOOLEAN DoTrace(stack)
- *
  *  DESCRIPTION
  *
- *      Checks to see if tracing is enabled based on whether the
- *      user has specified tracing, the maximum trace depth has
- *      not yet been reached, the current function is selected,
- *      and the current process is selected.  Returns TRUE if
- *      tracing is enabled, FALSE otherwise.
+ *      Checks to see if dbug in this function is enabled based on
+ *      whether the maximum trace depth has been reached, the current
+ *      function is selected, and the current process is selected.
  *
  */
 
-static BOOLEAN DoTrace(CODE_STATE *cs)
+static int DoTrace(CODE_STATE *cs)
 {
-  return (TRACING && cs->level <= cs->stack->maxdepth &&
-          InList(cs->stack->functions, cs->func) &&
-          InList(cs->stack->processes, cs->process));
+  if ((cs->stack->maxdepth == 0 || cs->level <= cs->stack->maxdepth) &&
+      InList(cs->stack->processes, cs->process) & (MATCHED|INCLUDE))
+    switch(InList(cs->stack->functions, cs->func)) {
+    case INCLUDE|SUBDIR:  return ENABLE_TRACE;
+    case INCLUDE:         return DO_TRACE;
+    case MATCHED|SUBDIR:
+    case NOT_MATCHED|SUBDIR:
+    case MATCHED:         return framep_trace_flag(cs, cs->framep) ?
+                                           DO_TRACE : DONT_TRACE;
+    case EXCLUDE:
+    case NOT_MATCHED:     return DONT_TRACE;
+    case EXCLUDE|SUBDIR:  return DISABLE_TRACE;
+    }
+  return DONT_TRACE;
 }
 
 
@@ -1584,46 +1792,16 @@ static BOOLEAN DoProfile(CODE_STATE *cs)
 {
   return PROFILING &&
          cs->level <= cs->stack->maxdepth &&
-         InList(cs->stack->p_functions, cs->func) &&
-         InList(cs->stack->processes, cs->process);
+         InList(cs->stack->p_functions, cs->func) & (INCLUDE|MATCHED) &&
+         InList(cs->stack->processes, cs->process) & (INCLUDE|MATCHED);
 }
 #endif
 
 FILE *_db_fp_(void)
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return NULL;
   return cs->stack->out_file;
-}
-
-
-/*
- *  FUNCTION
- *
- *      _db_strict_keyword_     test keyword for member of keyword list
- *
- *  SYNOPSIS
- *
- *      BOOLEAN _db_strict_keyword_(keyword)
- *      char *keyword;
- *
- *  DESCRIPTION
- *
- *      Similar to _db_keyword_, but keyword is NOT accepted if keyword list
- *      is empty. Used in DBUG_EXECUTE_IF() - for actions that must not be
- *      executed by default.
- *
- *      Returns TRUE if keyword accepted, FALSE otherwise.
- *
- */
-
-BOOLEAN _db_strict_keyword_(const char *keyword)
-{
-  CODE_STATE *cs=0;
-  get_code_state_or_return FALSE;
-  if (!DEBUGGING || cs->stack->keywords == NULL)
-    return FALSE;
-  return _db_keyword_(cs, keyword);
 }
 
 /*
@@ -1631,15 +1809,10 @@ BOOLEAN _db_strict_keyword_(const char *keyword)
  *
  *      _db_keyword_    test keyword for member of keyword list
  *
- *  SYNOPSIS
- *
- *      BOOLEAN _db_keyword_(keyword)
- *      char *keyword;
- *
  *  DESCRIPTION
  *
  *      Test a keyword to determine if it is in the currently active
- *      keyword list.  As with the function list, a keyword is accepted
+ *      keyword list.  If strict=0, a keyword is accepted
  *      if the list is null, otherwise it must match one of the list
  *      members.  When debugging is not on, no keywords are accepted.
  *      After the maximum trace level is exceeded, no keywords are
@@ -1651,36 +1824,13 @@ BOOLEAN _db_strict_keyword_(const char *keyword)
  *
  */
 
-BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword)
+BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
-  get_code_state_or_return FALSE;
+  get_code_state_if_not_set_or_return FALSE;
+  strict=strict ? INCLUDE : INCLUDE|MATCHED;
 
-  return (DEBUGGING &&
-          (!TRACING || cs->level <= cs->stack->maxdepth) &&
-          InList(cs->stack->functions, cs->func) &&
-          InList(cs->stack->keywords, keyword) &&
-          InList(cs->stack->processes, cs->process));
-}
-
-/*
- *  FUNCTION
- *
- *      _db_keywords_    test keyword formed by a set of strings for member
- *                       of keyword list
- *
- *  DESCRIPTION
- *
- *      This function is similar to _db_keyword but receives a set of strings to
- *      be concatenated in order to make the keyword to be compared.
- */
-
-BOOLEAN _db_keywords_(const char *function, const char *type)
-{
-  char dest[_DBUG_MAX_FUNC_NAME_ + 1];
-
-  strxnmov(dest, _DBUG_MAX_FUNC_NAME_, function, type, NULL);
-
-  return _db_strict_keyword_(dest);
+  return DEBUGGING && DoTrace(cs) & DO_TRACE &&
+         InList(cs->stack->keywords, keyword) & strict;
 }
 
 /*
@@ -1848,7 +1998,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
   {
     if (end)
     {
-      int len=end-name;
+      size_t len=end-name;
       memcpy(cs->stack->name, name, len);
       cs->stack->name[len]=0;
     }
@@ -1971,12 +2121,12 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp != stderr && fp != stdout && fclose(fp) == EOF)
+  if (fp && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
 }
 
@@ -2193,7 +2343,7 @@ static void ChangeOwner(CODE_STATE *cs, char *pathname)
 
 EXPORT void _db_setjmp_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   cs->jmplevel= cs->level;
@@ -2220,7 +2370,7 @@ EXPORT void _db_setjmp_()
 
 EXPORT void _db_longjmp_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
 
   cs->level= cs->jmplevel;
@@ -2271,11 +2421,9 @@ char *s;
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */
         /* and dbug-file isn't readable after a system crash !! */
 
-static void dbug_flush(CODE_STATE *cs)
+static void DbugFlush(CODE_STATE *cs)
 {
-#ifndef THREAD
   if (cs->stack->flags & FLUSH_ON_WRITE)
-#endif
   {
     (void) fflush(cs->stack->out_file);
     if (cs->stack->delay)
@@ -2283,12 +2431,22 @@ static void dbug_flush(CODE_STATE *cs)
   }
   if (!cs->locked)
     pthread_mutex_unlock(&THR_LOCK_dbug);
-} /* dbug_flush */
+} /* DbugFlush */
+
+
+/* For debugging */
+
+void _db_flush_()
+{
+  CODE_STATE *cs;
+  get_code_state_or_return;
+  (void) fflush(cs->stack->out_file);
+}
 
 
 void _db_lock_file_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   pthread_mutex_lock(&THR_LOCK_dbug);
   cs->locked=1;
@@ -2296,7 +2454,7 @@ void _db_lock_file_()
 
 void _db_unlock_file_()
 {
-  CODE_STATE *cs=0;
+  CODE_STATE *cs;
   get_code_state_or_return;
   cs->locked=0;
   pthread_mutex_unlock(&THR_LOCK_dbug);
@@ -2304,7 +2462,7 @@ void _db_unlock_file_()
 
 const char* _db_get_func_(void)
 {
-  CODE_STATE *cs= 0;
+  CODE_STATE *cs;
   get_code_state_or_return NULL;
   return cs->func;
 }
