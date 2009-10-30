@@ -23,6 +23,7 @@
 #include <NdbRestarter.hpp>
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
+#include <NdbBackup.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -238,7 +239,6 @@ int
 runBug48416(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
 
   return NDBT_Tables::createTable(pNdb, "I1");
 }
@@ -648,6 +648,64 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   automatically by NDBT...
    *   so when we enter here, this is already tested
    */
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+
+  ndbout << "Starting backup..." << flush;
+  if (backup.start() != 0)
+  {
+    ndbout << "Failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "done" << endl;
+
+
+  /**
+   * Bug48227
+   *   
+   */
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+  }
+
+  pDict->dropTable("I3");
+  if (NDBT_Tables::createTable(pNdb, "I3"))
+  {
+    ndbout_c("Failed to create table!");
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+  }
+
+  NdbRestarter res;
+  if (res.restartAll() != 0)
+  {
+    ndbout_c("restartAll() failed");
+    return NDBT_FAILED;
+  }
+
+  if (res.waitClusterStarted() != 0)
+  {
+    ndbout_c("waitClusterStarted() failed");
+    return NDBT_FAILED;
+  }
+
+  if (pDict->getTable("I3") == 0)
+  {
+    ndbout_c("Table disappered");
+    return NDBT_FAILED;
+  }
+
   return NDBT_OK;
 }
 
