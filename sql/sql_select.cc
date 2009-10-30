@@ -232,6 +232,12 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
 
+static enum_nested_loop_state sub_select_pushed(JOIN *join,
+                                                JOIN_TAB *join_tab,
+                                                bool end_of_records);
+static int join_read_key_pushed(JOIN* join, JOIN_TAB *tab, int nTabs, bool end_of_records);
+//static int join_read_key_pushed(JOIN_TAB *tab, int nTabs);
+
 
 /**
   This handles SELECT with and without UNION.
@@ -6428,6 +6434,37 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_RETURN(0);
 }
 
+/** Set to true to enable query push down prototype code.*/
+static bool enable_pushed_operations = false;
+
+static bool is_pushable(const JOIN_TAB *tab, int nTabs)
+{
+  if(!enable_pushed_operations)
+  {
+    return false;
+  }
+  for(int i = 0; i<nTabs; i++)
+  {
+    if((tab[i].type != JT_EQ_REF) ||
+       (!tab[i].table->file->isNdb()))
+       return false;
+    for(uint keyPartNo = 1; keyPartNo < tab[i].ref.key_parts; keyPartNo++)
+    {
+      /* For now, all parts of the key must be fields in the preceeding 
+       table */
+      const Item_field* const keyItem = 
+        static_cast<Item_field*>(tab[i].ref.items[keyPartNo]);
+
+      if(keyItem->type() != Item::FIELD_ITEM ||
+         keyItem->field->table != tab[i-1].table)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
 {
@@ -6444,6 +6481,10 @@ make_join_readinfo(JOIN *join, ulonglong options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
+    if(i<(join->tables-1) && is_pushable(tab+1, join->tables - i - 1))
+    {
+      tab->next_select=sub_select_pushed;
+    }
 
     /*
       Determine if the set is already ordered for ORDER BY, so it can 
@@ -11153,6 +11194,87 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   return rc;
 }
 
+enum_nested_loop_state
+sub_select_pushed(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
+{
+  join_tab->table->null_row=0;
+  if (end_of_records)
+    return NESTED_LOOP_OK;
+    //return (*join_tab->next_select)(join,join_tab+1,end_of_records);
+
+  int error;
+  enum_nested_loop_state rc;
+  READ_RECORD *info= &join_tab->read_record;
+
+  if (join->resume_nested_loop)
+  {
+    DBUG_ASSERT(false);
+    /* If not the last table, plunge down the nested loop */
+    if (join_tab < join->join_tab + join->tables - 1)
+      rc= (*join_tab->next_select)(join, join_tab + 1, 0);
+    else
+    {
+      join->resume_nested_loop= FALSE;
+      rc= NESTED_LOOP_OK;
+    }
+  }
+  else
+  {
+    join->return_tab= join_tab;
+
+    if (join_tab->last_inner)
+    {
+      DBUG_ASSERT(false);
+      /* join_tab is the first inner table for an outer join operation. */
+
+      /* Set initial state of guard variables for this table.*/
+      join_tab->found=0;
+      join_tab->not_null_compl= 1;
+
+      /* Set first_unmatched for the last inner table of this group */
+      join_tab->last_inner->first_unmatched= join_tab;
+    }
+    join->thd->row_count= 0;
+
+    int idx_of_current = -1;
+    for (uint i=join->const_tables ; i < join->tables ; i++)
+    {
+      if(join_tab==join->join_tab+i)
+        idx_of_current = i;
+    }
+    DBUG_ASSERT(idx_of_current != -1);  
+
+    error= join_read_key_pushed(join, 
+                                join_tab, 
+                                join->tables - idx_of_current,
+                                end_of_records);
+    DBUG_ASSERT(error==0);
+    //JOIN_TAB* const last_tab = join_tab + join->tables - join->const_tables -1;
+    //error= end_send(join, last_tab, end_of_records);
+    //error= (*join_tab->read_first_record)(join_tab);
+    //rc= evaluate_join_record(join, join_tab, error);
+    rc = NESTED_LOOP_NO_MORE_ROWS;
+  }
+
+  while (rc == NESTED_LOOP_OK)
+  {
+    DBUG_ASSERT(false);
+    error= info->read_record(info);
+    rc= evaluate_join_record(join, join_tab, error);
+  }
+
+  if (rc == NESTED_LOOP_NO_MORE_ROWS &&
+      join_tab->last_inner && !join_tab->found)
+  {
+    DBUG_ASSERT(false);
+    rc= evaluate_null_complemented_join_record(join, join_tab);
+  }
+
+  if (rc == NESTED_LOOP_NO_MORE_ROWS)
+    rc= NESTED_LOOP_OK;
+  return rc;
+}
+
 
 /**
   Process one record of the nested loop join.
@@ -11642,6 +11764,49 @@ join_read_key(JOIN_TAB *tab)
       return report_error(table, error);
   }
   table->null_row=0;
+  return table->status ? -1 : 0;
+}
+
+
+static int
+join_read_key_pushed(JOIN* join, JOIN_TAB *tab, int nTabs, bool end_of_records)
+{
+  int error;
+  TABLE *table= tab->table;
+
+  if (!table->file->inited)
+  {
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  }
+  if (cmp_buffer_with_ref(tab) ||
+      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
+  {
+    if (tab->ref.key_err)
+    {
+      table->status=STATUS_NOT_FOUND;
+      return -1;
+    }
+    uchar* records[10];
+    DBUG_ASSERT(nTabs<=10);
+    for(int i = 0; i<nTabs; i++)
+    {
+      records[i] = tab[i].table->record[0];
+    }
+    Ha_pushed_join_params pushed_params(tab, records, nTabs);
+
+    error=table->file->index_read_map_pushed(&pushed_params,
+                                             tab->ref.key_buff,
+                                             make_prev_keypart_map(tab->ref.key_parts));
+    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+      return report_error(table, error);
+  }
+  table->null_row=0;
+  if(error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+  {
+    JOIN_TAB* const last_tab = tab + join->tables - join->const_tables -1;
+    error= end_send(join, last_tab, end_of_records);
+    DBUG_ASSERT(error == 0);
+  }
   return table->status ? -1 : 0;
 }
 
