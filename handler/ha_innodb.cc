@@ -41,7 +41,7 @@ have disabled the InnoDB inlining in this file. */
 #include <mysql/plugin.h>
 
 #ifndef MYSQL_SERVER
-/* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
+/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
 #endif /* MYSQL_SERVER */
