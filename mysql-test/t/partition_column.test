@@ -51,11 +51,21 @@ insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
 drop table t1;
 
+--error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
 create table t1 (a int, b char(10), c varchar(25), d datetime)
 partition by range columns(a,b,c,d)
 subpartition by hash (to_seconds(d))
 subpartitions 4
 ( partition p0 values less than (1, 0, MAXVALUE, '1900-01-01'),
+  partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
+  partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
+  partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
+
+create table t1 (a int, b char(10), c varchar(25), d datetime)
+partition by range columns(a,b,c,d)
+subpartition by hash (to_seconds(d))
+subpartitions 4
+( partition p0 values less than (1, '0', MAXVALUE, '1900-01-01'),
   partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
   partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
   partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
@@ -310,7 +320,7 @@ partition by range columns(a)
 (partition p0 values less than (H23456),
  partition p1 values less than (M23456));
 
--- error ER_RANGE_NOT_INCREASING_ERROR
+-- error ER_WRONG_TYPE_COLUMN_VALUE_ERROR
 create table t1 (a char(6))
 partition by range columns(a)
 (partition p0 values less than (23456),
