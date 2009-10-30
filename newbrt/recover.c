@@ -82,6 +82,7 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         }
         //Logging is already back on.  No need to pass LSN into close.
         char *error_string = NULL;
+        DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
         r = toku_close_brt(tuple->brt, NULL, &error_string);
         if (!recovery_succeeded) {
             printf("%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
@@ -90,6 +91,7 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
             assert(r == 0);
         if (error_string)
             toku_free(error_string);
+        toku_free(fake_db); //Must free the DB after the brt is closed
 
         file_map_tuple_destroy(tuple);
         toku_free(tuple);
@@ -299,12 +301,15 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
     // TODO mode
     mode = mode;
 
-    r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, renv->ct, NULL, NULL);
+    //Create fake DB for comparison functions.
+    DB *XCALLOC(fake_db);
+    r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, renv->ct, NULL, fake_db);
     if (r != 0) {
         //Note:  If brt_open fails, then close_brt will NOT write a header to disk.
         //No need to provide lsn
         int rr = toku_close_brt(brt, NULL, NULL); assert(rr == 0);
         toku_free(fixedfname);
+        toku_free(fake_db); //Free memory allocated for the fake db.
         return r;
     }
 
@@ -326,8 +331,10 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
             //Must keep existing lsn.
             //The only way this should be dirty, is if its doing a file-format upgrade.
             //If not dirty, header will not be written.
+            DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
             r = toku_close_brt_lsn(tuple->brt, 0, 0, TRUE, tuple->brt->h->checkpoint_lsn);
             assert(r == 0);
+            toku_free(fake_db); //Must free the DB after the brt is closed
             file_map_remove(&renv->fmap, l->filenum);
         }
     }
@@ -465,8 +472,10 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV UU(renv)) 
         char *fixedfname = fixup_fname(&l->iname);
         assert(strcmp(tuple->fname, fixedfname) == 0);
         toku_free(fixedfname);
+        DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
         r = toku_close_brt_lsn(tuple->brt, 0, 0, TRUE, l->lsn);
         assert(r == 0);
+        toku_free(fake_db); //Must free the DB after the brt is closed
         file_map_remove(&renv->fmap, l->filenum);
     }
     return 0;
