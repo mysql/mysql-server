@@ -1924,7 +1924,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       int errval = acclst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -1943,7 +1943,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       int errval = tuplst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -1965,7 +1965,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
 
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -6708,7 +6708,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
       int errval = lst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      g_err << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
@@ -7194,6 +7194,15 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << pDic->getNdbError() << endl;
     }
+    if (pDic->getNdbError().code == 1224)
+    {
+      /**
+       * To many fragments is an acceptable error
+       *   depending on configuration used for test-case
+       */
+      result = NDBT_OK;
+      goto end;
+    }
     CHECK2(result == 0,
            "failed to alter");
 
@@ -7219,6 +7228,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
       if (res.getNumDbNodes() > 1)
       {
         int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        ndbout_c("performing node-restart of node %d", nodeId);
         CHECK2(res.restartOneDbNode(nodeId,
                                     false,
                                     true,
@@ -7232,6 +7242,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
       }
     case 1:
     {
+      ndbout_c("performing system restart");
       CHECK2(res.restartAll(false, true, false) == 0,
              "restart all failed");
       CHECK2(res.waitClusterNoStart() == 0,

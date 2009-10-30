@@ -183,6 +183,9 @@ public:
    */
   static int parseMask(unsigned size, Uint32 data[], const char * str);
 
+  /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
+  static inline Uint32 count_bits(Uint32 x);
+
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -325,11 +328,7 @@ BitmaskImpl::count(unsigned size, const Uint32 data[])
 {
   unsigned cnt = 0;
   for (unsigned i = 0; i < size; i++) {
-    Uint32 x = data[i];
-    while (x) {
-      x &= (x - 1);
-      cnt++;
-    }
+    cnt += count_bits(data[i]);
   }
   return cnt;
 }
@@ -447,6 +446,17 @@ BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
   }
   *buf = 0;
   return org;
+}
+
+inline
+Uint32
+BitmaskImpl::count_bits(Uint32 x)
+{
+  x= x - ((x>>1) & 0x55555555);
+  x= (x & 0x33333333) + ((x>>2) & 0x33333333);
+  x= (x + (x>>4)) & 0x0f0f0f0f;
+  x= (x*0x01010101) >> 24;
+  return x;
 }
 
 /**

@@ -8004,6 +8004,9 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     connectPtr.i = req->connectPtr;
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+    ndbrequire(connectPtr.p->connectState == ConnectRecord::ALTER_TABLE);
+
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
 
@@ -8120,6 +8123,10 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
       ndbrequire(tabPtr.p->totalfragments == save);
       ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
       send_alter_tab_ref(signal, tabPtr, connectPtr, err);
+
+      ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+      tabPtr.p->connectrec = RNIL;
+      release_connect(connectPtr);
       return;
     }
 
@@ -8345,10 +8352,6 @@ Dbdih::send_alter_tab_ref(Signal* signal,
   ref->errorCode = errCode;
   sendSignal(connectPtr.p->userblockref, GSN_ALTER_TAB_REF, signal,
              AlterTabRef::SignalLength, JBB);
-
-  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
-  tabPtr.p->connectrec = RNIL;
-  release_connect(connectPtr);
 }
 
 void
@@ -8429,7 +8432,7 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     jam();
     Ptr<TabRecord> tabPtr;
     tabPtr.i = connectPtr.p->table;
-    ptrAss(tabPtr, tabRecord);
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
     Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
     Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
@@ -8448,6 +8451,8 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
       ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_ALTER_TABLE);
       tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
       send_alter_tab_ref(signal, tabPtr, connectPtr, ~0);
+
+      connectPtr.p->connectState = ConnectRecord::ALTER_TABLE;
       return;
     }
     case ConnectRecord::ALTER_TABLE_REVERT:
