@@ -4928,7 +4928,7 @@ Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
     }
   }
 
-  if (deleteTriggerId != RNIL);
+  if (deleteTriggerId != RNIL)
   {
     jam();
     c_triggerRecordPool.getPtr(triggerPtr, deleteTriggerId);
