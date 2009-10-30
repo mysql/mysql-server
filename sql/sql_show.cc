@@ -25,6 +25,7 @@
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
+#include "sql_partition.h"
 #ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
 #include "event_data_objects.h"
@@ -4970,6 +4971,7 @@ get_partition_column_description(partition_info *part_info,
     {
       char buffer[MAX_KEY_LENGTH];
       String str(buffer, sizeof(buffer), &my_charset_bin);
+      String val_conv;
       Item *item= col_val->item_expression;
 
       if (!(item= part_info->get_column_item(item,
@@ -4978,16 +4980,13 @@ get_partition_column_description(partition_info *part_info,
         DBUG_RETURN(1);
       }
       String *res= item->val_str(&str);
-      if (!res)
+      if (get_converted_part_value_from_string(item, res,
+                              part_info->part_field_array[i]->charset(),
+                              &val_conv, FALSE))
       {
-        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
         DBUG_RETURN(1);
       }
-      if (item->result_type() == STRING_RESULT)
-        tmp_str.append("'");
-      tmp_str.append(*res);
-      if (item->result_type() == STRING_RESULT)
-        tmp_str.append("'");
+      tmp_str.append(val_conv);
     }
     if (i != num_elements - 1)
       tmp_str.append(",");
@@ -5004,7 +5003,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   char buff[61];
   String tmp_res(buff, sizeof(buff), cs);
   String tmp_str;
-  uint num_elements;
   TABLE *show_table= tables->table;
   handler *file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
