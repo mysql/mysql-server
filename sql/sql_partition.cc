@@ -2027,6 +2027,23 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
+
+/*
+  Check partition fields for result type and if they need
+  to check the character set.
+
+  SYNOPSIS
+    check_part_field()
+    sql_type              Type provided by user
+    field_name            Name of field, used for error handling
+    result_type           Out value: Result type of field
+    need_cs_check         Out value: Do we need character set check
+
+  RETURN VALUES
+    TRUE                  Error
+    FALSE                 Ok
+*/
+
 static int check_part_field(enum_field_types sql_type,
                             const char *field_name,
                             Item_result *result_type,
@@ -2081,6 +2098,20 @@ error:
   return TRUE;
 }
 
+
+/*
+  Find the given field's Create_field object using name of field
+
+  SYNOPSIS
+    get_sql_field()
+    field_name                   Field name
+    alter_info                   Info from ALTER TABLE/CREATE TABLE
+
+  RETURN VALUE
+    sql_field                    Object filled in by parser about field
+    NULL                         No field found
+*/
+
 static Create_field* get_sql_field(char *field_name,
                                    Alter_info *alter_info)
 {
@@ -2100,6 +2131,30 @@ static Create_field* get_sql_field(char *field_name,
   DBUG_RETURN(NULL);
 }
 
+
+/*
+  Convert a string in a given character set to a string which can be
+  used for FRM file storage in which case use_hex is TRUE and we store
+  the character constants as hex strings in the character set encoding
+  their field have. In the case of SHOW CREATE TABLE and the
+  PARTITIONS information schema table we instead provide utf8 strings
+  to the user and convert to the utf8 character set.
+
+  SYNOPSIS
+    get_converted_part_value_from_string()
+    item                           Item from which constant comes
+    res                            String as provided by val_str after
+                                   conversion to character set
+    field_cs                       Character set string is encoded in
+                                   NULL for INT_RESULT's here
+    val_conv                       Out value: The string created
+    use_hex                        TRUE => hex string created
+                                   FALSE => utf8 constant string created
+  RETURN VALUES
+    TRUE                           Error
+    FALSE                          Ok
+*/
+
 int get_converted_part_value_from_string(Item *item,
                                          String *res,
                                          CHARSET_INFO *field_cs,
@@ -2112,16 +2167,16 @@ int get_converted_part_value_from_string(Item *item,
   const char *ptr;
   char buf[3];
 
-  if (!res)
-  {
-    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    return 1;
-  }
   if (item->result_type() == INT_RESULT)
   {
     longlong value= item->val_int();
     val_conv->set(value, system_charset_info);
-    return 0;
+    return FALSE;
+  }
+  if (!res)
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    return TRUE;
   }
   val_conv->length(0);
   if (!field_cs || res->length() == 0)
@@ -2130,7 +2185,7 @@ int get_converted_part_value_from_string(Item *item,
     if (res->length() != 0)
       val_conv->append(*res);
     val_conv->append("'");
-    return 0;
+    return FALSE;
   }
   if (field_cs && use_hex)
   {
@@ -2160,7 +2215,7 @@ int get_converted_part_value_from_string(Item *item,
              system_charset_info, &dummy_errors);
     append_unescaped(val_conv, val.ptr(), val.length());
   }
-  return 0;
+  return FALSE;
 }
 
 static int add_column_list_values(File fptr, partition_info *part_info,
