@@ -115,17 +115,17 @@ static inline int env_opened(DB_ENV *env) {
 }
 
 static void env_init_open_txn(DB_ENV *env) {
-    list_init(&env->i->open_txns);
+    toku_list_init(&env->i->open_txns);
 }
 
 // add a txn to the list of open txn's
 static void env_add_open_txn(DB_ENV *env, DB_TXN *txn) {
-    list_push(&env->i->open_txns, (struct list *) (void *) &txn->open_txns);
+    toku_list_push(&env->i->open_txns, (struct toku_list *) (void *) &txn->open_txns);
 }
 
 // remove a txn from the list of open txn's
 static void env_remove_open_txn(DB_ENV *UU(env), DB_TXN *txn) {
-    list_remove((struct list *) (void *) &txn->open_txns);
+    toku_list_remove((struct toku_list *) (void *) &txn->open_txns);
 }
 
 static int toku_txn_abort(DB_TXN * txn);
@@ -582,7 +582,7 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     // if panicked, or if any open transactions, or any open dbs, then do nothing.
 
     if (toku_env_is_panicked(env)) goto panic_and_quit_early;
-    if (!list_empty(&env->i->open_txns)) {
+    if (!toku_list_empty(&env->i->open_txns)) {
         r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open transactions\n");
         goto panic_and_quit_early;
     }
@@ -1357,15 +1357,15 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //Promote list to parent (dbs that must close before abort)
     if (txn->parent) {
         //Combine lists.
-        while (!list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
-            struct list *list = list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
-            list_push(&db_txn_struct_i(txn->parent)->dbs_that_must_close_before_abort, list);
+        while (!toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
+            struct toku_list *list = toku_list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
+            toku_list_push(&db_txn_struct_i(txn->parent)->dbs_that_must_close_before_abort, list);
         }
     }
     else {
         //Empty the list
-        while (!list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
-            list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
+        while (!toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
+            toku_list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
         }
     }
 
@@ -1408,7 +1408,7 @@ static int toku_txn_abort(DB_TXN * txn) {
     env_remove_open_txn(txn->mgrp, txn);
 
     //All dbs that must close before abort, must now be closed
-    assert(list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
+    assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
@@ -1502,7 +1502,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
 #endif
     memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
     db_txn_struct_i(result)->flags = txn_flags;
-    list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
+    toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
@@ -1658,8 +1658,8 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     if (db_opened(db) && db->i->dname) // internal (non-user) dictionary has no dname
         env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
     //Remove from transaction's list of 'must close' if necessary.
-    if (!list_empty(&db->i->dbs_that_must_close_before_abort))
-        list_remove(&db->i->dbs_that_must_close_before_abort);
+    if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
+        toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
     int r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
     return r;
@@ -3680,7 +3680,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mod
     //Add to transaction's list of 'must close' if necessary.
     if (txn) {
         //Do last so we don't have to undo.
-        list_push(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort,
+        toku_list_push(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort,
                   &db->i->dbs_that_must_close_before_abort);
     }
 
@@ -4538,7 +4538,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;
-    list_init(&result->i->dbs_that_must_close_before_abort);
+    toku_list_init(&result->i->dbs_that_must_close_before_abort);
     r = toku_brt_create(&result->i->brt);
     if (r != 0) {
         toku_free(result->i);

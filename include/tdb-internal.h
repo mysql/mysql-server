@@ -3,7 +3,7 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "list.h"
+#include "toku_list.h"
 // Included by db.h, defines some internal structures.  These structures are inlined in some versions of db.h
 // the types DB_TXN and so forth have been defined.
 
@@ -18,7 +18,7 @@ struct __toku_db_txn_internal {
     struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched
     u_int32_t flags;
     DB_TXN *child;
-    struct list dbs_that_must_close_before_abort;
+    struct toku_list dbs_that_must_close_before_abort;
 };
 
 struct __toku_dbc_internal {

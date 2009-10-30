@@ -1,4 +1,4 @@
-#include "list.h"
+#include "toku_list.h"
 #include "toku_assert.h"
 
 #include "test.h"
@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 struct testlist {
-    struct list next;
+    struct toku_list next;
     int tag;
 };
 
@@ -17,128 +17,128 @@ static void testlist_init (struct testlist *tl, int tag) {
 
 static void test_push_pop (int n) {
     int i;
-    struct list head;
+    struct toku_list head;
 
-    list_init(&head);
+    toku_list_init(&head);
     for (i=0; i<n; i++) {
         struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
-        list_push(&head, &tl->next);
-        assert(!list_empty(&head));
+        toku_list_push(&head, &tl->next);
+        assert(!toku_list_empty(&head));
     }
     for (i=n-1; i>=0; i--) {
-        struct list *list;
+        struct toku_list *list;
         struct testlist *tl;
 
-        list = list_head(&head);
-        tl  = list_struct(list, struct testlist, next);
+        list = toku_list_head(&head);
+        tl  = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == 0);
-        list = list_tail(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_tail(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        list = list_pop(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_pop(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
         toku_free(tl);
     }
-    assert(list_empty(&head));
+    assert(toku_list_empty(&head));
 }
 
 static void test_push_pop_head (int n) {
     int i;
-    struct list head;
+    struct toku_list head;
 
-    list_init(&head);
+    toku_list_init(&head);
     for (i=0; i<n; i++) {
         struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
-        list_push(&head, &tl->next);
-        assert(!list_empty(&head));
+        toku_list_push(&head, &tl->next);
+        assert(!toku_list_empty(&head));
     }
     for (i=0; i<n; i++) {
-        struct list *list;
+        struct toku_list *list;
         struct testlist *tl;
 
-        list = list_head(&head);
-        tl  = list_struct(list, struct testlist, next);
+        list = toku_list_head(&head);
+        tl  = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        list = list_tail(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_tail(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == n-1);
 
-        list = list_pop_head(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_pop_head(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
         toku_free(tl);
     }
-    assert(list_empty(&head));
+    assert(toku_list_empty(&head));
 }
 
 static void test_push_head_pop (int n) {
     int i;
-    struct list head;
+    struct toku_list head;
 
-    list_init(&head);
+    toku_list_init(&head);
     for (i=0; i<n; i++) {
         struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
-        list_push_head(&head, &tl->next);
-        assert(!list_empty(&head));
+        toku_list_push_head(&head, &tl->next);
+        assert(!toku_list_empty(&head));
     }
     for (i=0; i<n; i++) {
-        struct list *list;
+        struct toku_list *list;
         struct testlist *tl;
 
-        list = list_head(&head);
-        tl  = list_struct(list, struct testlist, next);
+        list = toku_list_head(&head);
+        tl  = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == n-1);
-        list = list_tail(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_tail(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
 
-        list = list_pop(&head);
-        tl = list_struct(list, struct testlist, next);
+        list = toku_list_pop(&head);
+        tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
         toku_free(tl);
     }
-    assert(list_empty(&head));
+    assert(toku_list_empty(&head));
 }
 
 #if 0
 // cant move an empty list
 static void test_move_empty (void) {
-    struct list h1, h2;
+    struct toku_list h1, h2;
 
-    list_init(&h1);
-    list_init(&h2);
-    list_move(&h1, &h2);
-    assert(list_empty(&h2));
-    assert(list_empty(&h1));
+    toku_list_init(&h1);
+    toku_list_init(&h2);
+    toku_list_move(&h1, &h2);
+    assert(toku_list_empty(&h2));
+    assert(toku_list_empty(&h1));
 }
 #endif
 
 static void test_move (int n) {
-    struct list h1, h2;
+    struct toku_list h1, h2;
     int i;
 
-    list_init(&h1);
-    list_init(&h2);
+    toku_list_init(&h1);
+    toku_list_init(&h2);
     for (i=0; i<n; i++) {
         struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
-        list_push(&h2, &tl->next);
+        toku_list_push(&h2, &tl->next);
     }
-    list_move(&h1, &h2);
-    assert(!list_empty(&h1));
-    assert(list_empty(&h2));
+    toku_list_move(&h1, &h2);
+    assert(!toku_list_empty(&h1));
+    assert(toku_list_empty(&h2));
     i = 0;
-    while (!list_empty(&h1)) {
-        struct list *list = list_pop_head(&h1);
-        struct testlist *tl = list_struct(list, struct testlist, next);
+    while (!toku_list_empty(&h1)) {
+        struct toku_list *list = toku_list_pop_head(&h1);
+        struct testlist *tl = toku_list_struct(list, struct testlist, next);
         assert(tl->tag == i);
         toku_free(tl);
         i += 1;

@@ -7,7 +7,7 @@
 #include <db.h>
 #include "../newbrt/brttypes.h"
 #include "../newbrt/brt.h"
-#include "../newbrt/list.h"
+#include "toku_list.h"
 #include "./lock_tree/locktree.h"
 #include "./lock_tree/db_id.h"
 #include "./lock_tree/idlth.h"
@@ -29,7 +29,7 @@ struct __toku_db_internal {
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function)
     BOOL val_compare_was_set;
     char *dname;    // dname is constant for this handle (handle must be closed before file is renamed)
-    struct list dbs_that_must_close_before_abort;
+    struct toku_list dbs_that_must_close_before_abort;
 };
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
@@ -59,7 +59,7 @@ struct __toku_db_env_internal {
     CACHETABLE cachetable;
     TOKULOGGER logger;
     toku_ltm* ltm;
-    struct list open_txns;
+    struct toku_list open_txns;
     DB *directory; //Maps dnames to inames
     DB *persistent_environment; //Stores environment settings, can be used for upgrade
     OMT open_dbs; //Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)

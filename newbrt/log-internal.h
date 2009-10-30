@@ -8,7 +8,7 @@
 #include "brt-internal.h"
 #include "log.h"
 #include "toku_assert.h"
-#include "list.h"
+#include "toku_list.h"
 #include "memarena.h"
 #include "logfilemgr.h"
 #include <stdio.h>

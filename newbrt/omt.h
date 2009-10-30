@@ -110,7 +110,7 @@
 // changing the OMT's shape, one can simply step through the list
 // invalidating all the OMTCURSORs.
 //
-// The list of OMTCURSORs should use the list.h abstraction.  If it's
+// The list of OMTCURSORs should use the toku_list.h abstraction.  If it's
 // not clear how to use it, Rich can explain it.
 
 
