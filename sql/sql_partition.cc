@@ -2240,6 +2240,11 @@ static int add_column_list_values(File fptr, partition_info *part_info,
           else
             field_cs= NULL;
         }
+        if (result_type != item_expr->result_type())
+        {
+          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
+          return 1;
+        }
         if (field_cs && field_cs != item_expr->collation.collation)
         {
           if (!(item_expr= convert_charset_partition_constant(item_expr,
@@ -2248,11 +2253,6 @@ static int add_column_list_values(File fptr, partition_info *part_info,
             my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
             return 1;
           }
-        }
-        if (result_type != item_expr->result_type())
-        {
-          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
-          return 1;
         }
         {
           String val_conv;
