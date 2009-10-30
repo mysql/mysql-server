@@ -3451,6 +3451,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }
+    /*
+      No User, but a password?
+      They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
+      Get the current user, and shallow-copy the new password to them!
+    */
+    if (!tmp_Str->user.str && tmp_Str->password.str)
+      Str->password= tmp_Str->password;
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
