@@ -3390,14 +3390,14 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+        int ret __attribute__((unused))= get_ndb_blobs_value(table, share->ndb_value[0],
                                                blobs_buffer[0],
                                                blobs_buffer_size[0],
                                                ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
-      IF_DBUG(int ret=) trans.write_row(originating_server_id,
+      int ret __attribute__((unused))= trans.write_row(originating_server_id,
                                         injector::transaction::table(table,
                                                                      TRUE),
                                         &b, n_fields, table->record[0]);
@@ -3429,7 +3429,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[n],
+        int ret __attribute__((unused))= get_ndb_blobs_value(table, share->ndb_value[n],
                                                blobs_buffer[n],
                                                blobs_buffer_size[n],
                                                ptrdiff);
@@ -3437,7 +3437,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      IF_DBUG(int ret =) trans.delete_row(originating_server_id,
+      int ret __attribute__((unused))= trans.delete_row(originating_server_id,
                                           injector::transaction::table(table,
                                                                        TRUE),
                                           &b, n_fields, table->record[n]);
@@ -3452,7 +3452,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+        int ret __attribute__((unused))= get_ndb_blobs_value(table, share->ndb_value[0],
                                                blobs_buffer[0],
                                                blobs_buffer_size[0],
                                                ptrdiff);
@@ -3480,7 +3480,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         if (share->flags & NSF_BLOB_FLAG)
         {
           my_ptrdiff_t ptrdiff= table->record[1] - table->record[0];
-          IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[1],
+          int ret __attribute__((unused))= get_ndb_blobs_value(table, share->ndb_value[1],
                                                  blobs_buffer[1],
                                                  blobs_buffer_size[1],
                                                  ptrdiff);
@@ -3488,7 +3488,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        IF_DBUG(int ret =) trans.update_row(originating_server_id,
+        int ret __attribute__((unused))= trans.update_row(originating_server_id,
                                             injector::transaction::table(table,
                                                                          TRUE),
                                             &b, n_fields,
@@ -3792,7 +3792,7 @@ restart:
         { C_STRING_WITH_LEN("mysqld startup")    },
         { C_STRING_WITH_LEN("cluster disconnect")}
       };
-    IF_DBUG(int error=)
+    int error __attribute__((unused))=
       inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg[incident_id]);
     DBUG_ASSERT(!error);
     break;
@@ -4107,7 +4107,7 @@ restart:
             DBUG_PRINT("info", ("use_table: %.*s",
                                 (int) name.length, name.str));
             injector::transaction::table tbl(table, TRUE);
-            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
+            int ret __attribute__((unused))= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
           }
         }
@@ -4123,7 +4123,7 @@ restart:
                                 (int) name.length, name.str));
 #endif
             injector::transaction::table tbl(table, TRUE);
-            IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
+            int ret __attribute__((unused))= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
 
 	    /* 
@@ -4193,7 +4193,7 @@ restart:
           else
           {
             // set injector_ndb database/schema from table internal name
-            IF_DBUG(int ret=)
+            int ret __attribute__((unused))=
               i_ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
             DBUG_ASSERT(ret == 0);
             ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);

@@ -5423,7 +5423,7 @@ binlog:
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=)
+        int result __attribute__((unused))=
           store_create_info(thd, table, &query,
                             create_info, FALSE /* show_database */);
 

@@ -3066,3 +3066,5 @@ sql/share/ukrainian
 libmysqld/examples/mysqltest.cc
 libmysqld/sql_signal.cc
 libmysqld/debug_sync.cc
+libmysqld/rpl_handler.cc
+dbug/tests

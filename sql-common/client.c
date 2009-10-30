@@ -2389,7 +2389,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
       for (i= 0; status && hp->h_addr_list[i]; i++)
       {
-        IF_DBUG(char ipaddr[18];)
+        char ipaddr[18] __attribute__((unused));
         memcpy(&sock_addr.sin_addr, hp->h_addr_list[i],
                min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
         DBUG_PRINT("info",("Trying %s...",
