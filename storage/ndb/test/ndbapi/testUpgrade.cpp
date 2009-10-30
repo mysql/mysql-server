@@ -235,6 +235,16 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
 
 static
 int
+runBug48416(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
+  return NDBT_Tables::createTable(pNdb, "I1");
+}
+
+static
+int
 runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 {
   // Assuming 2 replicas
@@ -645,6 +655,7 @@ NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
 }
