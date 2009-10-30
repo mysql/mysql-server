@@ -649,21 +649,33 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
   }
   ndbout << "done" << endl;
 
+
   /**
    * Bug48227
    *   
    */
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
-  NdbDictionary::Table tab = * NDBT_Tables::getTable(0);
-  tab.setName("TRUP2");
-  pDict->dropTable(tab.getName());
-  if (pDict->createTable(tab) != 0)
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+  }
+
+  pDict->dropTable("I3");
+  if (NDBT_Tables::createTable(pNdb, "I3"))
   {
     ndbout_c("Failed to create table!");
     ndbout << pDict->getNdbError() << endl;
-    NDBT_Tables::print(NDBT_Tables::getTable(0)->getName());
     return NDBT_FAILED;
+  }
+
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
   }
 
   NdbRestarter res;
@@ -679,7 +691,7 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if (pDict->getTable(tab.getName()) == 0)
+  if (pDict->getTable("I3") == 0)
   {
     ndbout_c("Table disappered");
     return NDBT_FAILED;

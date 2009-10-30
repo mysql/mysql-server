@@ -4825,11 +4825,21 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
                  c_tableDesc.InsertTriggerId,
                  c_tableDesc.UpdateTriggerId,
                  c_tableDesc.DeleteTriggerId);
+        infoEvent("table: %u UPGRADE saving (%u/%u/%u)",
+                  tablePtr.i,
+                  c_tableDesc.InsertTriggerId,
+                  c_tableDesc.UpdateTriggerId,
+                  c_tableDesc.DeleteTriggerId);
         tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
         tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
         tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
         tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
         tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+
+        upgrade_seizeTrigger(tablePtr,
+                             c_tableDesc.InsertTriggerId,
+                             c_tableDesc.UpdateTriggerId,
+                             c_tableDesc.DeleteTriggerId);
       }
     }
   }
@@ -4864,6 +4874,98 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     increase_ref_count(ptr.p->m_obj_ptr_i);
   }
 }//handleTabInfoInit()
+
+void
+Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
+                             Uint32 insertTriggerId,
+                             Uint32 updateTriggerId,
+                             Uint32 deleteTriggerId)
+{
+  /**
+   * The insert trigger will be "main" trigger so
+   *   it does not need any special treatment
+   */
+  const Uint32 size = c_triggerRecordPool.getSize();
+  ndbrequire(updateTriggerId == RNIL || updateTriggerId < size);
+  ndbrequire(deleteTriggerId == RNIL || deleteTriggerId < size);
+
+  TriggerRecordPtr triggerPtr;
+  if (updateTriggerId != RNIL)
+  {
+    jam();
+    c_triggerRecordPool.getPtr(triggerPtr, updateTriggerId);
+    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED)
+    {
+      jam();
+      initialiseTriggerRecord(triggerPtr);
+      triggerPtr.p->triggerState = TriggerRecord::TS_FAKE_UPGRADE;
+      triggerPtr.p->triggerId = triggerPtr.i;
+      triggerPtr.p->tableId = tabPtr.p->primaryTableId;
+      triggerPtr.p->indexId = tabPtr.i;
+      TriggerInfo::packTriggerInfo(triggerPtr.p->triggerInfo,
+                                   g_hashIndexTriggerTmpl[0].triggerInfo);
+
+      char buf[256];
+      BaseString::snprintf(buf, sizeof(buf),
+                           "UPG_UPD_NDB$INDEX_%u_UI", tabPtr.i);
+      {
+        Rope name(c_rope_pool, triggerPtr.p->triggerName);
+        name.assign(buf);
+      }
+
+      Ptr<DictObject> obj_ptr;
+      bool ok = c_obj_hash.seize(obj_ptr);
+      ndbrequire(ok);
+      new (obj_ptr.p) DictObject();
+
+      obj_ptr.p->m_name = triggerPtr.p->triggerName;
+      c_obj_hash.add(obj_ptr);
+      obj_ptr.p->m_ref_count = 0;
+
+      triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
+      obj_ptr.p->m_id = triggerPtr.p->triggerId;
+      obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+    }
+  }
+
+  if (deleteTriggerId != RNIL);
+  {
+    jam();
+    c_triggerRecordPool.getPtr(triggerPtr, deleteTriggerId);
+    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED)
+    {
+      jam();
+      initialiseTriggerRecord(triggerPtr);
+      triggerPtr.p->triggerState = TriggerRecord::TS_FAKE_UPGRADE;
+      triggerPtr.p->triggerId = triggerPtr.i;
+      triggerPtr.p->tableId = tabPtr.p->primaryTableId;
+      triggerPtr.p->indexId = tabPtr.i;
+      TriggerInfo::packTriggerInfo(triggerPtr.p->triggerInfo,
+                                   g_hashIndexTriggerTmpl[0].triggerInfo);
+      char buf[256];
+      BaseString::snprintf(buf, sizeof(buf),
+                           "UPG_DEL_NDB$INDEX_%u_UI", tabPtr.i);
+
+      {
+        Rope name(c_rope_pool, triggerPtr.p->triggerName);
+        name.assign(buf);
+      }
+
+      Ptr<DictObject> obj_ptr;
+      bool ok = c_obj_hash.seize(obj_ptr);
+      ndbrequire(ok);
+      new (obj_ptr.p) DictObject();
+
+      obj_ptr.p->m_name = triggerPtr.p->triggerName;
+      c_obj_hash.add(obj_ptr);
+      obj_ptr.p->m_ref_count = 0;
+
+      triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
+      obj_ptr.p->m_id = triggerPtr.p->triggerId;
+      obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+    }
+  }
+}
 
 void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
 			   ParseDictTabInfoRecord * parseP,
@@ -6735,6 +6837,35 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
     def.erase();
   }
   list.release();
+
+  {
+    if (tablePtr.p->m_upgrade_trigger_handling.m_upgrade)
+    {
+      jam();
+      Uint32 triggerId;
+
+      triggerId = tablePtr.p->m_upgrade_trigger_handling.updateTriggerId;
+      if (triggerId != RNIL)
+      {
+        jam();
+        TriggerRecordPtr triggerPtr;
+        c_triggerRecordPool.getPtr(triggerPtr, triggerId);
+        triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
+        release_object(triggerPtr.p->m_obj_ptr_i);
+      }
+
+      triggerId = tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId;
+      if (triggerId != RNIL)
+      {
+        jam();
+        TriggerRecordPtr triggerPtr;
+        c_triggerRecordPool.getPtr(triggerPtr, triggerId);
+        triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
+        release_object(triggerPtr.p->m_obj_ptr_i);
+      }
+    }
+  }
+
 }//releaseTableObject()
 
 // CreateTable: END
@@ -27156,7 +27287,8 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
 void
 Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
 {
-  ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
+  if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+    ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
   ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
 
   TableRecordPtr tablePtr;
@@ -27177,7 +27309,8 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
     TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
     switch (ti.triggerEvent) {
     case TriggerEvent::TE_CUSTOM:
-      ndbrequire(triggerPtr.i == indexPtr.p->triggerId);
+      if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
+        ndbrequire(triggerPtr.i == indexPtr.p->triggerId);
       break;
     default:
       ndbrequire(false);
