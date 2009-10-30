@@ -12342,6 +12342,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   if (lcpFragOrd->lastFragmentFlag)
   {
     jam();
+    CRASH_INSERTION(5054);
     if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
       jam();
       /* ----------------------------------------------------------

@@ -1087,11 +1087,12 @@ private:
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
                     Uint32& tfstLcp);
-  void newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr);
+  void newCrashedReplica(ReplicaRecordPtr ncrReplicaPtr);
   void packCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void releaseReplicas(Uint32 * replicaPtr);
-  void removeOldCrashedReplicas(ReplicaRecordPtr rocReplicaPtr);
+  void removeOldCrashedReplicas(Uint32, Uint32, ReplicaRecordPtr rocReplicaPtr);
   void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr);
+  void mergeCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void seizeReplicaRec(ReplicaRecordPtr& replicaPtr);
 
 //------------------------------------
