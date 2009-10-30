@@ -39,6 +39,15 @@ subpartitions 4
 partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
 partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
 partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
+ERROR HY000: Partition column values of incorrect type
+create table t1 (a int, b char(10), c varchar(25), d datetime)
+partition by range columns(a,b,c,d)
+subpartition by hash (to_seconds(d))
+subpartitions 4
+( partition p0 values less than (1, '0', MAXVALUE, '1900-01-01'),
+partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
+partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
+partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
@@ -421,7 +430,7 @@ create table t1 (a char(6))
 partition by range columns(a)
 (partition p0 values less than (23456),
 partition p1 values less than (23456));
-ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
+ERROR HY000: Partition column values of incorrect type
 create table t1 (a int, b int)
 partition by range columns(a,b)
 (partition p0 values less than (10));
