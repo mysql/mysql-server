@@ -928,6 +928,12 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
+  if (select_lex->olap == ROLLUP_TYPE && rollup_process_const_fields())
+  {
+    DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+    DBUG_RETURN(1);
+  }
+
   /* Remove distinct if only const tables */
   select_distinct= select_distinct && (const_tables != tables);
   thd_proc_info(thd, "preparing");
@@ -1055,7 +1061,7 @@ JOIN::optimize()
        join_tab[const_tables].select->quick->get_type() != 
        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
-    if (group_list &&
+    if (group_list && rollup.state == ROLLUP::STATE_NONE &&
        list_contains_unique_index(join_tab[const_tables].table,
                                  find_field_in_order_list,
                                  (void *) group_list))
@@ -1093,7 +1099,8 @@ JOIN::optimize()
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
-  else if (select_distinct && tables - const_tables == 1)
+  else if (select_distinct && tables - const_tables == 1 &&
+           rollup.state == ROLLUP::STATE_NONE)
   {
     /*
       We are only using one table. In this case we change DISTINCT to a
@@ -9873,6 +9880,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
       Field *field=(*cur_group->item)->get_tmp_table_field();
+      DBUG_ASSERT(field->table == table);
       bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
@@ -15018,32 +15026,7 @@ bool JOIN::rollup_init()
       {
         item->maybe_null= 1;
         found_in_group= 1;
-        if (item->const_item())
-        {
-          /*
-            For ROLLUP queries each constant item referenced in GROUP BY list
-            is wrapped up into an Item_func object yielding the same value
-            as the constant item. The objects of the wrapper class are never
-            considered as constant items and besides they inherit all
-            properties of the Item_result_field class.
-            This wrapping allows us to ensure writing constant items
-            into temporary tables whenever the result of the ROLLUP
-            operation has to be written into a temporary table, e.g. when
-            ROLLUP is used together with DISTINCT in the SELECT list.
-            Usually when creating temporary tables for a intermidiate
-            result we do not include fields for constant expressions.
-	  */           
-          Item* new_item= new Item_func_rollup_const(item);
-          if (!new_item)
-            return 1;
-          new_item->fix_fields(thd, (Item **) 0);
-          thd->change_item_tree(it.ref(), new_item);
-          for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
-          { 
-            if (*tmp->item == item)
-              thd->change_item_tree(tmp->item, new_item);
-          }
-        }
+        break;
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
@@ -15059,6 +15042,59 @@ bool JOIN::rollup_init()
       if (changed)
         item->with_sum_func= 1;
     }
+  }
+  return 0;
+}
+
+/**
+   Wrap all constant Items in GROUP BY list.
+
+   For ROLLUP queries each constant item referenced in GROUP BY list
+   is wrapped up into an Item_func object yielding the same value
+   as the constant item. The objects of the wrapper class are never
+   considered as constant items and besides they inherit all
+   properties of the Item_result_field class.
+   This wrapping allows us to ensure writing constant items
+   into temporary tables whenever the result of the ROLLUP
+   operation has to be written into a temporary table, e.g. when
+   ROLLUP is used together with DISTINCT in the SELECT list.
+   Usually when creating temporary tables for a intermidiate
+   result we do not include fields for constant expressions.
+
+   @retval
+     0  if ok
+   @retval
+     1  on error
+*/
+
+bool JOIN::rollup_process_const_fields()
+{
+  ORDER *group_tmp;
+  Item *item;
+  List_iterator<Item> it(all_fields);
+
+  for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+  {
+    if (!(*group_tmp->item)->const_item())
+      continue;
+    while ((item= it++))
+    {
+      if (*group_tmp->item == item)
+      {
+        Item* new_item= new Item_func_rollup_const(item);
+        if (!new_item)
+          return 1;
+        new_item->fix_fields(thd, (Item **) 0);
+        thd->change_item_tree(it.ref(), new_item);
+        for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
+        {
+          if (*tmp->item == item)
+            thd->change_item_tree(tmp->item, new_item);
+        }
+        break;
+      }
+    }
+    it.rewind();
   }
   return 0;
 }
