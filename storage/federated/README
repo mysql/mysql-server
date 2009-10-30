@@ -1,0 +1,7 @@
+The files in this directory are not used by MariaDB
+
+MariaDB uses the new federated storage engine that can be found in the
+federatedx directory.
+
+This directory is only kept around to make it easy to merge code from the
+MySQL source repositories that uses the old and disabled federated code.

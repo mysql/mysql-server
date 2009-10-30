@@ -57,6 +57,7 @@ CREATE TABLE federated.t1 (
 
 # test non-existant table
 --replace_result $SLAVE_MYPORT SLAVE_PORT
+--error ER_CANT_CREATE_FEDERATED_TABLE
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `group` int NOT NULL default 0,
@@ -66,12 +67,11 @@ eval CREATE TABLE federated.t1 (
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t3';
---error ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST
-SELECT * FROM federated.t1;
-DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t1;
 
 # test bad user/password 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
+--error ER_CANT_CREATE_FEDERATED_TABLE
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `group` int NOT NULL default 0,
@@ -81,9 +81,7 @@ eval CREATE TABLE federated.t1 (
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://user:pass@127.0.0.1:$SLAVE_MYPORT/federated/t1';
---error ER_CONNECT_TO_FOREIGN_DATA_SOURCE
-SELECT * FROM federated.t1;
-DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t1;
 
 # # correct connection, same named tables
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -1806,6 +1804,8 @@ drop table federated.t1;
 --echo
 --echo Test that self-references work
 --echo
+--echo fix LOCK_open before reenabling test for Bug#18287
+--disable_parsing
 connection slave;
 create table federated.t1 (a int primary key);
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -1815,7 +1815,7 @@ eval create table federated.t2 (a int primary key)
 insert into federated.t1 (a) values (1);
 select * from federated.t2;
 drop table federated.t1, federated.t2;
-
+--enable_parsing
 #
 # BUG#29875 Disable support for transactions
 #
