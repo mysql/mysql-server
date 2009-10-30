@@ -77,6 +77,8 @@ extern EventLogger * g_eventLogger;
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
 #define MAX_CRASHED_REPLICAS 8
+#define ZINIT_CREATE_GCI Uint32(0)
+#define ZINIT_REPLICA_LAST_GCI Uint32(-1)
 
 #define RETURN_IF_NODE_NOT_ALIVE(node) \
   if (!checkNodeAlive((node))) { \
@@ -3921,7 +3923,7 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
     CRASH_INSERTION(7154);
     
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_CREATE_FRAG_STORED;
-    sendCreateFragReq(signal, 0, CreateFragReq::STORED, takeOverPtr.i);
+    sendCreateFragReq(signal, ZINIT_CREATE_GCI, CreateFragReq::STORED, takeOverPtr.i);
     return;
   case TakeOverRecord::TO_UPDATE_AFTER_STORED:
     jam();
@@ -9700,7 +9702,8 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 
   const Uint32 newestRestorableGCI = SYSFILE->newestRestorableGCI;
   
-  for(Uint32 i = 0; i<tabPtr.p->totalfragments; i++){
+  for(Uint32 i = 0; i<tabPtr.p->totalfragments; i++)
+  {
     FragmentstorePtr fragPtr;
     getFragstore(tabPtr.p, i, fragPtr);
     
@@ -9725,7 +9728,9 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
 
       const Uint32 noCrashedReplicas = replicaPtr.p->noCrashedReplicas;
-      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE) {
+
+      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE)
+      {
 	jam();
 	switch (nodePtr.p->activeStatus) {
 	case Sysfile::NS_Active:
@@ -9736,33 +9741,17 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	  /* THE NODE IS ALIVE AND KICKING AND ACTIVE, LET'S USE IT.         */
 	  /* --------------------------------------------------------------- */
 	  arrGuardErr(noCrashedReplicas, MAX_CRASHED_REPLICAS, NDBD_EXIT_MAX_CRASHED_REPLICAS);
-	  Uint32 lastGci = replicaPtr.p->replicaLastGci[noCrashedReplicas];
-	  if(lastGci >= newestRestorableGCI){
-	    jam();
-	    /** -------------------------------------------------------------
-	     * THE REPLICA WAS ALIVE AT THE SYSTEM FAILURE. WE WILL SET THE 
-	     * LAST REPLICA GCI TO MINUS ONE SINCE IT HASN'T FAILED YET IN THE
-	     * NEW SYSTEM.                                                    
-	     *-------------------------------------------------------------- */
-	    replicaPtr.p->replicaLastGci[noCrashedReplicas] = (Uint32)-1;
-	  } else {
-	    jam();
-	    /*--------------------------------------------------------------
-	     * SINCE IT WAS NOT ALIVE AT THE TIME OF THE SYSTEM CRASH THIS IS 
-	     * A COMPLETELY NEW REPLICA. WE WILL SET THE CREATE GCI TO BE THE 
-	     * NEXT GCI TO BE EXECUTED.                                       
-	     *--------_----------------------------------------------------- */
-            if (noCrashedReplicas + 1 == MAX_CRASHED_REPLICAS)
-            {
-              jam();
-              packCrashedReplicas(replicaPtr);
-            }
-	    const Uint32 nextCrashed = replicaPtr.p->noCrashedReplicas + 1;
-	    replicaPtr.p->noCrashedReplicas = nextCrashed;
-	    arrGuardErr(nextCrashed, MAX_CRASHED_REPLICAS, NDBD_EXIT_MAX_CRASHED_REPLICAS);
-	    replicaPtr.p->createGci[nextCrashed] = newestRestorableGCI + 1;
-	    replicaPtr.p->replicaLastGci[nextCrashed] = (Uint32)-1;
-	  }//if
+
+          // Create new crashed replica
+          newCrashedReplica(replicaPtr);
+
+          // Create a new redo-interval
+          Uint32 nextCrashed = replicaPtr.p->noCrashedReplicas;
+          replicaPtr.p->createGci[nextCrashed] = newestRestorableGCI + 1;
+          replicaPtr.p->replicaLastGci[nextCrashed] = ZINIT_REPLICA_LAST_GCI;
+
+          // merge
+          mergeCrashedReplicas(replicaPtr);
 
 	  resetReplicaLcp(replicaPtr.p, newestRestorableGCI);
 
@@ -11732,7 +11721,7 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   replicaPtr.p->lcpIdStarted = lcpId;
   replicaPtr.p->lcpOngoingFlag = false;
   
-  removeOldCrashedReplicas(replicaPtr);
+  removeOldCrashedReplicas(tableId, fragId, replicaPtr);
   replicaPtr.p->lcpId[lcpNo] = lcpId;
   replicaPtr.p->lcpStatus[lcpNo] = ZVALID;
   replicaPtr.p->maxGciStarted[lcpNo] = maxGciStarted;
@@ -12638,8 +12627,8 @@ void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
   newReplicaPtr.p->noCrashedReplicas = 0;
   newReplicaPtr.p->initialGci = m_micro_gcp.m_current_gci >> 32;
   for (i = 0; i < MAX_CRASHED_REPLICAS; i++) {
-    newReplicaPtr.p->replicaLastGci[i] = (Uint32)-1;
-    newReplicaPtr.p->createGci[i] = 0;
+    newReplicaPtr.p->replicaLastGci[i] = ZINIT_REPLICA_LAST_GCI;
+    newReplicaPtr.p->createGci[i] = ZINIT_CREATE_GCI;
   }//for
   newReplicaPtr.p->createGci[0] = m_micro_gcp.m_current_gci >> 32;
   newReplicaPtr.p->nextLcp = 0;
@@ -13076,30 +13065,43 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                        Uint32& keepGci,
                        Uint32& oldestRestorableGci)
 {
-  for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
-    jam();
-    if ((fmgReplicaPtr.p->lcpStatus[i] == ZVALID) &&
-        ((fmgReplicaPtr.p->lcpId[i] + MAX_LCP_STORED) <= (SYSFILE->latestLCP_ID + 1))) {
-      jam();
-      /*--------------------------------------------------------------------*/
-      // We invalidate the checkpoint we are preparing to overwrite. 
-      // The LCP id is still the old lcp id, 
-      // this is the reason of comparing with lcpId + 1.
-      /*---------------------------------------------------------------------*/
-      fmgReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }//if
-  }//for
   keepGci = (Uint32)-1;
   oldestRestorableGci = 0;
-  Uint32 lastLcpNo = prevLcpNo(fmgReplicaPtr.p->nextLcp);
-  if (fmgReplicaPtr.p->lcpStatus[lastLcpNo] == ZVALID)
+
+  for (Uint32 i = 0; i < MAX_LCP_STORED; i++)
   {
     jam();
-    keepGci = fmgReplicaPtr.p->maxGciCompleted[lastLcpNo];
-    oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lastLcpNo];
-    ndbassert(fmgReplicaPtr.p->maxGciStarted[lastLcpNo] <c_newest_restorable_gci);
-  } 
-  else 
+    if (fmgReplicaPtr.p->lcpStatus[i] == ZVALID)
+    {
+      if ((fmgReplicaPtr.p->lcpId[i] + MAX_LCP_STORED) <= (SYSFILE->latestLCP_ID + 1))
+      {
+        jam();
+        /*-----------------------------------------------------------------*/
+        // We invalidate the checkpoint we are preparing to overwrite.
+        // The LCP id is still the old lcp id,
+        // this is the reason of comparing with lcpId + 1.
+        /*-----------------------------------------------------------------*/
+        fmgReplicaPtr.p->lcpStatus[i] = ZINVALID;
+      }
+      else
+      {
+        jam();
+        if (fmgReplicaPtr.p->maxGciCompleted[i] < keepGci)
+        {
+          jam();
+          keepGci = fmgReplicaPtr.p->maxGciCompleted[i];
+        }
+
+        if (fmgReplicaPtr.p->maxGciStarted[i] > oldestRestorableGci)
+        {
+          jam();
+          oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[i];
+        }
+      }
+    }
+  }
+
+  if (oldestRestorableGci == 0 && keepGci == Uint32(-1))
   {
     jam();
     if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci)
@@ -13108,6 +13110,10 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
       // XXX Jonas
       //oldestRestorableGci = fmgReplicaPtr.p->createGci[0];
     }
+  }
+  else
+  {
+    ndbassert(oldestRestorableGci < c_newest_restorable_gci);
   }
   return;
 }//Dbdih::findMinGci()
@@ -13965,7 +13971,7 @@ void Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
 /*************************************************************************/
 /*       A NEW CRASHED REPLICA IS ADDED BY A NODE FAILURE.               */
 /*************************************************************************/
-void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr) 
+void Dbdih::newCrashedReplica(ReplicaRecordPtr ncrReplicaPtr)
 {
   /*----------------------------------------------------------------------*/
   /*       SET THE REPLICA_LAST_GCI OF THE CRASHED REPLICA TO LAST GCI    */
@@ -13975,6 +13981,7 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
   /*       THAT THE NEW REPLICA IS NOT STARTED YET AND REPLICA_LAST_GCI IS*/
   /*       SET TO -1 TO INDICATE THAT IT IS NOT DEAD YET.                 */
   /*----------------------------------------------------------------------*/
+  Uint32 nodeId = ncrReplicaPtr.p->procNode;
   Uint32 lastGCI = SYSFILE->lastCompletedGCI[nodeId];
   if (ncrReplicaPtr.p->noCrashedReplicas + 1 == MAX_CRASHED_REPLICAS)
   {
@@ -13982,14 +13989,48 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
     packCrashedReplicas(ncrReplicaPtr);
   }
   
+  Uint32 noCrashedReplicas = ncrReplicaPtr.p->noCrashedReplicas;
   arrGuardErr(ncrReplicaPtr.p->noCrashedReplicas + 1, MAX_CRASHED_REPLICAS,
               NDBD_EXIT_MAX_CRASHED_REPLICAS);
-  ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] = 
-    lastGCI;
-  ncrReplicaPtr.p->noCrashedReplicas = ncrReplicaPtr.p->noCrashedReplicas + 1;
-  ncrReplicaPtr.p->createGci[ncrReplicaPtr.p->noCrashedReplicas] = 0;
-  ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] = 
-    (Uint32)-1;
+
+  if (noCrashedReplicas > 0 &&
+      ncrReplicaPtr.p->replicaLastGci[noCrashedReplicas - 1] == lastGCI)
+  {
+    jam();
+    /**
+     * Don't add another redo-interval, that already exist
+     *  instead initalize new
+     */
+    ncrReplicaPtr.p->createGci[ncrReplicaPtr.p->noCrashedReplicas] =
+      ZINIT_CREATE_GCI;
+    ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] =
+      ZINIT_REPLICA_LAST_GCI;
+  }
+  else if (ncrReplicaPtr.p->createGci[noCrashedReplicas] <= lastGCI)
+  {
+    jam();
+    ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] =
+      lastGCI;
+    ncrReplicaPtr.p->noCrashedReplicas = ncrReplicaPtr.p->noCrashedReplicas + 1;
+    ncrReplicaPtr.p->createGci[ncrReplicaPtr.p->noCrashedReplicas] =
+      ZINIT_CREATE_GCI;
+    ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] =
+      ZINIT_REPLICA_LAST_GCI;
+  }
+  else
+  {
+    /**
+     * This can happen if createGci is set
+     *   (during sendCreateFragReq(COMMIT_STORED))
+     *   but SYSFILE->lastCompletedGCI[nodeId] has not been updated
+     *   as node has not yet completed it's first LCP, causing it to return
+     *   GCP_SAVEREF (which makes SYSFILE->lastCompletedGCI[nodeId] be left
+     *   untouched)
+     *
+     * I.e crash during node-restart
+     */
+    ncrReplicaPtr.p->createGci[noCrashedReplicas] = ZINIT_CREATE_GCI;
+  }
   
 }//Dbdih::newCrashedReplica()
 
@@ -14059,7 +14100,36 @@ void Dbdih::packCrashedReplicas(ReplicaRecordPtr replicaPtr)
     replicaPtr.p->replicaLastGci[i] = replicaPtr.p->replicaLastGci[i + 1];
   }//for
   replicaPtr.p->noCrashedReplicas--;
+  replicaPtr.p->createGci[replicaPtr.p->noCrashedReplicas + 1] =
+    ZINIT_CREATE_GCI;
+  replicaPtr.p->replicaLastGci[replicaPtr.p->noCrashedReplicas + 1] =
+    ZINIT_REPLICA_LAST_GCI;
 }//Dbdih::packCrashedReplicas()
+
+void
+Dbdih::mergeCrashedReplicas(ReplicaRecordPtr replicaPtr)
+{
+  /**
+   * merge adjacent redo-intervals
+   */
+  for (Uint32 i = replicaPtr.p->noCrashedReplicas; i > 0; i--)
+  {
+    jam();
+    if (replicaPtr.p->createGci[i] == 1 + replicaPtr.p->replicaLastGci[i-1])
+    {
+      jam();
+      replicaPtr.p->replicaLastGci[i-1] = replicaPtr.p->replicaLastGci[i];
+      replicaPtr.p->createGci[i] = ZINIT_CREATE_GCI;
+      replicaPtr.p->replicaLastGci[i] = ZINIT_REPLICA_LAST_GCI;
+      replicaPtr.p->noCrashedReplicas--;
+    }
+    else
+    {
+      jam();
+      break;
+    }
+  }
+}
 
 void Dbdih::prepareReplicas(FragmentstorePtr fragPtr)
 {
@@ -14151,10 +14221,8 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   for(i = noCrashedReplicas; i<MAX_CRASHED_REPLICAS; i++){
     readReplicaPtr.p->createGci[i] = readPageWord(rf);
     readReplicaPtr.p->replicaLastGci[i] = readPageWord(rf);
-    // They are not initialized...
-    readReplicaPtr.p->createGci[i] = 0;
-    readReplicaPtr.p->replicaLastGci[i] = ~0;
   }
+
   /* ---------------------------------------------------------------------- */
   /*       IF THE LAST COMPLETED LOCAL CHECKPOINT IS VALID AND LARGER THAN  */
   /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
@@ -14194,13 +14262,6 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
    */
   //removeOldCrashedReplicas(readReplicaPtr);
   
-  /* --------------------------------------------------------------------- */
-  // We set the last GCI of the replica that was alive before the node
-  // crashed last time. We set it to the last GCI which the node participated in.
-  /* --------------------------------------------------------------------- */
-  ndbrequire(readReplicaPtr.p->noCrashedReplicas < MAX_CRASHED_REPLICAS);
-  readReplicaPtr.p->replicaLastGci[readReplicaPtr.p->noCrashedReplicas] = 
-    SYSFILE->lastCompletedGCI[readReplicaPtr.p->procNode];
   /* ---------------------------------------------------------------------- */
   /*       FIND PROCESSOR RECORD                                            */
   /* ---------------------------------------------------------------------- */
@@ -14355,7 +14416,7 @@ void Dbdih::removeNodeFromStored(Uint32 nodeId,
   if (!temporary)
   {
     jam();
-    newCrashedReplica(nodeId, replicatePtr);
+    newCrashedReplica(replicatePtr);
   }
   else
   {
@@ -14369,8 +14430,10 @@ void Dbdih::removeNodeFromStored(Uint32 nodeId,
 /*************************************************************************/
 /*       REMOVE ANY OLD CRASHED REPLICAS THAT ARE NOT RESTORABLE ANY MORE*/
 /*************************************************************************/
-void Dbdih::removeOldCrashedReplicas(ReplicaRecordPtr rocReplicaPtr) 
+void Dbdih::removeOldCrashedReplicas(Uint32 tab, Uint32 frag,
+                                     ReplicaRecordPtr rocReplicaPtr)
 {
+  mergeCrashedReplicas(rocReplicaPtr);
   while (rocReplicaPtr.p->noCrashedReplicas > 0) {
     jam();
     /* --------------------------------------------------------------------- */
@@ -14387,15 +14450,30 @@ void Dbdih::removeOldCrashedReplicas(ReplicaRecordPtr rocReplicaPtr)
       break;
     }//if
   }//while
-  if (rocReplicaPtr.p->createGci[0] < SYSFILE->keepGCI){
+
+  while (rocReplicaPtr.p->createGci[0] < SYSFILE->keepGCI)
+  {
     jam();
     /* --------------------------------------------------------------------- */
     /*       MOVE FORWARD THE CREATE GCI TO A GCI THAT CAN BE USED. WE HAVE  */
     /*       NO CERTAINTY IN FINDING ANY LOG RECORDS FROM OLDER GCI'S.       */
     /* --------------------------------------------------------------------- */
     rocReplicaPtr.p->createGci[0] = SYSFILE->keepGCI;
-  }//if
-}//Dbdih::removeOldCrashedReplicas()
+
+    if (rocReplicaPtr.p->noCrashedReplicas)
+    {
+      /**
+       * a REDO interval while is from 78 to 14 is not usefull
+       *   but rather harmful, remove it...
+       */
+      if (rocReplicaPtr.p->createGci[0] > rocReplicaPtr.p->replicaLastGci[0])
+      {
+        jam();
+        packCrashedReplicas(rocReplicaPtr);
+      }
+    }
+  }
+}
 
 void Dbdih::removeOldStoredReplica(FragmentstorePtr fragPtr,
                                    ReplicaRecordPtr replicatePtr) 
@@ -14466,9 +14544,9 @@ void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr)
         SYSFILE->newestRestorableGCI){
       jam();
       rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] = 
-	(Uint32)-1;
+	ZINIT_CREATE_GCI;
       rtnReplicaPtr.p->replicaLastGci[rtnReplicaPtr.p->noCrashedReplicas - 1] = 
-	(Uint32)-1;
+	ZINIT_REPLICA_LAST_GCI;
       rtnReplicaPtr.p->noCrashedReplicas--;
     } else {
       break;

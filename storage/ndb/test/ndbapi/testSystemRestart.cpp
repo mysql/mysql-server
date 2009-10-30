@@ -2042,6 +2042,80 @@ loop:
   return NDBT_OK;
 }
 
+int
+runBug48436(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  Uint32 loops = ctx->getNumLoops();
+  const Uint32 nodeCount = res.getNumDbNodes();
+  if(nodeCount < 2)
+  {
+    return NDBT_OK;
+  }
+
+  for (Uint32 l = 0; l<loops; l++)
+  {
+    int nodes[2];
+    nodes[0] = res.getNode(NdbRestarter::NS_RANDOM);
+    nodes[1] = res.getRandomNodeSameNodeGroup(nodes[0], rand());
+    int val = 7099;
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    ndbout_c("nodes %u %u", nodes[0], nodes[1]);
+
+    for (Uint32 j = 0; j<5; j++)
+    {
+      int c = (rand()) % 10;
+      ndbout_c("case: %u", c);
+      switch(c){
+      case 0:
+      case 1:
+        res.dumpStateAllNodes(&val, 1);
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        res.restartOneDbNode(nodes[0], false, true, true);
+        res.waitNodesNoStart(nodes+0,1);
+        res.dumpStateOneNode(nodes[0], val2, 2);
+        res.insertErrorInNode(nodes[0], 5054); // crash during restart
+        res.startAll();
+        sleep(3);
+        res.waitNodesNoStart(nodes+0,1);
+        res.startAll();
+        break;
+      case 6:
+        res.restartOneDbNode(nodes[0], false, true, true);
+        res.waitNodesNoStart(nodes+0, 1);
+        res.startAll();
+        break;
+      case 7:
+        res.dumpStateAllNodes(&val, 1);
+      case 8:
+        res.restartOneDbNode(nodes[1], false, true, true);
+        res.waitNodesNoStart(nodes+1,1);
+        res.dumpStateOneNode(nodes[1], val2, 2);
+        res.insertErrorInNode(nodes[1], 5054); // crash during restart
+        res.startAll();
+        sleep(3);
+        res.waitNodesNoStart(nodes+1,1);
+        res.startAll();
+        break;
+      case 9:
+        res.restartAll(false, true, true);
+        res.waitClusterNoStart();
+        res.startAll();
+      }
+      res.waitClusterStarted();
+    }
+    res.restartAll(false, true, true);
+    res.waitClusterNoStart();
+    res.startAll();
+    res.waitClusterStarted();
+  }
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
@@ -2349,6 +2423,10 @@ TESTCASE("Bug46651", "")
 TESTCASE("Bug46412", "")
 {
   INITIALIZER(runBug46412);
+}
+TESTCASE("Bug48436", "")
+{
+  INITIALIZER(runBug48436);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 
