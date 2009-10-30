@@ -66,7 +66,7 @@ ls -lah $ZIPFILE
 echo "$ZIPFILE is the Windows noinstall binary zip"
 
 if [ $RES ] ; then
- echo "Archive contents differ from the standard file list, check the diff output above"
+  echo "Archive contents differ from the standard file list, check the diff output above"
 else
   echo "Archive contents match the standard list, OK"
 fi
