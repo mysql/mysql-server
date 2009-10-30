@@ -622,6 +622,18 @@ JOIN::prepare(Item ***rref_pointer_array,
                  MYF(0));                       /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
+    if (thd->lex->derived_tables)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", 
+               thd->lex->derived_tables & DERIVED_VIEW ?
+               "view" : "subquery"); 
+      goto err;
+    }
+    if (thd->lex->sql_command != SQLCOM_SELECT)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+      goto err;
+    }
   }
 
   if (!procedure && result && result->prepare(fields_list, unit_arg))
