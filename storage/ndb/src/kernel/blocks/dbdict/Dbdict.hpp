@@ -425,7 +425,8 @@ public:
       TS_OFFLINE  = 2,   // created globally in DICT
       //TS_BUILDING = 3,
       //TS_DROPPING = 4,
-      TS_ONLINE = 5      // created in other blocks
+      TS_ONLINE = 5,      // created in other blocks
+      TS_FAKE_UPGRADE = 6
     };
     TriggerState triggerState;
 
@@ -3788,6 +3789,8 @@ public:
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);
   void unblock_substartstop();
   void wait_substartstop(Signal* signal, Uint32 opPtrI);
+
+  void upgrade_seizeTrigger(Ptr<TableRecord> tabPtr, Uint32, Uint32, Uint32);
 
 protected:
   virtual bool getParam(const char * param, Uint32 * retVal);

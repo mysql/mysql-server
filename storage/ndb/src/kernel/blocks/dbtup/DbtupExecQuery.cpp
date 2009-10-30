@@ -864,7 +864,7 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 }
 
 
-#define MAX_READ (MIN(sizeof(signal->theData), MAX_RECV_MESSAGE_BYTESIZE))
+#define MAX_READ (MIN(sizeof(signal->theData), MAX_SEND_MESSAGE_BYTESIZE))
 
 /* ---------------------------------------------------------------- */
 /* ----------------------------- READ  ---------------------------- */
@@ -3352,7 +3352,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
         for(Uint16 i= 0; i< bm_len; i++)
         {
           Uint32 v= src_bm_ptr[i];
-          dyn_var_count+= count_bits(v & *dyn_bm_var_mask_ptr++);
+          dyn_var_count+= BitmaskImpl::count_bits(v & *dyn_bm_var_mask_ptr++);
           dst_bm_ptr[i]= v;
         }
         
