@@ -11204,6 +11204,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
+  bool select_cond_result= TRUE;
 
   if (error > 0 || (join->thd->is_error()))     // Fatal error
     return NESTED_LOOP_ERROR;
@@ -11215,7 +11216,17 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     return NESTED_LOOP_KILLED;               /* purecov: inspected */
   }
   DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
-  if (!select_cond || select_cond->val_int())
+
+  if (select_cond)
+  {
+    select_cond_result= test(select_cond->val_int());
+
+    /* check for errors evaluating the condition */
+    if (join->thd->is_error())
+      return NESTED_LOOP_ERROR;
+  }
+
+  if (!select_cond || select_cond_result)
   {
     /*
       There is no select condition or the attached pushed down
