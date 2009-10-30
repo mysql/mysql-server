@@ -1818,6 +1818,46 @@ static int add_write(File fptr, const char *buf, uint len)
     return 1;
 }
 
+static int add_string(File fptr, const char *string);
+
+static int write_hex_char(File fptr, uint number)
+{
+  char buf[2];
+  char c= '0';
+  /* Write number between 0 and 15 as 0-9,A-F */
+  if (number < 10)
+    c+= number;
+  else
+  {
+    c= 'A';
+    c+= (number - 10);
+  }
+  buf[0]= c;
+  buf[1]= 0;
+  return add_string(fptr, (const char*)buf);
+}
+
+static int add_hex_string_object(File fptr, String *string)
+{
+  uint len= string->length();
+  uint i;
+  const char *ptr= string->ptr();
+  char c;
+  int err;
+  uint low, high;
+  err= add_string(fptr, "0x");
+  for (i= 0; i < len; i++)
+  {
+    c= *ptr;
+    ptr++;
+    high= c >> 4;
+    low= c & 15;
+    err+= write_hex_char(fptr, high);
+    err+= write_hex_char(fptr, low);
+  }
+  return err;
+}
+
 static int add_string_object(File fptr, String *string)
 {
   return add_write(fptr, string->ptr(), string->length());
@@ -2209,10 +2249,24 @@ static int add_column_list_values(File fptr, partition_info *part_info,
           {
             err+= add_string(fptr,"_");
             err+= add_string(fptr, field_cs->csname);
+            err+= add_space(fptr);
+            if (res->length())
+            {
+              err+= add_hex_string_object(fptr, res);
+            }
+            else
+            {
+              err+= add_string(fptr,"'");
+              err+= add_string(fptr,"'");
+            }
+
           }
-          err+= add_string(fptr,"'");
-          err+= add_string_object(fptr, res);
-          err+= add_string(fptr,"'");
+          else
+          {
+            err+= add_string(fptr,"'");
+            err+= add_string_object(fptr, res);
+            err+= add_string(fptr,"'");
+          }
         }
       }
     }
