@@ -880,3 +880,17 @@
    fun:nptl_pthread_exit_hack_handler
    fun:start_thread
 }
+
+#
+# Problem with glibc and gethostbyaddr_r
+#
+
+{
+   libc_res_nsend: Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   fun: __libc_res_nsend
+   fun: __libc_res_nquery
+   obj: /lib64/libnss_dns-*so)
+   obj: /lib64/libnss_dns-*so)
+   fun: gethostbyaddr_r
+}

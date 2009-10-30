@@ -374,7 +374,7 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 {
 	DcHandleSlotPtr	hs;
 	XTIndBlockPtr	block = NULL;
-	u_int		hash_idx = NULL;
+	u_int		hash_idx = 0;
 	DcSegmentPtr	seg = NULL;
 	XTIndBlockPtr	xblock;
 
@@ -1379,7 +1379,7 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	ASSERT_NS(iref->ir_xlock == 2);
 #endif
 	if (!(block = ind_cac_fetch(ot, ind, address, &seg, TRUE)))
-		return NULL;
+		return 0;
 
 	branch_size = XT_GET_DISK_2(((XTIdxBranchDPtr) block->cb_data)->tb_size_2);
 	if (XT_GET_INDEX_BLOCK_LEN(branch_size) < 2 || XT_GET_INDEX_BLOCK_LEN(branch_size) > XT_INDEX_PAGE_SIZE) {

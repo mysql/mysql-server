@@ -127,7 +127,6 @@ my $path_config_file;           # The generated config file, var/my.cnf
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 my $DEFAULT_SUITES= "binlog,federated,main,maria,rpl,innodb,parts";
-my $opt_suites;
 
 our $opt_usage;
 our $opt_list_options;
