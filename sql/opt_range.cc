@@ -265,7 +265,7 @@ public:
     The ordinal number the least significant component encountered the ranges
     of the SEL_ARG tree (the first component has number 1) 
   */
-  uint max_part_no; 
+  uint16 max_part_no; 
   /* 
     Number of children of this element in the RB-tree, plus 1 for this
     element itself.
@@ -2195,9 +2195,10 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
   :min_flag(0), max_flag(0), maybe_flag(0), maybe_null(f->real_maybe_null()),
    elements(1), use_count(1), field(f), min_value((uchar*) min_value_arg),
    max_value((uchar*) max_value_arg), next(0),prev(0),
-   next_key_part(0), color(BLACK), type(KEY_RANGE), max_part_no(1)
+   next_key_part(0), color(BLACK), type(KEY_RANGE)
 {
   left=right= &null_element;
+  max_part_no= 1;
 }
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
@@ -4247,18 +4248,16 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   /*
     In every tree of imerge remove SEL_ARG trees that do not make ranges.
-    Remove a tree from imerge if no SEL_ARG trees remain in it.  
+    If after this removal some SEL_ARG tree becomes empty discard imerge.  
   */
-  SEL_TREE **new_trees_next= imerge->trees;
-  for (ptree= new_trees_next; ptree != imerge->trees_next; ptree++)
+  for (ptree= imerge->trees; ptree != imerge->trees_next; ptree++)
   {
     if (remove_nonrange_trees(param, *ptree))
-      continue;
-    if (ptree > new_trees_next)
-      *new_trees_next= *ptree;
-    new_trees_next++;
+    {
+      imerge->trees_next= imerge->trees;
+      break;
+    }
   }
-  imerge->trees_next= new_trees_next;
 
   uint n_child_scans= imerge->trees_next - imerge->trees;
   
@@ -7111,7 +7110,9 @@ bool sel_trees_must_be_ored(RANGE_OPT_PARAM* param,
     can be built. Such SEL_ARG trees should be removed from the range part
     before different range scans are evaluated. Such SEL_ARG trees also should
     be removed from all range trees of each index merge before different
-    possible index merge plans are evaluated.  
+    possible index merge plans are evaluated. If after this removal one
+    of the range trees in the index merge becomes empty the whole index merge
+    must be discarded.
        
   RETURN
     0  Ok, some suitable trees left
