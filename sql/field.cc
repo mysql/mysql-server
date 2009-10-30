@@ -6729,9 +6729,8 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_string::sort_string(uchar *to,uint length)
 {
-  IF_DBUG(uint tmp=) my_strnxfrm(field_charset,
-                                 to, length,
-                                 ptr, field_length);
+  uint tmp __attribute__((unused))=
+    my_strnxfrm(field_charset, to, length, ptr, field_length);
   DBUG_ASSERT(tmp == length);
 }
 
