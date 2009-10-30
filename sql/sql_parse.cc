@@ -7573,6 +7573,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
 
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
+
+  definer->password.str= NULL;
+  definer->password.length= 0;
 }
 
 
@@ -7624,6 +7627,8 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
   definer->user= *user_name;
   definer->host= *host_name;
+  definer->password.str= NULL;
+  definer->password.length= 0;
 
   return definer;
 }
