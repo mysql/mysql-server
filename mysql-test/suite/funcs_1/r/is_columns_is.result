@@ -137,7 +137,7 @@ NULL	information_schema	PARTITIONS	NODEGROUP	24		NO	varchar	12	36	NULL	NULL	utf8
 NULL	information_schema	PARTITIONS	PARTITION_COMMENT	23		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	PARTITIONS	PARTITION_DESCRIPTION	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	PARTITIONS	PARTITION_EXPRESSION	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	PARTITIONS	PARTITION_METHOD	8	NULL	YES	varchar	12	36	NULL	NULL	utf8	utf8_general_ci	varchar(12)			select	
+NULL	information_schema	PARTITIONS	PARTITION_METHOD	8	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
 NULL	information_schema	PARTITIONS	PARTITION_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	6	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	11	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
@@ -487,7 +487,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	bigint	NU
 3.0000	information_schema	PARTITIONS	SUBPARTITION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-3.0000	information_schema	PARTITIONS	PARTITION_METHOD	varchar	12	36	utf8	utf8_general_ci	varchar(12)
+3.0000	information_schema	PARTITIONS	PARTITION_METHOD	varchar	18	54	utf8	utf8_general_ci	varchar(18)
 3.0000	information_schema	PARTITIONS	SUBPARTITION_METHOD	varchar	12	36	utf8	utf8_general_ci	varchar(12)
 1.0000	information_schema	PARTITIONS	PARTITION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 1.0000	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
