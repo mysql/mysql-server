@@ -122,6 +122,14 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
 */
 static bool xa_trans_rollback(THD *thd)
 {
+  /*
+    Resource Manager error is meaningless at this point, as we perform
+    explicit rollback request by user. We must reset rm_error before
+    calling ha_rollback(), so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+
   bool status= test(ha_rollback(thd));
 
   thd->options&= ~(ulong) OPTION_BEGIN;
@@ -129,7 +137,6 @@ static bool xa_trans_rollback(THD *thd)
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
-  thd->transaction.xid_state.rm_error= 0;
 
   return status;
 }
