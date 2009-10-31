@@ -8084,7 +8084,7 @@ mysqld_get_one_option(int optid,
   switch(optid) {
 #ifndef DBUG_OFF
   case OPT_DEBUG_FLUSH:
-    argument= IF_WIN(default_dbug_option, (char*) "d:t:i:O,/tmp/mysqld.trace");
+    argument= IF_WIN((char*) default_dbug_option, (char*) "d:t:i:O,/tmp/mysqld.trace");
   /* fall through */
   case '#':
     if (!argument)
