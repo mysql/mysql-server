@@ -324,7 +324,7 @@ static void Indent(CODE_STATE *cs, int indent);
 static void DbugFlush(CODE_STATE *);
 static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
-static void DbugFprintf(FILE *stream, const char* format, va_list args);
+static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
 #ifndef THREAD
         /* Open profile output stream */
@@ -339,7 +339,7 @@ static unsigned long Clock(void);
  *      Miscellaneous printf format strings.
  */
 
-#define ERR_MISSING_RETURN "%s: missing DBUG_RETURN or DBUG_VOID_RETURN macro in function \"%s\"\n"
+#define ERR_MISSING_RETURN "missing DBUG_RETURN or DBUG_VOID_RETURN macro in function \"%s\"\n"
 #define ERR_OPEN "%s: can't open debug output stream \"%s\": "
 #define ERR_CLOSE "%s: can't close debug file: "
 #define ERR_ABORT "%s: debugger aborting because %s\n"
@@ -1228,7 +1228,6 @@ void _db_enter_(const char *_func_, const char *_file_,
  *
  */
 
-/* helper macro */
 void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
   int save_errno=errno;
@@ -1236,34 +1235,29 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
   CODE_STATE *cs;
   get_code_state_or_return;
 
-  if (cs->level != _slevel_)
+  if (cs->framep != _stack_frame_)
   {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    (void) fprintf(cs->stack->out_file, ERR_MISSING_RETURN, cs->process,
-                   cs->func);
-    DbugFlush(cs);
+    char buf[512];
+    my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
+    DbugExit(buf);
   }
-  else
-  {
 #ifndef THREAD
-    if (DoProfile(cs))
-      (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
+  if (DoProfile(cs))
+    (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
 #endif
-    if (DoTrace(cs) & DO_TRACE)
+  if (DoTrace(cs) & DO_TRACE)
+  {
+    if ((cs->stack->flags & SANITY_CHECK_ON) &&
+        _sanity(_stack_frame_->file,_line_))
+      cs->stack->flags &= ~SANITY_CHECK_ON;
+    if (TRACING)
     {
-      if ((cs->stack->flags & SANITY_CHECK_ON) &&
-          _sanity(_stack_frame_->file,_line_))
-        cs->stack->flags &= ~SANITY_CHECK_ON;
-      if (TRACING)
-      {
-        if (!cs->locked)
-          pthread_mutex_lock(&THR_LOCK_dbug);
-        DoPrefix(cs, _line_);
-        Indent(cs, cs->level);
-        (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
-        DbugFlush(cs);
-      }
+      if (!cs->locked)
+        pthread_mutex_lock(&THR_LOCK_dbug);
+      DoPrefix(cs, _line_);
+      Indent(cs, cs->level);
+      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      DbugFlush(cs);
     }
   }
   /*
@@ -1353,7 +1347,7 @@ void _db_doprnt_(const char *format,...)
     else
       (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
     (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    DbugFprintf(cs->stack->out_file, format, args);
+    DbugVfprintf(cs->stack->out_file, format, args);
     DbugFlush(cs);
     errno=save_errno;
   }
@@ -1361,10 +1355,10 @@ void _db_doprnt_(const char *format,...)
 }
 
 /*
- * fprintf clone with consistent, platform independent output for 
+ * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
  */
-static void DbugFprintf(FILE *stream, const char* format, va_list args)
+static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
   size_t len;
@@ -1388,14 +1382,13 @@ static void DbugFprintf(FILE *stream, const char* format, va_list args)
  *
  *  DESCRIPTION
  *  Dump N characters in a binary array.
- *  Is used to examine corrputed memory or arrays.
+ *  Is used to examine corrupted memory or arrays.
  */
 
 void _db_dump_(uint _line_, const char *keyword,
                const unsigned char *memory, size_t length)
 {
   int pos;
-  char dbuff[90];
   CODE_STATE *cs;
   get_code_state_or_return;
 
@@ -1413,9 +1406,8 @@ void _db_dump_(uint _line_, const char *keyword,
     {
       fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
-    sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%ld)\n",
+    (void) fprintf(cs->stack->out_file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
             keyword, (ulong) memory, (long) length);
-    (void) fputs(dbuff,cs->stack->out_file);
 
     pos=0;
     while (length-- > 0)
@@ -2155,7 +2147,7 @@ static void DbugExit(const char *why)
   CODE_STATE *cs=code_state();
   (void) fprintf(stderr, ERR_ABORT, cs ? cs->process : "(null)", why);
   (void) fflush(stderr);
-  exit(1);
+  DBUG_ABORT();
 }
 
 
