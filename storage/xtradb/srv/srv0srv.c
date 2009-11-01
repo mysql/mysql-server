@@ -160,8 +160,8 @@ UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 
-UNIV_INTERN ulint  srv_show_locks_held     = 10;
-UNIV_INTERN ulint  srv_show_verbose_locks  = 0;
+UNIV_INTERN ulong  srv_show_locks_held     = 10;
+UNIV_INTERN ulong  srv_show_verbose_locks  = 0;
 
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
@@ -338,8 +338,8 @@ UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 /* When estimating number of different key values in an index, sample
 this many index pages */
 UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
-UNIV_INTERN ulint	srv_stats_method = 0;
-UNIV_INTERN ulint	srv_stats_auto_update = 1;
+UNIV_INTERN ulong	srv_stats_method = 0;
+UNIV_INTERN ulong	srv_stats_auto_update = 1;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -349,7 +349,7 @@ UNIV_INTERN int	srv_query_thread_priority = 0;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
-UNIV_INTERN ulint	srv_io_capacity = 100;
+UNIV_INTERN ulong	srv_io_capacity = 100;
 
 /* Returns the number of IO operations that is X percent of the capacity.
 PCT_IO(5) -> returns the number of IO operations that is 5% of the max
@@ -357,20 +357,20 @@ where max is srv_io_capacity. */
 #define PCT_IO(pct) ((ulint) (srv_io_capacity * ((double) pct / 100.0)))
 
 UNIV_INTERN long long	srv_ibuf_max_size = 0;
-UNIV_INTERN ulint	srv_ibuf_active_contract = 0; /* 0:disable 1:enable */
-UNIV_INTERN ulint	srv_ibuf_accel_rate = 100;
+UNIV_INTERN ulong	srv_ibuf_active_contract = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulong	srv_ibuf_accel_rate = 100;
 #define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 
-UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
+UNIV_INTERN ulong	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 
-UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
-UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
-UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+UNIV_INTERN ulong	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulong	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+UNIV_INTERN ulong	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
 
-UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulong	srv_expand_import = 0; /* 0:disable 1:enable */
 
-UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
-UNIV_INTERN ulint	srv_dict_size_limit = 0;
+UNIV_INTERN ulong	srv_extra_rsegments = 0; /* extra rseg for users */
+UNIV_INTERN ulong	srv_dict_size_limit = 0;
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
