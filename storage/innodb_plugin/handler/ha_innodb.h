@@ -257,6 +257,13 @@ int thd_binlog_format(const MYSQL_THD thd);
   @param  all   TRUE <=> rollback main transaction.
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
+
+/**
+  Check if binary logging is filtered for thread's current db.
+  @param  thd   Thread handle
+  @retval 1 the query is not filtered, 0 otherwise.
+*/
+bool thd_binlog_filter_ok(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;
