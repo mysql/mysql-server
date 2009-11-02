@@ -54,6 +54,7 @@ static ulong commit_threads = 0;
 static pthread_mutex_t commit_threads_m;
 static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
+static pthread_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 
 /*
@@ -1932,6 +1933,7 @@ innobase_init(
 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
+	pthread_mutex_init(&analyze_mutex, MY_MUTEX_INIT_FAST);
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
@@ -1971,6 +1973,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 		pthread_mutex_destroy(&prepare_commit_mutex);
 		pthread_mutex_destroy(&commit_threads_m);
 		pthread_mutex_destroy(&commit_cond_m);
+		pthread_mutex_destroy(&analyze_mutex);
 		pthread_cond_destroy(&commit_cond);
 	}
 
@@ -6430,8 +6433,14 @@ ha_innobase::analyze(
 	THD*		thd,		/* in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
 {
+	/* Serialize ANALYZE TABLE inside InnoDB, see
+	Bug#38996 Race condition in ANALYZE TABLE */
+	pthread_mutex_lock(&analyze_mutex);
+
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+
+	pthread_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }
