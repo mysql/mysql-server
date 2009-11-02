@@ -61,18 +61,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	8
-def			STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
-def			STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	8
-def			STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
-def			STATISTICS	COLUMN_NAME	Column_name	253	64	1	N	1	0	8
-def			STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	8
-def			STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
-def			STATISTICS	SUB_PART	Sub_part	8	3	0	Y	32768	0	63
-def			STATISTICS	PACKED	Packed	253	10	0	Y	0	0	8
-def			STATISTICS	NULLABLE	Null	253	3	0	N	1	0	8
-def			STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	8
-def			STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	8
+def	information_schema	STATISTICS	STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	8
+def	information_schema	STATISTICS	STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	8
+def	information_schema	STATISTICS	STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	COLUMN_NAME	Column_name	253	64	1	N	1	0	8
+def	information_schema	STATISTICS	STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	8
+def	information_schema	STATISTICS	STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	SUB_PART	Sub_part	8	3	0	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	10	0	Y	0	0	8
+def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	3	0	N	1	0	8
+def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	8
+def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	8
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE	
 t1	1	b	1	b	A	1	NULL	NULL		BTREE	
@@ -99,45 +99,45 @@ drop table t1;
 -- after Bug#29394 is implemented.
 show variables like "wait_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "WAIT_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	0	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	1024	0	Y	0	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_NAME	Variable_name	253	64	0	N	1	0	8
+def	information_schema	VARIABLES	VARIABLES	VARIABLE_VALUE	Value	253	1024	0	Y	0	0	8
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TABLES	TABLE_NAME	Name	253	64	0	N	1	0	8
-def			TABLES	ENGINE	Engine	253	64	0	Y	0	0	8
-def			TABLES	VERSION	Version	8	21	0	Y	32800	0	63
-def			TABLES	ROW_FORMAT	Row_format	253	10	0	Y	0	0	8
-def			TABLES	TABLE_ROWS	Rows	8	21	0	Y	32800	0	63
-def			TABLES	AVG_ROW_LENGTH	Avg_row_length	8	21	0	Y	32800	0	63
-def			TABLES	DATA_LENGTH	Data_length	8	21	0	Y	32800	0	63
-def			TABLES	MAX_DATA_LENGTH	Max_data_length	8	21	0	Y	32800	0	63
-def			TABLES	INDEX_LENGTH	Index_length	8	21	0	Y	32800	0	63
-def			TABLES	DATA_FREE	Data_free	8	21	0	Y	32800	0	63
-def			TABLES	AUTO_INCREMENT	Auto_increment	8	21	0	Y	32800	0	63
-def			TABLES	CREATE_TIME	Create_time	12	19	0	Y	128	0	63
-def			TABLES	UPDATE_TIME	Update_time	12	19	0	Y	128	0	63
-def			TABLES	CHECK_TIME	Check_time	12	19	0	Y	128	0	63
-def			TABLES	TABLE_COLLATION	Collation	253	32	0	Y	0	0	8
-def			TABLES	CHECKSUM	Checksum	8	21	0	Y	32800	0	63
-def			TABLES	CREATE_OPTIONS	Create_options	253	255	0	Y	0	0	8
-def			TABLES	TABLE_COMMENT	Comment	253	80	0	N	1	0	8
+def	information_schema	TABLES	TABLES	TABLE_NAME	Name	253	64	0	N	1	0	8
+def	information_schema	TABLES	TABLES	ENGINE	Engine	253	64	0	Y	0	0	8
+def	information_schema	TABLES	TABLES	VERSION	Version	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	ROW_FORMAT	Row_format	253	10	0	Y	0	0	8
+def	information_schema	TABLES	TABLES	TABLE_ROWS	Rows	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	AVG_ROW_LENGTH	Avg_row_length	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	DATA_LENGTH	Data_length	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	MAX_DATA_LENGTH	Max_data_length	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	INDEX_LENGTH	Index_length	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	DATA_FREE	Data_free	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	AUTO_INCREMENT	Auto_increment	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	CREATE_TIME	Create_time	12	19	0	Y	128	0	63
+def	information_schema	TABLES	TABLES	UPDATE_TIME	Update_time	12	19	0	Y	128	0	63
+def	information_schema	TABLES	TABLES	CHECK_TIME	Check_time	12	19	0	Y	128	0	63
+def	information_schema	TABLES	TABLES	TABLE_COLLATION	Collation	253	32	0	Y	0	0	8
+def	information_schema	TABLES	TABLES	CHECKSUM	Checksum	8	21	0	Y	32800	0	63
+def	information_schema	TABLES	TABLES	CREATE_OPTIONS	Create_options	253	255	0	Y	0	0	8
+def	information_schema	TABLES	TABLES	TABLE_COMMENT	Comment	253	80	0	N	1	0	8
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			SCHEMATA	SCHEMA_NAME	Database	253	64	18	N	1	0	8
+def	information_schema	SCHEMATA	SCHEMATA	SCHEMA_NAME	Database	253	64	18	N	1	0	8
 Database
 information_schema
 mtr
@@ -145,7 +145,7 @@ mysql
 test
 show databases like "test%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			SCHEMATA	SCHEMA_NAME	Database (test%)	253	64	4	N	1	0	8
+def	information_schema	SCHEMATA	SCHEMATA	SCHEMA_NAME	Database (test%)	253	64	4	N	1	0	8
 Database (test%)
 test
 create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
@@ -626,18 +626,18 @@ PRIMARY KEY(field1(1000))
 );
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	63
-def			STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
-def			STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	63
-def			STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
-def			STATISTICS	COLUMN_NAME	Column_name	253	64	6	N	1	0	63
-def			STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	63
-def			STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
-def			STATISTICS	SUB_PART	Sub_part	8	3	4	Y	32768	0	63
-def			STATISTICS	PACKED	Packed	253	10	0	Y	0	0	63
-def			STATISTICS	NULLABLE	Null	253	3	0	N	1	0	63
-def			STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	63
-def			STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	63
+def	information_schema	STATISTICS	STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	63
+def	information_schema	STATISTICS	STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	63
+def	information_schema	STATISTICS	STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	COLUMN_NAME	Column_name	253	64	6	N	1	0	63
+def	information_schema	STATISTICS	STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	63
+def	information_schema	STATISTICS	STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	SUB_PART	Sub_part	8	3	4	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	10	0	Y	0	0	63
+def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	3	0	N	1	0	63
+def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	63
+def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	63
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE	
 drop table t1;
@@ -808,7 +808,6 @@ show plugins;
 show columns in t1;
 show slave hosts;
 show keys in t1;
-show column types;
 show table types;
 show storage engines;
 show authors;
@@ -859,21 +858,21 @@ set names utf8;
 ----------------------------------------------------------------
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			CHARACTER_SETS	CHARACTER_SET_NAME	Charset	253	96	4	N	1	0	33
-def			CHARACTER_SETS	DESCRIPTION	Description	253	180	13	N	1	0	33
-def			CHARACTER_SETS	DEFAULT_COLLATE_NAME	Default collation	253	96	15	N	1	0	33
-def			CHARACTER_SETS	MAXLEN	Maxlen	8	3	1	N	32769	0	63
+def	information_schema	CHARACTER_SETS	CHARACTER_SETS	CHARACTER_SET_NAME	Charset	253	96	4	N	1	0	33
+def	information_schema	CHARACTER_SETS	CHARACTER_SETS	DESCRIPTION	Description	253	180	13	N	1	0	33
+def	information_schema	CHARACTER_SETS	CHARACTER_SETS	DEFAULT_COLLATE_NAME	Default collation	253	96	15	N	1	0	33
+def	information_schema	CHARACTER_SETS	CHARACTER_SETS	MAXLEN	Maxlen	8	3	1	N	32769	0	63
 Charset	Description	Default collation	Maxlen
 utf8	UTF-8 Unicode	utf8_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			COLLATIONS	COLLATION_NAME	Collation	253	96	10	N	1	0	33
-def			COLLATIONS	CHARACTER_SET_NAME	Charset	253	96	6	N	1	0	33
-def			COLLATIONS	ID	Id	8	11	2	N	32769	0	63
-def			COLLATIONS	IS_DEFAULT	Default	253	9	0	N	1	0	33
-def			COLLATIONS	IS_COMPILED	Compiled	253	9	3	N	1	0	33
-def			COLLATIONS	SORTLEN	Sortlen	8	3	1	N	32769	0	63
+def	information_schema	COLLATIONS	COLLATIONS	COLLATION_NAME	Collation	253	96	10	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	CHARACTER_SET_NAME	Charset	253	96	6	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	ID	Id	8	11	2	N	32769	0	63
+def	information_schema	COLLATIONS	COLLATIONS	IS_DEFAULT	Default	253	9	0	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	IS_COMPILED	Compiled	253	9	3	N	1	0	33
+def	information_schema	COLLATIONS	COLLATIONS	SORTLEN	Sortlen	8	3	1	N	32769	0	63
 Collation	Charset	Id	Default	Compiled	Sortlen
 latin1_bin	latin1	47		Yes	1
 ----------------------------------------------------------------
@@ -886,7 +885,7 @@ mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
 ----------------------------------------------------------------
 SHOW DATABASES LIKE 'mysqltest1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			SCHEMATA	SCHEMA_NAME	Database (mysqltest1)	253	192	10	N	1	0	33
+def	information_schema	SCHEMATA	SCHEMATA	SCHEMA_NAME	Database (mysqltest1)	253	192	10	N	1	0	33
 Database (mysqltest1)
 mysqltest1
 ----------------------------------------------------------------
@@ -902,18 +901,18 @@ t1	CREATE TABLE `t1` (
 ----------------------------------------------------------------
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			STATISTICS	TABLE_NAME	Table	253	192	2	N	1	0	33
-def			STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
-def			STATISTICS	INDEX_NAME	Key_name	253	192	7	N	1	0	33
-def			STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
-def			STATISTICS	COLUMN_NAME	Column_name	253	192	1	N	1	0	33
-def			STATISTICS	COLLATION	Collation	253	3	1	Y	0	0	33
-def			STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
-def			STATISTICS	SUB_PART	Sub_part	8	3	0	Y	32768	0	63
-def			STATISTICS	PACKED	Packed	253	30	0	Y	0	0	33
-def			STATISTICS	NULLABLE	Null	253	9	0	N	1	0	33
-def			STATISTICS	INDEX_TYPE	Index_type	253	48	5	N	1	0	33
-def			STATISTICS	COMMENT	Comment	253	48	0	Y	0	0	33
+def	information_schema	STATISTICS	STATISTICS	TABLE_NAME	Table	253	192	2	N	1	0	33
+def	information_schema	STATISTICS	STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	INDEX_NAME	Key_name	253	192	7	N	1	0	33
+def	information_schema	STATISTICS	STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
+def	information_schema	STATISTICS	STATISTICS	COLUMN_NAME	Column_name	253	192	1	N	1	0	33
+def	information_schema	STATISTICS	STATISTICS	COLLATION	Collation	253	3	1	Y	0	0	33
+def	information_schema	STATISTICS	STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	SUB_PART	Sub_part	8	3	0	Y	32768	0	63
+def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	30	0	Y	0	0	33
+def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	9	0	N	1	0	33
+def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	48	5	N	1	0	33
+def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	48	0	Y	0	0	33
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE	
 ----------------------------------------------------------------
@@ -930,17 +929,17 @@ TABLE_COMMENT
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name = 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TABLES	TABLE_CATALOG	TABLE_CATALOG	253	1536	0	Y	0	0	33
-def			TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
-def			TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
-def			TABLES	TABLE_TYPE	TABLE_TYPE	253	192	10	N	1	0	33
-def			TABLES	ENGINE	ENGINE	253	192	6	Y	0	0	33
-def			TABLES	ROW_FORMAT	ROW_FORMAT	253	30	5	Y	0	0	33
-def			TABLES	TABLE_COLLATION	TABLE_COLLATION	253	96	17	Y	0	0	33
-def			TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	765	0	Y	0	0	33
-def			TABLES	TABLE_COMMENT	TABLE_COMMENT	253	240	0	N	1	0	33
+def	information_schema	TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
+def	information_schema	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	253	192	10	N	1	0	33
+def	information_schema	TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	0	33
+def	information_schema	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	253	30	5	Y	0	0	33
+def	information_schema	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	96	17	Y	0	0	33
+def	information_schema	TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	765	0	Y	0	0	33
+def	information_schema	TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	240	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
-NULL	test	t1	BASE TABLE	MyISAM	Fixed	latin1_swedish_ci		
+def	test	t1	BASE TABLE	MyISAM	Fixed	latin1_swedish_ci		
 ----------------------------------------------------------------
 SELECT
 TABLE_CATALOG,
@@ -960,53 +959,53 @@ COLUMN_COMMENT
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE table_name = 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			COLUMNS	TABLE_CATALOG	TABLE_CATALOG	253	1536	0	Y	0	0	33
-def			COLUMNS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
-def			COLUMNS	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
-def			COLUMNS	COLUMN_NAME	COLUMN_NAME	253	192	1	N	1	0	33
-def			COLUMNS	COLUMN_DEFAULT	COLUMN_DEFAULT	252	589815	0	Y	16	0	33
-def			COLUMNS	IS_NULLABLE	IS_NULLABLE	253	9	2	N	1	0	33
-def			COLUMNS	DATA_TYPE	DATA_TYPE	253	192	3	N	1	0	33
-def			COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253	96	0	Y	0	0	33
-def			COLUMNS	COLLATION_NAME	COLLATION_NAME	253	96	0	Y	0	0	33
-def			COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	589815	7	N	17	0	33
-def			COLUMNS	COLUMN_KEY	COLUMN_KEY	253	9	3	N	1	0	33
-def			COLUMNS	EXTRA	EXTRA	253	81	0	N	1	0	33
-def			COLUMNS	PRIVILEGES	PRIVILEGES	253	240	31	N	1	0	33
-def			COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	765	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_CATALOG	TABLE_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_NAME	COLUMN_NAME	253	192	1	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_DEFAULT	COLUMN_DEFAULT	252	589815	0	Y	16	0	33
+def	information_schema	COLUMNS	COLUMNS	IS_NULLABLE	IS_NULLABLE	253	9	2	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	DATA_TYPE	DATA_TYPE	253	192	3	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253	96	0	Y	0	0	33
+def	information_schema	COLUMNS	COLUMNS	COLLATION_NAME	COLLATION_NAME	253	96	0	Y	0	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	589815	7	N	17	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	253	9	3	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	EXTRA	EXTRA	253	81	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	240	31	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	765	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references	
+def	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references	
 ----------------------------------------------------------------
 SHOW TABLES LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	192	2	N	1	0	33
+def	information_schema	TABLE_NAMES	TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	192	2	N	1	0	33
 Tables_in_test (t1)
 t1
 ----------------------------------------------------------------
 SHOW COLUMNS FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			COLUMNS	COLUMN_NAME	Field	253	192	1	N	1	0	33
-def			COLUMNS	COLUMN_TYPE	Type	252	589815	7	N	17	0	33
-def			COLUMNS	IS_NULLABLE	Null	253	9	2	N	1	0	33
-def			COLUMNS	COLUMN_KEY	Key	253	9	3	N	1	0	33
-def			COLUMNS	COLUMN_DEFAULT	Default	252	589815	0	Y	16	0	33
-def			COLUMNS	EXTRA	Extra	253	81	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_NAME	Field	253	192	1	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	Type	252	589815	7	N	17	0	33
+def	information_schema	COLUMNS	COLUMNS	IS_NULLABLE	Null	253	9	2	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	Key	253	9	3	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_DEFAULT	Default	252	589815	0	Y	16	0	33
+def	information_schema	COLUMNS	COLUMNS	EXTRA	Extra	253	81	0	N	1	0	33
 Field	Type	Null	Key	Default	Extra
 c	int(11)	NO	PRI	NULL	
 ----------------------------------------------------------------
 SHOW TRIGGERS LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TRIGGERS	TRIGGER_NAME	Trigger	253	192	5	N	1	0	33
-def			TRIGGERS	EVENT_MANIPULATION	Event	253	18	6	N	1	0	33
-def			TRIGGERS	EVENT_OBJECT_TABLE	Table	253	192	2	N	1	0	33
-def			TRIGGERS	ACTION_STATEMENT	Statement	252	589815	10	N	17	0	33
-def			TRIGGERS	ACTION_TIMING	Timing	253	18	6	N	1	0	33
-def			TRIGGERS	CREATED	Created	12	19	0	Y	128	0	63
-def			TRIGGERS	SQL_MODE	sql_mode	253	24576	0	N	1	0	33
-def			TRIGGERS	DEFINER	Definer	253	231	14	N	1	0	33
-def			TRIGGERS	CHARACTER_SET_CLIENT	character_set_client	253	96	6	N	1	0	33
-def			TRIGGERS	COLLATION_CONNECTION	collation_connection	253	96	6	N	1	0	33
-def			TRIGGERS	DATABASE_COLLATION	Database Collation	253	96	17	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_NAME	Trigger	253	192	5	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_MANIPULATION	Event	253	18	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_TABLE	Table	253	192	2	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_STATEMENT	Statement	252	589815	10	N	17	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_TIMING	Timing	253	18	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	CREATED	Created	12	19	0	Y	128	0	63
+def	information_schema	TRIGGERS	TRIGGERS	SQL_MODE	sql_mode	253	24576	0	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	DEFINER	Definer	253	231	14	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	CHARACTER_SET_CLIENT	character_set_client	253	96	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	COLLATION_CONNECTION	collation_connection	253	96	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	DATABASE_COLLATION	Database Collation	253	96	17	N	1	0	33
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 t1_bi	INSERT	t1	SET @a = 1	BEFORE	NULL		root@localhost	binary	binary	latin1_swedish_ci
 ----------------------------------------------------------------
@@ -1031,25 +1030,25 @@ DEFINER
 FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_name = 't1_bi';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			TRIGGERS	TRIGGER_CATALOG	TRIGGER_CATALOG	253	1536	0	Y	0	0	33
-def			TRIGGERS	TRIGGER_SCHEMA	TRIGGER_SCHEMA	253	192	4	N	1	0	33
-def			TRIGGERS	TRIGGER_NAME	TRIGGER_NAME	253	192	5	N	1	0	33
-def			TRIGGERS	EVENT_MANIPULATION	EVENT_MANIPULATION	253	18	6	N	1	0	33
-def			TRIGGERS	EVENT_OBJECT_CATALOG	EVENT_OBJECT_CATALOG	253	1536	0	Y	0	0	33
-def			TRIGGERS	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_SCHEMA	253	192	4	N	1	0	33
-def			TRIGGERS	EVENT_OBJECT_TABLE	EVENT_OBJECT_TABLE	253	192	2	N	1	0	33
-def			TRIGGERS	ACTION_CONDITION	ACTION_CONDITION	252	589815	0	Y	16	0	33
-def			TRIGGERS	ACTION_STATEMENT	ACTION_STATEMENT	252	589815	10	N	17	0	33
-def			TRIGGERS	ACTION_ORIENTATION	ACTION_ORIENTATION	253	27	3	N	1	0	33
-def			TRIGGERS	ACTION_TIMING	ACTION_TIMING	253	18	6	N	1	0	33
-def			TRIGGERS	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_OLD_TABLE	253	192	0	Y	0	0	33
-def			TRIGGERS	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_NEW_TABLE	253	192	0	Y	0	0	33
-def			TRIGGERS	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_OLD_ROW	253	9	3	N	1	0	33
-def			TRIGGERS	ACTION_REFERENCE_NEW_ROW	ACTION_REFERENCE_NEW_ROW	253	9	3	N	1	0	33
-def			TRIGGERS	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
-def			TRIGGERS	DEFINER	DEFINER	253	231	14	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_CATALOG	TRIGGER_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_SCHEMA	TRIGGER_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	TRIGGER_NAME	TRIGGER_NAME	253	192	5	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_MANIPULATION	EVENT_MANIPULATION	253	18	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_CATALOG	EVENT_OBJECT_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	EVENT_OBJECT_TABLE	EVENT_OBJECT_TABLE	253	192	2	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_CONDITION	ACTION_CONDITION	252	589815	0	Y	16	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_STATEMENT	ACTION_STATEMENT	252	589815	10	N	17	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_ORIENTATION	ACTION_ORIENTATION	253	27	3	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_TIMING	ACTION_TIMING	253	18	6	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_OLD_TABLE	253	192	0	Y	0	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_NEW_TABLE	253	192	0	Y	0	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_OLD_ROW	253	9	3	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	ACTION_REFERENCE_NEW_ROW	ACTION_REFERENCE_NEW_ROW	253	9	3	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
+def	information_schema	TRIGGERS	TRIGGERS	DEFINER	DEFINER	253	231	14	N	1	0	33
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	SQL_MODE	DEFINER
-NULL	test	t1_bi	INSERT	NULL	test	t1	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW		root@localhost
+def	test	t1_bi	INSERT	def	test	t1	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW		root@localhost
 ----------------------------------------------------------------
 SHOW CREATE VIEW v1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1064,18 +1063,18 @@ SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	1536	0	Y	0	0	33
-def			VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
-def			VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
-def			VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	589815	15	N	17	0	33
-def			VIEWS	CHECK_OPTION	CHECK_OPTION	253	24	4	N	1	0	33
-def			VIEWS	IS_UPDATABLE	IS_UPDATABLE	253	9	2	N	1	0	33
-def			VIEWS	DEFINER	DEFINER	253	231	14	N	1	0	33
-def			VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
-def			VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	96	6	N	1	0	33
-def			VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	96	6	N	1	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	VIEWS	VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
+def	information_schema	VIEWS	VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	589815	15	N	17	0	33
+def	information_schema	VIEWS	VIEWS	CHECK_OPTION	CHECK_OPTION	253	24	4	N	1	0	33
+def	information_schema	VIEWS	VIEWS	IS_UPDATABLE	IS_UPDATABLE	253	9	2	N	1	0	33
+def	information_schema	VIEWS	VIEWS	DEFINER	DEFINER	253	231	14	N	1	0	33
+def	information_schema	VIEWS	VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
+def	information_schema	VIEWS	VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	96	6	N	1	0	33
+def	information_schema	VIEWS	VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	96	6	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
+def	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
 ----------------------------------------------------------------
 SHOW CREATE PROCEDURE p1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1111,26 +1110,26 @@ DEFINER
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_name = 'p1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	1	0	33
-def			ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	1536	0	Y	0	0	33
-def			ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	1	0	33
-def			ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	1	0	33
-def			ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	253	27	9	N	1	0	33
-def			ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	253	192	0	Y	0	0	33
-def			ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	24	3	N	1	0	33
-def			ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	589815	8	Y	16	0	33
-def			ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	253	192	0	Y	0	0	33
-def			ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	0	Y	0	0	33
-def			ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	24	3	N	1	0	33
-def			ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	0	33
-def			ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	253	192	12	N	1	0	33
-def			ROUTINES	SQL_PATH	SQL_PATH	253	192	0	Y	0	0	33
-def			ROUTINES	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
-def			ROUTINES	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
-def			ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	589815	0	N	17	0	33
-def			ROUTINES	DEFINER	DEFINER	253	231	14	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	253	27	9	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	24	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	589815	8	Y	16	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	24	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	253	192	12	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	589815	0	N	17	0	33
+def	information_schema	ROUTINES	ROUTINES	DEFINER	DEFINER	253	231	14	N	1	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
-p1	NULL	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER			root@localhost
+p1	def	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER			root@localhost
 ----------------------------------------------------------------
 SHOW CREATE FUNCTION f1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1166,26 +1165,26 @@ DEFINER
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_name = 'f1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	1	0	33
-def			ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	1536	0	Y	0	0	33
-def			ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	1	0	33
-def			ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	1	0	33
-def			ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	253	27	8	N	1	0	33
-def			ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	253	192	7	Y	0	0	33
-def			ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	24	3	N	1	0	33
-def			ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	589815	8	Y	16	0	33
-def			ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	253	192	0	Y	0	0	33
-def			ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	0	Y	0	0	33
-def			ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	24	3	N	1	0	33
-def			ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	0	33
-def			ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	253	192	12	N	1	0	33
-def			ROUTINES	SQL_PATH	SQL_PATH	253	192	0	Y	0	0	33
-def			ROUTINES	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
-def			ROUTINES	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
-def			ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	589815	0	N	17	0	33
-def			ROUTINES	DEFINER	DEFINER	253	231	14	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SPECIFIC_NAME	SPECIFIC_NAME	253	192	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_CATALOG	ROUTINE_CATALOG	253	1536	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_SCHEMA	ROUTINE_SCHEMA	253	192	4	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_NAME	ROUTINE_NAME	253	192	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_TYPE	ROUTINE_TYPE	253	27	8	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	DTD_IDENTIFIER	DTD_IDENTIFIER	253	192	7	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_BODY	ROUTINE_BODY	253	24	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_DEFINITION	ROUTINE_DEFINITION	252	589815	8	Y	16	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_NAME	EXTERNAL_NAME	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	EXTERNAL_LANGUAGE	EXTERNAL_LANGUAGE	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	PARAMETER_STYLE	PARAMETER_STYLE	253	24	3	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	IS_DETERMINISTIC	IS_DETERMINISTIC	253	9	2	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_DATA_ACCESS	SQL_DATA_ACCESS	253	192	12	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_PATH	SQL_PATH	253	192	0	Y	0	0	33
+def	information_schema	ROUTINES	ROUTINES	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	SQL_MODE	SQL_MODE	253	24576	0	N	1	0	33
+def	information_schema	ROUTINES	ROUTINES	ROUTINE_COMMENT	ROUTINE_COMMENT	252	589815	0	N	17	0	33
+def	information_schema	ROUTINES	ROUTINES	DEFINER	DEFINER	253	231	14	N	1	0	33
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	SQL_MODE	ROUTINE_COMMENT	DEFINER
-f1	NULL	test	f1	FUNCTION	int(11)	SQL	RETURN 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER			root@localhost
+f1	def	test	f1	FUNCTION	int(11)	SQL	RETURN 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER			root@localhost
 ----------------------------------------------------------------
 DROP DATABASE mysqltest1;
 DROP TABLE t1;

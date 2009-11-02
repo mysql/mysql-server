@@ -1895,7 +1895,7 @@ bool show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
-    return 1;
+    DBUG_RETURN(TRUE);
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));

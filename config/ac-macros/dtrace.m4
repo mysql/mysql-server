@@ -14,7 +14,7 @@ DTRACEFLAGS=""
 HAVE_DTRACE=""
 HAVE_DTRACE_DASH_G=""
 if test "$ENABLE_DTRACE" = "yes"; then
-  AC_CHECK_PROGS(DTRACE, dtrace, [not found], [$PATH:/usr/sbin])
+  AC_PATH_PROGS(DTRACE, dtrace, [not found], [$PATH:/usr/sbin])
   if test "$DTRACE" = "not found"; then
     ENABLE_DTRACE="no"
   else
