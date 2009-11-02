@@ -1274,7 +1274,7 @@ set_bsd_configs()
   if test "x$fast_flag" != "xno" ; then
     compiler_flags="$compiler_flags -O3"
   else
-    compiler_flags="$compiler_flags -O"
+    compiler_flags="$compiler_flags -O0"
   fi
   set_cc_and_cxx_for_gcc
 }
@@ -1305,7 +1305,7 @@ set_linux_configs()
     if test "x$fast_flag" != "xno" ; then
       compiler_flags="$compiler_flags -O2"
     else
-      compiler_flags="$compiler_flags -O"
+      compiler_flags="$compiler_flags -O0"
     fi
 # configure will set proper compiler flags for gcc on Linux
   elif test "x$compiler" = "xicc" ; then
@@ -1375,8 +1375,8 @@ set_solaris_configs()
         LDFLAGS="$LDFLAGS -O2"
         compiler_flags="$compiler_flags -O2"
       else
-        LDFLAGS="$LDFLAGS -O"
-        compiler_flags="$compiler_flags -O"
+        LDFLAGS="$LDFLAGS -O0"
+        compiler_flags="$compiler_flags -O0"
       fi
     fi
   else
@@ -1407,7 +1407,7 @@ set_solaris_configs()
       elif test "x$fast_flag" = "xgeneric" ; then
         compiler_flags="$compiler_flags -xO2"
       else
-        compiler_flags="$compiler_flags -xO"
+        compiler_flags="$compiler_flags -xO0"
       fi
     else
 #Using SPARC cpu with SunStudio (Forte) compiler
@@ -1421,7 +1421,7 @@ set_solaris_configs()
       elif test "x$fast_flag" = "xgeneric" ; then
         compiler_flags="$compiler_flags -xO2"
       else
-        compiler_flags="$compiler_flags -xO"
+        compiler_flags="$compiler_flags -xO0"
       fi
     fi
   fi
@@ -1452,7 +1452,7 @@ set_macosx_configs()
   if test "x$fast_flag" != "xno" ; then
     compiler_flags="$compiler_flags -Os"
   else
-    compiler_flags="$compiler_flags -O"
+    compiler_flags="$compiler_flags -O0"
   fi
   set_cc_and_cxx_for_gcc
 }

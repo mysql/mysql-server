@@ -2132,92 +2132,6 @@ static Create_field* get_sql_field(char *field_name,
 }
 
 
-/*
-  Convert a string in a given character set to a string which can be
-  used for FRM file storage in which case use_hex is TRUE and we store
-  the character constants as hex strings in the character set encoding
-  their field have. In the case of SHOW CREATE TABLE and the
-  PARTITIONS information schema table we instead provide utf8 strings
-  to the user and convert to the utf8 character set.
-
-  SYNOPSIS
-    get_converted_part_value_from_string()
-    item                           Item from which constant comes
-    res                            String as provided by val_str after
-                                   conversion to character set
-    field_cs                       Character set string is encoded in
-                                   NULL for INT_RESULT's here
-    val_conv                       Out value: The string created
-    use_hex                        TRUE => hex string created
-                                   FALSE => utf8 constant string created
-  RETURN VALUES
-    TRUE                           Error
-    FALSE                          Ok
-*/
-
-int get_converted_part_value_from_string(Item *item,
-                                         String *res,
-                                         CHARSET_INFO *field_cs,
-                                         String *val_conv,
-                                         bool use_hex)
-{
-  String val;
-  uint dummy_errors;
-  uint len, high, low, i;
-  const char *ptr;
-  char buf[3];
-
-  if (item->result_type() == INT_RESULT)
-  {
-    longlong value= item->val_int();
-    val_conv->set(value, system_charset_info);
-    return FALSE;
-  }
-  if (!res)
-  {
-    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    return TRUE;
-  }
-  val_conv->length(0);
-  if (!field_cs || res->length() == 0)
-  {
-    val_conv->append("'");
-    if (res->length() != 0)
-      val_conv->append(*res);
-    val_conv->append("'");
-    return FALSE;
-  }
-  if (field_cs && use_hex)
-  {
-    val_conv->append("_");
-    val_conv->append(field_cs->csname);
-    val_conv->append(" ");
-  }
-  if (use_hex)
-  {
-    val_conv->append("0x");
-    len= res->length();
-    ptr= res->ptr();
-    for (i= 0; i < len; i++)
-    {
-      high= (*ptr) >> 4;
-      low= (*ptr) & 0x0F;
-      buf[0]= _dig_vec_upper[high];
-      buf[1]= _dig_vec_upper[low];
-      buf[2]= 0;
-      val_conv->append((const char*)buf);
-      ptr++;
-    }
-  }
-  else
-  {
-    val.copy(res->ptr(), res->length(), field_cs,
-             system_charset_info, &dummy_errors);
-    append_unescaped(val_conv, val.ptr(), val.length());
-  }
-  return FALSE;
-}
-
 static int add_column_list_values(File fptr, partition_info *part_info,
                                   part_elem_value *list_value,
                                   HA_CREATE_INFO *create_info,
@@ -2311,9 +2225,11 @@ static int add_column_list_values(File fptr, partition_info *part_info,
         }
         {
           String val_conv;
+          val_conv.set_charset(system_charset_info);
           res= item_expr->val_str(&str);
-          if (get_converted_part_value_from_string(item_expr, res,
-                                                   field_cs, &val_conv,
+          if (get_cs_converted_part_value_from_string(current_thd,
+                                                      item_expr, res,
+                                                      &val_conv, field_cs,
                                                    (bool)(alter_info != NULL)))
             return 1;
           err+= add_string_object(fptr, &val_conv);

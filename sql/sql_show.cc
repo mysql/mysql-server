@@ -78,6 +78,12 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
+static void get_cs_converted_string_value(THD *thd,
+                                          String *input_str,
+                                          String *output_str,
+                                          CHARSET_INFO *cs,
+                                          bool use_hex);
+
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
@@ -4795,6 +4801,57 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   }
   return;
 }
+
+
+/*
+  Convert a string in a given character set to a string which can be
+  used for FRM file storage in which case use_hex is TRUE and we store
+  the character constants as hex strings in the character set encoding
+  their field have. In the case of SHOW CREATE TABLE and the
+  PARTITIONS information schema table we instead provide utf8 strings
+  to the user and convert to the utf8 character set.
+
+  SYNOPSIS
+    get_cs_converted_part_value_from_string()
+    item                           Item from which constant comes
+    input_str                      String as provided by val_str after
+                                   conversion to character set
+    output_str                     Out value: The string created
+    cs                             Character set string is encoded in
+                                   NULL for INT_RESULT's here
+    use_hex                        TRUE => hex string created
+                                   FALSE => utf8 constant string created
+
+  RETURN VALUES
+    TRUE                           Error
+    FALSE                          Ok
+*/
+
+int get_cs_converted_part_value_from_string(THD *thd,
+                                            Item *item,
+                                            String *input_str,
+                                            String *output_str,
+                                            CHARSET_INFO *cs,
+                                            bool use_hex)
+{
+  if (item->result_type() == INT_RESULT)
+  {
+    longlong value= item->val_int();
+    output_str->set(value, system_charset_info);
+    return FALSE;
+  }
+  if (!input_str)
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    return TRUE;
+  }
+  get_cs_converted_string_value(thd,
+                                input_str,
+                                output_str,
+                                cs,
+                                use_hex);
+  return FALSE;
+}
 #endif
 
 
@@ -4877,7 +4934,8 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 }
 
 static int
-get_partition_column_description(partition_info *part_info,
+get_partition_column_description(THD *thd,
+                                 partition_info *part_info,
                                  part_elem_value *list_value,
                                  String &tmp_str)
 {
@@ -4905,9 +4963,9 @@ get_partition_column_description(partition_info *part_info,
         DBUG_RETURN(1);
       }
       String *res= item->val_str(&str);
-      if (get_converted_part_value_from_string(item, res,
+      if (get_cs_converted_part_value_from_string(thd, item, res, &val_conv,
                               part_info->part_field_array[i]->charset(),
-                              &val_conv, FALSE))
+                              FALSE))
       {
         DBUG_RETURN(1);
       }
@@ -5055,7 +5113,8 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
           List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
           part_elem_value *list_value= list_val_it++;
           tmp_str.length(0);
-          if (get_partition_column_description(part_info,
+          if (get_partition_column_description(thd,
+                                               part_info,
                                                list_value,
                                                tmp_str))
           {
@@ -5092,7 +5151,8 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
           {
             if (part_info->part_field_list.elements > 1U)
               tmp_str.append("(");
-            if (get_partition_column_description(part_info,
+            if (get_partition_column_description(thd,
+                                                 part_info,
                                                  list_value,
                                                  tmp_str))
             {
@@ -7230,4 +7290,96 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     send data to the client. In this case we simply raise the error
     status and client connection will be closed.
   */
+}
+
+/*
+  Convert a string in character set in column character set format
+  to utf8 character set if possible, the utf8 character set string
+  will later possibly be converted to character set used by client.
+  Thus we attempt conversion from column character set to both
+  utf8 and to character set client.
+
+  Examples of strings that should fail conversion to utf8 are unassigned
+  characters as e.g. 0x81 in cp1250 (Windows character set for for countries
+  like Czech and Poland). Example of string that should fail conversion to
+  character set on client (e.g. if this is latin1) is 0x2020 (daggger) in
+  ucs2.
+
+  If the conversion fails we will as a fall back convert the string to
+  hex encoded format. The caller of the function can also ask for hex
+  encoded format of output string unconditionally.
+
+  SYNOPSIS
+    get_cs_converted_string_value()
+    thd                             Thread object
+    input_str                       Input string in cs character set
+    output_str                      Output string to be produced in utf8
+    cs                              Character set of input string
+    use_hex                         Use hex string unconditionally
+ 
+
+  RETURN VALUES
+    No return value
+*/
+
+static void get_cs_converted_string_value(THD *thd,
+                                          String *input_str,
+                                          String *output_str,
+                                          CHARSET_INFO *cs,
+                                          bool use_hex)
+{
+
+  output_str->length(0);
+  if (input_str->length() == 0)
+  {
+    output_str->append("''");
+    return;
+  }
+  if (!use_hex)
+  {
+    String try_val;
+    uint try_conv_error= 0;
+
+    try_val.copy(input_str->ptr(), input_str->length(), cs,
+                 thd->variables.character_set_client, &try_conv_error);
+    if (!try_conv_error)
+    {
+      String val;
+      uint conv_error= 0;
+
+      val.copy(input_str->ptr(), input_str->length(), cs,
+               system_charset_info, &conv_error);
+      if (!conv_error)
+      {
+        append_unescaped(output_str, val.ptr(), val.length());
+        return;
+      }
+    }
+    /* We had a conversion error, use hex encoded string for safety */
+  }
+  {
+    const uchar *ptr;
+    uint i, len;
+    char buf[3];
+
+    output_str->append("_");
+    output_str->append(cs->csname);
+    output_str->append(" ");
+    output_str->append("0x");
+    len= input_str->length();
+    ptr= (uchar*)input_str->ptr();
+    for (i= 0; i < len; i++)
+    {
+      uint high, low;
+
+      high= (*ptr) >> 4;
+      low= (*ptr) & 0x0F;
+      buf[0]= _dig_vec_upper[high];
+      buf[1]= _dig_vec_upper[low];
+      buf[2]= 0;
+      output_str->append((const char*)buf);
+      ptr++;
+    }
+  }
+  return;
 }
