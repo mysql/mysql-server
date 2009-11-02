@@ -11417,42 +11417,51 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   tabptr.i = req->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   Uint32 fragId = req->fragId;
+  Uint32 flags = req->flags;
+  if (unlikely(signal->getLength() < CopyActiveReq::SignalLength))
+  {
+    jam();
+    flags = 0;
+  }
+
   ndbrequire(getFragmentrec(signal, fragId));
 
+  fragptr.p->fragStatus = Fragrecord::FSACTIVE;
   fragptr.p->fragDistributionKey = req->distributionKey;
   
+  if (TRACENR_FLAG)
+    TRACENR("tab: " << tabptr.i
+	    << " frag: " << fragId
+	    << " COPY ACTIVE"
+            << " flags: " << hex << flags << endl);
+
   ndbrequire(cnoActiveCopy < 3);
   cactiveCopy[cnoActiveCopy] = fragptr.i;
   cnoActiveCopy++;
   fragptr.p->masterBlockref = masterRef;
   fragptr.p->masterPtr = masterPtr;
-  if (fragptr.p->fragStatus == Fragrecord::FSACTIVE) {
+
+  if ((flags & CopyActiveReq::CAR_NO_LOGGING) == 0)
+  {
     jam();
-/*------------------------------------------------------*/
-/*       PROCESS HAVE ALREADY BEEN STARTED BY PREVIOUS  */
-/*       MASTER. WE HAVE ALREADY SET THE PROPER MASTER  */
-/*       BLOCK REFERENCE.                               */
-/*------------------------------------------------------*/
-    if (fragptr.p->activeTcCounter == 0) {
+    if (fragptr.p->lcpFlag == Fragrecord::LCP_STATE_TRUE)
+    {
       jam();
-/*------------------------------------------------------*/
-/*       PROCESS WAS EVEN COMPLETED.                    */
-/*------------------------------------------------------*/
-      sendCopyActiveConf(signal, tabptr.i);
-    }//if
-    return;
-  }//if
+      fragptr.p->logFlag = Fragrecord::STATE_TRUE;
+    }
+  }
   
-  fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-  if (TRACENR_FLAG)
-    TRACENR("tab: " << tabptr.i 
-	    << " frag: " << fragId 
-	    << " COPY ACTIVE" << endl);
-  
-  if (fragptr.p->lcpFlag == Fragrecord::LCP_STATE_TRUE) {
+  if (flags & CopyActiveReq::CAR_NO_WAIT)
+  {
     jam();
-    fragptr.p->logFlag = Fragrecord::STATE_TRUE;
-  }//if
+    ndbrequire(fragptr.p->activeTcCounter == 0);
+    Uint32 save = fragptr.p->startGci;
+    fragptr.p->startGci = 0;
+    sendCopyActiveConf(signal, tabptr.i);
+    fragptr.p->startGci = save;
+    return;
+  }
+
   fragptr.p->activeTcCounter = 1;
 /*------------------------------------------------------*/
 /*       SET IT TO ONE TO ENSURE THAT IT IS NOT POSSIBLE*/
