@@ -1151,6 +1151,13 @@ void
 dict_ind_init(void);
 /*===============*/
 
+/**********************************************************************//**
+Closes the data dictionary module. */
+UNIV_INTERN
+void
+dict_close(void);
+/*============*/
+
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
 #endif

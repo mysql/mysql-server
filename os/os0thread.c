@@ -233,6 +233,7 @@ os_thread_exit(
 #ifdef __WIN__
 	ExitThread((DWORD)exit_value);
 #else
+	pthread_detach(pthread_self());
 	pthread_exit(exit_value);
 #endif
 }
