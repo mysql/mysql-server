@@ -2089,7 +2089,7 @@ public:
   A class for sending info to the client
 */
 
-class Send_field {
+class Send_field :public Sql_alloc {
  public:
   const char *db_name;
   const char *table_name,*org_table_name;
