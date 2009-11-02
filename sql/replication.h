@@ -16,6 +16,8 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
+typedef struct st_mysql MYSQL;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -483,6 +485,64 @@ const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
 */
 void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
 
+/**
+   Get the value of user variable as an integer.
+
+   This function will return the value of variable @a name as an
+   integer. If the original value of the variable is not an integer,
+   the value will be converted into an integer.
+
+   @param name     user variable name
+   @param value    pointer to return the value
+   @param null_value if not NULL, the function will set it to true if
+   the value of variable is null, set to false if not
+
+   @retval 0 Success
+   @retval 1 Variable not found
+*/
+int get_user_var_int(const char *name,
+                     long long int *value, int *null_value);
+
+/**
+   Get the value of user variable as a double precision float number.
+
+   This function will return the value of variable @a name as real
+   number. If the original value of the variable is not a real number,
+   the value will be converted into a real number.
+
+   @param name     user variable name
+   @param value    pointer to return the value
+   @param null_value if not NULL, the function will set it to true if
+   the value of variable is null, set to false if not
+
+   @retval 0 Success
+   @retval 1 Variable not found
+*/
+int get_user_var_real(const char *name,
+                      double *value, int *null_value);
+
+/**
+   Get the value of user variable as a string.
+
+   This function will return the value of variable @a name as
+   string. If the original value of the variable is not a string,
+   the value will be converted into a string.
+
+   @param name     user variable name
+   @param value    pointer to the value buffer
+   @param len      length of the value buffer
+   @param precision precision of the value if it is a float number
+   @param null_value if not NULL, the function will set it to true if
+   the value of variable is null, set to false if not
+
+   @retval 0 Success
+   @retval 1 Variable not found
+*/
+int get_user_var_str(const char *name,
+                     char *value, unsigned long len,
+                     unsigned int precision, int *null_value);
+
+  
 
 #ifdef __cplusplus
 }

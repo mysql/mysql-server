@@ -25,7 +25,6 @@
 
 #include "log.h"
 #include "rpl_tblmap.h"
-#include "replication.h"
 
 /**
   An interface that is used to take an action when
@@ -1886,11 +1885,28 @@ public:
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
-    return thd_enter_cond(this, cond, mutex, msg);
+    const char* old_msg = proc_info;
+    safe_mutex_assert_owner(mutex);
+    mysys_var->current_mutex = mutex;
+    mysys_var->current_cond = cond;
+    proc_info = msg;
+    return old_msg;
   }
   inline void exit_cond(const char* old_msg)
   {
-    thd_exit_cond(this, old_msg);
+    /*
+      Putting the mutex unlock in thd->exit_cond() ensures that
+      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      locked (if that would not be the case, you'll get a deadlock if someone
+      does a THD::awake() on you).
+    */
+    pthread_mutex_unlock(mysys_var->current_mutex);
+    pthread_mutex_lock(&mysys_var->mutex);
+    mysys_var->current_mutex = 0;
+    mysys_var->current_cond = 0;
+    proc_info = old_msg;
+    pthread_mutex_unlock(&mysys_var->mutex);
+    return;
   }
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void set_time()

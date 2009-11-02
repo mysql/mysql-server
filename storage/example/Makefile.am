@@ -34,7 +34,7 @@ noinst_HEADERS =	ha_example.h
 
 EXTRA_LTLIBRARIES =	ha_example.la
 pkgplugin_LTLIBRARIES =	@plugin_example_shared_target@
-ha_example_la_LDFLAGS =	-module -rpath $(pkgplugindir)
+ha_example_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 ha_example_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_SOURCES =	ha_example.cc
