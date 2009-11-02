@@ -133,7 +133,8 @@ struct CreateFragReq
 
   enum ReplicaType {
     STORED = 7,
-    COMMIT_STORED = 9
+    COMMIT_STORED = 9,
+    START_LOGGING = 10
   };
 
   Uint32 senderData;

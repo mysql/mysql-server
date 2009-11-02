@@ -32,7 +32,13 @@ class CopyActiveReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
+
+  enum Flags
+  {
+    CAR_NO_WAIT = 0x1
+    ,CAR_NO_LOGGING = 0x2
+  };
 
 private:
   Uint32 userPtr;
@@ -40,6 +46,7 @@ private:
   Uint32 tableId;
   Uint32 fragId;
   Uint32 distributionKey;
+  Uint32 flags;
 };
 
 class CopyActiveConf {
