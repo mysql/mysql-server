@@ -28,6 +28,15 @@ create table t1 (a varchar(2) character set ucs2)
 partition by list columns (a)
 (partition p0 values in (0x2020),
 partition p1 values in (''));
+set names utf8;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST  COLUMNS(a)
+(PARTITION p0 VALUES IN ('†') ENGINE = MyISAM,
+ PARTITION p1 VALUES IN ('') ENGINE = MyISAM) */
 insert into t1 values ('');
 insert into t1 values (_ucs2 0x2020);
 drop table t1;
