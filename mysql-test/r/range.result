@@ -1406,4 +1406,201 @@ INSERT INTO t1 VALUES (1), (NULL);
 SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
 a
 DROP TABLE t1;
+#
+# Bug#47925: regression of range optimizer and date comparison in 5.1.39!
+#
+CREATE TABLE t1 ( a DATE,     KEY ( a ) );
+CREATE TABLE t2 ( a DATETIME, KEY ( a ) );
+# Make optimizer choose range scan
+INSERT INTO t1 VALUES ('2009-09-22'), ('2009-09-22'), ('2009-09-22');
+INSERT INTO t1 VALUES ('2009-09-23'), ('2009-09-23'), ('2009-09-23');
+INSERT INTO t2 VALUES ('2009-09-22 12:00:00'), ('2009-09-22 12:00:00'),
+('2009-09-22 12:00:00');
+INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
+('2009-09-23 12:00:00');
+# DATE vs DATE
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '20090923';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >=  20090923;
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009-9-23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009.09.23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009:09:23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+# DATE vs DATETIME
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '20090923';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >=  20090923;
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009-9-23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009.09.23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009:09:23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+# DATETIME vs DATETIME
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '20090923120000';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >=  20090923120000;
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009-9-23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009.09.23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+# DATETIME vs DATE
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '20090923000000';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >=  20090923000000;
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009-9-23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009.09.23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+# Test of the new get_date_from_str implementation
+# Behavior differs slightly between the trunk and mysql-pe.
+# The former may give errors for the truncated values, while the latter
+# gives warnings. The purpose of this test is not to interfere, and only
+# preserve existing behavior.
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
+str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20'
+1
+Warnings:
+Warning	1292	Truncated incorrect date value: ''
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+str_to_date('2007-20-00', '%Y-%m-%d') <= '';
+str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+str_to_date('2007-20-00', '%Y-%m-%d') <= ''
+NULL
+Warnings:
+Warning	1292	Truncated incorrect date value: ''
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
+str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
+1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: ''
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
+str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
+NULL
+Warnings:
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+SELECT str_to_date('', '%Y-%m-%d');
+str_to_date('', '%Y-%m-%d')
+0000-00-00
+DROP TABLE t1, t2;
 End of 5.1 tests
