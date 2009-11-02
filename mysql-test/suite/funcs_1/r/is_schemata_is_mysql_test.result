@@ -10,9 +10,9 @@ SELECT * FROM information_schema.schemata
 WHERE schema_name IN ('information_schema','mysql','test')
 ORDER BY schema_name;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-NULL	information_schema	utf8	utf8_general_ci	NULL
-NULL	mysql	latin1	latin1_swedish_ci	NULL
-NULL	test	latin1	latin1_swedish_ci	NULL
+def	information_schema	utf8	utf8_general_ci	NULL
+def	mysql	latin1	latin1_swedish_ci	NULL
+def	test	latin1	latin1_swedish_ci	NULL
 SHOW DATABASES LIKE 'information_schema';
 Database (information_schema)
 information_schema
@@ -27,8 +27,8 @@ SELECT * FROM information_schema.schemata
 WHERE schema_name IN ('information_schema','mysql','test')
 ORDER BY schema_name;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-NULL	information_schema	utf8	utf8_general_ci	NULL
-NULL	test	latin1	latin1_swedish_ci	NULL
+def	information_schema	utf8	utf8_general_ci	NULL
+def	test	latin1	latin1_swedish_ci	NULL
 SHOW DATABASES LIKE 'information_schema';
 Database (information_schema)
 information_schema

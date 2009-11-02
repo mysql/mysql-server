@@ -494,6 +494,14 @@ SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a
 City Of God
 DROP TABLE t1;
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+1
+1
+drop table t1;
+show warnings;
+Level	Code	Message
 CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b));
 INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
 ('test', 1),('test', 2),('test', 3),('test', 4);

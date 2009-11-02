@@ -2882,7 +2882,6 @@ create procedure bug4902()
 begin
   show charset like 'foo';
   show collation like 'foo';
-  show column types;
   show create table t1;
   show create database test;
   show databases like 'foo';

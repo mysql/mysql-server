@@ -8304,7 +8304,7 @@ udf_expr:
 sum_expr:
           AVG_SYM '(' in_sum_expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_sum_avg($3);
+            $$= new (YYTHD->mem_root) Item_sum_avg($3, FALSE);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8412,7 +8412,7 @@ sum_expr:
           }
         | SUM_SYM '(' in_sum_expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_sum_sum($3);
+            $$= new (YYTHD->mem_root) Item_sum_sum($3, FALSE);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -10337,11 +10337,6 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
               MYSQL_YYABORT;
           }
-        | COLUMN_SYM TYPES_SYM
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_COLUMN_TYPES;
-          }
         | TABLE_SYM TYPES_SYM
           {
             LEX *lex=Lex;
@@ -10529,23 +10524,13 @@ show_param:
           }
         | PROCEDURE CODE_SYM sp_name
           {
-#ifdef DBUG_OFF
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-#else
             Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
             Lex->spname= $3;
-#endif
           }
         | FUNCTION_SYM CODE_SYM sp_name
           {
-#ifdef DBUG_OFF
-            my_parse_error(ER(ER_SYNTAX_ERROR));
-            MYSQL_YYABORT;
-#else
             Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
             Lex->spname= $3;
-#endif
           }
         | CREATE EVENT_SYM sp_name
           {

@@ -235,8 +235,10 @@ insert into t1 values (1,11), (2,22);
 insert into t2 values (1,12), (2,24);
 --error 1393
 insert into v1 (f1) values (3) on duplicate key update f3= f3 + 10;
+--error 1393
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 select * from t1;
+--error 1393
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 select * from t1;
 drop view v1;
