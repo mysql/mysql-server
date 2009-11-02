@@ -466,8 +466,12 @@ ok:
       Detach from the share if the writer is involved. Avoid others to
       be blocked. This includes a flush of the write buffer. This will
       also indicate EOF to the readers.
+      That means that a writer always gets here first and readers -
+      only when they see EOF. But if a reader finishes prematurely
+      because of an error it may reach this earlier - don't allow it
+      to detach the writer thread.
     */
-    if (sort_param->sort_info->info->rec_cache.share)
+    if (sort_param->master && sort_param->sort_info->info->rec_cache.share)
       remove_io_thread(&sort_param->sort_info->info->rec_cache);
 
     /* Readers detach from the share if any. Avoid others to be blocked. */
@@ -789,6 +793,7 @@ cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
   {
+    DBUG_ASSERT(t_file2.type == WRITE_CACHE);
     *t_file=t_file2;                            /* Copy result file */
     t_file->current_pos= &t_file->write_pos;
     t_file->current_end= &t_file->write_end;
