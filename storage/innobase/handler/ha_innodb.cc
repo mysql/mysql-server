@@ -7880,6 +7880,7 @@ ha_innobase::get_auto_increment(
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
 		ulonglong	need;
+		ulonglong	current;
 		ulonglong	next_value;
 		ulonglong	col_max_value;
 
@@ -7888,11 +7889,12 @@ ha_innobase::get_auto_increment(
 		col_max_value = innobase_get_int_col_max_value(
 			table->next_number_field);
 
+		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;
 
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
-			*first_value, need, offset, col_max_value);
+			current, need, offset, col_max_value);
 
 		prebuilt->autoinc_last_value = next_value;
 
