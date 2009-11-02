@@ -2218,6 +2218,8 @@ innobase_rollback(
 
 	innobase_release_stat_resources(trx);
 
+	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
+
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
@@ -5603,18 +5605,22 @@ ha_innobase::create(
 	setup at this stage and so we use thd. */
 
 	/* We need to copy the AUTOINC value from the old table if
-	this is an ALTER TABLE. */
+	this is an ALTER TABLE or CREATE INDEX because CREATE INDEX
+	does a table copy too. */
 
 	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
-	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
-	    && create_info->auto_increment_value != 0) {
+	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+	    || thd_sql_command(thd) == SQLCOM_CREATE_INDEX)
+	    && create_info->auto_increment_value > 0) {
 
-		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or
-		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
-		definition from the dictionary and get the current value
-		of the auto increment field. Set a new value to the
-		auto increment field if the value is greater than the
-		maximum value in the column. */
+		/* Query was one of :
+		CREATE TABLE ...AUTO_INCREMENT = x; or
+		ALTER TABLE...AUTO_INCREMENT = x;   or
+		CREATE INDEX x on t(...);
+		Find out a table definition from the dictionary and get
+		the current value of the auto increment field. Set a new
+		value to the auto increment field if the value is greater
+		than the maximum value in the column. */
 
 		auto_inc_value = create_info->auto_increment_value;
 
