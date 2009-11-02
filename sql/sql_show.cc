@@ -5608,6 +5608,12 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       {
         DBUG_RETURN(0);
       }
+      /*
+        Create a type holder, as we want the type of the item to defined
+        the type of the object, not the value
+      */
+      if (!(item= new Item_type_holder(thd, item)))
+        DBUG_RETURN(0);
       item->unsigned_flag= (fields_info->field_flags & MY_I_S_UNSIGNED);
       item->decimals= fields_info->field_length%10;
       item->max_length= (fields_info->field_length/100)%100;
