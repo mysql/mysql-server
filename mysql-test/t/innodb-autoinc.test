@@ -482,6 +482,7 @@ DROP TABLE t2;
 # 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
 # the index (PRIMARY)
 # This test requires a restart of the server
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (null);
 INSERT INTO t1 VALUES (null);
@@ -491,10 +492,12 @@ SELECT * FROM t1;
 -- source include/restart_mysqld.inc
 # The MySQL and InnoDB data dictionaries should now be out of sync.
 # The select should print message to the error log
+#-- error ER_AUTOINC_READ_FAILED,1467
 SELECT * FROM t1;
 -- error ER_AUTOINC_READ_FAILED,1467
 INSERT INTO t1 VALUES(null);
 ALTER TABLE t1 AUTO_INCREMENT = 3;
+SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -601,5 +604,16 @@ INSERT INTO t1 VALUES (NULL, NULL);
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
-
+#
 # End negative number check
+
+##
+# 47125: auto_increment start value is ignored if an index is created
+# and engine=innodb
+#
+CREATE TABLE T1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) AUTO_INCREMENT=10 ENGINE=InnoDB;
+CREATE INDEX i1 on T1(c2);
+SHOW CREATE TABLE T1;
+INSERT INTO T1 (c2) values (0);
+SELECT * FROM T1;
+DROP TABLE T1;
