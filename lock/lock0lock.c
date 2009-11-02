@@ -578,6 +578,23 @@ lock_sys_create(
 }
 
 /*********************************************************************//**
+Closes the lock system at database shutdown. */
+UNIV_INTERN
+void
+lock_sys_close(void)
+/*================*/
+{
+	if (lock_latest_err_file != NULL) {
+		fclose(lock_latest_err_file);
+		lock_latest_err_file = NULL;
+	}
+
+	hash_table_free(lock_sys->rec_hash);
+	mem_free(lock_sys);
+	lock_sys = NULL;
+}
+
+/*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
 UNIV_INTERN

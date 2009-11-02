@@ -239,6 +239,18 @@ UNIV_INTERN
 void
 recv_sys_create(void);
 /*=================*/
+/**********************************************************//**
+Release recovery system mutexes. */
+UNIV_INTERN
+void
+recv_sys_close(void);
+/*================*/
+/********************************************************//**
+Frees the recovery system memory. */
+UNIV_INTERN
+void
+recv_sys_mem_free(void);
+/*===================*/
 /********************************************************//**
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
@@ -246,6 +258,12 @@ void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
+/********************************************************//**
+Reset the state of the recovery system variables. */
+UNIV_INTERN
+void
+recv_sys_var_init(void);
+/*===================*/
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */

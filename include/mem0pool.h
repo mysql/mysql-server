@@ -62,6 +62,13 @@ mem_pool_create(
 /*============*/
 	ulint	size);	/*!< in: pool size in bytes */
 /********************************************************************//**
+Frees a memory pool. */
+UNIV_INTERN
+void
+mem_pool_free(
+/*==========*/
+	mem_pool_t*	pool);	/*!< in, own: memory pool */
+/********************************************************************//**
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
 @return	own: allocated memory buffer */

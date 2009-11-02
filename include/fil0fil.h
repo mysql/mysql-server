@@ -224,15 +224,6 @@ fil_space_create(
 				0 for uncompressed tablespaces */
 	ulint		purpose);/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 /*******************************************************************//**
-Frees a space object from a the tablespace memory cache. Closes the files in
-the chain but does not delete them.
-@return	TRUE if success */
-UNIV_INTERN
-ibool
-fil_space_free(
-/*===========*/
-	ulint	id);	/*!< in: space id */
-/*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return	space size, 0 if space not found */
@@ -277,6 +268,12 @@ fil_init(
 /*=====*/
 	ulint	hash_size,	/*!< in: hash table size */
 	ulint	max_n_open);	/*!< in: max number of open files */
+/*******************************************************************//**
+Initializes the tablespace memory cache. */
+UNIV_INTERN
+void
+fil_close(void);
+/*===========*/
 /*******************************************************************//**
 Opens all log files and system tablespace data files. They stay open until the
 database server shutdown. This should be called at a server startup after the
