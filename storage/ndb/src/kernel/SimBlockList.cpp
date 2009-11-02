@@ -145,10 +145,7 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  if (!mtLqh)
-    theList[20]  = NEW_BLOCK(Dbspj)(ctx);
-  else
-    theList[20]  = NEW_BLOCK(DbspjProxy)(ctx);
+  theList[20]  = NEW_BLOCK(Dbspj)(ctx);
   assert(NO_OF_BLOCKS == 21);
 
   if (globalData.isNdbMt) {
