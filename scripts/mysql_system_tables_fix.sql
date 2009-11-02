@@ -229,6 +229,11 @@ SET GLOBAL slow_query_log = 'OFF';
 ALTER TABLE slow_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
+ALTER TABLE plugin
+  MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
+  MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',
+  CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+
 #
 # Detect whether we had Create_view_priv
 #

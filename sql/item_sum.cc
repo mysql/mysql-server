@@ -564,6 +564,11 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
+  if (aggr)
+  {
+    DBUG_ASSERT(aggregator == aggr->Aggrtype());
+    return FALSE;
+  }
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
@@ -736,12 +741,12 @@ bool Aggregator_distinct::setup(THD *thd)
       if (list.push_back(item))
         return TRUE;                              // End of memory
       if (item->const_item() && item->is_null())
-        always_null=1;
+        always_null= true;
     }
     if (always_null)
       return FALSE;
-    count_field_types(select_lex,tmp_table_param,list,0);
-    tmp_table_param->force_copy_fields= item_sum->force_copy_fields;
+    count_field_types(select_lex, tmp_table_param, list, 0);
+    tmp_table_param->force_copy_fields= item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == 0);
     /*
       Make create_tmp_table() convert BIT columns to BIGINT.
@@ -844,7 +849,7 @@ bool Aggregator_distinct::setup(THD *thd)
     List<Create_field> field_list;
     Create_field field_def;                              /* field definition */
     Item *arg;
-    DBUG_ENTER("Item_sum_distinct::setup");
+    DBUG_ENTER("Aggregator_distinct::setup");
     /* It's legal to call setup() more than once when in a subquery */
     if (tree)
       DBUG_RETURN(FALSE);
@@ -862,12 +867,12 @@ bool Aggregator_distinct::setup(THD *thd)
 
     DBUG_ASSERT(item_sum->get_arg(0)->fixed);
 
-    arg = item_sum->get_arg(0);
+    arg= item_sum->get_arg(0);
     if (arg->const_item())
     {
       (void) arg->val_int();
       if (arg->null_value)
-        always_null=1;
+        always_null= true;
     }
 
     if (always_null)

@@ -127,3 +127,4 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 set GLOBAL sql_mode=default;
+The --upgrade-system-tables option was used, databases won't be touched.

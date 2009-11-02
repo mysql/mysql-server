@@ -1557,7 +1557,12 @@ void Field::make_field(Send_field *field)
   if (orig_table && orig_table->s->db.str && *orig_table->s->db.str)
   {
     field->db_name= orig_table->s->db.str;
-    field->org_table_name= orig_table->s->table_name.str;
+    if (orig_table->pos_in_table_list && 
+        orig_table->pos_in_table_list->schema_table)
+      field->org_table_name= (orig_table->pos_in_table_list->
+                              schema_table->table_name);
+    else
+      field->org_table_name= orig_table->s->table_name.str;
   }
   else
     field->org_table_name= field->db_name= "";

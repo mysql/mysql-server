@@ -252,7 +252,7 @@ HEX(a)
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT DELAYED INTO t1 SET b= b();
-ERROR 42S22: Unknown column 'b' in 'field list'
+ERROR 42000: FUNCTION test.b does not exist
 DROP TABLE t1;
 End of 5.0 tests
 DROP TABLE IF EXISTS t1,t2;

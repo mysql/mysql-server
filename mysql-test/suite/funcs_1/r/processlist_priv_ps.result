@@ -74,11 +74,11 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 ALTER TABLE processlist ADD COLUMN (my_column INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 RENAME TABLE processlist TO new_processlist;
-ERROR 42S02: Unknown table 'new_processlist' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 RENAME TABLE processlist TO files;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE new_processlist AS SELECT * FROM processlist;
-ERROR 42S02: Unknown table 'new_processlist' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;
@@ -141,11 +141,11 @@ ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'in
 ALTER TABLE processlist ADD COLUMN (my_column INT);
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 RENAME TABLE processlist TO new_processlist;
-ERROR 42S02: Unknown table 'new_processlist' in information_schema
+ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 RENAME TABLE processlist TO files;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 CREATE TABLE new_processlist AS SELECT * FROM processlist;
-ERROR 42S02: Unknown table 'new_processlist' in information_schema
+ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;

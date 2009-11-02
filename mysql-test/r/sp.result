@@ -2377,7 +2377,6 @@ create procedure bug4902()
 begin
 show charset like 'foo';
 show collation like 'foo';
-show column types;
 show create table t1;
 show create database test;
 show databases like 'foo';
@@ -2395,9 +2394,6 @@ end|
 call bug4902()|
 Charset	Description	Default collation	Maxlen
 Collation	Charset	Id	Default	Compiled	Sortlen
-Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
-tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
-tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
@@ -2419,9 +2415,6 @@ Level	Code	Message
 call bug4902()|
 Charset	Description	Default collation	Maxlen
 Collation	Charset	Id	Default	Compiled	Sortlen
-Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
-tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
-tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
