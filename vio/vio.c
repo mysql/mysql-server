@@ -43,7 +43,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   if ((flags & VIO_BUFFERED_READ) &&
       !(vio->read_buffer= (char*)my_malloc(VIO_READ_BUFFER_SIZE, MYF(MY_WME))))
     flags&= ~VIO_BUFFERED_READ;
-#ifdef __WIN__ 
+#ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE)
   {
     vio->viodelete	=vio_delete;
@@ -59,9 +59,16 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_ignore_timeout;
+
+    vio->timeout=vio_win32_timeout;
+    /* Set default timeout */
+    vio->read_timeout_millis = INFINITE;
+    vio->write_timeout_millis = INFINITE;
+
+    memset(&(vio->pipe_overlapped), 0, sizeof(OVERLAPPED));
+    vio->pipe_overlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
+    DBUG_VOID_RETURN;
   }
-  else					/* default is VIO_TYPE_TCPIP */
 #endif
 #ifdef HAVE_SMEM 
   if (type == VIO_TYPE_SHARED_MEMORY)
@@ -79,9 +86,14 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_ignore_timeout;
+
+    /* Currently, shared memory is on Windows only, hence the below is ok*/
+    vio->timeout= vio_win32_timeout; 
+    /* Set default timeout */
+    vio->read_timeout_millis= INFINITE;
+    vio->write_timeout_millis= INFINITE;
+    DBUG_VOID_RETURN;
   }
-  else
 #endif   
 #ifdef HAVE_OPENSSL 
   if (type == VIO_TYPE_SSL)
@@ -100,8 +112,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
+    DBUG_VOID_RETURN;
   }
-  else					/* default is VIO_TYPE_TCPIP */
 #endif /* HAVE_OPENSSL */
   {
     vio->viodelete	=vio_delete;
@@ -193,7 +205,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
 }
 
 #ifdef HAVE_SMEM
-Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_map,
+Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
                                 HANDLE event_client_wrote, HANDLE event_client_read,
                                 HANDLE event_conn_closed)
@@ -212,7 +224,6 @@ Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_m
     vio->event_conn_closed= event_conn_closed;
     vio->shared_memory_remain= 0;
     vio->shared_memory_pos= handle_map;
-    vio->net= net;
     strmov(vio->desc, "shared memory");
   }
   DBUG_RETURN(vio);
