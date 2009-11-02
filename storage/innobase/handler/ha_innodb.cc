@@ -5194,7 +5194,7 @@ create_table_def(
 		if (dict_col_name_is_reserved(field->field_name)){
 			push_warning_printf(
 				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column name '%s'. '%s' is a "
@@ -8525,7 +8525,7 @@ innobase_index_name_is_reserved(
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
 			push_warning_printf((THD*) trx->mysql_thd,
-					    MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_CANT_CREATE_TABLE,
 					    "Cannot Create Index with name "
 					    "'%s'. The name is reserved "
