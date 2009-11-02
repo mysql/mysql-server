@@ -14,7 +14,7 @@ create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
 --error ER_CANT_CREATE_TABLE
 create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
 
-show errors;
+show warnings;
 
 create table bug46000(id int) engine=innodb;
 
@@ -24,7 +24,7 @@ create table bug46000(id int) engine=innodb;
 create index GEN_CLUST_INDEX on bug46000(id);
 
 --replace_regex /'[^']*test.#sql-[0-9a-f_]*'/'#sql-temporary'/
-show errors;
+show warnings;
 
 # This 'create index' operation should succeed, no
 # temp table left from last failed create index
