@@ -2045,7 +2045,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         break;
       }
 
-      Send_field *out_param_info= new Send_field();
+      Send_field *out_param_info= new (thd->mem_root) Send_field();
       nctx->get_item(i)->make_field(out_param_info);
       out_param_info->db_name= m_db.str;
       out_param_info->table_name= m_name.str;
