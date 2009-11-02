@@ -654,11 +654,11 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
+pthread_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
 		LOCK_error_log, LOCK_uuid_generator,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
-		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
+		LOCK_crypt,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
                 LOCK_connection_count, LOCK_error_messages;
@@ -1007,7 +1007,7 @@ static void close_connections(void)
     if (tmp->vio_ok())
     {
       if (global_system_variables.log_warnings)
-        sql_print_warning(ER(ER_FORCING_CLOSE),my_progname,
+        sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
                            tmp->main_security_ctx.user : ""));
@@ -1423,7 +1423,6 @@ static void clean_up_mutexes()
 {
   (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
   (void) pthread_mutex_destroy(&LOCK_lock_db);
-  (void) pthread_mutex_destroy(&LOCK_Acl);
   (void) rwlock_destroy(&LOCK_grant);
   (void) pthread_mutex_destroy(&LOCK_open);
   (void) pthread_mutex_destroy(&LOCK_thread_count);
@@ -1435,8 +1434,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_delayed_create);
   (void) pthread_mutex_destroy(&LOCK_manager);
   (void) pthread_mutex_destroy(&LOCK_crypt);
-  (void) pthread_mutex_destroy(&LOCK_bytes_sent);
-  (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
   (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
@@ -3082,7 +3079,6 @@ SHOW_VAR com_status_vars[]= {
   {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
   {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
-  {"show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
   {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
   {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
   {"show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]), SHOW_LONG_STATUS},
@@ -3575,7 +3571,6 @@ static int init_thread_environment()
 {
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
@@ -3586,8 +3581,6 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
@@ -4175,8 +4168,7 @@ static void create_shutdown_thread()
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
-  if (pthread_create(&hThread,&connection_attrib, 
-                     handle_connections_sockets_thread, 0))
+  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 
   // On "Stop Service" we have to do regular shutdown

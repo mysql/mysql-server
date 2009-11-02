@@ -9,9 +9,9 @@ create user mysqltest_3@localhost;
 create user mysqltest_3;
 select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-NULL	mtr	latin1	latin1_swedish_ci	NULL
-NULL	mysql	latin1	latin1_swedish_ci	NULL
-NULL	test	latin1	latin1_swedish_ci	NULL
+def	mtr	latin1	latin1_swedish_ci	NULL
+def	mysql	latin1	latin1_swedish_ci	NULL
+def	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
@@ -162,7 +162,7 @@ t1
 t4
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
-NULL	mysqltest	t1	1	mysqltest	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE	
+def	mysqltest	t1	1	mysqltest	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE	
 show keys from t3 where Key_name = "a_data";
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t3	1	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE	
@@ -189,7 +189,7 @@ c	varchar(64)	utf8_general_ci	NO				select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -394,11 +394,11 @@ show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v0	select `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v1	select `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v3	select `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v4	select `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v0	select `information_schema`.`schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `information_schema`.`tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`information_schema`.`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select `information_schema`.`columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`information_schema`.`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	select `information_schema`.`character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`information_schema`.`character_sets`.`CHARACTER_SET_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v4	select `information_schema`.`collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`information_schema`.`collations`.`COLLATION_NAME` like 'latin1%')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -406,38 +406,38 @@ grant select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@local
 grant all on test.* to mysqltest_1@localhost with grant option;
 select * from information_schema.USER_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_1'@'localhost'	NULL	USAGE	NO
+'mysqltest_1'@'localhost'	def	USAGE	NO
 select * from information_schema.SCHEMA_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_1'@'localhost'	NULL	test	SELECT	YES
-'mysqltest_1'@'localhost'	NULL	test	INSERT	YES
-'mysqltest_1'@'localhost'	NULL	test	UPDATE	YES
-'mysqltest_1'@'localhost'	NULL	test	DELETE	YES
-'mysqltest_1'@'localhost'	NULL	test	CREATE	YES
-'mysqltest_1'@'localhost'	NULL	test	DROP	YES
-'mysqltest_1'@'localhost'	NULL	test	REFERENCES	YES
-'mysqltest_1'@'localhost'	NULL	test	INDEX	YES
-'mysqltest_1'@'localhost'	NULL	test	ALTER	YES
-'mysqltest_1'@'localhost'	NULL	test	CREATE TEMPORARY TABLES	YES
-'mysqltest_1'@'localhost'	NULL	test	LOCK TABLES	YES
-'mysqltest_1'@'localhost'	NULL	test	EXECUTE	YES
-'mysqltest_1'@'localhost'	NULL	test	CREATE VIEW	YES
-'mysqltest_1'@'localhost'	NULL	test	SHOW VIEW	YES
-'mysqltest_1'@'localhost'	NULL	test	CREATE ROUTINE	YES
-'mysqltest_1'@'localhost'	NULL	test	ALTER ROUTINE	YES
-'mysqltest_1'@'localhost'	NULL	test	EVENT	YES
-'mysqltest_1'@'localhost'	NULL	test	TRIGGER	YES
+'mysqltest_1'@'localhost'	def	test	SELECT	YES
+'mysqltest_1'@'localhost'	def	test	INSERT	YES
+'mysqltest_1'@'localhost'	def	test	UPDATE	YES
+'mysqltest_1'@'localhost'	def	test	DELETE	YES
+'mysqltest_1'@'localhost'	def	test	CREATE	YES
+'mysqltest_1'@'localhost'	def	test	DROP	YES
+'mysqltest_1'@'localhost'	def	test	REFERENCES	YES
+'mysqltest_1'@'localhost'	def	test	INDEX	YES
+'mysqltest_1'@'localhost'	def	test	ALTER	YES
+'mysqltest_1'@'localhost'	def	test	CREATE TEMPORARY TABLES	YES
+'mysqltest_1'@'localhost'	def	test	LOCK TABLES	YES
+'mysqltest_1'@'localhost'	def	test	EXECUTE	YES
+'mysqltest_1'@'localhost'	def	test	CREATE VIEW	YES
+'mysqltest_1'@'localhost'	def	test	SHOW VIEW	YES
+'mysqltest_1'@'localhost'	def	test	CREATE ROUTINE	YES
+'mysqltest_1'@'localhost'	def	test	ALTER ROUTINE	YES
+'mysqltest_1'@'localhost'	def	test	EVENT	YES
+'mysqltest_1'@'localhost'	def	test	TRIGGER	YES
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_1'@'localhost'	NULL	test	t1	SELECT	NO
-'mysqltest_1'@'localhost'	NULL	test	t1	INSERT	NO
-'mysqltest_1'@'localhost'	NULL	test	t1	UPDATE	NO
+'mysqltest_1'@'localhost'	def	test	t1	SELECT	NO
+'mysqltest_1'@'localhost'	def	test	t1	INSERT	NO
+'mysqltest_1'@'localhost'	def	test	t1	UPDATE	NO
 select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_1'@'localhost'	NULL	test	t1	a	SELECT	NO
-'mysqltest_1'@'localhost'	NULL	test	t1	a	INSERT	NO
-'mysqltest_1'@'localhost'	NULL	test	t1	a	UPDATE	NO
-'mysqltest_1'@'localhost'	NULL	test	t1	a	REFERENCES	NO
+'mysqltest_1'@'localhost'	def	test	t1	a	SELECT	NO
+'mysqltest_1'@'localhost'	def	test	t1	a	INSERT	NO
+'mysqltest_1'@'localhost'	def	test	t1	a	UPDATE	NO
+'mysqltest_1'@'localhost'	def	test	t1	a	REFERENCES	NO
 delete from mysql.user where user like 'mysqltest%';
 delete from mysql.db where user like 'mysqltest%';
 delete from mysql.tables_priv where user like 'mysqltest%';
@@ -460,17 +460,17 @@ t1	CREATE TABLE `t1` (
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	PRIMARY	test	t1	PRIMARY KEY
-NULL	test	constraint_1	test	t1	UNIQUE
-NULL	test	key_1	test	t1	UNIQUE
-NULL	test	key_2	test	t1	UNIQUE
+def	test	PRIMARY	test	t1	PRIMARY KEY
+def	test	constraint_1	test	t1	UNIQUE
+def	test	key_1	test	t1	UNIQUE
+def	test	key_2	test	t1	UNIQUE
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	NULL	test	t1	a	1	NULL	NULL	NULL	NULL
-NULL	test	constraint_1	NULL	test	t1	a	1	NULL	NULL	NULL	NULL
-NULL	test	key_1	NULL	test	t1	a	1	NULL	NULL	NULL	NULL
-NULL	test	key_2	NULL	test	t1	a	1	NULL	NULL	NULL	NULL
+def	test	PRIMARY	def	test	t1	a	1	NULL	NULL	NULL	NULL
+def	test	constraint_1	def	test	t1	a	1	NULL	NULL	NULL	NULL
+def	test	key_1	def	test	t1	a	1	NULL	NULL	NULL	NULL
+def	test	key_2	def	test	t1	a	1	NULL	NULL	NULL	NULL
 select table_name from information_schema.TABLES where table_schema like "test%";
 table_name
 t1
@@ -491,13 +491,13 @@ create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'joe'@'localhost'	NULL	test	t1	a	SELECT	YES
+'joe'@'localhost'	def	test	t1	a	SELECT	YES
 select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 drop view v1, v2, v3;
@@ -641,7 +641,7 @@ TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 use test;
 show tables;
 Tables_in_test
@@ -895,17 +895,17 @@ end if;
 end	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	begin
+def	test	trg1	INSERT	def	test	t1	0	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	begin
+def	test	trg2	UPDATE	def	test	t1	0	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	begin
+def	test	trg3	UPDATE	def	test	t1	0	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
@@ -923,14 +923,14 @@ grant select on mysqltest.* to user3@localhost;
 grant select on *.* to user4@localhost;
 select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'user1'@'localhost'	NULL	mysqltest	t1	f1	SELECT	NO
+'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
 select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.schema_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.user_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'user1'@'localhost'	NULL	USAGE	NO
+'user1'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user1@localhost
 GRANT USAGE ON *.* TO 'user1'@'localhost'
@@ -939,12 +939,12 @@ select * from information_schema.column_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'user2'@'localhost'	NULL	mysqltest	t2	SELECT	NO
+'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
 select * from information_schema.schema_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.user_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'user2'@'localhost'	NULL	USAGE	NO
+'user2'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user2@localhost
 GRANT USAGE ON *.* TO 'user2'@'localhost'
@@ -955,10 +955,10 @@ select * from information_schema.table_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 select * from information_schema.schema_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'user3'@'localhost'	NULL	mysqltest	SELECT	NO
+'user3'@'localhost'	def	mysqltest	SELECT	NO
 select * from information_schema.user_privileges order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'user3'@'localhost'	NULL	USAGE	NO
+'user3'@'localhost'	def	USAGE	NO
 show grants;
 Grants for user3@localhost
 GRANT USAGE ON *.* TO 'user3'@'localhost'
@@ -966,22 +966,22 @@ GRANT SELECT ON `mysqltest`.* TO 'user3'@'localhost'
 select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'user1'@'localhost'	NULL	mysqltest	t1	f1	SELECT	NO
+'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
 select * from information_schema.table_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'user2'@'localhost'	NULL	mysqltest	t2	SELECT	NO
+'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
 select * from information_schema.schema_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-'user3'@'localhost'	NULL	mysqltest	SELECT	NO
+'user3'@'localhost'	def	mysqltest	SELECT	NO
 select * from information_schema.user_privileges where grantee like '%user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'user1'@'localhost'	NULL	USAGE	NO
-'user2'@'localhost'	NULL	USAGE	NO
-'user3'@'localhost'	NULL	USAGE	NO
-'user4'@'localhost'	NULL	SELECT	NO
+'user1'@'localhost'	def	USAGE	NO
+'user2'@'localhost'	def	USAGE	NO
+'user3'@'localhost'	def	USAGE	NO
+'user4'@'localhost'	def	SELECT	NO
 show grants;
 Grants for user4@localhost
 GRANT SELECT ON *.* TO 'user4'@'localhost'
@@ -1177,8 +1177,8 @@ sql security definer view v2 as select 1;
 select * from information_schema.views
 where table_name='v1' or table_name='v2';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select 1 AS `1`	NONE	NO	mysqltest_1@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select 1 AS `1`	NONE	NO	mysqltest_1@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
@@ -1470,7 +1470,7 @@ CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_P
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'test';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-NULL	test	latin1	latin1_swedish_ci	NULL
+def	test	latin1	latin1_swedish_ci	NULL
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='nonexisting';
 count(*)
 0
@@ -1488,7 +1488,7 @@ AS SELECT *
 FROM information_schema.tables;
 SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
 VIEW_DEFINITION
-select `tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`tables`.`TABLE_NAME` AS `TABLE_NAME`,`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`tables`.`ENGINE` AS `ENGINE`,`tables`.`VERSION` AS `VERSION`,`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`tables`.`DATA_FREE` AS `DATA_FREE`,`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`tables`.`CREATE_TIME` AS `CREATE_TIME`,`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`tables`.`CHECK_TIME` AS `CHECK_TIME`,`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`tables`.`CHECKSUM` AS `CHECKSUM`,`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`
+select `information_schema`.`tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`information_schema`.`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`information_schema`.`tables`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`information_schema`.`tables`.`ENGINE` AS `ENGINE`,`information_schema`.`tables`.`VERSION` AS `VERSION`,`information_schema`.`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`information_schema`.`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`information_schema`.`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`information_schema`.`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`information_schema`.`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`information_schema`.`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`information_schema`.`tables`.`DATA_FREE` AS `DATA_FREE`,`information_schema`.`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`information_schema`.`tables`.`CREATE_TIME` AS `CREATE_TIME`,`information_schema`.`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`information_schema`.`tables`.`CHECK_TIME` AS `CHECK_TIME`,`information_schema`.`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`information_schema`.`tables`.`CHECKSUM` AS `CHECKSUM`,`information_schema`.`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`information_schema`.`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`
 DROP VIEW v1;
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME ='information_schema';
@@ -1644,3 +1644,66 @@ TEST_RESULT
 OK
 SET TIMESTAMP=DEFAULT;
 End of 5.1 tests.
+create table information_schema.t1 (f1 INT);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop table information_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop temporary table if exists information_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create temporary table information_schema.t1 (f1 INT);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop view information_schema.v1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create view information_schema.v1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create trigger mysql.trg1 after insert on information_schema.t1 for each row set @a=1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+create table t1 select * from information_schema.t1;
+ERROR 42S02: Unknown table 't1' in information_schema
+CREATE TABLE t1(f1 char(100));
+REPAIR TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CHECKSUM TABLE t1, information_schema.tables;
+Table	Checksum
+test.t1	0
+information_schema.tables	0
+ANALYZE TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CHECK TABLE t1, information_schema.tables;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+information_schema.tables	check	note	The storage engine for the table doesn't support check
+OPTIMIZE TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+RENAME TABLE v1 to v2, information_schema.tables to t2;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE t1, information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+LOCK TABLES t1 READ, information_schema.tables READ;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE t1;
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	KEY_COLUMN_USAGE	ALL	NULL	NULL	NULL	NULL	NULL	Open_full_table; Scanned all databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	PARTITIONS	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	REFERENTIAL_CONSTRAINTS	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TABLE_CONSTRAINTS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 0 databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE EVENT_OBJECT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+SELECT *
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+LEFT JOIN INFORMATION_SCHEMA.COLUMNS 
+USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME) 
+WHERE COLUMNS.TABLE_SCHEMA = 'test' 
+AND COLUMNS.TABLE_NAME = 't1';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT

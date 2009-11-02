@@ -3927,7 +3927,7 @@ const char *Natural_join_column::db_name()
   DBUG_ASSERT(!strcmp(table_ref->db,
                       table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               table_ref->table->s->db.str[0] == 0));
+               is_schema_db(table_ref->table->s->db.str)));
   return table_ref->db;
 }
 
@@ -4145,7 +4145,7 @@ const char *Field_iterator_table_ref::get_db_name()
   */
   DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               table_ref->table->s->db.str[0] == 0));
+               is_schema_db(table_ref->table->s->db.str)));
 
   return table_ref->db;
 }

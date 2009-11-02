@@ -29,7 +29,7 @@ DROP FUNCTION test.f1;
 DESCRIBE          information_schema.ROUTINES;
 Field	Type	Null	Key	Default	Extra
 SPECIFIC_NAME	varchar(64)	NO			
-ROUTINE_CATALOG	varchar(512)	YES		NULL	
+ROUTINE_CATALOG	varchar(512)	NO			
 ROUTINE_SCHEMA	varchar(64)	NO			
 ROUTINE_NAME	varchar(64)	NO			
 ROUTINE_TYPE	varchar(9)	NO			
@@ -55,7 +55,7 @@ SHOW CREATE TABLE information_schema.ROUTINES;
 Table	Create Table
 ROUTINES	CREATE TEMPORARY TABLE `ROUTINES` (
   `SPECIFIC_NAME` varchar(64) NOT NULL DEFAULT '',
-  `ROUTINE_CATALOG` varchar(512) DEFAULT NULL,
+  `ROUTINE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `ROUTINE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `ROUTINE_NAME` varchar(64) NOT NULL DEFAULT '',
   `ROUTINE_TYPE` varchar(9) NOT NULL DEFAULT '',
@@ -81,7 +81,7 @@ ROUTINES	CREATE TEMPORARY TABLE `ROUTINES` (
 SHOW COLUMNS FROM information_schema.ROUTINES;
 Field	Type	Null	Key	Default	Extra
 SPECIFIC_NAME	varchar(64)	NO			
-ROUTINE_CATALOG	varchar(512)	YES		NULL	
+ROUTINE_CATALOG	varchar(512)	NO			
 ROUTINE_SCHEMA	varchar(64)	NO			
 ROUTINE_NAME	varchar(64)	NO			
 ROUTINE_TYPE	varchar(9)	NO			
@@ -117,6 +117,8 @@ OR external_language IS NOT NULL OR sql_path        IS NOT NULL
 OR routine_body      <> 'SQL'    OR parameter_style <> 'SQL'
    OR specific_name     <> routine_name);
 specific_name	routine_catalog	routine_schema	routine_name	routine_type	routine_body	external_name	external_language	parameter_style	sql_path
+function_for_routines	def	test	function_for_routines	FUNCTION	SQL	NULL	NULL	SQL	NULL
+sp_for_routines	def	test	sp_for_routines	PROCEDURE	SQL	NULL	NULL	SQL	NULL
 DROP PROCEDURE sp_for_routines;
 DROP FUNCTION  function_for_routines;
 ################################################################################
@@ -163,12 +165,12 @@ FLUSH PRIVILEGES;
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.routines;
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-sp_6_408002_1	NULL	db_datadict	sp_6_408002_1	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-sp_6_408002_2	NULL	db_datadict_2	sp_6_408002_2	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+sp_6_408002_1	def	db_datadict	sp_6_408002_1	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+sp_6_408002_2	def	db_datadict_2	sp_6_408002_2	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.routines;
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-sp_6_408002_2	NULL	db_datadict_2	sp_6_408002_2	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+sp_6_408002_2	def	db_datadict_2	sp_6_408002_2	PROCEDURE	NULL	SQL	NULL	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss			root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Establish connection testuser3 (user=testuser3)
 SELECT * FROM information_schema.routines;
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -192,7 +194,7 @@ CREATE FUNCTION function_for_routines() RETURNS INT RETURN 0;
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 SPECIFIC_NAME	function_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	function_for_routines
 ROUTINE_TYPE	FUNCTION
@@ -215,7 +217,7 @@ CHARACTER_SET_CLIENT	latin1
 COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SPECIFIC_NAME	sp_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	sp_for_routines
 ROUTINE_TYPE	PROCEDURE
@@ -242,7 +244,7 @@ ALTER FUNCTION function_for_routines COMMENT 'updated comments';
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 SPECIFIC_NAME	function_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	function_for_routines
 ROUTINE_TYPE	FUNCTION
@@ -265,7 +267,7 @@ CHARACTER_SET_CLIENT	latin1
 COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SPECIFIC_NAME	sp_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	sp_for_routines
 ROUTINE_TYPE	PROCEDURE
@@ -296,7 +298,7 @@ CREATE FUNCTION function_for_routines() RETURNS INT RETURN 0;
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 SPECIFIC_NAME	function_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	function_for_routines
 ROUTINE_TYPE	FUNCTION
@@ -319,7 +321,7 @@ CHARACTER_SET_CLIENT	latin1
 COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SPECIFIC_NAME	sp_for_routines
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	sp_for_routines
 ROUTINE_TYPE	PROCEDURE
@@ -484,7 +486,7 @@ abc	98765	99999999	98765	2010
 SELECT *, LENGTH(routine_definition) FROM information_schema.routines
 WHERE routine_schema = 'db_datadict';
 SPECIFIC_NAME	sp_6_408004
-ROUTINE_CATALOG	NULL
+ROUTINE_CATALOG	def
 ROUTINE_SCHEMA	db_datadict
 ROUTINE_NAME	sp_6_408004
 ROUTINE_TYPE	PROCEDURE

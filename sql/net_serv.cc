@@ -91,7 +91,6 @@ void sql_print_error(const char *format,...);
 */
 extern uint test_flags;
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
-extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #ifndef MYSQL_INSTANCE_MANAGER
 #ifdef HAVE_QUERY_CACHE
 #define USE_QUERY_CACHE
