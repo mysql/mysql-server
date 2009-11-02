@@ -814,7 +814,7 @@ create table t1 select last_day('2000-02-05') as a,
 from_days(to_days("960101")) as b;
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	date	NO		0000-00-00	
+a	date	YES		NULL	
 b	date	YES		NULL	
 select * from t1;
 a	b

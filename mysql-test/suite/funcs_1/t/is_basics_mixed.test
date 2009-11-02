@@ -468,25 +468,20 @@ DROP DATABASE db_datadict;
 --disable_warnings
 DROP PROCEDURE IF EXISTS test.p1;
 --enable_warnings
+--error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE test.p1()
 INSERT INTO information_schema.tables
 SELECT * FROM information_schema.tables LIMIT 1;
---error ER_DBACCESS_DENIED_ERROR
-CALL test.p1();
 
-DROP PROCEDURE test.p1;
 CREATE PROCEDURE test.p1()
 UPDATE information_schema.columns SET table_schema = 'garbage';
 --error ER_DBACCESS_DENIED_ERROR
 CALL test.p1();
 
 DROP PROCEDURE test.p1;
+--error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE test.p1()
 DELETE FROM information_schema.schemata;
---error ER_DBACCESS_DENIED_ERROR
-CALL test.p1();
-
-DROP PROCEDURE test.p1;
 
 
 --echo #########################################################################

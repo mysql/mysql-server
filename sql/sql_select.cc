@@ -2094,8 +2094,10 @@ JOIN::exec()
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 				      1, TRUE) || 
-        prepare_sum_aggregators (curr_join->sum_funcs, !curr_join->join_tab ||
-                                !curr_join->join_tab->is_using_agg_loose_index_scan()) ||
+        prepare_sum_aggregators(curr_join->sum_funcs,
+                                !curr_join->join_tab ||
+                                !curr_join->join_tab->
+                                  is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
         thd->is_fatal_error)
       DBUG_VOID_RETURN;
@@ -2689,7 +2691,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	goto error;		// Fatal error
     }
     else
+    {
       found_const_table_map|= s->table->map;
+      s->table->pos_in_table_list->optimized_away= TRUE;
+    }
   }
 
   /* loop until no more const tables are found */
@@ -3631,16 +3636,16 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       Item_func *arg0=(Item_func *)(func->arguments()[0]),
                 *arg1=(Item_func *)(func->arguments()[1]);
       if (arg1->const_item()  &&
-          ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val_real() >=0))  &&
            arg0->type() == Item::FUNC_ITEM            &&
-           arg0->functype() == Item_func::FT_FUNC)
+           arg0->functype() == Item_func::FT_FUNC     &&
+          ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
+           (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
         cond_func=(Item_func_match *) arg0;
       else if (arg0->const_item() &&
-               ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)) &&
                 arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC)
+                arg1->functype() == Item_func::FT_FUNC   &&
+               ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
+                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
         cond_func=(Item_func_match *) arg1;
     }
   }
@@ -4005,7 +4010,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
       join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
     return false;
 
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
+  if (join->make_sum_func_list(join->all_fields, join->fields_list, true))
     return false;
 
   for (sum_item_ptr= join->sum_funcs; *sum_item_ptr; sum_item_ptr++)
@@ -4346,7 +4351,8 @@ best_access_path(JOIN      *join,
                 in ReuseRangeEstimateForRef-3.
               */
               if (table->quick_keys.is_set(key) &&
-                  const_part & (1 << table->quick_key_parts[key]) &&
+                  (const_part & ((1 << table->quick_key_parts[key])-1)) ==
+                  ((1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
               {
@@ -9943,6 +9949,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
+  if (param->schema_table)
+    share->db= INFORMATION_SCHEMA_NAME;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -15471,10 +15479,10 @@ static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
 static bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 {
   Item_sum *func;
-  DBUG_ENTER("setup_sum_funcs");
+  DBUG_ENTER("prepare_sum_aggregators");
   while ((func= *(func_ptr++)))
   {
-    if (func->set_aggregator(need_distinct && func->with_distinct ?
+    if (func->set_aggregator(need_distinct && func->has_with_distinct() ?
                              Aggregator::DISTINCT_AGGREGATOR :
                              Aggregator::SIMPLE_AGGREGATOR))
       DBUG_RETURN(TRUE);
@@ -16591,18 +16599,35 @@ static void print_join(THD *thd,
 {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
-  TABLE_LIST **table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
-                                                tables->elements);
-  if (table == 0)
+  TABLE_LIST **table;
+  uint non_const_tables= 0;
+
+  for (TABLE_LIST *t= ti++; t ; t= ti++)
+    if (!t->optimized_away)
+      non_const_tables++;
+  if (!non_const_tables)
+  {
+    str->append(STRING_WITH_LEN("dual"));
+    return; // all tables were optimized away
+  }
+  ti.rewind();
+
+  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
+                                                non_const_tables)))
     return;  // out of memory
 
-  for (TABLE_LIST **t= table + (tables->elements - 1); t >= table; t--)
-    *t= ti++;
+  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
+  while ((tmp= ti++))
+  {
+    if (tmp->optimized_away)
+      continue;
+    *t--= tmp;
+  }
 
   DBUG_ASSERT(tables->elements >= 1);
   (*table)->print(thd, str, query_type);
 
-  TABLE_LIST **end= table + tables->elements;
+  TABLE_LIST **end= table + non_const_tables;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;

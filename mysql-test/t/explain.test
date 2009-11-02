@@ -167,4 +167,16 @@ flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
 
+
+--echo #
+--echo # Bug#30302: Tables that were optimized away are printed in the
+--echo #            EXPLAIN EXTENDED warning.
+--echo #
+create table t1(f1 int);
+create table t2(f2 int);
+insert into t1 values(1);
+insert into t2 values(1),(2);
+explain extended select * from t1 where f1=1;
+explain extended select * from t1 join t2 on f1=f2 where f1=1;
+drop table t1,t2;
 --echo End of 5.1 tests.

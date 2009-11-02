@@ -460,7 +460,7 @@ retry:
                          hash_tables->db, hash_tables->table_name,
                          hash_tables->alias, table));
     }
-
+    table->pos_in_table_list= tables;
 #if MYSQL_VERSION_ID < 40100
     if (*tables->db && strcmp(table->table_cache_key, tables->db))
     {

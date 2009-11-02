@@ -205,6 +205,7 @@ enum enum_server_command
   number of result set columns.
 */
 #define SERVER_STATUS_METADATA_CHANGED 1024
+#define SERVER_QUERY_WAS_SLOW          2048
 
 /**
   Server status flags that must be cleared when starting
