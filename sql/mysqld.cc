@@ -1739,7 +1739,7 @@ static void network_init(void)
     saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
     saPipeSecurity.bInheritHandle = FALSE;
     if ((hPipe= CreateNamedPipe(pipe_name,
-				PIPE_ACCESS_DUPLEX,
+				PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
 				PIPE_TYPE_BYTE |
 				PIPE_READMODE_BYTE |
 				PIPE_WAIT,
@@ -5232,17 +5232,26 @@ pthread_handler_t handle_connections_sockets_thread(void *arg)
 pthread_handler_t handle_connections_namedpipes(void *arg)
 {
   HANDLE hConnectedPipe;
-  BOOL fConnected;
+  OVERLAPPED connectOverlapped = {0};
   THD *thd;
   my_thread_init();
   DBUG_ENTER("handle_connections_namedpipes");
-  (void) my_pthread_getprio(pthread_self());		// For debugging
+  connectOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
   DBUG_PRINT("general",("Waiting for named pipe connections."));
   while (!abort_loop)
   {
     /* wait for named pipe connection */
-    fConnected = ConnectNamedPipe(hPipe, NULL);
+    BOOL fConnected= ConnectNamedPipe(hPipe, &connectOverlapped);
+    if (!fConnected && (GetLastError() == ERROR_IO_PENDING))
+    {
+        /*
+          ERROR_IO_PENDING says async IO has started but not yet finished.
+          GetOverlappedResult will wait for completion.
+        */
+        DWORD bytes;
+        fConnected= GetOverlappedResult(hPipe, &connectOverlapped,&bytes, TRUE);
+    }
     if (abort_loop)
       break;
     if (!fConnected)
@@ -5251,7 +5260,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     {
       CloseHandle(hPipe);
       if ((hPipe= CreateNamedPipe(pipe_name,
-                                  PIPE_ACCESS_DUPLEX,
+                                  PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
                                   PIPE_TYPE_BYTE |
                                   PIPE_READMODE_BYTE |
                                   PIPE_WAIT,
@@ -5271,7 +5280,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
     if ((hPipe = CreateNamedPipe(pipe_name,
-				 PIPE_ACCESS_DUPLEX,
+				 PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |
 				 PIPE_WAIT,
@@ -5293,7 +5302,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
       CloseHandle(hConnectedPipe);
       continue;
     }
-    if (!(thd->net.vio = vio_new_win32pipe(hConnectedPipe)) ||
+    if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -5304,7 +5313,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
     create_new_thread(thd);
   }
-
+  CloseHandle(connectOverlapped.hEvent);
   decrement_handler_count();
   DBUG_RETURN(0);
 }
@@ -5481,8 +5490,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
       errmsg= "Could not set client to read mode";
       goto errorconn;
     }
-    if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
-                                                   handle_client_file_map,
+    if (!(thd->net.vio= vio_new_win32shared_memory(handle_client_file_map,
                                                    handle_client_map,
                                                    event_client_wrote,
                                                    event_client_read,
