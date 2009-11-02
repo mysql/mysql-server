@@ -73,6 +73,7 @@ private:
     ,ZWAIT_OLD_SCAN = 46
     ,ZLCP_TRY_LOCK = 47
     ,ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX = 48
+    ,ZTO_START_LOGGING = 49
   };
 };
 
