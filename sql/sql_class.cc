@@ -2723,9 +2723,11 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      suv->fix_fields(thd, 0);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN (1);
       suv->save_item_result(item);
-      suv->update();
+      if (suv->update())
+        DBUG_RETURN (1);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -3043,6 +3045,11 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
 }
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
+}
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
@@ -3215,6 +3222,16 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
+    /*
+      Aborted transactions can not be IGNOREd.
+      Switch off the IGNORE flag for the current
+      SELECT_LEX. This should allow my_error()
+      to report the error and abort the execution
+      flow, even in presence
+      of IGNORE clause.
+    */
+    if (thd->lex->current_select)
+      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************
