@@ -2946,7 +2946,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile libmysql_r/Makefile client/Makefile dnl
  sql/Makefile sql/share/Makefile dnl
- sql/sql_builtin.cc sql-common/Makefile dnl
+ sql/sql_builtin.cc sql-common/Makefile libservices/Makefile dnl
  dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl

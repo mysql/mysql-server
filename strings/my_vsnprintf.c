@@ -472,6 +472,8 @@ start:
 /**
   Produces output string according to a format string
 
+  See the detailed documentation around my_snprintf_service_st
+
   @param cs         string charset
   @param to         buffer where processed string will be place
   @param n          size of buffer
