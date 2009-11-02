@@ -3243,7 +3243,10 @@ ha_innobase::store_key_val_for_row(
 		} else if (mysql_type == MYSQL_TYPE_TINY_BLOB
 			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
 			|| mysql_type == MYSQL_TYPE_BLOB
-			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB
+			/* MYSQL_TYPE_GEOMETRY data is treated
+			as BLOB data in innodb. */
+			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
 
 			CHARSET_INFO*	cs;
 			ulint		key_len;
