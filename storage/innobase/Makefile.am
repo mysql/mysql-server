@@ -156,8 +156,8 @@ libinnobase_a_SOURCES=	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c		\
 			handler/ha_innodb.cc
 
-libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
-libinnobase_a_CFLAGS=	$(AM_CFLAGS)
+libinnobase_a_CXXFLAGS=-Werror 	$(AM_CFLAGS)
+libinnobase_a_CFLAGS=-Werror 	$(AM_CFLAGS)
 
 EXTRA_LTLIBRARIES=	ha_innodb.la
 pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
