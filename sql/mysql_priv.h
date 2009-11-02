@@ -1326,7 +1326,6 @@ void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
 void reset_status_vars();
-
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 /* log tables */
