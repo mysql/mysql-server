@@ -521,10 +521,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 169 shift/reduce conflicts.
+  Currently there are 168 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 169
+%expect 168
 
 /*
    Comments for TOKENS.
@@ -1118,6 +1118,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
 %token  WITH                          /* SQL-2003-R */
+%token  WITH_CUBE_SYM                 /* INTERNAL */
+%token  WITH_ROLLUP_SYM               /* INTERNAL */
 %token  WORK_SYM                      /* SQL-2003-N */
 %token  WRAPPER_SYM
 %token  WRITE_SYM                     /* SQL-2003-N */
@@ -9153,8 +9155,15 @@ group_list:
 
 olap_opt:
           /* empty */ {}
-        | WITH CUBE_SYM
+        | WITH_CUBE_SYM
           {
+            /*
+              'WITH CUBE' is reserved in the MySQL syntax, but not implemented,
+              and cause LALR(2) conflicts.
+              This syntax is not standard.
+              MySQL syntax: GROUP BY col1, col2, col3 WITH CUBE
+              SQL-2003: GROUP BY ... CUBE(col1, col2, col3)
+            */
             LEX *lex=Lex;
             if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
             {
@@ -9164,10 +9173,17 @@ olap_opt:
             }
             lex->current_select->olap= CUBE_TYPE;
             my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CUBE");
-            MYSQL_YYABORT; /* To be deleted in 5.1 */
+            MYSQL_YYABORT;
           }
-        | WITH ROLLUP_SYM
+        | WITH_ROLLUP_SYM
           {
+            /*
+              'WITH ROLLUP' is needed for backward compatibility,
+              and cause LALR(2) conflicts.
+              This syntax is not standard.
+              MySQL syntax: GROUP BY col1, col2, col3 WITH ROLLUP
+              SQL-2003: GROUP BY ... ROLLUP(col1, col2, col3)
+            */
             LEX *lex= Lex;
             if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
             {
