@@ -572,6 +572,18 @@ UNIV_INTERN
 void
 log_refresh_stats(void);
 /*===================*/
+/**********************************************************
+Shutdown the log system but do not release all the memory. */
+UNIV_INTERN
+void
+log_shutdown(void);
+/*==============*/
+/**********************************************************
+Free the log system data structures. */
+UNIV_INTERN
+void
+log_mem_free(void);
+/*==============*/
 
 extern log_t*	log_sys;
 
@@ -584,7 +596,7 @@ extern log_t*	log_sys;
 #define LOG_RECOVER	98887331
 
 /* The counting of lsn's starts from this value: this must be non-zero */
-#define LOG_START_LSN	((ib_uint64_t) (16 * OS_FILE_LOG_BLOCK_SIZE))
+#define LOG_START_LSN		((ib_uint64_t) (16 * OS_FILE_LOG_BLOCK_SIZE))
 
 #define LOG_BUFFER_SIZE		(srv_log_buffer_size * UNIV_PAGE_SIZE)
 #define LOG_ARCHIVE_BUF_SIZE	(srv_log_buffer_size * UNIV_PAGE_SIZE / 4)
@@ -721,9 +733,12 @@ struct log_group_struct{
 	ulint		lsn_offset;	/*!< the offset of the above lsn */
 	ulint		n_pending_writes;/*!< number of currently pending flush
 					writes for this log group */
+	byte**		file_header_bufs_ptr;/*!< unaligned buffers */
 	byte**		file_header_bufs;/*!< buffers for each file
 					header in the group */
+#ifdef UNIV_LOG_ARCHIVE
 	/*-----------------------------*/
+	byte**		archive_file_header_bufs_ptr;/*!< unaligned buffers */
 	byte**		archive_file_header_bufs;/*!< buffers for each file
 					header in the group */
 	ulint		archive_space_id;/*!< file space which
@@ -742,10 +757,12 @@ struct log_group_struct{
 					completion function then sets the new
 					value to ..._file_no */
 	ulint		next_archived_offset; /*!< like the preceding field */
+#endif /* UNIV_LOG_ARCHIVE */
 	/*-----------------------------*/
 	ib_uint64_t	scanned_lsn;	/*!< used only in recovery: recovery scan
 					succeeded up to this lsn in this log
 					group */
+	byte*		checkpoint_buf_ptr;/*!< unaligned checkpoint header */
 	byte*		checkpoint_buf;	/*!< checkpoint header is written from
 					this buffer to the group */
 	UT_LIST_NODE_T(log_group_t)
@@ -763,6 +780,7 @@ struct log_struct{
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< mutex protecting the log */
 #endif /* !UNIV_HOTBACKUP */
+	byte*		buf_ptr;	/* unaligned log buffer */
 	byte*		buf;		/*!< log buffer */
 	ulint		buf_size;	/*!< log buffer size in bytes */
 	ulint		max_buf_free;	/*!< recommended maximum value of
@@ -899,6 +917,7 @@ struct log_struct{
 					should wait for this without owning
 					the log mutex */
 #endif /* !UNIV_HOTBACKUP */
+	byte*		checkpoint_buf_ptr;/* unaligned checkpoint header */
 	byte*		checkpoint_buf;	/*!< checkpoint header is read to this
 					buffer */
 	/* @} */

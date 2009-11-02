@@ -82,6 +82,13 @@ void
 mem_init(
 /*=====*/
 	ulint	size);	/*!< in: common pool size in bytes */
+/******************************************************************//**
+Closes the memory system. */
+UNIV_INTERN
+void
+mem_close(void);
+/*===========*/
+
 /**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */

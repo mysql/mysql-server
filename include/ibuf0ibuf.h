@@ -356,6 +356,12 @@ void
 ibuf_print(
 /*=======*/
 	FILE*	file);	/*!< in: file where to print */
+/******************************************************************//**
+Closes insert buffer and frees the data structures. */
+UNIV_INTERN
+void
+ibuf_close(void);
+/*============*/
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
