@@ -649,6 +649,14 @@ void Dbdih::execCONTINUEB(Signal* signal)
     mutex.unlock();
     return;
   }
+  case DihContinueB::ZTO_START_LOGGING:
+  {
+    jam();
+    TakeOverRecordPtr takeOverPtr;
+    c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
+    nr_start_logging(signal, takeOverPtr);
+    return;
+  }
   
   }//switch
   
@@ -3249,7 +3257,7 @@ Dbdih::check_force_lcp(Ptr<TakeOverRecord> takeOverPtr)
       }
     }
   }
-  add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));  
+  add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
 }
 
 void Dbdih::execEND_TOREQ(Signal* signal)
@@ -3329,7 +3337,8 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
   getFragstore(tabPtr.p, fragId, fragPtr);
   RETURN_IF_NODE_NOT_ALIVE(tdestNodeid);
   ReplicaRecordPtr frReplicaPtr;
-  findReplica(frReplicaPtr, fragPtr.p, tFailedNodeId, true);
+  findReplica(frReplicaPtr, fragPtr.p, tFailedNodeId,
+              replicaType == CreateFragReq::START_LOGGING ? false : true);
   if (frReplicaPtr.i == RNIL)
   {
     dump_replica_info(fragPtr.p);
@@ -3362,6 +3371,9 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
     removeOldStoredReplica(fragPtr, frReplicaPtr);
     linkStoredReplica(fragPtr, frReplicaPtr);
     updateNodeInfo(fragPtr);
+    break;
+  case CreateFragReq::START_LOGGING:
+    jam();
     break;
   default:
     ndbrequire(false);
@@ -3651,6 +3663,84 @@ Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
   takeOverPtr.p->toCurrentFragid = 0;
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_RUN_REDO;
   sendSTART_RECREQ(signal, takeOverPtr.p->toStartingNode, takeOverPtr.i);
+}
+
+void
+Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
+{
+  Uint32 loopCount = 0 ;
+  TabRecordPtr tabPtr;
+  while (loopCount++ < 100)
+  {
+    tabPtr.i = takeOverPtr.p->toCurrentTabref;
+    if (tabPtr.i >= ctabFileSize)
+    {
+      jam();
+      takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_END_TO;
+      EndToReq* req = (EndToReq*)signal->getDataPtrSend();
+      req->senderData = takeOverPtr.i;
+      req->senderRef = reference();
+      req->flags = takeOverPtr.p->m_flags;
+      sendSignal(cmasterdihref, GSN_END_TOREQ,
+                 signal, EndToReq::SignalLength, JBB);
+
+      return;
+    }
+    ptrAss(tabPtr, tabRecord);
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE ||
+	tabPtr.p->tabStorage != TabRecord::ST_NORMAL)
+    {
+      jam();
+      takeOverPtr.p->toCurrentFragid = 0;
+      takeOverPtr.p->toCurrentTabref++;
+      continue;
+    }
+
+    Uint32 fragId = takeOverPtr.p->toCurrentFragid;
+    if (fragId >= tabPtr.p->totalfragments)
+    {
+      jam();
+      takeOverPtr.p->toCurrentFragid = 0;
+      takeOverPtr.p->toCurrentTabref++;
+      continue;
+    }
+
+    FragmentstorePtr fragPtr;
+    getFragstore(tabPtr.p, fragId, fragPtr);
+    ReplicaRecordPtr loopReplicaPtr;
+    loopReplicaPtr.i = fragPtr.p->storedReplicas;
+    while (loopReplicaPtr.i != RNIL)
+    {
+      ptrCheckGuard(loopReplicaPtr, creplicaFileSize, replicaRecord);
+      if (loopReplicaPtr.p->procNode == takeOverPtr.p->toStartingNode)
+      {
+        jam();
+        ndbrequire(loopReplicaPtr.p->procNode == getOwnNodeId());
+        takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SL_COPY_ACTIVE;
+
+        CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
+        req->userPtr = takeOverPtr.i;
+        req->userRef = reference();
+        req->tableId = takeOverPtr.p->toCurrentTabref;
+        req->fragId = takeOverPtr.p->toCurrentFragid;
+        req->distributionKey = fragPtr.p->distributionKey;
+        req->flags = 0;
+        sendSignal(calcLqhBlockRef(loopReplicaPtr.p->procNode),
+                   GSN_COPY_ACTIVEREQ, signal,
+                   CopyActiveReq::SignalLength, JBB);
+        return;
+      }
+      else
+      {
+        jam();
+        loopReplicaPtr.i = loopReplicaPtr.p->nextReplica;
+      }
+    }
+    takeOverPtr.p->toCurrentFragid++;
+  }
+  signal->theData[0] = DihContinueB::ZTO_START_LOGGING;
+  signal->theData[1] = takeOverPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void
@@ -4045,6 +4135,15 @@ void Dbdih::execCREATE_FRAGCONF(Signal* signal)
     CRASH_INSERTION(7199);
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_AFTER_COMMIT;
     break;
+  case TakeOverRecord::TO_SL_CREATE_FRAG:
+    jam();
+    //CRASH_INSERTION(
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_START_LOGGING;
+    takeOverPtr.p->toCurrentFragid++;
+    signal->theData[0] = DihContinueB::ZTO_START_LOGGING;
+    signal->theData[1] = takeOverPtr.i;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    return;
   default:
     jamLine(takeOverPtr.p->toSlaveStatus);
     ndbrequire(false);
@@ -4115,6 +4214,19 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   req->tableId = takeOverPtr.p->toCurrentTabref;
   req->fragId = takeOverPtr.p->toCurrentFragid;
   req->distributionKey = fragPtr.p->distributionKey;
+  req->flags = 0;
+
+  Uint32 min_version = getNodeVersionInfo().m_type[NodeInfo::DB].m_min_version;
+  if (ndb_delayed_copy_active_req(min_version))
+  {
+    jam();
+    /**
+     * Bug48474 - Don't start logging an fragment
+     *            until all fragments has been copied
+     *            Else it's easy to run out of REDO
+     */
+    req->flags |= CopyActiveReq::CAR_NO_WAIT | CopyActiveReq::CAR_NO_LOGGING;
+  }
   
   sendSignal(lqhRef, GSN_COPY_ACTIVEREQ, signal,
              CopyActiveReq::SignalLength, JBB);
@@ -4144,12 +4256,24 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
   ndbrequire(conf->tableId == takeOverPtr.p->toCurrentTabref);
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(checkNodeAlive(conf->startingNodeId));
-  ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_ACTIVE);
 
   takeOverPtr.p->startGci = conf->startGci;
-  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_BEFORE_COMMIT;
 
-  sendUpdateTo(signal, takeOverPtr);
+  if (takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_ACTIVE)
+  {
+    jam();
+    ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_ACTIVE);
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_BEFORE_COMMIT;
+    sendUpdateTo(signal, takeOverPtr);
+  }
+  else
+  {
+    jam();
+    ndbrequire(takeOverPtr.p->toSlaveStatus==TakeOverRecord::TO_SL_COPY_ACTIVE);
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SL_CREATE_FRAG;
+    sendCreateFragReq(signal, takeOverPtr.p->startGci,
+                      CreateFragReq::START_LOGGING, takeOverPtr.i);
+  }
 }//Dbdih::execCOPY_ACTIVECONF()
 
 void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
@@ -4158,13 +4282,31 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
   signal->theData[1] = takeOverPtr.p->toStartingNode;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_END_TO;
-  EndToReq* req = (EndToReq*)signal->getDataPtrSend();
-  req->senderData = takeOverPtr.i;
-  req->senderRef = reference();
-  req->flags = takeOverPtr.p->m_flags;
-  sendSignal(cmasterdihref, GSN_END_TOREQ,
-             signal, EndToReq::SignalLength, JBB);
+  Uint32 min_version = getNodeVersionInfo().m_type[NodeInfo::DB].m_min_version;
+  if (ndb_delayed_copy_active_req(min_version))
+  {
+    jam();
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_START_LOGGING;
+    takeOverPtr.p->toCurrentTabref = 0;
+    takeOverPtr.p->toCurrentFragid = 0;
+    takeOverPtr.p->toCurrentReplica = RNIL;
+    nr_start_logging(signal, takeOverPtr);
+    return;
+  }
+  else
+  {
+    jam();
+
+    takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_END_TO;
+
+    EndToReq* req = (EndToReq*)signal->getDataPtrSend();
+    req->senderData = takeOverPtr.i;
+    req->senderRef = reference();
+    req->flags = takeOverPtr.p->m_flags;
+    sendSignal(cmasterdihref, GSN_END_TOREQ,
+               signal, EndToReq::SignalLength, JBB);
+    return;
+  }
 }//Dbdih::toCopyCompletedLab()
 
 void
@@ -15554,7 +15696,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     EXECUTE_DIRECT(DBTUP, GSN_DUMP_STATE_ORD, signal, 2);
     
     // Start immediate LCP
-    add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
+    add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
     return;
   }
 
@@ -15603,7 +15745,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(arg == DumpStateOrd::DihStartLcpImmediately){
-    add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
+    add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
     return;
   }
 
