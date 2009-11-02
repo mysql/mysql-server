@@ -864,7 +864,7 @@ Level	Code	Message
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
 Error	1054	Unknown column 'c' in 'field list'
-Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `c`) AS `(SELECT COUNT(a) FROM 
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from dual group by `c`) AS `(SELECT COUNT(a) FROM 
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
 )` from `test`.`t1` group by `test`.`t1`.`b`) `y`
 DROP TABLE t1;

@@ -1824,7 +1824,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
     if (!(res=var->value->val_str(&str)) ||
 	((long) (var->save_result.ulong_value=
 		 (ulong) find_type(enum_names, res->ptr(),
-				   res->length(),1)-1)) < 0)
+				   res->length(), FALSE) - 1)) < 0)
     {
       if (res)
       {

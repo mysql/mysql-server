@@ -6334,6 +6334,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
   table->field[0]->store(buff, (uint) strlen(buff), cs);
+  table->field[1]->store(STRING_WITH_LEN("def"), cs);
   if (db)
     table->field[i++]->store(db, (uint) strlen(db), cs);
   if (t_name)

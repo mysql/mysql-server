@@ -1,0 +1,28 @@
+
+# --
+# -- Bug#26704: Failing DROP DATABASE brings mysql-client out of sync.
+# --
+
+DROP DATABASE IF EXISTS mysql_test;
+
+CREATE DATABASE mysql_test;
+CREATE TABLE mysql_test.t1(c INT);
+use mysql_test;
+
+chmod 000 mysql_test/t1.frm
+
+DROP DATABASE mysql_test;
+
+SELECT DATABASE();
+DATABASE()
+mysql_test
+
+rm -f mysql_test/t1.MYD mysql_test/t1.MYI
+chmod 666 mysql_test/t1.frm
+rm -f mysql_test/t1.frm
+
+DROP DATABASE mysql_test;
+
+use test;
+
+# -- End of Bug#26704.

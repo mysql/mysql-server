@@ -1761,12 +1761,13 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   reap_plugins();
   pthread_mutex_unlock(&LOCK_plugin);
 
+  uchar user_key[MAX_KEY_LENGTH];
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  if (! table->file->index_read_idx_map(table->record[0], 0,
-                                        (uchar *)table->field[0]->ptr,
-                                        HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT))
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (! table->file->index_read_idx_map(table->record[0], 0, user_key,
+                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     int error;
     /*

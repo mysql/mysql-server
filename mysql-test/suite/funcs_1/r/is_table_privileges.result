@@ -29,7 +29,7 @@ DROP FUNCTION test.f1;
 DESCRIBE          information_schema.TABLE_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
@@ -38,7 +38,7 @@ SHOW CREATE TABLE information_schema.TABLE_PRIVILEGES;
 Table	Create Table
 TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
   `GRANTEE` varchar(81) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
   `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
@@ -47,7 +47,7 @@ TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
 SHOW COLUMNS FROM information_schema.TABLE_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
 GRANTEE	varchar(81)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 PRIVILEGE_TYPE	varchar(64)	NO			
@@ -81,7 +81,7 @@ SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
 ORDER BY grantee,table_schema,table_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	tb1	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	tb1	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -92,18 +92,18 @@ SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
 ORDER BY grantee,table_schema,table_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	NULL	db_datadict	tb1	ALTER	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE VIEW	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	DELETE	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	DROP	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	INDEX	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	INSERT	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	ALTER	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	CREATE	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	CREATE VIEW	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	DELETE	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	DROP	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	INDEX	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	INSERT	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	REFERENCES	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	SELECT	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	TRIGGER	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	UPDATE	YES
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
 GRANT USAGE ON *.* TO 'testuser2'@'localhost'
@@ -113,7 +113,7 @@ SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
 ORDER BY grantee,table_schema,table_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	NULL	db_datadict	tb3	SELECT	NO
+'testuser3'@'localhost'	def	db_datadict	tb3	SELECT	NO
 SHOW GRANTS FOR 'testuser3'@'localhost';
 Grants for testuser3@localhost
 GRANT USAGE ON *.* TO 'testuser3'@'localhost'
@@ -123,20 +123,20 @@ SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 'tb%'
 ORDER BY grantee,table_schema,table_name,privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	db_datadict	tb1	SELECT	NO
-'testuser2'@'localhost'	NULL	db_datadict	tb1	ALTER	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE VIEW	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	DELETE	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	DROP	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	INDEX	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	INSERT	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
-'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
-'testuser3'@'localhost'	NULL	db_datadict	tb3	SELECT	NO
+'testuser1'@'localhost'	def	db_datadict	tb1	SELECT	NO
+'testuser2'@'localhost'	def	db_datadict	tb1	ALTER	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	CREATE	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	CREATE VIEW	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	DELETE	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	DROP	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	INDEX	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	INSERT	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	REFERENCES	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	SELECT	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	TRIGGER	YES
+'testuser2'@'localhost'	def	db_datadict	tb1	UPDATE	YES
+'testuser3'@'localhost'	def	db_datadict	tb3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -177,30 +177,30 @@ SELECT * FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY grantee, table_schema, table_name, privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	NULL	test	t1_table	ALTER	NO
-'testuser1'@'localhost'	NULL	test	t1_table	CREATE	NO
-'testuser1'@'localhost'	NULL	test	t1_table	CREATE VIEW	NO
-'testuser1'@'localhost'	NULL	test	t1_table	DELETE	NO
-'testuser1'@'localhost'	NULL	test	t1_table	DROP	NO
-'testuser1'@'localhost'	NULL	test	t1_table	INDEX	NO
-'testuser1'@'localhost'	NULL	test	t1_table	INSERT	NO
-'testuser1'@'localhost'	NULL	test	t1_table	REFERENCES	NO
-'testuser1'@'localhost'	NULL	test	t1_table	SELECT	NO
-'testuser1'@'localhost'	NULL	test	t1_table	SHOW VIEW	NO
-'testuser1'@'localhost'	NULL	test	t1_table	TRIGGER	NO
-'testuser1'@'localhost'	NULL	test	t1_table	UPDATE	NO
-'testuser1'@'localhost'	NULL	test	t1_view	ALTER	NO
-'testuser1'@'localhost'	NULL	test	t1_view	CREATE	NO
-'testuser1'@'localhost'	NULL	test	t1_view	CREATE VIEW	NO
-'testuser1'@'localhost'	NULL	test	t1_view	DELETE	NO
-'testuser1'@'localhost'	NULL	test	t1_view	DROP	NO
-'testuser1'@'localhost'	NULL	test	t1_view	INDEX	NO
-'testuser1'@'localhost'	NULL	test	t1_view	INSERT	NO
-'testuser1'@'localhost'	NULL	test	t1_view	REFERENCES	NO
-'testuser1'@'localhost'	NULL	test	t1_view	SELECT	NO
-'testuser1'@'localhost'	NULL	test	t1_view	SHOW VIEW	NO
-'testuser1'@'localhost'	NULL	test	t1_view	TRIGGER	NO
-'testuser1'@'localhost'	NULL	test	t1_view	UPDATE	NO
+'testuser1'@'localhost'	def	test	t1_table	ALTER	NO
+'testuser1'@'localhost'	def	test	t1_table	CREATE	NO
+'testuser1'@'localhost'	def	test	t1_table	CREATE VIEW	NO
+'testuser1'@'localhost'	def	test	t1_table	DELETE	NO
+'testuser1'@'localhost'	def	test	t1_table	DROP	NO
+'testuser1'@'localhost'	def	test	t1_table	INDEX	NO
+'testuser1'@'localhost'	def	test	t1_table	INSERT	NO
+'testuser1'@'localhost'	def	test	t1_table	REFERENCES	NO
+'testuser1'@'localhost'	def	test	t1_table	SELECT	NO
+'testuser1'@'localhost'	def	test	t1_table	SHOW VIEW	NO
+'testuser1'@'localhost'	def	test	t1_table	TRIGGER	NO
+'testuser1'@'localhost'	def	test	t1_table	UPDATE	NO
+'testuser1'@'localhost'	def	test	t1_view	ALTER	NO
+'testuser1'@'localhost'	def	test	t1_view	CREATE	NO
+'testuser1'@'localhost'	def	test	t1_view	CREATE VIEW	NO
+'testuser1'@'localhost'	def	test	t1_view	DELETE	NO
+'testuser1'@'localhost'	def	test	t1_view	DROP	NO
+'testuser1'@'localhost'	def	test	t1_view	INDEX	NO
+'testuser1'@'localhost'	def	test	t1_view	INSERT	NO
+'testuser1'@'localhost'	def	test	t1_view	REFERENCES	NO
+'testuser1'@'localhost'	def	test	t1_view	SELECT	NO
+'testuser1'@'localhost'	def	test	t1_view	SHOW VIEW	NO
+'testuser1'@'localhost'	def	test	t1_view	TRIGGER	NO
+'testuser1'@'localhost'	def	test	t1_view	UPDATE	NO
 SELECT DISTINCT grantee, table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY grantee, table_name;

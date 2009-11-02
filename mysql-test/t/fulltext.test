@@ -420,6 +420,15 @@ DROP TABLE t1;
 # End of 4.1 tests
 
 #
+# bug#34374 - mysql generates incorrect warning
+#
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+drop table t1;
+show warnings;
+
+#
 # BUG#38842 - Fix for 25951 seems incorrect
 #
 CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b));
