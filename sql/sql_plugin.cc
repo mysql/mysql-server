@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,9 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 
-static bool initialized= 0;
+/* support for Services */
+
+#include "sql_plugin_services.h"
 
 /*
   A mutex LOCK_plugin must be acquired before accessing the
@@ -112,6 +114,8 @@ static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static bool reap_needed= false;
 static int plugin_array_version=0;
+
+static bool initialized= 0;
 
 /*
   write-lock on LOCK_system_variables_hash is required before modifying
@@ -225,6 +229,22 @@ extern bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 #endif /* EMBEDDED_LIBRARY */
 
+static void report_error(int where_to, uint error, ...)
+{
+  va_list args;
+  if (where_to & REPORT_TO_USER)
+  {
+    va_start(args, error);
+    my_printv_error(error, ER(error), MYF(0), args);
+    va_end(args);
+  }
+  if (where_to & REPORT_TO_LOG)
+  {
+    va_start(args, error);
+    error_log_print(ERROR_LEVEL, ER(error), args);
+    va_end(args);
+  }
+}
 
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
@@ -345,7 +365,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
-  uint plugin_dir_len, dummy_errors, dlpathlen;
+  uint plugin_dir_len, dummy_errors, dlpathlen, i;
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
@@ -360,10 +380,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
   {
-    if (report & REPORT_TO_USER)
-      my_error(ER_UDF_NO_PATHS, MYF(0));
-    if (report & REPORT_TO_LOG)
-      sql_print_error("%s", ER_DEFAULT(ER_UDF_NO_PATHS));
+    report_error(report, ER_UDF_NO_PATHS);
     DBUG_RETURN(0);
   }
   /* If this dll is already loaded just increase ref_count. */
@@ -388,21 +405,14 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (*errmsg == ':') errmsg++;
       if (*errmsg == ' ') errmsg++;
     }
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, errno, errmsg);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dlpath, errno, errmsg);
+    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, errno, errmsg);
     DBUG_RETURN(0);
   }
   /* Determine interface version */
   if (!(sym= dlsym(plugin_dl.handle, plugin_interface_version_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_interface_version_sym);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
-                      plugin_interface_version_sym);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_interface_version_sym);
     DBUG_RETURN(0);
   }
   plugin_dl.version= *(int *)sym;
@@ -411,29 +421,42 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       (plugin_dl.version >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
-               "plugin interface version mismatch");
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dlpath, 0,
-                      "plugin interface version mismatch");
+    report_error(report, ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
+                 "plugin interface version mismatch");
     DBUG_RETURN(0);
   }
+
+  /* link the services in */
+  for (i= 0; i < array_elements(list_of_services); i++)
+  {
+    if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
+    {
+      uint ver= (uint)(intptr)*(void**)sym;
+      if (ver > list_of_services[i].version ||
+        (ver >> 8) < (list_of_services[i].version >> 8))
+      {
+        char buf[MYSQL_ERRMSG_SIZE];
+        my_snprintf(buf, sizeof(buf),
+                    "service '%s' interface version mismatch",
+                    list_of_services[i].name);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0, buf);
+        DBUG_RETURN(0);
+      }
+      *(void**)sym= list_of_services[i].service;
+    }
+  }
+
   /* Find plugin declarations */
   if (!(sym= dlsym(plugin_dl.handle, plugin_declarations_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_declarations_sym);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
-                      plugin_declarations_sym);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, MYF(0),
+                 plugin_declarations_sym);
     DBUG_RETURN(0);
   }
 
   if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
   {
-    int i;
     uint sizeof_st_plugin;
     struct st_mysql_plugin *old, *cur;
     char *ptr= (char *)sym;
@@ -443,11 +466,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     else
     {
 #ifdef ERROR_ON_NO_SIZEOF_PLUGIN_SYMBOL
-      free_plugin_mem(&plugin_dl);
-      if (report & REPORT_TO_USER)
-        my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), sizeof_st_plugin_sym);
-      if (report & REPORT_TO_LOG)
-        sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), sizeof_st_plugin_sym);
+      report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
       DBUG_RETURN(0);
 #else
       /*
@@ -469,10 +488,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
-      if (report & REPORT_TO_USER)
-        my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
-      if (report & REPORT_TO_LOG)
-        sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
       DBUG_RETURN(0);
     }
     /*
@@ -494,10 +510,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), plugin_dl.dl.length);
+    report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -508,19 +521,13 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
+    report_error(report, ER_OUTOFMEMORY, sizeof(struct st_plugin_dl));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);
 #else
   DBUG_ENTER("plugin_dl_add");
-  if (report & REPORT_TO_USER)
-    my_error(ER_FEATURE_DISABLED, MYF(0), "plugin", "HAVE_DLOPEN");
-  if (report & REPORT_TO_LOG)
-    sql_print_error(ER_DEFAULT(ER_FEATURE_DISABLED), "plugin", "HAVE_DLOPEN");
+  report_error(report, ER_FEATURE_DISABLED, "plugin", "HAVE_DLOPEN");
   DBUG_RETURN(0);
 #endif
 }
@@ -636,7 +643,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
     /*
       For debugging, we do an additional malloc which allows the
       memory manager and/or valgrind to track locked references and
-      double unlocks to aid resolving reference counting.problems.
+      double unlocks to aid resolving reference counting problems.
     */
     if (!(plugin= (plugin_ref) my_malloc_ci(sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
@@ -719,10 +726,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   DBUG_ENTER("plugin_add");
   if (plugin_find_internal(name, MYSQL_ANY_PLUGIN))
   {
-    if (report & REPORT_TO_USER)
-      my_error(ER_UDF_EXISTS, MYF(0), name->str);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER_DEFAULT(ER_UDF_EXISTS), name->str);
+    report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
@@ -749,10 +753,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
                  " plugin is too different", NullS);
-        if (report & REPORT_TO_USER)
-          my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dl->str, 0, buf);
-        if (report & REPORT_TO_LOG)
-          sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY), dl->str, 0, buf);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }
       tmp.plugin= plugin;
@@ -781,10 +782,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       DBUG_RETURN(FALSE);
     }
   }
-  if (report & REPORT_TO_USER)
-    my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), name->str);
-  if (report & REPORT_TO_LOG)
-    sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), name->str);
+  report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
 err:
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);

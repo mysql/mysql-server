@@ -683,6 +683,8 @@ extern void my_error _VARARGS((int nr,myf MyFlags, ...));
 extern void my_printf_error _VARARGS((uint my_err, const char *format,
                                      myf MyFlags, ...))
                                      ATTRIBUTE_FORMAT(printf, 2, 4);
+extern void my_printv_error(uint error, const char *format, myf MyFlags,
+                            va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
                              int first, int last);
 extern const char **my_error_unregister(int first, int last);

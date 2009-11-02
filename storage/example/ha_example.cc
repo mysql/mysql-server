@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -921,6 +921,24 @@ static struct st_mysql_sys_var* example_system_variables[]= {
   NULL
 };
 
+// this is an example of SHOW_FUNC and of my_snprintf() service
+static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
+                             char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
+  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
+              "enum_var is %u, ulong_var is %lu, %.6b", // %b is MySQL extension
+              srv_enum_var, srv_ulong_var, "really");
+  return 0;
+}
+
+static struct st_mysql_show_var func_status[]=
+{
+  {"example_func_example",  (char *)show_func_example, SHOW_FUNC},
+  {0,0,SHOW_UNDEF}
+};
+
 mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -932,7 +950,7 @@ mysql_declare_plugin(example)
   example_init_func,                            /* Plugin Init */
   example_done_func,                            /* Plugin Deinit */
   0x0001 /* 0.1 */,
-  NULL,                                         /* status variables */
+  func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
   NULL                                          /* config options */
 }
