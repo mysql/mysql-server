@@ -168,7 +168,7 @@ ErrorBundle ErrorCodes[] = {
    * TemporaryResourceError
    */
   { 217,  DMEC, TR, "217" },
-  { 218,  DMEC, TR, "218" },
+  { 218,  DMEC, TR, "Out of LongMessageBuffer" },
   { 219,  DMEC, TR, "219" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
