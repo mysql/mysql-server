@@ -1098,6 +1098,7 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
     return true;
   }
 
+  ptr.p = NULL;
   return false;
 }
 
