@@ -741,91 +741,6 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
                                           strlen(val))
 
 
-static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
-    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
-    int error;
-    char buf[1024] = {'\0'};
-
-    ENGINE_STATUS engstat;
-
-    error = db_env->get_engine_status(db_env, &engstat);
-    if (error == 0) {
-      STATPRINT("time now", engstat.now);
-      const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      u_int32_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
-      sprintf(buf, "%" PRIu32, lockctr);  
-      STATPRINT("ydb lock", lockstat);
-      STATPRINT("ydb lock counter", buf);
-
-      lockstat = (engstat.logger_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      lockctr =  engstat.logger_lock_ctr >> 1;   // lsb indicates if locked
-      sprintf(buf, "%" PRIu32, lockctr);  
-      STATPRINT("logger lock", lockstat);
-      STATPRINT("logger lock counter", buf);
-
-      lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
-      sprintf(buf, "%" PRIu32, lockctr);  
-      STATPRINT("cachetable lock", lockstat);
-      STATPRINT("cachetable lock counter", buf);
-
-      sprintf(buf, "%" PRIu64, engstat.cachetable_hit);  
-      STATPRINT("cachetable hit", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_miss);  
-      STATPRINT("cachetable miss", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_wait_reading);  
-      STATPRINT("cachetable wait reading", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_wait_writing);  
-      STATPRINT("cachetable wait writing", buf);
-      sprintf(buf, "%" PRIu64, engstat.puts);  
-      STATPRINT("cachetable puts (new node)", buf);
-      sprintf(buf, "%" PRIu64, engstat.prefetches);  
-      STATPRINT("cachetable prefetches", buf);
-      sprintf(buf, "%" PRIu64, engstat.maybe_get_and_pins);  
-      STATPRINT("cachetable maybe_get_and_pins", buf);
-      sprintf(buf, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
-      STATPRINT("cachetable maybe_get_and_pin_hits", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_size_current);  
-      STATPRINT("cachetable size_current", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_size_limit);  
-      STATPRINT("cachetable size_limit", buf);
-      sprintf(buf, "%" PRIu64, engstat.cachetable_size_writing);  
-      STATPRINT("cachetable size_writing", buf);
-
-      sprintf(buf, "%" PRIu32, engstat.checkpoint_period);
-      STATPRINT("checkpoint period", buf);
-      sprintf(buf, "%" PRIu32, engstat.checkpoint_footprint);
-      STATPRINT("checkpoint status code (0 = idle)", buf);
-      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
-      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
-      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
-
-      sprintf(buf, "%" PRIu32, engstat.range_locks_max);
-      STATPRINT("max range locks", buf);
-      sprintf(buf, "%" PRIu32, engstat.range_locks_max_per_db);
-      STATPRINT("max range locks per db", buf);
-      sprintf(buf, "%" PRIu32, engstat.range_locks_curr);
-      STATPRINT("range locks in use", buf);
-
-      sprintf(buf, "%" PRIu64, engstat.inserts);
-      STATPRINT("dictionary inserts", buf);
-      sprintf(buf, "%" PRIu64, engstat.deletes);
-      STATPRINT("dictionary deletes", buf);
-      sprintf(buf, "%" PRIu64, engstat.point_queries);
-      STATPRINT("dictionary point queries", buf);
-      sprintf(buf, "%" PRIu64, engstat.sequential_queries);
-      STATPRINT("dictionary sequential queries", buf);
-      
-      sprintf(buf, "%" PRIu64, engstat.commits);
-      STATPRINT("txn commits", buf);
-      sprintf(buf, "%" PRIu64, engstat.aborts);
-      STATPRINT("txn aborts", buf);
-    }
-    if (error) { my_errno = error; }
-    TOKUDB_DBUG_RETURN(error);
-}
-
-
 int tokudb_checkpoint_lock(THD * thd, stat_print_fn * stat_print) {
     int error;
     tokudb_trx_data* trx = NULL;
@@ -880,6 +795,122 @@ cleanup:
     if (error) { my_errno = error; }
     return error;
 }
+
+
+static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    int error;
+    const int bufsiz = 1024;
+    char buf[bufsiz] = {'\0'};
+
+    ENGINE_STATUS engstat;
+
+    error = db_env->get_engine_status(db_env, &engstat);
+    if (error == 0) {
+      STATPRINT("time now", engstat.now);
+
+      const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      u_int64_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
+      snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
+      STATPRINT("ydb lock", lockstat);
+      STATPRINT("ydb lock counter", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_possible_sleep);  
+      STATPRINT("max_possible_sleep (microseconds)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.processor_freq_mhz);  
+      STATPRINT("processor_freq_mhz", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_requested_sleep);  
+      STATPRINT("max_requested_sleep", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.times_max_sleep_used);  
+      STATPRINT("times_max_sleep_used", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleepers);  
+      STATPRINT("total_sleepers", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleep_time);  
+      STATPRINT("total_sleep_time", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_waiters);  
+      STATPRINT("max_waiters", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_waiters);  
+      STATPRINT("total_waiters", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_clients);  
+      STATPRINT("total_clients", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.time_ydb_lock_held_unavailable);  
+      STATPRINT("time_ydb_lock_held_unavailable", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_time_ydb_lock_held);  
+      STATPRINT("max_time_ydb_lock_held", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);  
+      STATPRINT("total_time_ydb_lock_held", buf);
+
+      lockstat = (engstat.logger_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      lockctr =  engstat.logger_lock_ctr >> 1;   // lsb indicates if locked
+      snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
+      STATPRINT("logger lock", lockstat);
+      STATPRINT("logger lock counter", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
+      STATPRINT("checkpoint period", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);
+      STATPRINT("checkpoint status code (0 = idle)", buf);
+      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
+      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
+      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_taken);  
+      STATPRINT("cachetable lock taken", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_released);  
+      STATPRINT("cachetable lock released", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_hit);  
+      STATPRINT("cachetable hit", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_miss);  
+      STATPRINT("cachetable miss", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_misstime);  
+      STATPRINT("cachetable misstime", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_waittime);  
+      STATPRINT("cachetable waittime", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_reading);  
+      STATPRINT("cachetable wait reading", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_writing);  
+      STATPRINT("cachetable wait writing", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.puts);  
+      STATPRINT("cachetable puts (new node)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.prefetches);  
+      STATPRINT("cachetable prefetches", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pins);  
+      STATPRINT("cachetable maybe_get_and_pins", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
+      STATPRINT("cachetable maybe_get_and_pin_hits", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_current);  
+      STATPRINT("cachetable size_current", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_limit);  
+      STATPRINT("cachetable size_limit", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
+      STATPRINT("cachetable size_writing", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
+      STATPRINT("cachetable get_and_pin_footprint", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
+      STATPRINT("max range locks", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max_per_db);
+      STATPRINT("max range locks per db", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
+      STATPRINT("range locks in use", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts);
+      STATPRINT("dictionary inserts", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes);
+      STATPRINT("dictionary deletes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.point_queries);
+      STATPRINT("dictionary point queries", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
+      STATPRINT("dictionary sequential queries", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.commits);
+      STATPRINT("txn commits", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.aborts);
+      STATPRINT("txn aborts", buf);
+    }
+    if (error) { my_errno = error; }
+    TOKUDB_DBUG_RETURN(error);
+}
+
 
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
