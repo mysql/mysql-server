@@ -342,29 +342,44 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
     printf("} DB_BTREE_STAT64;\n");
 
-
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
     printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
-    printf("  u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
-    printf("  u_int32_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ \n");
+    printf("  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
+    printf("  u_int64_t        max_possible_sleep;      /* max possible sleep time for ydb lock scheduling (constant) */ \n");
+    printf("  u_int64_t        processor_freq_mhz;      /* clock frequency in MHz */ \n");
+    printf("  u_int64_t        max_requested_sleep;     /* max sleep time requested, can be larger than max possible */ \n");
+    printf("  u_int64_t        times_max_sleep_used;    /* number of times the max_possible_sleep was used to sleep */ \n");
+    printf("  u_int64_t        total_sleepers;          /* total number of times a client slept for ydb lock scheduling */ \n");
+    printf("  u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling */ \n");
+    printf("  u_int64_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock  */ \n");
+    printf("  u_int64_t        total_waiters;           /* total number of times a client thread waited for ydb lock  */ \n");
+    printf("  u_int64_t        total_clients;           /* total number of separate client threads that use ydb lock  */ \n");
+    printf("  u_int64_t        time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ \n");
+    printf("  u_int64_t        max_time_ydb_lock_held;  /* max time a client thread held the ydb lock  */ \n");
+    printf("  u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ \n");
+    printf("  u_int64_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ \n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
     printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");
     printf("  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ \n");
     printf("  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ \n");
-    printf("  u_int32_t        cachetable_lock_ctr;     /* how many times has cachetable lock been taken/released */ \n");
+    printf("  u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ \n");
+    printf("  u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ \n");
     printf("  u_int64_t        cachetable_hit;          /* how many cache hits   */ \n");
     printf("  u_int64_t        cachetable_miss;         /* how many cache misses */ \n");
+    printf("  u_int64_t        cachetable_misstime;     /* how many usec spent waiting for disk read because of cache miss */ \n");
+    printf("  u_int64_t        cachetable_waittime;     /* how many usec spent waiting for another thread to release cache line */ \n");
     printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
     printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
     printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
     printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
-    printf("  u_int64_t        maybe_get_and_pins;      /* how many times has get_and_pin been called */ \n");
-    printf("  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin() returned with a node */ \n");
+    printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");
+    printf("  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ \n");
     printf("  int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ \n");
     printf("  int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ \n");
     printf("  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
+    printf("  int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ \n");
     printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
     printf("  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ \n");
     printf("  u_int32_t        range_locks_curr;        /* total range locks currently in use */ \n");
@@ -374,13 +389,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t        aborts;                  /* ydb txn abort operations             */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                    */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries               */ \n");
-    
-
-    //    printf("  struct timeval   checkpoint_tbegin;       /* time of last checkpoint begin        */ \n");
-    //    printf("  struct timeval   checkpoint_tend;         /* time of last checkpoint end          */ \n");
-    //    printf("  DB_LSN           lsn_of_last_checkpoint_begin;                                       \n");
-    //    printf("  DB_LSN           lsn_of_last_checkpoint_end;                                         \n");
-
     printf("} ENGINE_STATUS;\n");
 
 
@@ -405,6 +413,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
                              "int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
+			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);

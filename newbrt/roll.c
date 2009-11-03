@@ -93,7 +93,7 @@ toku_rollback_fcreate (FILENUM    filenum,
     char *fname = fixup_fname(&bs_fname);
 
     //Remove reference to the fd in the cachetable
-    CACHEFILE cf;
+    CACHEFILE cf = NULL;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r == 0);
     {

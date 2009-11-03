@@ -1117,8 +1117,27 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     else {
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
-	engstat->ydb_lock_ctr = toku_ydb_lock_ctr();                       // is ydb lock held? how many times taken/released?
-	engstat->logger_lock_ctr = toku_logger_get_lock_ctr();             // is logger lock held? how many times taken/released?
+
+	engstat->logger_lock_ctr = toku_logger_get_lock_ctr();
+
+	{
+	    SCHEDULE_STATUS_S schedstat;
+	    toku_ydb_lock_get_status(&schedstat);
+	    engstat->ydb_lock_ctr = schedstat.ydb_lock_ctr;                        /* how many times has ydb lock been taken/released */ 
+	    engstat->max_possible_sleep = schedstat.max_possible_sleep;            /* max possible sleep time for ydb lock scheduling (constant) */ 
+	    engstat->processor_freq_mhz = schedstat.processor_freq_mhz;            /* clock frequency in MHz */
+	    engstat->max_requested_sleep = schedstat.max_requested_sleep;          /* max sleep time requested, can be larger than max possible */ 
+	    engstat->times_max_sleep_used = schedstat.times_max_sleep_used;        /* number of times the max_possible_sleep was used to sleep */ 
+	    engstat->total_sleepers = schedstat.total_sleepers;                    /* total number of times a client slept for ydb lock scheduling */ 
+	    engstat->total_sleep_time = schedstat.total_sleep_time;                /* total time spent sleeping for ydb lock scheduling */ 
+	    engstat->max_waiters = schedstat.max_waiters;                          /* max number of simultaneous client threads kept waiting for ydb lock  */ 
+	    engstat->total_waiters = schedstat.total_waiters;                      /* total number of times a client thread waited for ydb lock  */ 
+	    engstat->total_clients = schedstat.total_clients;                      /* total number of separate client threads that use ydb lock  */ 
+	    engstat->time_ydb_lock_held_unavailable = schedstat.time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ 
+	    engstat->total_time_ydb_lock_held = schedstat.total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
+	    engstat->max_time_ydb_lock_held = schedstat.max_time_ydb_lock_held;    /* max time client threads held the ydb lock  */ 
+	}
+
 	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock (take minicron lock, but that's a very ephemeral low-level lock)
 	{
             CHECKPOINT_STATUS_S cpstat;
@@ -1131,18 +1150,22 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	{
 	    CACHETABLE_STATUS_S ctstat;
 	    toku_cachetable_get_status(env->i->cachetable, &ctstat);
-	    engstat->cachetable_lock_ctr     = ctstat.lock_ctr;
-	    engstat->cachetable_hit          = ctstat.hit;
-	    engstat->cachetable_miss         = ctstat.miss;
-	    engstat->cachetable_wait_reading = ctstat.wait_reading;
-	    engstat->cachetable_wait_writing = ctstat.wait_writing;
-	    engstat->puts                    = ctstat.puts;
-	    engstat->prefetches              = ctstat.prefetches;
-	    engstat->maybe_get_and_pins      = ctstat.maybe_get_and_pins;
-	    engstat->maybe_get_and_pin_hits  = ctstat.maybe_get_and_pin_hits;
-	    engstat->cachetable_size_current = ctstat.size_current;
-	    engstat->cachetable_size_limit   = ctstat.size_limit;
-	    engstat->cachetable_size_writing = ctstat.size_writing;
+	    engstat->cachetable_lock_taken    = ctstat.lock_taken;
+	    engstat->cachetable_lock_released = ctstat.lock_released;
+	    engstat->cachetable_hit           = ctstat.hit;
+	    engstat->cachetable_miss          = ctstat.miss;
+	    engstat->cachetable_misstime      = ctstat.misstime;
+	    engstat->cachetable_waittime      = ctstat.waittime;
+	    engstat->cachetable_wait_reading  = ctstat.wait_reading;
+	    engstat->cachetable_wait_writing  = ctstat.wait_writing;
+	    engstat->puts                     = ctstat.puts;
+	    engstat->prefetches               = ctstat.prefetches;
+	    engstat->maybe_get_and_pins       = ctstat.maybe_get_and_pins;
+	    engstat->maybe_get_and_pin_hits   = ctstat.maybe_get_and_pin_hits;
+	    engstat->cachetable_size_current  = ctstat.size_current;
+	    engstat->cachetable_size_limit    = ctstat.size_limit;
+	    engstat->cachetable_size_writing  = ctstat.size_writing;
+	    engstat->get_and_pin_footprint    = ctstat.get_and_pin_footprint;
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
@@ -1159,6 +1182,71 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->sequential_queries = num_sequential_queries;
 	}
     }
+    return r;
+}
+
+// Fill buff with text description of engine status up to bufsiz bytes.
+// Intended for use by test programs that do not have the handlerton available.
+static int
+env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
+    ENGINE_STATUS engstat;
+    int r = env_get_engine_status(env, &engstat);    
+    int n = 0;  // number of characters printed so far
+
+    n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
+    n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
+    n += snprintf(buff + n, bufsiz - n, "max_possible_sleep               %"PRIu64"\n", engstat.max_possible_sleep);
+    n += snprintf(buff + n, bufsiz - n, "processor_freq_mhz               %"PRIu64"\n", engstat.processor_freq_mhz);
+    n += snprintf(buff + n, bufsiz - n, "max_requested_sleep              %"PRIu64"\n", engstat.max_requested_sleep);
+    n += snprintf(buff + n, bufsiz - n, "times_max_sleep_used             %"PRIu64"\n", engstat.times_max_sleep_used);
+    n += snprintf(buff + n, bufsiz - n, "total_sleepers                   %"PRIu64"\n", engstat.total_sleepers);
+    n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
+    n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu64"\n", engstat.max_waiters);
+    n += snprintf(buff + n, bufsiz - n, "total_waiters                    %"PRIu64"\n", engstat.total_waiters);
+    n += snprintf(buff + n, bufsiz - n, "total_clients                    %"PRIu64"\n", engstat.total_clients);
+    n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
+    n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
+    n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
+    n += snprintf(buff + n, bufsiz - n, "logger_lock_ctr                  %"PRIu64"\n", engstat.logger_lock_ctr);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %d \n", engstat.checkpoint_period);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %d \n", engstat.checkpoint_footprint);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin_complete   %s \n", engstat.checkpoint_time_begin_complete);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_end              %s \n", engstat.checkpoint_time_end);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_lock_released         %"PRIu64"\n", engstat.cachetable_lock_released);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_hit                   %"PRIu64"\n", engstat.cachetable_hit);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_miss                  %"PRIu64"\n", engstat.cachetable_miss);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_misstime              %"PRIu64"\n", engstat.cachetable_misstime);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
+    n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
+    n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
+    n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
+    n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pin_hits           %"PRIu64"\n", engstat.maybe_get_and_pin_hits);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
+    n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
+    n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %d \n", engstat.range_locks_max);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_db           %d \n", engstat.range_locks_max_per_db);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %d \n", engstat.range_locks_curr);
+    n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
+    n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
+    n += snprintf(buff + n, bufsiz - n, "commits                          %"PRIu64"\n", engstat.commits);
+    n += snprintf(buff + n, bufsiz - n, "aborts                           %"PRIu64"\n", engstat.aborts);
+    n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
+    n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
+
+    //    n += snprintf(buff + n, bufsiz - n, "             %"PRIu64"\n", engstat.);
+
+    if (n > bufsiz) {
+	char * errmsg = "BUFFER TOO SMALL\n";
+	int len = strlen(errmsg) + 1;
+	(void) snprintf(buff + (bufsiz - 1) - len, len, errmsg);
+    }
+
     return r;
 }
 
@@ -1191,6 +1279,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
     result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
     result->get_engine_status = env_get_engine_status;
+    result->get_engine_status_text = env_get_engine_status_text;
     result->get_iname = env_get_iname;
     SENV(open);
     SENV(close);
@@ -3785,7 +3874,6 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     int r;
 
     num_inserts++;
-
     u_int32_t lock_flags = get_prelocked_flags(flags, txn, db);
     flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));

@@ -215,7 +215,3 @@ toku_ydb_unlock(void) {
 
 }
 
-int 
-toku_ydb_lock_ctr(void) {
-    return status.ydb_lock_ctr;
-}
