@@ -402,7 +402,7 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_routines, (uchar**) &opt_routines, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
+   "Add 'SET NAMES default_character_set' to the output.",
    (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
