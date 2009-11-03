@@ -435,26 +435,17 @@ Item::Item(THD *thd, Item *item):
 }
 
 
-/**
-  Decimal precision of the item.
-
-  @remark The precision must not be capped as it can be used in conjunction
-          with Item::decimals to determine the size of the integer part when
-          constructing a decimal data type.
-
-  @see Item::decimal_int_part()
-  @see Item::decimals
-*/
-
 uint Item::decimal_precision() const
 {
-  uint precision= max_length;
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
-
-  return precision;
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
+  return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -4908,7 +4899,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= new Field_new_decimal((uchar*) 0, max_length, null_ptr, 0,
+                                 Field::NONE, name, decimals, 0,
+                                 unsigned_flag);
     break;
   case MYSQL_TYPE_TINY:
     field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
@@ -6866,72 +6859,61 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 }
 
 /**
-  Compare the value stored in field, with the original item.
+  Compare the value stored in field with the expression from the query.
 
-  @param field   field which the item is converted and stored in
-  @param item    original item
+  @param field   Field which the Item is stored in after conversion
+  @param item    Original expression from query
 
-  @return Return an integer greater than, equal to, or less than 0 if
-          the value stored in the field is greater than,  equal to,
-          or less than the original item
+  @return Returns an integer greater than, equal to, or less than 0 if
+          the value stored in the field is greater than, equal to,
+          or less than the original Item. A 0 may also be returned if 
+          out of memory.          
 
   @note We only use this on the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
 */
 
-int stored_field_cmp_to_item(Field *field, Item *item)
+int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 {
-
   Item_result res_type=item_cmp_type(field->result_type(),
 				     item->result_type());
   if (res_type == STRING_RESULT)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin),*item_result;
+    
+    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin);
     String field_tmp(field_buff,sizeof(field_buff),&my_charset_bin);
-    enum_field_types field_type;
-    item_result=item->val_str(&item_tmp);
+    String *item_result= item->val_str(&item_tmp);
+    /*
+      Some implementations of Item::val_str(String*) actually modify
+      the field Item::null_value, hence we can't check it earlier.
+    */
     if (item->null_value)
       return 0;
-    field->val_str(&field_tmp);
+    String *field_result= field->val_str(&field_tmp);
 
-    /*
-      If comparing DATE with DATETIME, append the time-part to the DATE.
-      So that the strings are equally formatted.
-      A DATE converted to string is 10 (MAX_DATE_WIDTH) characters, 
-      and a DATETIME converted to string is 19 (MAX_DATETIME_WIDTH) characters.
-    */
-    field_type= field->type();
-    uint32 item_length= item_result->length();
-    if (field_type == MYSQL_TYPE_DATE &&
-        item_length == MAX_DATETIME_WIDTH)
-      field_tmp.append(" 00:00:00");
-    else if (field_type == MYSQL_TYPE_DATETIME)
+    enum_field_types field_type= field->type();
+
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
     {
-      if (item_length == MAX_DATE_WIDTH)
-        item_result->append(" 00:00:00");
-      else if (item_length > MAX_DATETIME_WIDTH)
-      {
-        /*
-          We don't store microsecond part of DATETIME in field
-          but item_result contains it. As we compare DATETIMEs as strings
-          we must trim trailing 0's in item_result's microsecond part
-          to ensure "YYYY-MM-DD HH:MM:SS" == "YYYY-MM-DD HH:MM:SS.0000"
-        */
-        char *end= (char *) item_result->ptr() + item_length - 1;
-        /* Trim trailing 0's */
-        while (*end == '0')
-          end--;
-        /* Trim '.' if no microseconds */
-        if (*end == '.')
-          end--;
-        DBUG_ASSERT(end - item_result->ptr() + 1 >= MAX_DATETIME_WIDTH);
-        item_result->length(end - item_result->ptr() + 1);
-      }
+      enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
+
+      if (field_type == MYSQL_TYPE_DATE)
+        type= MYSQL_TIMESTAMP_DATE;
+
+      if (field_type == MYSQL_TYPE_DATETIME)
+        type= MYSQL_TIMESTAMP_DATETIME;
+        
+      const char *field_name= field->field_name;
+      MYSQL_TIME field_time, item_time;
+      get_mysql_time_from_str(thd, field_result, type, field_name, &field_time);
+      get_mysql_time_from_str(thd, item_result, type, field_name,  &item_time);
+
+      return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(&field_tmp,item_result);
+    return stringcmp(field_result, item_result);
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int

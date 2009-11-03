@@ -451,8 +451,45 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+  {
+    uint8 dec= decimals;
+    uint8 intg= decimal_precision() - dec;
+    uint32 len= max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+      */
+
+      const int required_length=
+        my_decimal_precision_to_length(intg + dec, dec,
+                                                     unsigned_flag);
+
+      overflow= required_length - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        /* Corrected value fits. */
+        len= required_length;
+    }
+
+    field= new Field_new_decimal(len, maybe_null, name, dec, unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be chosen
@@ -4736,19 +4773,6 @@ void Item_func_get_user_var::fix_length_and_dec()
     thd->fatal_error();
 
   return;
-}
-
-
-uint Item_func_get_user_var::decimal_precision() const
-{
-  uint precision= max_length;
-  Item_result restype= result_type();
-
-  /* Default to maximum as the precision is unknown a priori. */
-  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= DECIMAL_MAX_PRECISION;
-
-  return precision;
 }
 
 

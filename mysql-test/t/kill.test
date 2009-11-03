@@ -97,7 +97,7 @@ select ((@id := kill_id) - kill_id) from t3;
 kill @id;
 
 connection conn1;
--- error 1053,2013
+-- error 1317,2013
 reap;
 
 connection default;

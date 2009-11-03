@@ -81,6 +81,9 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
@@ -4896,6 +4899,8 @@ do_handle_error:
   <opts> - options to use for the connection
    * SSL - use SSL if available
    * COMPRESS - use compression if available
+   * SHM - use shared memory if available
+   * PIPE - use named pipe if available
 
 */
 
@@ -4904,6 +4909,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
+  my_bool con_pipe= 0, con_shm= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -4914,6 +4920,9 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+#ifdef HAVE_SMEM
+  static DYNAMIC_STRING ds_shm;
+#endif
   const struct command_arg connect_args[] = {
     { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
     { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
@@ -4940,6 +4949,11 @@ void do_connect(struct st_command *command)
     if (con_port == 0)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
+
+#ifdef HAVE_SMEM
+  /* Shared memory */
+  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+#endif
 
   /* Sock */
   if (ds_sock.length)
@@ -4979,6 +4993,10 @@ void do_connect(struct st_command *command)
       con_ssl= 1;
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
+    else if (!strncmp(con_options, "PIPE", 4))
+      con_pipe= 1;
+    else if (!strncmp(con_options, "SHM", 3))
+      con_shm= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5026,6 +5044,31 @@ void do_connect(struct st_command *command)
   }
 #endif
 
+#ifdef __WIN__
+  if (con_pipe)
+  {
+    uint protocol= MYSQL_PROTOCOL_PIPE;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+#endif
+
+#ifdef HAVE_SMEM
+  if (con_shm)
+  {
+    uint protocol= MYSQL_PROTOCOL_MEMORY;
+    if (!ds_shm.length)
+      die("Missing shared memory base name");
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+  else if(shared_memory_base_name)
+  {
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+      shared_memory_base_name);
+  }
+#endif
+
+
   /* Use default db name */
   if (ds_database.length == 0)
     dynstr_set(&ds_database, opt_db);
@@ -5058,6 +5101,9 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+#ifdef HAVE_SMEM
+  dynstr_free(&ds_shm);
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5724,6 +5770,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
+   (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
+   0, 0, 0},
+#endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -6913,35 +6965,39 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       Need to grab affected rows information before getting
       warnings here
     */
-    if (!disable_info)
-      affected_rows= mysql_affected_rows(mysql);
-
-    if (!disable_warnings)
     {
-      /* Get the warnings from execute */
+      ulonglong affected_rows;
+      LINT_INIT(affected_rows);
 
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
+      if (!disable_info)
+	affected_rows= mysql_affected_rows(mysql);
+
+      if (!disable_warnings)
       {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-	if (ds_warnings->length)
-	  dynstr_append_mem(ds, ds_warnings->str,
-			    ds_warnings->length);
-	if (ds_prepare_warnings.length)
-	  dynstr_append_mem(ds, ds_prepare_warnings.str,
-			    ds_prepare_warnings.length);
-	if (ds_execute_warnings.length)
-	  dynstr_append_mem(ds, ds_execute_warnings.str,
-			    ds_execute_warnings.length);
+	/* Get the warnings from execute */
+
+	/* Append warnings to ds - if there are any */
+	if (append_warnings(&ds_execute_warnings, mysql) ||
+	    ds_execute_warnings.length ||
+	    ds_prepare_warnings.length ||
+	    ds_warnings->length)
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  if (ds_warnings->length)
+	    dynstr_append_mem(ds, ds_warnings->str,
+			      ds_warnings->length);
+	  if (ds_prepare_warnings.length)
+	    dynstr_append_mem(ds, ds_prepare_warnings.str,
+			      ds_prepare_warnings.length);
+	  if (ds_execute_warnings.length)
+	    dynstr_append_mem(ds, ds_execute_warnings.str,
+			      ds_execute_warnings.length);
+	}
       }
+
+      if (!disable_info)
+	append_info(ds, affected_rows, mysql_info(mysql));
     }
-
-    if (!disable_info)
-      append_info(ds, affected_rows, mysql_info(mysql));
-
   }
 
 end:
@@ -7673,6 +7729,11 @@ int main(int argc, char **argv)
   }
 #endif
 
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
+
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
@@ -7720,6 +7781,7 @@ int main(int argc, char **argv)
     if (!ok_to_do)
     {
       if (command->type == Q_SOURCE ||
+          command->type == Q_ERROR ||
           command->type == Q_WRITE_FILE ||
           command->type == Q_APPEND_FILE ||
 	  command->type == Q_PERL)

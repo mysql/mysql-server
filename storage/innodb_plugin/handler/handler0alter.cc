@@ -628,7 +628,7 @@ ha_innobase::add_index(
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
-	ulint		error;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -656,9 +656,13 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
-	/* Check that index keys are sensible */
-
-	error = innobase_check_index_keys(key_info, num_of_keys);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
+		error = -1;
+	} else {
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
+	}
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:

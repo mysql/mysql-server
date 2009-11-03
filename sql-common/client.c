@@ -389,7 +389,7 @@ HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
-			    0,
+			    FILE_FLAG_OVERLAPPED,
 			    NULL )) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
@@ -623,7 +623,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 err2:
   if (error_allow == 0)
   {
-    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+    net->vio= vio_new_win32shared_memory(handle_file_map,handle_map,
                                          event_server_wrote,
                                          event_server_read,event_client_wrote,
                                          event_client_read,event_conn_closed);
@@ -2028,7 +2028,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     else
     {
-      net->vio=vio_new_win32pipe(hPipe);
+      net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }

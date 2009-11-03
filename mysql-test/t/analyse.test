@@ -10,35 +10,12 @@ insert into t1 values (1,2,"","Y","2002-03-03"), (3,4,"","N","2002-03-04"), (5,6
 select count(*) from t1 procedure analyse();
 select * from t1 procedure analyse();
 select * from t1 procedure analyse(2);
+--error ER_WRONG_USAGE
 create table t2 select * from t1 procedure analyse();
-select * from t2;
-drop table t1,t2;
+drop table t1;
 
 --error ER_WRONG_USAGE
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
-
-#
-# Test with impossible where
-#
-create table t1 (a int not null);
-create table t2 select * from t1 where 0=1 procedure analyse();
-show create table t2;
-select * from t1 where 0=1 procedure analyse();
-insert into t1 values(1);
-drop table t2;
-create table t2 select * from t1 where 0=1 procedure analyse();
-show create table t2;
-select * from t2;
-insert into t2 select * from t1 procedure analyse();
-select * from t2;
-insert into t1 values(2);
-drop table t2;
-create table t2 select * from t1 where 0=1 procedure analyse();
-show create table t2;
-select * from t2;
-insert into t2 select * from t1 procedure analyse();
-select * from t2;
-drop table t1,t2;
 
 #
 # Bug#2813 - analyse does not quote string values in enums from string
@@ -113,3 +90,46 @@ SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
 DROP TABLE t1;
 
 --echo End of 4.1 tests
+
+--echo #
+--echo # Bug #48293: crash with procedure analyse, view with > 10 columns, 
+--echo #  having clause...
+--echo #
+
+CREATE TABLE t1(a INT, b INT, c INT, d INT, e INT,
+                f INT, g INT, h INT, i INT, j INT,k INT);
+INSERT INTO t1 VALUES (),();
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+--echo #should have a derived table
+EXPLAIN SELECT * FROM v1;
+--echo #should not crash
+--error ER_WRONG_USAGE
+SELECT * FROM v1 PROCEDURE analyse();
+--echo #should not crash
+--error ER_WRONG_USAGE
+SELECT * FROM t1 a, v1, t1 b PROCEDURE analyse();
+--echo #should not crash
+--error ER_WRONG_USAGE
+SELECT * FROM (SELECT * FROM t1 having a > 1) x PROCEDURE analyse();
+--echo #should not crash
+--error ER_WRONG_USAGE
+SELECT * FROM t1 a, (SELECT * FROM t1 having a > 1) x, t1 b PROCEDURE analyse();
+--echo #should not crash
+--error ER_ORDER_WITH_PROC
+SELECT 1 FROM t1 group by a having a > 1 order by 1 PROCEDURE analyse();
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2);
+
+--echo # should not crash
+--error ER_WRONG_USAGE
+CREATE TABLE t2 SELECT 1 FROM t1, t1 t3 GROUP BY t3.a PROCEDURE ANALYSE();
+
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests

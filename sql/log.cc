@@ -1549,7 +1549,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
   trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
 
-end:
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt commit
   DBUG_RETURN(error);
@@ -3603,7 +3602,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   }
   old_name=name;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
 
   /*
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
@@ -3618,8 +3617,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
      trigger temp tables deletion on slaves.
   */
 
-  open(old_name, log_type, new_name_ptr,
-       io_cache_type, no_auto_events, max_size, 1);
+  /* reopen index binlog file, BUG#34582 */
+  if (!open_index_file(index_file_name, 0))
+    open(old_name, log_type, new_name_ptr, 
+         io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:

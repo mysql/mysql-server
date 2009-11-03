@@ -762,10 +762,9 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
-  /** Returns the uncapped decimal precision of this item. */
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
-  { return decimal_precision() - decimals; }
+  { return my_decimal_int_part(decimal_precision(), decimals); }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -3125,4 +3124,4 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
-extern int stored_field_cmp_to_item(Field *field, Item *item);
+extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);

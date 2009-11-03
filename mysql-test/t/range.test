@@ -1181,4 +1181,83 @@ INSERT INTO t1 VALUES (1), (NULL);
 SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#47925: regression of range optimizer and date comparison in 5.1.39!
+--echo #
+CREATE TABLE t1 ( a DATE,     KEY ( a ) );
+CREATE TABLE t2 ( a DATETIME, KEY ( a ) );
+
+--echo # Make optimizer choose range scan
+INSERT INTO t1 VALUES ('2009-09-22'), ('2009-09-22'), ('2009-09-22');
+INSERT INTO t1 VALUES ('2009-09-23'), ('2009-09-23'), ('2009-09-23');
+
+INSERT INTO t2 VALUES ('2009-09-22 12:00:00'), ('2009-09-22 12:00:00'),
+                      ('2009-09-22 12:00:00');
+INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
+                      ('2009-09-23 12:00:00');
+
+--echo # DATE vs DATE
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+SELECT * FROM t1 WHERE a >= '20090923';
+SELECT * FROM t1 WHERE a >=  20090923;
+SELECT * FROM t1 WHERE a >= '2009-9-23';
+SELECT * FROM t1 WHERE a >= '2009.09.23';
+SELECT * FROM t1 WHERE a >= '2009:09:23';
+
+--echo # DATE vs DATETIME
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '20090923';
+SELECT * FROM t2 WHERE a >=  20090923;
+SELECT * FROM t2 WHERE a >= '2009-9-23';
+SELECT * FROM t2 WHERE a >= '2009.09.23';
+SELECT * FROM t2 WHERE a >= '2009:09:23';
+
+--echo # DATETIME vs DATETIME
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+SELECT * FROM t2 WHERE a >= '20090923120000';
+SELECT * FROM t2 WHERE a >=  20090923120000;
+SELECT * FROM t2 WHERE a >= '2009-9-23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009.09.23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
+
+--echo # DATETIME vs DATE
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '20090923000000';
+SELECT * FROM t1 WHERE a >=  20090923000000;
+SELECT * FROM t1 WHERE a >= '2009-9-23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009.09.23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
+
+--echo # Test of the new get_date_from_str implementation
+--echo # Behavior differs slightly between the trunk and mysql-pe.
+--echo # The former may give errors for the truncated values, while the latter
+--echo # gives warnings. The purpose of this test is not to interfere, and only
+--echo # preserve existing behavior.
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+       str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
+
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+       str_to_date('2007-20-00', '%Y-%m-%d') <= '';
+
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
+
+SELECT str_to_date('', '%Y-%m-%d');
+
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests
