@@ -510,7 +510,9 @@ create trigger tr
   for each row insert into log values ( new.f );
 
 set autocommit = 0;
+--disable_warnings
 insert into t1 values ( 1 );
+--enable_warnings
 rollback;
 sync_slave_with_master;
 

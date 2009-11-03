@@ -4537,7 +4537,21 @@ static int write_locked_table_maps(THD *thd)
         if (table->current_lock == F_WRLCK &&
             check_table_binlog_row_based(thd, table))
         {
-          int const has_trans= table->file->has_transactions();
+          /*
+            We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+            (e.g. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+            compatible behavior with the STMT based replication even when
+            the table is not transactional. In other words, if the operation
+            fails while executing the insert phase nothing is written to the
+            binlog.
+
+            Note that at this point, we check the type of a set of tables to
+            create the table map events. In the function binlog_log_row(),
+            which calls the current function, we check the type of the table
+            of the current row.
+          */
+          bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                                table->file->has_transactions();
           int const error= thd->binlog_write_table_map(table, has_trans);
           /*
             If an error occurs, it is the responsibility of the caller to
@@ -4586,10 +4600,20 @@ static int binlog_log_row(TABLE* table,
     {
       bitmap_set_all(&cols);
       if (likely(!(error= write_locked_table_maps(thd))))
-        error= (*log_func)(thd, table, table->file->has_transactions(),
-                           &cols, table->s->fields,
+      {
+        /*
+          We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+          (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+          compatible behavior with the STMT based replication even when
+          the table is not transactional. In other words, if the operation
+          fails while executing the insert phase nothing is written to the
+          binlog.
+        */
+        bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                             table->file->has_transactions();
+        error= (*log_func)(thd, table, has_trans, &cols, table->s->fields,
                            before_record, after_record);
-
+      }
       if (!use_bitbuf)
         bitmap_free(&cols);
     }

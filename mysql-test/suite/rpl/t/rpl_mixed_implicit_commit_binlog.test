@@ -1,0 +1,9 @@
+################################################################################
+# Check file extra/rpl_tests/rpl_implicit_commit_binlog.test
+################################################################################
+--source include/have_binlog_format_mixed.inc
+#Re-enable this after fixing BUG#46572
+#--source include/master-slave.inc
+--source include/have_innodb.inc
+
+--source extra/rpl_tests/rpl_implicit_commit_binlog.test

@@ -6235,6 +6235,8 @@ ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
   eng "Statement uses a system variable whose value may differ on slave."
 ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
   eng "Statement uses a system function whose value may differ on slave."
+ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  eng "Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction."
 
 ER_MESSAGE_AND_STATEMENT
   eng "%s Statement: %s"

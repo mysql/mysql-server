@@ -1781,7 +1781,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     {
       int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
+                            thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {

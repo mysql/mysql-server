@@ -20,6 +20,9 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+bool trans_has_updated_trans_table(THD* thd);
+bool stmt_has_updated_trans_table(THD *thd);
+
 /*
   Transaction Coordinator log - a base abstract class
   for two different implementations
@@ -329,8 +332,9 @@ public:
   ulonglong table_map_version() const { return m_table_map_version; }
   void update_table_map_version() { ++m_table_map_version; }
 
-  int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
-  int remove_pending_rows_event(THD *thd);
+  int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
+                                       bool is_transactional);
+  int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void reset_bytes_written()
@@ -368,7 +372,7 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
-  bool write(Log_event* event_info); // binary log write
+  bool write(Log_event* event_info);
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
   bool write_incident(THD *thd, bool lock);
 

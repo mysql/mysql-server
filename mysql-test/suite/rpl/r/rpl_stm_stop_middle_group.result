@@ -4,12 +4,15 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
 set @@global.debug="+d,stop_slave_middle_group";
 begin;
 insert into ti set a=null;
 insert into tm set a=null;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 commit;
 SELECT "NO" AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
@@ -29,6 +32,8 @@ set @@global.debug="+d,incomplete_group_in_relay_log";
 begin;
 insert into ti set a=null;
 insert into tm set a=null;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 commit;
 SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
@@ -46,6 +51,8 @@ include/start_slave.inc
 set @@global.debug="+d,stop_slave_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
 Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1

@@ -5,12 +5,20 @@ insert delayed into t1 values (300);
 FLUSH TABLES;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_latin1'Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT' COLLATE 'latin1_swedish_ci'))
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert delayed into t1 values (207)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=208
 master-bin.000001	#	Query	#	#	use `test`; insert delayed into t1 values (null)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert delayed into t1 values (300)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 insert delayed into t1 values (null),(null),(null),(null);
 Warnings:

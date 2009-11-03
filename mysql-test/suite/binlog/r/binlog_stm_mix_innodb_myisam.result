@@ -1,3 +1,4 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
@@ -5,6 +6,8 @@ reset master;
 begin;
 insert into t1 values(1);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -18,6 +21,8 @@ reset master;
 begin;
 insert into t1 values(2);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -35,6 +40,8 @@ insert into t1 values(3);
 savepoint my_savepoint;
 insert into t1 values(4);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -56,6 +63,8 @@ insert into t1 values(5);
 savepoint my_savepoint;
 insert into t1 values(6);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -84,6 +93,8 @@ get_lock("a",10)
 begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select get_lock("a",10);
 get_lock("a",10)
 1
@@ -98,24 +109,32 @@ delete from t2;
 reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(9)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	COMMIT
 delete from t1;
 delete from t2;
 reset master;
 insert into t1 values(10);
 begin;
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	COMMIT
 insert into t1 values(11);
 commit;
 show binlog events from <binlog_start>;
@@ -123,7 +142,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(11)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -246,17 +267,29 @@ master-bin.000001	#	Query	#	#	use `test`; alter table t2 engine=MyISAM
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (20)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engine=myisam
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t0 select * from t1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t0 select GET_LOCK("lock1",null)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (n int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t1`,`ti`
 do release_lock("lock1");
@@ -340,24 +373,42 @@ a	b
 DROP TABLE t1,t2;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (1,1),(1,2)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE if exists t2
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (3,3)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (5,5)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (6,6)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (7,7)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
 master-bin.000001	#	Query	#	#	COMMIT
@@ -371,6 +422,8 @@ get_lock("a",10)
 begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select get_lock("a",10);
 get_lock("a",10)
 1
@@ -396,6 +449,8 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -413,6 +468,8 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from ti /* that is what slave would miss - a bug */;
 a
 1
@@ -439,6 +496,8 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
@@ -462,8 +521,10 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=3
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(2))
+master-bin.000001	#	Query	#	#	COMMIT
 /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -478,8 +539,10 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; delete from t2 where a=bug27417(3)
+master-bin.000001	#	Query	#	#	COMMIT
 /* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 count(*)
@@ -532,8 +595,10 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 2 */;
 count(*)
@@ -640,6 +705,8 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -657,6 +724,8 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from ti /* that is what slave would miss - bug#28960 */;
 a
 1
@@ -683,6 +752,8 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
@@ -706,8 +777,10 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=3
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(2))
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 3 */;
 count(*)
 3
@@ -721,8 +794,10 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; delete from t2 where a=bug27417(3)
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 5 */;
 count(*)
 5
@@ -772,8 +847,10 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 2 */;
 count(*)
 2

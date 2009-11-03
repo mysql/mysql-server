@@ -870,6 +870,31 @@ public:
     EVENT_SKIP_COUNT
   };
 
+  enum enum_event_cache_type 
+  {
+    EVENT_INVALID_CACHE,
+    /* 
+      If possible the event should use a non-transactional cache before
+      being flushed to the binary log. This means that it must be flushed
+      right after its correspondent statement is completed.
+    */
+    EVENT_STMT_CACHE,
+    /* 
+      The event should use a transactional cache before being flushed to
+      the binary log. This means that it must be flushed upon commit or 
+      rollback. 
+    */
+    EVENT_TRANSACTIONAL_CACHE,
+    /* 
+      The event must be written directly to the binary log without going
+      through a cache.
+    */
+    EVENT_NO_CACHE,
+    /**
+       If there is a need for different types, introduce them before this.
+    */
+    EVENT_CACHE_COUNT
+  };
 
   /*
     The following type definition is to be used whenever data is placed 
@@ -920,8 +945,12 @@ public:
     LOG_EVENT_SUPPRESS_USE_F for notes.
   */
   uint16 flags;
-
-  bool cache_stmt;
+  
+  /*
+    Defines the type of the cache, if any, where the event will be
+    stored before being flushed to disk.
+  */
+  uint16 cache_type;
 
   /**
     A storage to cache the global system variable's value.
@@ -933,7 +962,7 @@ public:
   THD* thd;
 
   Log_event();
-  Log_event(THD* thd_arg, uint16 flags_arg, bool cache_stmt);
+  Log_event(THD* thd_arg, uint16 flags_arg, bool is_transactional);
   /*
     read_log_event() functions read an event from a binlog or relay
     log; used by SHOW BINLOG EVENTS, the binlog_dump thread on the
@@ -1031,7 +1060,18 @@ public:
   void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
-  inline bool get_cache_stmt() const { return cache_stmt; }
+  inline bool use_trans_cache() const
+  { 
+    return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
+  }
+  inline void set_direct_logging()
+  {
+    cache_type = Log_event::EVENT_NO_CACHE;
+  }
+  inline bool use_direct_logging()
+  {
+    return (cache_type == Log_event::EVENT_NO_CACHE);
+  }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
   virtual ~Log_event() { free_temp_buf();}
@@ -1645,7 +1685,7 @@ public:
 #ifndef MYSQL_CLIENT
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-                  bool using_trans, bool suppress_use, int error);
+                  bool using_trans, bool direct, bool suppress_use, int error);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -2895,8 +2935,8 @@ public:
                                ulong query_length, uint fn_pos_start_arg,
                                uint fn_pos_end_arg,
                                enum_load_dup_handling dup_handling_arg,
-                               bool using_trans, bool suppress_use,
-                               int errcode);
+                               bool using_trans, bool direct,
+                               bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -3328,10 +3368,10 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits);
   }
+#endif
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
-#endif
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
@@ -3883,6 +3923,7 @@ public:
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message.str= NULL;                    /* Just as a precaution */
     m_message.length= 0;
+    set_direct_logging();
     DBUG_VOID_RETURN;
   }
 
@@ -3892,6 +3933,7 @@ public:
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message= msg;
+    set_direct_logging();
     DBUG_VOID_RETURN;
   }
 #endif
