@@ -108,6 +108,23 @@ sub prepare {
   }
 }
 
+# Simple escape mechanism (\-escape any ' and \), suitable for two contexts:
+# - single-quoted SQL strings
+# - single-quoted option values on the right hand side of = in my.cnf
+#
+# These two contexts don't handle escapes identically.  SQL strings allow
+# quoting any character (\C => C, for any C), but my.cnf parsing allows
+# quoting only \, ' or ".  For example, password='a\b' quotes a 3-character
+# string in my.cnf, but a 2-character string in SQL.
+#
+# This simple escape works correctly in both places.
+sub basic_single_escape {
+  my ($str) = @_;
+  # Inside a character class, \ is not special; this escapes both \ and '
+  $str =~ s/([\'])/\\$1/g;
+  return $str;
+}
+
 sub do_query {
   my $query   = shift;
   write_file($command, $query);
@@ -119,11 +136,12 @@ sub do_query {
 sub make_config {
   my $password = shift;
 
+  my $esc_pass = basic_single_escape($rootpass);
   write_file($config,
              "# mysql_secure_installation config file",
              "[mysql]",
              "user=root",
-             "password=$rootpass");
+             "password='$esc_pass'");
 }
 
 sub get_root_password {
@@ -165,8 +183,8 @@ sub set_root_password {
     last;
   }
 
-  # FIXME: Quote password1 properly for SQL
-  do_query("UPDATE mysql.user SET Password=PASSWORD('$password1') WHERE User='root';")
+  my $esc_pass = basic_single_escape($password1);
+  do_query("UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root';")
     or die "Password update failed!\n";
 
   print "Password updated successfully!\n";
