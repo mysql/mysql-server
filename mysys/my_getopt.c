@@ -1220,6 +1220,14 @@ void my_print_help(const struct my_option *options)
       printf("%s", comment);
     }
     putchar('\n');
+    if ((optp->var_type & GET_TYPE_MASK) == GET_NO_ARG ||
+             (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+    {
+      if (optp->def_value != 0)
+      {
+        printf("%*s(Defaults to on; use --skip-%s to disable.)\n", name_space, "", optp->name);
+      }
+    }
   }
 }
 
