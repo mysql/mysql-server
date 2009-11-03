@@ -728,3 +728,69 @@ where
                                   from t4, t5 limit 2));
 
 drop table t0, t1, t2, t3, t4, t5;
+
+--echo # 
+--echo # BUG#48177 - SELECTs with NOT IN subqueries containing NULL 
+--echo #             values return too many records
+--echo # 
+
+CREATE TABLE t1 (
+  i1 int DEFAULT NULL,
+  i2 int DEFAULT NULL
+) ;
+
+INSERT INTO t1 VALUES (1,    NULL);
+INSERT INTO t1 VALUES (2,    3);
+INSERT INTO t1 VALUES (4,    NULL);
+INSERT INTO t1 VALUES (4,    0);
+INSERT INTO t1 VALUES (NULL, NULL);
+
+CREATE TABLE t2 (
+  i1 int DEFAULT NULL,
+  i2 int DEFAULT NULL
+) ;
+
+INSERT INTO t2 VALUES (4, NULL);
+INSERT INTO t2 VALUES (5, 0);
+
+--echo 
+--echo Data in t1
+SELECT i1, i2 FROM t1;
+
+--echo 
+--echo Data in subquery (should be filtered out)
+SELECT i1, i2 FROM t2 ORDER BY i1;
+
+FLUSH STATUS;
+
+--echo 
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+      NOT IN (SELECT i1, i2 FROM t2);
+
+--echo 
+--echo # Check that the subquery only has to be evaluated once 
+--echo # for all-NULL values even though there are two (NULL,NULL) records
+--echo # Baseline:
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+
+--echo 
+INSERT INTO t1 VALUES (NULL, NULL); 
+FLUSH STATUS;
+
+--echo 
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+      NOT IN (SELECT i1, i2 FROM t2);
+
+--echo 
+--echo # Handler_read_rnd_next should be one more than baseline 
+--echo # (read record from t1, but do not read from t2)
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+
+
+DROP TABLE t1,t2;
+
+--echo End of 5.1 tests
