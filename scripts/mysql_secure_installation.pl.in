@@ -129,7 +129,11 @@ sub do_query {
   my $query   = shift;
   write_file($command, $query);
   my $rv = system("$mysql --defaults-file=$config < $command");
+  # system() returns -1 if exec fails (e.g., command not found, etc.); die
+  # in this case because nothing is going to work
   die "Failed to execute mysql client '$mysql'\n" if $rv == -1;
+  # Return true if query executed OK, or false if there was some problem
+  # (for example, SQL error or wrong password)
   return ($rv == 0 ? 1 : undef);
 }
 
