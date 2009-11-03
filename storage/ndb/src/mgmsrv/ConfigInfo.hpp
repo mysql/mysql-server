@@ -53,9 +53,10 @@ public:
                      CI_SECTION
   };
   enum Status      { CI_USED,            ///< Active
-		     CI_DEPRICATED,      ///< Can be, but shouldn't
-		     CI_NOTIMPLEMENTED,  ///< Is ignored.
-		     CI_INTERNAL         ///< Not configurable by the user
+                     CI_EXPERIMENTAL,    ///< Active but experimental
+                     CI_DEPRICATED,      ///< Can be used, but shouldn't
+                     CI_NOTIMPLEMENTED,  ///< Is ignored.
+                     CI_INTERNAL         ///< Not configurable by the user
   };
 
   enum Flags {
