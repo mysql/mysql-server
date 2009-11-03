@@ -1301,6 +1301,12 @@ SELECT '2008-02-18' + INTERVAL 1 FRAC_SECOND;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
 SELECT '2008-02-18' - INTERVAL 1 FRAC_SECOND;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
+select date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond);
+date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond)
+1000-01-02 03:02:01.050000
+select date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond);
+date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond)
+1000-01-01 00:00:01.020000
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)

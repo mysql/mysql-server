@@ -819,6 +819,16 @@ SELECT '2008-02-18' + INTERVAL 1 FRAC_SECOND;
 --error ER_PARSE_ERROR
 SELECT '2008-02-18' - INTERVAL 1 FRAC_SECOND;
 
+#
+# Bug #36466:
+#   Adding days to day_microsecond changes interpretation of microseconds
+#
+
+# show that we treat fractions of seconds correctly (zerofill from right to
+# six places) even if we left out fields on the left.
+select date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond);
+select date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond);
+
 --echo End of 5.0 tests
 
 #
