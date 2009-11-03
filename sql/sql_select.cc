@@ -9119,18 +9119,26 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
 
 
 /**
-  Remove const and eq items.
+  Handles the reqursive job for remove_eq_conds()
 
-  @return
-    Return new item, or NULL if no condition @n
-    cond_value is set to according:
-    - COND_OK     : query is possible (field = constant)
-    - COND_TRUE   : always true	( 1 = 1 )
-    - COND_FALSE  : always false	( 1 = 2 )
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  RETURN
+    *COND with the simplified condition
 */
 
-COND *
-remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+static COND *
+internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -9144,7 +9152,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=remove_eq_conds(thd, item, &tmp_cond_value);
+      Item *new_item=internal_remove_eq_conds(thd, item, &tmp_cond_value);
       if (!new_item)
 	li.remove();
       else if (item != new_item)
@@ -9193,6 +9201,86 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   else if (cond->type() == Item::FUNC_ITEM &&
 	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
   {
+    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item **args= func->arguments();
+    if (args[0]->type() == Item::FIELD_ITEM)
+    {
+      Field *field=((Item_field*) args[0])->field;
+      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
+      /*
+        datetime_field IS NULL has to be modified to
+        datetime_field == 0
+      */
+      if (((field->type() == MYSQL_TYPE_DATE) ||
+           (field->type() == MYSQL_TYPE_DATETIME)) &&
+          (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
+      {
+	COND *new_cond;
+	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
+	{
+	  cond=new_cond;
+          /*
+            Item_func_eq can't be fixed after creation so we do not check
+            cond->fixed, also it do not need tables so we use 0 as second
+            argument.
+          */
+	  cond->fix_fields(thd, &cond);
+	}
+      }
+    }
+    if (cond->const_item())
+    {
+      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+      return (COND*) 0;
+    }
+  }
+  else if (cond->const_item())
+  {
+    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+    return (COND*) 0;
+  }
+  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
+  {						// boolan compare function
+    Item *left_item=	((Item_func*) cond)->arguments()[0];
+    Item *right_item= ((Item_func*) cond)->arguments()[1];
+    if (left_item->eq(right_item,1))
+    {
+      if (!left_item->maybe_null ||
+	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
+	return (COND*) 0;			// Compare of identical items
+    }
+  }
+  *cond_value=Item::COND_OK;
+  return cond;					// Point at next and level
+}
+
+
+/**
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  NOTES
+    calls the inner_remove_eq_conds to check all the tree reqursively
+
+  RETURN
+    *COND with the simplified condition
+*/
+
+COND *
+remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+{
+  if (cond->type() == Item::FUNC_ITEM &&
+      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+  {
     /*
       Handles this special case for some ODBC applications:
       The are requesting the row that was just updated with a auto_increment
@@ -9235,51 +9323,15 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           clear for next row
         */
         thd->substitute_null_with_insert_id= FALSE;
-      }
-      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      else if (((field->type() == MYSQL_TYPE_DATE) ||
-		(field->type() == MYSQL_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG) &&
-	       !field->table->maybe_null)
-      {
-	COND *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+
+        *cond_value= Item::COND_OK;
+        return cond;
       }
     }
-    if (cond->const_item())
-    {
-      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-      return (COND*) 0;
-    }
   }
-  else if (cond->const_item())
-  {
-    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-    return (COND*) 0;
-  }
-  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
-  {						// boolan compare function
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(right_item,1))
-    {
-      if (!left_item->maybe_null ||
-	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
-	return (COND*) 0;			// Compare of identical items
-    }
-  }
-  *cond_value=Item::COND_OK;
-  return cond;					// Point at next and level
+  return internal_remove_eq_conds(thd, cond, cond_value); // Scan all the condition
 }
+
 
 /* 
   Check if equality can be used in removing components of GROUP BY/DISTINCT

@@ -117,6 +117,7 @@ sync_slave_with_master;
 --echo #
 
 connection master;
+set @@session.sql_auto_is_null=1;
 eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
 eval create table t2(a int) engine=$engine_type;
 insert into t1 (a) values (null);
@@ -548,4 +549,5 @@ connection master;
 drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
+set @@session.sql_auto_is_null=default;
 sync_slave_with_master;
