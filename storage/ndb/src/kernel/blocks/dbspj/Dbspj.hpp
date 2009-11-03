@@ -475,12 +475,12 @@ private:
   ArenaPool m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
 
-  void do_init(Request*, const struct LqhKeyReq*, Uint32 senderRef);
+  void do_init(Request*, const LqhKeyReq*, Uint32 senderRef);
   void store_lookup(Ptr<Request>);
   void handle_early_lqhkey_ref(Signal*, const LqhKeyReq *, Uint32 err);
   void sendTCKEYREF(Signal* signal, Uint32 ref, Uint32 routeRef);
 
-  void do_init(Request*, const struct ScanFragReq*, Uint32 senderRef);
+  void do_init(Request*, const ScanFragReq*, Uint32 senderRef);
   void store_scan(Ptr<Request>);
   void handle_early_scanfrag_ref(Signal*, const ScanFragReq *, Uint32 err);
 
