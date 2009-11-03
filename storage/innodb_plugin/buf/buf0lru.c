@@ -978,14 +978,14 @@ buf_LRU_old_adjust_len(void)
 #ifdef UNIV_LRU_DEBUG
 			ut_a(!LRU_old->old);
 #endif /* UNIV_LRU_DEBUG */
-			buf_page_set_old(LRU_old, TRUE);
 			old_len = ++buf_pool->LRU_old_len;
+			buf_page_set_old(LRU_old, TRUE);
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
-			buf_page_set_old(LRU_old, FALSE);
 			buf_pool->LRU_old = UT_LIST_GET_NEXT(LRU, LRU_old);
 			old_len = --buf_pool->LRU_old_len;
+			buf_page_set_old(LRU_old, FALSE);
 		} else {
 			return;
 		}
@@ -1013,7 +1013,9 @@ buf_LRU_old_init(void)
 	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
 		ut_ad(bpage->in_LRU_list);
 		ut_ad(buf_page_in_file(bpage));
-		buf_page_set_old(bpage, TRUE);
+		/* This loop temporarily violates the
+		assertions of buf_page_set_old(). */
+		bpage->old = TRUE;
 	}
 
 	buf_pool->LRU_old = UT_LIST_GET_FIRST(buf_pool->LRU);
@@ -1089,10 +1091,19 @@ buf_LRU_remove_block(
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
-	/* If the LRU list is so short that LRU_old not defined, return */
+	/* If the LRU list is so short that LRU_old is not defined,
+	clear the "old" flags and return */
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
 
+		for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != NULL;
+		     bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+			/* This loop temporarily violates the
+			assertions of buf_page_set_old(). */
+			bpage->old = FALSE;
+		}
+
 		buf_pool->LRU_old = NULL;
+		buf_pool->LRU_old_len = 0;
 
 		return;
 	}
@@ -1153,14 +1164,13 @@ buf_LRU_add_block_to_end_low(
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
 
-	buf_page_set_old(bpage, TRUE);
-
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
 		ut_ad(buf_pool->LRU_old);
 
 		/* Adjust the length of the old block list if necessary */
 
+		buf_page_set_old(bpage, TRUE);
 		buf_pool->LRU_old_len++;
 		buf_LRU_old_adjust_len();
 
@@ -1169,8 +1179,9 @@ buf_LRU_add_block_to_end_low(
 		/* The LRU list is now long enough for LRU_old to become
 		defined: init it */
 
-		buf_pool->LRU_old_len++;
 		buf_LRU_old_init();
+	} else {
+		buf_page_set_old(bpage, buf_pool->LRU_old != NULL);
 	}
 
 	/* If this is a zipped block with decompressed frame as well
@@ -1221,14 +1232,13 @@ buf_LRU_add_block_low(
 
 	ut_d(bpage->in_LRU_list = TRUE);
 
-	buf_page_set_old(bpage, old);
-
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
 		ut_ad(buf_pool->LRU_old);
 
 		/* Adjust the length of the old block list if necessary */
 
+		buf_page_set_old(bpage, old);
 		buf_LRU_old_adjust_len();
 
 	} else if (UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN) {
@@ -1237,6 +1247,8 @@ buf_LRU_add_block_low(
 		defined: init it */
 
 		buf_LRU_old_init();
+	} else {
+		buf_page_set_old(bpage, buf_pool->LRU_old != NULL);
 	}
 
 	/* If this is a zipped block with decompressed frame as well
@@ -1434,15 +1446,6 @@ alloc:
 
 						buf_pool->LRU_old = b;
 					}
-#ifdef UNIV_LRU_DEBUG
-					ut_a(prev_b->old
-					     || !UT_LIST_GET_NEXT(LRU, b)
-					     || UT_LIST_GET_NEXT(LRU, b)->old);
-				} else {
-					ut_a(!prev_b->old
-					     || !UT_LIST_GET_NEXT(LRU, b)
-					     || !UT_LIST_GET_NEXT(LRU, b)->old);
-#endif /* UNIV_LRU_DEBUG */
 				}
 
 				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
@@ -1458,6 +1461,11 @@ alloc:
 					defined: init it */
 					buf_LRU_old_init();
 				}
+#ifdef UNIV_LRU_DEBUG
+				/* Check that the "old" flag is consistent
+				in the block and its neighbours. */
+				buf_page_set_old(b, buf_page_is_old(b));
+#endif /* UNIV_LRU_DEBUG */
 			} else {
 				ut_d(b->in_LRU_list = FALSE);
 				buf_LRU_add_block_low(b, buf_page_is_old(b));
@@ -1964,19 +1972,24 @@ buf_LRU_validate(void)
 		}
 
 		if (buf_page_is_old(bpage)) {
-			old_len++;
-		}
+			const buf_page_t*	prev
+				= UT_LIST_GET_PREV(LRU, bpage);
+			const buf_page_t*	next
+				= UT_LIST_GET_NEXT(LRU, bpage);
 
-		if (buf_pool->LRU_old && (old_len == 1)) {
-			ut_a(buf_pool->LRU_old == bpage);
+			if (!old_len++) {
+				ut_a(buf_pool->LRU_old == bpage);
+			} else {
+				ut_a(!prev || buf_page_is_old(prev));
+			}
+
+			ut_a(!next || buf_page_is_old(next));
 		}
 
 		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
-	if (buf_pool->LRU_old) {
-		ut_a(buf_pool->LRU_old_len == old_len);
-	}
+	ut_a(buf_pool->LRU_old_len == old_len);
 
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free,
 			 ut_ad(ut_list_node_313->in_free_list));

@@ -1163,10 +1163,15 @@ buf_relocate(
 #ifdef UNIV_LRU_DEBUG
 		/* buf_pool->LRU_old must be the first item in the LRU list
 		whose "old" flag is set. */
+		ut_a(buf_pool->LRU_old->old);
 		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
 		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
 		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
 		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+	} else {
+		/* Check that the "old" flag is consistent in
+		the block and its neighbours. */
+		buf_page_set_old(dpage, buf_page_is_old(dpage));
 #endif /* UNIV_LRU_DEBUG */
 	}
 
