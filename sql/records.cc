@@ -62,6 +62,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   info->file=  table->file;
   info->record= table->record[0];
   info->print_error= print_error;
+  info->unlock_row= rr_unlock_row;
 
   table->status=0;			/* And it's always found */
   if (!table->file->inited)
@@ -187,6 +188,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   }
   info->select=select;
   info->print_error=print_error;
+  info->unlock_row= rr_unlock_row;
   info->ignore_not_found_rows= 0;
   table->status=0;			/* And it's always found */
 
