@@ -659,6 +659,7 @@ fil_node_open_file(
 #ifdef UNIV_HOTBACKUP
 		if (space->id == 0) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			os_file_close(node->handle);
 			goto add_size;
 		}
 #endif /* UNIV_HOTBACKUP */
