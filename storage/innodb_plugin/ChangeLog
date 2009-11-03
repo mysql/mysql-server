@@ -25,7 +25,8 @@
 2009-10-29	The InnoDB Team
 
 	* os/os0proc.c:
-	Fix Bug#48273 Strange CEIL behavior in stored function
+	Fix Bug#48237 Error handling in os_mem_alloc_large appears to
+	be incorrect
 
 2009-10-29	The InnoDB Team
 
