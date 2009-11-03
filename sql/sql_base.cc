@@ -798,6 +798,7 @@ void close_temporary_tables(THD *thd)
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, THD::NOT_KILLED);
       qinfo.db= db.ptr();
+      qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
       DBUG_ASSERT(qinfo.error_code == 0);
       mysql_bin_log.write(&qinfo);
