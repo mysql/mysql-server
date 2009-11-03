@@ -2748,6 +2748,12 @@ bool Delayed_insert::handle_inserts(void)
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
     pthread_mutex_lock(&mutex);
 
+    /*
+      Reset the table->auto_increment_field_not_null as it is valid for
+      only one row.
+    */
+    table->auto_increment_field_not_null= FALSE;
+
     delete row;
     /*
       Let READ clients do something once in a while
@@ -3857,6 +3863,7 @@ void select_create::abort()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+    table->auto_increment_field_not_null= FALSE;
     if (!create_info->table_existed)
       drop_open_table(thd, table, create_table->db, create_table->table_name);
     table=0;                                    // Safety

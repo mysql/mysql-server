@@ -27,52 +27,8 @@
 #include "rpl_tblmap.h"
 #include "replication.h"
 
-/**
-  An interface that is used to take an action when
-  the locking module notices that a table version has changed
-  since the last execution. "Table" here may refer to any kind of
-  table -- a base table, a temporary table, a view or an
-  information schema table.
 
-  When we open and lock tables for execution of a prepared
-  statement, we must verify that they did not change
-  since statement prepare. If some table did change, the statement
-  parse tree *may* be no longer valid, e.g. in case it contains
-  optimizations that depend on table metadata.
-
-  This class provides an interface (a method) that is
-  invoked when such a situation takes place.
-  The implementation of the method simply reports an error, but
-  the exact details depend on the nature of the SQL statement.
-
-  At most 1 instance of this class is active at a time, in which
-  case THD::m_reprepare_observer is not NULL.
-
-  @sa check_and_update_table_version() for details of the
-  version tracking algorithm 
-
-  @sa Open_tables_state::m_reprepare_observer for the life cycle
-  of metadata observers.
-*/
-
-class Reprepare_observer
-{
-public:
-  Reprepare_observer() {}
-  /**
-    Check if a change of metadata is OK. In future
-    the signature of this method may be extended to accept the old
-    and the new versions, but since currently the check is very
-    simple, we only need the THD to report an error.
-  */
-  bool report_error(THD *thd);
-  bool is_invalidated() const { return m_invalidated; }
-  void reset_reprepare_observer() { m_invalidated= FALSE; }
-private:
-  bool m_invalidated;
-};
-
-
+class Reprepare_observer;
 class Relay_log_info;
 
 class Query_log_event;
@@ -150,9 +106,14 @@ typedef struct st_copy_info {
 
 class Key_part_spec :public Sql_alloc {
 public:
-  const char *field_name;
+  LEX_STRING field_name;
   uint length;
-  Key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
+  Key_part_spec(const LEX_STRING &name, uint len)
+    : field_name(name), length(len)
+  {}
+  Key_part_spec(const char *name, const size_t name_len, uint len)
+    : length(len)
+  { field_name.str= (char *)name; field_name.length= name_len; }
   bool operator==(const Key_part_spec& other) const;
   /**
     Construct a copy of this Key_part_spec. field_name is copied
@@ -205,15 +166,24 @@ public:
   enum Keytype type;
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
-  const char *name;
+  LEX_STRING name;
   bool generated;
 
-  Key(enum Keytype type_par, const char *name_arg,
+  Key(enum Keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
+  Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
+      KEY_CREATE_INFO *key_info_arg, bool generated_arg,
+      List<Key_part_spec> &cols)
+    :type(type_par), key_create_info(*key_info_arg), columns(cols),
+    generated(generated_arg)
+  {
+    name.str= (char *)name_arg;
+    name.length= name_len_arg;
+  }
   Key(const Key &rhs, MEM_ROOT *mem_root);
   virtual ~Key() {}
   /* Equality comparison of keys (ignoring name) */
@@ -238,7 +208,7 @@ public:
   Table_ident *ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
-  Foreign_key(const char *name_arg, List<Key_part_spec> &cols,
+  Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
@@ -269,6 +239,27 @@ public:
   String column;
   uint rights;
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
+};
+
+/**
+  Query_cache_tls -- query cache thread local data.
+*/
+
+struct Query_cache_block;
+
+struct Query_cache_tls
+{
+  /*
+    'first_query_block' should be accessed only via query cache
+    functions and methods to maintain proper locking.
+  */
+  Query_cache_block *first_query_block;
+  void set_first_query_block(Query_cache_block *first_query_block_arg)
+  {
+    first_query_block= first_query_block_arg;
+  }
+
+  Query_cache_tls() :first_query_block(NULL) {}
 };
 
 /* SIGNAL / RESIGNAL / GET DIAGNOSTICS */
@@ -744,8 +735,8 @@ public:
   Statement *find_by_name(LEX_STRING *name)
   {
     Statement *stmt;
-    stmt= (Statement*)hash_search(&names_hash, (uchar*)name->str,
-                                  name->length);
+    stmt= (Statement*)my_hash_search(&names_hash, (uchar*)name->str,
+                                     name->length);
     return stmt;
   }
 
@@ -754,7 +745,7 @@ public:
     if (last_found_statement == 0 || id != last_found_statement->id)
     {
       Statement *stmt;
-      stmt= (Statement *) hash_search(&st_hash, (uchar *) &id, sizeof(id));
+      stmt= (Statement *) my_hash_search(&st_hash, (uchar *) &id, sizeof(id));
       if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;
@@ -1233,6 +1224,9 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
+#ifdef HAVE_QUERY_CACHE
+  Query_cache_tls query_cache_tls;
+#endif
   NET	  net;				// client connection descriptor
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
@@ -1651,7 +1645,7 @@ public:
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
   Diagnostics_area *stmt_da;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
 
@@ -2398,7 +2392,7 @@ public:
   */
   virtual uint field_count(List<Item> &fields) const
   { return fields.elements; }
-  virtual bool send_fields(List<Item> &list, uint flags)=0;
+  virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
@@ -2443,7 +2437,7 @@ class select_result_interceptor: public select_result
 public:
   select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
-  bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
+  bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };
 
 
@@ -2456,7 +2450,7 @@ class select_send :public select_result {
   bool is_result_set_started;
 public:
   select_send() :is_result_set_started(FALSE) {}
-  bool send_fields(List<Item> &list, uint flags);
+  bool send_result_set_metadata(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }

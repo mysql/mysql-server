@@ -408,7 +408,7 @@ row_merge_buf_add(
 /** Structure for reporting duplicate records. */
 struct row_merge_dup_struct {
 	const dict_index_t*	index;		/*!< index being sorted */
-	TABLE*			table;		/*!< MySQL table object */
+	struct TABLE*		table;		/*!< MySQL table object */
 	ulint			n_dup;		/*!< number of duplicates */
 };
 
@@ -1100,7 +1100,7 @@ ulint
 row_merge_read_clustered_index(
 /*===========================*/
 	trx_t*			trx,	/*!< in: transaction */
-	TABLE*			table,	/*!< in/out: MySQL table object,
+	struct TABLE*		table,	/*!< in/out: MySQL table object,
 					for reporting erroneous records */
 	const dict_table_t*	old_table,/*!< in: table where rows are
 					read from */
@@ -1382,7 +1382,7 @@ row_merge_blocks(
 	ulint*			foffs1,	/*!< in/out: offset of second
 					source list in the file */
 	merge_file_t*		of,	/*!< in/out: output file */
-	TABLE*			table)	/*!< in/out: MySQL table, for
+	struct TABLE*		table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {
@@ -1563,7 +1563,7 @@ row_merge(
 	ulint*			half,	/*!< in/out: half the file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	TABLE*			table)	/*!< in/out: MySQL table, for
+	struct TABLE*		table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {
@@ -1658,7 +1658,7 @@ row_merge_sort(
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	TABLE*			table)	/*!< in/out: MySQL table, for
+	struct TABLE*		table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {
@@ -2437,7 +2437,7 @@ row_merge_build_indexes(
 					unless creating a PRIMARY KEY */
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	TABLE*		table)		/*!< in/out: MySQL table, for
+	struct TABLE*	table)		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {

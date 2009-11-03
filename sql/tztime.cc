@@ -1581,17 +1581,17 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   lex_start(thd);
 
   /* Init all memory structures that require explicit destruction */
-  if (hash_init(&tz_names, &my_charset_latin1, 20,
-                0, 0, (hash_get_key) my_tz_names_get_key, 0, 0))
+  if (my_hash_init(&tz_names, &my_charset_latin1, 20,
+                   0, 0, (my_hash_get_key) my_tz_names_get_key, 0, 0))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end;
   }
-  if (hash_init(&offset_tzs, &my_charset_latin1, 26, 0, 0,
-                (hash_get_key)my_offset_tzs_get_key, 0, 0))
+  if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0, 0,
+                   (my_hash_get_key)my_offset_tzs_get_key, 0, 0))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
-    hash_free(&tz_names);
+    my_hash_free(&tz_names);
     goto end;
   }
   init_alloc_root(&tz_storage, 32 * 1024, 0);
@@ -1774,8 +1774,8 @@ void my_tz_free()
   {
     tz_inited= 0;
     VOID(pthread_mutex_destroy(&tz_LOCK));
-    hash_free(&offset_tzs);
-    hash_free(&tz_names);
+    my_hash_free(&offset_tzs);
+    my_hash_free(&tz_names);
     free_root(&tz_storage, MYF(0));
   }
 }
@@ -2267,9 +2267,9 @@ my_tz_find(THD *thd, const String *name)
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
 
-    if (!(result_tz= (Time_zone_offset *)hash_search(&offset_tzs,
-                                                     (const uchar *)&offset,
-                                                     sizeof(long))))
+    if (!(result_tz= (Time_zone_offset *)my_hash_search(&offset_tzs,
+                                                        (const uchar *)&offset,
+                                                        sizeof(long))))
     {
       DBUG_PRINT("info", ("Creating new Time_zone_offset object"));
 
@@ -2285,9 +2285,10 @@ my_tz_find(THD *thd, const String *name)
   else
   {
     result_tz= 0;
-    if ((tmp_tzname= (Tz_names_entry *)hash_search(&tz_names,
-                                                   (const uchar *)name->ptr(),
-                                                   name->length())))
+    if ((tmp_tzname= (Tz_names_entry *)my_hash_search(&tz_names,
+                                                      (const uchar *)
+                                                      name->ptr(),
+                                                      name->length())))
       result_tz= tmp_tzname->tz;
     else if (time_zone_tables_exist)
     {

@@ -1570,7 +1570,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
         }
         // recovery mode
         if (info->commit_list ?
-            hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
+            my_hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
         {
 #ifndef DBUG_OFF
@@ -1681,12 +1681,12 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_xid_cache);
-  while ((xs= (XID_STATE*)hash_element(&xid_cache, i++)))
+  while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
     {
@@ -3009,9 +3009,9 @@ static bool update_frm_version(TABLE *table)
     if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) hash_first(&open_cache,(uchar*) key,key_length, &state);
+    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
          entry;
-         entry= (TABLE*) hash_next(&open_cache,(uchar*) key,key_length, &state))
+         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
       entry->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
@@ -4467,7 +4467,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 

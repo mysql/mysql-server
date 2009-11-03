@@ -110,7 +110,7 @@ def	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NUL
 def	mysql	proc	body_utf8	20	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
 def	mysql	proc	character_set_client	17	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	
 def	mysql	proc	collation_connection	18	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	
-def	mysql	proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	
+def	mysql	proc	comment	16	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	
 def	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 def	mysql	proc	db	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 def	mysql	proc	db_collation	19	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references	
@@ -180,6 +180,7 @@ def	mysql	user	Alter_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('
 def	mysql	user	Alter_routine_priv	28	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Create_routine_priv	27	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
+def	mysql	user	Create_tablespace_priv	32	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Create_tmp_table_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Create_user_priv	29	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Create_view_priv	25	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
@@ -193,10 +194,10 @@ def	mysql	user	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		sele
 def	mysql	user	Index_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Insert_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Lock_tables_priv	21	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
-def	mysql	user	max_connections	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
-def	mysql	user	max_questions	36	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
-def	mysql	user	max_updates	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
-def	mysql	user	max_user_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
+def	mysql	user	max_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
+def	mysql	user	max_questions	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
+def	mysql	user	max_updates	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
+def	mysql	user	max_user_connections	40	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
 def	mysql	user	Password	3		NO	char	41	41	NULL	NULL	latin1	latin1_bin	char(41)			select,insert,update,references	
 def	mysql	user	Process_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	References_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
@@ -207,14 +208,14 @@ def	mysql	user	Select_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('
 def	mysql	user	Show_db_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Show_view_priv	26	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Shutdown_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
-def	mysql	user	ssl_cipher	33	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-def	mysql	user	ssl_type	32		NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('','ANY','X509','SPECIFIED')			select,insert,update,references	
+def	mysql	user	ssl_cipher	34	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
+def	mysql	user	ssl_type	33		NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('','ANY','X509','SPECIFIED')			select,insert,update,references	
 def	mysql	user	Super_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Trigger_priv	31	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	Update_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 def	mysql	user	User	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
-def	mysql	user	x509_issuer	34	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
-def	mysql	user	x509_subject	35	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
+def	mysql	user	x509_issuer	35	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
+def	mysql	user	x509_subject	36	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -233,6 +234,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	char	latin1	latin1_bin
 1.0000	char	latin1	latin1_swedish_ci
 1.0000	varchar	latin1	latin1_swedish_ci
+1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
 SELECT DISTINCT
@@ -403,7 +405,7 @@ NULL	mysql	ndb_binlog_index	schemaops	bigint	NULL	NULL	NULL	NULL	bigint(20) unsi
 NULL	mysql	proc	created	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	proc	modified	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	proc	sql_mode	set	478	1434	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
-3.0000	mysql	proc	comment	char	64	192	utf8	utf8_bin	char(64)
+1.0000	mysql	proc	comment	text	65535	65535	utf8	utf8_bin	text
 3.0000	mysql	proc	character_set_client	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	proc	collation_connection	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	proc	db_collation	char	32	96	utf8	utf8_bin	char(32)
@@ -489,6 +491,7 @@ NULL	mysql	time_zone_transition_type	Is_DST	tinyint	NULL	NULL	NULL	NULL	tinyint(
 3.0000	mysql	user	Create_user_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	user	Event_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	user	Trigger_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	user	Create_tablespace_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	user	ssl_type	enum	9	27	utf8	utf8_general_ci	enum('','ANY','X509','SPECIFIED')
 1.0000	mysql	user	ssl_cipher	blob	65535	65535	NULL	NULL	blob
 1.0000	mysql	user	x509_issuer	blob	65535	65535	NULL	NULL	blob

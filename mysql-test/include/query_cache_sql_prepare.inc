@@ -1,11 +1,13 @@
 ############### include/query_cache_sql_prepare.inc ################
 #
 # This is to see how statements prepared via the PREPARE SQL command
-# go into the query cache: if using parameters they cannot; if not
-# using parameters they can.
+# go into the query cache.
 # Query cache is abbreviated as "QC"
 #
 # Last update:
+# 2008-05-26 Kostja
+#               - Add test coverage for automatic statement reprepare
+#
 # 2007-05-03 ML - Move t/query_cache_sql_prepare.test
 #                 to   include/query_cache_sql_prepare.inc
 #               - Create two toplevel tests sourcing this routine
@@ -490,6 +492,37 @@ use test;
 
 --echo
 --echo ########################################################################
+--echo #
+--echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
+--echo # after PREPARE
+--echo # Check the effect of automatic reprepare on query cache
+--echo #
+--echo ########################################################################
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a varchar(255));
+insert into t1 (a) values ("Pack my box with five dozen liquor jugs.");
+flush status;
+prepare stmt from "select a from t1";
+execute stmt;
+set @@global.query_cache_size=0;
+alter table t1 add column b int;
+execute stmt;
+set @@global.query_cache_size=100000;
+execute stmt;
+execute stmt;
+--echo #
+--echo # Sic: ALTER TABLE caused an automatic reprepare 
+--echo # of the prepared statement. Since the query cache was disabled
+--echo # at the time of reprepare, the new prepared statement doesn't
+--echo # work with it.
+--echo # 
+show status like 'Qcache_hits';
+show status like 'Qcache_queries_in_cache';
+--echo # Cleanup
+deallocate prepare stmt;
+drop table t1;
 
 ###############################################################################
 

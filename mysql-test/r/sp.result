@@ -6926,3 +6926,35 @@ DROP TABLE t1, t2;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t_non_existing;
+DROP TABLE IF EXISTS t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+DECLARE v INT;
+SELECT a INTO v FROM t_non_existing;
+RETURN 1;
+END|
+CREATE TABLE t1 (a INT) ENGINE = myisam;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE a = f1();
+ERROR 42S02: Table 'test.t_non_existing' doesn't exist
+DROP FUNCTION f1;
+DROP TABLE t1;
+#
+# Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
+#            strict SQL mode
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1 ()
+COMMENT
+'12345678901234567890123456789012345678901234567890123456789012345678901234567890'
+BEGIN
+END;
+SELECT comment FROM mysql.proc WHERE name = "p1";
+comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
+routine_comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+DROP PROCEDURE p1;

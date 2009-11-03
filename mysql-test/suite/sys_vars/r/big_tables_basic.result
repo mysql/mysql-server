@@ -49,11 +49,11 @@ ERROR HY000: Variable 'big_tables' is a SESSION variable and can't be used with 
 SELECT @@global.big_tables;
 ERROR HY000: Variable 'big_tables' is a SESSION variable
 '#----------------------FN_DYNVARS_005_05------------------------#'
-SELECT @@big_tables = VARIABLE_VALUE 
+SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='big_tables';
-@@big_tables = VARIABLE_VALUE
-0
+IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE
+1
 Bug # 34839: Values in variable and information_schema do not match for autocommit
 '#---------------------FN_DYNVARS_005_06----------------------#'
 SET @@big_tables = OFF;

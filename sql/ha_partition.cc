@@ -2452,6 +2452,21 @@ err1:
 /****************************************************************************
                 MODULE open/close object
 ****************************************************************************/
+
+
+/**
+  A destructor for partition-specific TABLE_SHARE data.
+*/
+
+void ha_data_partition_destroy(void *ha_data)
+{
+  if (ha_data)
+  {
+    HA_DATA_PARTITION *ha_data_partition= (HA_DATA_PARTITION*) ha_data;
+    pthread_mutex_destroy(&ha_data_partition->mutex);
+  }
+}
+
 /*
   Open handler object
 
@@ -2608,6 +2623,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
     bzero(ha_data, sizeof(HA_DATA_PARTITION));
+    table_share->ha_data_destroy= ha_data_partition_destroy;
+    pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
     pthread_mutex_unlock(&table_share->mutex);

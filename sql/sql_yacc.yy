@@ -56,8 +56,6 @@
 
 int yylex(void *yylval, void *yythd);
 
-const LEX_STRING null_lex_str= {0,0};
-
 #define yyoverflow(A,B,C,D,E,F)               \
   {                                           \
     ulong val= *(F);                          \
@@ -507,7 +505,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   struct sp_cond_type *spcondtype;
   struct { int vars, conds, hndlrs, curs; } spblock;
   sp_name *spname;
-  struct st_lex *lex;
+  LEX *lex;
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
@@ -1155,6 +1153,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
+        opt_constraint constraint opt_ident
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -1163,8 +1162,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_ident table_ident_nodb references xid
 
 %type <simple_string>
-        remember_name remember_end opt_ident opt_db text_or_password
-        opt_constraint constraint
+        remember_name remember_end opt_db text_or_password
 
 %type <string>
         text_string opt_gconcat_separator
@@ -1394,7 +1392,7 @@ query:
             Lex_input_stream *lip = YYLIP;
 
             if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
-                ! lip->stmt_prepare_mode &&
+                lip->multi_statements &&
                 ! lip->eof())
             {
               /*
@@ -1809,7 +1807,7 @@ create:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            key= new Key($2, $4.str, &lex->key_create_info, 0,
+            key= new Key($2, $4, &lex->key_create_info, 0,
                          lex->col_list);
             if (key == NULL)
               MYSQL_YYABORT;
@@ -5002,8 +5000,7 @@ key_def:
           '(' key_list ')' key_options
           {
             LEX *lex=Lex;
-            const char *key_name= $3 ? $3 : $1;
-            Key *key= new Key($2, key_name, &lex->key_create_info, 0,
+            Key *key= new Key($2, $3.str ? $3 : $1, &lex->key_create_info, 0,
                               lex->col_list);
             if (key == NULL)
               MYSQL_YYABORT;
@@ -5013,9 +5010,7 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            const char *key_name= $1 ? $1 : $4;
-            const char *fkey_name = $4 ? $4 : key_name;
-            Key *key= new Foreign_key(fkey_name, lex->col_list,
+            Key *key= new Foreign_key($4.str ? $4 : $1, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
@@ -5024,7 +5019,7 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            key= new Key(Key::MULTIPLE, key_name,
+            key= new Key(Key::MULTIPLE, $1.str ? $1 : $4,
                          &default_key_create_info, 1,
                          lex->col_list);
             if (key == NULL)
@@ -5054,7 +5049,7 @@ check_constraint:
         ;
 
 opt_constraint:
-          /* empty */ { $$=(char*) 0; }
+          /* empty */ { $$= null_lex_str; }
         | constraint { $$= $1; }
         ;
 
@@ -5559,14 +5554,14 @@ opt_ref_list:
 ref_list:
           ref_list ',' ident
           {
-            Key_part_spec *key= new Key_part_spec($3.str);
+            Key_part_spec *key= new Key_part_spec($3, 0);
             if (key == NULL)
               MYSQL_YYABORT;
             Lex->ref_list.push_back(key);
           }
         | ident
           {
-            Key_part_spec *key= new Key_part_spec($1.str);
+            Key_part_spec *key= new Key_part_spec($1, 0);
             if (key == NULL)
               MYSQL_YYABORT;
             Lex->ref_list.push_back(key);
@@ -5713,7 +5708,7 @@ key_list:
 key_part:
           ident
           {
-            $$= new Key_part_spec($1.str);
+            $$= new Key_part_spec($1, 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -5724,15 +5719,15 @@ key_part:
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec($1.str,(uint) key_part_len);
+            $$= new Key_part_spec($1, (uint) key_part_len);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         ;
 
 opt_ident:
-          /* empty */ { $$=(char*) 0; /* Default length */ }
-        | field_ident { $$=$1.str; }
+          /* empty */ { $$= null_lex_str; }
+        | field_ident { $$= $1; }
         ;
 
 opt_component:
@@ -12861,6 +12856,7 @@ object_privilege:
         | CREATE USER             { Lex->grant |= CREATE_USER_ACL; }
         | EVENT_SYM               { Lex->grant |= EVENT_ACL;}
         | TRIGGER_SYM             { Lex->grant |= TRIGGER_ACL; }
+        | CREATE TABLESPACE       { Lex->grant |= CREATE_TABLESPACE_ACL; }
         ;
 
 opt_and:

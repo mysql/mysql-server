@@ -49,6 +49,7 @@ typedef struct st_ha_data_partition
 {
   ulonglong next_auto_inc_val;                 /**< first non reserved value */
   bool auto_inc_initialized;
+  pthread_mutex_t mutex;
 } HA_DATA_PARTITION;
 
 #define PARTITION_BYTES_IN_POS 2

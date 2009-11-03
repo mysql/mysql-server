@@ -459,8 +459,8 @@ int federated_db_init(void *p)
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
-                    (hash_get_key) federated_get_key, 0, 0))
+  if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
+                    (my_hash_get_key) federated_get_key, 0, 0))
   {
     DBUG_RETURN(FALSE);
   }
@@ -483,7 +483,7 @@ error:
 
 int federated_done(void *p)
 {
-  hash_free(&federated_open_tables);
+  my_hash_free(&federated_open_tables);
   VOID(pthread_mutex_destroy(&federated_mutex));
 
   return 0;
@@ -1495,10 +1495,10 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     goto error;
 
   /* TODO: change tmp_share.scheme to LEX_STRING object */
-  if (!(share= (FEDERATED_SHARE *) hash_search(&federated_open_tables,
-                                               (uchar*) tmp_share.share_key,
-                                               tmp_share.
-                                               share_key_length)))
+  if (!(share= (FEDERATED_SHARE *) my_hash_search(&federated_open_tables,
+                                                  (uchar*) tmp_share.share_key,
+                                                  tmp_share.
+                                                  share_key_length)))
   {
     query.set_charset(system_charset_info);
     query.append(STRING_WITH_LEN("SELECT "));
@@ -1560,7 +1560,7 @@ static int free_share(FEDERATED_SHARE *share)
   pthread_mutex_lock(&federated_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&federated_open_tables, (uchar*) share);
+    my_hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     free_root(&mem_root, MYF(0));
@@ -2892,7 +2892,7 @@ int ha_federated::info(uint flag)
   }
 
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= mysql->last_used_con->insert_id;
+    stats.auto_increment_value= mysql->insert_id;
 
   mysql_free_result(result);
 

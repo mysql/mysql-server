@@ -13,8 +13,8 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 grant delete on mysqltest.* to mysqltest_1@localhost;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	SPECIFIED	EDH-RSA-DES-CBC3-SHA			0	0	0	0
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
+localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	SPECIFIED	EDH-RSA-DES-CBC3-SHA			0	0	0	0
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -44,15 +44,15 @@ delete from mysql.user where user='mysqltest_1';
 flush privileges;
 grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	0	0	0
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
+localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	0	0	0
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
 grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	20	30	0
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
+localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	20	30	0
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -483,6 +483,7 @@ Show view	Tables	To see views with SHOW CREATE VIEW
 Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Trigger	Tables	To use triggers
+Create tablespace	Server Admin	To create/alter/drop tablespaces
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
 create database mysqltest;
@@ -914,13 +915,13 @@ SHOW CREATE VIEW  mysqltest2.v_ny;
 View	Create View	character_set_client	collation_connection
 v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`	latin1	latin1_swedish_ci
 SHOW CREATE TABLE mysqltest3.t_nn;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
+ERROR 42000: SHOW command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
 SHOW CREATE VIEW  mysqltest3.t_nn;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
 SHOW CREATE VIEW  mysqltest3.v_nn;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
 SHOW CREATE TABLE mysqltest3.v_nn;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
+ERROR 42000: SHOW command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
@@ -1413,3 +1414,713 @@ DROP USER 'user1';
 DROP USER 'user1'@'localhost';
 DROP USER 'user2';
 DROP DATABASE db1;
+#
+# Bug #25863 No database selected error, but documentation 
+#            says * for global allowed
+#
+GRANT ALL ON * TO mysqltest_1;
+ERROR 3D000: No database selected
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT ALL PRIVILEGES ON *.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
+USE test;
+GRANT ALL ON * TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
+GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
+GRANT ALL ON *.* TO mysqltest_1;
+SHOW GRANTS FOR mysqltest_1;
+Grants for mysqltest_1@%
+GRANT ALL PRIVILEGES ON *.* TO 'mysqltest_1'@'%'
+DROP USER mysqltest_1;
+#########################################################################
+#
+# Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.
+#
+#########################################################################
+
+# --
+# -- Prepare the environment.
+# --
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+CREATE TABLE mysqltest_db1.t1(a INT);
+
+# --
+# -- Check that global privileges don't allow SHOW CREATE TABLE.
+# --
+GRANT EVENT                   ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT LOCK TABLES             ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT ALTER ROUTINE           ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT CREATE ROUTINE          ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT EXECUTE                 ON mysqltest_db1.* TO mysqltest_u1@localhost;
+GRANT FILE                    ON *.* TO mysqltest_u1@localhost;
+GRANT CREATE USER             ON *.* TO mysqltest_u1@localhost;
+GRANT PROCESS                 ON *.* TO mysqltest_u1@localhost;
+GRANT RELOAD                  ON *.* TO mysqltest_u1@localhost;
+GRANT REPLICATION CLIENT      ON *.* TO mysqltest_u1@localhost;
+GRANT REPLICATION SLAVE       ON *.* TO mysqltest_u1@localhost;
+GRANT SHOW DATABASES          ON *.* TO mysqltest_u1@localhost;
+GRANT SHUTDOWN                ON *.* TO mysqltest_u1@localhost;
+GRANT USAGE                   ON *.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT RELOAD, SHUTDOWN, PROCESS, FILE, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, CREATE USER ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE ROUTINE, ALTER ROUTINE, EVENT ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global SELECT allows SHOW CREATE TABLE.
+# -- 
+
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT SELECT ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global INSERT allows SHOW CREATE TABLE.
+# -- 
+
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT INSERT ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global UPDATE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT UPDATE ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global DELETE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT DELETE ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global CREATE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT CREATE ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global DROP allows SHOW CREATE TABLE.
+# -- 
+
+GRANT DROP ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT DROP ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global ALTER allows SHOW CREATE TABLE.
+# -- 
+
+GRANT ALTER ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT ALTER ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global INDEX allows SHOW CREATE TABLE.
+# -- 
+
+GRANT INDEX ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT INDEX ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global REFERENCES allows SHOW CREATE TABLE.
+# -- 
+
+GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT REFERENCES ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
+# -- 
+
+GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT USAGE ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost' WITH GRANT OPTION
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
+# -- 
+
+GRANT CREATE VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT CREATE VIEW ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that global SHOW VIEW allows SHOW CREATE TABLE.
+# -- 
+
+GRANT SHOW VIEW ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT SHOW VIEW ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level SELECT allows SHOW CREATE TABLE.
+# -- 
+
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT SELECT ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level INSERT allows SHOW CREATE TABLE.
+# -- 
+
+GRANT INSERT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT INSERT ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level UPDATE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT UPDATE ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level DELETE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT DELETE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT DELETE ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level CREATE allows SHOW CREATE TABLE.
+# -- 
+
+GRANT CREATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT CREATE ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level DROP allows SHOW CREATE TABLE.
+# -- 
+
+GRANT DROP ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT DROP ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level ALTER allows SHOW CREATE TABLE.
+# -- 
+
+GRANT ALTER ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT ALTER ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level INDEX allows SHOW CREATE TABLE.
+# -- 
+
+GRANT INDEX ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT INDEX ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level REFERENCES allows SHOW CREATE TABLE.
+# -- 
+
+GRANT REFERENCES ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT REFERENCES ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
+# -- 
+
+GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT USAGE ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost' WITH GRANT OPTION
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level CREATE VIEW allows SHOW CREATE TABLE.
+# -- 
+
+GRANT CREATE VIEW ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT CREATE VIEW ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Check that table-level SHOW VIEW allows SHOW CREATE TABLE.
+# -- 
+
+GRANT SHOW VIEW ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+GRANT SHOW VIEW ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
+
+# connection: con1 (mysqltest_u1@mysqltest_db1)
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+# connection: default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- 
+# -- Cleanup.
+# -- 
+
+DROP DATABASE mysqltest_db1;
+DROP USER mysqltest_u1@localhost;
+
+# End of Bug#38347.
+
