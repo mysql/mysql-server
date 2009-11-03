@@ -5673,7 +5673,7 @@ create_table_def(
 				number fits in one byte in prtype */
 				push_warning_printf(
 					(THD*) trx->mysql_thd,
-					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_CANT_CREATE_TABLE,
 					"In InnoDB, charset-collation codes"
 					" must be below 256."
@@ -5707,7 +5707,7 @@ create_table_def(
 		if (dict_col_name_is_reserved(field->field_name)){
 			push_warning_printf(
 				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column name '%s'. '%s' is a "
@@ -5941,7 +5941,7 @@ create_options_are_valid(
 			/* Valid value. */
 			break;
 		default:
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_ILLEGAL_HA_CREATE_OPTION,
 					    "InnoDB: invalid"
 					    " KEY_BLOCK_SIZE = %lu."
@@ -5955,7 +5955,7 @@ create_options_are_valid(
 	/* If KEY_BLOCK_SIZE was specified, check for its
 	dependencies. */
 	if (kbs_specified && !srv_file_per_table) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			     ER_ILLEGAL_HA_CREATE_OPTION,
 			     "InnoDB: KEY_BLOCK_SIZE"
 			     " requires innodb_file_per_table.");
@@ -5963,7 +5963,7 @@ create_options_are_valid(
 	}
 
 	if (kbs_specified && srv_file_format < DICT_TF_FORMAT_ZIP) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			     ER_ILLEGAL_HA_CREATE_OPTION,
 			     "InnoDB: KEY_BLOCK_SIZE"
 			     " requires innodb_file_format >"
@@ -5987,7 +5987,7 @@ create_options_are_valid(
 			if (!srv_file_per_table) {
 				push_warning_printf(
 					thd,
-					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: ROW_FORMAT=%s"
 					" requires innodb_file_per_table.",
@@ -5999,7 +5999,7 @@ create_options_are_valid(
 			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
 				push_warning_printf(
 					thd,
-					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: ROW_FORMAT=%s"
 					" requires innodb_file_format >"
@@ -6016,7 +6016,7 @@ create_options_are_valid(
 			    && form->s->row_type == ROW_TYPE_DYNAMIC) {
 				push_warning_printf(
 					thd,
-					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: cannot specify"
 					" ROW_FORMAT = DYNAMIC with"
@@ -6040,7 +6040,7 @@ create_options_are_valid(
 			if (kbs_specified) {
 				push_warning_printf(
 					thd,
-					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: cannot specify"
 					" ROW_FORMAT = %s with"
@@ -6053,7 +6053,7 @@ create_options_are_valid(
 
 		default:
 			push_warning(thd,
-				     MYSQL_ERROR::WARN_LEVEL_ERROR,
+				     MYSQL_ERROR::WARN_LEVEL_WARN,
 				     ER_ILLEGAL_HA_CREATE_OPTION,
 				     "InnoDB: invalid ROW_FORMAT specifier.");
 			ret = FALSE;
