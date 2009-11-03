@@ -2448,3 +2448,27 @@ SELECT AVG (a) FROM t1 WHERE b = 999999;
 --error ER_SP_DOES_NOT_EXIST
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 
+--echo #   SP + MERGE + ALTER
+--echo #
+
+CREATE TABLE t1 (pk INT, b INT, KEY (b));
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+CREATE PROCEDURE p1 (a int) UPDATE IGNORE v1 SET b = a; 
+
+--error ER_NON_UPDATABLE_TABLE
+CALL p1(5);
+
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+
+--error ER_VIEW_INVALID
+CALL p1(7);
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests

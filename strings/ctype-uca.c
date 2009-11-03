@@ -7858,6 +7858,9 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     return 1;
   }
   
+  if (!cs->caseinfo)
+    cs->caseinfo= my_unicase_default;
+  
   if (!(newweights= (uint16**) (*alloc)(256*sizeof(uint16*))))
     return 1;
   bzero(newweights, 256*sizeof(uint16*));

@@ -9082,8 +9082,7 @@ procedure_clause:
               MYSQL_YYABORT;
             }
 
-            if (&lex->select_lex != lex->current_select ||
-                lex->select_lex.get_table_list()->derived)
+            if (&lex->select_lex != lex->current_select)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
@@ -10724,7 +10723,7 @@ param_marker:
               my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
               MYSQL_YYABORT;
             }
-            item= new (thd->mem_root) Item_param((uint) (lip->get_tok_start() - thd->query));
+            item= new (thd->mem_root) Item_param((uint) (lip->get_tok_start() - thd->query()));
             if (!($$= item) || lex->param_list.push_back(item))
             {
               my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));

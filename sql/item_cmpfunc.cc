@@ -636,6 +636,62 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   return 0;
 }
 
+/**
+  Parse date provided in a string to a MYSQL_TIME.
+
+  @param[in]   thd        Thread handle
+  @param[in]   str        A string to convert
+  @param[in]   warn_type  Type of the timestamp for issuing the warning
+  @param[in]   warn_name  Field name for issuing the warning
+  @param[out]  l_time     The MYSQL_TIME objects is initialized.
+
+  Parses a date provided in the string str into a MYSQL_TIME object. If the
+  string contains an incorrect date or doesn't correspond to a date at all
+  then a warning is issued. The warn_type and the warn_name arguments are used
+  as the name and the type of the field when issuing the warning. If any input
+  was discarded (trailing or non-timestamp-y characters), return value will be
+  TRUE.
+
+  @return Status flag
+  @retval FALSE Success.
+  @retval True Indicates failure.
+*/
+
+bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
+                             const char *warn_name, MYSQL_TIME *l_time)
+{
+  bool value;
+  int error;
+  enum_mysql_timestamp_type timestamp_type;
+
+  timestamp_type= 
+    str_to_datetime(str->ptr(), str->length(), l_time,
+                    (TIME_FUZZY_DATE | MODE_INVALID_DATES |
+                     (thd->variables.sql_mode &
+                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
+                    &error);
+
+  if (timestamp_type == MYSQL_TIMESTAMP_DATETIME || 
+      timestamp_type == MYSQL_TIMESTAMP_DATE)
+    /*
+      Do not return yet, we may still want to throw a "trailing garbage"
+      warning.
+    */
+    value= FALSE;
+  else
+  {
+    value= TRUE;
+    error= 1;                                   /* force warning */
+  }
+
+  if (error > 0)
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str->ptr(), str->length(),
+                                 warn_type, warn_name);
+
+  return value;
+}
+
 
 /**
   @brief Convert date provided in a string to the int representation.
@@ -650,51 +706,21 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     representation.  If the string contains wrong date or doesn't
     contain it at all then a warning is issued.  The warn_type and
     the warn_name arguments are used as the name and the type of the
-    field when issuing the warning.  If any input was discarded
-    (trailing or non-timestampy characters), was_cut will be non-zero.
-    was_type will return the type str_to_datetime() could correctly
-    extract.
+    field when issuing the warning.
 
   @return
     converted value. 0 on error and on zero-dates -- check 'failure'
 */
-
-static ulonglong
-get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
-                  char *warn_name, bool *error_arg)
+static ulonglong get_date_from_str(THD *thd, String *str, 
+                                   timestamp_type warn_type, 
+                                   const char *warn_name, bool *error_arg)
 {
-  ulonglong value= 0;
-  int error;
   MYSQL_TIME l_time;
-  enum_mysql_timestamp_type ret;
+  *error_arg= get_mysql_time_from_str(thd, str, warn_type, warn_name, &l_time);
 
-  ret= str_to_datetime(str->ptr(), str->length(), &l_time,
-                       (TIME_FUZZY_DATE | MODE_INVALID_DATES |
-                        (thd->variables.sql_mode &
-                         (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
-                       &error);
-
-  if (ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE)
-  {
-    /*
-      Do not return yet, we may still want to throw a "trailing garbage"
-      warning.
-    */
-    *error_arg= FALSE;
-    value= TIME_to_ulonglong_datetime(&l_time);
-  }
-  else
-  {
-    *error_arg= TRUE;
-    error= 1;                                   /* force warning */
-  }
-
-  if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 str->ptr(), str->length(),
-                                 warn_type, warn_name);
-
-  return value;
+  if (*error_arg)
+    return 0;
+  return TIME_to_ulonglong_datetime(&l_time);
 }
 
 

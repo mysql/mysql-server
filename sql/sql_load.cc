@@ -84,7 +84,7 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 			  bool ignore_check_option_errors);
 #ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
-                                               const char* db_arg,
+                                               const char* db_arg, /* table's database */
                                                const char* table_name_arg,
                                                enum enum_duplicates duplicates,
                                                bool ignore,
@@ -501,7 +501,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           
 	  if (thd->transaction.stmt.modified_non_trans_table)
             write_execute_load_query_log_event(thd, ex,
-                                               tdb, table_list->table_name,
+                                               table_list->db, 
+                                               table_list->table_name,
                                                handle_duplicates, ignore,
                                                transactional_table,
                                                errcode);
@@ -548,7 +549,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       {
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
         write_execute_load_query_log_event(thd, ex,
-                                           tdb, table_list->table_name,
+                                           table_list->db, table_list->table_name,
                                            handle_duplicates, ignore,
                                            transactional_table,
                                            errcode);
@@ -573,7 +574,7 @@ err:
 
 /* Not a very useful function; just to avoid duplication of code */
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
-                                               const char* db_arg,
+                                               const char* db_arg,  /* table's database */
                                                const char* table_name_arg,
                                                enum enum_duplicates duplicates,
                                                bool ignore,
@@ -590,8 +591,27 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   Item                *item, *val;
   String               pfield, pfields;
   int                  n;
+  const char          *tbl= table_name_arg;
+  const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
+  String              string_buf;
 
-  Load_log_event       lle(thd, ex, db_arg, table_name_arg, fv, duplicates,
+  if (!thd->db || strcmp(db_arg, thd->db)) 
+  {
+    /*
+      If used database differs from table's database, 
+      prefix table name with database name so that it 
+      becomes a FQ name.
+     */
+    string_buf.set_charset(system_charset_info);
+    string_buf.append(db_arg);
+    string_buf.append("`");
+    string_buf.append(".");
+    string_buf.append("`");
+    string_buf.append(table_name_arg);
+    tbl= string_buf.c_ptr_safe();
+  }
+
+  Load_log_event       lle(thd, ex, tdb, tbl, fv, duplicates,
                            ignore, transactional_table);
 
   /*
@@ -654,13 +674,12 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   strcpy(end, p);
   end += pl;
 
-  thd->query_length= end - load_data_query;
-  thd->query= load_data_query;
+  thd->set_query_inner(load_data_query, end - load_data_query);
 
   Execute_load_query_log_event
-    e(thd, thd->query, thd->query_length,
-      (uint) ((char*)fname_start - (char*)thd->query - 1),
-      (uint) ((char*)fname_end - (char*)thd->query),
+    e(thd, thd->query(), thd->query_length(),
+      (uint) ((char*) fname_start - (char*) thd->query() - 1),
+      (uint) ((char*) fname_end - (char*) thd->query()),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);
