@@ -140,6 +140,7 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
+static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
@@ -5376,7 +5377,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
   j->ref.key_buff2=j->ref.key_buff+ALIGN_SIZE(length);
   j->ref.key_err=1;
+  j->ref.has_record= FALSE;
   j->ref.null_rejecting= 0;
+  j->ref.use_count= 0;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
@@ -6176,6 +6179,20 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_RETURN(0);
 }
 
+
+/**
+  The default implementation of unlock-row method of READ_RECORD,
+  used in all access methods.
+*/
+
+void rr_unlock_row(st_join_table *tab)
+{
+  READ_RECORD *info= &tab->read_record;
+  info->file->unlock_row();
+}
+
+
+
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
 {
@@ -6191,6 +6208,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     TABLE *table=tab->table;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
+    tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
 
     /*
@@ -6234,6 +6252,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
       delete tab->quick;
       tab->quick=0;
       tab->read_first_record= join_read_key;
+      tab->read_record.unlock_row= join_read_key_unlock_row;
       tab->read_record.read_record= join_no_more_records;
       if (table->used_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
@@ -10936,7 +10955,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         return NESTED_LOOP_NO_MORE_ROWS;
     }
     else
-      join_tab->read_record.file->unlock_row();
+      join_tab->read_record.unlock_row(join_tab);
   }
   else
   {
@@ -10946,7 +10965,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->row_count++;
-    join_tab->read_record.file->unlock_row();
+    join_tab->read_record.unlock_row(join_tab);
   }
   return NESTED_LOOP_OK;
 }
@@ -11299,16 +11318,54 @@ join_read_key(JOIN_TAB *tab)
       table->status=STATUS_NOT_FOUND;
       return -1;
     }
+    /*
+      Moving away from the current record. Unlock the row
+      in the handler if it did not match the partial WHERE.
+    */
+    if (tab->ref.has_record && tab->ref.use_count == 0)
+    {
+      tab->read_record.file->unlock_row();
+      tab->ref.has_record= FALSE;
+    }
+
     error=table->file->index_read(table->record[0],
 				  tab->ref.key_buff,
 				  tab->ref.key_length,HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND)
       return report_error(table, error);
+
+    if (! error)
+    {
+      tab->ref.has_record= TRUE;
+      tab->ref.use_count= 1;
+    }
+  }
+  else if (table->status == 0)
+  {
+    DBUG_ASSERT(tab->ref.has_record);
+    tab->ref.use_count++;
   }
   table->null_row=0;
   return table->status ? -1 : 0;
 }
 
+
+/**
+  Since join_read_key may buffer a record, do not unlock
+  it if it was not used in this invocation of join_read_key().
+  Only count locks, thus remembering if the record was left unused,
+  and unlock already when pruning the current value of
+  TABLE_REF buffer.
+  @sa join_read_key()
+*/
+
+static void
+join_read_key_unlock_row(st_join_table *tab)
+{
+  DBUG_ASSERT(tab->ref.use_count);
+  if (tab->ref.use_count)
+    tab->ref.use_count--;
+}
 
 /*
   ref access method implementation: "read_first" function
