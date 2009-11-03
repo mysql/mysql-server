@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 create table t1(n int);
 stop slave;
 start slave;
@@ -22,6 +24,8 @@ insert into t1i values (5);
 begin;
 insert into t1i values (4);
 insert into t2m values (1);
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 insert into t1i values (5);
 commit;
 zero

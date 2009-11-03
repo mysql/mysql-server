@@ -226,7 +226,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->cache_stmt)
+    if (!ev->use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->options|= OPTION_KEEP_LOG;
@@ -1510,7 +1510,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: For this new scheme there should be no pending event:
         need to add code to assert that is the case.
        */
-      thd->binlog_flush_pending_rows_event(false);
+      thd->binlog_flush_pending_rows_event(FALSE);
       TABLE_LIST *tables= rli->tables_to_lock;
       close_tables_for_reopen(thd, &tables);
 
@@ -1716,7 +1716,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!cache_stmt)
+    if (!use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->options|= OPTION_KEEP_LOG;
@@ -1755,7 +1755,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
-
   DBUG_RETURN(0);
 }
 
@@ -1800,7 +1799,7 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
 
     /*
       If this event is not in a transaction, the call below will, if some

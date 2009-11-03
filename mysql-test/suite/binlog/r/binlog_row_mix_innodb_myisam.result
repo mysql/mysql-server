@@ -1,3 +1,4 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
@@ -9,9 +10,11 @@ commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;
@@ -26,11 +29,9 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 delete from t1;
 delete from t2;
 reset master;
@@ -46,12 +47,14 @@ commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -75,12 +78,14 @@ a
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -101,11 +106,9 @@ get_lock("a",10)
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 delete from t1;
 delete from t2;
 reset master;
@@ -133,6 +136,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 insert into t1 values(11);
 commit;
 show binlog events from <binlog_start>;
@@ -144,6 +151,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -272,6 +281,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
 master-bin.000001	#	Query	#	#	BEGIN
@@ -372,16 +385,14 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE if exists t2
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -390,9 +401,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -400,7 +409,11 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -420,19 +433,8 @@ select get_lock("a",10);
 get_lock("a",10)
 1
 flush logs;
-select
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null
-1
-select
-@a like "%#%error_code=0%ROLLBACK\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
-@a like "%#%error_code=0%ROLLBACK\r\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
-@a not like "%#%error_code=%error_code=%";
-@a like "%#%error_code=0%ROLLBACK\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
-@a like "%#%error_code=0%ROLLBACK\r\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
-1	1
+This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
+were previously flushed upon committing/rolling back each statement.
 drop table t1, t2;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
@@ -449,12 +451,6 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -472,6 +468,8 @@ insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
 ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
@@ -505,7 +503,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -547,10 +545,9 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
@@ -564,11 +561,9 @@ ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 2 */;
 count(*)
@@ -586,7 +581,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Update_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 2 */;
 count(*)
@@ -601,10 +596,9 @@ ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 4 */;
 count(*)
@@ -634,11 +628,10 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
@@ -657,12 +650,9 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
@@ -682,12 +672,9 @@ count(*)
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	COMMIT
 /* the output must denote there is the query */;
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
@@ -708,12 +695,6 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -731,6 +712,8 @@ insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
 ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
@@ -760,8 +743,10 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=3
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(2))
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 3 */;
 count(*)
 3
@@ -775,8 +760,10 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; delete from t2 where a=bug27417(3)
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 5 */;
 count(*)
 5
@@ -797,10 +784,6 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=1
-master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(1))
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -812,10 +795,6 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=2
-master-bin.000001	#	Query	#	#	use `test`; insert into t2 select bug27417(1) union select bug27417(2)
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -826,8 +805,10 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -840,10 +821,6 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=6
-master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 4 */;
 count(*)
 4
@@ -871,10 +848,6 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=9
-master-bin.000001	#	Query	#	#	use `test`; delete from t2
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -891,9 +864,6 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; delete t2.* from t2,t5 where t2.a=t5.a + 1
-master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -911,14 +881,6 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=10
-master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
-master-bin.000001	#	Intvar	#	#	INSERT_ID=10
-master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
-master-bin.000001	#	Query	#	#	ROLLBACK
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
 drop function bug27417;

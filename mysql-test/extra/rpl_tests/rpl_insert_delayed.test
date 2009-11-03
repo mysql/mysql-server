@@ -38,6 +38,7 @@ connection master;
 truncate table t1;
 # first scenario: duplicate on first row
 insert delayed into t1 values(10, "my name");
+flush table t1;
 if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   # statement below will be converted to non-delayed INSERT and so
@@ -49,7 +50,7 @@ if  (`SELECT @@global.binlog_format != 'STATEMENT'`)
 {
   insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 }
-flush table t1; # to wait for INSERT DELAYED to be done
+flush table t1;
 select * from t1;
 sync_slave_with_master;
 # when bug existed in statement-based binlogging, t1 on slave had

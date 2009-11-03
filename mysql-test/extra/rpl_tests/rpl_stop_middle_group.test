@@ -1,7 +1,3 @@
--- source include/have_debug.inc
--- source include/master-slave.inc
--- source include/have_innodb.inc
-
 # Proving that stopping in the middle of applying a group of events
 # does not have immediate effect if a non-transaction table has been changed.
 # The slave sql thread has to try to finish applying first.
@@ -10,6 +6,8 @@
 # not require `have_debug'.
 
 connection master;
+
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 
 create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;

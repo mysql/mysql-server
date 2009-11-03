@@ -23,7 +23,7 @@ let $binary_log_limit_row= 3;
 
 -- echo [MASTER] ********* SOW BINLOG EVENTS ... LIMIT offset,rows  *********
 let $binary_log_file= ;
-let $binary_log_limit_row= 3;
+let $binary_log_limit_row= 4;
 let $binary_log_limit_offset= 1;
 -- source include/show_binlog_events.inc
 
@@ -49,7 +49,7 @@ let $binary_log_limit_row= 3;
 
 -- echo [SLAVE] ********* SOW BINLOG EVENTS ... LIMIT offset,rows  *********
 let $binary_log_file= ;
-let $binary_log_limit_row= 3;
+let $binary_log_limit_row= 4;
 let $binary_log_limit_offset= 1;
 -- source include/show_binlog_events.inc
 

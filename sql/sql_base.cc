@@ -1542,7 +1542,7 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE, 0);
+                            FALSE, TRUE, FALSE, 0);
       qinfo.db= db.ptr();
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
@@ -4021,7 +4021,7 @@ retry:
         int errcode= query_error_code(thd, TRUE);
         thd->binlog_query(THD::STMT_QUERY_TYPE,
                           query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+                          FALSE, FALSE, FALSE, errcode);
         my_free(query, MYF(0));
       }
       else

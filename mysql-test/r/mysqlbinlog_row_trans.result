@@ -215,7 +215,7 @@ COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
-BEGIN
+TRUNCATE TABLE t1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -223,21 +223,84 @@ SET TIMESTAMP=1000000000/*!*/;
 TRUNCATE TABLE t1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t2
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE test.t2
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE test.t2
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
-TRUNCATE TABLE t1
+COMMIT
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t2
+### WHERE
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -293,70 +356,13 @@ BEGIN
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
-### SET
-###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### INSERT INTO test.t2
-### SET
-###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### INSERT INTO test.t2
-### SET
-###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t2
-### WHERE
-###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### UPDATE test.t2
-### WHERE
-###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### UPDATE test.t2
-### WHERE
-###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t2
-### WHERE
-###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Xid = #
 COMMIT/*!*/;
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-SET TIMESTAMP=1000000000/*!*/;
-BEGIN
-/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 TRUNCATE TABLE t1
 /*!*/;
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
-COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -369,55 +375,6 @@ BEGIN
 /*!*/;
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
-### SET
-###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### INSERT INTO test.t1
-### SET
-###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### INSERT INTO test.t1
-### SET
-###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
-### WHERE
-###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### UPDATE test.t1
-### WHERE
-###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### UPDATE test.t1
-### WHERE
-###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-### SET
-###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
-### WHERE
-###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
-# at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
@@ -432,6 +389,16 @@ BEGIN
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
 # at #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
@@ -457,6 +424,16 @@ BEGIN
 ### SET
 ###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
 # at #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
@@ -468,21 +445,13 @@ BEGIN
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
-ROLLBACK
-/*!*/;
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-SET TIMESTAMP=1000000000/*!*/;
-BEGIN
+COMMIT
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 TRUNCATE TABLE t1
 /*!*/;
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
-COMMIT/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;

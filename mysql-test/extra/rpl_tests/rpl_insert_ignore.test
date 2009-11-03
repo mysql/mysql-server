@@ -55,7 +55,9 @@ INSERT INTO t1 VALUES (2, 2);
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
 
+--disable_warnings
 INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+--enable_warnings
 
 SELECT * FROM t1 ORDER BY a;
 

@@ -20,6 +20,7 @@ COUNT(*)
 5000
 truncate table t1;
 insert delayed into t1 values(10, "my name");
+flush table t1;
 insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
 flush table t1;
@@ -52,7 +53,7 @@ INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1;
 show binlog events in 'master-bin.000002' LIMIT 2,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+x	x	x	x	x	BEGIN
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
@@ -60,7 +61,7 @@ a
 On slave
 show binlog events in 'slave-bin.000002' LIMIT 2,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+x	x	x	x	x	BEGIN
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a

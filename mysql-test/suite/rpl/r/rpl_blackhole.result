@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 CREATE TABLE t1 (a INT, b INT, c INT);
 CREATE TABLE t2 (a INT, b INT, c INT);
 ALTER TABLE t1 ENGINE=BLACKHOLE;
@@ -34,14 +35,6 @@ COUNT(*)
 >>> Something was written to binary log <<<
 [on master]
 INSERT INTO t1 SELECT * FROM t2;
-[on slave]
-# Expect 0
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-0
->>> Something was written to binary log <<<
-[on master]
-INSERT INTO t2 SELECT * FROM t1;
 [on slave]
 # Expect 0
 SELECT COUNT(*) FROM t1;

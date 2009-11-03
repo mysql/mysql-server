@@ -828,7 +828,8 @@ void THD::init(void)
   else
     options &= ~OPTION_BIG_SELECTS;
 
-  transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
+  transaction.all.modified_non_trans_table=
+    transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -3403,7 +3404,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
     my_bool multi_engine= FALSE;
-    void* prev_ht= NULL;
+    my_bool mixed_engine= FALSE;
+    my_bool all_trans_engines= TRUE;
+    TABLE* prev_write_table= NULL;
+    TABLE* prev_access_table= NULL;
 
 #ifndef DBUG_OFF
     {
@@ -3432,13 +3436,93 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         handler::Table_flags const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                             table->table_name, flags));
-        if (prev_ht && prev_ht != table->table->file->ht)
+        if (prev_write_table && prev_write_table->file->ht !=
+            table->table->file->ht)
           multi_engine= TRUE;
-        prev_ht= table->table->file->ht;
+        all_trans_engines= all_trans_engines &&
+                           table->table->file->has_transactions();
+        prev_write_table= table->table;
         flags_all_set &= flags;
         flags_some_set |= flags;
       }
+      if (prev_access_table && prev_access_table->file->ht != table->table->file->ht)
+        mixed_engine= mixed_engine || (prev_access_table->file->has_transactions() !=
+                      table->table->file->has_transactions());
+      prev_access_table= table->table;
     }
+
+    /*
+      Set the statement as unsafe if:
+
+      . it is a mixed statement, i.e. access transactional and non-transactional
+      tables, and updates at least one;
+      or
+      . an early statement updated a transactional table;
+      . and, the current statement updates a non-transactional table.
+
+      Any mixed statement is classified as unsafe to ensure that mixed mode is
+      completely safe. Consider the following example to understand why we
+      decided to do this:
+
+      Note that mixed statements such as
+
+      1: INSERT INTO myisam_t SELECT * FROM innodb_t;
+
+      2: INSERT INTO innodb_t SELECT * FROM myisam_t;
+
+      are classified as unsafe to ensure that in mixed mode the execution is
+      completely safe and equivalent to the row mode. Consider the following
+      statements and sessions (connections) to understand the reason:
+
+      con1: INSERT INTO innodb_t VALUES (1);
+      con1: INSERT INTO innodb_t VALUES (100);
+
+      con1: BEGIN
+      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
+      con1: INSERT INTO innodb_t VALUES (200);
+      con1: COMMIT;
+
+      The point is that the concurrent statements may be written into the binary log
+      in a way different from the execution. For example,
+
+      BINARY LOG:
+
+      con2: BEGIN;
+      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
+      con2: COMMIT;
+      con1: BEGIN
+      con1: INSERT INTO innodb_t VALUES (200);
+      con1: COMMIT;
+
+      ....
+
+      or
+
+      BINARY LOG:
+
+      con1: BEGIN
+      con1: INSERT INTO innodb_t VALUES (200);
+      con1: COMMIT;
+      con2: BEGIN;
+      con2: INSERT INTO myisam_t SELECT * FROM innodb_t;
+      con2: COMMIT;
+
+      Clearly, this may become a problem in STMT mode and setting the statement
+      as unsafe will make rows to be written into the binary log in MIXED mode
+      and as such the problem will not stand.
+
+      In STMT mode, although such statement is classified as unsafe, i.e.
+
+      INSERT INTO myisam_t SELECT * FROM innodb_t;
+
+      there is no enough information to avoid writing it outside the boundaries
+      of a transaction. This is not a problem if we are considering snapshot
+      isolation level but if we have pure repeatable read or serializable the
+      lock history on the slave will be different from the master.
+    */
+    if (mixed_engine ||
+        trans_has_updated_trans_table(this) && !all_trans_engines)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     DBUG_PRINT("info", ("flags_all_set: 0x%llx", flags_all_set));
     DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
@@ -3630,7 +3714,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   if (binlog_setup_trx_data())
     DBUG_RETURN(NULL);
 
-  Rows_log_event* pending= binlog_get_pending_rows_event();
+  Rows_log_event* pending= binlog_get_pending_rows_event(is_transactional);
 
   if (unlikely(pending && !pending->is_valid()))
     DBUG_RETURN(NULL);
@@ -3664,7 +3748,9 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
       flush the pending event and replace it with the newly created
       event...
     */
-    if (unlikely(mysql_bin_log.flush_and_set_pending_rows_event(this, ev)))
+    if (unlikely(
+        mysql_bin_log.flush_and_set_pending_rows_event(this, ev,
+                                                       is_transactional)))
     {
       delete ev;
       DBUG_RETURN(NULL);
@@ -3988,14 +4074,15 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 }
 
 
-int THD::binlog_remove_pending_rows_event(bool clear_maps)
+int THD::binlog_remove_pending_rows_event(bool clear_maps,
+                                          bool is_transactional)
 {
   DBUG_ENTER("THD::binlog_remove_pending_rows_event");
 
   if (!mysql_bin_log.is_open())
     DBUG_RETURN(0);
 
-  mysql_bin_log.remove_pending_rows_event(this);
+  mysql_bin_log.remove_pending_rows_event(this, is_transactional);
 
   if (clear_maps)
     binlog_table_maps= 0;
@@ -4003,7 +4090,7 @@ int THD::binlog_remove_pending_rows_event(bool clear_maps)
   DBUG_RETURN(0);
 }
 
-int THD::binlog_flush_pending_rows_event(bool stmt_end)
+int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
   /*
@@ -4019,7 +4106,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
     flag is set.
   */
   int error= 0;
-  if (Rows_log_event *pending= binlog_get_pending_rows_event())
+  if (Rows_log_event *pending= binlog_get_pending_rows_event(is_transactional))
   {
     if (stmt_end)
     {
@@ -4028,7 +4115,8 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
       binlog_table_maps= 0;
     }
 
-    error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
+    error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0,
+                                                          is_transactional);
   }
 
   DBUG_RETURN(error);
@@ -4144,8 +4232,8 @@ void THD::issue_unsafe_warnings()
   write failure), then the error code is returned.
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
-                      ulong query_len, bool is_trans, bool suppress_use,
-                      int errcode)
+                      ulong query_len, bool is_trans, bool direct, 
+                      bool suppress_use, int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
@@ -4162,7 +4250,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     top-most close_thread_tables().
   */
   if (this->prelocked_mode == NON_PRELOCKED)
-    if (int error= binlog_flush_pending_rows_event(TRUE))
+    if (int error= binlog_flush_pending_rows_event(TRUE, is_trans))
       DBUG_RETURN(error);
 
   /*
@@ -4207,8 +4295,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
       flush the pending rows event if necessary.
     */
     {
-      Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
-                            errcode);
+      Query_log_event qinfo(this, query_arg, query_len, is_trans, direct,
+                            suppress_use, errcode);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event

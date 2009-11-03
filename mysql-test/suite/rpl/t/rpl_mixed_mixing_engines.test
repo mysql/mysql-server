@@ -1,0 +1,10 @@
+###################################################################################
+# This test cases evaluates the mixture of non-transactional and transcational
+# tables. For further details, please, read WL#2687 and WL#5072.
+###################################################################################
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+let $engine_type=Innodb;
+--source extra/rpl_tests/rpl_mixing_engines.test

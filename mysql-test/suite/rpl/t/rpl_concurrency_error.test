@@ -21,6 +21,8 @@
 --source include/have_innodb.inc
 --source include/have_binlog_format_statement.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 --echo ########################################################################
 --echo #                             Environment
 --echo ########################################################################

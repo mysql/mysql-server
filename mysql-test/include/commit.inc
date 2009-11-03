@@ -547,9 +547,9 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo # the binary log. 
 --echo #
 select f1();
-call p_verify_status_increment(0, 0, 1, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 commit;
-call p_verify_status_increment(0, 0, 1, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 
 --echo # 17. Read-only statement, a function changes non-trans-table.
 --echo #
@@ -557,15 +557,19 @@ call p_verify_status_increment(0, 0, 1, 0);
 --echo # non-transactional changes saved in the transaction cache to
 --echo # the binary log. 
 --echo #
+--disable_warnings
 select f1() from t1;
-call p_verify_status_increment(1, 0, 2, 0);
+--enable_warnings
+call p_verify_status_increment(2, 0, 2, 0);
 commit;
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 
 --echo # 18. Read-write statement: UPDATE, change 0 (transactional) rows. 
 --echo #
 select count(*) from t2;
+--disable_warnings
 update t1 set a=2 where a=f1()+10;
+--enable_warnings
 select count(*) from t2;
 call p_verify_status_increment(2, 0, 2, 0);
 commit;
@@ -579,7 +583,7 @@ call p_verify_status_increment(2, 0, 2, 0);
 drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
 --echo #
@@ -636,9 +640,9 @@ call p_verify_status_increment(2, 0, 1, 0);
 --echo # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 --echo #
 drop temporary table t2;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 commit;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 
 --echo # 26. Verify that SET AUTOCOMMIT issues an implicit commit
 --echo #
@@ -719,17 +723,17 @@ call p_verify_status_increment(4, 4, 4, 4);
 --echo # Sic: no table is created.
 create table if not exists t2 (a int) select 6 union select 7;
 --echo # Sic: first commits the statement, and then the transaction.
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 4, 4);
 create table t3 select a from t2;
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 4, 4);
 alter table t3 add column (b int);
 call p_verify_status_increment(2, 0, 2, 0);
 alter table t3 rename t4;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(1, 0, 1, 0);
 rename table t4 to t3;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(1, 0, 1, 0);
 truncate table t3;
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 2, 0);
 create view v1 as select * from t2;
 call p_verify_status_increment(1, 0, 1, 0);
 check table t1;

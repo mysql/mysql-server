@@ -663,7 +663,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
     int errcode= query_error_code(thd, TRUE);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
+                      buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));

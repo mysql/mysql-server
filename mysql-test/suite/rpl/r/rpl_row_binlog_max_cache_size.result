@@ -1,0 +1,138 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
+CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
+CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
+########################################################################################
+#                                   1 - SINGLE STATEMENT
+########################################################################################
+*** Single statement on transactional table ***
+Got one of the listed errors
+*** Single statement on non-transactional table ***
+Got one of the listed errors
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+START SLAVE SQL_THREAD;
+*** Single statement on both transactional and non-transactional tables. ***
+Got one of the listed errors
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
+START SLAVE SQL_THREAD;
+source include/diff_master_slave.inc;
+########################################################################################
+#                             2 - BEGIN - IMPLICIT COMMIT by DDL
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+START SLAVE SQL_THREAD;
+source include/diff_master_slave.inc;
+########################################################################################
+#                                     3 - BEGIN - COMMIT
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+COMMIT;
+source include/diff_master_slave.inc;
+########################################################################################
+#                                      4 - BEGIN - ROLLBACK
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+source include/diff_master_slave.inc;
+########################################################################################
+#                                         5 - PROCEDURE 
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+CREATE PROCEDURE p1(pd VARCHAR(30000))
+BEGIN
+INSERT INTO t1 (a, data) VALUES (1, pd);
+INSERT INTO t1 (a, data) VALUES (2, pd);
+INSERT INTO t1 (a, data) VALUES (3, pd);
+INSERT INTO t1 (a, data) VALUES (4, pd);
+INSERT INTO t1 (a, data) VALUES (5, 's');
+END//
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t1;
+BEGIN;
+Got one of the listed errors
+COMMIT;
+TRUNCATE TABLE t1;
+BEGIN;
+Got one of the listed errors
+ROLLBACK;
+source include/diff_master_slave.inc;
+########################################################################################
+#                                           6 - XID
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+ROLLBACK TO sv;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+COMMIT;
+source include/diff_master_slave.inc;
+########################################################################################
+#                                        7 - NON-TRANS TABLE
+########################################################################################
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+BEGIN;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+COMMIT;
+BEGIN;
+Got one of the listed errors
+COMMIT;
+source include/diff_master_slave.inc;
+########################################################################################
+#                                        CLEAN
+########################################################################################
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE IF EXISTS t4;
+Warnings:
+Note	1051	Unknown table 't4'
+DROP TABLE IF EXISTS t5;
+DROP TABLE IF EXISTS t6;
+Warnings:
+Note	1051	Unknown table 't6'
+DROP PROCEDURE p1;

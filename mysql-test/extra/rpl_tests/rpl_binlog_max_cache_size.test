@@ -22,13 +22,7 @@
 #    
 ########################################################################################
 
-########################################################################################
-#                                Configuring the environment
-########################################################################################
---source include/have_innodb.inc
---source include/master-slave.inc
---source include/not_embedded.inc
---source include/not_windows.inc
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
@@ -50,29 +44,17 @@ eval INSERT INTO t1 (a, data) VALUES (1,
 --enable_query_log
 
 --echo *** Single statement on non-transactional table ***
---echo *** After WL#2687 the difference between STATEMENT/MIXED and ROW will not exist. ***
 --disable_query_log
---disable_warnings
-if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
-{
-  eval INSERT INTO t2 (a, data) VALUES (2,
+--error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+eval INSERT INTO t2 (a, data) VALUES (2,
        CONCAT($data, $data, $data, $data, $data, $data));
-  --echo Got one of the listed errors
-}
-if (`SELECT @@binlog_format = 'ROW'`)
-{
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
-  eval INSERT INTO t2 (a, data) VALUES (2,
-       CONCAT($data, $data, $data, $data, $data, $data));
-
-  connection slave;
-  --source include/wait_for_slave_sql_to_stop.inc
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-  START SLAVE SQL_THREAD;
-  --source include/wait_for_slave_sql_to_start.inc
-}
---enable_warnings
 --enable_query_log
+
+connection slave;
+--source include/wait_for_slave_sql_to_stop.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+START SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_to_start.inc
 
 connection master;
 
@@ -86,7 +68,6 @@ eval INSERT INTO t2 (a, data) VALUES (5, $data);
 --enable_query_log
 
 --echo *** Single statement on both transactional and non-transactional tables. ***
---echo *** After WL#2687 we will be able to change the order of the tables. ***
 --disable_query_log
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
@@ -95,13 +76,25 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
 
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+
+if (`SELECT @@binlog_format = 'STATEMENT'`)
+{
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+}
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+{
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
+}
 START SLAVE SQL_THREAD;
 --source include/wait_for_slave_sql_to_start.inc
+connection master;
 
-#--echo ########################################################################################
-#--echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
-#--echo ########################################################################################
+let $diff_statement= SELECT * FROM t1;
+--source include/diff_master_slave.inc
+
+--echo ########################################################################################
+--echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
+--echo ########################################################################################
 
 connection master;
 TRUNCATE TABLE t1;
@@ -149,14 +142,13 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (21, 's');
 --enable_query_log
 
-if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+if (`SELECT @@binlog_format = 'STATEMENT'`)
 {
   --disable_query_log
   CREATE TABLE t4 SELECT * FROM t1;
   --enable_query_log
-  --echo Got one of the listed errors
 }
-if (`SELECT @@binlog_format = 'ROW'`)
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
 {
   --disable_query_log
   --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
@@ -185,6 +177,17 @@ BEGIN;
 --disable_query_log
 CREATE TABLE t5 (a int);
 --enable_query_log
+
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'` )
+{
+  connection slave;
+  --source include/wait_for_slave_sql_to_stop.inc
+
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+  START SLAVE SQL_THREAD;
+  --source include/wait_for_slave_sql_to_start.inc
+  connection master;
+}
 
 let $diff_statement= SELECT * FROM t1;
 --source include/diff_master_slave.inc
@@ -341,16 +344,30 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t2 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
---eval INSERT INTO t1 (a, data) VALUES (4, $data);
+if (`SELECT @@binlog_format = 'STATEMENT'`)
+{
+  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+  --eval INSERT INTO t1 (a, data) VALUES (4, $data);
+}
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+{
+  --eval INSERT INTO t1 (a, data) VALUES (4, $data);
+}
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (7, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
---eval UPDATE t2 SET data= CONCAT($data, $data);
+if (`SELECT @@binlog_format = 'STATEMENT'`)
+{
+  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+  --eval UPDATE t2 SET data= CONCAT($data, $data);
+}
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+{
+  --eval UPDATE t2 SET data= CONCAT($data, $data);
+}
 --eval INSERT INTO t1 (a, data) VALUES (8, 's');
 --eval INSERT INTO t1 (a, data) VALUES (9, 's');
 --eval INSERT INTO t2 (a, data) VALUES (10, 's');
@@ -363,19 +380,38 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (15, $data);
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
 --eval INSERT INTO t2 (a, data) VALUES (17, $data);
+if (`SELECT @@binlog_format = 'STATEMENT'`)
+{
+  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+  --eval INSERT INTO t1 (a, data) VALUES (18, $data);
+}
+if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+{
+  --eval INSERT INTO t1 (a, data) VALUES (18, $data);
+}
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
---eval INSERT INTO t1 (a, data) VALUES (18, $data);
+--eval INSERT INTO t1 (a, data) VALUES (19, $data);
 --enable_query_log
 COMMIT;
 
-connection slave;
---source include/wait_for_slave_sql_to_stop.inc
+if (`SELECT @@binlog_format = 'STATEMENT'`)
+{
+  connection slave;
+  --source include/wait_for_slave_sql_to_stop.inc
+  
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+  START SLAVE SQL_THREAD;
+  --source include/wait_for_slave_sql_to_start.inc
+  connection master;
+}
+
+let $diff_statement= SELECT * FROM t1;
+--source include/diff_master_slave.inc
 
 --echo ########################################################################################
 --echo #                                        CLEAN
 --echo ########################################################################################
 
---disable_warnings
 connection master;
 DROP TABLE t1;
 DROP TABLE t2;
@@ -384,12 +420,4 @@ DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 DROP PROCEDURE p1;
-connection slave;
-DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE t3;
-DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
-DROP PROCEDURE p1;
---enable_warnings
+sync_slave_with_master;

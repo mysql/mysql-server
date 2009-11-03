@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -13,13 +14,17 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 *** Single statement on transactional table ***
 Got one of the listed errors
 *** Single statement on non-transactional table ***
-*** After WL#2687 the difference between STATEMENT/MIXED and ROW will not exist. ***
-Got one of the listed errors
-*** Single statement on both transactional and non-transactional tables. ***
-*** After WL#2687 we will be able to change the order of the tables. ***
 Got one of the listed errors
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 START SLAVE SQL_THREAD;
+*** Single statement on both transactional and non-transactional tables. ***
+Got one of the listed errors
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+START SLAVE SQL_THREAD;
+source include/diff_master_slave.inc;
+########################################################################################
+#                             2 - BEGIN - IMPLICIT COMMIT by DDL
+########################################################################################
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -27,13 +32,20 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 source include/diff_master_slave.inc;
 ########################################################################################
 #                                     3 - BEGIN - COMMIT
@@ -45,6 +57,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 COMMIT;
 source include/diff_master_slave.inc;
 ########################################################################################
@@ -57,6 +71,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -95,6 +111,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 ROLLBACK TO sv;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -107,15 +125,25 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
 BEGIN;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 COMMIT;
 BEGIN;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Got one of the listed errors
 Got one of the listed errors
 COMMIT;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+START SLAVE SQL_THREAD;
+source include/diff_master_slave.inc;
 ########################################################################################
 #                                        CLEAN
 ########################################################################################
@@ -125,11 +153,6 @@ DROP TABLE t3;
 DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
-DROP PROCEDURE p1;
-DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE t3;
-DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
+Warnings:
+Note	1051	Unknown table 't6'
 DROP PROCEDURE p1;

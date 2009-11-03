@@ -29,9 +29,13 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table tt1, t1
 FLUSH STATUS;
 set binlog_format=mixed;
@@ -65,9 +69,13 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table tt1, t1
 FLUSH STATUS;
 set binlog_format=row;

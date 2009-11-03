@@ -7,6 +7,8 @@ source include/have_blackhole.inc;
 source include/have_ndb.inc;
 source include/have_log_bin.inc;
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE;
 CREATE TABLE t1n (e INT, f INT) ENGINE=NDB;
@@ -22,8 +24,10 @@ UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
 
 # Here and below we need to wait when some event appears in binlog
 # to avoid unsrted mixing local events and from NDB
-let $wait_binlog_event= t1m, t1b;
+let $wait_binlog_event= COMMIT;
 source include/wait_for_binlog_event.inc;
+let $event= query_get_value(SHOW BINLOG EVENTS, Info, 9);
+--echo The last event before the COMMIT is $event
 
 echo *** Please look in binlog_multi_engine.test if you have a diff here ****;
 START TRANSACTION;
@@ -51,8 +55,10 @@ SET SESSION BINLOG_FORMAT=MIXED;
 INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 
-let $wait_binlog_event= t1m;
+let $wait_binlog_event= COMMIT;
 source include/wait_for_binlog_event.inc;
+let $event= query_get_value(SHOW BINLOG EVENTS, Info, 6);
+--echo The last event before the COMMIT is $event
 
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 

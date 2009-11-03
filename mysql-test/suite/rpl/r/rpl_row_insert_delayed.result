@@ -20,6 +20,7 @@ COUNT(*)
 5000
 truncate table t1;
 insert delayed into t1 values(10, "my name");
+flush table t1;
 insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 flush table t1;
 select * from t1;

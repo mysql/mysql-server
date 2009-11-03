@@ -1,9 +1,3 @@
-# File for specialities regarding replication from or to InnoDB
-# tables.
-
-source include/master-slave.inc;
-source include/have_innodb.inc;
-
 #
 # Bug#11401: Load data infile 'REPLACE INTO' fails on slave.
 #
@@ -76,7 +70,7 @@ sync_slave_with_master;
 connection slave;
 
 # We want to verify that the following transactions are written to the
-# binlog, despite the transaction is rolled back. (The should be
+# binlog, despite the transaction is rolled back. (They should be
 # written to the binlog since they contain non-transactional DROP
 # TEMPORARY TABLE).  To see that, we use the auxiliary table t1, which
 # is transactional (InnoDB) on master and MyISAM on slave. t1 should
@@ -84,6 +78,10 @@ connection slave;
 # the transaction to be logged. Since t1 is non-transactional on
 # slave, the change will not be rolled back, so the inserted rows will
 # stay in t1 and we can verify that the transaction was replicated.
+#
+# Note, however, that the previous explanation is not true for ROW and
+# MIXED modes as rollback on a transactional table is not written to
+# the binary log.
 ALTER TABLE mysqltest1.t1 ENGINE = MyISAM;
 SHOW CREATE TABLE mysqltest1.t1;
 

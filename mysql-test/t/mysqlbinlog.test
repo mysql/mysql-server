@@ -71,7 +71,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=240 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=981 $MYSQLD_DATADIR/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -107,7 +107,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=240 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=981 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --disable_query_log
@@ -250,7 +250,7 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat'
 --echo The bug being tested was that 'Query' lines were not preceded by '#'
 --echo If the line is in the table, it had to have been preceded by a '#'
 --echo
-SELECT COUNT(*) AS `BUG#28293_expect_1` FROM patch WHERE a LIKE '%Query%';
+SELECT COUNT(*) AS `BUG#28293_expect_3` FROM patch WHERE a LIKE '%Query%';
 DROP TABLE patch;
 
 #
@@ -262,7 +262,7 @@ INSERT INTO t1 VALUES(connection_id());
 let $a= `SELECT a FROM t1`;
 FLUSH LOGS;
 let $outfile= $MYSQLTEST_VARDIR/tmp/bug29928.sql;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000014 > $outfile
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000015 > $outfile
 DROP TABLE t1;
 connect (con1, localhost, root, , test);
 connection con1;
@@ -286,8 +286,8 @@ exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTES
 #
 FLUSH LOGS;
 --error 1
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000016 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000016 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000017 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000017 >/dev/null 2>/dev/null
 
 --echo Bug#31611 Security risk with BINLOG statement
 
@@ -302,8 +302,8 @@ CREATE TABLE t1 (a INT, b CHAR(64));
 flush logs;
 INSERT INTO t1 VALUES (1,USER());
 flush logs;
-echo mysqlbinlog var/log/master-bin.000017 > var/tmp/bug31611.sql;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000017 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
+echo mysqlbinlog var/log/master-bin.000018 > var/tmp/bug31611.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000018 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
 connect (unsecure,localhost,untrusted,,mysqltest1);
 echo mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql;
 error 1;
@@ -336,8 +336,8 @@ FLUSH LOGS;
 query_vertical SELECT * FROM t1;
 DROP TABLE t1;
 
-echo >> mysqlbinlog var/log/master-bin.000019 > var/tmp/bug32580.sql;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000019 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+echo >> mysqlbinlog var/log/master-bin.000020 > var/tmp/bug32580.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000020 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 echo >> mysql test < var/tmp/bug32580.sql;
 exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;

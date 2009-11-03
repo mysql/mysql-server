@@ -1094,6 +1094,13 @@ public:
     */
     BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION,
 
+    /**
+      Mixing transactional and non-transactional statements are unsafe if
+      non-transactional reads or writes are occur after transactional
+      reads or writes inside a transaction.
+    */
+    BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

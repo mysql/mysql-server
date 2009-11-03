@@ -938,7 +938,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::STMT_QUERY_TYPE,
                         log_query.c_ptr(), log_query.length(),
-                        FALSE, FALSE, 0);
+                        FALSE, FALSE, FALSE, 0);
       thd->variables.sql_mode= 0;
     }
 

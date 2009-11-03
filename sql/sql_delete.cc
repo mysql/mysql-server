@@ -385,7 +385,8 @@ cleanup:
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.modified_non_trans_table=
+      thd->transaction.all.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
@@ -414,15 +415,13 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query, thd->query_length,
-                                        is_trans, FALSE, errcode);
+                                        is_trans, FALSE, FALSE, errcode);
 
       if (log_result)
       {
 	error=1;
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
@@ -808,6 +807,9 @@ void multi_delete::abort()
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     If rows from the first table only has been deleted and it is
     transactional, just do rollback.
@@ -838,9 +840,8 @@ void multi_delete::abort()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
-                        transactional_tables, FALSE, errcode);
+                        transactional_tables, FALSE, FALSE, errcode);
     }
-    thd->transaction.all.modified_non_trans_table= true;
   }
   DBUG_VOID_RETURN;
 }
@@ -967,6 +968,9 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd_proc_info(thd, "end");
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     We must invalidate the query cache before binlog writing and
     ha_autocommit_...
@@ -986,14 +990,12 @@ bool multi_delete::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, errcode) &&
+                            transactional_tables, FALSE, FALSE, errcode) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()

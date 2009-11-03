@@ -22,7 +22,7 @@ source include/wait_for_slave_sql_to_start.inc;
 source include/wait_for_slave_io_to_stop.inc;
 source include/stop_slave.inc;
 
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 connection master;
 source include/show_master_status.inc;
 create table if not exists t1 (n int);

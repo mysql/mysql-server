@@ -789,6 +789,9 @@ int mysql_update(THD *thd,
   {
     query_cache_invalidate3(thd, table_list, 1);
   }
+  
+  if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
 
   /*
     error < 0 means really no error at all: we processed all rows until the
@@ -811,13 +814,11 @@ int mysql_update(THD *thd,
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_table, FALSE, errcode))
+                            transactional_table, FALSE, FALSE, errcode))
       {
         error=1;				// Rollback update
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(transactional_table || !updated || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
@@ -1735,10 +1736,10 @@ bool multi_update::send_data(List<Item> &not_used_values)
           /* non-transactional or transactional table got modified   */
           /* either multi_update class' flag is raised in its branch */
           if (table->file->has_transactions())
-            transactional_tables= 1;
+            transactional_tables= TRUE;
           else
           {
-            trans_safe= 0;
+            trans_safe= FALSE;
             thd->transaction.stmt.modified_non_trans_table= TRUE;
           }
         }
@@ -1848,7 +1849,7 @@ void multi_update::abort()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
-                        transactional_tables, FALSE, errcode);
+                        transactional_tables, FALSE, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
   }
@@ -1986,10 +1987,10 @@ int multi_update::do_updates()
     if (updated != org_updated)
     {
       if (table->file->has_transactions())
-        transactional_tables= 1;
+        transactional_tables= TRUE;
       else
       {
-        trans_safe= 0;				// Can't do safe rollback
+        trans_safe= FALSE;				// Can't do safe rollback
         thd->transaction.stmt.modified_non_trans_table= TRUE;
       }
     }
@@ -2019,10 +2020,10 @@ err2:
   if (updated != org_updated)
   {
     if (table->file->has_transactions())
-      transactional_tables= 1;
+      transactional_tables= TRUE;
     else
     {
-      trans_safe= 0;
+      trans_safe= FALSE;
       thd->transaction.stmt.modified_non_trans_table= TRUE;
     }
   }
@@ -2068,8 +2069,9 @@ bool multi_update::send_eof()
     either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  DBUG_ASSERT(trans_safe || !updated || 
-              thd->transaction.stmt.modified_non_trans_table);
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   if (local_error == 0 || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
@@ -2081,14 +2083,15 @@ bool multi_update::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, errcode))
+                            transactional_tables, FALSE, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(trans_safe || !updated || 
+              thd->transaction.stmt.modified_non_trans_table);
+
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()
 
