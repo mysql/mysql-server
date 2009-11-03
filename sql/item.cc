@@ -6866,52 +6866,61 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 }
 
 /**
-  Compare the value stored in field, with the original item.
+  Compare the value stored in field with the expression from the query.
 
-  @param field   field which the item is converted and stored in
-  @param item    original item
+  @param field   Field which the Item is stored in after conversion
+  @param item    Original expression from query
 
-  @return Return an integer greater than, equal to, or less than 0 if
-          the value stored in the field is greater than,  equal to,
-          or less than the original item
+  @return Returns an integer greater than, equal to, or less than 0 if
+          the value stored in the field is greater than, equal to,
+          or less than the original Item. A 0 may also be returned if 
+          out of memory.          
 
   @note We only use this on the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
 */
 
-int stored_field_cmp_to_item(Field *field, Item *item)
+int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 {
-
   Item_result res_type=item_cmp_type(field->result_type(),
 				     item->result_type());
   if (res_type == STRING_RESULT)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin),*item_result;
+    
+    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin);
     String field_tmp(field_buff,sizeof(field_buff),&my_charset_bin);
-    enum_field_types field_type;
-    item_result=item->val_str(&item_tmp);
+    String *item_result= item->val_str(&item_tmp);
+    /*
+      Some implementations of Item::val_str(String*) actually modify
+      the field Item::null_value, hence we can't check it earlier.
+    */
     if (item->null_value)
       return 0;
-    field->val_str(&field_tmp);
+    String *field_result= field->val_str(&field_tmp);
 
-    /*
-      If comparing DATE with DATETIME, append the time-part to the DATE.
-      So that the strings are equally formatted.
-      A DATE converted to string is 10 characters, and a DATETIME converted
-      to string is 19 characters.
-    */
-    field_type= field->type();
-    if (field_type == MYSQL_TYPE_DATE &&
-        item_result->length() == 19)
-      field_tmp.append(" 00:00:00");
-    else if (field_type == MYSQL_TYPE_DATETIME &&
-             item_result->length() == 10)
-      item_result->append(" 00:00:00");
+    enum_field_types field_type= field->type();
 
-    return stringcmp(&field_tmp,item_result);
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
+    {
+      enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
+
+      if (field_type == MYSQL_TYPE_DATE)
+        type= MYSQL_TIMESTAMP_DATE;
+
+      if (field_type == MYSQL_TYPE_DATETIME)
+        type= MYSQL_TIMESTAMP_DATETIME;
+        
+      const char *field_name= field->field_name;
+      MYSQL_TIME field_time, item_time;
+      get_mysql_time_from_str(thd, field_result, type, field_name, &field_time);
+      get_mysql_time_from_str(thd, item_result, type, field_name,  &item_time);
+
+      return my_time_compare(&field_time, &item_time);
+    }
+    return stringcmp(field_result, item_result);
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int

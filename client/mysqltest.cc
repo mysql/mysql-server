@@ -6965,35 +6965,39 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       Need to grab affected rows information before getting
       warnings here
     */
-    if (!disable_info)
-      affected_rows= mysql_affected_rows(mysql);
-
-    if (!disable_warnings)
     {
-      /* Get the warnings from execute */
+      ulonglong affected_rows;
+      LINT_INIT(affected_rows);
 
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
+      if (!disable_info)
+	affected_rows= mysql_affected_rows(mysql);
+
+      if (!disable_warnings)
       {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-	if (ds_warnings->length)
-	  dynstr_append_mem(ds, ds_warnings->str,
-			    ds_warnings->length);
-	if (ds_prepare_warnings.length)
-	  dynstr_append_mem(ds, ds_prepare_warnings.str,
-			    ds_prepare_warnings.length);
-	if (ds_execute_warnings.length)
-	  dynstr_append_mem(ds, ds_execute_warnings.str,
-			    ds_execute_warnings.length);
+	/* Get the warnings from execute */
+
+	/* Append warnings to ds - if there are any */
+	if (append_warnings(&ds_execute_warnings, mysql) ||
+	    ds_execute_warnings.length ||
+	    ds_prepare_warnings.length ||
+	    ds_warnings->length)
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  if (ds_warnings->length)
+	    dynstr_append_mem(ds, ds_warnings->str,
+			      ds_warnings->length);
+	  if (ds_prepare_warnings.length)
+	    dynstr_append_mem(ds, ds_prepare_warnings.str,
+			      ds_prepare_warnings.length);
+	  if (ds_execute_warnings.length)
+	    dynstr_append_mem(ds, ds_execute_warnings.str,
+			      ds_execute_warnings.length);
+	}
       }
+
+      if (!disable_info)
+	append_info(ds, affected_rows, mysql_info(mysql));
     }
-
-    if (!disable_info)
-      append_info(ds, affected_rows, mysql_info(mysql));
-
   }
 
 end:
@@ -7777,6 +7781,7 @@ int main(int argc, char **argv)
     if (!ok_to_do)
     {
       if (command->type == Q_SOURCE ||
+          command->type == Q_ERROR ||
           command->type == Q_WRITE_FILE ||
           command->type == Q_APPEND_FILE ||
 	  command->type == Q_PERL)
