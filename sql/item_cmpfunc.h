@@ -1721,3 +1721,6 @@ inline Item *and_conds(Item *a, Item *b)
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);
+
+bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
+                             const char *warn_name, MYSQL_TIME *l_time);

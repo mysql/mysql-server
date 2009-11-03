@@ -4,8 +4,10 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
+call mtr.add_suppression("Get master clock failed with error: ");
+call mtr.add_suppression("Get master SERVER_ID failed with error: ");
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again");
+call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 SELECT IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
 IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
 1
