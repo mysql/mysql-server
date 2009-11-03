@@ -1615,12 +1615,14 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 
 
 char * STDCALL
-mysql_odbc_escape_string(MYSQL *mysql,
-			 char *to, ulong to_length,
-			 const char *from, ulong from_length,
-			 void *param,
-			 char * (*extend_buffer)
-			 (void *, char *, ulong *))
+mysql_odbc_escape_string(MYSQL *mysql __attribute__((unused)),
+                         char *to __attribute__((unused)),
+                         ulong to_length __attribute__((unused)),
+                         const char *from __attribute__((unused)),
+                         ulong from_length __attribute__((unused)),
+                         void *param __attribute__((unused)),
+                         char * (*extend_buffer)(void *, char *, ulong *)
+                         __attribute__((unused)))
 {
   return NULL;
 }
