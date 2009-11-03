@@ -222,6 +222,44 @@ diff_config(void)
   delete c2;
 }
 
+
+void
+print_restart_info(void)
+{
+  Vector<const char*> initial_node;
+  Vector<const char*> system;
+  Vector<const char*> initial_system;
+
+  for (int i = 0; i < g_info.m_NoOfParams; i++) {
+    const ConfigInfo::ParamInfo & param = g_info.m_ParamInfo[i];
+    if ((param._flags & ConfigInfo::CI_RESTART_INITIAL) &&
+        (param._flags & ConfigInfo::CI_RESTART_SYSTEM))
+      initial_system.push_back(param._fname);
+    else if (param._flags & (ConfigInfo::CI_RESTART_SYSTEM))
+      system.push_back(param._fname);
+    else if (param._flags & (ConfigInfo::CI_RESTART_INITIAL))
+      initial_node.push_back(param._fname);
+  }
+
+  fprintf(stderr, "*** initial node restart ***\n");
+  for (size_t i = 0; i < initial_node.size(); i++) {
+    fprintf(stderr, "%s\n", initial_node[i]);
+  }
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "*** system restart ***\n");
+  for (size_t i = 0; i < system.size(); i++) {
+    fprintf(stderr, "%s\n", system[i]);
+  }
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "*** initial system restart ***\n");
+  for (size_t i = 0; i < initial_system.size(); i++) {
+    fprintf(stderr, "%s\n", initial_system[i]);
+  }
+  fprintf(stderr, "\n");
+}
+
 #include <NdbTap.hpp>
 
 TAPTEST(MgmConfig)
@@ -229,6 +267,9 @@ TAPTEST(MgmConfig)
   ndb_init();
   diff_config();
   CHECK(check_params());
+#if 0
+  print_restart_info();
+#endif
   ndb_end(0);
   return 1; // OK
 }
