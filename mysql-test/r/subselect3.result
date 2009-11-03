@@ -895,3 +895,72 @@ t1.a < (select t4.a+10
 from t4, t5 limit 2));
 ERROR 21000: Subquery returns more than 1 row
 drop table t0, t1, t2, t3, t4, t5;
+# 
+# BUG#48177 - SELECTs with NOT IN subqueries containing NULL 
+#             values return too many records
+# 
+CREATE TABLE t1 (
+i1 int DEFAULT NULL,
+i2 int DEFAULT NULL
+) ;
+INSERT INTO t1 VALUES (1,    NULL);
+INSERT INTO t1 VALUES (2,    3);
+INSERT INTO t1 VALUES (4,    NULL);
+INSERT INTO t1 VALUES (4,    0);
+INSERT INTO t1 VALUES (NULL, NULL);
+CREATE TABLE t2 (
+i1 int DEFAULT NULL,
+i2 int DEFAULT NULL
+) ;
+INSERT INTO t2 VALUES (4, NULL);
+INSERT INTO t2 VALUES (5, 0);
+
+Data in t1
+SELECT i1, i2 FROM t1;
+i1	i2
+1	NULL
+2	3
+4	NULL
+4	0
+NULL	NULL
+
+Data in subquery (should be filtered out)
+SELECT i1, i2 FROM t2 ORDER BY i1;
+i1	i2
+4	NULL
+5	0
+FLUSH STATUS;
+
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+NOT IN (SELECT i1, i2 FROM t2);
+i1	i2
+1	NULL
+2	3
+
+# Check that the subquery only has to be evaluated once 
+# for all-NULL values even though there are two (NULL,NULL) records
+# Baseline:
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	17
+
+INSERT INTO t1 VALUES (NULL, NULL);
+FLUSH STATUS;
+
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+NOT IN (SELECT i1, i2 FROM t2);
+i1	i2
+1	NULL
+2	3
+
+# Handler_read_rnd_next should be one more than baseline 
+# (read record from t1, but do not read from t2)
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	18
+DROP TABLE t1,t2;
+End of 5.1 tests
