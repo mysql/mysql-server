@@ -47,8 +47,8 @@ NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   
   if (checkState_TransId(&ref->transId1)) {
     if (theScanningOp) {
-      theScanningOp->setErrorCode(ref->errorCode);
       theScanningOp->execCLOSE_SCAN_REP();
+      theScanningOp->setErrorCode(ref->errorCode);
       if(!ref->closeNeeded){
         return 0;
       }
@@ -63,8 +63,8 @@ NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
 
     } else {
       assert (m_scanningQuery);
+      m_scanningQuery->execCLOSE_SCAN_REP(ref->closeNeeded);
       m_scanningQuery->setErrorCode(ref->errorCode);
-      m_scanningQuery->execCLOSE_SCAN_REP();
       if(!ref->closeNeeded){
         return 0;
       }
@@ -108,7 +108,7 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
         theScanningOp->execCLOSE_SCAN_REP();
       } else {
         assert (m_scanningQuery);
-        m_scanningQuery->execCLOSE_SCAN_REP();
+        m_scanningQuery->execCLOSE_SCAN_REP(false);
       }
       return 1; // -> Finished
     }
