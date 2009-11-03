@@ -53,6 +53,8 @@ class store_key;
 typedef struct st_table_ref
 {
   bool		key_err;
+  /** True if something was read into buffer in join_read_key.  */
+  bool          has_record;
   uint          key_parts;                // num of ...
   uint          key_length;               // length of key_buff
   int           key;                      // key no
@@ -79,7 +81,11 @@ typedef struct st_table_ref
   key_part_map  null_rejecting;
   table_map	depend_map;		  // Table depends on these tables.
   byte          *null_ref_key;		  // null byte position in the key_buf.
-  					  // used for REF_OR_NULL optimization.
+  /*
+    The number of times the record associated with this key was used
+    in the join.
+  */
+  ha_rows       use_count;
 } TABLE_REF;
 
 /*

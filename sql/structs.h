@@ -117,16 +117,22 @@ typedef struct st_reginfo {		/* Extra info about reg */
 } REGINFO;
 
 
-struct st_read_record;				/* For referense later */
 class SQL_SELECT;
 class THD;
 class handler;
+struct st_join_table;
 
-typedef struct st_read_record {			/* Parameter to read_record */
+void rr_unlock_row(st_join_table *tab);
+
+struct READ_RECORD {			/* Parameter to read_record */
+  typedef int (*Read_func)(READ_RECORD*);
+  typedef void (*Unlock_row_func)(st_join_table *);
   struct st_table *table;			/* Head-form */
   handler *file;
   struct st_table **forms;			/* head and ref forms */
-  int (*read_record)(struct st_read_record *);
+
+  Read_func read_record;
+  Unlock_row_func unlock_row;
   THD *thd;
   SQL_SELECT *select;
   uint cache_records;
@@ -138,7 +144,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;
-} READ_RECORD;
+};
 
 
 /*
