@@ -466,10 +466,14 @@ buf_page_set_old(
 	ut_ad(bpage->in_LRU_list);
 
 #ifdef UNIV_LRU_DEBUG
-	if (UT_LIST_GET_PREV(LRU, bpage) && UT_LIST_GET_NEXT(LRU, bpage)
-	    && UT_LIST_GET_PREV(LRU, bpage)->old
-	    == UT_LIST_GET_NEXT(LRU, bpage)->old) {
-		ut_a(UT_LIST_GET_PREV(LRU, bpage)->old == old);
+	if (UT_LIST_GET_PREV(LRU, bpage) && UT_LIST_GET_NEXT(LRU, bpage)) {
+		const buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
+		const buf_page_t*	next = UT_LIST_GET_NEXT(LRU, bpage);
+		if (prev->old == next->old) {
+			ut_a(prev->old == old);
+		} else {
+			ut_a(!prev->old);
+		}
 	}
 #endif /* UNIV_LRU_DEBUG */
 
