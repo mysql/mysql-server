@@ -42,7 +42,7 @@
   % <flag> <width> <precision> <length modifier> <format>
   where everithing but the format is optional.
 
-  Three one-character flags are regognized:
+  Three one-character flags are recognized:
     '0' has the standard zero-padding semantics;
     '-' is parsed, but silently ignored;
     '`' (backtick) is only supported for strings (%s) and means that the
