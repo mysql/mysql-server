@@ -522,6 +522,8 @@ sub collect_one_suite($)
       next if ($test->{'name'} eq 'main.innodb_bug46000');
       # Disable for Innodb Plugin until the fix for Plugin is received
       next if ($test->{'name'} eq 'main.innodb_bug44369');
+      # Disable for Innodb Plugin until the fix for Plugin is received
+      next if ($test->{'name'} eq 'main.innodb_bug47777');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
