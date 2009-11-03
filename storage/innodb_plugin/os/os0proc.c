@@ -97,6 +97,7 @@ os_mem_alloc_large(
 			fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
 				" attach shared memory segment, errno %d\n",
 				errno);
+			ptr = NULL;
 		}
 
 		/* Remove the shared memory segment so that it will be
