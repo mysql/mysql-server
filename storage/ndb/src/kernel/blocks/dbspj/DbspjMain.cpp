@@ -112,11 +112,7 @@ void Dbspj::execSTTOR(Signal* signal)
   signal->theData[3] = 255;
 #endif
   signal->theData[4] = 255;
-  if(isNdbMtLqh()){
-    sendSignal(DBSPJ_REF, GSN_STTORRY, signal, 5, JBB);
-  }else{
-    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
-  }
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
 
 #ifdef UNIT_TEST_DATABUFFER2
   if (tphase == 120)
