@@ -53,11 +53,11 @@ ERROR HY000: Variable 'local_infile' is a GLOBAL variable and should be set with
 SELECT @@session.local_infile = 1;
 ERROR HY000: Variable 'local_infile' is a GLOBAL variable
 '#----------------------FN_DYNVARS_018_06------------------------#'
-SELECT @@global.local_infile = VARIABLE_VALUE 
+SELECT IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='local_infile';
-@@global.local_infile = VARIABLE_VALUE
-0
+IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE
+1
 '#---------------------FN_DYNVARS_018_07----------------------#'
 SET @@global.local_infile = OFF;
 SELECT @@global.local_infile;

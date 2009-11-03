@@ -108,9 +108,9 @@ static my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
 			      uchar *default_value)
 {
   DBUG_ENTER("safe_hash");
-  if (hash_init(&hash->hash, &my_charset_bin, elements,
-		0, 0, (hash_get_key) safe_hash_entry_get,
-		(void (*)(void*)) safe_hash_entry_free, 0))
+  if (my_hash_init(&hash->hash, &my_charset_bin, elements,
+                   0, 0, (my_hash_get_key) safe_hash_entry_get,
+                   (void (*)(void*)) safe_hash_entry_free, 0))
   {
     hash->default_value= 0;
     DBUG_RETURN(1);
@@ -137,7 +137,7 @@ static void safe_hash_free(SAFE_HASH *hash)
   */
   if (hash->default_value)
   {
-    hash_free(&hash->hash);
+    my_hash_free(&hash->hash);
     rwlock_destroy(&hash->mutex);
     hash->default_value=0;
   }
@@ -152,7 +152,7 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
   uchar *result;
   DBUG_ENTER("safe_hash_search");
   rw_rdlock(&hash->mutex);
-  result= hash_search(&hash->hash, key, length);
+  result= my_hash_search(&hash->hash, key, length);
   rw_unlock(&hash->mutex);
   if (!result)
     result= hash->default_value;
@@ -192,7 +192,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   DBUG_PRINT("enter",("key: %.*s  data: 0x%lx", length, key, (long) data));
 
   rw_wrlock(&hash->mutex);
-  entry= (SAFE_HASH_ENTRY*) hash_search(&hash->hash, key, length);
+  entry= (SAFE_HASH_ENTRY*) my_hash_search(&hash->hash, key, length);
 
   if (data == hash->default_value)
   {
@@ -206,7 +206,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
     /* unlink entry from list */
     if ((*entry->prev= entry->next))
       entry->next->prev= entry->prev;
-    hash_delete(&hash->hash, (uchar*) entry);
+    my_hash_delete(&hash->hash, (uchar*) entry);
     goto end;
   }
   if (entry)
@@ -277,7 +277,7 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
       {
         if ((*entry->prev= entry->next))
           entry->next->prev= entry->prev;
-	hash_delete(&hash->hash, (uchar*) entry);
+	my_hash_delete(&hash->hash, (uchar*) entry);
       }
       else
 	entry->data= new_data;

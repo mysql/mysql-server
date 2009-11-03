@@ -71,10 +71,10 @@ WHERE VARIABLE_NAME='sql_quote_show_create';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_162_07------------------------#'
-SELECT @@session.sql_quote_show_create = VARIABLE_VALUE 
+SELECT IF(@@session.sql_quote_show_create, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_quote_show_create';
-@@session.sql_quote_show_create = VARIABLE_VALUE
+IF(@@session.sql_quote_show_create, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_quote_show_create;
 @@session.sql_quote_show_create

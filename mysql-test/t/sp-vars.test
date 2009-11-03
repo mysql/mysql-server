@@ -1448,3 +1448,42 @@ drop function f1;
 drop table t1;
 # End of 5.1 tests.
 
+
+###########################################################################
+#
+# Test case for BUG#28299: To-number conversion warnings work
+# differenly with CHAR and VARCHAR sp variables
+#
+###########################################################################
+
+--echo
+--echo ---------------------------------------------------------------
+--echo BUG#28299
+--echo ---------------------------------------------------------------
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE ctest()
+BEGIN
+  DECLARE i CHAR(16);
+  DECLARE j INT;
+  SET i= 'string';
+  SET j= 1 + i;
+END|
+DELIMITER ;|
+
+CALL ctest();
+DROP PROCEDURE ctest;
+
+DELIMITER |;
+CREATE PROCEDURE vctest()
+BEGIN
+  DECLARE i VARCHAR(16);
+  DECLARE j INT;
+  SET i= 'string';
+  SET j= 1 + i;
+END|
+DELIMITER ;|
+
+CALL vctest();
+DROP PROCEDURE vctest;

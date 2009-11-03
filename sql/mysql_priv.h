@@ -295,7 +295,7 @@ protected:
 #define TABLE_OPEN_CACHE_DEFAULT 400
 #define TABLE_DEF_CACHE_DEFAULT 400
 /**
-  We must have room for at least 256 table definitions in the table
+  We must have room for at least 400 table definitions in the table
   cache, since otherwise there is no chance prepared
   statements that use these many tables can work.
   Prepared statements use table definition cache ids (table_map_id)
@@ -662,7 +662,6 @@ enum enum_parsing_place
   IN_ON
 };
 
-struct st_table;
 
 #define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;
@@ -900,6 +899,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 #include "tztime.h"
 #ifdef MYSQL_SERVER
 #include "sql_servers.h"
+#include "records.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -907,7 +907,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
-  unsigned int result_in_binary_protocol:1;
+  unsigned int protocol_type:2;
   unsigned int more_results_exists:1;
   unsigned int in_trans:1;
   unsigned int autocommit:1;
@@ -926,6 +926,8 @@ struct Query_cache_query_flags
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
+#define query_cache_abort(A) query_cache.abort(A)
+#define query_cache_end_of_result(A) query_cache.end_of_result(A)
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
@@ -1047,9 +1049,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
                           bool *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
-		  bool no_grant, bool no_errors, bool schema_db);
-bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			uint number, bool no_errors);
+                  bool no_grant, bool no_errors, bool schema_db);
+bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
+                        bool any_combination_of_privileges_will_do,
+                        uint number,
+                        bool no_errors);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
                          ulong *save_priv, bool no_grant, bool no_errors,
@@ -1059,8 +1063,10 @@ inline bool check_access(THD *thd, ulong access, const char *db,
     *save_priv= GLOBAL_ACLS;
   return false;
 }
-inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			uint number, bool no_errors)
+inline bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
+                               bool no_errors,
+                               bool any_combination_of_privileges_will_do,
+                               uint number)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
@@ -1351,19 +1357,6 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
-
-/* sql_prepare.cc */
-
-void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_close(THD *thd, char *packet);
-void mysql_sql_stmt_prepare(THD *thd);
-void mysql_sql_stmt_execute(THD *thd);
-void mysql_sql_stmt_close(THD *thd);
-void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_reset(THD *thd, char *packet);
-void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-void reinit_stmt_before_use(THD *thd, LEX *lex);
 
 /* sql_handler.cc */
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
@@ -1869,6 +1862,7 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 #ifdef MYSQL_SERVER
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
+extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
@@ -2019,7 +2013,7 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_community_features;
+extern SHOW_COMP_OPTION have_profiling;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
@@ -2170,12 +2164,6 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select, int use_record_cache, 
-                      bool print_errors, bool disable_rr_cache);
-void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
-                          bool print_error, uint idx);
-void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, bool sort_positions,

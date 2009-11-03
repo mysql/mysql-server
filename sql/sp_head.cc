@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+#include "sql_prepare.h"
 #include "probes_mysql.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -531,8 +532,9 @@ sp_head::sp_head()
   m_backpatch.empty();
   m_cont_backpatch.empty();
   m_lex.empty();
-  hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
-  hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
+  my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
+               0, 0);
 
   m_body_utf8.str= NULL;
   m_body_utf8.length= 0;
@@ -781,8 +783,8 @@ sp_head::destroy()
     m_thd->lex= lex;
   }
 
-  hash_free(&m_sptabs);
-  hash_free(&m_sroutines);
+  my_hash_free(&m_sptabs);
+  my_hash_free(&m_sroutines);
   DBUG_VOID_RETURN;
 }
 
@@ -1207,7 +1209,7 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   /* Discard the initial part of executing routines. */
   thd->profiling.discard_current_query();
 #endif
@@ -1216,7 +1218,7 @@ sp_head::execute(THD *thd)
     sp_instr *i;
     uint hip;			// Handler ip
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     /* 
      Treat each "instr" of a routine as discrete unit that could be profiled.
      Profiling only records information for segments of code that set the
@@ -1229,7 +1231,7 @@ sp_head::execute(THD *thd)
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
     {
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
       thd->profiling.discard_current_query();
 #endif
       break;
@@ -1312,7 +1314,7 @@ sp_head::execute(THD *thd)
     }
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
   thd->profiling.start_new_query("tail end of routine");
 #endif
@@ -1957,15 +1959,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
     }
 
-    /* 
-      Okay, got values for all arguments. Close tables that might be used by 
-      arguments evaluation. If arguments evaluation required prelocking mode, 
+    /*
+      Okay, got values for all arguments. Close tables that might be used by
+      arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
     {
       thd->lex->unit.cleanup();
-      close_thread_tables(thd);            
+
+      thd_proc_info(thd, "closing tables");
+      close_thread_tables(thd);
+      thd_proc_info(thd, 0);
+
       thd->rollback_item_tree_changes();
     }
 
@@ -2038,6 +2044,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         err_status= TRUE;
         break;
       }
+
+      Send_field *out_param_info= new (thd->mem_root) Send_field();
+      nctx->get_item(i)->make_field(out_param_info);
+      out_param_info->db_name= m_db.str;
+      out_param_info->table_name= m_name.str;
+      out_param_info->org_table_name= m_name.str;
+      out_param_info->col_name= spvar->name.str;
+      out_param_info->org_col_name= spvar->name.str;
+
+      srp->set_out_param_info(out_param_info);
     }
   }
 
@@ -2362,7 +2378,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
+  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
+                                     1, TRUE) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,
@@ -2445,7 +2462,7 @@ sp_head::show_create_routine(THD *thd, int type)
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
-  if (protocol->send_fields(&fields,
+  if (protocol->send_result_set_metadata(&fields,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     DBUG_RETURN(TRUE);
@@ -2631,8 +2648,8 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-					     max(buffer.length(), 1024)));
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                             max(buffer.length(), 1024)));
+  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
@@ -2808,7 +2825,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)
+  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
       || open_and_lock_tables(thd, tables))
     result= -1;
   else
@@ -2844,7 +2861,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
@@ -2864,7 +2881,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
-        net_end_statement(thd);
+        thd->protocol->end_statement();
 
       query_cache_end_of_result(thd);
 
@@ -3820,7 +3837,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 
   for (uint i= 0 ; i < m_sptabs.records ; i++)
   {
-    tab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    tab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
     tab->query_lock_count= 0;
   }
 
@@ -3854,8 +3871,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
-          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname,
+      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
+          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname,
                                         tlen - alen - 1)) &&
            tab->temp))
       {
@@ -3940,7 +3957,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   {
     char *tab_buff, *key_buff;
     TABLE_LIST *table;
-    SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    SP_TABLE *stab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
 

@@ -132,7 +132,7 @@ WHERE VARIABLE_NAME='sql_big_selects';
 #     Check if the value in GLOBAL Table matches value in variable     #
 ########################################################################
 
-SELECT @@session.sql_big_selects = VARIABLE_VALUE 
+SELECT IF(@@session.sql_big_selects, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_big_selects';
 SELECT @@session.sql_big_selects;

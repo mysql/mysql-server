@@ -136,7 +136,7 @@ WHERE VARIABLE_NAME='sql_quote_show_create';
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@session.sql_quote_show_create = VARIABLE_VALUE 
+SELECT IF(@@session.sql_quote_show_create, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 SELECT @@session.sql_quote_show_create;

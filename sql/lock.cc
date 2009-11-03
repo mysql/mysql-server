@@ -1029,11 +1029,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
   if (check_in_use)
   {
     /* Only insert the table if we haven't insert it already */
-    for (table=(TABLE*) hash_first(&open_cache, (uchar*)key,
-                                   key_length, &state);
+    for (table=(TABLE*) my_hash_first(&open_cache, (uchar*)key,
+                                      key_length, &state);
          table ;
-         table = (TABLE*) hash_next(&open_cache,(uchar*) key,
-                                    key_length, &state))
+         table = (TABLE*) my_hash_next(&open_cache,(uchar*) key,
+                                       key_length, &state))
     {
       if (table->in_use == thd)
       {
@@ -1060,7 +1060,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
   {
-    hash_delete(&open_cache, (uchar*) table_list->table);
+    my_hash_delete(&open_cache, (uchar*) table_list->table);
     broadcast_refresh();
   }
 }
@@ -1235,11 +1235,11 @@ is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
   HASH_SEARCH_STATE state;
   TABLE *table;
 
-  for (table= (TABLE*) hash_first(&open_cache, key,
-                                  key_length, &state);
+  for (table= (TABLE*) my_hash_first(&open_cache, key,
+                                     key_length, &state);
        table ;
-       table= (TABLE*) hash_next(&open_cache, key,
-                                 key_length, &state))
+       table= (TABLE*) my_hash_next(&open_cache, key,
+                                    key_length, &state))
   {
     if (table->in_use == thd &&
         table->open_placeholder == 1 &&
