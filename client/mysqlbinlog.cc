@@ -78,6 +78,9 @@ static const char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name= 0;
+#endif
 static const char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
@@ -1077,6 +1080,12 @@ static struct my_option my_long_options[] =
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", (uchar**) &charset,
    (uchar**) &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
+   (uchar**) &shared_memory_base_name, 
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"short-form", 's', "Just show regular queries: no extra info and no "
    "row-based events. This is for testing only, and should not be used in "
    "production systems. If you want to suppress base64-output, consider "
@@ -1379,6 +1388,11 @@ static Exit_status safe_connect()
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+                  shared_memory_base_name);
+#endif
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
     error("Failed on connect: %s", mysql_error(mysql));
