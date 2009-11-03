@@ -2368,7 +2368,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SHM",
     "SHM",
     "Connection section",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_SHM, 
@@ -2413,7 +2413,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Signum",
     "SHM",
     "Signum to be used for signalling",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     UNDEFINED,
@@ -2425,7 +2425,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "SHM",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
@@ -2436,7 +2436,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "SHM",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
@@ -2447,7 +2447,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Group",
     "SHM",
     "",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "35",
@@ -2458,7 +2458,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeIdServer",
     "SHM",
     "",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2469,7 +2469,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "SHM",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_BOOL,
     "false",
@@ -2482,7 +2482,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "SHM",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_BOOL,
     "true",
@@ -2494,7 +2494,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ShmKey",
     "SHM",
     "A shared memory key",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     UNDEFINED,
@@ -2506,7 +2506,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "ShmSize",
     "SHM",
     "Size of shared memory segment",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "1M",
@@ -2557,7 +2557,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "SCI",
     "Connection section",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_SCI, 
@@ -2569,7 +2569,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "SCI",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
@@ -2581,7 +2581,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId2",
     "SCI",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_STRING,
     MANDATORY,
@@ -2593,7 +2593,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Group",
     "SCI",
     "",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "15",
@@ -2604,7 +2604,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeIdServer",
     "SCI",
     "",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2649,7 +2649,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host1SciId0",
     "SCI",
     "SCI-node id for adapter 0 on Host1 (a computer can have two adapters)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2661,7 +2661,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host1SciId1",
     "SCI",
     "SCI-node id for adapter 1 on Host1 (a computer can have two adapters)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "0",
@@ -2673,7 +2673,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host2SciId0",
     "SCI",
     "SCI-node id for adapter 0 on Host2 (a computer can have two adapters)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     MANDATORY,
@@ -2685,7 +2685,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Host2SciId1",
     "SCI",
     "SCI-node id for adapter 1 on Host2 (a computer can have two adapters)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "0",
@@ -2697,7 +2697,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendSignalId",
     "SCI",
     "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_BOOL,
     "true",
@@ -2709,7 +2709,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Checksum",
     "SCI",
     "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_BOOL,
     "false",
@@ -2721,7 +2721,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SendLimit",
     "SCI",
     "Transporter send buffer contents are sent when this no of bytes is buffered",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "8K",
@@ -2733,7 +2733,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SharedBufferSize",
     "SCI",
     "Size of shared memory segment",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "1M",
@@ -2768,13 +2768,14 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_EXPERIMENTAL,
     false,
     ConfigInfo::CI_INT,
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL)
   }
+
 };
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
@@ -2822,7 +2823,14 @@ ConfigInfo::ConfigInfo()
     pinfo.put("Description", param._description);
     pinfo.put("Flags",       param._flags);
     pinfo.put("Type",        param._type);
-    pinfo.put("Status",      param._status);
+
+    const Status status = param._status;
+    require(status == CI_USED ||
+            status == CI_EXPERIMENTAL ||
+            status == CI_DEPRICATED ||
+            status == CI_NOTIMPLEMENTED ||
+            status == CI_INTERNAL);
+    pinfo.put("Status", status);
 
     switch (param._type) {
       case CI_BOOL:
@@ -3442,6 +3450,16 @@ public:
 
     if (buf.length())
       pairs.put("check", buf.c_str());
+
+    // Get "supported" flag
+    Uint32 status = info.getStatus(section, param_name);
+    buf.clear();
+    if (status & ConfigInfo::CI_EXPERIMENTAL)
+      buf.append("experimental");
+
+    if (buf.length())
+      pairs.put("supported", buf.c_str());
+
 
     print_xml("param", pairs);
   }
