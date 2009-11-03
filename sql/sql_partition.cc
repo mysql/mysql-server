@@ -905,6 +905,8 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   char* db_name;
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
+  uint8 saved_full_group_by_flag;
+  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -974,8 +976,18 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
+  saved_allow_sum_func= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
   
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
+
+  /*
+    Restore full_group_by_flag and allow_sum_func,
+    fix_fields should not affect mysql_select later, see Bug#46923.
+  */
+  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
+  thd->lex->allow_sum_func= saved_allow_sum_func;
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 
