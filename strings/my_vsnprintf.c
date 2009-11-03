@@ -260,6 +260,14 @@ static char *process_int_arg(char *to, char *end, size_t length,
     {
       size_t diff= (length- res_length);
       bfill(to, diff, (print_type & PREZERO_ARG) ? '0' : ' ');
+      if (arg_type == 'p' && print_type & PREZERO_ARG)
+      {
+        if (diff > 1)
+          to[1]= 'x';
+        else
+          store_start[0]= 'x';
+        store_start[1]= '0';
+      }
       to+= diff;
     }
     bmove(to, store_start, res_length);
@@ -323,6 +331,7 @@ start:
     /* Get print width */
     if (*fmt == '*')
     {
+      fmt++;
       fmt= get_width(fmt, &print_arr[idx].width);
       print_arr[idx].width--;
       DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
@@ -623,54 +632,3 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   return result;
 }
 
-#ifdef MAIN
-#define OVERRUN_SENTRY  250
-static void my_printf(const char * fmt, ...)
-{
-  char buf[33];
-  int n;
-  va_list ar;
-  va_start(ar, fmt);
-  buf[sizeof(buf)-1]=OVERRUN_SENTRY;
-  n = my_vsnprintf(buf, sizeof(buf)-1,fmt, ar);
-  printf(buf);
-  printf("n=%d, strlen=%d\n", n, strlen(buf));
-  if ((uchar) buf[sizeof(buf)-1] != OVERRUN_SENTRY)
-  {
-    fprintf(stderr, "Buffer overrun\n");
-    abort();
-  }
-  va_end(ar);
-}
-
-
-int main()
-{
-
-  my_printf("Hello\n");
-  my_printf("Hello int, %d\n", 1);
-  my_printf("Hello string '%s'\n", "I am a string");
-  my_printf("Hello hack hack hack hack hack hack hack %d\n", 1);
-  my_printf("Hello %d hack  %d\n", 1, 4);
-  my_printf("Hello %d hack hack hack hack hack %d\n", 1, 4);
-  my_printf("Hello '%s' hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\n", "hack");
-  my_printf("Hello hhhhhhhhhhhhhh %d sssssssssssssss\n", 1);
-  my_printf("Hello  %u\n", 1);
-  my_printf("Hex:   %lx  '%6lx'\n", 32, 65);
-  my_printf("conn %ld to: '%-.64s' user: '%-.32s' host:\
- `%-.64s' (%-.64s)", 1, 0,0,0,0);
-
-  my_printf("Hello string %`s\n", "I am a string");
-  my_printf("Hello %05s\n", "TEST");
-  my_printf("My %1$`-.1s test\n", "QQQQ");
-  my_printf("My %1$s test done %2$s\n", "DDDD", "AAAA");
-  my_printf("My %1$s test %2$s, %1$-.3s\n", "DDDD", "CCCC");
-  my_printf("My %1$`-.4b test\n", "QQQQ");
-  my_printf("My %1$c test\n", 'X');
-  my_printf("My `%010d` test1 %4x test2 %4X\n", 10, 10, 10);
-  my_printf("My `%1$010d` test1 %2$4x test2 %2$4x\n", 10, 10);
-  my_printf("My %1$*02$d test\n", 10, 5);
-  my_printf("My %1$`s test %2$s, %1$`-.3s\n", "DDDD", "CCCC");
-  return 0;
-}
-#endif
