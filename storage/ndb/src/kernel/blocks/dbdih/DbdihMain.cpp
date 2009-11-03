@@ -3767,6 +3767,10 @@ Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
         ndbrequire(loopReplicaPtr.p->procNode == getOwnNodeId());
         takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SL_COPY_ACTIVE;
 
+        Uint32 instanceKey = dihGetInstanceKey(fragPtr);
+        BlockReference lqhRef = numberToRef(DBLQH, instanceKey,
+                                            takeOverPtr.p->toStartingNode);
+
         CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
         req->userPtr = takeOverPtr.i;
         req->userRef = reference();
@@ -3774,8 +3778,7 @@ Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
         req->fragId = takeOverPtr.p->toCurrentFragid;
         req->distributionKey = fragPtr.p->distributionKey;
         req->flags = 0;
-        sendSignal(calcLqhBlockRef(loopReplicaPtr.p->procNode),
-                   GSN_COPY_ACTIVEREQ, signal,
+        sendSignal(lqhRef,GSN_COPY_ACTIVEREQ, signal,
                    CopyActiveReq::SignalLength, JBB);
         return;
       }
