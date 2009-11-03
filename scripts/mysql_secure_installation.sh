@@ -98,9 +98,7 @@ set_root_password() {
     if [ $? -eq 0 ]; then
 	echo "Password updated successfully!"
 	echo "Reloading privilege tables.."
-	if ! reload_privilege_tables; then
-	    exit 1
-	fi
+	reload_privilege_tables || exit 1
 	echo
 	rootpass=$password1
 	make_config
