@@ -2018,11 +2018,14 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #45807: crash accessing partitioned table and sql_mode 
 --echo #   contains ONLY_FULL_GROUP_BY
+--echo # Bug#46923: select count(*) from partitioned table fails with
+--echo # ONLY_FULL_GROUP_BY
 --echo #
 
 SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
 CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
   PARTITION BY HASH(id) PARTITIONS 2;
+SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 

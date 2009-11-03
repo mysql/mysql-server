@@ -2030,10 +2030,15 @@ DROP TABLE t1;
 #
 # Bug #45807: crash accessing partitioned table and sql_mode 
 #   contains ONLY_FULL_GROUP_BY
+# Bug#46923: select count(*) from partitioned table fails with
+# ONLY_FULL_GROUP_BY
 #
 SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
 CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
 PARTITION BY HASH(id) PARTITIONS 2;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 #
