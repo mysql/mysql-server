@@ -2066,7 +2066,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   const char *strvalue= "NULL", *str;
   TYPELIB *typelib;
   ulonglong result;
-  uint error_len;
+  uint error_len= 0;                            // init as only set on error
   bool not_used;
   int length;
 
@@ -2665,7 +2665,9 @@ uchar* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
     {
       if (!(value & mask))
         continue;
-      str.append(typelib->type_names[i], typelib->type_lengths[i]);
+      str.append(typelib->type_names[i], typelib->type_lengths
+                                       ? typelib->type_lengths[i]
+                                       : strlen(typelib->type_names[i]));
       str.append(',');
     }
 

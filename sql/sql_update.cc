@@ -1696,6 +1696,11 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                TRG_EVENT_UPDATE))
 	DBUG_RETURN(1);
 
+      /*
+        Reset the table->auto_increment_field_not_null as it is valid for
+        only one row.
+      */
+      table->auto_increment_field_not_null= FALSE;
       found++;
       if (!can_compare_record || compare_record(table))
       {
