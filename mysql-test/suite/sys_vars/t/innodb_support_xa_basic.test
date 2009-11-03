@@ -169,7 +169,7 @@ SELECT @@session.innodb_support_xa AS res_is_1;
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@global.innodb_support_xa =
+SELECT IF(@@global.innodb_support_xa, "ON", "OFF") =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='innodb_support_xa';
 SELECT @@global.innodb_support_xa;
@@ -182,7 +182,7 @@ SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 #     Check if the value in SESSION Table matches value in variable     #
 #########################################################################
 
-SELECT @@session.innodb_support_xa =
+SELECT IF(@@session.innodb_support_xa, "ON", "OFF") =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='innodb_support_xa';
 SELECT @@session.innodb_support_xa;

@@ -556,3 +556,30 @@ f1	bug13575(f1)
 3	ccc
 drop function bug13575|
 drop table t3|
+#
+# End of 5.1 tests
+#
+# 
+# Bug #35877 Update .. WHERE with function, constraint violation, crash 
+#           
+DROP TABLE IF EXISTS t1_aux|
+DROP TABLE IF EXISTS t1_not_null|
+DROP FUNCTION IF EXISTS f1_two_inserts|
+# MyISAM test
+CREATE TABLE t1_not_null (f1 BIGINT, f2 BIGINT NOT NULL)|
+CREATE TABLE t1_aux (f1 BIGINT, f2 BIGINT)|
+INSERT INTO t1_aux VALUES (1,1)|
+CREATE FUNCTION f1_two_inserts() returns INTEGER
+BEGIN
+INSERT INTO t1_not_null SET f1 = 10, f2 = NULL;
+RETURN 1;
+END|
+UPDATE t1_aux SET f2 = 2 WHERE f1 = f1_two_inserts()|
+ERROR 23000: Column 'f2' cannot be null
+# InnoDB test
+ALTER TABLE t1_not_null ENGINE = InnoDB|
+ALTER TABLE t1_aux ENGINE = InnoDB|
+UPDATE t1_aux SET f2 = 2 WHERE f1 = f1_two_inserts()|
+ERROR 23000: Column 'f2' cannot be null
+DROP TABLE t1_aux, t1_not_null|
+DROP FUNCTION f1_two_inserts|

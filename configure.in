@@ -617,24 +617,6 @@ then
   fi
 fi
 
-AC_MSG_CHECKING(whether features provided by the user community should be included.)
-AC_ARG_ENABLE(community-features,
-    AC_HELP_STRING(
-        [--disable-community-features], 
-        [Disable additional features provided by the user community.]),
-    [ ENABLE_COMMUNITY_FEATURES=$enableval ],
-    [ ENABLE_COMMUNITY_FEATURES=yes ]
-    )
-
-if test "$ENABLE_COMMUNITY_FEATURES" = "yes"
-then
-  AC_DEFINE([COMMUNITY_SERVER], [1],
-            [Whether features provided by the user community should be included])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
 AC_ARG_WITH(server-suffix,
     [  --with-server-suffix    Append value to the version string.],
     [ MYSQL_SERVER_SUFFIX=`echo "$withval" | sed -e  's/^\(...................................\)..*$/\1/'` ],
@@ -700,21 +682,14 @@ fi
 # Add query profiler
 AC_MSG_CHECKING(if SHOW PROFILE should be enabled.)
 AC_ARG_ENABLE(profiling,
-    AS_HELP_STRING([--enable-profiling], [Build a version with query profiling code (req. community-features)]),
+    AS_HELP_STRING([--enable-profiling], [Enable profiling of query lifetime.]),
     [ ENABLED_PROFILING=$enableval ],
-    [ ENABLED_PROFILING=$ENABLE_COMMUNITY_FEATURES ])
+    [ ENABLED_PROFILING=no ])
 
+AC_DEFINE([ENABLED_PROFILING], [1], [If SHOW PROFILE should be enabled])
 if test "$ENABLED_PROFILING" = "yes"
 then
-  if test "$ENABLE_COMMUNITY_FEATURES" = "yes";
-  then
-    AC_DEFINE([ENABLED_PROFILING], [1],
-              [If SHOW PROFILE should be enabled])
-    AC_MSG_RESULT([yes]) 
-  else
-    ENABLED_PROFILING="no"
-    AC_MSG_RESULT([no, overridden by community-features disabled])
-  fi
+  AC_MSG_RESULT([yes]) 
 else
   AC_MSG_RESULT([no])
 fi

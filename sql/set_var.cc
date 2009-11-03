@@ -125,8 +125,10 @@ static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
+#endif
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
@@ -493,9 +495,6 @@ static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
                                               &SV::div_precincrement);
 static sys_var_long_ptr	sys_rpl_recovery_rank(&vars, "rpl_recovery_rank",
 					      &rpl_recovery_rank);
-static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
-					     &query_cache_size,
-					     fix_query_cache_size);
 
 static sys_var_thd_ulong	sys_range_alloc_block_size(&vars, "range_alloc_block_size",
 						   &SV::range_alloc_block_size);
@@ -557,14 +556,20 @@ sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
                                             NULL);
 
 #ifdef HAVE_QUERY_CACHE
+static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
+                                             &query_cache_size,
+                                             fix_query_cache_size);
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
-					      &query_cache.query_cache_limit);
-static sys_var_long_ptr        sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
-						     &query_cache_min_res_unit,
-						     fix_query_cache_min_res_unit);
+                                              &query_cache.query_cache_limit);
+static sys_var_long_ptr
+  sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
+                               &query_cache_min_res_unit,
+                               fix_query_cache_min_res_unit);
+static int check_query_cache_type(THD *thd, set_var *var);
 static sys_var_thd_enum	sys_query_cache_type(&vars, "query_cache_type",
 					     &SV::query_cache_type,
-					     &query_cache_type_typelib);
+					     &query_cache_type_typelib, NULL,
+                                             check_query_cache_type);
 static sys_var_thd_bool
 sys_query_cache_wlock_invalidate(&vars, "query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
@@ -768,7 +773,7 @@ static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
                                           1,
                                           sys_var::SESSION_VARIABLE_IN_BINLOG);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
 static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
                                       set_option_bit,
                                       ulonglong(OPTION_PROFILING));
@@ -873,9 +878,9 @@ static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRIN
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
 static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_profiling(&vars, "have_profiling", &have_profiling);
 static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
                                            &have_query_cache);
-static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
 /* Global read-only variable describing server license */
@@ -1131,10 +1136,9 @@ static void fix_net_retry_count(THD *thd __attribute__((unused)),
 {}
 #endif /* HAVE_REPLICATION */
 
-
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_size(THD *thd, enum_var_type type)
 {
-#ifdef HAVE_QUERY_CACHE
   ulong new_cache_size= query_cache.resize(query_cache_size);
 
   /*
@@ -1148,11 +1152,35 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
 			query_cache_size, new_cache_size);
   
   query_cache_size= new_cache_size;
-#endif
 }
 
 
-#ifdef HAVE_QUERY_CACHE
+/**
+  Trigger before query_cache_type variable is updated.
+  @param thd Thread handler
+  @param var Pointer to the new variable status
+
+  @return Status code
+   @retval 1 Failure
+   @retval 0 Success
+*/
+
+static int check_query_cache_type(THD *thd, set_var *var)
+{
+  /*
+    Don't allow changes of the query_cache_type if the query cache
+    is disabled.
+  */
+  if (query_cache.is_disabled())
+  {
+    my_error(ER_QUERY_CACHE_DISABLED,MYF(0));
+    return 1;
+  }
+
+  return 0;
+}
+
+
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 {
   query_cache_min_res_unit= 
@@ -2573,9 +2601,20 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 {
   MYSQL_QUERY_LOG *file_log;
   char buff[FN_REFLEN];
-  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  char *res= 0, *old_value= 0;
   bool result= 0;
-  uint str_length= (var ? var->value->str_value.length() : 0);
+  uint str_length= 0;
+
+  if (var) 
+  {
+    String str(buff, sizeof(buff), system_charset_info), *newval;
+
+    newval= var->value->val_str(&str);
+    old_value= newval->c_ptr_safe();
+    str_length= strlen(old_value);
+  } 
+  
+
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -3353,7 +3392,7 @@ int mysql_add_sys_var_chain(sys_var *first, struct my_option *long_options)
 
 error:
   for (; first != var; first= first->next)
-    hash_delete(&system_variable_hash, (uchar*) first);
+    my_hash_delete(&system_variable_hash, (uchar*) first);
   return 1;
 }
  
@@ -3377,7 +3416,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
    
   for (sys_var *var= first; var; var= var->next)
-    result|= hash_delete(&system_variable_hash, (uchar*) var);
+    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
 
   return result;
 }
@@ -3414,7 +3453,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     for (i= 0; i < count; i++)
     {
-      sys_var *var= (sys_var*) hash_element(&system_variable_hash, i);
+      sys_var *var= (sys_var*) my_hash_element(&system_variable_hash, i);
       show->name= var->name;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -3451,8 +3490,8 @@ int set_var_init()
   
   for (sys_var *var=vars.first; var; var= var->next, count++) ;
 
-  if (hash_init(&system_variable_hash, system_charset_info, count, 0,
-                0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+  if (my_hash_init(&system_variable_hash, system_charset_info, count, 0,
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
     goto error;
 
   vars.last->next= NULL;
@@ -3477,7 +3516,7 @@ error:
 
 void set_var_free()
 {
-  hash_free(&system_variable_hash);
+  my_hash_free(&system_variable_hash);
 }
 
 
@@ -3503,7 +3542,7 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) hash_search(&system_variable_hash,
+  var= (sys_var*) my_hash_search(&system_variable_hash,
 			      (uchar*) str, length ? length : strlen(str));
   if (!(var || no_error))
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
@@ -3589,6 +3628,16 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
+
+/**
+  Verify that the supplied value is correct.
+
+  @param thd Thread handler
+
+  @return status code
+    @retval -1 Failure
+    @retval 0 Success
+*/
 
 int set_var::check(THD *thd)
 {
@@ -4017,7 +4066,8 @@ ulong fix_sql_mode(ulong sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER);
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER | 
+                MODE_NO_ENGINE_SUBSTITUTION);
   return sql_mode;
 }
 

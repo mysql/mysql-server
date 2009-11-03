@@ -431,7 +431,7 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
   field_list.push_back(new Item_empty_string("description",1000));
   field_list.push_back(new Item_empty_string("example",1000));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
@@ -463,7 +463,7 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
    +-                    -+
 
   RETURN VALUES
-    result of protocol->send_fields
+    result of protocol->send_result_set_metadata
 */
 
 int send_header_2(Protocol *protocol, bool for_category)
@@ -474,7 +474,7 @@ int send_header_2(Protocol *protocol, bool for_category)
     field_list.push_back(new Item_empty_string("source_category_name",64));
   field_list.push_back(new Item_empty_string("name",64));
   field_list.push_back(new Item_empty_string("is_it_category",1));
-  DBUG_RETURN(protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+  DBUG_RETURN(protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                                  Protocol::SEND_EOF));
 }
 

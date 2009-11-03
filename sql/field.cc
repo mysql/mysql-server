@@ -1016,6 +1016,36 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   Static help functions
 *****************************************************************************/
 
+/**
+  Output a warning for erroneous conversion of strings to numerical 
+  values. For use with ER_TRUNCATED_WRONG_VALUE[_FOR_FIELD] 
+  
+  @param thd         THD object
+  @param str         pointer to string that failed to be converted
+  @param length      length of string
+  @param cs          charset for string
+  @param typestr     string describing type converted to
+  @param error       error value to output
+  @param field_name  (for *_FOR_FIELD) name of field
+  @param row_num     (for *_FOR_FIELD) row number
+ */
+static void push_numerical_conversion_warning(THD* thd, const char* str, 
+                                              uint length, CHARSET_INFO* cs,
+                                              const char* typestr, int error,
+                                              const char* field_name="UNKNOWN",
+                                              ulong row_num=0)
+{
+    char buf[max(max(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
+      LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE), 
+      DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE)];
+
+    String tmp(buf, sizeof(buf), cs);
+    tmp.copy(str, length, cs);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        error, ER(error), typestr, tmp.c_ptr(),
+                        field_name, row_num);
+}
+
 
 /**
   Check whether a field type can be partially indexed by a key.
@@ -1775,7 +1805,7 @@ bool Field::optimize_range(uint idx, uint part)
 }
 
 
-Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
                         bool keep_type __attribute__((unused)))
 {
   Field *tmp;
@@ -1796,7 +1826,7 @@ Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table,
 }
 
 
-Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
                             uchar *new_ptr, uchar *new_null_ptr,
                             uint new_null_bit)
 {
@@ -1813,7 +1843,7 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
 
 /* This is used to generate a field in TABLE from TABLE_SHARE */
 
-Field *Field::clone(MEM_ROOT *root, struct st_table *new_table)
+Field *Field::clone(MEM_ROOT *root, TABLE *new_table)
 {
   Field *tmp;
   if ((tmp= (Field*) memdup_root(root,(char*) this,size_of())))
@@ -6357,6 +6387,7 @@ check_string_copy_error(Field_str *field,
     return FALSE;
 
   convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
+
   push_warning_printf(thd,
                       MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
@@ -6992,7 +7023,7 @@ uint Field_string::get_key_image(uchar *buff, uint length, imagetype type_arg)
 }
 
 
-Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
                                bool keep_type)
 {
   Field *field;
@@ -7103,22 +7134,46 @@ int Field_varstring::store(longlong nr, bool unsigned_val)
 double Field_varstring::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
+  int error;
+  char *end;
+  double result;
+  CHARSET_INFO* cs= charset();
+  
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  return my_strntod(field_charset, (char*) ptr+length_bytes, length,
-                    &end_not_used, &not_used);
+  result= my_strntod(cs, (char*)ptr+length_bytes, length, &end, &error);
+  
+  if (!table->in_use->no_errors && 
+       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+         !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs,"DOUBLE", 
+                                      ER_TRUNCATED_WRONG_VALUE);
+  }
+  return result;
 }
 
 
 longlong Field_varstring::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
+  int error;
+  char *end;
+  CHARSET_INFO *cs= charset();
+  
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  return my_strntoll(field_charset, (char*) ptr+length_bytes, length, 10,
-                     &end_not_used, &not_used);
+  longlong result= my_strntoll(cs, (char*) ptr+length_bytes, length, 10,
+                     &end, &error);
+		     
+  if (!table->in_use->no_errors && 
+       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+         !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs, "INTEGER", 
+                                      ER_TRUNCATED_WRONG_VALUE);  
+  }
+  return result;
 }
 
 String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
@@ -7134,9 +7189,17 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  CHARSET_INFO *cs= charset();
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
-                 charset(), decimal_value);
+  int error= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
+                 cs, decimal_value);
+
+  if (!table->in_use->no_errors && error)
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs, "DECIMAL", 
+                                      ER_TRUNCATED_WRONG_VALUE); 
+  }
   return decimal_value;
 }
 
@@ -7538,7 +7601,7 @@ int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
 }
 
 
-Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table,
                                   bool keep_type)
 {
   Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table,
@@ -7550,7 +7613,7 @@ Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table,
 
 
 Field *Field_varstring::new_key_field(MEM_ROOT *root,
-                                      struct st_table *new_table,
+                                      TABLE *new_table,
                                       uchar *new_ptr, uchar *new_null_ptr,
                                       uint new_null_bit)
 {
@@ -8680,7 +8743,7 @@ void Field_enum::sql_type(String &res) const
 }
 
 
-Field *Field_enum::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
                              bool keep_type)
 {
   Field_enum *res= (Field_enum*) Field::new_field(root, new_table, keep_type);
@@ -9021,7 +9084,7 @@ Field_bit::do_last_null_byte() const
 
 
 Field *Field_bit::new_key_field(MEM_ROOT *root,
-                                struct st_table *new_table,
+                                TABLE *new_table,
                                 uchar *new_ptr, uchar *new_null_ptr,
                                 uint new_null_bit)
 {
@@ -9861,8 +9924,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_DATE:
     /* Old date type. */
-    if (protocol_version != PROTOCOL_VERSION-1)
-      sql_type= MYSQL_TYPE_NEWDATE;
+    sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
     length= 10;

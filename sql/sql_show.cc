@@ -223,7 +223,7 @@ bool mysqld_show_authors(THD *thd)
   field_list.push_back(new Item_empty_string("Location",40));
   field_list.push_back(new Item_empty_string("Comment",80));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
@@ -257,7 +257,7 @@ bool mysqld_show_contributors(THD *thd)
   field_list.push_back(new Item_empty_string("Location",40));
   field_list.push_back(new Item_empty_string("Comment",80));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
@@ -317,6 +317,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Shutdown","Server Admin", "To shut down the server"},
   {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
   {"Trigger","Tables", "To use triggers"},
+  {"Create tablespace", "Server Admin", "To create/alter/drop tablespaces"},
   {"Update", "Tables",  "To update existing rows"},
   {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}
@@ -332,7 +333,7 @@ bool mysqld_show_privileges(THD *thd)
   field_list.push_back(new Item_empty_string("Context",15));
   field_list.push_back(new Item_empty_string("Comment",NAME_CHAR_LEN));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
@@ -479,7 +480,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       table_list.table_name= uname;
       table_list.table_name_length= file_name_len;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, 1, 1, 1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
         continue;
     }
 #endif
@@ -682,7 +683,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                                                max(buffer.length(),1024)));
   }
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   protocol->prepare_for_resend();
@@ -767,7 +768,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   field_list.push_back(new Item_empty_string("Database",NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
@@ -835,7 +836,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   }
   restore_record(table, s->default_values);              // Get empty record
   table->use_all_columns();
-  if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS))
+  if (thd->protocol->send_result_set_metadata(&field_list, Protocol::SEND_DEFAULTS))
     DBUG_VOID_RETURN;
   my_eof(thd);
   DBUG_VOID_RETURN;
@@ -1726,7 +1727,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
@@ -3107,12 +3108,31 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   int error;
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
+  char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   bzero((char*) &tbl, sizeof(TABLE));
 
-  table_list.table_name= table_name->str;
-  table_list.db= db_name->str;
+  if (lower_case_table_names)
+  {
+    /*
+      In lower_case_table_names > 0 metadata locking and table definition
+      cache subsystems require normalized (lowercased) database and table
+      names as input.
+    */
+    strmov(db_name_buff, db_name->str);
+    strmov(table_name_buff, table_name->str);
+    my_casedn_str(files_charset_info, db_name_buff);
+    my_casedn_str(files_charset_info, table_name_buff);
+    table_list.db= db_name_buff;
+    table_list.table_name= table_name_buff;
+  }
+  else
+  {
+    table_list.table_name= table_name->str;
+    table_list.db= db_name->str;
+  }
+
   key_length= create_table_def_key(thd, key, &table_list, 0);
   pthread_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
@@ -3150,7 +3170,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   {
     tbl.s= share;
     table_list.table= &tbl;
-    table_list.view= (st_lex*) share->is_view;
+    table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     closefrm(&tbl, true);
@@ -3779,8 +3799,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
-    check_access(thd,SELECT_ACL | EXTRA_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, test(tables->schema_table));
+    check_access(thd,SELECT_ACL, db_name->str,
+                 &tables->grant.privilege, FALSE, FALSE,
+                 test(tables->schema_table));
     col_access= get_column_grant(thd, &tables->grant, 
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -4221,7 +4242,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
-  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1, TRUE);
+  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, FALSE,
+                                   1, TRUE);
   if (!(proc_table= open_proc_table_for_read(thd, &open_tables_state_backup)))
   {
     DBUG_RETURN(1);
@@ -4635,7 +4657,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     Table_triggers_list *triggers= tables->table->triggers;
     int event, timing;
 
-    if (check_table_access(thd, TRIGGER_ACL, tables, 1, TRUE))
+    if (check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, TRUE))
       goto ret;
 
     for (event= 0; event < (int)TRG_EVENT_MAX; event++)
@@ -6462,7 +6484,7 @@ ST_FIELD_INFO proc_fields_info[]=
   {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 0, "Created", SKIP_OPEN_TABLE},
   {"LAST_ALTERED", 0, MYSQL_TYPE_DATETIME, 0, 0, "Modified", SKIP_OPEN_TABLE},
   {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"ROUTINE_COMMENT", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Comment",
+  {"ROUTINE_COMMENT", 65535, MYSQL_TYPE_STRING, 0, 0, "Comment",
    SKIP_OPEN_TABLE},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", SKIP_OPEN_TABLE},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
@@ -7078,7 +7100,7 @@ static bool show_create_trigger_impl(THD *thd,
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
-  if (p->send_fields(&fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (p->send_result_set_metadata(&fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
   /* Send data. */
@@ -7237,7 +7259,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!lst)
     return TRUE;
 
-  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  if (check_table_access(thd, TRIGGER_ACL, lst, FALSE, 1, TRUE))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
     return TRUE;

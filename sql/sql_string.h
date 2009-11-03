@@ -123,6 +123,11 @@ public:
       (void) realloc(str_length);
     return Ptr;
   }
+  LEX_STRING lex_string() const
+  {
+    LEX_STRING lex_string = { (char*) ptr(), length() };
+    return lex_string;
+  }
 
   void set(String &str,uint32 offset,uint32 arg_length)
   {
