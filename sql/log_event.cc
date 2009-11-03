@@ -7541,7 +7541,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   if (get_flags(STMT_END_F))
-    if (error= rows_event_stmt_cleanup(rli, thd))
+    if ((error= rows_event_stmt_cleanup(rli, thd)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

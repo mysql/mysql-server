@@ -84,7 +84,9 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
-    return args[0]->val_str(str);
+    String *str_ret= args[0]->val_str(str);
+    null_value= args[0]->null_value;
+    return str_ret;
   }
 
   wkb= args[0]->val_str(&arg_val);
@@ -94,7 +96,10 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
-    return 0;
+  {
+    null_value= TRUE;                           /* purecov: inspected */
+    return 0;                                   /* purecov: inspected */
+  }
   str->length(0);
   str->q_append(srid);
   if ((null_value= 

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2480,94 +2480,9 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  DBUG_ASSERT(precision >= dec);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
-}
-
-
-/**
-  Create a field to hold a decimal value from an item.
-
-  @remark The MySQL DECIMAL data type has a characteristic that needs to be
-          taken into account when deducing the type from a Item_decimal.
-
-  But first, let's briefly recap what is the new MySQL DECIMAL type:
-
-  The declaration syntax for a decimal is DECIMAL(M,D), where:
-
-  * M is the maximum number of digits (the precision).
-    It has a range of 1 to 65.
-  * D is the number of digits to the right of the decimal separator (the scale).
-    It has a range of 0 to 30 and must be no larger than M.
-
-  D and M are used to determine the storage requirements for the integer
-  and fractional parts of each value. The integer part is to the left of
-  the decimal separator and to the right is the fractional part. Hence:
-
-  M is the number of digits for the integer and fractional part.
-  D is the number of digits for the fractional part.
-
-  Consequently, M - D is the number of digits for the integer part. For
-  example, a DECIMAL(20,10) column has ten digits on either side of
-  the decimal separator.
-
-  The characteristic that needs to be taken into account is that the
-  backing type for Item_decimal is a my_decimal that has a higher
-  precision (DECIMAL_MAX_POSSIBLE_PRECISION, see my_decimal.h) than
-  DECIMAL.
-
-  Drawing a comparison between my_decimal and DECIMAL:
-
-  * M has a range of 1 to 81.
-  * D has a range of 0 to 81.
-
-  There can be a difference in range if the decimal contains a integer
-  part. This is because the fractional part must always be on a group
-  boundary, leaving at least one group for the integer part. Since each
-  group is 9 (DIG_PER_DEC1) digits and there are 9 (DECIMAL_BUFF_LENGTH)
-  groups, the fractional part is limited to 72 digits if there is at
-  least one digit in the integral part.
-
-  Although the backing type for a DECIMAL is also my_decimal, every
-  time a my_decimal is stored in a DECIMAL field, the precision and
-  scale are explicitly capped at 65 (DECIMAL_MAX_PRECISION) and 30
-  (DECIMAL_MAX_SCALE) digits, following my_decimal truncation procedure
-  (FIX_INTG_FRAC_ERROR).
-*/
-
-Field_new_decimal *
-Field_new_decimal::new_decimal_field(const Item *item)
-{
-  uint32 len;
-  uint intg= item->decimal_int_part(), scale= item->decimals;
-
-  DBUG_ASSERT(item->decimal_precision() >= item->decimals);
-
-  /*
-    Employ a procedure along the lines of the my_decimal truncation process:
-    - If the integer part is equal to or bigger than the maximum precision:
-      Truncate integer part to fit and the fractional becomes zero.
-    - Otherwise:
-      Truncate fractional part to fit.
-  */
-  if (intg >= DECIMAL_MAX_PRECISION)
-  {
-    intg= DECIMAL_MAX_PRECISION;
-    scale= 0;
-  }
-  else
-  {
-    uint room= min(DECIMAL_MAX_PRECISION - intg, DECIMAL_MAX_SCALE);
-    if (scale > room)
-      scale= room;
-  }
-
-  len= my_decimal_precision_to_length(intg + scale, scale, item->unsigned_flag);
-
-  return new Field_new_decimal(len, item->maybe_null, item->name, scale,
-                               item->unsigned_flag);
 }
 
 
@@ -6550,20 +6465,9 @@ uint Field::is_equal(Create_field *new_field)
 }
 
 
-/* If one of the fields is binary and the other one isn't return 1 else 0 */
-
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
-{
-  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
-         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
-}
-
-
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == real_type()) &&
@@ -8329,7 +8233,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
@@ -8889,7 +8793,7 @@ uint Field_enum::is_equal(Create_field *new_field)
     The fields are compatible if they have the same flags,
     type, charset and have the same underlying length.
   */
-  if (compare_str_field_flags(new_field, flags) ||
+  if (new_field->field_flags_are_binary() != field_flags_are_binary() ||
       new_field->sql_type != real_type() ||
       new_field->charset != field_charset ||
       new_field->pack_length != pack_length())
@@ -9658,7 +9562,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
 
     if (length == 0)
-      fld_length= 0; /* purecov: inspected */
+      fld_length= NULL; /* purecov: inspected */
   }
 
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
@@ -9810,8 +9714,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIMESTAMP:
     if (fld_length == NULL)
     {
-      /* Compressed date YYYYMMDDHHMMSS */
-      length= MAX_DATETIME_COMPRESSED_WIDTH;
+      length= MAX_DATETIME_WIDTH;
     }
     else if (length != MAX_DATETIME_WIDTH)
     {
@@ -9876,7 +9779,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
-    length= 10;
+    length= MAX_DATE_WIDTH;
     break;
   case MYSQL_TYPE_TIME:
     length= 10;
@@ -9955,6 +9858,17 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
     DBUG_RETURN(TRUE);
+  }
+
+  switch (fld_type) {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    charset= &my_charset_bin;
+    flags|= BINCMP_FLAG;
+  default: break;
   }
 
   DBUG_RETURN(FALSE); /* success */
