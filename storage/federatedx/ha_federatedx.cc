@@ -1416,12 +1416,18 @@ static void fill_server(MEM_ROOT *mem_root, FEDERATEDX_SERVER *server,
     database.reserve(database.length());
     database.length(my_casedn_str(system_charset_info, database.c_ptr_safe()));
   }
-  
+
+#ifndef __WIN__
+  /*
+    TODO: there is no unix sockets under windows so the engine should be
+    revised about using sockets in such environment.
+  */
   if (lower_case_file_system && socket.length())
   {
     socket.reserve(socket.length());
     socket.length(my_casedn_str(files_charset_info, socket.c_ptr_safe()));
   }
+#endif
 
   /* start with all bytes zeroed */  
   bzero(server, sizeof(*server));
