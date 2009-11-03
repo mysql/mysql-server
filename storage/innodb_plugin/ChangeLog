@@ -1,8 +1,43 @@
 2009-10-29	The InnoDB Team
 
-	* buf/buf0lru.c, buf/buf0buf.c, include/buf0buf.h, include/buf0buf.ic:
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#47125 auto_increment start value is ignored if an index is
+	created and engine=innodb
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug47777.result,
+	mysql-test/innodb_bug47777.test:
+	Fix Bug#47777 innodb dies with spatial pk: Failing assertion: buf <=
+	original_buf + buf_len
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#38996 Race condition in ANALYZE TABLE
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix bug#42383: Can't create table 'test.bug39438'
+
+2009-10-29	The InnoDB Team
+
+	* os/os0proc.c:
+	Fix Bug#48273 Strange CEIL behavior in stored function
+
+2009-10-29	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, include/buf0buf.h, include/buf0buf.ic:
 	Fix corruption of the buf_pool->LRU_old list and improve debug
 	assertions.
+
+2009-10-28	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug#41490 After enlargement of InnoDB page size, the error message
+	become inaccurate
 
 2009-10-26	The InnoDB Team
 
@@ -10,6 +45,13 @@
 	When allocating a data tuple, zero out the system fields in order
 	to avoid Valgrind warnings about uninitialized fields in
 	dtuple_validate().
+
+2009-10-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, mysql-test/innodb_bug44369.result,
+	mysql-test/innodb_bug44369.test:
+	Fix Bug#47233 Innodb calls push_warning(MYSQL_ERROR::WARN_LEVEL_ERROR)
 
 2009-10-19	The InnoDB Team
 
@@ -23,12 +65,24 @@
 	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
 	cc/CC 5.10
 
+2009-10-05	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Do not invalidate buffer pool while an LRU batch is active. Added code
+	to buf_pool_invalidate() to wait for the running batches to finish.
+
+2009-10-01	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#47763 typo in error message: Failed to open table %s after %lu
+	attemtps.
+
 2009-10-01	The InnoDB Team
 
 	* fsp/fsp0fsp.c, row/row0merge.c:
-	Clean up after a crash during DROP INDEX.  When InnoDB crashes
+	Clean up after a crash during DROP INDEX. When InnoDB crashes
 	while dropping an index, ensure that the index will be completely
-	dropped during crash recovery.  The MySQL .frm file may still
+	dropped during crash recovery. The MySQL .frm file may still
 	contain the dropped index, but there is little that we can do
 	about it.
 
@@ -45,15 +99,15 @@
 	include/page0zip.h, page/page0cur.c, page/page0page.c,
 	page/page0zip.c:
 	Do not write to PAGE_INDEX_ID when restoring an uncompressed page
-	after a compression failure.  The field should only be written
-	when creating a B-tree page.  This fix addresses a race condition
+	after a compression failure. The field should only be written
+	when creating a B-tree page. This fix addresses a race condition
 	in a debug assertion.
 
 2009-09-28	The InnoDB Team
 
 	* fil/fil0fil.c:
 	Try to prevent the reuse of tablespace identifiers after InnoDB
-	has crashed during table creation.  Also, refuse to start if files
+	has crashed during table creation. Also, refuse to start if files
 	with duplicate tablespace identifiers are encountered.
 
 2009-09-25	The InnoDB Team
