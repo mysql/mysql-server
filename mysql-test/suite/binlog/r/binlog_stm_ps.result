@@ -15,8 +15,14 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`a`=98
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (@a),(98)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (99)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 select 100 limit 100
+master-bin.000001	#	Query	#	#	COMMIT
 drop table t1;

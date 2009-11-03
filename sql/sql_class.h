@@ -1427,10 +1427,15 @@ public:
                                       size_t needed,
                                       bool is_transactional,
 				      RowsEventT* hint);
-  Rows_log_event* binlog_get_pending_rows_event() const;
-  void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  int binlog_flush_pending_rows_event(bool stmt_end);
-  int binlog_remove_pending_rows_event(bool clear_maps);
+  Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
+  void binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional);
+  inline int binlog_flush_pending_rows_event(bool stmt_end)
+  {
+    return (binlog_flush_pending_rows_event(stmt_end, FALSE) || 
+            binlog_flush_pending_rows_event(stmt_end, TRUE));
+  }
+  int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
+  int binlog_remove_pending_rows_event(bool clear_maps, bool is_transactional);
 
   /**
     Determine the binlog format of the current statement.
@@ -1493,6 +1498,9 @@ private:
 public:
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
+  }
+  void clear_binlog_table_maps() {
+    binlog_table_maps= 0;
   }
 #endif /* MYSQL_CLIENT */
 
@@ -1959,8 +1967,8 @@ public:
   };
   
   int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len,
-                   bool is_trans, bool suppress_use,
+                   char const *query, ulong query_len, bool is_trans,
+                   bool direct, bool suppress_use,
                    int errcode);
 #endif
 
@@ -2008,6 +2016,21 @@ public:
 #else
     return 0;
 #endif
+  }
+  /**
+    Returns TRUE if session is in a multi-statement transaction mode.
+ 
+    OPTION_NOT_AUTOCOMMIT: When autocommit is off, a multi-statement
+    transaction is implicitly started on the first statement after a
+    previous transaction has been ended.
+ 
+    OPTION_BEGIN: Regardless of the autocommit status, a multi-statement
+    transaction can be explicitly started with the statements "START
+    TRANSACTION", "BEGIN [WORK]", "[COMMIT | ROLLBACK] AND CHAIN", etc.
+  */
+  inline bool in_multi_stmt_transaction()
+  {
+    return options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   }
   inline bool fill_derived_tables()
   {

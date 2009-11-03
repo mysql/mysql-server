@@ -1,0 +1,375 @@
+################################################################################
+# In this test case, we verify if some DDL statements implicitly commit a 
+# transaction and are written directly to the binary log without going
+# through either the Statement- or Transactional-Cache. 
+#
+# As any statement that goes through a cache is written to the binary log
+# wrapped in a BEGIN...COMMIT, we proceed as follows:  
+#
+#  - create a transaction and insert some values into a transactional table.
+#  - execute a DDL statement that is supposed to implicitly commit the previous
+#  transaction. 
+#  - Check in the binary log for a COMMIT mark which is supposed to be written
+#  before the DDL statement.
+#  - Check in the binary log if the DDL is not wrapped by a BEGIN..COMMIT. 
+#
+# For further details, please, read WL#2687 and WL#5072.
+################################################################################
+
+--echo #########################################################################
+--echo #                            CONFIGURATION
+--echo #########################################################################
+#Re-enable this after fixing BUG#46572
+#connection master;
+
+CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
+CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
+
+INSERT INTO tt_1(ddl_case) VALUES(0);
+INSERT INTO tt_2(ddl_case) VALUES(0);
+
+--echo #########################################################################
+--echo #                          CHECK IMPLICT COMMIT
+--echo #########################################################################
+SET AUTOCOMMIT= 0;
+let $ddl_cases= 41;
+while (`SELECT $ddl_cases >= 1`)
+{
+  --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+  let $in_temporary= "no";
+  #
+  # In SBR and MIXED modes, the commit event is usually the third event in the
+  # binary log:
+  #
+  # 1: BEGIN
+  # 2: INSERT
+  # 3: COMMIT
+  # 4: DDL EVENT which triggered the previous commmit.
+  #
+  if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+  {
+    let $commit_event_row_number= 3;
+  }
+  #
+  # In RBR mode, the commit event is usually the fourth event in the binary log:
+  #
+  # 1: BEGIN
+  # 2: TABLE MAP EVENT
+  # 3: ROW EVENT
+  # 4: COMMIT
+  # 5: DDL EVENT which triggered the previous commmit.
+  #
+  if (`select @@binlog_format = 'ROW'`)
+  {
+    let $commit_event_row_number= 4;
+  }
+  let $first_binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1);
+  --enable_query_log
+  eval INSERT INTO tt_1(ddl_case) VALUES ($ddl_cases);
+  if (`SELECT $ddl_cases = 41`)
+  {
+    let $cmd= LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
+  }
+  if (`SELECT $ddl_cases = 40`)
+  {
+    let $cmd= LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;
+  }
+  if (`SELECT $ddl_cases = 39`)
+  {
+    let $cmd= ANALYZE TABLE nt_1;
+  }
+  if (`SELECT $ddl_cases = 38`)
+  {
+    let $cmd= CHECK TABLE nt_1;
+  }
+  if (`SELECT $ddl_cases = 37`)
+  {
+    let $cmd= OPTIMIZE TABLE nt_1;
+  }
+  if (`SELECT $ddl_cases = 36`)
+  {
+    let $cmd= REPAIR TABLE nt_1;
+  }
+  if (`SELECT $ddl_cases = 35`)
+  {
+    let $cmd= LOCK TABLES tt_1 WRITE;
+  }
+  if (`SELECT $ddl_cases = 34`)
+  {
+    let $cmd= UNLOCK TABLES;
+  }
+  if (`SELECT $ddl_cases = 33`)
+  {
+    let $cmd= CREATE USER 'user'@'localhost';
+  }
+  if (`SELECT $ddl_cases = 32`)
+  {
+    let $cmd= GRANT ALL ON *.* TO 'user'@'localhost';
+  }
+  if (`SELECT $ddl_cases = 31`)
+  {
+    let $cmd= SET PASSWORD FOR 'user'@'localhost' = PASSWORD('newpass');
+  }
+  if (`SELECT $ddl_cases = 30`)
+  {
+    let $cmd= REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
+  }
+  if (`SELECT $ddl_cases = 29`)
+  {
+    let $cmd= RENAME USER 'user'@'localhost' TO 'user_new'@'localhost';
+  }
+  if (`SELECT $ddl_cases = 28`)
+  {
+    let $cmd= DROP USER 'user_new'@'localhost';
+  }
+  if (`SELECT $ddl_cases = 27`)
+  {
+    let $cmd= CREATE EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1;
+  }
+  if (`SELECT $ddl_cases = 26`)
+  {
+    let $cmd= ALTER EVENT evt COMMENT 'evt';
+  }
+  if (`SELECT $ddl_cases = 25`)
+  {
+    let $cmd= DROP EVENT evt;
+  }
+  if (`SELECT $ddl_cases = 24`)
+  {
+    let $cmd= CREATE TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+  }
+  if (`SELECT $ddl_cases = 23`)
+  {
+    let $cmd= DROP TRIGGER tr;
+    #
+    # In RBR mode, due to the trigger the tt_2 is also updated:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT
+    # 4: ROW EVENT
+    # 5: COMMIT
+    # 6: DDL EVENT which triggered the previous commmit.
+    #
+    if (`select @@binlog_format = 'ROW'`)
+    {
+      let $commit_event_row_number= 5;
+    }
+  }
+  if (`SELECT $ddl_cases = 22`)
+  {
+    let $cmd= CREATE FUNCTION fc () RETURNS VARCHAR(64) RETURN "fc";
+  }
+  if (`SELECT $ddl_cases = 21`)
+  {
+    let $cmd= ALTER FUNCTION fc COMMENT 'fc';
+  }
+  if (`SELECT $ddl_cases = 20`)
+  {
+    let $cmd= DROP FUNCTION fc;
+  }
+  if (`SELECT $ddl_cases = 19`)
+  {
+    let $cmd= CREATE PROCEDURE pc () UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+  }
+  if (`SELECT $ddl_cases = 18`)
+  {
+    let $cmd= ALTER PROCEDURE pc COMMENT 'pc';
+  }
+  if (`SELECT $ddl_cases = 17`)
+  {
+    let $cmd= DROP PROCEDURE pc;
+  }
+  if (`SELECT $ddl_cases = 16`)
+  {
+    let $cmd= CREATE VIEW v AS SELECT * FROM tt_1;
+  }
+  if (`SELECT $ddl_cases = 15`)
+  {
+    let $cmd= ALTER VIEW v AS SELECT * FROM tt_1;
+  }
+  if (`SELECT $ddl_cases = 14`)
+  {
+    let $cmd= DROP VIEW v;
+  }
+  if (`SELECT $ddl_cases = 13`)
+  {
+    let $cmd= CREATE INDEX ix ON tt_1(ddl_case);
+  }
+  if (`SELECT $ddl_cases = 12`)
+  {
+     let $cmd= DROP INDEX ix ON tt_1;
+  }
+  if (`SELECT $ddl_cases = 11`)
+  {
+    let $cmd= CREATE TEMPORARY TABLE tt_xx (a int);
+    let $in_temporary= "yes";
+    # In SBR and MIXED modes, the DDL statement is written to the binary log but
+    # does not commit the current transaction.
+    #
+    # 1: BEGIN
+    # 2: INSERT
+    # 3: CREATE TEMPORARY
+    #
+    # In RBR the transaction is not committed either and the statement is not
+    # written to the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: ROW EVENT
+    #
+    if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 4;
+    }
+  }
+  if (`SELECT $ddl_cases = 10`)
+  {
+    let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
+    #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: ROW EVENT
+    # 4: COMMIT
+    # 5: DDL EVENT which triggered the previous commmit.
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 4;
+    }
+  }
+  if (`SELECT $ddl_cases = 9`)
+  {
+    let $cmd= ALTER TABLE tt_xx RENAME new_tt_xx;
+    #
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: ROW EVENT
+    # 4: COMMIT
+    # 5: DDL EVENT which triggered the previous commmit.
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 4;
+    }
+  }
+  if (`SELECT $ddl_cases = 8`)
+  {
+    let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
+    let $in_temporary= "yes";
+    #
+    # In SBR and MIXED modes, the DDL statement is written to the binary log
+    # but does not commit the current transaction:
+    #
+    # 1: BEGIN
+    # 2: INSERT
+    # 3: DROP TEMPORARY
+    #
+    # In RBR the transaction is not committed either and the statement is not
+    # written to the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: ROW EVENT
+    #
+    if (`select @@binlog_format = 'STATEMENT'`)
+    {
+      let $commit_event_row_number= 4;
+    }
+    # In MIXED mode, the changes are logged as rows and we have what follows:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: ROW EVENT
+    # 4: DROP TEMPORARY table IF EXISTS
+    #
+    if (`select @@binlog_format = 'MIXED'`)
+    {
+      let $commit_event_row_number= 5;
+    }
+  }
+  if (`SELECT $ddl_cases = 7`)
+  {
+    let $cmd= CREATE TABLE tt_xx (a int);
+  }
+  if (`SELECT $ddl_cases = 6`)
+  {
+    let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
+  }
+  if (`SELECT $ddl_cases = 5`)
+  {
+    let $cmd= RENAME TABLE tt_xx TO new_tt_xx;
+  }
+  if (`SELECT $ddl_cases = 4`)
+  {
+    let $cmd= TRUNCATE TABLE new_tt_xx;
+  }
+  if (`SELECT $ddl_cases = 3`)
+  {
+    let $cmd= DROP TABLE IF EXISTS tt_xx, new_tt_xx;
+  }
+  if (`SELECT $ddl_cases = 2`)
+  {
+    let $cmd= CREATE DATABASE db;
+  }
+  if (`SELECT $ddl_cases = 1`)
+  {
+    let $cmd= DROP DATABASE IF EXISTS db;
+  }
+  --eval $cmd
+  --disable_query_log
+  #
+  # When a temporary table is either created or dropped, there is no implicit
+  # commit. The flag in_temporary is used to avoid aborting the test in such
+  # cases. Thus we force the commit.
+  #
+  if (`SELECT $in_temporary = "yes"`)
+  {
+    --eval COMMIT
+  }
+  let $event_commit= query_get_value("SHOW BINLOG EVENTS FROM $first_binlog_position", Info, $commit_event_row_number);
+  if (`SELECT SUBSTRING("$event_commit",1,6) != "COMMIT"`)
+  {
+    --echo it *does not* commit the current transaction.
+    --echo $cmd
+    --echo $event_commit
+    SHOW BINLOG EVENTS;
+    exit;
+  }
+  --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+  let $binlog_start= $first_binlog_position;
+  --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+  --source include/show_binlog_events.inc
+  --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+  --echo
+  dec $ddl_cases;
+}
+SET AUTOCOMMIT= 1;
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY
+--echo ###################################################################################
+# Re-enable this after fixing BUG#46572
+# #--sync_slave_with_master
+#
+# #--let $diff_table_1= master:test.tt_1
+# #--let $diff_table_2= slave:test.tt_1
+# #--source include/diff_tables.inc
+#
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+#Re-enable this after fixing BUG#46572
+#connection master;
+
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+
+
+#Re-enable this after fixing BUG#46572
+#sync_slave_with_master;

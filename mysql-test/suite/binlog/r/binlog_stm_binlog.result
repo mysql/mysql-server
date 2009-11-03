@@ -592,8 +592,10 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
 master-bin.000001	107	Query	1	228	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	228	Query	1	352	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
-master-bin.000001	352	Query	1	428	use `test`; drop table t1
+master-bin.000001	228	Query	1	296	BEGIN
+master-bin.000001	296	Query	1	420	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
+master-bin.000001	420	Query	1	489	COMMIT
+master-bin.000001	489	Query	1	565	use `test`; drop table t1
 reset master;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 USE bug39182;
@@ -699,16 +701,24 @@ use test;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=127
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(null)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table if not exists t2 select * from t1
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	COMMIT
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 insert delayed into t1 values (207);
@@ -718,16 +728,24 @@ FLUSH TABLES;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (id tinyint auto_increment primary key)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=127
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(null)
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table if not exists t2 select * from t1
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table if not exists t3 like tt1
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test')
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2,t3,tt1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
 master-bin.000001	#	Query	#	#	BEGIN

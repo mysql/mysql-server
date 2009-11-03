@@ -856,6 +856,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       query_cache_invalidate3(thd, table_list, 1);
     }
+
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
+
     if ((changed && error <= 0) ||
         thd->transaction.stmt.modified_non_trans_table ||
         was_insert_delayed)
@@ -895,14 +899,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
 			      thd->query, thd->query_length,
-			      transactional_table, FALSE,
-			      errcode))
+			      transactional_table, FALSE, FALSE,
+                              errcode))
         {
 	  error=1;
 	}
       }
-      if (thd->transaction.stmt.modified_non_trans_table)
-	thd->transaction.all.modified_non_trans_table= TRUE;
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
@@ -2565,6 +2567,7 @@ bool Delayed_insert::handle_inserts(void)
 {
   int error;
   ulong max_rows;
+  bool has_trans = TRUE;
   bool using_ignore= 0, using_opt_replace= 0,
        using_bin_log= mysql_bin_log.is_open();
   delayed_row *row;
@@ -2717,7 +2720,7 @@ bool Delayed_insert::handle_inserts(void)
       */
       thd.binlog_query(THD::ROW_QUERY_TYPE,
                        row->query.str, row->query.length,
-                       FALSE, FALSE, errcode);
+                       FALSE, FALSE, FALSE, errcode);
 
       thd.time_zone_used = backup_time_zone_used;
       thd.variables.time_zone = backup_time_zone;
@@ -2785,9 +2788,11 @@ bool Delayed_insert::handle_inserts(void)
     or trigger.
 
     TODO: Move the logging to last in the sequence of rows.
-   */
+  */
+  has_trans= thd.lex->sql_command == SQLCOM_CREATE_TABLE ||
+              table->file->has_transactions();
   if (thd.is_current_stmt_binlog_format_row())
-    thd.binlog_flush_pending_rows_event(TRUE);
+    thd.binlog_flush_pending_rows_event(TRUE, has_trans);
 
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
@@ -3214,9 +3219,11 @@ bool select_insert::send_eof()
       and ha_autocommit_or_rollback.
     */
     query_cache_invalidate3(thd, table, 1);
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   DBUG_ASSERT(trans_table || !changed || 
               thd->transaction.stmt.modified_non_trans_table);
 
@@ -3235,7 +3242,7 @@ bool select_insert::send_eof()
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      trans_table, FALSE, errcode);
+                      trans_table, FALSE, FALSE, errcode);
   }
   table->file->ha_release_auto_increment();
 
@@ -3301,14 +3308,15 @@ void select_insert::abort() {
     transactional_table= table->file->has_transactions();
     if (thd->transaction.stmt.modified_non_trans_table)
     {
+        if (!can_rollback_data())
+          thd->transaction.all.modified_non_trans_table= TRUE;
+
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            transactional_table, FALSE, errcode);
+                            transactional_table, FALSE, FALSE, errcode);
         }
-        if (!thd->is_current_stmt_binlog_format_row() && !can_rollback_data())
-          thd->transaction.all.modified_non_trans_table= TRUE;
 	if (changed)
 	  query_cache_invalidate3(thd, table, 1);
     }
@@ -3709,6 +3717,7 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
     thd->binlog_query(THD::STMT_QUERY_TYPE,
                       query.ptr(), query.length(),
                       /* is_trans */ TRUE,
+                      /* direct */ FALSE,
                       /* suppress_use */ FALSE,
                       errcode);
   }
@@ -3809,7 +3818,7 @@ void select_create::abort()
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
-  thd->binlog_flush_pending_rows_event(TRUE);
+  thd->binlog_flush_pending_rows_event(TRUE, TRUE);
 
   if (m_plock)
   {

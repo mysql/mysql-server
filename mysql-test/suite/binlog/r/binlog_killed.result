@@ -87,8 +87,10 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 must have the update query event more to FD
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`b`=0
 master-bin.000001	#	Query	#	#	use `test`; update t4 set b=b + bug27563(b)
+master-bin.000001	#	Query	#	#	COMMIT
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null;
@@ -123,8 +125,10 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 must have the delete query event more to FD
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`b`=0
 master-bin.000001	#	Query	#	#	use `test`; delete from t4 where b=bug27563(1) or b=bug27563(2)
+master-bin.000001	#	Query	#	#	COMMIT
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null;

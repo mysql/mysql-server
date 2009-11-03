@@ -153,7 +153,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	207	Query	#	275	BEGIN
 #	275	Table_map	#	317	table_id: # (test.t7)
 #	317	Write_rows	#	373	table_id: # flags: STMT_END_F
-#	373	Query	#	444	ROLLBACK
+#	373	Query	#	442	COMMIT
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -176,7 +176,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	107	Query	#	175	BEGIN
 #	175	Table_map	#	217	table_id: # (test.t7)
 #	217	Write_rows	#	273	table_id: # flags: STMT_END_F
-#	273	Query	#	344	ROLLBACK
+#	273	Query	#	342	COMMIT
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -327,7 +327,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	1330	Query	#	1398	BEGIN
 #	1398	Table_map	#	1439	table_id: # (test.t1)
 #	1439	Write_rows	#	1483	table_id: # flags: STMT_END_F
-#	1483	Query	#	1554	ROLLBACK
+#	1483	Query	#	1552	COMMIT
 SHOW TABLES;
 Tables_in_test
 t1
@@ -431,12 +431,6 @@ SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	175	BEGIN
-#	175	Table_map	#	216	table_id: # (test.t2)
-#	216	Write_rows	#	260	table_id: # flags: STMT_END_F
-#	260	Table_map	#	301	table_id: # (test.t2)
-#	301	Write_rows	#	340	table_id: # flags: STMT_END_F
-#	340	Query	#	411	ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;

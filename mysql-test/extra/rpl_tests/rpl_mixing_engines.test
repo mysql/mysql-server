@@ -1,710 +1,1662 @@
-###################################################################################
-# This test checks if transactions that mixes transactional and non-transactional
-# tables are correctly handled in statement mode. In an nutshell, we have what 
-# follows:
+################################################################################
+# - Introduction
+#   This checks if transactions that mixes transactional and non-transactional
+#   are correctly handled. There are several types of statements that require
+#   attention because of their special behavior in transactions:
 #
-# 1) "B T T C" generates in binlog the "B T T C" entries.
+#   * Non-transactional updates that take place inside a transaction present
+#   problems for logging because (1) they are visible to other clients before
+#   the transaction is committed, and (2) they are not rolled back even if the
+#   transaction is rolled back. It is not always possible to log correctly in
+#   statement format when both transactional and non-transactional tables are
+#   used in the same transaction.
 #
-# 2) "B T T R"  generates in binlog an "empty" entry.
+#   * Statements that do an implicit commit (i.e., most but not all DDL, and
+#   some utility commands) are logged specially due to unspecified requirements by
+#   NDB.
+# 
+#   * Statements that update temporary tables need special treatment since they
+#   are not logged in row format.
 #
-# 3) "B T N C" generates in binlog the "B T N C" entries.
+# - Definitions
 #
-# 4) "B T N R" generates in binlog the "B T N R" entries.
+#   To reason about logging different table types, we make some preliminary
+#   definitions.
 #
-# 5) "T" generates in binlog the "B T C" entry.
+#   * A table that has a transactional engine is called a T-table.
 #
-# 6) "N" generates in binlog the "N" entry.
+#   * A table that has a non-transactional engine is called an N-table.
 #
-# 7) "M" generates in binglog the "B M C" entries.
+#   * A statement makes an N-write if it makes any type of change to the server
+#   state that will not be changed by a ROLLBACK.
 #
-# 8) "B N N T C" generates in binglog the "N N B T C" entries.
+#   * Events are either appended to the Transaction Cache (TC) or to the
+#   Statement Cache (SC) or written directly to the binlog. 
 #
-# 9) "B N N T R" generates in binlog the "N N B T R" entries.
+# - Preliminary Rules
 #
-# 10) "B N N C" generates in binglog the "N N" entries.
+#   The following preliminary rules are actually consequences of the principle
+#   that statements shall be correctly logged when binlog_format=MIXED or ROW.
+#   They also apply when binlog_format=STATEMENT: this makes statement format
+#   work in many practical cases.
 #
-# 11) "B N N R" generates in binlog the "N N" entries.
+#   * (Causality) If statement A is executed before statement B, and B is logged
+#   in statement format, and B reads tables that A may modifies, then B shall be
+#   logged after A.
 #
-# 12) "B M T C" generates in the binlog the "B M T C" entries.
+#   * (Durability) Events shall be written to the binary log at the moment they
+#   take effect. In particular, changes to N-tables shall be written to the
+#   binary log when they have been executed, and changes to T-tables shall be
+#   written to the binary log on commit. If --sync-binlog has been specified,
+#   then it suffices that events are be written to the binary log at the next
+#   synchronization point.
 #
-# 13) "B M T R" generates in the binlog the "B M T R" entries.
-###################################################################################
- 
---echo ###################################################################################
---echo #                                   CONFIGURATION
---echo ###################################################################################
+#   * (causality-precedence) If causality and durability cannot both be
+#   fulfilled, then casuality is considered more important.
+#
+# - Rules for non-committing statements, except CREATE TEMPORARY TABLE...SELECT
+#
+#   The preliminary rules above, together with the principles for logging format
+#   , have been used to construct the following rules.
+#
+#   CALL statements are unrolled, so that each statement executed by the stored
+#   procedure is logged separately. (If a stored procedure A invokes a stored
+#   procedure B, then B is unrolled recursively). In the following, we assume
+#   that unrolling has already been done, and the word "statement" refers to a
+#   non-CALL top-level statement or a non-CALL sub-statement.
+#
+#   Let S be a logged statement that does not have an implicit commit, except
+#   CREATE TEMPORARY TABLE...SELECT (This includes all "pure DML": INSERT,
+#   UPDATE, DELETE, REPLACE, TRUNCATE, SELECT, DO, CALL, EXECUTE, LOAD DATA
+#   INFILE, and BINLOG. It also includes CREATE TEMPORARY TABLE without SELECT,
+#   and DROP TEMPORARY TABLE. CREATE TEMPORARY TABLE...SELECT is handled in the
+#   next subsection).
+#
+#   Before executing S, determine unsafeness:
+#
+#     * If S either makes N-writes or reads from an N-table, and either S or a
+#     previous statement in the same transaction reads or writes to a T-table,
+#     then S is marked as unsafe. 
+#
+#   When logging S, determine where to log it by applying the following rules in
+#   order: 
+#
+#     * If S is to be logged in statement format (i.e., if one of the following
+#     holds: (1) STATEMENT; (2) MIXED and S is safe; (3) S is of DDL type, i.e.,
+#     CREATE TEMPORARY TABLE):
+#       1. If S produces an error and does not do any N-write, do not log.
+#       2. Otherwise, if either S or any previous statement in the same
+#       transaction reads or writes in any T-tables, log to TC.
+#       3. Otherwise, log to SC.
+#
+#     * If S is to be logged in row format (i.e., if S is DML and one of the
+#     following holds: (1) ROW; (2) MIXED and S is unsafe):
+#       1. Do not log row events that write to temporary tables.
+#       2. Log row events that write to non-temporary N-tables to SC.
+#       3. Log row events that write to non-temporary T-tables to TC, except
+#       rows that are rolled back due to an error. (Note: if there is an error,
+#       rows written to a T-table are kept if there are subsequent rows written
+#       to an N-table.)
+#
+#     * At the end of S, write BEGIN + SC + COMMIT to the binlog and clear the
+#     SC.
+#
+#   At end of transaction: 
+#
+#     * At COMMIT or implicit commit, where all XA tables in the transaction
+#     succeed in the "prepare" phase:
+#       1. If the TC is non-empty, write BEGIN + TC + COMMIT to the binlog.
+#       2. If the TC is empty, do nothing. 
+#     
+#     * At ROLLBACK; or at COMMIT or implicit commit where some XA table fails
+#     in the "prepare" phase:
+#       1. If the TC contains any N-write, write BEGIN + TC + ROLLBACK to the
+#       binlog.
+#       2. If the TC does not contain any N-write, do nothing. 
+#
+#     * At ROLLBACK TO SAVEPOINT:
+#       1. If the TC contains any N-write after the savepoint, write ROLLBACK TO
+#       SAVEPOINT to the TC.
+#       2. Otherwise, clear the part of the TC that starts at the savepoint and
+#       extends to the end of the TC. (Bug#47327 breaks this rule)
+#
+#     * Clear the TC at the end of the transaction.
+#
+# - Rules for CREATE [TEMPORARY] TABLE...SELECT
+#     
+#   First, unsafeness is determined as above (R-unsafe-transaction). Then the
+#   logging format is decided. Then the following rules apply.
+#
+#     * If logging in statement format (i.e., one of the following holds: (1)
+#     STATEMENT; (2) MIXED and statement is safe):
+#       1. If there is an error, do not write anything.
+#       2. If there is no error and the TEMPORARY keyword is used, write the
+#       entire CREATE...SELECT statement to the TC.
+#       3. If there is no error and the TEMPORARY keyword is not used, write the
+#       entire CREATE...SELECT directly to the binlog. 
+#
+#     * If logging in row format (i.e., one of the following holds: (1) ROW; (2)
+#     MIXED and statement is unsafe):
+#       1. If the TEMPORARY keyword is used, do not write anything.
+#       2. If the TEMPORARY keyword is not used, write CREATE TABLE (without
+#       select) + BEGIN + row events + COMMIT to the TC. If there is an error,
+#       clear the TC; otherwise flush the TC to the binlog at the end of the
+#       statement and then clear the TC. (Note: currently Bug#47899 breaks this
+#       rule)
+#
+# - Rules for committing statements, except CREATE [TEMPORARY] TABLE...SELECT
+#
+#   * All other statements that have a pre-commit are written directly to the
+#   binlog. (Note: this is semantically equivalent to writing it to the SC and
+#   flushing the SC. However, due to requirements by NDB (which have not been
+#   clarified), we write directly to the binlog.)
+#
+# We use the include file rpl_mixing_engines.inc to generate sql commands from a
+# format string. The format string consists of a sequence of 'codes' separated
+# by spaces. The following codes exist:
+#
+# - Define the scope of a transaction:
+# B - Begin.
+# C - Commit.
+# R - Rollback.
+# S1 - Savepoint.
+# R1 - Rollback to S1.
+#
+# - Change only T-Tables:
+# T - Updates a T-Table.
+# T-trig - Updates T-Tables through a trigger.
+# T-func - Updates T-Tables through a function.
+# T-proc - Updates T-Tables through a procedure.
+# eT - Fails while updating the first tuple in a T-Table.
+# Te - Fails while updating an n-tuple (n > 1) in a T-Table.
+# Te-trig - Fails while updating an n-tuple (n > 1) in a T-Table.
+# Te-func - Fails while updating an n-tuple (n > 1) in a T-Table.
+#
+# - Change only N-Tables 
+# N - Updates a N-Table.
+# N-trig - Updates N-Tables through a trigger.
+# N-func - Updates N-Tables through a function.
+# N-proc - Updates N-Tables through a procedure.
+# eN - Fails while updating the first tuple in a N-Table.
+# Ne - Fails while updating an n-tuple (n > 1) in a N-Table.
+# Ne-trig - Fails while updating an n-tuple (n > 1) in a N-Table.
+# Ne-func - Fails while updating an n-tuple (n > 1) in a N-Table.
+#
+# - Read T-table and write N-table:
+# tN - Updates a N-Table
+# tNe - Fails while updating an n-tuple (n > 1) in a N-Table.
+#
+# - Read N-table and write T-table:
+# nT - Updates a T-Table.
+# nTe - Fails while updating an n-tuple (n > 1) in a T-Table.
+#
+# - Update both types of tables. First a N-Table and the a T-Table:
+# NT - Upates both types of tables through an update statement.
+# NT-trig - Updates both types of tables through a trigger.
+# NT-func - Updates both types of tables through a procedure.
+# NeT-trig - Fails while updating an n-tuple (n > 1) in a T-Table.
+# NeT-func - Fails while updating an n-tuple (n > 1) in a T-Table.
+#
+# - Update both types of tables. First a T-Table and the a N-Table:
+# TN - Upates both types of tables through an update statement.
+# TN-trig - Updates both types of tables through a trigger.
+# TN-func - Updates both types of tables through a procedure.
+# TeN-trig - Fails while updating an n-tuple (n > 1) in a N-Table.
+# TeN-func - Fails while updating an n-tuple (n > 1) in a N-Table.
+#
+# - This is CREATE...SELECT:
+# CS-T->T - Creates a T-table selecting from a T-table.
+# CS-N->N - Creates a N-table selecting from a N-table.
+# CS-T->N - Creates a T-table selecting form a N-table.
+# CS-N->T - Creates a N-table selecting from a T-table.
+# CSe-T->T - Fails while creating a T-table selecting from a T-table.
+# CSe-N->N - Fails while creating a N-table selecting from a N-table.
+# CSe-T->N - Fails while creating a T-table selecting from a a N-table.
+# CSe-N->T - Fails while creating a N-table selecting from a T-table.
+# drop-CS - Drops any of the tables previously created.
+# CT - Creates a temporary T-table.
+# drop-CT - Drops a temporary T-table.
+#
+# The format of the entries in the binlog depends on the mode and on the type
+# statements: S - statement and R - row. And when it is clear from the context
+# which statement is referred to, we sometimes use "M" to denote a "Mixed"
+# statement, i.e., one that accesses both a T-table and an N-table.
+#
+# For further details, please, read WL#2687 and WL#5072.
+################################################################################
+--echo #########################################################################
+--echo #                            CONFIGURATION
+--echo #########################################################################
+
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
+SET @commands= 'configure';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo #########################################################################
+--echo #         1 - MIXING TRANSACTIONAL and NON-TRANSACTIONAL TABLES
+--echo #########################################################################
 connection master;
 
-SET SQL_LOG_BIN=0;
-CREATE TABLE nt_1 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_2 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_3 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_4 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE tt_1 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_2 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_3 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_4 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-SET SQL_LOG_BIN=1;
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #1) Generates in the binlog what follows:
+--echo #      --> STMT  "B T C" entries, format S.
+--echo #      --> ROW   "B T C" entries, format R.
+--echo #      --> MIXED "B T C" entries, format S.
+--echo #
+SET @commands= 'T';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-connection slave;
+SET @commands= 'T-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET SQL_LOG_BIN=0;
-CREATE TABLE nt_1 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_2 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_3 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE nt_4 (a text, b int PRIMARY KEY, c text) ENGINE = MyISAM;
-CREATE TABLE tt_1 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_2 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_3 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-CREATE TABLE tt_4 (a text, b int PRIMARY KEY, c text) ENGINE = Innodb;
-SET SQL_LOG_BIN=1;
+SET @commands= 'T-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-connection master;
+SET @commands= 'T-proc';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-DELIMITER |;
 
-CREATE FUNCTION f1 () RETURNS VARCHAR(64)
-BEGIN
-  RETURN "Testing...";
-END|
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #1.e) Generates in the binlog what follows:
+--echo #        --> STMT  empty.
+--echo #        --> ROW   empty.
+--echo #        --> MIXED empty.
+--echo #
+SET @commands= 'eT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-CREATE FUNCTION f2 () RETURNS VARCHAR(64)
-BEGIN
-  RETURN f1();
-END|
+SET @commands= 'Te';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-CREATE PROCEDURE pc_i_tt_3 (IN x INT, IN y VARCHAR(64))
-BEGIN
-  INSERT INTO tt_3 VALUES (y,x,x);
-END|
+SET @commands= 'Te-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-CREATE TRIGGER tr_i_tt_3_to_nt_3 BEFORE INSERT ON tt_3 FOR EACH ROW
-BEGIN
-  INSERT INTO nt_3 VALUES (NEW.a, NEW.b, NEW.c);
-END|
+SET @commands= 'Te-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-CREATE TRIGGER tr_i_nt_4_to_tt_4 BEFORE INSERT ON nt_4 FOR EACH ROW
-BEGIN
-  INSERT INTO tt_4 VALUES (NEW.a, NEW.b, NEW.c);
-END|
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #2) Generates in the binlog what follows:
+--echo #      --> STMT  "B N C" entry, format S.
+--echo #      --> ROW   "B N C" entry, format R.
+--echo #      --> MIXED "B N C" entry, format S.
+--echo #
+SET @commands= 'N';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-DELIMITER ;|
+SET @commands= 'N-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'N-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'N-proc';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #2.e) Generates in the binlog what follows if a N-table is changed:
+--echo #        --> STMT  "B N C" entry, format S.
+--echo #        --> ROW   "B N C" entry, format R.
+--echo #        --> MIXED "B N C" entry, format S.
+--echo #
+SET @commands= 'eN';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'Ne';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'Ne-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'Ne-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #3) Generates in the binlog what follows:
+--echo #      --> STMT  "B M C" entry if only N-Table is changed, format S.
+--echo #      --> STMT  "B M C" entries, format S.
+--echo #      --> ROW   "B N T B T C" entries, format R.
+--echo #      --> MIXED "B N T B T C" entries, format R.
+--echo #
+SET @commands= 'tN';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'nT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'NT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'NT-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'NT-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'TN';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'TN-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'TN-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #3.e) Generates in the binlog what follows:
+--echo #      --> STMT  "B M C" entry if only N-Table is changed, format S.
+--echo #      --> STMT  "B M R" entries, format S.
+--echo #      --> ROW   "B N C" entry, format R.
+--echo #      --> MIXED "B N C" entry, format R.
+SET @commands= 'tNe';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'nTe';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'NeT-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'NeT-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'TeN-trig';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'TeN-func';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #4) Generates in the binlog what follows:
+--echo #     --> STMT  "B T T C" entries, format S.
+--echo #     --> ROW   "B T T C" entries, format R.
+--echo #     --> MIXED "B T T C" entries, format S
+--echo #
+SET @commands= 'B T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #4.e) Generates in the binlog what follows:
+--echo #       --> STMT  "B T C" entries, format S.
+--echo #       --> ROW   "B T C" entries, format R.
+--echo #       --> MIXED "B T C" entries, format S.
+--echo #
+SET @commands= 'B T eT C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B eT T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #5) Generates in the binlog what follows:
+--echo #     --> STMT  empty.
+--echo #     --> ROW   empty.
+--echo #     --> MIXED empty.
+--echo #
+SET @commands= 'B T T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #5.e) Generates in the binlog what follows:
+--echo #       --> STMT  empty.
+--echo #       --> ROW   empty.
+--echo #       --> MIXED empty.
+--echo #
+SET @commands= 'B T eT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Te-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B eT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #6) Generates in the binlog what follows:
+--echo #     --> STMT  "B N C B N C" entries, format S.
+--echo #     --> ROW   "B N C B N C" entries, format R.
+--echo #     --> MIXED "B N C B N C" entries, format S.
+--echo #
+SET @commands= 'B N N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #6.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #     --> STMT  "B N C B N C" entries, format S.
+--echo #     --> ROW   "B N C B N C" entries, format R.
+--echo #     --> MIXED "B N C B N C" entries, format S.
+--echo #
+SET @commands= 'B N eN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B eN N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #7) Generates in the binlog what follows:
+--echo #      --> STMT  "B N C B N C" entries, format S.
+--echo #      --> ROW   "B N C B N C" entries, format R.
+--echo #      --> MIXED "B N C B N C" entries, format S.
+--echo #
+SET @commands= 'B N N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #7.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #     --> STMT  "B N C B N C" entries, format S.
+--echo #     --> ROW   "B N C B N C" entries, format R.
+--echo #     --> MIXED "B N C B N C" entries, format S.
+--echo #
+SET @commands= 'B N eN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N Ne-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B eN N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Ne-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #8) Generates in the binlog what follows:
+--echo #       --> STMT  "B T N C" entries, format S.
+--echo #       --> ROW   "B N C B T C" entries, format R.
+--echo #       --> MIXED "B N C B T C" entries, format R in N and S in T.
+--echo #
+SET @commands= 'B T N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #8.e) Generates in the binlog what follows if T-* fails:
+--echo #       --> STMT  "B N C" entry, format S.
+--echo #       --> ROW   "B N C" entry, format R.
+--echo #       --> MIXED "B N C" entry, format R.
+--echo #     Otherwise, what follows if N-* fails and a N-Table is changed:
+--echo #       --> STMT  "B T N C" entries, format S.
+--echo #       --> ROW   "B N C B T C" entries, format R.
+--echo #       --> MIXED "B N C B T C" entries, format R in N and S in T.
+--echo #
+SET @commands= 'B eT N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T eN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Ne C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #9) Generates in the binlog what follows:
+--echo #     --> STMT  "B T N R" entries, format S.
+--echo #     --> ROW   "B N C" entry, format R.
+--echo #     --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B T N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #9.e) Generates in the binlog what follows if T* fails:
+--echo #       --> STMT  "B N C" entry, format S.
+--echo #       --> ROW   "B N C" entry, format R.
+--echo #       --> MIXED "B N C" entry, format R.
+--echo #     Otherwise, what follows if N* fails and a N-Table is changed:
+--echo #       --> STMT  "B T N R" entries, format S.
+--echo #       --> ROW   "B N C" entry, format R.
+--echo #       --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B eT N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T eN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Ne R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #10) Generates in the binlog:
+--echo #     --> STMT  "B N C B T C" entries, format S.
+--echo #     --> ROW   "B N C B T C" entries, format R.
+--echo #     --> MIXED "B N C B T C" entries, format S.
+--echo #
+SET @commands= 'B N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #11) Generates in the binlog what follows:
+--echo #     --> STMT  "B N C" entries, format S.
+--echo #     --> ROW   "B N C" entries, format R.
+--echo #     --> MIXED "B N C" entries, format S.
+--echo #
+
+SET @commands= 'B N T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-trig T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-func T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N-proc T-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #12) Generates in the binlog what follows:
+--echo #      --> STMT  "B M C B T C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B M T C" entries, format S.
+--echo #      --> ROW   "B N C B T T C" entries, format R.
+--echo #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
+--echo #
+SET @commands= 'B tN T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nT T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #12.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #        --> STMT  "B M C B T C" entries if in M only N-Table is changed, format S.
+--echo #        --> STMT  "B M T C" entries, format S.
+--echo #        --> ROW   "B N C B T T C" entries, format R.
+--echo #        --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
+  --echo #  
+SET @commands= 'B tNe T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nTe T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-trig T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-func T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #13) "B M T R" generates in the binlog:
+--echo #      --> STMT  "B M C B T R" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B M T R" entries, format S.
+--echo #      --> ROW   "B N C" entry, format R.
+--echo #      --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B tN T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #13.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #        --> STMT  "B M C B T R" entries if in M only N-Table is changed, format S.
+--echo #        --> STMT  "B M T R" entries, format S.
+--echo #        --> ROW   "B N C" entry, format R.
+--echo #        --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B tNe T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nTe T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-trig T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-func T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #14) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B T M C" entries, format S.
+--echo #      --> ROW   "B N C B T T C" entries, format R.
+--echo #      --> MIXED "B N C B T T C" entries, format R in N/T and format S in T.
+--echo #
+SET @commands= 'B T tN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T nT C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #14.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #        --> STMT  "B T M C" entries, format S.
+--echo #        --> ROW   "B N C B T C" entry, format R.
+--echo #        --> MIXED "B N C B T C" entry, format R.
+--echo #
+SET @commands= 'B T tNe C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T nTe C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NeT-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NeT-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TeN-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TeN-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #15) Generates in the binlog what follows if a N-Table is changed:
+--echo #        --> STMT  "B T M R" entries, format S.
+--echo #        --> ROW   "B N C" entry, format R.
+--echo #        --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B T tN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T nT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NT-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TN-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #15.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #        --> STMT  "B T M R" entries, format S.
+--echo #        --> ROW   "B N C" entry, format R.
+--echo #        --> MIXED "B N C" entry, format R.
+--echo #
+SET @commands= 'B T tNe R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T nTe R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NeT-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T NeT-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TeN-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T TeN-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #16) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B M N C" entries, format S.
+--echo #      --> ROW   "B N C B N C B T C" entries, format R.
+--echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> MIXED "B N C B N C B T C" entries, format R.
+--echo #
+SET @commands= 'B tN N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nT N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #16.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B M N C" entries, format S.
+--echo #      --> ROW   "B N C B N C B T C" entries, format R.
+--echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> MIXED "B N C B N C B T C" entries, format R.
+--echo #
+SET @commands= 'B tNe N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nTe N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #17) Generates in the binlog what follows if a N-Table is changed:
+--echo #    --> STMT  "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #    --> STMT  "B M N R" entries, format S.
+--echo #    --> ROW   "B N C B N C" entries, format R.
+--echo #    --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #    --> MIXED "B N C B N C" entries, format R.
+--echo #
+SET @commands= 'B tN N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nT N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NT-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TN-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #17.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B M N R" entries, format S.
+--echo #      --> ROW   "B N C B N C" entries, format R.
+--echo #      --> MIXED "B M C B N C" entries if in M only N-Table is changed, format S.
+--echo #      --> MIXED "B N C B N C" entries, format R.
+--echo #
+SET @commands= 'B tNe N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B nTe N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B NeT-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B TeN-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #18) Generates in the binlog what follows if a N-Table is changed:
+--echo #    --> STMT  "B N C B M C" entries if in M only N-Table is changed, format S.
+--echo #    --> STMT  "B N C B M C" entries, format S.
+--echo #    --> ROW   "B N C B N C B T C" entries, format R.
+--echo #    --> MIXED "B N C B N C B T C" entries, format S in first N and format R in the other.
+--echo #
+
+SET @commands= 'B N tN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N nT C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #18.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B N C B M C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B N C B M C" entries, format S.
+--echo #      --> ROW   "B N C B N C" entries, format R.
+--echo #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
+--echo #
+SET @commands= 'B N tNe C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N nTe C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NeT-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NeT-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TeN-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TeN-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #19) Generates in the binlog what follows if a N-Table is changed:
+--echo #    --> STMT  "B N C B M C" entries if in M only N-Table is changed, format S.
+--echo #    --> STMT  "B N C B M R" entries, format S.
+--echo #    --> ROW   "B N C B N C" entries, format R.
+--echo #    --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
+--echo #
+
+SET @commands= 'B N tN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N nT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NT-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TN-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #19.e) Generates in the binlog what follows if a N-Table is changed:
+--echo #      --> STMT  "B N C B M C" entries if in M only N-Table is changed, format S.
+--echo #      --> STMT  "B N C B M R" entries, format S.
+--echo #      --> ROW   "B N C B N C" entries, format R.
+--echo #      --> MIXED "B N C B N C" entries, format S in first N and format R in the other.
+--echo #
+SET @commands= 'B N tNe R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N nTe R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NeT-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N NeT-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TeN-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B N TeN-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo ###################################################################################
---echo #                 MIXING TRANSACTIONAL and NON-TRANSACTIONAL TABLES
+--echo #                               2 - SAVEPOINT
 --echo ###################################################################################
-connection master;
+SET @commands= 'B T S1 T R1 C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #1) "B T T C" generates in binlog the "B T T C" entries.
---echo #
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text 4", 4, "new text 4");
-INSERT INTO tt_2 VALUES ("new text 4", 4, "new text 4");
-COMMIT;
+SET @commands= 'B N T S1 T R1 C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+SET @commands= 'B T N S1 T R1 C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #1.e) "B T T C" with error in T generates in binlog the "B T T C" entries.
---echo #
-INSERT INTO tt_1 VALUES ("new text -2", -2, "new text -2");
-BEGIN;
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1"), ("new text -2", -2, "new text -2");
-INSERT INTO tt_2 VALUES ("new text -3", -3, "new text -3");
-COMMIT;
+SET @commands= 'B T S1 N T R1 C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-BEGIN;
-INSERT INTO tt_2 VALUES ("new text -5", -5, "new text -5");
---error ER_DUP_ENTRY
-INSERT INTO tt_2 VALUES ("new text -4", -4, "new text -4"), ("new text -5", -5, "new text -5");
-COMMIT;
+--echo ###################################################################################
+--echo #                            3 - CREATE TABLE...SELECT
+--echo ###################################################################################
+SET @commands= 'CSe-T->T CS-T->T drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+SET @commands= 'CSe-N->N CS-N->N drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #2) "B T T R"  generates in binlog an "empty" entry.
---echo #
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text 5", 5, "new text 5");
-INSERT INTO tt_2 VALUES ("new text 5", 5, "new text 5");
-ROLLBACK;
+SET @commands= 'CSe-T->N CS-T->N drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #2.e) "B T T R"  with error in T generates in binlog an "empty" entry.
---echo #
-INSERT INTO tt_1 VALUES ("new text -7", -7, "new text -7");
-BEGIN;
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -6", -6, "new text -6"), ("new text -7", -7, "new text -7");
-INSERT INTO tt_2 VALUES ("new text -8", -8, "new text -8");
-ROLLBACK;
+SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-BEGIN;
-INSERT INTO tt_2 VALUES ("new text -10", -10, "new text -10");
---error ER_DUP_ENTRY
-INSERT INTO tt_2 VALUES ("new text -9", -9, "new text -9"), ("new text -10", -10, "new text -10");
-ROLLBACK;
+SET @commands= 'CSe-N->T CS-N->T drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+--echo ###################################################################################
+--echo #                         4 - ROLLBACK TEMPORARY TABLE
+--echo ###################################################################################
+SET @commands= 'B T CT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #3) "B T N C" generates in binlog the "B T N C" entries.
---echo #
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text 6", 6, "new text 6");
-INSERT INTO nt_1 VALUES ("new text 6", 6, "new text 6");
-COMMIT;
+SET @commands= 'B T S1 T CT R1 R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+SET @commands= 'B T CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #3.e) "B T N C" with error in either T or N generates in binlog the "B T N C" entries.
---echo #
-INSERT INTO tt_1 VALUES ("new text -12", -12, "new text -12");
-BEGIN;
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -11", -11, "new text -11"), ("new text -12", -12, "new text -12");
-INSERT INTO nt_1 VALUES ("new text -13", -13, "new text -13");
-COMMIT;
+SET @commands= 'B tN CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text -14", -14, "new text -14");
-INSERT INTO nt_1 VALUES ("new text -16", -16, "new text -16");
---error ER_DUP_ENTRY
-INSERT INTO nt_1 VALUES ("new text -15", -15, "new text -15"), ("new text -16", -16, "new text -16");
-COMMIT;
+SET @commands= 'B CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---source include/show_binlog_events.inc
+SET @commands= 'B N CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
 
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #4) "B T N R" generates in binlog the "B T N R" entries.
---echo #
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text 7", 7, "new text 7");
-INSERT INTO nt_1 VALUES ("new text 7", 7, "new text 7");
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #4.e) "B T N R" with error in either T or N generates in binlog the "B T N R" entries.
---echo #
-INSERT INTO tt_1 VALUES ("new text -17", -17, "new text -17");
-BEGIN;
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -16", -16, "new text -16"), ("new text -17", -17, "new text -17");
-INSERT INTO nt_1 VALUES ("new text -18", -18, "new text -18");
-ROLLBACK;
-
-BEGIN;
-INSERT INTO tt_1 VALUES ("new text -19", -19, "new text -19");
-INSERT INTO nt_1 VALUES ("new text -21", -21, "new text -21");
---error ER_DUP_ENTRY
-INSERT INTO nt_1 VALUES ("new text -20", -20, "new text -20"), ("new text -21", -21, "new text -21");
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #5) "T" generates in binlog the "B T C" entry.
---echo #
-INSERT INTO tt_1 VALUES ("new text 8", 8, "new text 8");
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #5.e) "T" with error in T generates in binlog an "empty" entry.
---echo #
-INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1");
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -1", -1, "new text -1"), ("new text -22", -22, "new text -22");
---error ER_DUP_ENTRY
-INSERT INTO tt_1 VALUES ("new text -23", -23, "new text -23"), ("new text -1", -1, "new text -1");
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #6) "N" generates in binlog the "N" entry.
---echo #
-INSERT INTO nt_1 VALUES ("new text 9", 9, "new text 9");
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #6.e) "N" with error in N generates in binlog an empty entry if the error
---echo # happens in the first tuple. Otherwise, generates the "N" entry and
---echo # the error is appended.
---echo #
-INSERT INTO nt_1 VALUES ("new text -1", -1, "new text -1");
---error ER_DUP_ENTRY
-INSERT INTO nt_1 VALUES ("new text -1", -1, "new text -1");
---error ER_DUP_ENTRY
-INSERT INTO nt_1 VALUES ("new text -24", -24, "new text -24"), ("new text -1", -1, "new text -1");
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #7) "M" generates in binglog the "B M C" entries.
---echo #
-
-DELETE FROM nt_1;
-
-INSERT INTO nt_1 SELECT * FROM tt_1;
-
-DELETE FROM tt_1;
-
-INSERT INTO tt_1 SELECT * FROM nt_1; 
-
-INSERT INTO tt_3 VALUES ("new text 000", 000, '');
-
-INSERT INTO tt_3 VALUES("new text 100", 100, f1());
-
-INSERT INTO nt_4 VALUES("new text 100", 100, f1());
-
-INSERT INTO tt_3 VALUES("new text 200", 200, f2());
-
-INSERT INTO nt_4 VALUES ("new text 300", 300, '');
-
-INSERT INTO nt_4 VALUES ("new text 400", 400, f1());
-
-INSERT INTO nt_4 VALUES ("new text 500", 500, f2());
-
-CALL pc_i_tt_3(600, "Testing...");
-
-UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 1", nt_4.a= "new text 1", tt_3.a= "new text 1", tt_4.a= "new text 1" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-
-UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 2", tt_4.a= "new text 2", nt_3.a= "new text 2", nt_4.a = "new text 2" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 3", nt_3.a= "new text 3", nt_4.a= "new text 3", tt_4.a = "new text 3" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 4", nt_3.a= "new text 4", nt_4.a= "new text 4", tt_4.a = "new text 4" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #7.e) "M" with error in M generates in binglog the "B M R" entries.
---echo #
-
-INSERT INTO nt_3 VALUES ("new text -26", -26, '');
-SELECT * FROM tt_3;
---error ER_DUP_ENTRY
-INSERT INTO tt_3 VALUES ("new text -25", -25, ''), ("new text -26", -26, '');
-SELECT * FROM tt_3;
-
-INSERT INTO tt_4 VALUES ("new text -26", -26, '');
-SELECT * FROM nt_4;
---error ER_DUP_ENTRY
-INSERT INTO nt_4 VALUES ("new text -25", -25, ''), ("new text -26", -26, '');
-SELECT * FROM nt_4;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #8) "B N N T C" generates in binglog the "N N B T C" entries.
---echo #
-BEGIN;
-INSERT INTO nt_1 VALUES ("new text 10", 10, "new text 10");
-INSERT INTO nt_2 VALUES ("new text 10", 10, "new text 10");
-INSERT INTO tt_1 VALUES ("new text 10", 10, "new text 10");
-COMMIT;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
---echo #
---echo #8.e) "B N N T R" See 6.e and 9.e.
---echo #
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #9) "B N N T R" generates in binlog the "N N B T R" entries.
---echo #
-BEGIN;
-INSERT INTO nt_1 VALUES ("new text 11", 11, "new text 11");
-INSERT INTO nt_2 VALUES ("new text 11", 11, "new text 11");
-INSERT INTO tt_1 VALUES ("new text 11", 11, "new text 11");
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #9.e) "B N N T R" with error in N generates in binlog the "N N B T R" entries.
---echo #
-BEGIN;
-INSERT INTO nt_1 VALUES ("new text -25", -25, "new text -25");
-INSERT INTO nt_2 VALUES ("new text -25", -25, "new text -25");
---error ER_DUP_ENTRY
-INSERT INTO nt_2 VALUES ("new text -26", -26, "new text -26"), ("new text -25", -25, "new text -25");
-INSERT INTO tt_1 VALUES ("new text -27", -27, "new text -27");
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #10) "B N N C" generates in binglog the "N N" entries.
---echo #
-BEGIN;
-INSERT INTO nt_1 VALUES ("new text 12", 12, "new text 12");
-INSERT INTO nt_2 VALUES ("new text 12", 12, "new text 12");
-COMMIT;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
---echo #
---echo #10.e) "B N N C" See 6.e and 9.e.
---echo #
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #11) "B N N R" generates in binlog the "N N" entries.
---echo #
-BEGIN;
-INSERT INTO nt_1 VALUES ("new text 13", 13, "new text 13");
-INSERT INTO nt_2 VALUES ("new text 13", 13, "new text 13");
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
---echo #
---echo #11.e) "B N N R" See 6.e and 9.e.
---echo #
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #12) "B M T C" generates in the binlog the "B M T C" entries.
---echo #
-DELETE FROM nt_1;
-BEGIN;
-INSERT INTO nt_1 SELECT * FROM tt_1;
-INSERT INTO tt_2 VALUES ("new text 14", 14, "new text 14");
-COMMIT;
-
-DELETE FROM tt_1;
-BEGIN;
-INSERT INTO tt_1 SELECT * FROM nt_1;
-INSERT INTO tt_2 VALUES ("new text 15", 15, "new text 15");
-COMMIT;
-
-BEGIN;
-INSERT INTO tt_3 VALUES ("new text 700", 700, '');
-INSERT INTO tt_1 VALUES ("new text 800", 800, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO tt_3 VALUES("new text 900", 900, f1());
-INSERT INTO tt_1 VALUES ("new text 1000", 1000, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO tt_3 VALUES(1100, 1100, f2());
-INSERT INTO tt_1 VALUES ("new text 1200", 1200, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO nt_4 VALUES ("new text 1300", 1300, '');
-INSERT INTO tt_1 VALUES ("new text 1400", 1400, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO nt_4 VALUES("new text 1500", 1500, f1());
-INSERT INTO tt_1 VALUES ("new text 1600", 1600, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO nt_4 VALUES("new text 1700", 1700, f2());
-INSERT INTO tt_1 VALUES ("new text 1800", 1800, '');
-COMMIT;
-
-BEGIN;
-CALL pc_i_tt_3(1900, "Testing...");
-INSERT INTO tt_1 VALUES ("new text 2000", 2000, '');
-COMMIT;
-
-BEGIN;
-UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 5", nt_4.a= "new text 5", tt_3.a= "new text 5", tt_4.a= "new text 5" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 2100", 2100, '');
-COMMIT;
-
-BEGIN;
-UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 6", tt_4.a= "new text 6", nt_3.a= "new text 6", nt_4.a = "new text 6" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 2200", 2200, '');
-COMMIT;
-
-BEGIN;
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 7", nt_3.a= "new text 7", nt_4.a= "new text 7", tt_4.a = "new text 7" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 2300", 2300, '');
-COMMIT;
-
-BEGIN;
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 8", nt_3.a= "new text 8", nt_4.a= "new text 8", tt_4.a = "new text 8" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 2400", 2400, '');
-COMMIT;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #12.e) "B M T C" with error in M generates in the binlog the "B M T C" entries.
---echo #  
-
---echo # There is a bug in the slave that needs to be fixed before enabling
---echo # this part of the test. A bug report will be filed referencing this
---echo # test case.
-
-BEGIN;
-INSERT INTO nt_3 VALUES ("new text -28", -28, '');
---error ER_DUP_ENTRY
-INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
-INSERT INTO tt_1 VALUES ("new text -27", -27, '');
-COMMIT;
-
-BEGIN;
-INSERT INTO tt_4 VALUES ("new text -28", -28, '');
---error ER_DUP_ENTRY
-INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
-INSERT INTO tt_1 VALUES ("new text -28", -28, '');
-COMMIT;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #13) "B M T R" generates in the binlog the "B M T R" entries
---echo #
-
-DELETE FROM nt_1;
-BEGIN;
-INSERT INTO nt_1 SELECT * FROM tt_1;
-INSERT INTO tt_2 VALUES ("new text 17", 17, "new text 17");
-ROLLBACK;
-
-DELETE FROM tt_1;
-BEGIN;
-INSERT INTO tt_1 SELECT * FROM nt_1;
-INSERT INTO tt_2 VALUES ("new text 18", 18, "new text 18");
-ROLLBACK;
-INSERT INTO tt_1 SELECT * FROM nt_1;
-
-BEGIN;
-INSERT INTO tt_3 VALUES ("new text 2500", 2500, '');
-INSERT INTO tt_1 VALUES ("new text 2600", 2600, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO tt_3 VALUES("new text 2700", 2700, f1());
-INSERT INTO tt_1 VALUES ("new text 2800", 2800, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO tt_3 VALUES(2900, 2900, f2());
-INSERT INTO tt_1 VALUES ("new text 3000", 3000, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO nt_4 VALUES ("new text 3100", 3100, '');
-INSERT INTO tt_1 VALUES ("new text 3200", 3200, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO nt_4 VALUES("new text 3300", 3300, f1());
-INSERT INTO tt_1 VALUES ("new text 3400", 3400, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO nt_4 VALUES("new text 3500", 3500, f2());
-INSERT INTO tt_1 VALUES ("new text 3600", 3600, '');
-ROLLBACK;
-
-BEGIN;
-CALL pc_i_tt_3(3700, "Testing...");
-INSERT INTO tt_1 VALUES ("new text 3700", 3700, '');
-ROLLBACK;
-
-BEGIN;
-UPDATE nt_3, nt_4, tt_3, tt_4 SET nt_3.a= "new text 9", nt_4.a= "new text 9", tt_3.a= "new text 9", tt_4.a= "new text 9" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 3800", 3800, '');
-ROLLBACK;
-
-BEGIN;
-UPDATE tt_3, tt_4, nt_3, nt_4 SET tt_3.a= "new text 10", tt_4.a= "new text 10", nt_3.a= "new text 10", nt_4.a = "new text 10" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 3900", 3900, '');
-ROLLBACK;
-
-BEGIN;
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 11", nt_3.a= "new text 11", nt_4.a= "new text 11", tt_4.a = "new text 11" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 4000", 4000, '');
-ROLLBACK;
-
-BEGIN;
-UPDATE tt_3, nt_3, nt_4, tt_4 SET tt_3.a= "new text 12", nt_3.a= "new text 12", nt_4.a= "new text 12", tt_4.a = "new text 12" where nt_3.b = nt_4.b and nt_4.b = tt_3.b and tt_3.b = tt_4.b and tt_4.b = 100;
-INSERT INTO tt_1 VALUES ("new text 4100", 4100, '');
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #13.e) "B M T R" with error in M generates in the binlog the "B M T R" entries.
---echo #
-
-BEGIN;
-INSERT INTO nt_3 VALUES ("new text -30", -30, '');
---error ER_DUP_ENTRY
-INSERT INTO tt_3 VALUES ("new text -29", -29, ''), ("new text -30", -30, '');
-INSERT INTO tt_1 VALUES ("new text -30", -30, '');
-ROLLBACK;
-
-BEGIN;
-INSERT INTO tt_4 VALUES ("new text -30", -30, '');
---error ER_DUP_ENTRY
-INSERT INTO nt_4 VALUES ("new text -29", -29, ''), ("new text -30", -30, '');
-INSERT INTO tt_1 VALUES ("new text -31", -31, '');
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY 
+--echo ###################################################################################
 connection master;
 sync_slave_with_master;
-
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-slave.sql
---diff_files $MYSQLTEST_VARDIR/tmp/test-master.sql $MYSQLTEST_VARDIR/tmp/test-slave.sql
-
+  
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+  
 --echo ###################################################################################
 --echo #                                        CLEAN
 --echo ###################################################################################
-
-connection master;
-DROP TABLE tt_1;
-DROP TABLE tt_2;
-DROP TABLE tt_3;
-DROP TABLE tt_4;
-DROP TABLE nt_1;
-DROP TABLE nt_2;
-DROP TABLE nt_3;
-DROP TABLE nt_4;
-DROP PROCEDURE pc_i_tt_3;
-DROP FUNCTION f1;
-DROP FUNCTION f2;
-
-sync_slave_with_master;
+SET @commands= 'clean';
+--source extra/rpl_tests/rpl_mixing_engines.inc

@@ -1,10 +1,14 @@
-source include/master-slave.inc;
-source include/have_innodb.inc;
-
 #
 # Bug#6148 ()
 #
 # Let the master do lots of insertions
+
+connection master;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
+connection slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 connection master;
 create table t1(n int);
 sync_slave_with_master;

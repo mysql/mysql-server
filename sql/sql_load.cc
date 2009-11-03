@@ -530,7 +530,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       after this point.
      */
     if (thd->is_current_stmt_binlog_format_row())
-      thd->binlog_flush_pending_rows_event(true);
+      thd->binlog_flush_pending_rows_event(TRUE, transactional_table);
     else
     {
       /*
@@ -575,7 +575,7 @@ static bool write_execute_load_query_log_event(THD *thd,
       (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
-      transactional_table, FALSE, errcode);
+      transactional_table, FALSE, FALSE, errcode);
   e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }

@@ -61,7 +61,7 @@ select * from t1;
 source include/show_slave_status2.inc;
 
 # try replicate all up to and not including the second insert to t2;
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=746;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=891;
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t2;

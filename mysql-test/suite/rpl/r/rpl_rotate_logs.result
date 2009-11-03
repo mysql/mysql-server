@@ -155,9 +155,12 @@ Log_name	File_size
 master-bin.000003	#
 master-bin.000004	#
 master-bin.000005	#
+master-bin.000006	#
+master-bin.000007	#
+master-bin.000008	#
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000005	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
+master-bin.000008	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 select * from t4;
 a
 testing temporary tables part 2
@@ -167,11 +170,11 @@ Master_Host	127.0.0.1
 Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	60
-Master_Log_File	master-bin.000005
+Master_Log_File	master-bin.000008
 Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000005
+Relay_Master_Log_File	master-bin.000008
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
 Replicate_Do_DB	

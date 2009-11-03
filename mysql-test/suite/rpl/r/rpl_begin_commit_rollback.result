@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 use db1;
@@ -67,6 +69,8 @@ before call db1.p1()
 INSERT INTO db1.t2 VALUES ('before call db1.p2()');
 BEGIN;
 CALL db1.p2();
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 ROLLBACK;
 INSERT INTO db1.t2 VALUES ('after call db1.p2()');
 SELECT * FROM db1.t1;

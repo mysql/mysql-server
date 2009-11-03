@@ -44,32 +44,60 @@ END//
 CALL p1();
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=2
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=3
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=4
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=5
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=7
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=8
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=9
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = 1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=2
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = 2
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 2
+master-bin.000001	#	Query	#	#	COMMIT
 # Result on master
 SELECT * FROM t1;
 id
@@ -100,14 +128,24 @@ DROP TRIGGER tr1;
 CALL p2();
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=11
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (NULL)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=3
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = f1(3)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=12
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1 WHERE id = f1(4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 3
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2 WHERE id = 4
+master-bin.000001	#	Query	#	#	COMMIT
 # Result on master
 SELECT * FROM t1;
 id
