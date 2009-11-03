@@ -7792,7 +7792,7 @@ static int mysql_init_variables(void)
   log_error_file_ptr= log_error_file;
   lc_messages_dir_ptr= lc_messages_dir;
   mysql_data_home= mysql_real_data_home;
-  thd_startup_options= (OPTION_AUTO_IS_NULL | OPTION_BIN_LOG |
+  thd_startup_options= (OPTION_BIN_LOG |
                         OPTION_QUOTE_SHOW_CREATE | OPTION_SQL_NOTES);
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
