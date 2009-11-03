@@ -1274,6 +1274,8 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
 SET @rnd_max= 2147483647;
 let $1 = 10;
+--disable_query_log
+begin;
 while ($1)
 {
   SET @rnd= RAND();
@@ -1283,6 +1285,8 @@ while ($1)
   INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
   dec $1;
 }
+commit;
+--enable_query_log
 set @@read_buffer_size=2*1024*1024;
 CREATE TABLE t2 SELECT * FROM t1;
 INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;

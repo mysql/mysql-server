@@ -1,0 +1,5 @@
+MYSQL_STORAGE_ENGINE(federated,,[FederatedX Storage Engine],
+        [FederatedX Storage Engine], [max,max-no-ndb])
+MYSQL_PLUGIN_DYNAMIC(federated,   [ha_federatedx.la])
+MYSQL_PLUGIN_STATIC(federated,    [libfederatedx.a])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(federated, [ha_federatedx.cc])

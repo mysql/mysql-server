@@ -3226,7 +3226,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   my_bool can_disable;
   bool disable_plugin;
   enum_plugin_load_policy plugin_load_policy= PLUGIN_ON;
-
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
   st_mysql_sys_var **opt;
@@ -3240,13 +3239,13 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   DBUG_ENTER("test_plugin_options");
   DBUG_ASSERT(tmp->plugin && tmp->name.str);
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /*
-    The 'federated' and 'ndbcluster' storage engines are always disabled by
-    default.
+    The 'ndbcluster' storage engines is always disabled by default.
   */
-  if (!(my_strcasecmp(&my_charset_latin1, tmp->name.str, "federated") &&
-      my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster")))
+  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster"))
     plugin_load_policy= PLUGIN_OFF;
+#endif
 
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
     count+= 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
@@ -3295,6 +3294,11 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   can_disable=
     my_strcasecmp(&my_charset_latin1, tmp->name.str, "MyISAM") &&
     my_strcasecmp(&my_charset_latin1, tmp->name.str, "MEMORY");
+#ifdef USE_MARIA_FOR_TMP_TABLES
+  if (!can_disable)
+    can_disable= (my_strcasecmp(&my_charset_latin1, tmp->name.str, "Maria")
+                  != 0);
+#endif
 
   tmp->is_mandatory= (plugin_load_policy == PLUGIN_FORCE) || !can_disable;
 

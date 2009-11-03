@@ -118,6 +118,7 @@ INSERT INTO mysql.time_zone_transition_type
 let $transition_unix_time= `SELECT @unix_time`;
 let $count= 30;
 --disable_query_log
+begin;
 while ($count)
 {
   eval INSERT INTO mysql.time_zone_transition
@@ -126,6 +127,7 @@ while ($count)
   let $transition_unix_time= `SELECT $transition_unix_time + @step3`;
   dec $count;
 }
+commit;
 --enable_query_log
 let $tz_name = `SELECT CONCAT('b16420_a',UNIX_TIMESTAMP())`;
 --replace_result $tz_name <TZ_NAME_1>

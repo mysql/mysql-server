@@ -82,13 +82,15 @@ drop table t1, t2;
 
 create table t1(a char(10));
 let $1=50;
-disable_query_log;
+--disable_query_log
+begin;
 while ($1)
 {
   eval insert into t1 values('mysql ab');
   dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 alter table t1 add b char;
 set max_error_count=10;
 update t1 set b=a;

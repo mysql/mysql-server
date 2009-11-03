@@ -1056,7 +1056,7 @@ buf_page_release(
 	buf_block_t*	block,		/* in: buffer block */
 	ulint		rw_latch,	/* in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
-	mtr_t*		mtr)		/* in: mtr */
+	mtr_t*		mtr __attribute__((unused)))		/* in: mtr */
 {
 	ut_ad(block);
 

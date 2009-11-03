@@ -124,7 +124,7 @@ handler.o:	handler.cc
 # found to append fileslists that collected by configure
 # to the sources list
 
-ha_federated.o:ha_federated.cc
+ha_federatedx.o:ha_federatedx.cc
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
 ha_heap.o:ha_heap.cc

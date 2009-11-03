@@ -21,13 +21,16 @@ show create table t2;
 let $count=26;
 let $letter=0;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t2 values (repeat(char(ascii('a')+$letter),$count+54));
 dec $count;
 inc $letter;
 }
+commit;
+--enable_query_log
 select count(*) from t2;
 select * from t2;
 drop table t2;
@@ -47,13 +50,16 @@ show create table t3;
 let $count=26;
 let $letter=0;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t3 values (repeat(char(ascii('a')+$letter),$count+54));
 dec $count;
 inc $letter;
 }
+commit;
+--enable_query_log
 select count(*) from t3;
 select a from t3;
 drop table t3;
@@ -71,13 +77,16 @@ show create table t4;
 let $count=26;
 let $letter=0;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t4 values (repeat(char(ascii('a')+$letter),$count+54));
 dec $count;
 inc $letter;
 }
+commit;
+--enable_query_log
 select count(*) from t4;
 select a from t4;
 drop table t4;
