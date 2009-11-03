@@ -1,3 +1,9 @@
+2009-10-19	The InnoDB Team
+
+	* mysql-test/innodb_information_schema.test:
+	Fix Bug#47808 innodb_information_schema.test fails when run under
+	valgrind
+
 2009-10-15	The InnoDB Team
 
 	* include/page0page.ic:
