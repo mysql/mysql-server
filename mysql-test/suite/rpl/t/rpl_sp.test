@@ -3,11 +3,6 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 # Modified by WL#2971.
 
-# Note that in the .opt files we still use the old variable name
-# log-bin-trust-routine-creators so that this test checks that it's
-# still accepted (this test also checks that the new name is
-# accepted). The old name could be removed in 5.1 or 6.0.
-
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
@@ -241,16 +236,11 @@ begin
 end|
 delimiter ;|
 connection master;
-set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
-# test old variable name:
-set global log_bin_trust_routine_creators=1;
-# now use new name:
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 # slave needs it too otherwise will not execute what master allowed:
 connection slave;
-set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 set global log_bin_trust_function_creators=1;
 
@@ -575,10 +565,8 @@ source include/show_binlog_events.inc;
 # This is a cleanup for all parts above where we tested stored
 # functions and triggers.
 connection slave;
-set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 connection master;
-set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 # Clean up

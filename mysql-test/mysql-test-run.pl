@@ -68,7 +68,7 @@ use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Find;
-use File::Temp qw / tempdir /;
+use File::Temp qw /tempdir/;
 use File::Spec::Functions qw / splitdir /;
 use My::Platform;
 use My::SafeProcess;

@@ -630,7 +630,6 @@ show columns in t1;
 show slave hosts;
 show keys in t1;
 show column types;
-show table types;
 show storage engines;
 show authors;
 show contributors;
@@ -1009,11 +1008,6 @@ disconnect con4;
 #
 
 --disable_result_log
-show full plugin;
---enable_result_log
-show warnings;
---disable_result_log
-show plugin;
 show plugins;
 --enable_result_log
 
@@ -1179,14 +1173,6 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
-
-#
-# Bug#30036 SHOW TABLE TYPES causes the debug client to crash
-#
---disable_result_log
-SHOW TABLE TYPES;
---enable_result_log
-
 
 #
 # Bug#32710 SHOW INNODB STATUS requires SUPER
