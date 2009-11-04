@@ -308,7 +308,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#define MYSQL_SERVER 1q
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER 1
+#endif
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 
@@ -1621,7 +1623,13 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
   {
     MEM_ROOT mem_root;
 
-    txn->close(server);
+    if (!txn)
+    {
+      federatedx_txn tmp_txn;
+      tmp_txn.close(server);
+    }
+    else
+      txn->close(server);
 
     DBUG_ASSERT(server->io_count == 0);
 
@@ -1772,6 +1780,7 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
 int ha_federatedx::close(void)
 {
   int retval, error;
+  THD *thd= current_thd;
   DBUG_ENTER("ha_federatedx::close");
 
   /* free the result set */
@@ -1779,8 +1788,9 @@ int ha_federatedx::close(void)
     retval= free_result();
 
   /* Disconnect from mysql */
-  txn->release(&io);
-  
+  if ((txn= get_txn(thd, true)))
+    txn->release(&io);
+
   DBUG_ASSERT(io == NULL);
 
   if ((error= free_share(txn, share)))
@@ -2124,6 +2134,8 @@ int ha_federatedx::end_bulk_insert(bool abort)
   
   if (bulk_insert.str && bulk_insert.length && !abort)
   {
+    if ((error= txn->acquire(share, FALSE, &io)))
+      DBUG_RETURN(error);
     if (io->query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();
     else
@@ -2637,7 +2649,7 @@ int ha_federatedx::read_range_first(const key_range *start_key,
                         &table->key_info[active_index],
                         start_key, end_key, 0, eq_range_arg);
 
-  if ((retval= txn->acquire(share, FALSE, &io)))
+  if ((retval= txn->acquire(share, TRUE, &io)))
     DBUG_RETURN(retval);
 
   if (stored_result)
@@ -2775,14 +2787,16 @@ int ha_federatedx::rnd_end()
 int ha_federatedx::free_result()
 {
   int error;
+  federatedx_io *tmp_io= 0, **iop;
   DBUG_ASSERT(stored_result);
-  if ((error= txn->acquire(share, FALSE, &io)))
+  if (!*(iop= &io) && (error= txn->acquire(share, TRUE, (iop= &tmp_io))))
   {
     DBUG_ASSERT(0);                             // Fail when testing
     return error;
   }
-  io->free_result(stored_result);
+  (*iop)->free_result(stored_result);
   stored_result= 0;
+  txn->release(&tmp_io);
   return 0;
 }
 
@@ -2967,7 +2981,7 @@ int ha_federatedx::info(uint flag)
 {
   char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   uint error_code;
-  federatedx_io *org_io= io;
+  federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
 
   error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
@@ -2975,7 +2989,7 @@ int ha_federatedx::info(uint flag)
   /* we want not to show table status if not needed to do so */
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST | HA_STATUS_AUTO))
   {
-    if ((error_code= txn->acquire(share, TRUE, &io)))
+    if (!*(iop= &io) && (error_code= txn->acquire(share, TRUE, (iop= &tmp_io))))
       goto fail;
   }
 
@@ -2988,28 +3002,27 @@ int ha_federatedx::info(uint flag)
     if (flag & HA_STATUS_CONST)
       stats.block_size= 4096;
 
-    if (io->table_metadata(&stats, share->table_name, share->table_name_length,
-                           flag))
+    if ((*iop)->table_metadata(&stats, share->table_name,
+                               share->table_name_length, flag))
       goto error;
   }
 
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= io->last_insert_id();
+    stats.auto_increment_value= (*iop)->last_insert_id();
 
   /*
     If ::info created it's own transaction, close it. This happens in case
     of show table status;
   */
-  if (org_io != io)
-    txn->release(&io);
+  txn->release(&tmp_io);
 
   DBUG_RETURN(0);
 
 error:
-  if (io)
+  if (iop && *iop)
   {
     my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              io->error_code(), io->error_str()));
+                              (*iop)->error_code(), (*iop)->error_str()));
     my_error(error_code, MYF(0), error_buffer);
   }
   else
@@ -3019,6 +3032,7 @@ error:
     my_error(error_code, MYF(0), ER(error_code));
   }
 fail:
+  txn->release(&tmp_io);
   DBUG_RETURN(error_code);
 }
 
