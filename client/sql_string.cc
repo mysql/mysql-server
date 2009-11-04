@@ -26,15 +26,6 @@
 #ifdef HAVE_FCONVERT
 #include <floatingpoint.h>
 #endif
-
-/*
-  The following extern declarations are ok as these are interface functions
-  required by the string function
-*/
-
-extern void sql_alloc(size_t size);
-extern void sql_element_free(void *ptr);
-
 #include "sql_string.h"
 
 /*****************************************************************************

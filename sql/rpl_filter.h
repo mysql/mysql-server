@@ -42,7 +42,9 @@ public:
  
   /* Checks - returns true if ok to replicate/log */
 
-  bool tables_ok(const char* db, TABLE_LIST* tables);
+#ifndef MYSQL_CLIENT
+  bool tables_ok(const char* db, TABLE_LIST *tables);
+#endif 
   bool db_ok(const char* db);
   bool db_ok_with_wild_table(const char *db);
 
@@ -69,6 +71,7 @@ public:
   void get_wild_do_table(String* str);
   void get_wild_ignore_table(String* str);
 
+  bool rewrite_db_is_empty();
   const char* get_rewrite_db(const char* db, size_t *new_len);
 
   I_List<i_string>* get_do_db();

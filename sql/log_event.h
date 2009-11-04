@@ -873,6 +873,13 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+  
+  /*
+    TRUE <=> this event 'owns' temp_buf and should call my_free() when done
+    with it
+  */
+  bool event_owns_temp_buf;
+
   /*
     Timestamp on the master(for debugging and replication of
     NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
@@ -1014,12 +1021,17 @@ public:
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
   virtual ~Log_event() { free_temp_buf();}
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool must_free) 
+  { 
+    temp_buf= buf; 
+    event_owns_temp_buf= must_free;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      if (event_owns_temp_buf)
+        my_free(temp_buf, MYF(0));
       temp_buf = 0;
     }
   }
@@ -3310,6 +3322,8 @@ public:
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
+  int rewrite_db(const char* new_name, size_t new_name_len,
+                 const Format_description_log_event*);
 #endif
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }

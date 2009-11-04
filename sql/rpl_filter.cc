@@ -45,6 +45,7 @@ Rpl_filter::~Rpl_filter()
 }
 
 
+#ifndef MYSQL_CLIENT
 /*
   Returns true if table should be logged/replicated 
 
@@ -129,6 +130,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
               !do_table_inited && !wild_do_table_inited);
 }
 
+#endif
 
 /*
   Checks whether a db matches some do_db and ignore_db rules
@@ -511,6 +513,13 @@ void
 Rpl_filter::get_wild_ignore_table(String* str)
 {
   table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table, wild_ignore_table_inited);
+}
+
+
+bool
+Rpl_filter::rewrite_db_is_empty()
+{
+  return rewrite_db.is_empty();
 }
 
 

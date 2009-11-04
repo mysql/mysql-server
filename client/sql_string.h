@@ -15,6 +15,9 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
+#ifndef CLIENT_SQL_STRING_H
+#define CLIENT_SQL_STRING_H
+
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
@@ -353,3 +356,5 @@ public:
     return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
   }
 };
+
+#endif 

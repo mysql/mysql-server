@@ -1121,7 +1121,7 @@ failed my_b_read"));
     goto err;
   }
   if ((res= read_log_event(buf, data_len, &error, description_event)))
-    res->register_temp_buf(buf);
+    res->register_temp_buf(buf, TRUE);
 
 err:
   UNLOCK_MUTEX;
@@ -8004,6 +8004,111 @@ Table_map_log_event::~Table_map_log_event()
   my_free(m_meta_memory, MYF(MY_ALLOW_ZERO_PTR));
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
 }
+
+
+#ifdef MYSQL_CLIENT
+
+/*
+  Rewrite database name for the event to name specified by new_db
+  SYNOPSIS
+    new_db   Database name to change to
+    new_len  Length
+    desc     Event describing binlog that we're writing to.
+
+  DESCRIPTION
+    Reset db name. This function assumes that temp_buf member contains event
+    representation taken from a binary log. It resets m_dbnam and m_dblen and
+    rewrites temp_buf with new db name.
+
+  RETURN 
+    0     - Success
+    other - Error
+*/
+
+int Table_map_log_event::rewrite_db(const char* new_db, size_t new_len,
+                                    const Format_description_log_event* desc)
+{
+  DBUG_ENTER("Table_map_log_event::rewrite_db");
+  DBUG_ASSERT(temp_buf);
+
+  uint header_len= min(desc->common_header_len,
+                       LOG_EVENT_MINIMAL_HEADER_LEN) + TABLE_MAP_HEADER_LEN;
+  int len_diff;
+
+  if (!(len_diff= new_len - m_dblen))
+  {
+    memcpy((void*) (temp_buf + header_len + 1), new_db, m_dblen + 1);
+    memcpy((void*) m_dbnam, new_db, m_dblen + 1);
+    DBUG_RETURN(0);
+  }
+
+  // Create new temp_buf
+  ulong event_cur_len= uint4korr(temp_buf + EVENT_LEN_OFFSET);
+  ulong event_new_len= event_cur_len + len_diff;
+  char* new_temp_buf= (char*) my_malloc(event_new_len, MYF(MY_WME));
+
+  if (!new_temp_buf)
+  {
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new temp_buf (%d bytes required)",
+                    event_new_len);
+    DBUG_RETURN(-1);
+  }
+
+  // Rewrite temp_buf
+  char* ptr= new_temp_buf;
+  ulong cnt= 0;
+
+  // Copy header and change event length
+  memcpy(ptr, temp_buf, header_len);
+  int4store(ptr + EVENT_LEN_OFFSET, event_new_len);
+  ptr += header_len;
+  cnt += header_len;
+
+  // Write new db name length and new name
+  *ptr++ = new_len;
+  memcpy(ptr, new_db, new_len + 1);
+  ptr += new_len + 1;
+  cnt += m_dblen + 2;
+
+  // Copy rest part
+  memcpy(ptr, temp_buf + cnt, event_cur_len - cnt);
+
+  // Reregister temp buf
+  free_temp_buf();
+  register_temp_buf(new_temp_buf, TRUE);
+
+  // Reset m_dbnam and m_dblen members
+  m_dblen= new_len;
+
+  // m_dbnam resides in m_memory together with m_tblnam and m_coltype
+  uchar* memory= m_memory;
+  char const* tblnam= m_tblnam;
+  uchar* coltype= m_coltype;
+
+  m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+                                     &m_dbnam, (uint) m_dblen + 1,
+                                     &m_tblnam, (uint) m_tbllen + 1,
+                                     &m_coltype, (uint) m_colcnt,
+                                     NullS);
+
+  if (!m_memory)
+  {
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new m_memory (%d + %d + %d bytes required)",
+                    m_dblen + 1, m_tbllen + 1, m_colcnt);
+    DBUG_RETURN(-1);
+  }
+
+  memcpy((void*)m_dbnam, new_db, m_dblen + 1);
+  memcpy((void*)m_tblnam, tblnam, m_tbllen + 1);
+  memcpy(m_coltype, coltype, m_colcnt);
+
+  my_free(memory, MYF(MY_WME));
+  DBUG_RETURN(0);
+}
+#endif /* MYSQL_CLIENT */
+
 
 /*
   Return value is an error code, one of:
