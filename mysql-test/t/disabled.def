@@ -25,3 +25,4 @@ loaddata_autocom_ndb : Bug#35148: Error '4009 Cluster Failure' in various tests 
 ndb_autodiscover3    : Bug#35148: Error '4009 Cluster Failure' in various tests on various platforms
 ndb_autodiscover     : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
 ndb_autodiscover2    : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
+rpl_killed_ddl       : Bug#45520: rpl_killed_ddl fails sporadically in pb2
