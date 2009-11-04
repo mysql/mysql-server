@@ -1,4 +1,10 @@
-2009-01-01	The InnoDB Team
+2009-11-04	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#32430 'show innodb status' causes errors
+	Invalid (old?) table or database name in logs
+
+2009-11-02	The InnoDB Team
 
 	* btr/btr0sea.c, buf/buf0buf.c, dict/dict0dict.c, fil/fil0fil.c,
 	ibuf/ibuf0ibuf.c, include/btr0sea.h, include/dict0dict.h,
