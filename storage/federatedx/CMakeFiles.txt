@@ -1,3 +1,5 @@
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-SET(FEDERATED_SOURCES  ha_federatedx.cc)
+SET(FEDERATED_SOURCES  ha_federatedx.cc
+	federatedx_io.cc  federatedx_io_mysql.cc  federatedx_io_null.cc
+	federatedx_txn.cc)
 MYSQL_STORAGE_ENGINE(FEDERATED)
