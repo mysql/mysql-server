@@ -1,9 +1,8 @@
---- mysql-test/t/disabled.def.orig	2009-09-21 20:12:29.000000000 +0000
-+++ mysql-test/t/disabled.def	2009-09-21 20:20:16.000000000 +0000
-@@ -13,4 +13,6 @@
- innodb_bug39438          : Bug#42383 2009-01-28 lsoares "This fails in embedded and on windows.  Note that this test is not run on windows and on embedded in PB for main trees currently"
+--- mysql-test/t/disabled.def.orig	2009-10-25 05:54:05.000000000 +0000
++++ mysql-test/t/disabled.def	2009-10-25 05:54:25.000000000 +0000
+@@ -14,3 +14,5 @@
  query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
- init_connect             : Bug#44920 2009-07-06 pcrews MTR not processing master.opt input properly on Windows.  *Must be done this way due to the nature of the bug*
+ partition_innodb_builtin : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
+ partition_innodb_plugin  : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
 +read_many_rows_innodb    : Bug#433409 2009-09-20 the test fails on 5.1.37 https://bugs.launchpad.net/bugs/433409
 +innodb-zip               : Bug#47495 2009-09-21 the test fails on ubuntu
- 

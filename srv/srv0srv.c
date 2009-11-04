@@ -103,6 +103,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
 UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
@@ -162,7 +165,7 @@ UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
 UNIV_INTERN ibool	srv_fast_recovery = FALSE;
 
-UNIV_INTERN ibool	srv_use_purge_thread = FALSE;
+UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
@@ -1154,6 +1157,10 @@ srv_conc_enter_innodb(
 	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
+	ib_uint64_t             start_time = 0L;
+	ib_uint64_t             finish_time = 0L;
+	ulint                   sec;
+	ulint                   ms;
 
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
@@ -1230,6 +1237,7 @@ retry:
 		switches. */
 		if (SRV_THREAD_SLEEP_DELAY > 0) {
 			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
+			trx->innodb_que_wait_timer += SRV_THREAD_SLEEP_DELAY;
 		}
 
 		trx->op_info = "";
@@ -1285,11 +1293,24 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
+
 	trx->op_info = "waiting in InnoDB queue";
 
 	os_event_wait(slot->event);
 
 	trx->op_info = "";
+
+	if (innobase_get_slow_log() && trx->take_stats && start_time) {
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);
+	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -3130,6 +3151,7 @@ srv_purge_thread(
 	ulint	n_pages_purged_sum = 1; /* dummy */
 	ulint	history_len;
 	ulint	sleep_ms= 10000; /* initial: 10 sec. */
+	ibool	can_be_last = FALSE;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Purge thread starts, id %lu\n",
@@ -3142,8 +3164,21 @@ srv_purge_thread(
 	mutex_exit(&kernel_mutex);
 
 loop:
-	if (srv_fast_shutdown && srv_shutdown_state > 0) {
-		goto exit_func;
+	if (srv_shutdown_state > 0) {
+		if (srv_fast_shutdown) {
+			/* someone other should wait the end of the workers */
+			goto exit_func;
+		}
+
+		mutex_enter(&kernel_mutex);
+		if (srv_n_threads_active[SRV_PURGE_WORKER]) {
+			can_be_last = FALSE;
+		} else {
+			can_be_last = TRUE;
+		}
+		mutex_exit(&kernel_mutex);
+
+		sleep_ms = 10;
 	}
 
 	os_thread_sleep( sleep_ms * 1000 );
@@ -3164,6 +3199,15 @@ loop:
 		n_pages_purged_sum += n_pages_purged;
 	} while (n_pages_purged);
 
+	if (srv_shutdown_state > 0 && can_be_last) {
+		/* the last trx_purge() is executed without workers */
+		goto exit_func;
+	}
+
+	if (n_pages_purged_sum) {
+		srv_active_wake_master_thread();
+	}
+
 	if (n_pages_purged_sum == 0)
 		sleep_ms *= 10;
 	if (sleep_ms > 10000)
@@ -3172,9 +3216,62 @@ loop:
 	goto loop;
 
 exit_func:
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
+	trx_purge_worker_wake(); /* It may not make sense. for safety only */
 
+	/* wake master thread to flush the pages */
+	srv_wake_master_thread();
+
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE]--;
+	mutex_exit(&kernel_mutex);
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*************************************************************************
+A thread which is devoted to purge, for take over the master thread's
+purging */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_worker_thread(
+/*====================*/
+	void*	arg)
+{
+	ulint	worker_id; /* index for array */
+
+	worker_id = *((ulint*)arg);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Purge worker thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+	srv_table_reserve_slot(SRV_PURGE_WORKER);
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE_WORKER]++;
+	mutex_exit(&kernel_mutex);
+
+loop:
+	/* purge worker threads only works when srv_shutdown_state==0 */
+	/* for safety and exactness. */
+	if (srv_shutdown_state > 0) {
+		goto exit_func;
+	}
+
+	trx_purge_worker_wait();
+
+	if (srv_shutdown_state > 0) {
+		goto exit_func;
+	}
+
+	trx_purge_worker(worker_id);
+
+	goto loop;
+
+exit_func:
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE_WORKER]--;
+	mutex_exit(&kernel_mutex);
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;

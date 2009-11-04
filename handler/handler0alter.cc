@@ -670,6 +670,23 @@ err_exit:
 		DBUG_RETURN(error);
 	}
 
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_strcasecmp(key_info->name,
+				"GEN_CLUST_INDEX") == 0) {
+		/* Push warning to mysql */
+		push_warning_printf((THD*) trx->mysql_thd,
+				    MYSQL_ERROR::WARN_LEVEL_ERROR,
+				    ER_CANT_CREATE_TABLE,
+				    "Cannot Create Index with name "
+				    "'%s'. The name is reserved "
+				    "for the system default primary "
+				    "index.",
+				    "GEN_CLUST_INDEX");
+		error = ER_CANT_CREATE_TABLE;
+		goto err_exit;
+	}
+
 	/* Create table containing all indexes to be built in this
 	alter table add index so that they are in the correct order
 	in the table. */

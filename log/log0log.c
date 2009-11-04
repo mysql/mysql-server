@@ -3120,6 +3120,16 @@ loop:
 		goto loop;
 	}
 
+	/* Check that the purge threads ended */
+	if (srv_use_purge_thread
+	    && (srv_n_threads_active[SRV_PURGE] != 0
+		|| srv_n_threads_active[SRV_PURGE_WORKER] != 0)) {
+
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
+
 	mutex_exit(&kernel_mutex);
 
 	mutex_enter(&(log_sys->mutex));

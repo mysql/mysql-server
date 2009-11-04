@@ -108,6 +108,25 @@ UNIV_INTERN
 ulint
 trx_purge(void);
 /*===========*/
+/**********************************************************************
+This function runs a purge worker batch */
+UNIV_INTERN
+void
+trx_purge_worker(
+/*=============*/
+	ulint	worker_id);
+/**********************************************************************
+This function waits the event for worker batch */
+UNIV_INTERN
+void
+trx_purge_worker_wait(void);
+/*========================*/
+/**********************************************************************
+This function wakes the waiting worker batch */
+UNIV_INTERN
+void
+trx_purge_worker_wake(void);
+/*========================*/
 /******************************************************************//**
 Prints information of the purge system to stderr. */
 UNIV_INTERN
@@ -125,6 +144,11 @@ struct trx_purge_struct{
 					of the trx system and it never ends */
 	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
+	ulint		n_worker;
+	os_event_t	worker_event;
+	sess_t**	sess_arr;
+	trx_t**		trx_arr;
+	que_t**		query_arr;
 	rw_lock_t	latch;		/*!< The latch protecting the purge view.
 					A purge operation must acquire an
 					x-latch here for the instant at which

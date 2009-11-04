@@ -492,12 +492,12 @@ sync_array_cell_print(
 		mutex = cell->old_wait_mutex;
 
 		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
+			"Mutex at %p '%s', lock var %lu\n"
 #ifdef UNIV_SYNC_DEBUG
 			"Last time reserved in file %s line %lu, "
 #endif /* UNIV_SYNC_DEBUG */
 			"waiters flag %lu\n",
-			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
+			(void*) mutex, mutex->cmutex_name,
 			(ulong) mutex->lock_word,
 #ifdef UNIV_SYNC_DEBUG
 			mutex->file_name, (ulong) mutex->line,
@@ -513,9 +513,8 @@ sync_array_cell_print(
 		rwlock = cell->old_wait_rw_lock;
 
 		fprintf(file,
-			" RW-latch at %p created in file %s line %lu\n",
-			(void*) rwlock, rwlock->cfile_name,
-			(ulong) rwlock->cline);
+			" RW-latch at %p '%s'\n",
+			(void*) rwlock, rwlock->lock_name);
 		writer = rw_lock_get_writer(rwlock);
 		if (writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,

@@ -994,9 +994,7 @@ buf_flush_try_neighbors(
 		    || buf_page_is_old(bpage)) {
 			mutex_t* block_mutex = buf_page_get_mutex_enter(bpage);
 
-			ut_a(block_mutex);
-
-			if (buf_flush_ready_for_flush(bpage, flush_type)
+			if (block_mutex && buf_flush_ready_for_flush(bpage, flush_type)
 			    && (i == offset || !bpage->buf_fix_count)) {
 				/* We only try to flush those
 				neighbors != offset where the buf fix count is
@@ -1012,7 +1010,7 @@ buf_flush_try_neighbors(
 
 				//buf_pool_mutex_enter();
 				rw_lock_s_lock(&page_hash_latch);
-			} else {
+			} else if (block_mutex) {
 				mutex_exit(block_mutex);
 			}
 		}
@@ -1123,11 +1121,14 @@ flush_next:
 			mutex_t*block_mutex = buf_page_get_mutex_enter(bpage);
 			ibool	ready;
 
-			ut_a(buf_page_in_file(bpage));
+			//ut_a(buf_page_in_file(bpage));
 
-			ut_a(block_mutex);
-			ready = buf_flush_ready_for_flush(bpage, flush_type);
-			mutex_exit(block_mutex);
+			if (block_mutex) {
+				ready = buf_flush_ready_for_flush(bpage, flush_type);
+				mutex_exit(block_mutex);
+			} else {
+				ready = FALSE;
+			}
 
 			if (ready) {
 				space = buf_page_get_space(bpage);
@@ -1271,13 +1272,13 @@ buf_flush_LRU_recommendation(void)
 		}
 		block_mutex = buf_page_get_mutex_enter(bpage);
 
-		ut_a(block_mutex);
-
-		if (buf_flush_ready_for_replace(bpage)) {
+		if (block_mutex && buf_flush_ready_for_replace(bpage)) {
 			n_replaceable++;
 		}
 
-		mutex_exit(block_mutex);
+		if (block_mutex) {
+			mutex_exit(block_mutex);
+		}
 
 		distance++;
 

@@ -825,15 +825,15 @@ buf_page_get_newest_modification(
 	ib_uint64_t	lsn;
 	mutex_t*	block_mutex = buf_page_get_mutex_enter(bpage);
 
-	ut_a(block_mutex);
-
-	if (buf_page_in_file(bpage)) {
+	if (block_mutex && buf_page_in_file(bpage)) {
 		lsn = bpage->newest_modification;
 	} else {
 		lsn = 0;
 	}
 
-	mutex_exit(block_mutex);
+	if (block_mutex) {
+		mutex_exit(block_mutex);
+	}
 
 	return(lsn);
 }

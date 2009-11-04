@@ -237,8 +237,8 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/*!< in: pointer to memory */
-#ifdef UNIV_DEBUG
 	const char*	cmutex_name,	/*!< in: mutex name */
+#ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
@@ -262,11 +262,13 @@ mutex_create_func(
 	mutex->file_name = "not yet reserved";
 	mutex->level = level;
 #endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
+#endif /* UNIV_DEBUG */
 	mutex->count_os_wait = 0;
-#ifdef UNIV_DEBUG
 	mutex->cmutex_name=	  cmutex_name;
+#ifdef UNIV_DEBUG
 	mutex->count_using=	  0;
 	mutex->mutex_type=	  0;
 	mutex->lspent_time=	  0;
@@ -498,9 +500,9 @@ spin_loop:
 #ifdef UNIV_SRV_PRINT_LATCH_WAITS
 	fprintf(stderr,
 		"Thread %lu spin wait mutex at %p"
-		" cfile %s cline %lu rnds %lu\n",
+		" '%s' rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		mutex->cmutex_name, (ulong) i);
 #endif
 
 	mutex_spin_round_count += i;
@@ -575,9 +577,9 @@ spin_loop:
 
 #ifdef UNIV_SRV_PRINT_LATCH_WAITS
 	fprintf(stderr,
-		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
+		"Thread %lu OS wait mutex at %p '%s' rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		mutex->cmutex_name, (ulong) i);
 #endif
 
 	mutex_os_wait_count++;
@@ -873,9 +875,8 @@ sync_thread_levels_g(
 
 				if (mutex->magic_n == MUTEX_MAGIC_N) {
 					fprintf(stderr,
-						"Mutex created at %s %lu\n",
-						mutex->cfile_name,
-						(ulong) mutex->cline);
+						"Mutex '%s'\n",
+						mutex->cmutex_name);
 
 					if (mutex_get_lock_word(mutex) != 0) {
 						const char*	file_name;

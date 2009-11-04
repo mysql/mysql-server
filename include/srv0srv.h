@@ -80,6 +80,9 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* This is set to TRUE if the MySQL user has set it in MySQL */
 extern ibool	srv_lower_case_table_names;
 
@@ -134,7 +137,7 @@ extern ibool	srv_extra_undoslots;
 
 extern ibool	srv_fast_recovery;
 
-extern ibool	srv_use_purge_thread;
+extern ulint	srv_use_purge_thread;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
@@ -428,6 +431,7 @@ enum srv_thread_type {
 	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
 #endif
 	SRV_PURGE,	/* thread purging undo records */
+	SRV_PURGE_WORKER,	/* thread purging undo records */
 	SRV_MASTER	/**< the master thread, (whose type number must
 			be biggest) */
 };
@@ -509,6 +513,13 @@ srv_purge_thread(
 /*=============*/
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
+/*************************************************************************
+The undo purge thread. */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_worker_thread(
+/*====================*/
+	void*	arg);
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used

@@ -206,7 +206,6 @@ static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_extra_undoslots		= FALSE;
 static my_bool	innobase_fast_recovery			= FALSE;
-static my_bool	innobase_use_purge_thread		= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_overwrite_relay_log_info	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
@@ -300,7 +299,26 @@ innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
 
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if index name matches a
+					reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name);	/* in: table name */
+
 static const char innobase_hton_name[]= "InnoDB";
+
+/* "GEN_CLUST_INDEX" is the name reserved for Innodb default
+system primary index. */
+static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
@@ -895,17 +913,8 @@ convert_error_code_to_mysql(
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* Once MySQL add the appropriate code to errmsg.txt then
-		we can get rid of this #ifdef. NOTE: The code checked by
-		the #ifdef is the suggested name for the error condition
-		and the actual error code name could very well be different.
-		This will require some monitoring, ie. the status
-		of this request on our part.*/
-#ifdef ER_TOO_MANY_CONCURRENT_TRXS
-		return(ER_TOO_MANY_CONCURRENT_TRXS);
-#else
-		return(HA_ERR_RECORD_FILE_FULL);
-#endif
+		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
+
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
@@ -979,7 +988,22 @@ innobase_get_cset_width(
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
 	} else {
+		if (current_thd
+		    && (thd_sql_command(current_thd) == SQLCOM_DROP_TABLE)) {
+
+			/* Fix bug#46256: allow tables to be dropped if the
+			collation is not found, but issue a warning. */
+			if ((global_system_variables.log_warnings)
+			    && (cset != 0)){
+
+				sql_print_warning(
+					"Unknown collation #%lu.", cset);
+			}
+		} else {
+
 		ut_a(cset == 0);
+		}
+
 		*mbminlen = *mbmaxlen = 0;
 	}
 }
@@ -1053,6 +1077,7 @@ innobase_get_charset(
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
 _doserrno and the mapped value is stored in errno) */
@@ -1340,6 +1365,16 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
+#ifdef EXTENDED_SLOWLOG
+	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
+		trx->take_stats = TRUE;
+	} else {
+		trx->take_stats = FALSE;
+	}
+#else
+	trx->take_stats = FALSE;
+#endif
+
 	DBUG_VOID_RETURN;
 }
 
@@ -1395,6 +1430,32 @@ check_trx_exists(
 	return(trx);
 }
 
+
+/*************************************************************************
+Gets current trx. */
+extern "C"
+trx_t*
+innobase_get_trx()
+{
+	THD *thd=current_thd;
+	if (likely(thd != 0)) {
+		trx_t*& trx = thd_to_trx(thd);
+		return(trx);
+	} else {
+		return(NULL);
+	}
+}
+
+extern "C"
+ibool
+innobase_get_slow_log()
+{
+#ifdef EXTENDED_SLOWLOG
+	return((ibool) thd_opt_slow_log());
+#else
+	return(FALSE);
+#endif
+}
 
 /*********************************************************************//**
 Construct ha_innobase handler. */
@@ -2293,8 +2354,6 @@ innobase_change_buffering_inited_ok:
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_fast_recovery = (ibool) innobase_fast_recovery;
-
-	srv_use_purge_thread = (ibool) innobase_use_purge_thread;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -5871,6 +5930,28 @@ create_table_def(
 			}
 		}
 
+		/* First check whether the column to be added has a
+		system reserved name. */
+		if (dict_col_name_is_reserved(field->field_name)){
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column name '%s'. '%s' is a "
+				"reserved name. Please try to "
+				"re-create the table with a "
+				"different column name.",
+				table->name, (char*) field->field_name,
+				(char*) field->field_name);
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			error = DB_ERROR;
+			goto error_ret;
+		}
+
 		dict_mem_table_add_col(table, table->heap,
 			(char*) field->field_name,
 			col_type,
@@ -5884,6 +5965,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
+error_ret:
 	error = convert_error_code_to_mysql(error, flags, NULL);
 
 	DBUG_RETURN(error);
@@ -5921,6 +6003,9 @@ create_index(
 	key = form->key_info + key_num;
 
 	n_fields = key->key_parts;
+
+	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
+	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
 	ind_type = 0;
 
@@ -6030,8 +6115,8 @@ create_clustered_index_when_no_primary(
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
-
-	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+	index = dict_mem_index_create(table_name,
+				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
 
 	error = row_create_index_for_mysql(index, trx, NULL);
@@ -6457,14 +6542,6 @@ ha_innobase::create(
 		flags = DICT_TF_COMPACT;
 	}
 
-	error = create_table_def(trx, form, norm_name,
-		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags);
-
-	if (error) {
-		goto cleanup;
-	}
-
 	/* Look for a primary key */
 
 	primary_key_no= (form->s->primary_key != MAX_KEY ?
@@ -6475,6 +6552,22 @@ ha_innobase::create(
 	the primary key is always number 0, if it exists */
 
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(trx, form, norm_name)) {
+		error = -1;
+		goto cleanup;
+	}
+
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		flags);
+
+	if (error) {
+		goto cleanup;
+	}
+
 
 	/* Create the keys */
 
@@ -8127,6 +8220,23 @@ ha_innobase::external_lock(
 	statement has ended */
 
 	if (trx->n_mysql_tables_in_use == 0) {
+#ifdef EXTENDED_SLOWLOG
+		increment_thd_innodb_stats(thd, trx->io_reads,
+					trx->io_read,
+					trx->io_reads_wait_timer,
+					trx->lock_que_wait_timer,
+					trx->innodb_que_wait_timer,
+					trx->distinct_page_access);
+
+		trx->io_reads = 0;
+		trx->io_read = 0;
+		trx->io_reads_wait_timer = 0;
+		trx->lock_que_wait_timer = 0;
+		trx->innodb_que_wait_timer = 0;
+		trx->distinct_page_access = 0;
+		if (trx->distinct_page_access_hash)
+			memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+#endif
 
 		trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;
@@ -8414,8 +8524,8 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     mutex->cfile_name, (ulong) mutex->cline);
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s",
+				     mutex->cmutex_name);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     mutex->count_os_wait);
 
@@ -8440,8 +8550,8 @@ next_mutex:
 	while (lock != NULL) {
 		if (lock->count_os_wait
 		    && !buf_pool_is_block_lock(lock)) {
-			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-                                    lock->cfile_name, (ulong) lock->cline);
+			buf1len= my_snprintf(buf1, sizeof(buf1), "%s",
+                                    lock->lock_name);
 			buf2len= my_snprintf(buf2, sizeof(buf2),
                                     "os_waits=%lu", lock->count_os_wait);
 
@@ -9905,6 +10015,46 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if an index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name)	/* in: table name */
+{
+	KEY*		key;
+	uint		key_num;	/* index number */
+
+	for (key_num = 0; key_num < form->s->keys; key_num++) {
+		key = form->key_info + key_num;
+
+		if (innobase_strcasecmp(key->name,
+					innobase_index_reserve_name) == 0) {
+			/* Push warning to mysql */
+			push_warning_printf((THD*) trx->mysql_thd,
+					    MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    ER_CANT_CREATE_TABLE,
+					    "Cannot Create Index with name "
+					    "'%s'. The name is reserved "
+					    "for the system default primary "
+					    "index.",
+					    innobase_index_reserve_name);
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
@@ -9937,10 +10087,10 @@ static MYSQL_SYSVAR_BOOL(fast_recovery, innobase_fast_recovery,
   "Enable to use speed hack of recovery avoiding flush list sorting.",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_BOOL(use_purge_thread, innobase_use_purge_thread,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "Enable to use purge devoted thread.",
-  NULL, NULL, FALSE);
+static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
+  NULL, NULL, 0, 0, 64, 0);
 
 static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -10451,6 +10601,7 @@ i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
 i_s_innodb_table_stats,
 i_s_innodb_index_stats,
+i_s_innodb_admin_command,
 i_s_innodb_patches
 mysql_declare_plugin_end;
 

@@ -1,4 +1,4 @@
-set @old_innodb_file_format=@@innodb_file_format;
+call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
 select @@innodb_file_format;
 @@innodb_file_format
 Antelope
@@ -43,5 +43,3 @@ ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
-set global innodb_file_format=@old_innodb_file_format;
-set global innodb_file_format_check=Antelope;

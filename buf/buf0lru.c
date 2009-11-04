@@ -255,8 +255,11 @@ scan_again:
 		mutex_t*	block_mutex = buf_page_get_mutex_enter(bpage);
 		buf_page_t*	prev_bpage;
 
-		ut_a(block_mutex);
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+
+		if (!block_mutex) {
+			goto next_page;
+		}
 
 		ut_a(buf_page_in_file(bpage));
 
@@ -360,8 +363,12 @@ scan_again:
 
 		ut_a(buf_page_in_file(bpage));
 
-		ut_a(block_mutex);
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+
+		if (!block_mutex) {
+			bpage = prev_bpage;
+			continue;
+		}
 
 		if (buf_page_get_space(bpage) == id) {
 			if (bpage->buf_fix_count > 0
@@ -634,7 +641,9 @@ restart:
 		mutex_t*			block_mutex
 			= buf_page_get_mutex_enter(bpage);
 
-		ut_a(block_mutex);
+		if (!block_mutex) {
+			goto restart;
+		}
 
 		if (!bpage->in_LRU_list
 		    || !buf_page_in_file(bpage)) {
