@@ -280,7 +280,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
-#define check_sections(signal, cnt) if (unlikely(cnt)) handle_invalid_sections_in_send_signal(signal)
+#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && signal->header.m_fragmentInfo != 0)) { handle_invalid_fragmentInfo(signal); } } while(0)
 
 void
 SimulatedBlock::handle_invalid_sections_in_send_signal(Signal* signal) const
@@ -318,6 +318,19 @@ SimulatedBlock::handle_lingering_sections_after_execute(SectionHandle* handle) c
 			     "");
 #else
   infoEvent("Unhandled sections(handle) after execute");
+#endif
+}
+
+void
+SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
+{
+#if defined VM_TRACE || defined ERROR_INSERT
+  ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                             "Incorrect header->m_fragmentInfo in sendSignal()",
+                             "");
+#else
+  signal->header.m_fragmentInfo = 0;
+  infoEvent("Incorrect header->m_fragmentInfo in sendSignal");
 #endif
 }
 
@@ -445,7 +458,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   signal->header.theReceiversBlockNumber = recBlock;
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
   
   Uint32 tSignalId = signal->header.theSignalId;
   
@@ -535,7 +548,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
 
   if ((length == 0) || (length > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
@@ -634,7 +647,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -743,7 +756,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -862,7 +875,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -969,7 +982,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1102,7 +1115,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1217,7 +1230,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1338,7 +1351,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   
   BlockNumber bnr = refToBlock(ref);
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, 0);
   
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -1385,7 +1398,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     bnr_error();
   }//if
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -2948,7 +2961,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 noOfSections,
 				  Uint32 messageSize){
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   info.m_sectionPtr[0].m_linear.p = NULL;
   info.m_sectionPtr[1].m_linear.p = NULL;
