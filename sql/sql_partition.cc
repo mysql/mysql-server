@@ -7382,7 +7382,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   {
     part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
     part_iter->part_nums.start= part_iter->part_nums.cur= 0;
-    if (*max_value && !(flags & NO_MAX_RANGE))
+    if (!(flags & NO_MAX_RANGE) && *max_value)
     {
       /* The right bound is X <= NULL, i.e. it is a "X IS NULL" interval */
       part_iter->part_nums.end= 0;
