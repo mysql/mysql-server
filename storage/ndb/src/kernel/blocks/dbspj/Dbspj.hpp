@@ -247,11 +247,17 @@ public:
       /**
        * SCAN_FRAGCONF is received
        */
-      SF_STARTED = 2
+      SF_STARTED = 2,
+
+      /**
+       * SCAN_NEXTREQ(close) has been sent to datanodes
+       */
+      SF_CLOSING = 3
     };
 
-    Uint32 m_scan_state;     // Only valid is TreeNodeState >= TN_ACTIVE
+    Uint32 m_scan_state;     // Only valid if TreeNodeState >= TN_ACTIVE
     Uint32 m_scan_status;    // fragmentCompleted
+    bool   m_pending_close;  // SCAN_NEXTREQ(close) pending while SF_RUNNING
     /** True if signal has been received since sending 
      * last SCAN_FRAGREQ/SCAN_NEXTREQ*/
     bool   m_scan_fragconf_received; 
@@ -357,7 +363,7 @@ public:
 
       /**
        * Is attrinfo "constructed"
-       *   (implies key info will be disowned (by send-signal)
+       *   (implies attr info will be disowned (by send-signal)
        */
       T_ATTRINFO_CONSTRUCTED = 0x8,
 
