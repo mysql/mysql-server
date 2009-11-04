@@ -5208,20 +5208,15 @@ drop procedure bug5967|
 
 --disable_warnings
 drop procedure if exists bug13012|
+--enable_warnings
 # Disable warnings also for BACKUP/RESTORE: they are deprecated.
---replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval create procedure bug13012()
     BEGIN
        REPAIR TABLE t1;
-       BACKUP TABLE t1 to '$backupdir';
-       DROP TABLE t1;
-       RESTORE TABLE t1 FROM '$backupdir';
     END|
 call bug13012()|
 
 --enable_warnings
---remove_file $backupdir/t1.frm
---remove_file $backupdir/t1.MYD
 
 drop procedure bug13012|
 

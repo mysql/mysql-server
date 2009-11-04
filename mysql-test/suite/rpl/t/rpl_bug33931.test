@@ -8,11 +8,11 @@ source include/have_log_bin.inc;
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
-
 connection master;
 reset master;
 
 connection slave;
+reset slave;
 
 # Add suppression for expected warnings in slaves error log
 call mtr.add_suppression("Failed during slave I/O thread initialization");
@@ -20,10 +20,16 @@ call mtr.add_suppression("Failed during slave I/O thread initialization");
 --disable_warnings
 stop slave;
 --enable_warnings
-reset slave;
 
 # Set debug flags on slave to force errors to occur
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+
+--disable_query_log
+eval CHANGE MASTER TO MASTER_USER='root',
+                      MASTER_CONNECT_RETRY=1,
+                      MASTER_HOST='127.0.0.1',
+                      MASTER_PORT=$MASTER_MYPORT;
+--enable_query_log
 
 start slave;
 

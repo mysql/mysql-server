@@ -1249,14 +1249,8 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /*
-    Clear master's log coordinates and reset host/user/etc to the values
-    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
-    next init_master_info() (in start_slave() for example) would have set them
-    the same way; but here this is for the case where the user does SHOW SLAVE
-    STATUS; before doing START SLAVE;
-  */
-  init_master_info_with_options(mi);
+  /* Clear master's log coordinates */
+  init_master_log_pos(mi);
   /*
      Reset errors (the idea is that we forget about the
      old master).

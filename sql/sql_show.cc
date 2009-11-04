@@ -813,35 +813,6 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_VOID_RETURN;
 }
 
-
-int
-mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
-{
-  Protocol *protocol= thd->protocol;
-  String *packet= protocol->storage_packet();
-  DBUG_ENTER("mysqld_dump_create_info");
-  DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
-
-  protocol->prepare_for_resend();
-  if (store_create_info(thd, table_list, packet, NULL,
-                        FALSE /* show_database */))
-    DBUG_RETURN(-1);
-
-  if (fd < 0)
-  {
-    if (protocol->write())
-      DBUG_RETURN(-1);
-    protocol->flush();
-  }
-  else
-  {
-    if (my_write(fd, (const uchar*) packet->ptr(), packet->length(),
-		 MYF(MY_WME)))
-      DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(0);
-}
-
 /*
   Go through all character combinations and ensure that sql_lex.cc can
   parse it as an identifier.

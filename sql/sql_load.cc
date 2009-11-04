@@ -302,6 +302,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     {
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
 		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
+
 #if !defined(__WIN__) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
