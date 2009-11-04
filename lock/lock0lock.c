@@ -578,6 +578,23 @@ lock_sys_create(
 }
 
 /*********************************************************************//**
+Closes the lock system at database shutdown. */
+UNIV_INTERN
+void
+lock_sys_close(void)
+/*================*/
+{
+	if (lock_latest_err_file != NULL) {
+		fclose(lock_latest_err_file);
+		lock_latest_err_file = NULL;
+	}
+
+	hash_table_free(lock_sys->rec_hash);
+	mem_free(lock_sys);
+	lock_sys = NULL;
+}
+
+/*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
 UNIV_INTERN
@@ -4633,6 +4650,10 @@ lock_rec_queue_validate(
 		next function call: we have to release lock table mutex
 		to obey the latching order */
 
+		/* If this thread is holding the file space latch
+		(fil_space_t::latch), the following check WILL break
+		latching order and may cause a deadlock of threads. */
+
 		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
 			rec, index, offsets);
 
@@ -4755,6 +4776,11 @@ loop:
 				(ulong) space, (ulong) page_no);
 
 			lock_mutex_exit_kernel();
+
+			/* If this thread is holding the file space
+			latch (fil_space_t::latch), the following
+			check WILL break the latching order and may
+			cause a deadlock of threads. */
 
 			lock_rec_queue_validate(block, rec, index, offsets);
 

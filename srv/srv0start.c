@@ -103,6 +103,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
+# include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Log sequence number immediately after startup */
@@ -495,6 +496,8 @@ io_handler_thread(
 		mutex_exit(&ios_mutex);
 	}
 
+	thr_local_free(os_thread_get_curr_id());
+
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
 	The thread actually never comes here because it is exited in an
@@ -529,32 +532,6 @@ srv_normalize_path_for_win(
 		}
 	}
 #endif
-}
-
-/*********************************************************************//**
-Adds a slash or a backslash to the end of a string if it is missing
-and the string is not empty.
-@return	string which has the separator if the string is not empty */
-UNIV_INTERN
-char*
-srv_add_path_separator_if_needed(
-/*=============================*/
-	char*	str)	/*!< in: null-terminated character string */
-{
-	char*	out_str;
-	ulint	len	= ut_strlen(str);
-
-	if (len == 0 || str[len - 1] == SRV_PATH_SEPARATOR) {
-
-		return(str);
-	}
-
-	out_str = ut_malloc(len + 2);
-	memcpy(out_str, str, len);
-	out_str[len] = SRV_PATH_SEPARATOR;
-	out_str[len + 1] = 0;
-
-	return(out_str);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -605,19 +582,24 @@ open_or_create_log_file(
 	ulint	size;
 	ulint	size_high;
 	char	name[10000];
+	ulint	dirnamelen;
 
 	UT_NOT_USED(create_new_db);
 
 	*log_file_created = FALSE;
 
 	srv_normalize_path_for_win(srv_log_group_home_dirs[k]);
-	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed(
-		srv_log_group_home_dirs[k]);
 
-	ut_a(strlen(srv_log_group_home_dirs[k])
-	     < (sizeof name) - 10 - sizeof "ib_logfile");
-	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k],
-		"ib_logfile", (ulong) i);
+	dirnamelen = strlen(srv_log_group_home_dirs[k]);
+	ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
+	memcpy(name, srv_log_group_home_dirs[k], dirnamelen);
+
+	/* Add a path separator if needed. */
+	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
+		name[dirnamelen++] = SRV_PATH_SEPARATOR;
+	}
+
+	sprintf(name + dirnamelen, "%s%lu", "ib_logfile", (ulong) i);
 
 	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
 				  OS_LOG_FILE, &ret);
@@ -780,14 +762,22 @@ open_or_create_data_files(
 	*create_new_db = FALSE;
 
 	srv_normalize_path_for_win(srv_data_home);
-	srv_data_home = srv_add_path_separator_if_needed(srv_data_home);
 
 	for (i = 0; i < srv_n_data_files; i++) {
-		srv_normalize_path_for_win(srv_data_file_names[i]);
+		ulint	dirnamelen;
 
-		ut_a(strlen(srv_data_home) + strlen(srv_data_file_names[i])
+		srv_normalize_path_for_win(srv_data_file_names[i]);
+		dirnamelen = strlen(srv_data_home);
+
+		ut_a(dirnamelen + strlen(srv_data_file_names[i])
 		     < (sizeof name) - 1);
-		sprintf(name, "%s%s", srv_data_home, srv_data_file_names[i]);
+		memcpy(name, srv_data_home, dirnamelen);
+		/* Add a path separator if needed. */
+		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
+			name[dirnamelen++] = SRV_PATH_SEPARATOR;
+		}
+
+		strcpy(name + dirnamelen, srv_data_file_names[i]);
 
 		if (srv_data_file_is_raw_partition[i] == 0) {
 
@@ -1009,7 +999,7 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
-/****************************************************************//**
+/********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -1120,7 +1110,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_start_has_been_called) {
 		fprintf(stderr,
-			"InnoDB: Error:startup called second time"
+			"InnoDB: Error: startup called second time"
 			" during the process lifetime.\n"
 			"InnoDB: In the MySQL Embedded Server Library"
 			" you cannot call server_init()\n"
@@ -1393,7 +1383,7 @@ innobase_start_or_create_for_mysql(void)
 		sum_of_new_sizes += srv_data_file_sizes[i];
 	}
 
-	if (sum_of_new_sizes < 640) {
+	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Error: tablespace size must be"
 			" at least 10 MB\n");
@@ -1976,8 +1966,10 @@ innobase_shutdown_for_mysql(void)
 			/* All the threads have exited or are just exiting;
 			NOTE that the threads may not have completed their
 			exit yet. Should we use pthread_join() to make sure
-			they have exited? Now we just sleep 0.1 seconds and
-			hope that is enough! */
+			they have exited? If we did, we would have to
+			remove the pthread_detach() from
+			os_thread_exit().  Now we just sleep 0.1
+			seconds and hope that is enough! */
 
 			os_mutex_exit(os_sync_mutex);
 
@@ -2016,37 +2008,41 @@ innobase_shutdown_for_mysql(void)
 		srv_misc_tmpfile = 0;
 	}
 
+	/* This must be disabled before closing the buffer pool
+	and closing the data dictionary.  */
+	btr_search_disable();
+
+	ibuf_close();
+	log_shutdown();
+	lock_sys_close();
+	thr_local_close();
 	trx_sys_file_format_close();
+	trx_sys_close();
 
 	mutex_free(&srv_monitor_file_mutex);
 	mutex_free(&srv_dict_tmpfile_mutex);
 	mutex_free(&srv_misc_tmpfile_mutex);
+	dict_close();
+	btr_search_sys_free();
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
+	os_aio_free();
 	sync_close();
+	srv_free();
+	fil_close();
 
 	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
 
-	srv_free();
 	os_sync_free();
 
-	/* Check that all read views are closed except read view owned
-	by a purge. */
+	/* 5. Free all allocated memory */
 
-	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
-		fprintf(stderr,
-			"InnoDB: Error: all read views were not closed"
-			" before shutdown:\n"
-			"InnoDB: %lu read views open \n",
-			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
-	}
-
-	/* 5. Free all allocated memory and the os_fast_mutex created in
-	ut0mem.c */
-
+	pars_lexer_close();
+	log_mem_free();
 	buf_pool_free();
 	ut_free_all_mem();
+	mem_close();
 
 	if (os_thread_count != 0
 	    || os_event_count != 0
@@ -2077,6 +2073,7 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	srv_was_started = FALSE;
+	srv_start_has_been_called = FALSE;
 
 	return((int) DB_SUCCESS);
 }
