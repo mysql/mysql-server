@@ -217,6 +217,7 @@ protected:
   void handle_invalid_sections_in_send_signal(Signal*) const;
   void handle_lingering_sections_after_execute(Signal*) const;
   void handle_lingering_sections_after_execute(SectionHandle*) const;
+  void handle_invalid_fragmentInfo(Signal*) const;
 
   /**
    * Send routed signals (ONLY LOCALLY)
