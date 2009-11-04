@@ -1802,7 +1802,7 @@ longlong Item_func_sec_to_time::val_int()
   sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
 
   return (ltime.neg ? -1 : 1) *
-    ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 
@@ -2614,7 +2614,8 @@ longlong Item_time_typecast::val_int()
     null_value= 1;
     return 0;
   }
-  return ltime.hour * 10000L + ltime.minute * 100 + ltime.second;
+  return (ltime.neg ? -1 : 1) *
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 String *Item_time_typecast::val_str(String *str)
