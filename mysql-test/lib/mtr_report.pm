@@ -69,7 +69,7 @@ sub _mtr_report_test_name ($) {
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
-  print _name(), _timestamp();
+  print _name(). _timestamp();
   printf "%-40s ", $tname;
   my $worker = $tinfo->{worker};
   printf "w$worker " if $worker;
@@ -390,13 +390,13 @@ sub mtr_report_stats ($$;$) {
 ##############################################################################
 
 sub mtr_print_line () {
-  print '-' x 60, "\n";
+  print '-' x 60 . "\n";
 }
 
 
 sub mtr_print_thick_line {
   my $char= shift || '=';
-  print $char x 78, "\n";
+  print $char x 78 . "\n";
 }
 
 
@@ -454,7 +454,7 @@ sub _timestamp {
 
 # Always print message to screen
 sub mtr_print (@) {
-  print _name(), join(" ", @_), "\n";
+  print _name(). join(" ", @_). "\n";
 }
 
 
@@ -462,22 +462,22 @@ sub mtr_print (@) {
 sub mtr_report (@) {
   if (defined $verbose)
   {
-    print _name(), join(" ", @_), "\n";
+    print _name(). join(" ", @_). "\n";
   }
 }
 
 
 # Print warning to screen
 sub mtr_warning (@) {
-  print STDERR _name(), _timestamp(),
-    "mysql-test-run: WARNING: ", join(" ", @_), "\n";
+  print STDERR _name(). _timestamp().
+    "mysql-test-run: WARNING: ". join(" ", @_). "\n";
 }
 
 
 # Print error to screen and then exit
 sub mtr_error (@) {
-  print STDERR _name(), _timestamp(),
-    "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
+  print STDERR _name(). _timestamp().
+    "mysql-test-run: *** ERROR: ". join(" ", @_). "\n";
   if (IS_WINDOWS)
   {
     POSIX::_exit(1);
@@ -492,8 +492,8 @@ sub mtr_error (@) {
 sub mtr_debug (@) {
   if ( $verbose > 2 )
   {
-    print STDERR _name(),
-      _timestamp(), "####: ", join(" ", @_), "\n";
+    print STDERR _name().
+      _timestamp(). "####: ". join(" ", @_). "\n";
   }
 }
 
@@ -501,8 +501,8 @@ sub mtr_debug (@) {
 sub mtr_verbose (@) {
   if ( $verbose )
   {
-    print STDERR _name(), _timestamp(),
-      "> ",join(" ", @_),"\n";
+    print STDERR _name(). _timestamp().
+      "> ".join(" ", @_)."\n";
   }
 }
 
@@ -512,8 +512,8 @@ sub mtr_verbose_restart (@) {
   my $proc= $server->{proc};
   if ( $verbose_restart )
   {
-    print STDERR _name(),_timestamp(),
-      "> Restart $proc - ",join(" ", @args),"\n";
+    print STDERR _name()._timestamp().
+      "> Restart $proc - ".join(" ", @args)."\n";
   }
 }
 
