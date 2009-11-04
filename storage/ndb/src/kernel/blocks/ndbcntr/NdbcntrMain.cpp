@@ -2104,6 +2104,13 @@ void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
 
 void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
 {
+  jamEntry();
+  SchemaTransEndRef * ref = (SchemaTransEndRef*)signal->getDataPtr();
+  char buf[256];
+  BaseString::snprintf(buf, sizeof(buf), 
+                       "Failed to commit schema trans, err: %u",
+                       ref->errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   ndbrequire(false);
 }
 
