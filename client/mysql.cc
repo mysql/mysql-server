@@ -143,6 +143,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
+               auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
                ignore_spaces= 0;
 static my_bool debug_info_flag, debug_check_flag;
@@ -185,6 +186,7 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
+unsigned short terminal_width= 80;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -238,6 +240,8 @@ static const char* construct_prompt();
 static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
+static int get_result_width(MYSQL_RES *res);
+static int get_field_disp_length(MYSQL_FIELD * field);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -1065,6 +1069,10 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
 extern "C" sig_handler handle_sigint(int sig);
+#if defined(HAVE_TERMIOS_H)
+static sig_handler window_resize(int sig);
+#endif
+
 
 int main(int argc,char *argv[])
 {
@@ -1144,8 +1152,8 @@ int main(int argc,char *argv[])
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
-    quick=1;					// Avoid history
-    status.exit_status=1;
+    quick= 1;					// Avoid history
+    status.exit_status= 1;
     mysql_end(-1);
   }
   if (!status.batch)
@@ -1156,6 +1164,13 @@ int main(int argc,char *argv[])
   else
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+
+#if defined(HAVE_TERMIOS_H)
+  /* Readline will call this if it installs a handler */
+  signal(SIGWINCH, window_resize);
+  /* call the SIGWINCH handler to get the default term width */
+  window_resize(0);
+#endif
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
@@ -1315,6 +1330,16 @@ err:
 }
 
 
+#if defined(HAVE_TERMIOS_H)
+sig_handler window_resize(int sig)
+{
+  struct winsize window_size;
+
+  if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
+    terminal_width= window_size.ws_col;
+}
+#endif
+
 static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -1332,6 +1357,9 @@ static struct my_option my_long_options[] =
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
+    "Automatically switch to vertical output mode if the result is wider than the terminal width.",
+    (uchar**) &auto_vertical_output, (uchar**) &auto_vertical_output, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -3038,7 +3066,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_table_data_html(result);
 	else if (opt_xml)
 	  print_table_data_xml(result);
-	else if (vertical)
+  else if (vertical || (auto_vertical_output && (terminal_width < get_result_width(result))))
 	  print_table_data_vertically(result);
 	else if (opt_silent && verbose <= 2 && !output_tables)
 	  print_tab_data(result);
@@ -3369,6 +3397,65 @@ print_table_data(MYSQL_RES *result)
   my_afree((uchar*) num_flag);
 }
 
+/**
+  Return the length of a field after it would be rendered into text.
+
+  This doesn't know or care about multibyte characters.  Assume we're
+  using such a charset.  We can't know that all of the upcoming rows 
+  for this column will have bytes that each render into some fraction
+  of a character.  It's at least possible that a row has bytes that 
+  all render into one character each, and so the maximum length is 
+  still the number of bytes.  (Assumption 1:  This can't be better 
+  because we can never know the number of characters that the DB is 
+  going to send -- only the number of bytes.  2: Chars <= Bytes.)
+
+  @param  field  Pointer to a field to be inspected
+
+  @returns  number of character positions to be used, at most
+*/
+static int get_field_disp_length(MYSQL_FIELD *field)
+{
+  uint length= column_names ? field->name_length : 0;
+
+  if (quick)
+    length= max(length, field->length);
+  else
+    length= max(length, field->max_length);
+
+  if (length < 4 && !IS_NOT_NULL(field->flags))
+    length= 4;				/* Room for "NULL" */
+
+  return length;
+}
+
+/**
+  For a new result, return the max number of characters that any
+  upcoming row may return.
+
+  @param  result  Pointer to the result to judge
+
+  @returns  The max number of characters in any row of this result
+*/
+static int get_result_width(MYSQL_RES *result)
+{
+  unsigned int len= 0;
+  MYSQL_FIELD *field;
+  MYSQL_FIELD_OFFSET offset;
+  
+#ifndef DBUG_OFF
+  offset= mysql_field_tell(result);
+  DBUG_ASSERT(offset == 0);
+#else
+  offset= 0;
+#endif
+
+  while ((field= mysql_fetch_field(result)) != NULL)
+    len+= get_field_disp_length(field) + 3; /* plus bar, space, & final space */
+
+  (void) mysql_field_seek(result, offset);	
+
+  return len + 1; /* plus final bar. */
+}
 
 static void
 tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
