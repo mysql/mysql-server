@@ -2821,7 +2821,11 @@ page_zip_decompress(
 /*================*/
 	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
-	page_t*		page)	/*!< out: uncompressed page, may be trashed */
+	page_t*		page,	/*!< out: uncompressed page, may be trashed */
+	ibool		all)	/*!< in: TRUE=decompress the whole page;
+				FALSE=verify but do not copy some
+				page header fields that should not change
+				after page creation */
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
@@ -2851,13 +2855,36 @@ page_zip_decompress(
 	heap = mem_heap_create(n_dense * (3 * sizeof *recs) + UNIV_PAGE_SIZE);
 	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
+	if (all) {
+		/* Copy the page header. */
+		memcpy(page, page_zip->data, PAGE_DATA);
+	} else {
+		/* Check that the bytes that we skip are identical. */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(!memcmp(FIL_PAGE_TYPE + page,
+			     FIL_PAGE_TYPE + page_zip->data,
+			     PAGE_HEADER - FIL_PAGE_TYPE));
+		ut_a(!memcmp(PAGE_HEADER + PAGE_LEVEL + page,
+			     PAGE_HEADER + PAGE_LEVEL + page_zip->data,
+			     PAGE_DATA - (PAGE_HEADER + PAGE_LEVEL)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+		/* Copy the mutable parts of the page header. */
+		memcpy(page, page_zip->data, FIL_PAGE_TYPE);
+		memcpy(PAGE_HEADER + page, PAGE_HEADER + page_zip->data,
+		       PAGE_LEVEL - PAGE_N_DIR_SLOTS);
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		/* Check that the page headers match after copying. */
+		ut_a(!memcmp(page, page_zip->data, PAGE_DATA));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	}
+
 #ifdef UNIV_ZIP_DEBUG
-	/* Clear the page. */
-	memset(page, 0x55, UNIV_PAGE_SIZE);
+	/* Clear the uncompressed page, except the header. */
+	memset(PAGE_DATA + page, 0x55, UNIV_PAGE_SIZE - PAGE_DATA);
 #endif /* UNIV_ZIP_DEBUG */
-	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
-	/* Copy the page header. */
-	memcpy(page, page_zip->data, PAGE_DATA);
+	UNIV_MEM_INVALID(PAGE_DATA + page, UNIV_PAGE_SIZE - PAGE_DATA);
 
 	/* Copy the page directory. */
 	if (UNIV_UNLIKELY(!page_zip_dir_decode(page_zip, page, recs,
@@ -3098,7 +3125,7 @@ page_zip_validate_low(
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	temp_page_zip = *page_zip;
-	valid = page_zip_decompress(&temp_page_zip, temp_page);
+	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
@@ -4376,8 +4403,8 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return TRUE on success, FALSE on failure; page and page_zip will be
-left intact on failure. */
+@return TRUE on success, FALSE on failure; page_zip will be left
+intact on failure, but page will be overwritten. */
 UNIV_INTERN
 ibool
 page_zip_reorganize(
@@ -4441,9 +4468,6 @@ page_zip_reorganize(
 	mtr_set_log_mode(mtr, log_mode);
 
 	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
-
-		/* Restore the old page and exit. */
-		buf_frame_copy(page, temp_page);
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
@@ -4605,7 +4629,8 @@ corrupt:
 		memcpy(page_zip->data + page_zip_get_size(page_zip)
 		       - trailer_size, ptr + 8 + size, trailer_size);
 
-		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page))) {
+		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page,
+						       TRUE))) {
 
 			goto corrupt;
 		}

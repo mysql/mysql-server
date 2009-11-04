@@ -321,6 +321,17 @@ fil_get_space_id_for_table(
 /*=======================*/
 	const char*	name);	/*!< in: table name in the standard
 				'databasename/tablename' format */
+/*******************************************************************//**
+Frees a space object from the tablespace memory cache. Closes the files in
+the chain but does not delete them. There must not be any pending i/o's or
+flushes on the files. */
+static
+ibool
+fil_space_free(
+/*===========*/
+				/* out: TRUE if success */
+	ulint		id,	/* in: space id */
+	ibool		own_mutex);/* in: TRUE if own system->mutex */
 /********************************************************************//**
 Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
@@ -594,6 +605,11 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(chain, space->chain, node);
 
+	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
+
+		fil_system->max_assigned_id = id;
+	}
+
 	mutex_exit(&fil_system->mutex);
 }
 
@@ -613,12 +629,10 @@ fil_node_open_file(
 	ulint		size_high;
 	ibool		ret;
 	ibool		success;
-#ifndef UNIV_HOTBACKUP
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
@@ -654,9 +668,12 @@ fil_node_open_file(
 		size_bytes = (((ib_int64_t)size_high) << 32)
 			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
-		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-		/* TODO: adjust to zip_size, like below? */
-#else
+		if (space->id == 0) {
+			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			os_file_close(node->handle);
+			goto add_size;
+		}
+#endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(space->id != 0);
 
@@ -735,7 +752,10 @@ fil_node_open_file(
 				(size_bytes
 				 / dict_table_flags_to_zip_size(flags));
 		}
-#endif
+
+#ifdef UNIV_HOTBACKUP
+add_size:
+#endif /* UNIV_HOTBACKUP */
 		space->size += node->size;
 	}
 
@@ -1135,7 +1155,7 @@ try_again:
 
 		mutex_exit(&fil_system->mutex);
 
-		fil_space_free(namesake_id);
+		fil_space_free(namesake_id, FALSE);
 
 		goto try_again;
 	}
@@ -1260,17 +1280,21 @@ Frees a space object from the tablespace memory cache. Closes the files in
 the chain but does not delete them. There must not be any pending i/o's or
 flushes on the files.
 @return	TRUE if success */
-UNIV_INTERN
+static
 ibool
 fil_space_free(
 /*===========*/
-	ulint	id)	/*!< in: space id */
+					/* out: TRUE if success */
+	ulint		id,		/* in: space id */
+	ibool		own_mutex)	/* in: TRUE if own system->mutex */
 {
 	fil_space_t*	space;
 	fil_space_t*	namespace;
 	fil_node_t*	fil_node;
 
-	mutex_enter(&fil_system->mutex);
+	if (!own_mutex) {
+		mutex_enter(&fil_system->mutex);
+	}
 
 	space = fil_space_get_by_id(id);
 
@@ -1317,7 +1341,9 @@ fil_space_free(
 
 	ut_a(0 == UT_LIST_GET_LEN(space->chain));
 
-	mutex_exit(&fil_system->mutex);
+	if (!own_mutex) {
+		mutex_exit(&fil_system->mutex);
+	}
 
 	rw_lock_free(&(space->latch));
 
@@ -1577,6 +1603,8 @@ fil_close_all_files(void)
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 
 	while (space != NULL) {
+		fil_space_t*	prev_space = space;
+
 		node = UT_LIST_GET_FIRST(space->chain);
 
 		while (node != NULL) {
@@ -1586,6 +1614,7 @@ fil_close_all_files(void)
 			node = UT_LIST_GET_NEXT(chain, node);
 		}
 		space = UT_LIST_GET_NEXT(space_list, space);
+		fil_space_free(prev_space->id, TRUE);
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -2217,7 +2246,7 @@ try_again:
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
-	success = fil_space_free(id);
+	success = fil_space_free(id, FALSE);
 
 	if (success) {
 		success = os_file_delete(path);
@@ -2923,7 +2952,6 @@ fil_open_single_table_tablespace(
 	byte*		page;
 	ulint		space_id;
 	ulint		space_flags;
-	ibool		ret		= TRUE;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -3001,7 +3029,7 @@ fil_open_single_table_tablespace(
 			(ulong) space_id, (ulong) space_flags,
 			(ulong) id, (ulong) flags);
 
-		ret = FALSE;
+		success = FALSE;
 
 		goto func_exit;
 	}
@@ -3021,7 +3049,7 @@ func_exit:
 	os_file_close(file);
 	mem_free(filepath);
 
-	return(ret);
+	return(success);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3237,7 +3265,7 @@ fil_load_single_table_tablespace(
 		fprintf(stderr,
 			"InnoDB: Renaming tablespace %s of id %lu,\n"
 			"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
-			"InnoDB: because its size %lld is too small"
+			"InnoDB: because its size %" PRId64 " is too small"
 			" (< 4 pages 16 kB each),\n"
 			"InnoDB: or the space id in the file header"
 			" is not sensible.\n"
@@ -3299,7 +3327,17 @@ fil_load_single_table_tablespace(
 
 	if (!success) {
 
-		goto func_exit;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though the tablespace creation"
+				" of this table failed.\n",
+				srv_force_recovery);
+			goto func_exit;
+		}
+
+		exit(1);
 	}
 
 	/* We do not use the size information we have about the file, because
@@ -4737,4 +4775,27 @@ fil_page_get_type(
 	ut_ad(page);
 
 	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+}
+
+/********************************************************************
+Initializes the tablespace memory cache. */
+UNIV_INTERN
+void
+fil_close(void)
+/*===========*/
+{
+	/* The mutex should already have been freed. */
+	ut_ad(fil_system->mutex.magic_n == 0);
+
+	hash_table_free(fil_system->spaces);
+
+	hash_table_free(fil_system->name_hash);
+
+	ut_a(UT_LIST_GET_LEN(fil_system->LRU) == 0);
+	ut_a(UT_LIST_GET_LEN(fil_system->unflushed_spaces) == 0);
+	ut_a(UT_LIST_GET_LEN(fil_system->space_list) == 0);
+
+	mem_free(fil_system);
+
+	fil_system = NULL;
 }

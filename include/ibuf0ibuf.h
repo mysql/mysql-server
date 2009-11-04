@@ -380,6 +380,12 @@ ulint
 ibuf_rec_get_counter(
 /*=================*/
 	const rec_t*	rec);	/*!< in: ibuf record */
+/******************************************************************//**
+Closes insert buffer and frees the data structures. */
+UNIV_INTERN
+void
+ibuf_close(void);
+/*============*/
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
