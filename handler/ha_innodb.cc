@@ -1404,70 +1404,148 @@ innobase_invalidate_query_cache(
 #endif
 }
 
-/*********************************************************************
-Display an SQL identifier. */
-extern "C"
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen)/* in: length of name */
+/*****************************************************************//**
+Convert an SQL identifier to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+static
+char*
+innobase_convert_identifier(
+/*========================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		file_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an UTF-8 string */
 {
-	const char*	s	= name;
-	char*		qname	= NULL;
+	char nz[NAME_LEN + 1];
+#if MYSQL_VERSION_ID >= 50141
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
+#else /* MYSQL_VERSION_ID >= 50141 */
+	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+#endif /* MYSQL_VERSION_ID >= 50141 */
+
+	const char*	s	= id;
 	int		q;
 
-	if (table_id) {
-		/* Decode the table name.  The filename_to_tablename()
-		function expects a NUL-terminated string.  The input and
-		output strings buffers must not be shared.  The function
-		only produces more output when the name contains other
-		characters than [0-9A-Z_a-z]. */
-          char*	temp_name = (char*) my_malloc((uint) namelen + 1, MYF(MY_WME));
-          uint	qnamelen = (uint) (namelen
-                                   + (1 + sizeof srv_mysql50_table_name_prefix));
+	if (file_id) {
+		/* Decode the table name.  The MySQL function expects
+		a NUL-terminated string.  The input and output strings
+		buffers must not be shared. */
 
-		if (temp_name) {
-                  qname = (char*) my_malloc(qnamelen, MYF(MY_WME));
-			if (qname) {
-				memcpy(temp_name, name, namelen);
-				temp_name[namelen] = 0;
-				s = qname;
-				namelen = filename_to_tablename(temp_name,
-						qname, qnamelen);
-			}
-			my_free(temp_name, MYF(0));
+		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
+			idlen = (sizeof nz) - 1;
 		}
+
+		memcpy(nz, id, idlen);
+		nz[idlen] = 0;
+
+		s = nz2;
+#if MYSQL_VERSION_ID >= 50141
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+		goto no_quote;
+#else /* MYSQL_VERSION_ID >= 50141 */
+		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
-	if (!trx || !trx->mysql_thd) {
-
+	/* See if the identifier needs to be quoted. */
+	if (UNIV_UNLIKELY(!thd)) {
 		q = '"';
 	} else {
-		q = get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						s, (int) namelen);
+		q = get_quote_char_for_identifier((THD*) thd, s, (int) idlen);
 	}
 
 	if (q == EOF) {
-		fwrite(s, 1, namelen, f);
-	} else {
-		const char*	e = s + namelen;
-		putc(q, f);
-		while (s < e) {
-			int	c = *s++;
-			if (c == q) {
-				putc(c, f);
-			}
-			putc(c, f);
+#if MYSQL_VERSION_ID >= 50141
+no_quote:
+#endif /* MYSQL_VERSION_ID >= 50141 */
+		if (UNIV_UNLIKELY(idlen > buflen)) {
+			idlen = buflen;
 		}
-		putc(q, f);
+		memcpy(buf, s, idlen);
+		return(buf + idlen);
 	}
 
-	my_free(qname, MYF(MY_ALLOW_ZERO_PTR));
+	/* Quote the identifier. */
+	if (buflen < 2) {
+		return(buf);
+	}
+
+	*buf++ = q;
+	buflen--;
+
+	for (; idlen; idlen--) {
+		int	c = *s++;
+		if (UNIV_UNLIKELY(c == q)) {
+			if (UNIV_UNLIKELY(buflen < 3)) {
+				break;
+			}
+
+			*buf++ = c;
+			*buf++ = c;
+			buflen -= 2;
+		} else {
+			if (UNIV_UNLIKELY(buflen < 2)) {
+				break;
+			}
+
+			*buf++ = c;
+			buflen--;
+		}
+	}
+
+	*buf++ = q;
+	return(buf);
+}
+
+/*****************************************************************//**
+Convert a table or index name to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+extern "C"
+char*
+innobase_convert_name(
+/*==================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		table_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an index name */
+{
+	char*		s	= buf;
+	const char*	bufend	= buf + buflen;
+
+	if (table_id) {
+		const char*	slash = (const char*) memchr(id, '/', idlen);
+		if (!slash) {
+
+			goto no_db_name;
+		}
+
+		/* Print the database name and table name separately. */
+		s = innobase_convert_identifier(s, bufend - s, id, slash - id,
+						thd, TRUE);
+		if (UNIV_LIKELY(s < bufend)) {
+			*s++ = '.';
+			s = innobase_convert_identifier(s, bufend - s,
+							slash + 1, idlen
+							- (slash - id) - 1,
+							thd, TRUE);
+		}
+	} else {
+no_db_name:
+		s = innobase_convert_identifier(buf, buflen, id, idlen,
+						thd, table_id);
+	}
+
+	return(s);
+
 }
 
 /**************************************************************************
