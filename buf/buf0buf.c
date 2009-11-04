@@ -1020,7 +1020,11 @@ buf_pool_free(void)
 		os_mem_free_large(chunk->mem, chunk->mem_size);
 	}
 
-	buf_pool->n_chunks = 0;
+	mem_free(buf_pool->chunks);
+	hash_table_free(buf_pool->page_hash);
+	hash_table_free(buf_pool->zip_hash);
+	mem_free(buf_pool);
+	buf_pool = NULL;
 }
 
 /********************************************************************//**
@@ -1163,10 +1167,15 @@ buf_relocate(
 #ifdef UNIV_LRU_DEBUG
 		/* buf_pool->LRU_old must be the first item in the LRU list
 		whose "old" flag is set. */
+		ut_a(buf_pool->LRU_old->old);
 		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
 		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
 		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
 		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+	} else {
+		/* Check that the "old" flag is consistent in
+		the block and its neighbours. */
+		buf_page_set_old(dpage, buf_page_is_old(dpage));
 #endif /* UNIV_LRU_DEBUG */
 	}
 
@@ -1894,7 +1903,7 @@ buf_zip_decompress(
 	switch (fil_page_get_type(frame)) {
 	case FIL_PAGE_INDEX:
 		if (page_zip_decompress(&block->page.zip,
-					block->frame)) {
+					block->frame, TRUE)) {
 			return(TRUE);
 		}
 
@@ -3380,7 +3389,32 @@ void
 buf_pool_invalidate(void)
 /*=====================*/
 {
-	ibool	freed;
+	ibool		freed;
+	enum buf_flush	i;
+
+	buf_pool_mutex_enter();
+
+	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
+
+		/* As this function is called during startup and
+		during redo application phase during recovery, InnoDB
+		is single threaded (apart from IO helper threads) at
+		this stage. No new write batch can be in intialization
+		stage at this point. */
+		ut_ad(buf_pool->init_flush[i] == FALSE);
+
+		/* However, it is possible that a write batch that has
+		been posted earlier is still not complete. For buffer
+		pool invalidation to proceed we must ensure there is NO
+		write activity happening. */
+		if (buf_pool->n_flush[i] > 0) {
+			buf_pool_mutex_exit();
+			buf_flush_wait_batch_end(i);
+			buf_pool_mutex_enter();
+		}
+	}
+
+	buf_pool_mutex_exit();
 
 	ut_ad(buf_all_freed());
 
@@ -3394,6 +3428,14 @@ buf_pool_invalidate(void)
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
 	ut_ad(UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0);
+
+	buf_pool->freed_page_clock = 0;
+	buf_pool->LRU_old = NULL;
+	buf_pool->LRU_old_len = 0;
+	buf_pool->LRU_flush_ended = 0;
+
+	memset(&buf_pool->stat, 0x00, sizeof(buf_pool->stat));
+	buf_refresh_io_stats();
 
 	buf_pool_mutex_exit();
 }
