@@ -296,9 +296,9 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   }
   else
   {
-    if(LqhKeyReq::getSameClientAndTcFlag(reqInfo) == 1)
+    if (LqhKeyReq::getSameClientAndTcFlag(reqInfo) == 1)
     {
-      if(LqhKeyReq::getApplicationAddressFlag(reqInfo))
+      if (LqhKeyReq::getApplicationAddressFlag(reqInfo))
 	tmp = req->variableData[2];
       else
 	tmp = req->variableData[0];
@@ -355,9 +355,9 @@ Dbspj::handle_early_lqhkey_ref(Signal* signal,
     const Uint32 clientPtr = lqhKeyReq->clientConnectPtr;
 
     Uint32 TcOprec = clientPtr;
-    if(LqhKeyReq::getSameClientAndTcFlag(reqInfo) == 1)
+    if (LqhKeyReq::getSameClientAndTcFlag(reqInfo) == 1)
     {
-      if(LqhKeyReq::getApplicationAddressFlag(reqInfo))
+      if (LqhKeyReq::getApplicationAddressFlag(reqInfo))
 	TcOprec = lqhKeyReq->variableData[2];
       else
 	TcOprec = lqhKeyReq->variableData[0];
@@ -423,7 +423,8 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   jamEntry();
 
   /* Reassemble if the request was fragmented */
-  if (!assembleFragments(signal)){
+  if (!assembleFragments(signal))
+  {
     jam();
     return;
   }
@@ -1183,8 +1184,15 @@ Dbspj::lookup_start(Signal* signal,
 {
   const LqhKeyReq* src = reinterpret_cast<const LqhKeyReq*>(signal->getDataPtr());
 
+#if NOT_YET
   Uint32 instanceNo = blockToInstance(signal->header.theReceiversBlockNumber);
   treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH, instanceNo, getOwnNodeId());
+#else
+  treeNodePtr.p->m_send.m_ref = 
+    numberToRef(DBLQH, getInstanceKey(src->tableSchemaVersion & 0xFFFF,
+                                      src->fragmentData & 0xFFFF),
+                getOwnNodeId());
+#endif
 
   Uint32 hashValue = src->hashValue;
   Uint32 fragId = src->fragmentData;
@@ -1555,7 +1563,7 @@ Dbspj::lookup_start_child(Signal* signal,
       lookup_send(signal, requestPtr, treeNodePtr);
     }
     return;
-  } while(0);
+  } while (0);
 
   ndbrequire(false);
 }
@@ -1587,7 +1595,7 @@ Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
   Uint32 * keyPartLenPtr;
 
   /* Normalise KeyInfo into workspace if necessary */
-  if(hasCharAttr || (compute_distkey && hasVarKeys))
+  if (hasCharAttr || (compute_distkey && hasVarKeys))
   {
     hashInput = alignedWorkspace;
     keyPartLenPtr = keyPartLen;
@@ -1616,7 +1624,7 @@ Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
    * form a distribution key from the primary key and calculate 
    * a separate distribution hash based on this
    */
-  if(compute_distkey)
+  if (compute_distkey)
   {
     jam();
     
@@ -1838,8 +1846,15 @@ Dbspj::scanFrag_start(Signal* signal,
 {
   const ScanFragReq* src = reinterpret_cast<const ScanFragReq*>(signal->getDataPtr());
 
+#if NOT_YET
   Uint32 instanceNo = blockToInstance(signal->header.theReceiversBlockNumber);
   treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH, instanceNo, getOwnNodeId());
+#else
+  treeNodePtr.p->m_send.m_ref = 
+    numberToRef(DBLQH, getInstanceKey(src->tableId,
+                                      src->fragmentNoKeyLen),
+                getOwnNodeId());
+#endif
 
   Uint32 fragId = src->fragmentNoKeyLen;
   Uint32 requestInfo = src->requestInfo;
@@ -2049,7 +2064,8 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
     }
   }
 
-  if(isScanComplete(treeNodePtr.p->m_scanfrag_data)){
+  if (isScanComplete(treeNodePtr.p->m_scanfrag_data))
+  {
     jam();
     scanFrag_batch_complete(signal, requestPtr, treeNodePtr);
   }
@@ -2114,7 +2130,8 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     treeNodePtr.p->m_scanfrag_data.m_rows_received = rows;
   }
   treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = true;
-  if(isScanComplete(treeNodePtr.p->m_scanfrag_data)){
+  if (isScanComplete(treeNodePtr.p->m_scanfrag_data))
+  {
     jam();
     scanFrag_batch_complete(signal, requestPtr, treeNodePtr);
   }
@@ -2229,7 +2246,7 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
   switch(globalSignalNo){
   case GSN_TRANSID_AI:
     rootPtr.p->m_scanfrag_data.m_missing_descendant_rows--;
-    if(trace)
+    if (trace)
     {
       ndbout << "Dbspj::scanFrag_count_descendant_signal() decremented "
         "m_scanfrag_data.m_missing_descendant_rows to "<< 
@@ -2238,10 +2255,10 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
     break;
   case GSN_LQHKEYCONF:
     jam();
-    if(treeNodePtr.p->m_bits & TreeNode::T_USER_PROJECTION)
+    if (treeNodePtr.p->m_bits & TreeNode::T_USER_PROJECTION)
     {
       rootPtr.p->m_scanfrag_data.m_descendant_keyconfs_received++;
-      if(trace)
+      if (trace)
       {
         ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
           "m_scanfrag_data.m_descendant_keyconfs_received to "<< 
@@ -2254,7 +2271,7 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
        * that retrieves an index tuple as part of an index lookup operation.
        * (Only the base table tuple will then be sent to the API.)*/
       rootPtr.p->m_scanfrag_data.m_descendant_silent_keyconfs_received++;
-      if(trace)
+      if (trace)
       {
         ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
           "m_scanfrag_data.m_descendant_silent_keyconfs_received to "
@@ -2264,12 +2281,12 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
       }
     }
     // Check if this is a non-leaf.
-    if(treeNodePtr.p->m_dependent_nodes.firstItem!=RNIL)
+    if (treeNodePtr.p->m_dependent_nodes.firstItem!=RNIL)
     {
       /* Since this is a non-leaf, the SPJ block should also receive
        * a TRANSID_AI message for this operation.*/
       rootPtr.p->m_scanfrag_data.m_missing_descendant_rows++;
-      if(trace)
+      if (trace)
       {
         ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
           "m_scanfrag_data.m_missing_descendant_rows to "<< 
@@ -2280,7 +2297,7 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
   case GSN_LQHKEYREF:
     jam();
     rootPtr.p->m_scanfrag_data.m_descendant_keyrefs_received++;
-    if(trace)
+    if (trace)
     {
       ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
         "m_scanfrag_data.m_descendant_keyrefs_received to "<< 
@@ -2290,7 +2307,7 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
   case GSN_LQHKEYREQ:
     jam();
     rootPtr.p->m_scanfrag_data.m_descendant_keyreqs_sent++;
-    if(trace)
+    if (trace)
     {
       ndbout << "Dbspj::scanFrag_count_descendant_signal() incremented "
         "m_scanfrag_data.m_descendant_keyreqs_sent to "<< 
@@ -2301,7 +2318,8 @@ Dbspj::scanFrag_count_descendant_signal(Signal* signal,
     jam();
     ndbrequire(false);
   }
-  if(isScanComplete(rootPtr.p->m_scanfrag_data)){
+  if (isScanComplete(rootPtr.p->m_scanfrag_data))
+  {
     jam();
     ndbrequire(globalSignalNo!=GSN_LQHKEYREQ);
     scanFrag_batch_complete(signal, requestPtr, rootPtr);
@@ -2593,15 +2611,15 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
   Uint32 dstIdx = 0;
   Uint32 tmp[NDB_SECTION_SEGMENT_SZ];
   
-  while(remaining>0 && !it.isNull())
+  while (remaining > 0 && !it.isNull())
   {
     tmp[dstIdx] = *it.data;
     remaining--;
     dstIdx++;
     pattern.next(it);
-    if(dstIdx == NDB_SECTION_SEGMENT_SZ 
-       || remaining == 0){
-      if(!appendToSection(ptrI, tmp, dstIdx))
+    if (dstIdx == NDB_SECTION_SEGMENT_SZ || remaining == 0)
+    {
+      if (!appendToSection(ptrI, tmp, dstIdx))
       {
 	DEBUG_CRASH();
 	return DbspjErr::InvalidPattern;
@@ -2609,7 +2627,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
       dstIdx = 0;
     }
   }
-  if(remaining>0)
+  if (remaining > 0)
   {
     DEBUG_CRASH();
     return DbspjErr::InvalidPattern;
@@ -2729,9 +2747,12 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
-      if(likely(appendToSection(dst, ptr, val))){
+      if (likely(appendToSection(dst, ptr, val)))
+      {
 	err = 0;
-      } else {
+      }
+      else
+      {
         err = DbspjErr::InvalidPattern;
       }
       ptr += val;

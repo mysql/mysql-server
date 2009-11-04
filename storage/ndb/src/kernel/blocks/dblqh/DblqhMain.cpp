@@ -3465,7 +3465,8 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   if(!packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    if(Thostptr.i == 0 || Thostptr.i == getOwnNodeId())
+    if (instance() == refToInstance(atcBlockref) && 
+        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()))
     {
       /**
        * This EXECUTE_DIRECT is multi-thread safe, as we only get here
