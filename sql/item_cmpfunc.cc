@@ -829,7 +829,8 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
   else
   {
     *is_null= item->get_time(&ltime);
-    value= !*is_null ? (longlong) TIME_to_ulonglong_datetime(&ltime) : 0;
+    value= !*is_null ? (longlong) TIME_to_ulonglong_datetime(&ltime) *
+                                  (ltime.neg ? -1 : 1) : 0;
   }
   /*
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
