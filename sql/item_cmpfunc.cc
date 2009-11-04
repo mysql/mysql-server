@@ -785,15 +785,21 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 
   if (cmp_type != CMP_DATE_DFLT)
   {
+    THD *thd= current_thd;
     /*
       Do not cache GET_USER_VAR() function as its const_item() may return TRUE
       for the current thread but it still may change during the execution.
+      Don't use cache while in the context analysis mode only (i.e. for 
+      EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
+      cases and can cause problems. For example evaluating subqueries can 
+      confuse storage engines since in context analysis mode tables 
+      aren't locked.
     */
-    if (cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
+    if (!thd->is_context_analysis_only() &&
+        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
     {
-      THD *thd= current_thd;
       ulonglong value;
       bool error;
       String tmp, *str_val= 0;
