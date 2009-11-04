@@ -3746,7 +3746,6 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
-  mtr_add_arg($args, "--verbose");
 
   if ( $opt_embedded_server )
   {
