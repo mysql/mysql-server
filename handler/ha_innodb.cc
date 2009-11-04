@@ -1707,15 +1707,19 @@ innobase_convert_identifier(
 				FALSE=id is an UTF-8 string */
 {
 	char nz[NAME_LEN + 1];
+#if MYSQL_VERSION_ID >= 50141
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
+#else /* MYSQL_VERSION_ID >= 50141 */
 	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+#endif /* MYSQL_VERSION_ID >= 50141 */
 
 	const char*	s	= id;
 	int		q;
 
 	if (file_id) {
-		/* Decode the table name.  The filename_to_tablename()
-		function expects a NUL-terminated string.  The input and
-		output strings buffers must not be shared. */
+		/* Decode the table name.  The MySQL function expects
+		a NUL-terminated string.  The input and output strings
+		buffers must not be shared. */
 
 		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
 			idlen = (sizeof nz) - 1;
@@ -1725,7 +1729,13 @@ innobase_convert_identifier(
 		nz[idlen] = 0;
 
 		s = nz2;
+#if MYSQL_VERSION_ID >= 50141
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+		goto no_quote;
+#else /* MYSQL_VERSION_ID >= 50141 */
 		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
 	/* See if the identifier needs to be quoted. */
@@ -1736,6 +1746,9 @@ innobase_convert_identifier(
 	}
 
 	if (q == EOF) {
+#if MYSQL_VERSION_ID >= 50141
+no_quote:
+#endif /* MYSQL_VERSION_ID >= 50141 */
 		if (UNIV_UNLIKELY(idlen > buflen)) {
 			idlen = buflen;
 		}
