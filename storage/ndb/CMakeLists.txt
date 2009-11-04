@@ -38,7 +38,11 @@ IF(WITHOUT_PARTITION_STORAGE_ENGINE)
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+)
+
 SET(NDBCLUSTER_SOURCES
 	../../sql/ha_ndbcluster.cc
 	../../sql/ha_ndbcluster_cond.cc
