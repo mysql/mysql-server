@@ -2924,6 +2924,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
   c_backupPool.getPtr(ptr, conf->senderData);
 
   SectionHandle handle (this, signal);
+  signal->header.m_fragmentInfo = 0;
   if (noOfTables > 0)
   {
     ListTablesData ltd;
