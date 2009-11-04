@@ -39,7 +39,7 @@ drop table t1;
 # SELECT CAST(0.2359591234567e+30 AS TIME);
 # ##########################################################
 
-# End of 4.1 tests
+--echo End of 4.1 tests
 
 #
 # Bug#29555: Comparing time values as strings may lead to a wrong result.
@@ -90,3 +90,22 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+
+#
+# Bug#42664 - Sign ignored for TIME types when not comparing as longlong
+#
+
+CREATE TABLE t1 (f1 TIME);
+INSERT INTO t1 VALUES ('24:00:00');
+SELECT      '24:00:00' = (SELECT f1 FROM t1);
+SELECT CAST('24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT CAST('-24:00:00' AS TIME) = (SELECT f1 FROM t1);
+TRUNCATE t1;
+INSERT INTO t1 VALUES ('-24:00:00');
+SELECT CAST('24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT CAST('-24:00:00' AS TIME) = (SELECT f1 FROM t1);
+SELECT '-24:00:00' = (SELECT f1 FROM t1);
+DROP TABLE t1;
+
+--echo End of 6.0 tests
