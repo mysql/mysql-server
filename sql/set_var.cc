@@ -324,9 +324,6 @@ static sys_var_const    sys_locked_in_memory(&vars, "locked_in_memory",
 static sys_var_const    sys_log_bin(&vars, "log_bin",
                                     OPT_GLOBAL, SHOW_BOOL,
                                     (uchar*) &opt_bin_log);
-static sys_var_trust_routine_creators
-sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
-                           &trust_function_creators);
 static sys_var_bool_ptr       
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
@@ -612,8 +609,6 @@ sys_updatable_views_with_limit(&vars, "updatable_views_with_limit",
                                &SV::updatable_views_with_limit,
                                &updatable_views_with_limit_typelib);
 
-static sys_var_thd_table_type  sys_table_type(&vars, "table_type",
-				       &SV::table_plugin);
 static sys_var_thd_storage_engine sys_storage_engine(&vars, "storage_engine",
 				       &SV::table_plugin);
 static sys_var_bool_ptr	sys_sync_frm(&vars, "sync_frm", &opt_sync_frm);
@@ -2456,9 +2451,9 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
   bool res;
 
   if (this == &sys_var_log)
-    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+    WARN_DEPRECATED(thd, 7, 0, "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
-    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+    WARN_DEPRECATED(thd, 7, 0, "@@log_slow_queries", "'@@slow_query_log'");
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
@@ -2475,9 +2470,9 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
 void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 {
   if (this == &sys_var_log)
-    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+    WARN_DEPRECATED(thd, 7, 0, "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
-    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+    WARN_DEPRECATED(thd, 7, 0, "@@log_slow_queries", "'@@slow_query_log'");
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
@@ -3788,24 +3783,6 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
   return 0;
 }
 
-void sys_var_thd_table_type::warn_deprecated(THD *thd)
-{
-  WARN_DEPRECATED(thd, "6.0", "@@table_type", "'@@storage_engine'");
-}
-
-void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
-{
-  warn_deprecated(thd);
-  sys_var_thd_storage_engine::set_default(thd, type);
-}
-
-bool sys_var_thd_table_type::update(THD *thd, set_var *var)
-{
-  warn_deprecated(thd);
-  return sys_var_thd_storage_engine::update(thd, var);
-}
-
-
 /****************************************************************************
  Functions to handle sql_mode
 ****************************************************************************/
@@ -4138,25 +4115,6 @@ bool process_key_caches(process_key_cache_t func)
     func(element->name, key_cache);
   }
   return 0;
-}
-
-
-void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
-{
-  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
-                      "'@@log_bin_trust_function_creators'");
-}
-
-void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
-{
-  warn_deprecated(thd);
-  sys_var_bool_ptr::set_default(thd, type);
-}
-
-bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
-{
-  warn_deprecated(thd);
-  return sys_var_bool_ptr::update(thd, var);
 }
 
 bool sys_var_opt_readonly::update(THD *thd, set_var *var)

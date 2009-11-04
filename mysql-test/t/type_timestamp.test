@@ -67,9 +67,9 @@ INSERT INTO t1 VALUES ("2030-01-01","2030-01-01 00:00:00",20300101000000);
 SELECT * FROM t1;
 drop table t1;
 
-create table t1 (t2 timestamp(2), t4 timestamp(4), t6 timestamp(6),
-                 t8 timestamp(8), t10 timestamp(10), t12 timestamp(12),
-                 t14 timestamp(14));
+create table t1 (t2 timestamp, t4 timestamp, t6 timestamp,
+                 t8 timestamp, t10 timestamp, t12 timestamp,
+                 t14 timestamp);
 insert t1 values (0,0,0,0,0,0,0),
 ("1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
 "1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
@@ -298,7 +298,7 @@ drop table t1;
 # mode regardless of whether a display width is given.
 #
 set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp(19));
+create table t1 (a timestamp, b timestamp);
 show create table t1;
 # restore default mode
 set sql_mode='';
