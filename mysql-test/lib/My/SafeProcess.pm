@@ -338,12 +338,12 @@ sub start_kill {
     $ret= system($safe_kill, $winpid) >> 8;
 
     if ($ret == 3){
-      print "Couldn't open the winpid: $winpid ",
+      print "Couldn't open the winpid: $winpid ".
 	"for pid: $pid, try one more time\n";
       sleep(1);
       $winpid= _winpid($pid);
       $ret= system($safe_kill, $winpid) >> 8;
-      print "Couldn't open the winpid: $winpid ",
+      print "Couldn't open the winpid: $winpid ".
 	"for pid: $pid, continue and see what happens...\n";
     }
   }
@@ -594,7 +594,7 @@ sub self2str {
 
 sub _verbose {
   return unless $_verbose;
-  print STDERR " ## ", @_, "\n";
+  print STDERR " ## ". @_. "\n";
 }
 
 
