@@ -39,6 +39,7 @@ ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
 )

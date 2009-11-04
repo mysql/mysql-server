@@ -967,7 +967,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     if (treeNodePtr.p->m_scanfrag_data.m_scan_status == 2) // Is closed on LQH
     {
       jam();
-      ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_state != ScanFragData::SF_RUNNING)
+      ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_state != ScanFragData::SF_RUNNING);
 
       ScanFragConf* conf = reinterpret_cast<ScanFragConf*>(signal->getDataPtrSend());
       conf->senderData = requestPtr.p->m_senderData;
@@ -995,7 +995,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   }
 
   ndbassert (!treeNodePtr.p->m_scanfrag_data.m_pending_close);
-  ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_status != 2)
+  ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_status != 2);
   ndbrequire(treeNodePtr.p->m_info != 0 &&
              treeNodePtr.p->m_info->m_execSCAN_NEXTREQ != 0);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_NEXTREQ))(signal,
