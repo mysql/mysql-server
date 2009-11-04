@@ -534,6 +534,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_transId[1] = req->transId2;
   requestP->m_node_mask.clear();
   requestP->m_rootResultData = req->resultData;
+  requestP->m_currentNodePtrI = RNIL;
 }
 
 void
@@ -950,32 +951,51 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, requestPtr.p->m_currentNodePtrI);
 
-  if (req->closeFlag == ZTRUE &&                         // Requested close scan
-      treeNodePtr.p->m_scanfrag_data.m_scan_status == 2) // Is closed on LQH
+  if (treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_CLOSING)
   {
     jam();
-
     /**
-     * TODO this needs more elaborate *abort* handling
+     * Duplicate of a close request already sent to datanodes.
+     * Ignore this and wait for reply on pending request.
      */
-    ScanFragConf* conf = reinterpret_cast<ScanFragConf*>(signal->getDataPtrSend());
-
-    conf->senderData = requestPtr.p->m_senderData;
-    conf->transId1 = requestPtr.p->m_transId[0];
-    conf->transId2 = requestPtr.p->m_transId[1];
-    conf->completedOps = 0;
-    conf->fragmentCompleted = 2; // =ZSCAN_FRAG_CLOSED -> Finished...
-    conf->total_len = 0; // Not supported...
-
-    DEBUG("execSCAN_NEXTREQ(close), fragmentCompleted:" << conf->fragmentCompleted);
-
-    sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
-               ScanFragConf::SignalLength, JBB);
-
-    cleanup(requestPtr);
+    DEBUG("execSCAN_NEXTREQ, is SF_CLOSING -> ignore request");
     return;
   }
 
+  if (req->closeFlag == ZTRUE)                             // Requested close scan
+  {
+    if (treeNodePtr.p->m_scanfrag_data.m_scan_status == 2) // Is closed on LQH
+    {
+      jam();
+      ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_state != ScanFragData::SF_RUNNING)
+
+      ScanFragConf* conf = reinterpret_cast<ScanFragConf*>(signal->getDataPtrSend());
+      conf->senderData = requestPtr.p->m_senderData;
+      conf->transId1 = requestPtr.p->m_transId[0];
+      conf->transId2 = requestPtr.p->m_transId[1];
+      conf->completedOps = 0;
+      conf->fragmentCompleted = 2; // =ZSCAN_FRAG_CLOSED -> Finished...
+      conf->total_len = 0; // Not supported...
+
+      DEBUG("execSCAN_NEXTREQ(close), LQH has conf'ed 'w/ ZSCAN_FRAG_CLOSED");
+      sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
+                 ScanFragConf::SignalLength, JBB);
+
+      cleanup(requestPtr);
+      return;
+    }
+    else if (treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_RUNNING)
+    {
+      jam();
+      DEBUG("execSCAN_NEXTREQ, make PENDING CLOSE");
+      treeNodePtr.p->m_scanfrag_data.m_pending_close = true;
+      return;
+    }
+    // else; fallthrough & send to datanodes:
+  }
+
+  ndbassert (!treeNodePtr.p->m_scanfrag_data.m_pending_close);
+  ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_status != 2)
   ndbrequire(treeNodePtr.p->m_info != 0 &&
              treeNodePtr.p->m_info->m_execSCAN_NEXTREQ != 0);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_NEXTREQ))(signal,
@@ -1765,6 +1785,10 @@ Dbspj::scanFrag_build(Build_context& ctx,
     treeNodePtr.p->m_info = &g_ScanFragOpInfo;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
 
+    treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_IDLE;
+    treeNodePtr.p->m_scanfrag_data.m_scan_status = 0;
+    treeNodePtr.p->m_scanfrag_data.m_pending_close = false;
+
     ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
     dst->senderData = treeNodePtr.i;
     dst->resultRef = reference();
@@ -1807,6 +1831,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     DEBUG("param len: " << param->len);
     if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
     {
+      jam();
       DEBUG_CRASH();
       break;
     }
@@ -1826,6 +1851,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
                   nodeDA, treeBits, paramDA, paramBits);
     if (unlikely(err != 0))
     {
+      jam();
       DEBUG_CRASH();
       break;
     }
@@ -2012,6 +2038,7 @@ Dbspj::scanFrag_send(Signal* signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
              JBB, &handle);
 
+  ndbassert (!treeNodePtr.p->m_scanfrag_data.m_pending_close);
   treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_RUNNING;
   treeNodePtr.p->m_scanfrag_data.m_scan_status = 0;
   treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = false;
@@ -2022,6 +2049,12 @@ Dbspj::scanFrag_send(Signal* signal,
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyrefs_received = 0;
   treeNodePtr.p->m_scanfrag_data.m_descendant_keyreqs_sent = 0;
   treeNodePtr.p->m_scanfrag_data.m_missing_descendant_rows = 0;
+
+  /**
+   * Save position where next-scan-req should continue or close
+   */
+  treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_RUNNING;
+  requestPtr.p->m_currentNodePtrI = treeNodePtr.i;
 }
 
 /** Return true if scan batch is complete. This happens when all scan 
@@ -2076,9 +2109,6 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
                                  Ptr<Request> requestPtr,
                                  Ptr<TreeNode> treeNodePtr)
 {
-  /**
-   * TODO
-   */
   const ScanFragRef* const rep = reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
   Uint32 errCode = rep->errorCode;
 
@@ -2102,9 +2132,29 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGREF, signal,
 	     ScanFragRef::SignalLength, JBB);
 
-  // TODO: Cleanup operation on SPJ block
+  treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = true;
+//treeNodePtr.p->m_scanfrag_data.m_scan_status = 2;  // (2=ZSCAN_FRAG_CLOSED)
+  ndbassert (isScanComplete(treeNodePtr.p->m_scanfrag_data));
 
-//ndbrequire(false);
+  /**
+   * SCAN_FRAGREF implies that datanodes closed the cursor.
+   *  -> Pending close is effectively a NOOP, reset it
+   */
+  if (treeNodePtr.p->m_scanfrag_data.m_pending_close)
+  {
+    jam();
+    treeNodePtr.p->m_scanfrag_data.m_pending_close = false;
+    DEBUG(" SCAN_FRAGREF, had pending close which can be ignored (is closed)");
+  }
+
+  /**
+   * Cleanup operation on SPJ block, remove all allocated resources.
+   */
+  {
+    jam();
+    treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_IDLE;
+    nodeFinished(signal, requestPtr, treeNodePtr);
+  }
 }
 
 
@@ -2143,8 +2193,34 @@ Dbspj::scanFrag_batch_complete(Signal* signal,
                                Ptr<TreeNode> treeNodePtr)
 {
   DEBUG("scanFrag_batch_complete()");
-  ndbrequire(treeNodePtr.p->m_scanfrag_data.m_scan_state ==
-             ScanFragData::SF_RUNNING);
+
+  if (treeNodePtr.p->m_scanfrag_data.m_pending_close)
+  {
+    jam();
+    ndbrequire(treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_RUNNING);
+    treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_STARTED;
+
+    DEBUG("scanFrag_batch_complete() - has pending close, ignore this reply, request close");
+
+    ScanFragNextReq* req = reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
+
+    /**
+     * SCAN_NEXTREQ(close) was requested while we where waiting for 
+     * datanodes to complete this request. 
+     *   - Send close request to LQH now.
+     *   - Suppress reply to TC/API, will reply later when close is conf'ed
+     */
+    req->closeFlag = ZTRUE;
+    req->senderData = treeNodePtr.i;
+    req->transId1 = requestPtr.p->m_transId[0];
+    req->transId2 = requestPtr.p->m_transId[1];
+    req->batch_size_rows = 0;
+    req->batch_size_bytes = 0;
+
+    treeNodePtr.p->m_scanfrag_data.m_pending_close = false;
+    scanFrag_execSCAN_NEXTREQ(signal, requestPtr, treeNodePtr);
+    return;
+  }
 
   /**
    * one batch complete...
@@ -2166,6 +2242,8 @@ Dbspj::scanFrag_batch_complete(Signal* signal,
   if (treeNodePtr.p->m_scanfrag_data.m_scan_status == 2)
   {
     jam();
+    ndbrequire(treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_RUNNING ||
+               treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_CLOSING);
     /**
      * EOF for scan
      */
@@ -2175,11 +2253,12 @@ Dbspj::scanFrag_batch_complete(Signal* signal,
   else
   {
     jam();
+    ndbrequire(treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_RUNNING);
     /**
-     * Save position where next-scan-req should continue
+     * Check position where next-scan-req should continue
      */
     treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_STARTED;
-    requestPtr.p->m_currentNodePtrI = treeNodePtr.i;
+    assert(requestPtr.p->m_currentNodePtrI == treeNodePtr.i);
   }
 }
 
@@ -2199,6 +2278,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
                                  Ptr<TreeNode> treeNodePtr)
 {
   jamEntry();
+  ndbassert (treeNodePtr.p->m_scanfrag_data.m_scan_state == ScanFragData::SF_STARTED);
 
   ScanFragNextReq* nextReq = reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   nextReq->senderData = treeNodePtr.i;
@@ -2214,7 +2294,10 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
              ScanFragNextReq::SignalLength, 
              JBB);
 
-  treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_RUNNING;
+  treeNodePtr.p->m_scanfrag_data.m_scan_state = (nextReq->closeFlag == ZTRUE)
+    ? ScanFragData::SF_CLOSING 
+    : ScanFragData::SF_RUNNING;
+
   treeNodePtr.p->m_scanfrag_data.m_scan_status = 0;
   treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = false;
   treeNodePtr.p->m_scanfrag_data.m_rows_received = 0;

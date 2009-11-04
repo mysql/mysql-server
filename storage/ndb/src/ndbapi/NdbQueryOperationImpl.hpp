@@ -127,11 +127,6 @@ public:
    */
   int doSend(int aNodeId, bool lastFlag);
 
-  /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
-   *  @return #signals sent, -1 if error.
-   */
-  int sendFetchMore(int nodeId, bool lastFlag);
-
   NdbQuery& getInterface()
   { return m_interface; }
 
@@ -154,7 +149,7 @@ public:
   bool execTCKEYCONF();
 
   /** Process SCAN_TABCONF w/ EndOfData which is a 'Close Scan Reply'. */
-  void execCLOSE_SCAN_REP();
+  void execCLOSE_SCAN_REP(bool isClosed);
 
   /** Determines if query has completed and may be garbage collected
    *  A query is considder complete when it either:
@@ -224,17 +219,28 @@ private:
   /** The interface that is visible to the application developer.*/
   NdbQuery m_interface;
 
-  enum {
-    Initial,
-    Defined,
-    Prepared,
-    Executing,
-    Fetching,
-    EndOfData,
-    Closed,
-    Failed,
+  enum {        // State of NdbQuery in API
+    Initial,    // Constructed object, assiciated with a defined query
+    Defined,    // Parameter values has been assigned
+    Prepared,   // KeyInfo & AttrInfo prepared for execution
+    Executing,  // Signal with exec. req. sent to TC
+    EndOfData,  // All results rows consumed
+    Closed,     // Query has been ::close()'ed 
+    Failed,     
     Destructed
   } m_state;
+
+  enum {        // Assumed state of query cursor in TC block
+    Inactive,   // Execution not started at TC
+    Fetching,
+    FetchMore,
+    Completed
+  } m_tcState;
+
+  /** Next query in same transaction.*/
+  NdbQueryImpl* m_next;
+  /** Definition of this query.*/
+  const NdbQueryDefImpl& m_queryDef;
 
   /** Possible error status of this query.*/
   NdbError m_error;
@@ -253,12 +259,9 @@ private:
 
   /** True if a TCKEYCONF message has been received for this query.*/
   bool m_tcKeyConfReceived;
+
   /** Number of streams not yet completed within the current batch.*/
   Uint32 m_pendingStreams;
-  /** Next query in same transaction.*/
-  NdbQueryImpl* m_next;
-  /** Definition of this query.*/
-  const NdbQueryDefImpl& m_queryDef;
 
   /** Number of fragments to be scanned in parallel. (1 if root operation is 
    *  a lookup)*/
@@ -295,6 +298,19 @@ private:
 
   /** Get more scan results, ask for the next batch if necessary.*/
   FetchResult fetchMoreResults(bool forceSend);
+
+  /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
+   *  @return #signals sent, -1 if error.
+   */
+  int sendFetchMore(int nodeId);
+
+  /** Close cursor on TC */
+  int closeTcCursor(bool forceSend);
+
+  /** Send SCAN_NEXTREQ(close) signal to close cursor on TC and datanodes.
+   *  @return #signals sent, -1 if error.
+   */
+  int sendClose(int nodeId);
 
   /** Close scan receivers used for lookups. (Since scans and lookups should
    * have the same semantics for nextResult(), lookups use scan-type 
