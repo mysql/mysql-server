@@ -1200,7 +1200,7 @@ dict_index_too_big_for_undo(
 		= TRX_UNDO_PAGE_HDR - TRX_UNDO_PAGE_HDR_SIZE
 		+ 2 /* next record pointer */
 		+ 1 /* type_cmpl */
-		+ 11 /* trx->undo_no */ - 11 /* table->id */
+		+ 11 /* trx->undo_no */ + 11 /* table->id */
 		+ 1 /* rec_get_info_bits() */
 		+ 11 /* DB_TRX_ID */
 		+ 11 /* DB_ROLL_PTR */
