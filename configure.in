@@ -13,6 +13,12 @@ AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE(mysql, 5.1.41)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
+# Request support for automake silent-rules if available.
+# Default to verbose output. One can use the configure-time
+# option --enable-silent-rules or make V=1 to activate
+# silent rules.
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
+
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
