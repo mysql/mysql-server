@@ -833,7 +833,7 @@ int mysql_update(THD *thd,
     char buff[STRING_BUFFER_USUAL_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-	        (ulong) thd->warning_info->statement_warn_count());
+                (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     my_ok(thd, (ulong) thd->row_count_func, id, buff);
@@ -922,7 +922,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
       DBUG_RETURN(TRUE);
     }
   }
@@ -1077,7 +1076,7 @@ reopen_tables:
       if (check_access(thd, want_privilege,
                        tl->db, &tl->grant.privilege, 0, 0, 
                        test(tl->schema_table)) ||
-          check_grant(thd, want_privilege, tl, 0, 1, 0))
+          check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
         DBUG_RETURN(TRUE);
     }
   }

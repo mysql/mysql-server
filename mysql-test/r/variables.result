@@ -1488,3 +1488,168 @@ SELECT @@GLOBAL.max_binlog_cache_size;
 5368709120
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 End of 5.1 tests
+
+#
+# Bug#34828: OF is taken as OFF and a value of 0 is set for variable SQL_notes.
+#
+
+# Checking sql_notes...
+SET @sql_notes_saved = @@sql_notes;
+
+SET @@sql_notes = ON;
+SELECT @@sql_notes;
+@@sql_notes
+1
+
+SET @@sql_notes = OF;
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
+SELECT @@sql_notes;
+@@sql_notes
+1
+
+SET @@sql_notes = OFF;
+SELECT @@sql_notes;
+@@sql_notes
+0
+
+SET @@sql_notes = @sql_notes_saved;
+
+# Checking delay_key_write...
+SET @delay_key_write_saved = @@delay_key_write;
+
+SET GLOBAL delay_key_write = ON;
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = OF;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'OF'
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = AL;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'AL'
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = OFF;
+SELECT @@delay_key_write;
+@@delay_key_write
+OFF
+
+SET GLOBAL delay_key_write = ALL;
+SELECT @@delay_key_write;
+@@delay_key_write
+ALL
+
+SET GLOBAL delay_key_write = @delay_key_write_saved;
+
+# Checking sql_safe_updates...
+SET @sql_safe_updates_saved = @@sql_safe_updates;
+
+SET @@sql_safe_updates = ON;
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+1
+
+SET @@sql_safe_updates = OF;
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'OF'
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+1
+
+SET @@sql_safe_updates = OFF;
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+0
+
+SET @@sql_safe_updates = @sql_safe_updates_saved;
+
+# Checking foreign_key_checks...
+SET @foreign_key_checks_saved = @@foreign_key_checks;
+
+SET @@foreign_key_checks = ON;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+
+SET @@foreign_key_checks = OF;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+
+SET @@foreign_key_checks = OFF;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+0
+
+SET @@foreign_key_checks = @foreign_key_checks_saved;
+
+# Checking unique_checks...
+SET @unique_checks_saved = @@unique_checks;
+
+SET @@unique_checks = ON;
+SELECT @@unique_checks;
+@@unique_checks
+1
+
+SET @@unique_checks = OF;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'OF'
+SELECT @@unique_checks;
+@@unique_checks
+1
+
+SET @@unique_checks = OFF;
+SELECT @@unique_checks;
+@@unique_checks
+0
+
+SET @@unique_checks = @unique_checks_saved;
+
+# Checking sql_buffer_result...
+SET @sql_buffer_result_saved = @@sql_buffer_result;
+
+SET @@sql_buffer_result = ON;
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+1
+
+SET @@sql_buffer_result = OF;
+ERROR 42000: Variable 'sql_buffer_result' can't be set to the value of 'OF'
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+1
+
+SET @@sql_buffer_result = OFF;
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+0
+
+SET @@sql_buffer_result = @sql_buffer_result_saved;
+
+# Checking sql_quote_show_create...
+SET @sql_quote_show_create_saved = @@sql_quote_show_create;
+
+SET @@sql_quote_show_create = ON;
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+1
+
+SET @@sql_quote_show_create = OF;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'OF'
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+1
+
+SET @@sql_quote_show_create = OFF;
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+0
+
+SET @@sql_quote_show_create = @sql_quote_show_create_saved;
+
+# End of Bug#34828.
+

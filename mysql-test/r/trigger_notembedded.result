@@ -170,11 +170,11 @@ Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'trg1'. The trigge
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-NULL	mysqltest_db1	trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	mysqltest_db1	trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	SET @a = 2	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@	latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	mysqltest_db1	trg3	UPDATE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 3	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abc@def@@	latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	mysqltest_db1	trg4	UPDATE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 4	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@hostname	latin1	latin1_swedish_ci	latin1_swedish_ci
-NULL	mysqltest_db1	trg5	DELETE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abcdef@@@hostname	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	trg1	INSERT	def	mysqltest_db1	t1	0	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	trg2	INSERT	def	mysqltest_db1	t1	0	NULL	SET @a = 2	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	trg3	UPDATE	def	mysqltest_db1	t1	0	NULL	SET @a = 3	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abc@def@@	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	trg4	UPDATE	def	mysqltest_db1	t1	0	NULL	SET @a = 4	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@hostname	latin1	latin1_swedish_ci	latin1_swedish_ci
+def	mysqltest_db1	trg5	DELETE	def	mysqltest_db1	t1	0	NULL	SET @a = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abcdef@@@hostname	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 ---> connection: default
 DROP USER mysqltest_dfn@localhost;

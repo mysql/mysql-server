@@ -128,7 +128,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   {
     if (my_flags & MY_WME)
       fprintf(stderr,
-              "Warning: Failed to allocate %lu bytesx from HugeTLB memory."
+              "Warning: Failed to allocate %lu bytes from HugeTLB memory."
               " errno %d\n", (ulong) size, errno);
 
     DBUG_RETURN(NULL);

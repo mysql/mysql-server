@@ -1733,6 +1733,24 @@ static TYPELIB my_locale_typelib_day_names_sr_RS =
  { array_elements(my_locale_day_names_sr_RS)-1, "", my_locale_day_names_sr_RS, NULL };
 static TYPELIB my_locale_typelib_ab_day_names_sr_RS = 
  { array_elements(my_locale_ab_day_names_sr_RS)-1, "", my_locale_ab_day_names_sr_RS, NULL };
+MY_LOCALE my_locale_sr_YU /* Deprecated, use sr_RS instead */
+(
+  48,
+  "sr_YU",
+  "Serbian - Yugoslavia",
+  FALSE,
+  &my_locale_typelib_month_names_sr_RS,
+  &my_locale_typelib_ab_month_names_sr_RS,
+  &my_locale_typelib_day_names_sr_RS,
+  &my_locale_typelib_ab_day_names_sr_RS,
+  9,
+  10,
+  '.',        /* decimal point sr_RS */
+  '\0',       /* thousands_sep sr_RS */
+  "\x80",     /* grouping      sr_RS */
+  &global_errmsgs[sr_RS]
+);
+
 MY_LOCALE my_locale_sr_RS
 (
   48,
@@ -3347,6 +3365,13 @@ MY_LOCALE *my_locales[]=
   };
 
 
+MY_LOCALE *my_locales_deprecated[]=
+{
+  &my_locale_sr_YU,
+  NULL
+};
+
+
 MY_LOCALE *my_locale_by_number(uint number)
 {
   MY_LOCALE *locale;
@@ -3359,19 +3384,53 @@ MY_LOCALE *my_locale_by_number(uint number)
 }
 
 
-MY_LOCALE *my_locale_by_name(const char *name)
+static MY_LOCALE*
+my_locale_by_name(MY_LOCALE** locales, const char *name)
 {
   MY_LOCALE **locale;
-  for (locale= my_locales; *locale != NULL; locale++) 
+  for (locale= locales; *locale != NULL; locale++) 
   {
     if (!my_strcasecmp(&my_charset_latin1, (*locale)->name, name))
-    {
-      // Check that locale is on its correct position in the array
-      DBUG_ASSERT((*locale) == my_locales[(*locale)->number]);
       return *locale;
-    }
   }
   return NULL;
+}
+
+
+MY_LOCALE *my_locale_by_name(const char *name)
+{
+  MY_LOCALE *locale;
+  
+  if ((locale= my_locale_by_name(my_locales, name)))
+  {
+      // Check that locale is on its correct position in the array
+      DBUG_ASSERT(locale == my_locales[locale->number]);
+      return locale;
+  }
+  else if ((locale= my_locale_by_name(my_locales_deprecated, name)))
+  {
+    THD *thd= current_thd;
+    /*
+      Replace the deprecated locale to the corresponding
+      'fresh' locale with the same ID.
+    */
+    locale= my_locales[locale->number];
+    if (thd)
+    {
+      // Send a warning to the client
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),
+                          name, locale->name);
+    }
+    else
+    {
+      // Send a warning to mysqld error log
+      sql_print_warning("The syntax '%s' is deprecated and will be removed. "
+                        "Please use %s instead.",
+                        name, locale->name);
+    }
+  }
+  return locale;
 }
 
 
