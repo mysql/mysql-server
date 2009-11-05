@@ -57,6 +57,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 {
   empty_record(table);
   bzero((char*) info,sizeof(*info));
+  info->thd= thd;
   info->table= table;
   info->file=  table->file;
   info->record= table->record[0];
@@ -292,6 +293,12 @@ void end_read_record(READ_RECORD *info)
 
 static int rr_handle_error(READ_RECORD *info, int error)
 {
+  if (info->thd->killed)
+  {
+    info->thd->send_kill_message();
+    return 1;
+  }
+
   if (error == HA_ERR_END_OF_FILE)
     error= -1;
   else
@@ -312,12 +319,7 @@ static int rr_quick(READ_RECORD *info)
   int tmp;
   while ((tmp= info->select->quick->get_next()))
   {
-    if (info->thd->killed)
-    {
-      my_error(ER_SERVER_SHUTDOWN, MYF(0));
-      return 1;
-    }
-    if (tmp != HA_ERR_RECORD_DELETED)
+    if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED))
     {
       tmp= rr_handle_error(info, tmp);
       break;
@@ -380,16 +382,11 @@ int rr_sequential(READ_RECORD *info)
   int tmp;
   while ((tmp=info->file->rnd_next(info->record)))
   {
-    if (info->thd->killed)
-    {
-      info->thd->send_kill_message();
-      return 1;
-    }
     /*
       rnd_next can return RECORD_DELETED for MyISAM when one thread is
       reading and another deleting without locks.
     */
-    if (tmp != HA_ERR_RECORD_DELETED)
+    if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED))
     {
       tmp= rr_handle_error(info, tmp);
       break;

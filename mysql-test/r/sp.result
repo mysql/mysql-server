@@ -6979,51 +6979,6 @@ CALL p1;
 ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
-#
-# Bug47627  SET @@{global.session}.local_variable in stored routine causes crash
-#
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS p2;
-DROP PROCEDURE IF EXISTS p3;
-CREATE PROCEDURE p1()
-BEGIN
-DECLARE v INT DEFAULT 0;
-SET @@session.v= 10;
-END//
-ERROR HY000: Unknown system variable 'v'
-CREATE PROCEDURE p2()
-BEGIN
-DECLARE v INT DEFAULT 0;
-SET v= 10;
-END//
-call p2()//
-CREATE PROCEDURE p3()
-BEGIN
-DECLARE v INT DEFAULT 0;
-SELECT @@session.v;
-END//
-ERROR HY000: Unknown system variable 'v'
-CREATE PROCEDURE p4()
-BEGIN
-DECLARE v INT DEFAULT 0;
-SET @@global.v= 10;
-END//
-ERROR HY000: Unknown system variable 'v'
-CREATE PROCEDURE p5()
-BEGIN
-DECLARE v INT DEFAULT 0;
-SET @@global.query_cache_size= 0;
-SET @@session.identity= 1;
-SELECT @@session.identity;
-SELECT @@global.query_cache_size;
-END//
-CALL p5();
-@@session.identity
-1
-@@global.query_cache_size
-0
-DROP PROCEDURE p2;
-DROP PROCEDURE p5;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
