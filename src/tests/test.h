@@ -65,6 +65,20 @@ parse_args (int argc, char *argv[]) {
     toku_os_initialize_settings(1);
 }
 
+static __attribute__((__unused__)) void 
+print_engine_status(DB_ENV * UU(env)) {
+#ifdef USE_TDB
+    if (verbose) {  // verbose declared statically in this file
+      int buffsize = 1024 * 32;
+      char buff[buffsize];
+      env->get_engine_status_text(env, buff, buffsize);
+      printf("Engine status:\n");
+      printf(buff);
+    }
+#endif
+}
+
+
 static __attribute__((__unused__)) DBT *
 dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
