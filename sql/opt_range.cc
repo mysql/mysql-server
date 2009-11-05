@@ -5968,7 +5968,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(field,value) == 0)
+    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5983,14 +5983,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field, value) <= 0))
+        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
       tree->min_flag=NEAR_MIN;
     tree->max_flag= NO_MAX_RANGE;
     break;
   case Item_func::GE_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field,value) < 0))
+        (stored_field_cmp_to_item(param->thd, field, value) < 0))
       tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
