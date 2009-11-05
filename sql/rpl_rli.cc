@@ -132,6 +132,29 @@ int init_relay_log_info(Relay_log_info* rli,
     rli->relay_log.max_size (and mysql_bin_log.max_size).
   */
   {
+    /* Reports an error and returns, if the --relay-log's path 
+       is a directory.*/
+    if (opt_relay_logname && 
+        opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
+    {
+      pthread_mutex_unlock(&rli->data_lock);
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --relay-log option", opt_relay_logname);
+      DBUG_RETURN(1);
+    }
+
+    /* Reports an error and returns, if the --relay-log-index's path 
+       is a directory.*/
+    if (opt_relaylog_index_name && 
+        opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1] 
+        == FN_LIBCHAR)
+    {
+      pthread_mutex_unlock(&rli->data_lock);
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --relay-log-index option", opt_relaylog_index_name);
+      DBUG_RETURN(1);
+    }
+
     char buf[FN_REFLEN];
     const char *ln;
     static bool name_warning_sent= 0;
