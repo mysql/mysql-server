@@ -51,6 +51,26 @@ INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
 ALTER TABLE t1 DROP KEY a;
 --source include/partition_date_range.inc
 DROP TABLE t1;
+--echo # TO_SECONDS, test of LIST and index
+CREATE TABLE t1 (a DATE, KEY(a))
+PARTITION BY LIST (TO_SECONDS(a))
+(PARTITION `p0001-01-01` VALUES IN (TO_SECONDS('0001-01-01')),
+ PARTITION `p2001-01-01` VALUES IN (TO_SECONDS('2001-01-01')),
+ PARTITION `pNULL` VALUES IN (NULL),
+ PARTITION `p0000-01-02` VALUES IN (TO_SECONDS('0000-01-02')),
+ PARTITION `p1001-01-01` VALUES IN (TO_SECONDS('1001-01-01')));
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
+INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
+      ('1001-00-00'), ('1001-01-01'), ('1002-00-00'), ('2001-01-01');
+--source include/partition_date_range.inc
+--echo # test without index
+ALTER TABLE t1 DROP KEY a;
+--source include/partition_date_range.inc
+DROP TABLE t1;
+
 
 #
 # Bug#46362: Endpoint should be set to false for TO_DAYS(DATE)

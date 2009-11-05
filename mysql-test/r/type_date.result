@@ -276,3 +276,25 @@ a
 0000-00-01
 drop table t1;
 End of 5.1 tests
+#
+# Bug #33629: last_day function can return null, but has 'not null'
+#             flag set for result
+#
+SELECT 1 FROM (SELECT LAST_DAY('0')) a;
+1
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+SELECT 1 FROM (SELECT MAKEDATE(2011,0)) a;
+1
+1
+CREATE TABLE t1 AS
+SELECT LAST_DAY('1970-01-01') AS f1,
+MAKEDATE(1970, 1)      AS f2;
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+f1	date	YES		NULL	
+f2	date	YES		NULL	
+DROP TABLE t1;
+#
+End of 6.0 tests

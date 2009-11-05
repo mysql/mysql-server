@@ -64,7 +64,7 @@ explain extended select * from v1 where f2=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` where 1
+Note	1003	select '1' AS `f1`,'1' AS `f2` from dual where 1
 explain extended select * from t1 where 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
@@ -74,7 +74,7 @@ explain extended select * from t1 where 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` where 1
+Note	1003	select '1' AS `f1`,'1' AS `f2` from dual where 1
 explain extended select * from t1 having 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
@@ -84,7 +84,7 @@ explain extended select * from t1 having 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` having 1
+Note	1003	select '1' AS `f1`,'1' AS `f2` from dual having 1
 drop view v1;
 drop table t1;
 CREATE TABLE t1(c INT);
@@ -194,4 +194,24 @@ dt
 2001-01-01 01:01:01
 2001-01-01 01:01:01
 drop tables t1, t2;
+#
+# Bug#30302: Tables that were optimized away are printed in the
+#            EXPLAIN EXTENDED warning.
+#
+create table t1(f1 int);
+create table t2(f2 int);
+insert into t1 values(1);
+insert into t2 values(1),(2);
+explain extended select * from t1 where f1=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '1' AS `f1` from dual where 1
+explain extended select * from t1 join t2 on f1=f2 where f1=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select '1' AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` = 1)
+drop table t1,t2;
 End of 5.1 tests.

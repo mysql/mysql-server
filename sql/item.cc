@@ -2586,7 +2586,8 @@ Item_param::Item_param(uint pos_in_query_arg) :
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func),
-  limit_clause_param(FALSE)
+  limit_clause_param(FALSE),
+  m_out_param_info(NULL)
 {
   name= (char*) "?";
   /* 
@@ -2668,6 +2669,17 @@ void Item_param::set_decimal(const char *str, ulong length)
   DBUG_VOID_RETURN;
 }
 
+void Item_param::set_decimal(const my_decimal *dv)
+{
+  state= DECIMAL_VALUE;
+
+  my_decimal2decimal(dv, &decimal_value);
+
+  decimals= (uint8) decimal_value.frac;
+  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, unsigned_flag);
+}
 
 /**
   Set parameter value from MYSQL_TIME value.
@@ -3290,6 +3302,158 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
   str_value_ptr.swap(src->str_value_ptr);
 }
 
+
+/**
+  This operation is intended to store some item value in Item_param to be
+  used later.
+
+  @param thd    thread context
+  @param ctx    stored procedure runtime context
+  @param it     a pointer to an item in the tree
+
+  @return Error status
+    @retval TRUE on error
+    @retval FALSE on success
+*/
+
+bool
+Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
+{
+  Item *value= *it;
+
+  if (value->is_null())
+  {
+    set_null();
+    return FALSE;
+  }
+
+  null_value= FALSE;
+
+  switch (value->result_type()) {
+  case STRING_RESULT:
+  {
+    char str_buffer[STRING_BUFFER_USUAL_SIZE];
+    String sv_buffer(str_buffer, sizeof(str_buffer), &my_charset_bin);
+    String *sv= value->val_str(&sv_buffer);
+
+    if (!sv)
+      return TRUE;
+
+    set_str(sv->c_ptr_safe(), sv->length());
+    str_value_ptr.set(str_value.ptr(),
+                      str_value.length(),
+                      str_value.charset());
+    collation.set(str_value.charset(), DERIVATION_COERCIBLE);
+    decimals= 0;
+    param_type= MYSQL_TYPE_STRING;
+
+    break;
+  }
+
+  case REAL_RESULT:
+    set_double(value->val_real());
+      param_type= MYSQL_TYPE_DOUBLE;
+    break;
+
+  case INT_RESULT:
+    set_int(value->val_int(), value->max_length);
+    param_type= MYSQL_TYPE_LONG;
+    break;
+
+  case DECIMAL_RESULT:
+  {
+    my_decimal dv_buf;
+    my_decimal *dv= value->val_decimal(&dv_buf);
+
+    if (!dv)
+      return TRUE;
+
+    set_decimal(dv);
+    param_type= MYSQL_TYPE_NEWDECIMAL;
+
+    break;
+  }
+
+  default:
+    /* That can not happen. */
+
+    DBUG_ASSERT(TRUE);  // Abort in debug mode.
+
+    set_null();         // Set to NULL in release mode.
+    return FALSE;
+  }
+
+  item_result_type= value->result_type();
+  item_type= value->type();
+  return FALSE;
+}
+
+
+/**
+  Setter of Item_param::m_out_param_info.
+
+  m_out_param_info is used to store information about store routine
+  OUT-parameters, such as stored routine name, database, stored routine
+  variable name. It is supposed to be set in sp_head::execute() after
+  Item_param::set_value() is called.
+*/
+
+void
+Item_param::set_out_param_info(Send_field *info)
+{
+  m_out_param_info= info;
+}
+
+
+/**
+  Getter of Item_param::m_out_param_info.
+
+  m_out_param_info is used to store information about store routine
+  OUT-parameters, such as stored routine name, database, stored routine
+  variable name. It is supposed to be retrieved in
+  Protocol_binary::send_out_parameters() during creation of OUT-parameter
+  result set.
+*/
+
+const Send_field *
+Item_param::get_out_param_info() const
+{
+  return m_out_param_info;
+}
+
+
+/**
+  Fill meta-data information for the corresponding column in a result set.
+  If this is an OUT-parameter of a stored procedure, preserve meta-data of
+  stored-routine variable.
+
+  @param field container for meta-data to be filled
+*/
+
+void Item_param::make_field(Send_field *field)
+{
+  Item::make_field(field);
+
+  if (!m_out_param_info)
+    return;
+
+  /*
+    This is an OUT-parameter of stored procedure. We should use
+    OUT-parameter info to fill out the names.
+  */
+
+  field->db_name= m_out_param_info->db_name;
+  field->table_name= m_out_param_info->table_name;
+  field->org_table_name= m_out_param_info->org_table_name;
+  field->col_name= m_out_param_info->col_name;
+  field->org_col_name= m_out_param_info->org_col_name;
+  field->length= m_out_param_info->length;
+  field->charsetnr= m_out_param_info->charsetnr;
+  field->flags= m_out_param_info->flags;
+  field->decimals= m_out_param_info->decimals;
+  field->type= m_out_param_info->type;
+}
+
 /****************************************************************************
   Item_copy
 ****************************************************************************/
@@ -3521,7 +3685,7 @@ void Item_copy_decimal::copy()
 
 
 /*
-  Functions to convert item to field (for send_fields)
+  Functions to convert item to field (for send_result_set_metadata)
 */
 
 /* ARGSUSED */

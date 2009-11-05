@@ -25,9 +25,8 @@
 /* Forward declarations */
 class handler;
 class MYSQL_BIN_LOG;
-struct st_table;
+struct TABLE;
 
-typedef st_table TABLE;
 
 /*
   Injector to inject rows into the MySQL server.

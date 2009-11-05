@@ -12,10 +12,10 @@ COUNT(@@GLOBAL.innodb_rollback_on_timeout)
 1
 1 Expected
 '#---------------------BS_STVARS_039_03----------------------#'
-SELECT @@GLOBAL.innodb_rollback_on_timeout = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.innodb_rollback_on_timeout, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_rollback_on_timeout';
-@@GLOBAL.innodb_rollback_on_timeout = VARIABLE_VALUE
+IF(@@GLOBAL.innodb_rollback_on_timeout, "ON", "OFF") = VARIABLE_VALUE
 1
 1 Expected
 SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);

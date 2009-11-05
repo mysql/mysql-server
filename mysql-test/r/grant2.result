@@ -391,7 +391,7 @@ grant all on mysqltest_1.* to mysqltest_u1@localhost;
 use mysqltest_2;
 create table t1 (i int);
 show create table mysqltest_2.t1;
-ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't1'
 create table t1 like mysqltest_2.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
 grant select on mysqltest_2.t1 to mysqltest_u1@localhost;
