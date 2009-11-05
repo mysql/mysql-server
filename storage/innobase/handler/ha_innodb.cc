@@ -4551,7 +4551,7 @@ calc_row_difference(
 	upd_t*		uvect,		/*!< in/out: update vector */
 	uchar*		old_row,	/*!< in: old row in MySQL format */
 	uchar*		new_row,	/*!< in: new row in MySQL format */
-	struct st_table* table,		/*!< in: table in MySQL data
+	TABLE*          table,		/*!< in: table in MySQL data
 					dictionary */
 	uchar*		upd_buff,	/*!< in: buffer to use */
 	ulint		buff_len,	/*!< in: buffer length */

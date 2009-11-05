@@ -18,8 +18,7 @@
 
 /* Forward declarations */
 #ifndef MYSQL_CLIENT
-struct st_table;
-typedef st_table TABLE;
+struct TABLE;
 #else
 class Table_map_log_event;
 typedef Table_map_log_event TABLE;
@@ -91,9 +90,9 @@ private:
 
   entry *find_entry(ulong table_id)
   {
-    return (entry *)hash_search(&m_table_ids,
-				(uchar*)&table_id,
-				sizeof(table_id));
+    return (entry *) my_hash_search(&m_table_ids,
+                                    (uchar*)&table_id,
+                                    sizeof(table_id));
   }
   int expand();
 

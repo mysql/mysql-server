@@ -98,7 +98,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     thd= (THD *) mysql->thd;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
 
@@ -144,13 +144,13 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   thd->mysys_var= 0;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
   return result;
 }
 
-static void emb_flush_use_result(MYSQL *mysql)
+static void emb_flush_use_result(MYSQL *mysql, my_bool)
 {
   THD *thd= (THD*) mysql->thd;
   if (thd->cur_data)
@@ -656,7 +656,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
   result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
-  net_end_statement(thd);
+  thd->protocol->end_statement();
   emb_read_query_result(mysql);
   return result;
 }
@@ -882,7 +882,7 @@ void Protocol_text::remove_last_row()
 }
 
 
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -891,7 +891,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
   CHARSET_INFO             *cs= system_charset_info;
   MYSQL_DATA               *data;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("send_result_set_metadata");
 
   if (!thd->mysql)            // bootstrap file handling
     DBUG_RETURN(0);
@@ -985,7 +985,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     write_eof_packet(thd, thd->server_status,
                      thd->warning_info->statement_warn_count());
 
-  DBUG_RETURN(prepare_for_send(list));
+  DBUG_RETURN(prepare_for_send(list->elements));
  err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */

@@ -710,10 +710,14 @@ err:
 }
 #endif
 
-/*****************************************************************************
+/**
   Read a packet from server. Give error message if socket was down
   or packet is an error message
-*****************************************************************************/
+
+  @retval  packet_error    An error occurred during reading.
+                           Error message is set.
+  @retval  
+*/
 
 ulong
 cli_safe_read(MYSQL *mysql)
@@ -879,31 +883,132 @@ void free_old_query(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Finish reading of a partial result set from the server.
+  Get the EOF packet, and update mysql->status
+  and mysql->warning_count.
+
+  @return  TRUE if a communication or protocol error, an error
+           is set in this case, FALSE otherwise.
+*/
+
+my_bool flush_one_result(MYSQL *mysql)
+{
+  ulong packet_length;
+
+  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY);
+
+  do
+  {
+    packet_length= cli_safe_read(mysql);
+    /*
+      There is an error reading from the connection,
+      or (sic!) there were no error and no
+      data in the stream, i.e. no more data from the server.
+      Since we know our position in the stream (somewhere in
+      the middle of a result set), this latter case is an error too
+      -- each result set must end with a EOF packet.
+      cli_safe_read() has set an error for us, just return.
+    */
+    if (packet_length == packet_error)
+      return TRUE;
+  }
+  while (packet_length > 8 || mysql->net.read_pos[0] != 254);
+
+  /* Analyze EOF packet of the result set. */
+
+  if (protocol_41(mysql))
+  {
+    char *pos= (char*) mysql->net.read_pos + 1;
+    mysql->warning_count=uint2korr(pos);
+    pos+=2;
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+  }
+  return FALSE;
+}
+
+
+/**
+  Read a packet from network. If it's an OK packet, flush it.
+
+  @return  TRUE if error, FALSE otherwise. In case of 
+           success, is_ok_packet is set to TRUE or FALSE,
+           based on what we got from network.
+*/
+
+my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
+{
+  ulong packet_length= cli_safe_read(mysql);
+
+  if (packet_length == packet_error)
+    return TRUE;
+
+  /* cli_safe_read always reads a non-empty packet. */
+  DBUG_ASSERT(packet_length);
+
+  *is_ok_packet= mysql->net.read_pos[0] == 0;
+  if (*is_ok_packet)
+  {
+    uchar *pos= mysql->net.read_pos + 1;
+
+    net_field_length_ll(&pos); /* affected rows */
+    net_field_length_ll(&pos); /* insert id */
+
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+
+    if (protocol_41(mysql))
+    {
+      mysql->warning_count=uint2korr(pos);
+      pos+=2;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Flush result set sent from server
 */
 
-static void cli_flush_use_result(MYSQL *mysql)
+static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
 {
   /* Clear the current execution status */
   DBUG_ENTER("cli_flush_use_result");
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
-  for (;;)
+
+  if (flush_one_result(mysql))
+    DBUG_VOID_RETURN;                           /* An error occurred */
+
+  if (! flush_all_results)
+    DBUG_VOID_RETURN;
+
+  while (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
   {
-    ulong pkt_len;
-    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
-      break;
-    if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+    my_bool is_ok_packet;
+    if (opt_flush_ok_packet(mysql, &is_ok_packet))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
+    if (is_ok_packet)
     {
-      if (protocol_41(mysql))
-      {
-        char *pos= (char*) mysql->net.read_pos + 1;
-        mysql->warning_count=uint2korr(pos); pos+=2;
-        mysql->server_status=uint2korr(pos); pos+=2;
-      }
-      break;                            /* End of data */
+      /*
+        Indeed what we got from network was an OK packet, and we
+        know that OK is the last one in a multi-result-set, so
+        just return.
+      */
+      DBUG_VOID_RETURN;
     }
+    /*
+      It's a result set, not an OK packet. A result set contains
+      of two result set subsequences: field metadata, terminated
+      with EOF packet, and result set data, again terminated with
+      EOF packet. Read and flush them.
+    */
+    if (flush_one_result(mysql) || flush_one_result(mysql))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
   }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1009,7 +1114,7 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        (*mysql->methods->flush_use_result)(mysql);
+        (*mysql->methods->flush_use_result)(mysql, FALSE);
         mysql->status=MYSQL_STATUS_READY;
         if (mysql->unbuffered_fetch_owner)
           *mysql->unbuffered_fetch_owner= TRUE;
@@ -1036,7 +1141,6 @@ static const char *default_options[]=
   "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
-  "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation",
@@ -1184,7 +1288,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  my_free(options->ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_capath = my_strdup(opt_arg, MYF(MY_WME));
           break;
-        case 26:			/* ssl_cipher */
+        case 23:			/* ssl_cipher */
           my_free(options->ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
@@ -1193,7 +1297,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 14:
 	case 15:
 	case 16:
-        case 26:
+        case 23:
 	  break;
 #endif /* HAVE_OPENSSL */
 	case 17:			/* charset-lib */
@@ -1216,24 +1320,11 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 22:
 	  options->client_flag&= ~CLIENT_LOCAL_FILES;
           break;
-	case 23:  /* replication probe */
-#ifndef TO_BE_DELETED
-	  options->rpl_probe= 1;
-#endif
-	  break;
-	case 24: /* enable-reads-from-master */
-	  options->no_master_reads= 0;
-	  break;
-	case 25: /* repl-parse-query */
-#ifndef TO_BE_DELETED
-	  options->rpl_parse= 1;
-#endif
-	  break;
-	case 27:
+	case 24: /* max-allowed-packet */
           if (opt_arg)
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
-        case 28:		/* protocol */
+        case 25: /* protocol */
           if ((options->protocol= find_type(opt_arg,
 					    &sql_protocol_typelib,0)) <= 0)
           {
@@ -1241,24 +1332,24 @@ void mysql_read_default_options(struct st_mysql_options *options,
             exit(1);
           }
           break;
-        case 29:		/* shared_memory_base_name */
+        case 26: /* shared_memory_base_name */
 #ifdef HAVE_SMEM
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
 #endif
           break;
-	case 30:
+	case 27: /* multi-results */
 	  options->client_flag|= CLIENT_MULTI_RESULTS;
 	  break;
-	case 31:
-	case 32:
+	case 28: /* multi-statements */
+	case 29: /* multi-queries */
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case 33: /* secure-auth */
+        case 30: /* secure-auth */
           options->secure_auth= TRUE;
           break;
-        case 34: /* report-data-truncation */
+        case 31: /* report-data-truncation */
           options->report_data_truncation= opt_arg ? test(atoi(opt_arg)) : 1;
           break;
 	default:
@@ -1585,16 +1676,8 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql), sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
-  mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
   mysql->charset=default_client_charset_info;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
-  /*
-    By default, we are a replication pivot. The caller must reset it
-    after we return if this is not the case.
-  */
-#ifndef TO_BE_DELETED
-  mysql->rpl_pivot = 1;
-#endif
 
   /*
     Only enable LOAD DATA INFILE by default if configured with
@@ -2166,6 +2249,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+  /* Test whether we're already connected */
+  if (net->vio)
+  {
+    set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -2774,11 +2864,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->reconnect=reconnect;
   }
 
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
-    goto error;
-#endif
-
   DBUG_PRINT("exit", ("Mysql handler: 0x%lx", (long) mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
@@ -2800,28 +2885,6 @@ error:
 }
 
 
-/* needed when we move MYSQL structure to a different address */
-
-#ifndef TO_BE_DELETED
-static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
-{
-  MYSQL *tmp, *tmp_prev;
-  if (mysql->master == old_mysql)
-    mysql->master= mysql;
-  if (mysql->last_used_con == old_mysql)
-    mysql->last_used_con= mysql;
-  if (mysql->last_used_slave == old_mysql)
-    mysql->last_used_slave= mysql;
-  for (tmp_prev = mysql, tmp = mysql->next_slave;
-       tmp != old_mysql;tmp = tmp->next_slave)
-  {
-    tmp_prev= tmp;
-  }
-  tmp_prev->next_slave= mysql;
-}
-#endif
-
-
 my_bool mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
@@ -2840,8 +2903,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql_init(&tmp_mysql);
   tmp_mysql.options= mysql->options;
   tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
-  tmp_mysql.rpl_pivot= mysql->rpl_pivot;
-  
+
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
@@ -2875,7 +2937,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
-  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
   net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -3053,23 +3114,6 @@ void STDCALL mysql_close(MYSQL *mysql)
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
-#ifndef TO_BE_DELETED
-    /* free/close slave list */
-    if (mysql->rpl_pivot)
-    {
-      MYSQL* tmp;
-      for (tmp = mysql->next_slave; tmp != mysql; )
-      {
-	/* trick to avoid following freed pointer */
-	MYSQL* tmp1 = tmp->next_slave;
-	mysql_close(tmp);
-	tmp = tmp1;
-      }
-      mysql->rpl_pivot=0;
-    }
-#endif
-    if (mysql != mysql->master)
-      mysql_close(mysql->master);
 #ifndef MYSQL_SERVER
     if (mysql->thd)
       (*mysql->methods->free_embedded_thd)(mysql);
@@ -3088,12 +3132,6 @@ static my_bool cli_read_query_result(MYSQL *mysql)
   MYSQL_DATA *fields;
   ulong length;
   DBUG_ENTER("cli_read_query_result");
-
-  /*
-    Read from the connection which we actually used, which
-    could differ from the original connection if we have slaves
-  */
-  mysql = mysql->last_used_con;
 
   if ((length = cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
@@ -3169,23 +3207,6 @@ int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   DBUG_ENTER("mysql_send_query");
-  DBUG_PRINT("enter",("rpl_parse: %d  rpl_pivot: %d",
-		      mysql->options.rpl_parse, mysql->rpl_pivot));
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_parse && mysql->rpl_pivot)
-  {
-    switch (mysql_rpl_query_type(query, length)) {
-    case MYSQL_RPL_MASTER:
-      DBUG_RETURN(mysql_master_send_query(mysql, query, length));
-    case MYSQL_RPL_SLAVE:
-      DBUG_RETURN(mysql_slave_send_query(mysql, query, length));
-    case MYSQL_RPL_ADMIN:
-      break;					/* fall through */
-    }
-  }
-  mysql->last_used_con = mysql;
-#endif
-
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
 }
 
@@ -3212,8 +3233,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
-  /* read from the actually used connection */
-  mysql = mysql->last_used_con;
+
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -3267,8 +3287,6 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("cli_use_result");
-
-  mysql = mysql->last_used_con;
 
   if (!mysql->fields)
     DBUG_RETURN(0);

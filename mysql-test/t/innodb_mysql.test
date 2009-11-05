@@ -462,3 +462,21 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Test for bug #39932 "create table fails if column for FK is in different
+--echo #                      case than in corr index".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (pk int primary key) engine=InnoDB;
+--echo # Even although the below statement uses uppercased field names in
+--echo # foreign key definition it still should be able to find explicitly
+--echo # created supporting index. So it should succeed and should not
+--echo # create any additional supporting indexes.
+create table t2 (fk int, key x (fk),
+                 constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+drop table t2, t1;

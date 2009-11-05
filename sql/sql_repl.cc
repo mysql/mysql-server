@@ -377,7 +377,7 @@ static ulonglong get_heartbeat_period(THD * thd)
   my_bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
   user_var_entry *entry= 
-    (user_var_entry*) hash_search(&thd->user_vars, (uchar*) name.str,
+    (user_var_entry*) my_hash_search(&thd->user_vars, (uchar*) name.str,
                                   name.length);
   return entry? entry->val_int(&null_value) : 0;
 }
@@ -1674,7 +1674,7 @@ bool mysql_show_binlog_events(THD* thd)
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
@@ -1849,7 +1849,7 @@ bool show_binlog_info(THD* thd)
   field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
   field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   protocol->prepare_for_resend();
@@ -1895,13 +1895,13 @@ bool show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
-    return 1;
+    DBUG_RETURN(TRUE);
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(new Item_return_int("File_size", 20,
                                            MYSQL_TYPE_LONGLONG));
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   

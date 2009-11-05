@@ -98,7 +98,8 @@ test-pr:
 
 test-ns:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed ; \
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --suite=funcs_1
 
 test-binlog-statement:
 	cd mysql-test ; \

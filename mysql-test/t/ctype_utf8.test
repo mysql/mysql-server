@@ -2,6 +2,8 @@
 # Tests with the utf8 character set
 #
 
+--source include/have_innodb.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -256,9 +258,7 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: keys with prefix compression, case insensitive collation.
 #
---disable_warnings
 create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
---enable_warnings
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 --error ER_DUP_ENTRY
@@ -306,9 +306,7 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: fixed length keys, case insensitive collation
 #
---disable_warnings
 create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
---enable_warnings
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -383,12 +381,10 @@ drop table t1;
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check BDB, case insensitive collation
 #
---disable_warnings
 create table t1 (
 c char(10) character set utf8,
 unique key a (c(1))
 ) engine=innodb;
---enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error ER_DUP_ENTRY
 insert into t1 values ('aa');
@@ -506,12 +502,10 @@ drop table t1;
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check BDB, binary collation
 #
---disable_warnings
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
 ) engine=innodb;
---enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error ER_DUP_ENTRY
 insert into t1 values ('aa');
@@ -543,12 +537,10 @@ drop table t1;
 # Bug#4594: column index make = failed for gbk, but like works
 # Check InnoDB
 #
---disable_warnings
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str  (str(2))
 ) engine=innodb;
---enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -581,12 +573,10 @@ drop table t1;
 # the same for BDB
 #
 
---disable_warnings
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str (str(2))
 ) engine=innodb;
---enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -603,14 +593,11 @@ DROP TABLE t1;
 #
 # Bug #5723: length(<varchar utf8 field>) returns varying results
 #
---disable_warnings
 SET NAMES utf8;
---disable_warnings
 CREATE TABLE t1 (
   subject varchar(255) character set utf8 collate utf8_unicode_ci,
   p varchar(15) character set utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
 INSERT INTO t1 VALUES ('aaa','bbb');
 SELECT length(subject) FROM t1;
@@ -661,18 +648,14 @@ DROP TABLE t1;
 # Bug #6019 SELECT tries to use too short prefix index on utf8 data
 #
 set names utf8;
---disable_warnings
 create table t1 (
   a int primary key,
   b varchar(6),
   index b3(b(3))
 ) engine=innodb character set=utf8;
---enable_warnings
 insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
---disable_warnings
 alter table t1 engine=innodb;
---enable_warnings
 select * from t1 where b like 'foob%';
 drop table t1;
 
@@ -841,14 +824,12 @@ INSERT INTO t1 VALUES
 (1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
 (2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
 
---disable_warnings
 CREATE TABLE t2 (
   `msisdn` varchar(15) NOT NULL default '',
   `operator_id` int(11) NOT NULL default '0',
   `created` datetime NOT NULL default '0000-00-00 00:00:00',
   UNIQUE KEY `PK_user` (`msisdn`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
---enable_warnings
 
 INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 
@@ -1013,10 +994,8 @@ drop table t1;
 # additional tests from duplicate bug#20744 MySQL return no result
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb  default character set utf8 collate utf8_general_ci;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1024,10 +1003,8 @@ select a as gci2 from t1 where a like 'あいうえおかきくけこさしす�
 drop table t1;
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_unicode_ci;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1035,10 +1012,8 @@ select a as uci2 from t1 where a like 'あいうえおかきくけこさしす�
 drop table t1;
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_bin;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1363,26 +1338,22 @@ select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
 drop table t1;
 
-
 #
 # Bug#19960: Inconsistent results when joining
 # InnoDB tables using partial UTF8 indexes
 #
---disable_warnings
+
 CREATE TABLE t1 (
   colA int(11) NOT NULL,
   colB varchar(255) character set utf8 NOT NULL,
    PRIMARY KEY  (colA)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t1 (colA, colB) VALUES (1, 'foo'), (2, 'foo bar');
---disable_warnings
 CREATE TABLE t2 (
   colA int(11) NOT NULL,
   colB varchar(255) character set utf8 NOT NULL,
    KEY bad  (colA,colB(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
 SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
 WHERE t1.colA < 3;

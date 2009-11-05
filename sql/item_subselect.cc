@@ -1863,7 +1863,8 @@ void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(0);
 }
 
-int  init_read_record_seq(JOIN_TAB *tab);
+int  read_first_record_seq(JOIN_TAB *tab);
+int rr_sequential(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 
@@ -1945,7 +1946,8 @@ int subselect_single_select_engine::exec()
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
-              tab->read_first_record= init_read_record_seq;
+              tab->read_record.read_record= rr_sequential;
+              tab->read_first_record= read_first_record_seq;
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;

@@ -46,6 +46,7 @@
 #define CREATE_USER_ACL (1L << 25)
 #define EVENT_ACL       (1L << 26)
 #define TRIGGER_ACL     (1L << 27)
+#define CREATE_TABLESPACE_ACL (1L << 28)
 /*
   don't forget to update
   1. static struct show_privileges_st sys_privileges[]
@@ -54,7 +55,6 @@
   4. acl_init() or whatever - to define behaviour for old privilege tables
   5. sql_yacc.yy - for GRANT/REVOKE to work
 */
-#define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
@@ -82,10 +82,16 @@
  REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
  EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
- ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL)
+ ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL | \
+ CREATE_TABLESPACE_ACL)
 
 #define DEFAULT_CREATE_PROC_ACLS \
 (ALTER_PROC_ACL | EXECUTE_ACL)
+
+#define SHOW_CREATE_TABLE_ACLS \
+(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | \
+ CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
+ TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
 /*
   Defines to change the above bits to how things are stored in tables
@@ -241,7 +247,7 @@ my_bool grant_init();
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
-		 uint show_command, uint number, bool dont_print_error);
+                 bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column (THD *thd, GRANT_INFO *grant,
 			 const char *db_name, const char *table_name,
 			 const char *name, uint length, Security_context *sctx);
@@ -272,8 +278,12 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
+bool has_any_table_level_privileges(THD *thd, ulong required_access,
+                                    TABLE_LIST *tables);
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0
+#define has_any_table_level_privileges(A,B,C) 0
 #endif
 #endif /* SQL_ACL_INCLUDED */

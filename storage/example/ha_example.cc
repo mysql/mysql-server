@@ -133,8 +133,8 @@ static int example_init_func(void *p)
 
   example_hton= (handlerton *)p;
   VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
-  (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
-                   (hash_get_key) example_get_key,0,0);
+  (void) my_hash_init(&example_open_tables,system_charset_info,32,0,0,
+                      (my_hash_get_key) example_get_key,0,0);
 
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
@@ -151,7 +151,7 @@ static int example_done_func(void *p)
 
   if (example_open_tables.records)
     error= 1;
-  hash_free(&example_open_tables);
+  my_hash_free(&example_open_tables);
   pthread_mutex_destroy(&example_mutex);
 
   DBUG_RETURN(0);
@@ -175,9 +175,9 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
   pthread_mutex_lock(&example_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(EXAMPLE_SHARE*) hash_search(&example_open_tables,
-                                           (uchar*) table_name,
-                                           length)))
+  if (!(share=(EXAMPLE_SHARE*) my_hash_search(&example_open_tables,
+                                              (uchar*) table_name,
+                                              length)))
   {
     if (!(share=(EXAMPLE_SHARE *)
           my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
@@ -222,7 +222,7 @@ static int free_share(EXAMPLE_SHARE *share)
   pthread_mutex_lock(&example_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&example_open_tables, (uchar*) share);
+    my_hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free(share, MYF(0));

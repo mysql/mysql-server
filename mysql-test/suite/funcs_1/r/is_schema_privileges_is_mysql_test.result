@@ -10,22 +10,22 @@ SELECT * FROM information_schema.schema_privileges
 WHERE table_schema IN ('information_schema','mysql','test')
 ORDER BY grantee, table_schema, privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
-''@'%'	NULL	test	ALTER	NO
-''@'%'	NULL	test	CREATE	NO
-''@'%'	NULL	test	CREATE ROUTINE	NO
-''@'%'	NULL	test	CREATE TEMPORARY TABLES	NO
-''@'%'	NULL	test	CREATE VIEW	NO
-''@'%'	NULL	test	DELETE	NO
-''@'%'	NULL	test	DROP	NO
-''@'%'	NULL	test	EVENT	NO
-''@'%'	NULL	test	INDEX	NO
-''@'%'	NULL	test	INSERT	NO
-''@'%'	NULL	test	LOCK TABLES	NO
-''@'%'	NULL	test	REFERENCES	NO
-''@'%'	NULL	test	SELECT	NO
-''@'%'	NULL	test	SHOW VIEW	NO
-''@'%'	NULL	test	TRIGGER	NO
-''@'%'	NULL	test	UPDATE	NO
+''@'%'	def	test	ALTER	NO
+''@'%'	def	test	CREATE	NO
+''@'%'	def	test	CREATE ROUTINE	NO
+''@'%'	def	test	CREATE TEMPORARY TABLES	NO
+''@'%'	def	test	CREATE VIEW	NO
+''@'%'	def	test	DELETE	NO
+''@'%'	def	test	DROP	NO
+''@'%'	def	test	EVENT	NO
+''@'%'	def	test	INDEX	NO
+''@'%'	def	test	INSERT	NO
+''@'%'	def	test	LOCK TABLES	NO
+''@'%'	def	test	REFERENCES	NO
+''@'%'	def	test	SELECT	NO
+''@'%'	def	test	SHOW VIEW	NO
+''@'%'	def	test	TRIGGER	NO
+''@'%'	def	test	UPDATE	NO
 SHOW DATABASES LIKE 'information_schema';
 Database (information_schema)
 information_schema

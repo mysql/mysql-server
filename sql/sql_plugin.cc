@@ -578,14 +578,15 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
-        hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
+        my_hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
       if (plugin)
         DBUG_RETURN(plugin);
     }
   }
   else
     DBUG_RETURN((st_plugin_int *)
-        hash_search(&plugin_hash[type], (const uchar *)name->str, name->length));
+        my_hash_search(&plugin_hash[type], (const uchar *)name->str,
+                       name->length));
   DBUG_RETURN(0);
 }
 
@@ -853,7 +854,7 @@ static void plugin_del(struct st_plugin_int *plugin)
   safe_mutex_assert_owner(&LOCK_plugin);
   /* Free allocated strings before deleting the plugin. */
   plugin_vars_free_values(plugin->system_vars);
-  hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
+  my_hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state= PLUGIN_IS_FREED;
@@ -1128,8 +1129,8 @@ int plugin_init(int *argc, char **argv, int flags)
   init_alloc_root(&plugin_mem_root, 4096, 4096);
   init_alloc_root(&tmp_root, 4096, 4096);
 
-  if (hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
-                  get_bookmark_hash_key, NULL, HASH_UNIQUE))
+  if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
+                   get_bookmark_hash_key, NULL, HASH_UNIQUE))
       goto err;
 
 
@@ -1143,8 +1144,8 @@ int plugin_init(int *argc, char **argv, int flags)
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
-    if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                  get_plugin_hash_key, NULL, HASH_UNIQUE))
+    if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
+                     get_plugin_hash_key, NULL, HASH_UNIQUE))
       goto err;
   }
 
@@ -1622,7 +1623,7 @@ void plugin_shutdown(void)
   /* Dispose of the memory */
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
-    hash_free(&plugin_hash[i]);
+    my_hash_free(&plugin_hash[i]);
   delete_dynamic(&plugin_array);
 
   count= plugin_dl_array.elements;
@@ -1634,7 +1635,7 @@ void plugin_shutdown(void)
   my_afree(dl);
   delete_dynamic(&plugin_dl_array);
 
-  hash_free(&bookmark_hash);
+  my_hash_free(&bookmark_hash);
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -1655,7 +1656,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
-  if (check_table_access(thd, INSERT_ACL, &tables, 1, FALSE))
+  if (check_table_access(thd, INSERT_ACL, &tables, FALSE, 1, FALSE))
     DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
@@ -1759,12 +1760,13 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   reap_plugins();
   pthread_mutex_unlock(&LOCK_plugin);
 
+  uchar user_key[MAX_KEY_LENGTH];
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  if (! table->file->index_read_idx_map(table->record[0], 0,
-                                        (uchar *)table->field[0]->ptr,
-                                        HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT))
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (! table->file->index_read_idx_map(table->record[0], 0, user_key,
+                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     int error;
     /*
@@ -1822,7 +1824,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     HASH *hash= plugin_hash + type;
     for (idx= 0; idx < total; idx++)
     {
-      plugin= (struct st_plugin_int *) hash_element(hash, idx);
+      plugin= (struct st_plugin_int *) my_hash_element(hash, idx);
       plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
@@ -2221,8 +2223,8 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
 
   varname[0]= flags & PLUGIN_VAR_TYPEMASK;
 
-  result= (st_bookmark*) hash_search(&bookmark_hash,
-                                     (const uchar*) varname, length - 1);
+  result= (st_bookmark*) my_hash_search(&bookmark_hash,
+                                        (const uchar*) varname, length - 1);
 
   my_afree(varname);
   return result;
@@ -2382,7 +2384,7 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
     {
       sys_var_pluginvar *pi;
       sys_var *var;
-      st_bookmark *v= (st_bookmark*) hash_element(&bookmark_hash,idx);
+      st_bookmark *v= (st_bookmark*) my_hash_element(&bookmark_hash,idx);
 
       if (v->version <= thd->variables.dynamic_variables_version ||
           !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
@@ -2476,7 +2478,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   rw_rdlock(&LOCK_system_variables_hash);
   for (idx= 0; idx < bookmark_hash.records; idx++)
   {
-    v= (st_bookmark*) hash_element(&bookmark_hash, idx);
+    v= (st_bookmark*) my_hash_element(&bookmark_hash, idx);
     if (v->version > vars->dynamic_variables_version ||
         !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
         !(pivar= var->cast_pluginvar()) ||
