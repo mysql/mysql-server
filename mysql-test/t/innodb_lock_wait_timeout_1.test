@@ -43,4 +43,33 @@ DISCONNECT addconroot;
 
 DROP TABLE t2, t1;
 
---echo End of 5.0 tests
+--echo # End of 5.0 tests
+
+--echo #
+--echo # Bug#46539 Various crashes on INSERT IGNORE SELECT + SELECT
+--echo #           FOR UPDATE
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int primary key auto_increment,
+                 b int, index(b)) engine=innodb;
+insert into t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+set autocommit=0;
+begin;
+select * from t1 where b=5 for update;
+connect (con1, localhost, root,,);
+connection con1;
+--error ER_LOCK_WAIT_TIMEOUT
+insert ignore into t1 (b) select a as b from t1;
+connection default;
+--echo # Cleanup
+--echo #
+disconnect con1;
+commit;
+set autocommit=default;
+drop table t1;
+
+--echo #
+--echo # End of 5.1 tests
+--echo #

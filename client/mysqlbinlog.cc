@@ -995,11 +995,13 @@ static struct my_option my_long_options[] =
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
    "statements: 'never' disables it and works only for binlogs without "
-   "row-based events; 'auto' prints base64 only when necessary (i.e., "
-   "for row-based events and format description events); 'always' prints "
-   "base64 whenever possible. 'always' is for debugging only and should "
-   "not be used in a production system. If this argument is not given, "
-   "the default is 'auto'; if it is given with no argument, 'always' is used."
+   "row-based events; 'decode-rows' decodes row events into commented SQL "
+   "statements if the --verbose option is also given; 'auto' prints base64 "
+   "only when necessary (i.e., for row-based events and format description "
+   "events); 'always' prints base64 whenever possible. 'always' is for "
+   "debugging only and should not be used in a production system. If this "
+   "argument is not given, the default is 'auto'; if it is given with no "
+   "argument, 'always' is used."
    ,(uchar**) &opt_base64_output_mode_str,
    (uchar**) &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
