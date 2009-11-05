@@ -257,9 +257,6 @@ private:
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   size_t m_countOperations;             // #elements in above array
 
-  /** True if a TCKEYCONF message has been received for this query.*/
-  bool m_tcKeyConfReceived;
-
   /** Number of streams not yet completed within the current batch.*/
   Uint32 m_pendingStreams;
 
@@ -468,14 +465,16 @@ private:
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
 
-  /** Copy any NdbRecAttr results into application buffers.*/
-  void fetchRecAttrResults(Uint32 streamNo);
-
   /** Fix parent-child references when a complete batch has been received
    * for a given stream.
    */
   void buildChildTupleLinks(Uint32 streamNo);
 
+  /** Count number of child operations, excluding the operation itself */
+  Uint32 countAllChildOperations() const;
+
+  /** Copy any NdbRecAttr results into application buffers.*/
+  void fetchRecAttrResults(Uint32 streamNo);
 
   /** Serialize parameter values.
    *  @return possible error code.*/

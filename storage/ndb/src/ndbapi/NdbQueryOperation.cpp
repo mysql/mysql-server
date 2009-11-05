@@ -102,8 +102,8 @@ public:
   TupleIdMap m_correlToTupNumMap;
   /** Number of pending TCKEYREF or TRANSID_AI messages for this stream.*/
   int m_pendingResults;
-  /** True if there is a pending SCAN_TABCONF messages for this stream.*/
-  bool m_pendingScanTabConf;
+  /** True if there is a pending CONF messages for this stream.*/
+  bool m_pendingConf;
 
   /** Prepare for receiving first results. */
   int prepare();
@@ -125,7 +125,7 @@ public:
     
   /** Check if batch is complete for this stream. */
   bool isBatchComplete() const {
-    return m_pendingResults==0 && !m_pendingScanTabConf;
+    return m_pendingResults==0 && !m_pendingConf;
   }
 
   /** For debugging.*/
@@ -178,7 +178,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 stream
   m_transidAICount(0),
   m_correlToTupNumMap(),
   m_pendingResults(0),
-  m_pendingScanTabConf(false),
+  m_pendingConf(false),
   m_operation(operation),
   m_parentTupleCorr(NULL),
   m_childTupleIdx(NULL)
@@ -199,9 +199,6 @@ NdbResultStream::prepare()
    */
   if (m_operation.getQueryDef().isScanQuery()) {
 
-    // Root scan-operation need a ScanTabConf to complete
-    m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
-
     const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
     if (m_operation.getNoOfParentOperations()>0) {
       assert (m_operation.getNoOfParentOperations()==1);
@@ -221,10 +218,12 @@ NdbResultStream::prepare()
         m_childTupleIdx[i] = tupleNotFound;
       }
     }
-  } else {  // Lookup query
-    // Root lookup operation need a CONF or REF reply to complete
-    m_pendingResults = (&m_operation.getRoot()==&m_operation);
   }
+
+  // Root operation need a CONF to complete
+  m_pendingConf = (&m_operation.getRoot()==&m_operation);
+  m_pendingResults = 0; // Set by exec..CONF when expected #rows are known
+
   return 0;
 } //NdbResultStream::prepare
 
@@ -235,9 +234,9 @@ NdbResultStream::reset()
   assert (m_operation.getQueryDef().isScanQuery());
 
   // Root scan-operation need a ScanTabConf to complete
-  m_pendingResults = 0;
   m_transidAICount = 0;
-  m_pendingScanTabConf = (&m_operation.getRoot()==&m_operation);
+  m_pendingResults = 0;
+  m_pendingConf    = (&m_operation.getRoot()==&m_operation);
 
   if (m_parentTupleCorr!=NULL) {
 //  const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
@@ -477,7 +476,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_scanTransaction(NULL),
   m_operations(0),
   m_countOperations(0),
-  m_tcKeyConfReceived(false),
   m_pendingStreams(0),
   m_parallelism(0),
   m_maxBatchRows(0),
@@ -946,31 +944,44 @@ NdbQueryImpl::setErrorCodeAbort(int aErrorCode)
   m_state = Failed;
 }
 
+
 bool 
 NdbQueryImpl::execTCKEYCONF()
 {
-  if(traceSignals){
-    ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingStreams=" 
-           << m_pendingStreams << endl;
+  if (traceSignals) {
+    ndbout << "NdbQueryImpl::execTCKEYCONF()" << endl;
   }
   assert(!getQueryDef().isScanQuery());
-  assert(!m_tcKeyConfReceived);
-  m_tcKeyConfReceived = true;
-  if (m_pendingStreams==0) {
-    for (Uint32 i = 0; i < getNoOfOperations(); i++) {
-      assert(getQueryOperation(i).isBatchComplete());
-    }
-    closeSingletonScans();
-    return true;
-  } else {
-    return false;
+
+  NdbResultStream& rootStream = *getRoot().m_resultStreams[0];
+  assert(rootStream.m_pendingConf);
+  rootStream.m_pendingConf = false;
+
+  // Result rows counted on root operation only.
+  // Initially we assume all child results to be returned.
+  rootStream.m_pendingResults += 1+getRoot().countAllChildOperations();
+
+  bool ret = false;
+  if (rootStream.isBatchComplete()) { 
+    /* If this stream is complete, check if the query is also 
+     * complete for this batch.
+     */
+    ret = countPendingStreams(-1);
   }
+
+  if (traceSignals) {
+    ndbout << "NdbQueryImpl::execTCKEYCONF(): returns:" << ret
+           << ", m_pendingStreams=" << m_pendingStreams
+           << ", rootStream=" << rootStream 
+           << endl;
+  }
+  return ret;
 }
 
 void 
 NdbQueryImpl::execCLOSE_SCAN_REP(bool needClose)
 {
-  if(traceSignals)
+  if (traceSignals)
   {
     ndbout << "NdbQueryImpl::execCLOSE_SCAN_REP()" << endl;
   }
@@ -983,7 +994,12 @@ bool
 NdbQueryImpl::countPendingStreams(int increment)
 {
   m_pendingStreams += increment;
-  if (m_pendingStreams==0 && m_tcKeyConfReceived) {
+  if (traceSignals) {
+    ndbout << "NdbQueryImpl::countPendingStreams(" << increment << "): "
+           << ", pendingStreams=" << m_pendingStreams <<  endl;
+  }
+
+  if (m_pendingStreams==0) {
     for (Uint32 i = 0; i < getNoOfOperations(); i++) {
       assert(getQueryOperation(i).isBatchComplete());
     }
@@ -1017,7 +1033,6 @@ NdbQueryImpl::prepareSend()
   if (getQueryDef().isScanQuery())
   {
     m_pendingStreams = getRoot().getQueryOperationDef().getTable().getFragmentCount();
-    m_tcKeyConfReceived = true;
 
     // Parallelism may be user specified, else(==0) use default
     if (m_parallelism == 0 || m_parallelism > m_pendingStreams) {
@@ -1068,9 +1083,6 @@ NdbQueryImpl::prepareSend()
   else  // Lookup query
   {
     m_pendingStreams = m_parallelism = 1;
-    /* We will always receive a TCKEYCONF signal, even if the root operation
-     * yields no result.*/
-    m_tcKeyConfReceived = false;
     m_maxBatchRows = 1;
   }
 
@@ -1413,7 +1425,6 @@ NdbQueryImpl::sendFetchMore(int nodeId)
   }
 
   m_pendingStreams = 0;
-  m_tcKeyConfReceived = false;
   assert (m_tcState == FetchMore);
   m_tcState = Fetching;
 
@@ -1525,7 +1536,6 @@ int
 NdbQueryImpl::sendClose(int nodeId)
 {
   m_pendingStreams = 0;
-  m_tcKeyConfReceived = false;
   assert (m_tcState == FetchMore);
   m_tcState = Fetching;
 
@@ -1689,6 +1699,17 @@ NdbQueryOperationImpl::getChildOperation(Uint32 i) const
 {
   return *m_children[i];
 }
+
+Uint32 NdbQueryOperationImpl::countAllChildOperations() const
+{
+  Uint32 childs = 0;
+
+  for (unsigned i = 0; i < getNoOfChildOperations(); i++)
+    childs += 1 + getChildOperation(i).countAllChildOperations();
+
+  return childs;
+}
+
 
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
@@ -2198,11 +2219,12 @@ static void getCorrelationData(const Uint32* ptr,
 
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
-  if(traceSignals){
-    ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
-           << *this << endl;
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" << endl;
   }
+  bool ret = false;
   NdbQueryOperationImpl& root = getRoot();
+  NdbResultStream* rootStream = NULL;
 
   if(getQueryDef().isScanQuery()){
     Uint32 receiverId;
@@ -2233,86 +2255,73 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
                            correlationNum >> 16);
 
     /* For scans, the root counts rows for all descendants also.*/
-    NdbResultStream* const rootStream = root.m_resultStreams[streamNo];
+    rootStream = root.m_resultStreams[streamNo];
     rootStream->m_pendingResults--;
-    if(traceSignals){
-      ndbout << "  resultStream {" << *resultStream << "}" << endl;
-      ndbout << "  rootStream {" << *rootStream << "}" << endl;
-    }
-    if (rootStream->isBatchComplete()){
+    if (rootStream->isBatchComplete()) {
       m_queryImpl.buildChildTupleLinks(streamNo);
       /* nextResult() will later move it from m_fullStreams to m_applStreams
        * under mutex protection.*/
       if (rootStream->m_receiver.hasResults()) {
         m_queryImpl.m_fullStreams.push(*rootStream);
       }
-      // Don't awake before we have data, or query batch completed.
-      return rootStream->m_receiver.hasResults() || root.isBatchComplete();
+      // Don't awake before we have data, or entire query batch completed.
+      ret = rootStream->m_receiver.hasResults() || root.isBatchComplete();
     }
-    return false;
   } else { // Lookup query
     // The root operation is a lookup.
     NdbResultStream* const resultStream = m_resultStreams[0];
     resultStream->m_receiver.execTRANSID_AI(ptr, len);
     resultStream->m_transidAICount++;
 
-    resultStream->m_pendingResults--;
-    /* Receiving this message means that each child has been instantiated 
-     * one more. Therefore, increment the pending message count for the children.
-     */
-    for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
-      NdbResultStream* childStream = getChildOperation(i).m_resultStreams[0];
+    /* The root counts rows for all descendants also. (Like scan queries) */
+    rootStream = root.m_resultStreams[0];
+    rootStream->m_pendingResults--;
 
-      if (childStream->isBatchComplete()) {
-        /* This child appeared to be complete prior to receiving this message, 
-         * but now we know that there will be
-         * an extra instance. Therefore, increment total count of pending 
-         * streams.*/
-        m_queryImpl.countPendingStreams(1);
-      }    
-      childStream->m_pendingResults++;
-      if (childStream->isBatchComplete()) {
-        /* This child stream appears to be complete. Therefore decrement total 
-         * count of pending streams.*/
-        m_queryImpl.countPendingStreams(-1);
-      }
+    if (rootStream->isBatchComplete()) {
+      /* If roo stream is complete, check if the query is also 
+       * complete.
+       */
+      ret = m_queryImpl.countPendingStreams(-1);
     }
-    
-    if (resultStream->m_pendingResults == 0) { 
-      /* If this stream is complete, check if the query is also 
-       * complete for this batch.*/
-      return m_queryImpl.countPendingStreams(-1);
-    } else if (resultStream->m_pendingResults == -1) {
-      /* This happens because we received results for the child before those
-       * of the parent. This operation will be set as complete again when the 
-       * TRANSID_AI for the parent arrives.*/
-      m_queryImpl.countPendingStreams(1);
-    }
-    return false;
   } // end lookup
+
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): returns:" << ret
+           << ", rootStream {" << *rootStream << "}"
+           << ", *this=" << *this <<  endl;
+  }
+  return ret;
 } //NdbQueryOperationImpl::execTRANSID_AI
 
 
 bool 
 NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
-  if(traceSignals){
-    ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
-           << *this << endl;
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execTCKEYREF()" <<  endl;
   }
+
   /* The SPJ block does not forward TCKEYREFs for trees with scan roots.*/
   assert(!getQueryDef().isScanQuery());
-  if(isBatchComplete()){
-    /* This happens because we received results for the child before those
-     * of the parent. This stream will be set as complete again when the 
-     * TRANSID_AI for the parent arrives.*/
-    m_queryImpl.countPendingStreams(1);
-  }  
-  m_resultStreams[0]->m_pendingResults--;
-  if(m_resultStreams[0]->isBatchComplete()){
-    /* This stream is complete. Check if the query is also complete.*/
-    return m_queryImpl.countPendingStreams(-1);
+
+  NdbResultStream* const rootStream = getRoot().m_resultStreams[0];
+
+  // Compensate for childs results not produced.
+  // (TCKEYCONF assumed all child results to be materialized)
+  int childs = countAllChildOperations();
+  rootStream->m_pendingResults -= childs+1;
+
+  bool ret = false;
+  if (rootStream->isBatchComplete()) { 
+    /* The stream is complete, check if the query is also complete. */
+    ret = m_queryImpl.countPendingStreams(-1);
+  } 
+
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execTCKEYREF(): returns:" << ret
+           << ", rootStream {" << *rootStream << "}"
+           << ", *this=" << *this <<  endl;
   }
-  return false;
+  return ret;
 } //NdbQueryOperationImpl::execTCKEYREF
 
 bool
@@ -2320,10 +2329,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 rowCount,
                                         NdbReceiver* receiver)
 {
-  if(traceSignals){
-    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(): tcPtrI="
-           << tcPtrI << " rowCount=" << rowCount 
-           << " *this=" << *this << endl;
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF()" << endl;
   }
   // For now, only the root operation may be a scan.
   assert(&getRoot() == this);
@@ -2338,8 +2345,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   assert(streamNo<getQuery().getParallelism());
 
   NdbResultStream& resultStream = *m_resultStreams[streamNo];
-  assert(resultStream.m_pendingScanTabConf);
-  resultStream.m_pendingScanTabConf = false;
+  assert(resultStream.m_pendingConf);
+  resultStream.m_pendingConf = false;
   resultStream.m_pendingResults += rowCount;
 
   resultStream.m_receiver.m_tcPtrI = tcPtrI;  // Handle for SCAN_NEXTREQ, RNIL -> EOF
@@ -2351,6 +2358,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     ndbout << "  resultStream(root) {" << resultStream << "}" << endl;
   }
 
+  bool ret = false;
   if (resultStream.isBatchComplete()) {
     /* This stream is now complete*/
     m_queryImpl.countPendingStreams(-1);
@@ -2361,9 +2369,14 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
       m_queryImpl.m_fullStreams.push(resultStream);
     }
     // Don't awake before we have data, or query batch completed.
-    return resultStream.m_receiver.hasResults() || isBatchComplete();
+    ret = resultStream.m_receiver.hasResults() || isBatchComplete();
   }
-  return false;
+  if (traceSignals) {
+    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
+           << ", tcPtrI=" << tcPtrI << " rowCount=" << rowCount 
+           << " *this=" << *this << endl;
+  }
+  return ret;
 } //NdbQueryOperationImpl::execSCAN_TABCONF
 
 void 
@@ -2465,7 +2478,7 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
 NdbOut& operator<<(NdbOut& out, const NdbResultStream& stream){
   out << " m_transidAICount: " << stream.m_transidAICount;
   out << " m_pendingResults: " << stream.m_pendingResults;
-  out << " m_pendingScanTabConf " << stream.m_pendingScanTabConf;
+  out << " m_pendingConf " << stream.m_pendingConf;
   return out;
 }
 
