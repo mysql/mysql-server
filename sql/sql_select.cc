@@ -636,6 +636,18 @@ JOIN::prepare(Item ***rref_pointer_array,
                  MYF(0));                       /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
+    if (thd->lex->derived_tables)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", 
+               thd->lex->derived_tables & DERIVED_VIEW ?
+               "view" : "subquery"); 
+      goto err;
+    }
+    if (thd->lex->sql_command != SQLCOM_SELECT)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+      goto err;
+    }
   }
 
   if (!procedure && result && result->prepare(fields_list, unit_arg))
@@ -8967,7 +8979,10 @@ static void restore_prev_nj_state(JOIN_TAB *last)
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
     else if (last_emb->nested_join->join_list.elements-1 ==
              last_emb->nested_join->counter) 
+    {
       join->cur_embedding_map|= last_emb->nested_join->nj_map;
+      break;
+    }
     else
       break;
     last_emb= last_emb->embedding;
@@ -11192,6 +11207,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
+  bool select_cond_result= TRUE;
 
   if (error > 0 || (join->thd->is_error()))     // Fatal error
     return NESTED_LOOP_ERROR;
@@ -11203,7 +11219,17 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     return NESTED_LOOP_KILLED;               /* purecov: inspected */
   }
   DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
-  if (!select_cond || select_cond->val_int())
+
+  if (select_cond)
+  {
+    select_cond_result= test(select_cond->val_int());
+
+    /* check for errors evaluating the condition */
+    if (join->thd->is_error())
+      return NESTED_LOOP_ERROR;
+  }
+
+  if (!select_cond || select_cond_result)
   {
     /*
       There is no select condition or the attached pushed down
