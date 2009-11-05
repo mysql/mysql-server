@@ -6900,17 +6900,37 @@ int stored_field_cmp_to_item(Field *field, Item *item)
     /*
       If comparing DATE with DATETIME, append the time-part to the DATE.
       So that the strings are equally formatted.
-      A DATE converted to string is 10 characters, and a DATETIME converted
-      to string is 19 characters.
+      A DATE converted to string is 10 (MAX_DATE_WIDTH) characters, 
+      and a DATETIME converted to string is 19 (MAX_DATETIME_WIDTH) characters.
     */
     field_type= field->type();
+    uint32 item_length= item_result->length();
     if (field_type == MYSQL_TYPE_DATE &&
-        item_result->length() == 19)
+        item_length == MAX_DATETIME_WIDTH)
       field_tmp.append(" 00:00:00");
-    else if (field_type == MYSQL_TYPE_DATETIME &&
-             item_result->length() == 10)
-      item_result->append(" 00:00:00");
-
+    else if (field_type == MYSQL_TYPE_DATETIME)
+    {
+      if (item_length == MAX_DATE_WIDTH)
+        item_result->append(" 00:00:00");
+      else if (item_length > MAX_DATETIME_WIDTH)
+      {
+        /*
+          We don't store microsecond part of DATETIME in field
+          but item_result contains it. As we compare DATETIMEs as strings
+          we must trim trailing 0's in item_result's microsecond part
+          to ensure "YYYY-MM-DD HH:MM:SS" == "YYYY-MM-DD HH:MM:SS.0000"
+        */
+        char *end= (char *) item_result->ptr() + item_length - 1;
+        /* Trim trailing 0's */
+        while (*end == '0')
+          end--;
+        /* Trim '.' if no microseconds */
+        if (*end == '.')
+          end--;
+        DBUG_ASSERT(end - item_result->ptr() + 1 >= MAX_DATETIME_WIDTH);
+        item_result->length(end - item_result->ptr() + 1);
+      }
+    }
     return stringcmp(&field_tmp,item_result);
   }
   if (res_type == INT_RESULT)
