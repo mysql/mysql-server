@@ -3997,7 +3997,6 @@ TESTCASE("FullDb",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runFillTable);
   STEP(runRestarter);
-  FINALIZER(runClearTable);
 }
 TESTCASE("RestartRandomNode", 
 	 "Test that we can execute the restart RestartRandomNode loop\n"\
