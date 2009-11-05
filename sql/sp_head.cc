@@ -2907,7 +2907,7 @@ sp_instr_stmt::print(String *str)
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(thd->query,
+  MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          thd->security_ctx->priv_user,

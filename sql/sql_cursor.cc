@@ -169,7 +169,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     thd->lock_id= sensitive_cursor->get_lock_id();
     thd->cursor= sensitive_cursor;
   }
-  MYSQL_QUERY_EXEC_START(thd->query,
+  MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          thd->security_ctx->priv_user,
