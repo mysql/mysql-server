@@ -3982,6 +3982,9 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                 r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn,
                                               &iname_dbt, &iname_within_cwd_dbt);
 		assert(r==0);
+                //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
+                if (r==0 && env_is_db_with_dname_open(env, dname))
+                    r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
             }
             else {
                 r = toku_brt_remove_now(env->i->cachetable, &iname_dbt, &iname_within_cwd_dbt);
@@ -4089,6 +4092,11 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 	    r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY);
 	    if (r == 0)
 		r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, DB_YESOVERWRITE);
+            //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
+            if (r==0 && env_is_db_with_dname_open(env, dname))
+                r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
+            if (r==0 && env_is_db_with_dname_open(env, newname))
+                r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
 	}
     }
 
