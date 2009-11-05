@@ -3184,7 +3184,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3349,7 +3349,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3461,7 +3461,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -5663,7 +5663,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
 
   if (some_users_created)
-    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5736,7 +5736,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5821,7 +5821,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
   if (some_users_renamed && mysql_bin_log.is_open())
-    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -6003,7 +6003,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);

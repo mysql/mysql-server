@@ -654,13 +654,12 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   strcpy(end, p);
   end += pl;
 
-  thd->query_length= end - load_data_query;
-  thd->query= load_data_query;
+  thd->set_query_inner(load_data_query, end - load_data_query);
 
   Execute_load_query_log_event
-    e(thd, thd->query, thd->query_length,
-      (uint) ((char*)fname_start - (char*)thd->query - 1),
-      (uint) ((char*)fname_end - (char*)thd->query),
+    e(thd, thd->query(), thd->query_length(),
+      (uint) ((char*) fname_start - (char*) thd->query() - 1),
+      (uint) ((char*) fname_end - (char*) thd->query()),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);

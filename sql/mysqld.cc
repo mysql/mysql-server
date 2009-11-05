@@ -2537,7 +2537,7 @@ terribly wrong...\n");
     }
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query, 1024);
+    my_safe_print_str("thd->query", thd->query(), 1024);
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "thd->killed=%s\n", kreason);
   }

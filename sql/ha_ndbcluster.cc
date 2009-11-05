@@ -5580,7 +5580,7 @@ int ha_ndbcluster::create(const char *name,
       if (share && !do_event_op)
         share->flags|= NSF_NO_BINLOG;
       ndbcluster_log_schema_op(thd, share,
-                               thd->query, thd->query_length,
+                               thd->query(), thd->query_length(),
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
@@ -6022,7 +6022,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     */
     if (!is_old_table_tmpfile)
       ndbcluster_log_schema_op(current_thd, share,
-                               current_thd->query, current_thd->query_length,
+                               current_thd->query(),
+                               current_thd->query_length(),
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
@@ -6217,7 +6218,7 @@ retry_temporary_error1:
       current_thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd, share,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, 0, 0, 1);
@@ -6939,7 +6940,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   THD *thd= current_thd;
   ha_ndbcluster::set_dbname(path, db);
   ndbcluster_log_schema_op(thd, 0,
-                           thd->query, thd->query_length,
+                           thd->query(), thd->query_length(),
                            db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
 #endif
   DBUG_VOID_RETURN;
@@ -10346,13 +10347,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
 #ifdef HAVE_NDB_BINLOG
   if (is_tablespace)
     ndbcluster_log_schema_op(thd, 0,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->tablespace_name,
                              0, 0,
                              SOT_TABLESPACE, 0, 0, 0);
   else
     ndbcluster_log_schema_op(thd, 0,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->logfile_group_name,
                              0, 0,
                              SOT_LOGFILE_GROUP, 0, 0, 0);
