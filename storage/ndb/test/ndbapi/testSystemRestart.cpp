@@ -1835,12 +1835,12 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   struct ndb_logevent event;
+  int val[] = { DumpStateOrd::DihMinTimeBetweenLCP, 0 };
 
   Uint32 i = 0;
   while(i<=loops && result != NDBT_FAILED)
   {
-    int val = DumpStateOrd::DihMinTimeBetweenLCP;
-    CHECK(res.dumpStateAllNodes(&val, 1) == 0);
+    CHECK(res.dumpStateAllNodes(val, 1) == 0);
 
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
     NdbLogEventHandle handle = 
@@ -1905,7 +1905,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     hugoTrans.clearTable(pNdb);
     hugoTrans.loadTable(pNdb, rows);
     
-    CHECK(res.dumpStateAllNodes(&val, 1) == 0);
+    CHECK(res.dumpStateAllNodes(val, 1) == 0);
     
     while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
           event.type != NDB_LE_LocalCheckpointCompleted);
@@ -1914,7 +1914,9 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     
     i++;
   }
-  
+
+  res.dumpStateAllNodes(val, 2); // Reset LCP time
+
   ctx->stopTest();  
   return result;
 }
