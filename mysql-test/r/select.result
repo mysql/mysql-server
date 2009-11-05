@@ -4386,6 +4386,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;
+#
+# Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
+# forcing a spatial index
+#
+CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+INSERT INTO t1 VALUES
+(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
+(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
+1
+1
+1
+1
+1
+EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
+1
+1
+1
+1
+1
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
