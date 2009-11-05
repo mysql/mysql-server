@@ -1069,7 +1069,7 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
 extern "C" sig_handler handle_sigint(int sig);
-#if defined(HAVE_TERMIOS_H)
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static sig_handler window_resize(int sig);
 #endif
 
@@ -1165,7 +1165,7 @@ int main(int argc,char *argv[])
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
-#if defined(HAVE_TERMIOS_H)
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
   /* Readline will call this if it installs a handler */
   signal(SIGWINCH, window_resize);
   /* call the SIGWINCH handler to get the default term width */
@@ -1330,7 +1330,7 @@ err:
 }
 
 
-#if defined(HAVE_TERMIOS_H)
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 sig_handler window_resize(int sig)
 {
   struct winsize window_size;
