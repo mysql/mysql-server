@@ -435,26 +435,17 @@ Item::Item(THD *thd, Item *item):
 }
 
 
-/**
-  Decimal precision of the item.
-
-  @remark The precision must not be capped as it can be used in conjunction
-          with Item::decimals to determine the size of the integer part when
-          constructing a decimal data type.
-
-  @see Item::decimal_int_part()
-  @see Item::decimals
-*/
-
 uint Item::decimal_precision() const
 {
-  uint precision= max_length;
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
-
-  return precision;
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
+  return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -4908,7 +4899,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= new Field_new_decimal((uchar*) 0, max_length, null_ptr, 0,
+                                 Field::NONE, name, decimals, 0,
+                                 unsigned_flag);
     break;
   case MYSQL_TYPE_TINY:
     field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
