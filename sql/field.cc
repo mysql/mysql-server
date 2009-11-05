@@ -2480,94 +2480,9 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  DBUG_ASSERT(precision >= dec);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
-}
-
-
-/**
-  Create a field to hold a decimal value from an item.
-
-  @remark The MySQL DECIMAL data type has a characteristic that needs to be
-          taken into account when deducing the type from a Item_decimal.
-
-  But first, let's briefly recap what is the new MySQL DECIMAL type:
-
-  The declaration syntax for a decimal is DECIMAL(M,D), where:
-
-  * M is the maximum number of digits (the precision).
-    It has a range of 1 to 65.
-  * D is the number of digits to the right of the decimal separator (the scale).
-    It has a range of 0 to 30 and must be no larger than M.
-
-  D and M are used to determine the storage requirements for the integer
-  and fractional parts of each value. The integer part is to the left of
-  the decimal separator and to the right is the fractional part. Hence:
-
-  M is the number of digits for the integer and fractional part.
-  D is the number of digits for the fractional part.
-
-  Consequently, M - D is the number of digits for the integer part. For
-  example, a DECIMAL(20,10) column has ten digits on either side of
-  the decimal separator.
-
-  The characteristic that needs to be taken into account is that the
-  backing type for Item_decimal is a my_decimal that has a higher
-  precision (DECIMAL_MAX_POSSIBLE_PRECISION, see my_decimal.h) than
-  DECIMAL.
-
-  Drawing a comparison between my_decimal and DECIMAL:
-
-  * M has a range of 1 to 81.
-  * D has a range of 0 to 81.
-
-  There can be a difference in range if the decimal contains a integer
-  part. This is because the fractional part must always be on a group
-  boundary, leaving at least one group for the integer part. Since each
-  group is 9 (DIG_PER_DEC1) digits and there are 9 (DECIMAL_BUFF_LENGTH)
-  groups, the fractional part is limited to 72 digits if there is at
-  least one digit in the integral part.
-
-  Although the backing type for a DECIMAL is also my_decimal, every
-  time a my_decimal is stored in a DECIMAL field, the precision and
-  scale are explicitly capped at 65 (DECIMAL_MAX_PRECISION) and 30
-  (DECIMAL_MAX_SCALE) digits, following my_decimal truncation procedure
-  (FIX_INTG_FRAC_ERROR).
-*/
-
-Field_new_decimal *
-Field_new_decimal::new_decimal_field(const Item *item)
-{
-  uint32 len;
-  uint intg= item->decimal_int_part(), scale= item->decimals;
-
-  DBUG_ASSERT(item->decimal_precision() >= item->decimals);
-
-  /*
-    Employ a procedure along the lines of the my_decimal truncation process:
-    - If the integer part is equal to or bigger than the maximum precision:
-      Truncate integer part to fit and the fractional becomes zero.
-    - Otherwise:
-      Truncate fractional part to fit.
-  */
-  if (intg >= DECIMAL_MAX_PRECISION)
-  {
-    intg= DECIMAL_MAX_PRECISION;
-    scale= 0;
-  }
-  else
-  {
-    uint room= min(DECIMAL_MAX_PRECISION - intg, DECIMAL_MAX_SCALE);
-    if (scale > room)
-      scale= room;
-  }
-
-  len= my_decimal_precision_to_length(intg + scale, scale, item->unsigned_flag);
-
-  return new Field_new_decimal(len, item->maybe_null, item->name, scale,
-                               item->unsigned_flag);
 }
 
 
