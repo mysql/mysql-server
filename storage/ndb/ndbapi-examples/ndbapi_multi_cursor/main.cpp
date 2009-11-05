@@ -44,8 +44,10 @@
 #define MYSQLERROR(mysql) { \
   PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
   exit(-1); }
+#define PRINT_APIERROR(error) { \
+  PRINT_ERROR((error).code,(error).message); }
 #define APIERROR(error) { \
-  PRINT_ERROR((error).code,(error).message); \
+  PRINT_APIERROR(error); \
   exit(-1); }
 
 
@@ -396,7 +398,7 @@ int testQueryBuilder(Ndb &myNdb)
   }
 #endif
 
-#if 0
+#if 1
   /* qt1 is 'const defined' */
   printf("q1\n");
   const NdbQueryDef* q1 = 0;
@@ -557,7 +559,7 @@ int testQueryBuilder(Ndb &myNdb)
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
   res = myQuery->nextResult();
-  if (res == -1)
+  if (res == NdbQuery::NextResult_error)
     APIERROR(myQuery->getNdbError());
 
 #ifdef USE_RECATTR
@@ -667,7 +669,7 @@ int testQueryBuilder(Ndb &myNdb)
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
   res = myQuery->nextResult();
-  if (res == -1)
+  if (res == NdbQuery::NextResult_error)
     APIERROR(myQuery->getNdbError());
 
 #ifdef USE_RECATTR
@@ -754,7 +756,7 @@ int testQueryBuilder(Ndb &myNdb)
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
   res = myQuery->nextResult();
-  if (res == -1)
+  if (res == NdbQuery::NextResult_error)
     APIERROR(myQuery->getNdbError());
 
 #ifdef USE_RECATTR
@@ -871,7 +873,8 @@ int testQueryBuilder(Ndb &myNdb)
     NdbQuery::NextResultOutcome res = myQuery->nextResult();
 
     if (res == NdbQuery::NextResult_error) {
-      APIERROR(myQuery->getNdbError());
+      PRINT_APIERROR(myQuery->getNdbError());
+      break;
     } else if (res!=NdbQuery::NextResult_gotRow) {
       break;
     }
@@ -1003,7 +1006,8 @@ int testQueryBuilder(Ndb &myNdb)
     NdbQuery::NextResultOutcome res = myQuery->nextResult();
 
     if (res == NdbQuery::NextResult_error) {
-      APIERROR(myQuery->getNdbError());
+      PRINT_APIERROR(myQuery->getNdbError());
+      break;
     } else if (res!=NdbQuery::NextResult_gotRow) {
       break;
     }
@@ -1030,9 +1034,6 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction = 0;
 }
 #endif
-
-
-
 
   return 0;
 }
