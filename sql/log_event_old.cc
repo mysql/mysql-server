@@ -1842,7 +1842,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if (error= ha_autocommit_or_rollback(thd, 0))
+    if ((error= ha_autocommit_or_rollback(thd, 0)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

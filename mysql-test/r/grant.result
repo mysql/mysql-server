@@ -1007,8 +1007,8 @@ DROP TABLE mysqltest1.t2;
 SHOW GRANTS;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
 GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT SELECT, INSERT, CREATE, DROP, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
 RENAME TABLE t1 TO t2;
 RENAME TABLE t2 TO t1;
 ALTER TABLE t1 RENAME TO t2;
@@ -1018,8 +1018,8 @@ REVOKE DROP, INSERT ON mysqltest1.t2 FROM mysqltest_1@localhost;
 SHOW GRANTS;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, CREATE, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
 GRANT SELECT, CREATE, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT SELECT, CREATE, ALTER ON `mysqltest1`.`t2` TO 'mysqltest_1'@'localhost'
 RENAME TABLE t1 TO t2;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
 ALTER TABLE t1 RENAME TO t2;

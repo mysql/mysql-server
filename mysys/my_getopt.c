@@ -1012,8 +1012,10 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((longlong*) variable)= (longlong) getopt_ll_limit_value((longlong) value, option, NULL);
     break;
   case GET_ULL:
-  case GET_SET:
     *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
+    break;
+  case GET_SET:
+    *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
     *((double*) variable)=  (double) value;
