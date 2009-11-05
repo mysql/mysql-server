@@ -38,6 +38,14 @@ SELECT * FROM t1 WHERE col1=col2 ORDER BY col1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#45645 Mysql server close all connection and restart using lower function
+--echo #
+CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+INSERT INTO t1 (a) VALUES ('hello!');
+SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#43827 Server closes connections and restarts
 --echo #
 # Crash happened with a user-defined utf8 collation,
