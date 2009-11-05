@@ -6811,7 +6811,12 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
 #endif
       SYSFILE->latestLCP_ID--;
     }//if
-    storeNewLcpIdLab(signal);
+
+    {
+      Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+      Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
+      ndbrequire(mutex.lock(c, false));
+    }
     break;
   case LMTOS_ALL_ACTIVE:
     {
@@ -10432,12 +10437,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   c_lcpState.m_participatingLQH = req->participatingLQH;
   
   c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
-  if(isMaster()){
+  if(isMaster())
+  {
     jam();
-    ndbrequire(isActiveMaster());
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH = req->participatingDIH;
-
-  } else {
+  } 
+  else
+  {
+    jam();
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor();
   }
 
@@ -12067,6 +12074,9 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
   c_lcpState.m_start_time = c_current_time;
   
   setLcpActiveStatusStart(signal);
+
+  c_lcpState.keepGci = m_micro_gcp.m_old_gci >> 32;
+  c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
   
   signal->theData[0] = DihContinueB::ZCALCULATE_KEEP_GCI;
   signal->theData[1] = 0;  /* TABLE ID = 0          */
@@ -12225,6 +12235,17 @@ Dbdih::startLcpMutex_locked(Signal* signal, Uint32 senderData, Uint32 retVal){
 void
 Dbdih::sendSTART_LCP_REQ(Signal* signal, Uint32 nodeId, Uint32 extra){
   BlockReference ref = calcDihBlockRef(nodeId);
+  if (ERROR_INSERTED(7021) && nodeId == getOwnNodeId())
+  {
+    sendSignalWithDelay(ref, GSN_START_LCP_REQ, signal, 500, 
+                        StartLcpReq::SignalLength);
+    return;
+  }
+  else if (ERROR_INSERTED(7021) && ((rand() % 10) > 4))
+  {
+    infoEvent("Dont sent STARTLCPREQ to %u", nodeId);
+    return;
+  }
   sendSignal(ref, GSN_START_LCP_REQ, signal, StartLcpReq::SignalLength, JBB);
 }
 
