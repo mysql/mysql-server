@@ -3045,6 +3045,11 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
 }
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
+}
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
