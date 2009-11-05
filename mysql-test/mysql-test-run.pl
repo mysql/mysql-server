@@ -1001,6 +1001,12 @@ sub command_line_setup {
   {
     $basedir= dirname($basedir);
   }
+  # For .deb, it's like RPM, but installed in /usr/share/mysql/mysql-test.
+  # So move up one more directory level yet.
+  if ( ! $source_dist and ! -d "$basedir/bin" )
+  {
+    $basedir= dirname($basedir);
+  }
 
   # Look for the client binaries directory
   if ($path_client_bindir)
