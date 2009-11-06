@@ -43,11 +43,13 @@ class SQL_SELECT;
 struct READ_RECORD
 {
   typedef int (*Read_func)(READ_RECORD*);
+  typedef void (*Unlock_row_func)(st_join_table *);
   typedef int (*Setup_func)(struct st_join_table*);
 
   TABLE *table;                                 /* Head-form */
   handler *file;
   TABLE **forms;                                /* head and ref forms */
+  Unlock_row_func unlock_row;
   Read_func read_record;
   THD *thd;
   SQL_SELECT *select;
@@ -71,5 +73,7 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx);
 void end_read_record(READ_RECORD *info);
+
+void rr_unlock_row(st_join_table *tab);
 
 #endif /* SQL_RECORDS_H */
