@@ -94,6 +94,8 @@ public:
                                                       ulonglong *const_val_arg);
 
   void set_datetime_cmp_func(Item **a1, Item **b1);
+  Item** cache_converted_constant(THD *thd, Item **value, Item **cache,
+                                  Item_result type);
   static arg_cmp_func comparator_matrix [5][2];
 
   friend class Item_func;
