@@ -157,6 +157,7 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test944 \
 	test_truncate_txn_abort \
 	test_db_no_env \
+	diskfull \
 #\ ends prev line
 #ifneq ($(OS_CHOICE),windows)
 #    TDB_TESTS_THAT_SHOULD_FAIL+= \
