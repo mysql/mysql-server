@@ -1570,6 +1570,13 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         flags     &= ~DB_TXN_NOSYNC;
     }
     if (flags!=0) return toku_ydb_do_error(env, EINVAL, "Invalid flags passed to DB_ENV->txn_begin\n");
+    if (stxn) {
+        //Require child to have same isolation level as parent.
+        uint32_t parent_isolation_flags = db_txn_struct_i(stxn)->flags & (DB_READ_UNCOMMITTED); //TODO: #2126 DB_READ_COMMITTED should be added here once supported.
+        uint32_t child_isolation_flags  = txn_flags                    & (DB_READ_UNCOMMITTED); //TODO: #2126 DB_READ_COMMITTED should be added here once supported.
+        if (parent_isolation_flags != child_isolation_flags)
+            return toku_ydb_do_error(env, EINVAL, "DB_ENV->txn_begin: Child transaction isolation level must match parent's isolation level.\n");
+    }
 
     DB_TXN *MALLOC(result);
     if (result == 0)
