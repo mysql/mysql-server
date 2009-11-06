@@ -436,4 +436,16 @@ SELECT * FROM t2 WHERE a = sequence();
 DROP FUNCTION sequence;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#46259: 5.0.83 -> 5.1.36, query doesn't work
+--echo #
+CREATE TABLE t1 ( a INT );
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SELECT IF( a = 1, a, a ) AS `b` FROM t1 ORDER BY field( `b` + 1, 1 );
+SELECT IF( a = 1, a, a ) AS `b` FROM t1 ORDER BY field( `b`, 1 );
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests.

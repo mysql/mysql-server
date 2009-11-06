@@ -162,7 +162,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
- ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
+ ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
  (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */
@@ -173,6 +173,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
 
  ("THE_LAST_SUPPRESSION")||
 
@@ -209,7 +210,7 @@ BEGIN
     WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT file_name, line
+    SELECT line
         FROM error_log WHERE suspicious=1;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed

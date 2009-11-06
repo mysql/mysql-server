@@ -189,6 +189,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     collect_cmp_types()
       items             Array of items to collect types from
       nitems            Number of items in the array
+      skip_nulls        Don't collect types of NULL items if TRUE
 
   DESCRIPTION
     This function collects different result types for comparison of the first
@@ -199,7 +200,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     Bitmap of collected types - otherwise
 */
 
-static uint collect_cmp_types(Item **items, uint nitems)
+static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
 {
   uint i;
   uint found_types;
@@ -208,6 +209,8 @@ static uint collect_cmp_types(Item **items, uint nitems)
   found_types= 0;
   for (i= 1; i < nitems ; i++)
   {
+    if (skip_nulls && items[i]->type() == Item::NULL_ITEM)
+      continue; // Skip NULL constant items
     if ((left_result == ROW_RESULT || 
          items[i]->result_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
@@ -215,6 +218,12 @@ static uint collect_cmp_types(Item **items, uint nitems)
     found_types|= 1<< (uint)item_cmp_type(left_result,
                                            items[i]->result_type());
   }
+  /*
+   Even if all right-hand items are NULLs and we are skipping them all, we need
+   at least one type bit in the found_type bitmask.
+  */
+  if (skip_nulls && !found_types)
+    found_types= 1 << (uint)left_result;
   return found_types;
 }
 
@@ -3515,7 +3524,7 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  if (!(found_types= collect_cmp_types(args, arg_count)))
+  if (!(found_types= collect_cmp_types(args, arg_count, true)))
     return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
@@ -3693,9 +3702,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	array->set(j,args[i]);
 	if (!args[i]->null_value)			// Skip NULL values
+        {
+          array->set(j,args[i]);
 	  j++;
+        }
 	else
 	  have_null= 1;
       }

@@ -302,7 +302,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  uchar *saved_from, *saved_to, *saved_vseg;
+  uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
+  uchar *UNINIT_VAR(saved_vseg);
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
@@ -310,9 +311,6 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   LINT_INIT(length);
   LINT_INIT(prefix_len);
   LINT_INIT(seg_len_pack);
-  LINT_INIT(saved_from);
-  LINT_INIT(saved_to);
-  LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   end= page+mi_getint(page);

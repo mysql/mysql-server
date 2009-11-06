@@ -9426,9 +9426,11 @@ ndb_util_thread_fail:
   pthread_cond_signal(&COND_ndb_util_ready);
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
+
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 /*

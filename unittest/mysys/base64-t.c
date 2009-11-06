@@ -84,7 +84,7 @@ main(void)
           unsigned char c= dst[k+l];
           sprintf(buf, "%.2x ", (unsigned)c);
         }
-        diag(buf);
+        diag("%s", buf);
       }
       diag("src length: %.8x, dst length: %.8x\n",
            (uint) src_len, (uint) dst_len);
