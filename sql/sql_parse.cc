@@ -1220,7 +1220,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(thd->query, thd->thread_id,
+    MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
                       thd->security_ctx->priv_user,
                       (char *) thd->security_ctx->host_or_ip);
@@ -3164,7 +3164,7 @@ end_with_restore_list:
       goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
-    MYSQL_UPDATE_START(thd->query);
+    MYSQL_UPDATE_START(thd->query());
     res= (up_result= mysql_update(thd, all_tables,
                                   select_lex->item_list,
                                   lex->value_list,
@@ -3238,7 +3238,7 @@ end_with_restore_list:
 #endif
     {
       multi_update *result_obj;
-      MYSQL_MULTI_UPDATE_START(thd->query);
+      MYSQL_MULTI_UPDATE_START(thd->query());
       res= mysql_multi_update(thd, all_tables,
                               &select_lex->item_list,
                               &lex->value_list,
@@ -3306,7 +3306,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    MYSQL_INSERT_START(thd->query);
+    MYSQL_INSERT_START(thd->query());
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3348,7 +3348,7 @@ end_with_restore_list:
     }
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
-      MYSQL_INSERT_SELECT_START(thd->query);
+      MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= (uchar*) second_table;
@@ -3434,7 +3434,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    MYSQL_DELETE_START(thd->query);
+    MYSQL_DELETE_START(thd->query());
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
@@ -3469,7 +3469,7 @@ end_with_restore_list:
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
-    MYSQL_MULTI_DELETE_START(thd->query);
+    MYSQL_MULTI_DELETE_START(thd->query());
     if ((res= mysql_multi_delete_prepare(thd)))
     {
       MYSQL_MULTI_DELETE_DONE(1, 0);
@@ -6201,7 +6201,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(thd->query,
+          MYSQL_QUERY_EXEC_START(thd->query(),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
                                  thd->security_ctx->priv_user,
@@ -8063,7 +8063,7 @@ bool parse_sql(THD *thd,
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
-  MYSQL_QUERY_PARSE_START(thd->query);
+  MYSQL_QUERY_PARSE_START(thd->query());
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
