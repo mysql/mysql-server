@@ -1393,6 +1393,7 @@ public:
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
+  uint decimal_precision() const;
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 

@@ -38,16 +38,13 @@
 int myrg_rkey(MYRG_INFO *info,uchar *buf,int inx, const uchar *key,
             key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
-  uchar *key_buff;
-  uint pack_key_length;
-  uint16 last_used_keyseg;
+  uchar *UNINIT_VAR(key_buff);
+  uint UNINIT_VAR(pack_key_length);
+  uint16 UNINIT_VAR(last_used_keyseg);
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
   DBUG_ENTER("myrg_rkey");
-  LINT_INIT(key_buff);
-  LINT_INIT(pack_key_length);
-  LINT_INIT(last_used_keyseg);
 
   if (_myrg_init_queue(info,inx,search_flag))
     DBUG_RETURN(my_errno);

@@ -690,7 +690,7 @@ test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	lat
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e1	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -963,7 +963,9 @@ master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; TRUNCATE t1
+master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
@@ -1076,7 +1078,7 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; GRANT EVENT ON *.* TO 'root'@'loca
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 'test1')
 master-bin.000001	#	Xid	1	#	#
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE EVENT e1 ON SCHEDULE EVERY '1' SECOND COMMENT 'e_second_comment' DO DELETE FROM t1
+master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` EVENT e1 ON SCHEDULE EVERY '1' SECOND COMMENT 'e_second_comment' DO DELETE FROM t1
 master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER EVENT e1 RENAME TO e2
 master-bin.000001	#	Query	1	#	use `test_rpl`; DROP EVENT e2
 master-bin.000001	#	Query	1	#	BEGIN

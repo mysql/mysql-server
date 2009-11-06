@@ -101,6 +101,8 @@ master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'dark blue 1' WHERE f
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (1 * 10),"brown")
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+source include/diff_master_slave.inc;
+source include/diff_master_slave.inc;
 ########################################################################
 #                                Cleanup
 ########################################################################

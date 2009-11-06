@@ -1814,15 +1814,16 @@ server_option:
         ;
 
 event_tail:
-          EVENT_SYM opt_if_not_exists sp_name
+          remember_name EVENT_SYM opt_if_not_exists sp_name
           {
             THD *thd= YYTHD;
             LEX *lex=Lex;
 
-            lex->create_info.options= $2;
+            lex->stmt_definition_begin= $1;
+            lex->create_info.options= $3;
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
-            lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->identifier= $4;
             lex->event_parse_data->on_completion=
                                   Event_parse_data::ON_COMPLETION_DROP;
 
@@ -3759,8 +3760,8 @@ partitioning:
             LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
             if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                      "partitioning", "--with-partition");
+              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                       "--skip-partition");
               MYSQL_YYABORT;
             }
             lex->part_info= new partition_info();
@@ -9096,7 +9097,8 @@ procedure_clause:
               MYSQL_YYABORT;
             }
 
-            if (&lex->select_lex != lex->current_select)
+            if (&lex->select_lex != lex->current_select ||
+                lex->select_lex.get_table_list()->derived)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;

@@ -1961,9 +1961,6 @@ static int has_temporary_error(THD *thd)
 {
   DBUG_ENTER("has_temporary_error");
 
-  if (thd->is_fatal_error)
-    DBUG_RETURN(0);
-
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
                   if (thd->main_da.is_error())
                   {
@@ -3688,6 +3685,31 @@ void end_relay_log_info(Relay_log_info* rli)
   rli->close_temporary_tables();
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Hook to detach the active VIO before closing a connection handle.
+
+  The client API might close the connection (and associated data)
+  in case it encounters a unrecoverable (network) error. This hook
+  is called from the client code before the VIO handle is deleted
+  allows the thread to detach the active vio so it does not point
+  to freed memory.
+
+  Other calls to THD::clear_active_vio throughout this module are
+  redundant due to the hook but are left in place for illustrative
+  purposes.
+*/
+
+extern "C" void slave_io_thread_detach_vio()
+{
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  THD *thd= current_thd;
+  if (thd->slave_thread)
+    thd->clear_active_vio();
+#endif
+}
+
 
 /*
   Try to connect until successful or slave killed

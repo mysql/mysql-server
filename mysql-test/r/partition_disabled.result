@@ -1,0 +1,93 @@
+DROP TABLE IF EXISTS t1;
+FLUSH TABLES;
+SELECT * FROM t1;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+TRUNCATE TABLE t1;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	analyze	error	Corrupt
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	check	error	Corrupt
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	optimize	error	Corrupt
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	repair	error	Corrupt
+ALTER TABLE t1 REPAIR PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	repair	error	Corrupt
+ALTER TABLE t1 CHECK PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	check	error	Corrupt
+ALTER TABLE t1 OPTIMIZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	optimize	error	Corrupt
+ALTER TABLE t1 ANALYZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
+test.t1	analyze	error	Corrupt
+ALTER TABLE t1 REBUILD PARTITION ALL;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ALTER TABLE t1 ENGINE Memory;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ALTER TABLE t1 ADD (new INT);
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+DROP TABLE t1;
+CREATE TABLE t1 (
+firstname VARCHAR(25) NOT NULL,
+lastname VARCHAR(25) NOT NULL,
+username VARCHAR(16) NOT NULL,
+email VARCHAR(35),
+joined DATE NOT NULL
+)
+PARTITION BY KEY(joined)
+PARTITIONS 6;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+CREATE TABLE t1 (
+firstname VARCHAR(25) NOT NULL,
+lastname VARCHAR(25) NOT NULL,
+username VARCHAR(16) NOT NULL,
+email VARCHAR(35),
+joined DATE NOT NULL
+)
+PARTITION BY RANGE( YEAR(joined) ) (
+PARTITION p0 VALUES LESS THAN (1960),
+PARTITION p1 VALUES LESS THAN (1970),
+PARTITION p2 VALUES LESS THAN (1980),
+PARTITION p3 VALUES LESS THAN (1990),
+PARTITION p4 VALUES LESS THAN MAXVALUE
+);
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+CREATE TABLE t1 (id INT, purchased DATE)
+PARTITION BY RANGE( YEAR(purchased) )
+SUBPARTITION BY HASH( TO_DAYS(purchased) )
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (1990),
+PARTITION p1 VALUES LESS THAN (2000),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+create table t1 (a varchar(10) charset latin1 collate latin1_bin);
+insert into t1 values (''),(' '),('a'),('a '),('a  ');
+explain partitions select * from t1 where a='a ' OR a='a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	Using where
+drop table t1;
