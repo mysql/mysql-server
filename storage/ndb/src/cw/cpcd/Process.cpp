@@ -338,7 +338,6 @@ CPCD::Process::do_exec() {
 
 #ifdef _WIN32
   Vector<BaseString> saved;
-  char *cwd = 0;
   save_environment(m_env.c_str(), saved);
 #endif
 
@@ -347,13 +346,6 @@ CPCD::Process::do_exec() {
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
 
   if(strlen(m_cwd.c_str()) > 0) {
-#ifdef _WIN32
-    cwd = getcwd(0, 0);
-    if(!cwd)
-    {
-      logger.critical("Couldn't getcwd before spawn");
-    }
-#endif
     int err = chdir(m_cwd.c_str());
     if(err == -1) {
       BaseString err;
@@ -434,14 +426,6 @@ CPCD::Process::do_exec() {
   /* NOTREACHED */
 #else
   HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, m_path.c_str(), argv);
-
-  // go back up to original cwd
-  if(chdir(cwd))
-  {
-    logger.critical("Couldn't go back to saved cwd after spawn()");
-    logger.critical("%s", strerror(errno));
-  }
-  free(cwd);
 
   // get back to original std i/o
   for(i = 0; i < 3; i++) {
@@ -596,16 +580,124 @@ CPCD::Process::start() {
   return -1;
 }
 
+
+#ifdef _WIN32
+#include <tlhelp32.h>
+/*
+   fill pids with pairs:
+    - all valid pids ordered as (child, parent)
+*/
+struct Pair
+{
+  pid_t child, parent;
+};
+
+typedef Vector<struct Pair> Pairs;
+
+static void get_processes(Pairs & pairs)
+{
+  HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  PROCESSENTRY32 pe = { 0 };
+
+  pe.dwSize = sizeof(PROCESSENTRY32);
+  if(Process32First(h, &pe))
+  {
+    do
+    {
+      struct Pair pr;
+      pr.child  = pe.th32ProcessID;
+      pr.parent = pe.th32ParentProcessID;
+      pairs.push_back(pr);
+    } while(Process32Next(h, &pe));
+  }
+  CloseHandle(h);
+}
+
+/*
+   will kill pid after killing it's children.
+   last two parameters come from get_processes()
+*/
+static int kill_tree(pid_t pid, Pairs & pairs)
+{
+  unsigned i, j;
+  int retval = 0;
+  Vector<pid_t> parents;
+
+  parents.push_back(pid);
+  for(i = 0; i < pairs.size(); i++)
+  {
+    Vector<pid_t> new_parents;
+    for(j = 0; j < parents.size(); j++)
+    {
+      if(pairs[i].parent == parents[j])
+      {
+        new_parents.push_back(pairs[i].child);
+      }
+    }
+    if(!new_parents.size())
+    {
+      break;
+    }
+    for(j = 0; j < new_parents.size(); j++)
+    {
+      parents.push_back(new_parents[j]);
+    }
+  }
+
+  logger.debug("killing processes in order: ");
+  for(i = parents.size() - 1; i >= 0; i--)
+  {
+    logger.debug(" %d", parents[i]);
+  }
+  logger.debug(".\n");
+
+  for(i = parents.size() - 1; i >= 0; i--)
+  {
+    pid_t pid = parents[i];
+    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, pid);
+    if (!proc)
+    {
+      logger.info("Cannot open process %d (during a kill_tree)\n", pid);
+      return 1;
+    }
+
+    BOOL tp = TerminateProcess(proc, -1);
+    if(!tp)
+    {
+      CloseHandle(proc);
+      return 2;
+    }
+  }
+  return 0;
+}
+
+/*
+  function to kill pid and children processes
+*/
+static int kill_process_tree(pid_t pid)
+{
+  Pairs pairs;
+
+  get_processes(pairs);
+  if(!pairs.size())
+  {
+    return 1;
+  }
+  return kill_tree(pid, pairs);
+}
+#endif
+
 void
 CPCD::Process::stop() {
 
   char filename[PATH_MAX*2+1];
   BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
-  
-  if (is_bad_pid(m_pid)) {
+
+  if (is_bad_pid(m_pid))
+  {
     logger.critical("Stopping process with bogus pid: %d id: %d", 
-		    m_pid, m_id);
+                   m_pid, m_id);
     return;
   }
 
@@ -640,21 +732,9 @@ CPCD::Process::stop() {
     }
   } 
 #else
-  if (isRunning()) {
-    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, m_pid);
-
-    if (!proc) {
-      logger.critical("Cannot open process %d\n", m_pid);
-      return;
-    }
-
-    BOOL tp = TerminateProcess(proc, -1);
-
-    CloseHandle(proc);
-    if (!tp) {
-      logger.critical("Cannot terminate process %d\n", m_pid);
-      return;
-    }
+  if(isRunning())
+  {
+    kill_process_tree(m_pid);
   }
 #endif
 
