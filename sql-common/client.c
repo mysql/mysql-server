@@ -2052,7 +2052,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     int gai_errno;
     char port_buf[NI_MAXSERV];
     my_socket sock= my_socket_create_invalid();
-    int saved_error, status= -1, bind_result= 0;
+    int saved_error= 0, status= -1, bind_result= 0;
     my_bool create_ok= 0, bind_ok= 0;
 
     unix_socket=0;				/* This is not used */
