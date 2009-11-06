@@ -1,4 +1,54 @@
 drop table if exists t1;
+create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
+partition by range columns(a)
+( partition p0 values less than ('a'),
+partition p1 values less than ('b'),
+partition p2 values less than ('c'),
+partition p3 values less than ('d'));
+insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
+select * from t1 where a > 'B' collate latin1_bin;
+a
+a
+b
+C
+c
+select * from t1 where a <> 'B' collate latin1_bin;
+a
+A
+a
+b
+C
+c
+alter table t1 remove partitioning;
+select * from t1 where a > 'B' collate latin1_bin;
+a
+a
+b
+C
+c
+select * from t1 where a <> 'B' collate latin1_bin;
+a
+A
+a
+b
+C
+c
+drop table t1;
+create table t1 (a varchar(2) character set latin1,
+b varchar(2) character set latin1)
+partition by list columns(a,b)
+(partition p0 values in (('a','a')));
+insert into t1 values ('A','A');
+select * from t1 where b <> 'a' collate latin1_bin AND
+a = 'A' collate latin1_bin;
+a	b
+A	A
+alter table t1 remove partitioning;
+select * from t1 where b <> 'a' collate latin1_bin AND
+a = 'A' collate latin1_bin;
+a	b
+A	A
+drop table t1;
 create table t1 (a varchar(5))
 partition by list columns(a)
 ( partition p0 values in ('\''),
