@@ -311,9 +311,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str, enum_query_type query_type)
 {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 

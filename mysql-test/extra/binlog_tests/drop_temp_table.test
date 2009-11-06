@@ -48,6 +48,16 @@ DROP TABLE IF EXISTS tmp2, t;
 --enable_warnings
 
 SELECT GET_LOCK("a",10);
+
+#
+# BUG48216 Replication fails on all slaves after upgrade to 5.0.86 on master
+#
+# When the session is closed, any temporary tables of the session are dropped
+# and are binlogged. But it will be binlogged with a wrong database name when
+# the length of the database name('drop-temp-table-test') is greater than the
+# current database name('test').
+#
+USE test;
 disconnect con1;
 
 connection con2;

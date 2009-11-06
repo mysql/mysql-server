@@ -104,6 +104,9 @@ void myisamchk_init(MI_CHECK *param)
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+#ifdef THREAD
+  param->need_print_msg_lock= 0;
+#endif
 }
 
 	/* Check the status flags for the table */
@@ -2703,6 +2706,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   /* Initialize pthread structures before goto err. */
   pthread_mutex_init(&sort_info.mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&sort_info.cond, 0);
+  pthread_mutex_init(&param->print_msg_mutex, MY_MUTEX_INIT_FAST);
+  param->need_print_msg_lock= 1;
 
   if (!(sort_info.key_block=
 	alloc_key_blocks(param, (uint) param->sort_key_blocks,
@@ -3108,6 +3113,8 @@ err:
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
+  pthread_mutex_destroy(&param->print_msg_mutex);
+  param->need_print_msg_lock= 0;
 
   my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
