@@ -1652,13 +1652,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   thd->stmt_da->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
-  MYSQL_QUERY_CACHE_HIT(thd->query, (ulong) thd->limit_found_rows);
+  MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
   unlock();
 err:
-  MYSQL_QUERY_CACHE_MISS(thd->query);
+  MYSQL_QUERY_CACHE_MISS(thd->query());
   DBUG_RETURN(0);				// Query was not cached
 }
 
