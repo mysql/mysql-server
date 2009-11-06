@@ -6,8 +6,6 @@ binlog.binlog_multi_engine               # joro : NDB tests marked as experiment
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
 
-innodb.innodb_information_schema         # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
-
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.innodb-autoinc*                     # Bug#47809 2009-10-04 joro innodb-autoinc.test fails with valgrind errors with the innodb plugin
