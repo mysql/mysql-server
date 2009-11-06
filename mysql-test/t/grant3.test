@@ -163,6 +163,41 @@ connection default;
 DROP USER 'mysqltest1'@'%';
 DROP DATABASE mysqltest_1;
 
+--echo #
+--echo # Bug#41597 - After rename of user, there are additional grants
+--echo #             when grants are reapplied.
+--echo #
+
+CREATE DATABASE temp;
+CREATE TABLE temp.t1(a INT, b VARCHAR(10));
+INSERT INTO temp.t1 VALUES(1, 'name1');
+INSERT INTO temp.t1 VALUES(2, 'name2');
+INSERT INTO temp.t1 VALUES(3, 'name3');
+
+
+CREATE USER 'user1'@'%';
+RENAME USER 'user1'@'%' TO 'user2'@'%';
+--echo # Show privileges after rename and BEFORE grant
+SHOW GRANTS FOR 'user2'@'%';
+GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%';
+--echo # Show privileges after rename and grant
+SHOW GRANTS FOR 'user2'@'%';
+
+--echo # Connect as the renamed user
+connect (conn1, localhost, user2,,);
+connection conn1;
+SHOW GRANTS;
+SELECT a FROM temp.t1;
+--echo # Check for additional privileges by accessing a
+--echo # non privileged column. We shouldn't be able to 
+--echo # access this column.
+--error ER_COLUMNACCESS_DENIED_ERROR 
+SELECT b FROM temp.t1;
+disconnect conn1;
+
+connection default;
+DROP USER 'user2'@'%';
+DROP DATABASE temp;
 
 --echo End of 5.0 tests
 

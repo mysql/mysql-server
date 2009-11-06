@@ -25,7 +25,10 @@
 #include <m_string.h>
 #include <violite.h>
 
-void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
+#ifdef _WIN32
+void	vio_win32_timeout(Vio *vio, uint which, uint timeout);
+#endif
+
 void	vio_timeout(Vio *vio,uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
