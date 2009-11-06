@@ -26,4 +26,27 @@ SELECT * FROM t1;
 a	b
 1070109	99
 DROP TABLE t2, t1;
-End of 5.0 tests
+# End of 5.0 tests
+#
+# Bug#46539 Various crashes on INSERT IGNORE SELECT + SELECT
+#           FOR UPDATE
+#
+drop table if exists t1;
+create table t1 (a int primary key auto_increment,
+b int, index(b)) engine=innodb;
+insert into t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+set autocommit=0;
+begin;
+select * from t1 where b=5 for update;
+a	b
+5	5
+insert ignore into t1 (b) select a as b from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+#
+commit;
+set autocommit=default;
+drop table t1;
+#
+# End of 5.1 tests
+#
