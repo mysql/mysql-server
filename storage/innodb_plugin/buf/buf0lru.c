@@ -49,18 +49,22 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "srv0srv.h"
 
-/** The number of blocks from the LRU_old pointer onward, including the block
-pointed to, must be 3/8 of the whole LRU list length, except that the
-tolerance defined below is allowed. Note that the tolerance must be small
-enough such that for even the BUF_LRU_OLD_MIN_LEN long LRU list, the
-LRU_old pointer is not allowed to point to either end of the LRU list. */
+/** The number of blocks from the LRU_old pointer onward, including
+the block pointed to, must be buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
+of the whole LRU list length, except that the tolerance defined below
+is allowed. Note that the tolerance must be small enough such that for
+even the BUF_LRU_OLD_MIN_LEN long LRU list, the LRU_old pointer is not
+allowed to point to either end of the LRU list. */
 
 #define BUF_LRU_OLD_TOLERANCE	20
 
-/** The whole LRU list length is divided by this number to determine an
-initial segment in buf_LRU_get_recent_limit */
-
-#define BUF_LRU_INITIAL_RATIO	8
+/** The minimum amount of non-old blocks when the LRU_old list exists
+(that is, when there are more than BUF_LRU_OLD_MIN_LEN blocks).
+@see buf_LRU_old_adjust_len */
+#define BUF_LRU_NON_OLD_MIN_LEN	5
+#if BUF_LRU_NON_OLD_MIN_LEN >= BUF_LRU_OLD_MIN_LEN
+# error "BUF_LRU_NON_OLD_MIN_LEN >= BUF_LRU_OLD_MIN_LEN"
+#endif
 
 /** When dropping the search hash index entries before deleting an ibd
 file, we build a local array of pages belonging to that tablespace
@@ -105,6 +109,15 @@ UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_cur;
 Updated by buf_LRU_stat_update().  Protected by buf_pool_mutex. */
 UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_sum;
 
+/* @} */
+
+/** @name Heuristics for detecting index scan @{ */
+/** Reserve this much/BUF_LRU_OLD_RATIO_DIV of the buffer pool for
+"old" blocks.  Protected by buf_pool_mutex. */
+UNIV_INTERN uint	buf_LRU_old_ratio;
+/** Move blocks to "new" LRU list only if the first access was at
+least this many milliseconds ago.  Not protected by any mutex or latch. */
+UNIV_INTERN uint	buf_LRU_old_threshold_ms;
 /* @} */
 
 /******************************************************************//**
@@ -428,42 +441,6 @@ next_page:
 	}
 }
 
-/******************************************************************//**
-Gets the minimum LRU_position field for the blocks in an initial segment
-(determined by BUF_LRU_INITIAL_RATIO) of the LRU list. The limit is not
-guaranteed to be precise, because the ulint_clock may wrap around.
-@return	the limit; zero if could not determine it */
-UNIV_INTERN
-ulint
-buf_LRU_get_recent_limit(void)
-/*==========================*/
-{
-	const buf_page_t*	bpage;
-	ulint			len;
-	ulint			limit;
-
-	buf_pool_mutex_enter();
-
-	len = UT_LIST_GET_LEN(buf_pool->LRU);
-
-	if (len < BUF_LRU_OLD_MIN_LEN) {
-		/* The LRU list is too short to do read-ahead */
-
-		buf_pool_mutex_exit();
-
-		return(0);
-	}
-
-	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-
-	limit = buf_page_get_LRU_position(bpage);
-	len /= BUF_LRU_INITIAL_RATIO;
-
-	buf_pool_mutex_exit();
-
-	return(limit > len ? (limit - len) : 0);
-}
-
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -594,6 +571,7 @@ buf_LRU_free_from_common_LRU_list(
 	     bpage = UT_LIST_GET_PREV(LRU, bpage), distance--) {
 
 		enum buf_lru_free_block_status	freed;
+		unsigned			accessed;
 		mutex_t*			block_mutex
 			= buf_page_get_mutex(bpage);
 
@@ -601,11 +579,18 @@ buf_LRU_free_from_common_LRU_list(
 		ut_ad(bpage->in_LRU_list);
 
 		mutex_enter(block_mutex);
+		accessed = buf_page_is_accessed(bpage);
 		freed = buf_LRU_free_block(bpage, TRUE, NULL);
 		mutex_exit(block_mutex);
 
 		switch (freed) {
 		case BUF_LRU_FREED:
+			/* Keep track of pages that are evicted without
+			ever being accessed. This gives us a measure of
+			the effectiveness of readahead */
+			if (!accessed) {
+				++buf_pool->stat.n_ra_pages_evicted;
+			}
 			return(TRUE);
 
 		case BUF_LRU_NOT_FREED:
@@ -953,8 +938,10 @@ buf_LRU_old_adjust_len(void)
 
 	ut_a(buf_pool->LRU_old);
 	ut_ad(buf_pool_mutex_own());
-#if 3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5
-# error "3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5"
+	ut_ad(buf_LRU_old_ratio >= BUF_LRU_OLD_RATIO_MIN);
+	ut_ad(buf_LRU_old_ratio <= BUF_LRU_OLD_RATIO_MAX);
+#if BUF_LRU_OLD_RATIO_MIN * BUF_LRU_OLD_MIN_LEN <= BUF_LRU_OLD_RATIO_DIV * (BUF_LRU_OLD_TOLERANCE + 5)
+# error "BUF_LRU_OLD_RATIO_MIN * BUF_LRU_OLD_MIN_LEN <= BUF_LRU_OLD_RATIO_DIV * (BUF_LRU_OLD_TOLERANCE + 5)"
 #endif
 #ifdef UNIV_LRU_DEBUG
 	/* buf_pool->LRU_old must be the first item in the LRU list
@@ -966,34 +953,39 @@ buf_LRU_old_adjust_len(void)
 	     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
 #endif /* UNIV_LRU_DEBUG */
 
-	for (;;) {
-		old_len = buf_pool->LRU_old_len;
-		new_len = 3 * (UT_LIST_GET_LEN(buf_pool->LRU) / 8);
+	old_len = buf_pool->LRU_old_len;
+	new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU)
+			 * buf_LRU_old_ratio / BUF_LRU_OLD_RATIO_DIV,
+			 UT_LIST_GET_LEN(buf_pool->LRU)
+			 - (BUF_LRU_OLD_TOLERANCE
+			    + BUF_LRU_NON_OLD_MIN_LEN));
 
-		ut_ad(buf_pool->LRU_old->in_LRU_list);
-		ut_a(buf_pool->LRU_old);
+	for (;;) {
+		buf_page_t*	LRU_old = buf_pool->LRU_old;
+
+		ut_a(LRU_old);
+		ut_ad(LRU_old->in_LRU_list);
 #ifdef UNIV_LRU_DEBUG
-		ut_a(buf_pool->LRU_old->old);
+		ut_a(LRU_old->old);
 #endif /* UNIV_LRU_DEBUG */
 
 		/* Update the LRU_old pointer if necessary */
 
-		if (old_len < new_len - BUF_LRU_OLD_TOLERANCE) {
+		if (old_len + BUF_LRU_OLD_TOLERANCE < new_len) {
 
-			buf_pool->LRU_old = UT_LIST_GET_PREV(
-				LRU, buf_pool->LRU_old);
+			buf_pool->LRU_old = LRU_old = UT_LIST_GET_PREV(
+				LRU, LRU_old);
 #ifdef UNIV_LRU_DEBUG
-			ut_a(!buf_pool->LRU_old->old);
+			ut_a(!LRU_old->old);
 #endif /* UNIV_LRU_DEBUG */
-			buf_page_set_old(buf_pool->LRU_old, TRUE);
-			buf_pool->LRU_old_len++;
+			buf_page_set_old(LRU_old, TRUE);
+			old_len = ++buf_pool->LRU_old_len;
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
-			buf_page_set_old(buf_pool->LRU_old, FALSE);
-			buf_pool->LRU_old = UT_LIST_GET_NEXT(
-				LRU, buf_pool->LRU_old);
-			buf_pool->LRU_old_len--;
+			buf_page_set_old(LRU_old, FALSE);
+			buf_pool->LRU_old = UT_LIST_GET_NEXT(LRU, LRU_old);
+			old_len = --buf_pool->LRU_old_len;
 		} else {
 			return;
 		}
@@ -1021,6 +1013,7 @@ buf_LRU_old_init(void)
 
 	while (bpage != NULL) {
 		ut_ad(bpage->in_LRU_list);
+		ut_ad(buf_page_in_file(bpage));
 		buf_page_set_old(bpage, TRUE);
 		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
@@ -1075,16 +1068,19 @@ buf_LRU_remove_block(
 
 	if (UNIV_UNLIKELY(bpage == buf_pool->LRU_old)) {
 
-		/* Below: the previous block is guaranteed to exist, because
-		the LRU_old pointer is only allowed to differ by the
-		tolerance value from strict 3/8 of the LRU list length. */
+		/* Below: the previous block is guaranteed to exist,
+		because the LRU_old pointer is only allowed to differ
+		by BUF_LRU_OLD_TOLERANCE from strict
+		buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV of the LRU
+		list length. */
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
-		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, bpage);
-		ut_a(buf_pool->LRU_old);
+		ut_a(prev_bpage);
 #ifdef UNIV_LRU_DEBUG
-		ut_a(!buf_pool->LRU_old->old);
+		ut_a(!prev_bpage->old);
 #endif /* UNIV_LRU_DEBUG */
-		buf_page_set_old(buf_pool->LRU_old, TRUE);
+		buf_pool->LRU_old = prev_bpage;
+		buf_page_set_old(prev_bpage, TRUE);
 
 		buf_pool->LRU_old_len++;
 	}
@@ -1149,21 +1145,11 @@ buf_LRU_add_block_to_end_low(
 /*=========================*/
 	buf_page_t*	bpage)	/*!< in: control block */
 {
-	buf_page_t*	last_bpage;
-
 	ut_ad(buf_pool);
 	ut_ad(bpage);
 	ut_ad(buf_pool_mutex_own());
 
 	ut_a(buf_page_in_file(bpage));
-
-	last_bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-
-	if (last_bpage) {
-		bpage->LRU_position = last_bpage->LRU_position;
-	} else {
-		bpage->LRU_position = buf_pool_clock_tic();
-	}
 
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
@@ -1171,17 +1157,13 @@ buf_LRU_add_block_to_end_low(
 
 	buf_page_set_old(bpage, TRUE);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
-
-		buf_pool->LRU_old_len++;
-	}
-
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
 		ut_ad(buf_pool->LRU_old);
 
 		/* Adjust the length of the old block list if necessary */
 
+		buf_pool->LRU_old_len++;
 		buf_LRU_old_adjust_len();
 
 	} else if (UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN) {
@@ -1189,6 +1171,7 @@ buf_LRU_add_block_to_end_low(
 		/* The LRU list is now long enough for LRU_old to become
 		defined: init it */
 
+		buf_pool->LRU_old_len++;
 		buf_LRU_old_init();
 	}
 
@@ -1222,7 +1205,6 @@ buf_LRU_add_block_low(
 
 		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, bpage);
 
-		bpage->LRU_position = buf_pool_clock_tic();
 		bpage->freed_page_clock = buf_pool->freed_page_clock;
 	} else {
 #ifdef UNIV_LRU_DEBUG
@@ -1237,11 +1219,6 @@ buf_LRU_add_block_low(
 		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, buf_pool->LRU_old,
 				     bpage);
 		buf_pool->LRU_old_len++;
-
-		/* We copy the LRU position field of the previous block
-		to the new block */
-
-		bpage->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
 
 	ut_d(bpage->in_LRU_list = TRUE);
@@ -1295,6 +1272,12 @@ buf_LRU_make_block_young(
 /*=====================*/
 	buf_page_t*	bpage)	/*!< in: control block */
 {
+	ut_ad(buf_pool_mutex_own());
+
+	if (bpage->old) {
+		buf_pool->stat.n_pages_made_young++;
+	}
+
 	buf_LRU_remove_block(bpage);
 	buf_LRU_add_block_low(bpage, FALSE);
 }
@@ -1847,6 +1830,50 @@ buf_LRU_block_free_hashed_page(
 	buf_LRU_block_free_non_file_page(block);
 }
 
+/**********************************************************************//**
+Updates buf_LRU_old_ratio.
+@return	updated old_pct */
+UNIV_INTERN
+uint
+buf_LRU_old_ratio_update(
+/*=====================*/
+	uint	old_pct,/*!< in: Reserve this percentage of
+			the buffer pool for "old" blocks. */
+	ibool	adjust)	/*!< in: TRUE=adjust the LRU list;
+			FALSE=just assign buf_LRU_old_ratio
+			during the initialization of InnoDB */
+{
+	uint	ratio;
+
+	ratio = old_pct * BUF_LRU_OLD_RATIO_DIV / 100;
+	if (ratio < BUF_LRU_OLD_RATIO_MIN) {
+		ratio = BUF_LRU_OLD_RATIO_MIN;
+	} else if (ratio > BUF_LRU_OLD_RATIO_MAX) {
+		ratio = BUF_LRU_OLD_RATIO_MAX;
+	}
+
+	if (adjust) {
+		buf_pool_mutex_enter();
+
+		if (ratio != buf_LRU_old_ratio) {
+			buf_LRU_old_ratio = ratio;
+
+			if (UT_LIST_GET_LEN(buf_pool->LRU)
+			    >= BUF_LRU_OLD_MIN_LEN) {
+				buf_LRU_old_adjust_len();
+			}
+		}
+
+		buf_pool_mutex_exit();
+	} else {
+		buf_LRU_old_ratio = ratio;
+	}
+
+	/* the reverse of 
+	ratio = old_pct * BUF_LRU_OLD_RATIO_DIV / 100 */
+	return((uint) (ratio * 100 / (double) BUF_LRU_OLD_RATIO_DIV + 0.5));
+}
+
 /********************************************************************//**
 Update the historical stats that we are collecting for LRU eviction
 policy at the end of each interval. */
@@ -1896,7 +1923,6 @@ buf_LRU_validate(void)
 	buf_block_t*	block;
 	ulint		old_len;
 	ulint		new_len;
-	ulint		LRU_pos;
 
 	ut_ad(buf_pool);
 	buf_pool_mutex_enter();
@@ -1905,7 +1931,11 @@ buf_LRU_validate(void)
 
 		ut_a(buf_pool->LRU_old);
 		old_len = buf_pool->LRU_old_len;
-		new_len = 3 * (UT_LIST_GET_LEN(buf_pool->LRU) / 8);
+		new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU)
+				 * buf_LRU_old_ratio / BUF_LRU_OLD_RATIO_DIV,
+				 UT_LIST_GET_LEN(buf_pool->LRU)
+				 - (BUF_LRU_OLD_TOLERANCE
+				    + BUF_LRU_NON_OLD_MIN_LEN));
 		ut_a(old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
@@ -1943,16 +1973,7 @@ buf_LRU_validate(void)
 			ut_a(buf_pool->LRU_old == bpage);
 		}
 
-		LRU_pos	= buf_page_get_LRU_position(bpage);
-
 		bpage = UT_LIST_GET_NEXT(LRU, bpage);
-
-		if (bpage) {
-			/* If the following assert fails, it may
-			not be an error: just the buf_pool clock
-			has wrapped around */
-			ut_a(LRU_pos >= buf_page_get_LRU_position(bpage));
-		}
 	}
 
 	if (buf_pool->LRU_old) {
@@ -2000,9 +2021,6 @@ buf_LRU_print(void)
 	ut_ad(buf_pool);
 	buf_pool_mutex_enter();
 
-	fprintf(stderr, "Pool ulint clock %lu\n",
-		(ulong) buf_pool->ulint_clock);
-
 	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
 	while (bpage != NULL) {
@@ -2033,18 +2051,16 @@ buf_LRU_print(void)
 			const byte*	frame;
 		case BUF_BLOCK_FILE_PAGE:
 			frame = buf_block_get_frame((buf_block_t*) bpage);
-			fprintf(stderr, "\nLRU pos %lu type %lu"
+			fprintf(stderr, "\ntype %lu"
 				" index id %lu\n",
-				(ulong) buf_page_get_LRU_position(bpage),
 				(ulong) fil_page_get_type(frame),
 				(ulong) ut_dulint_get_low(
 					btr_page_get_index_id(frame)));
 			break;
 		case BUF_BLOCK_ZIP_PAGE:
 			frame = bpage->zip.data;
-			fprintf(stderr, "\nLRU pos %lu type %lu size %lu"
+			fprintf(stderr, "\ntype %lu size %lu"
 				" index id %lu\n",
-				(ulong) buf_page_get_LRU_position(bpage),
 				(ulong) fil_page_get_type(frame),
 				(ulong) buf_page_get_zip_size(bpage),
 				(ulong) ut_dulint_get_low(
@@ -2052,8 +2068,7 @@ buf_LRU_print(void)
 			break;
 
 		default:
-			fprintf(stderr, "\nLRU pos %lu !state %lu!\n",
-				(ulong) buf_page_get_LRU_position(bpage),
+			fprintf(stderr, "\n!state %lu!\n",
 				(ulong) buf_page_get_state(bpage));
 			break;
 		}

@@ -801,7 +801,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       DBUG_DUMP("old",(uchar*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(uchar*) key, key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
 
       if (comp_flag & SEARCH_FIND && flag == 0)
 	mi_check_print_error(param,"Found duplicated key at page %s",llstr(page,llbuff));
@@ -871,7 +871,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(info->state->data_file_length,llbuff3)));
       DBUG_DUMP("key",(uchar*) key,key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
       goto err;
     }
     param->record_checksum+=(ha_checksum) record;
@@ -1544,6 +1544,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
+
+  DBUG_ASSERT(param->use_buffers < SIZE_T_MAX);
 
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
@@ -2559,8 +2561,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -3093,8 +3096,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }

@@ -58,3 +58,4 @@ STOP SLAVE;
 # cleanup
 --connection master
 DROP TABLE t1;
+-- sync_slave_with_master
