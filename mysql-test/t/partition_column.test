@@ -10,26 +10,22 @@ drop table if exists t1;
 
 #
 # BUG#48161, Delivering too few records using collate syntax with partitions
-# BUG#48447, Delivering too few records with indexes using collate syntax
 #
 # Test case from BUG#48447 with some extension
-create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
-insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
-select * from t1 where a > 'B' collate latin1_bin;
-select * from t1 where a <> 'B' collate latin1_bin;
-create index i on t1 (a);
-select * from t1 where a > 'B' collate latin1_bin;
-select * from t1 where a <> 'B' collate latin1_bin;
-drop index i on t1;
-alter table t1
+create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
 partition by range columns(a)
 ( partition p0 values less than ('a'),
   partition p1 values less than ('b'),
   partition p2 values less than ('c'),
   partition p3 values less than ('d'));
+insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
+select * from t1 where a > 'B' collate latin1_bin;
+select * from t1 where a <> 'B' collate latin1_bin;
+alter table t1 remove partitioning;
 select * from t1 where a > 'B' collate latin1_bin;
 select * from t1 where a <> 'B' collate latin1_bin;
 drop table t1;
+
 # Test case from BUG#48161
 create table t1 (a varchar(2) character set latin1,
                  b varchar(2) character set latin1)

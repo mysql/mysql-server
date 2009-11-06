@@ -1,5 +1,10 @@
 drop table if exists t1;
-create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
+create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
+partition by range columns(a)
+( partition p0 values less than ('a'),
+partition p1 values less than ('b'),
+partition p2 values less than ('c'),
+partition p3 values less than ('d'));
 insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
 select * from t1 where a > 'B' collate latin1_bin;
 a
@@ -14,27 +19,7 @@ a
 b
 C
 c
-create index i on t1 (a);
-select * from t1 where a > 'B' collate latin1_bin;
-a
-a
-b
-C
-c
-select * from t1 where a <> 'B' collate latin1_bin;
-a
-A
-a
-b
-C
-c
-drop index i on t1;
-alter table t1
-partition by range columns(a)
-( partition p0 values less than ('a'),
-partition p1 values less than ('b'),
-partition p2 values less than ('c'),
-partition p3 values less than ('d'));
+alter table t1 remove partitioning;
 select * from t1 where a > 'B' collate latin1_bin;
 a
 a
