@@ -929,14 +929,20 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  if (select_lex->olap == ROLLUP_TYPE && rollup_process_const_fields())
+  if (rollup.state != ROLLUP::STATE_NONE)
   {
-    DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
-    DBUG_RETURN(1);
+    if (rollup_process_const_fields())
+    {
+      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    /* Remove distinct if only const tables */
+    select_distinct= select_distinct && (const_tables != tables);
   }
 
-  /* Remove distinct if only const tables */
-  select_distinct= select_distinct && (const_tables != tables);
   thd_proc_info(thd, "preparing");
   if (result->initialize_tables(this))
   {
@@ -1216,11 +1222,14 @@ JOIN::optimize()
     - We are using an ORDER BY or GROUP BY on fields not in the first table
     - We are using different ORDER BY and GROUP BY orders
     - The user wants us to buffer the result.
+    When the WITH ROLLUP modifier is present, we cannot skip temporary table
+    creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= (const_tables != tables &&
+  need_tmp= ((const_tables != tables &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT)));
+	      test(select_options & OPTION_BUFFER_RESULT))) ||
+             rollup.state != ROLLUP::STATE_NONE && select_distinct);
 
   // No cache for MATCH
   make_join_readinfo(this,
