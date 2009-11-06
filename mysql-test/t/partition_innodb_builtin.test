@@ -1,0 +1,67 @@
+--source include/have_partition.inc
+--source include/have_innodb.inc
+--source include/have_not_innodb_plugin.inc
+
+#
+# Bug#32430 - show engine innodb status causes errors
+#
+SET NAMES utf8;
+CREATE TABLE `t``\""e` (a INT, PRIMARY KEY (a))
+ENGINE=InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION `p0``\""e` VALUES LESS THAN (100)
+ (SUBPARTITION `sp0``\""e`,
+  SUBPARTITION `sp1``\""e`),
+ PARTITION `p1``\""e` VALUES LESS THAN (MAXVALUE)
+ (SUBPARTITION `sp2``\""e`,
+  SUBPARTITION `sp3``\""e`));
+INSERT INTO `t``\""e` VALUES (0), (2), (6), (10), (14), (18), (22);
+START TRANSACTION;
+--echo # con1
+connect(con1,localhost,root,,);
+SET NAMES utf8;
+START TRANSACTION;
+--echo # default connection
+connection default;
+UPDATE `t``\""e` SET a = 16 WHERE a = 0;
+--echo # con1
+connection con1;
+UPDATE `t``\""e` SET a = 8 WHERE a = 22;
+let $id_1= `SELECT CONNECTION_ID()`;
+SEND;
+UPDATE `t``\""e` SET a = 12 WHERE a = 0;
+--echo # default connection
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID = $id_1 AND STATE = 'Searching rows for update';
+--source include/wait_condition.inc
+#--echo # tested wait condition $wait_condition_reps times
+--error ER_LOCK_DEADLOCK
+UPDATE `t``\""e` SET a = 4 WHERE a = 22;
+--echo # First table reported in 'SHOW ENGINE InnoDB STATUS'
+# RECORD LOCKS space id 0 page no 50 n bits 80 index `PRIMARY` in \
+# Database `test`, Table `t1`, Partition `p0`, Subpartition `sp0` \
+# trx id 0 775
+# NOTE: replace_regex is very slow on match copy/past '(.*)' regex's
+# on big texts, removing a lot of text before + after makes it much faster.
+#/.*in (.*) trx.*/\1/
+--replace_regex /.*RECORD LOCKS space id [0-9]* page no [0-9]* n bits [0-9]* // / trx id .*// /.*index .* in //
+SHOW ENGINE InnoDB STATUS;
+set @old_sql_mode = @@sql_mode;
+set sql_mode = 'ANSI_QUOTES';
+# INNODB_LOCKS only exists in innodb_plugin
+#SELECT * FROM INFORMATION_SCHEMA.INNODB_LOCKS;
+--replace_regex /.*RECORD LOCKS space id [0-9]* page no [0-9]* n bits [0-9]* // / trx id .*// /.*index .* in //
+SHOW ENGINE InnoDB STATUS;
+set @@sql_mode = @old_sql_mode;
+--echo # con1
+connection con1;
+REAP;
+ROLLBACK;
+disconnect con1;
+--echo # default connection
+connection default;
+DROP TABLE `t``\""e`;
+SET NAMES DEFAULT;

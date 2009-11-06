@@ -1382,6 +1382,127 @@ DROP VIEW test.v3;
 DROP USER mysqluser1@localhost;
 USE test;
 
+--echo #
+--echo # Bug#35996: SELECT + SHOW VIEW should be enough to display view 
+--echo # definition
+--echo #
+-- source include/not_embedded.inc
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+GRANT USAGE, SELECT, CREATE VIEW, SHOW VIEW 
+ON mysqltest2.* TO mysqluser1@localhost;
+
+USE mysqltest1;
+
+CREATE TABLE t1( a INT );
+CREATE TABLE t2( a INT, b INT );
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE VIEW v1 AS SELECT 1 AS a;
+CREATE VIEW v2 AS SELECT 1 AS a, 2 AS b;
+
+GRANT SELECT        ON TABLE    t1 TO mysqluser1@localhost;
+GRANT SELECT (a, b) ON TABLE    t2 TO mysqluser1@localhost;
+GRANT EXECUTE       ON FUNCTION f1 TO mysqluser1@localhost;
+GRANT SELECT        ON TABLE    v1 TO mysqluser1@localhost;
+GRANT SELECT (a, b) ON TABLE    v2 TO mysqluser1@localhost;
+
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+CREATE VIEW v_f1 AS SELECT f1() AS a;
+CREATE VIEW v_v1 AS SELECT * FROM v1;
+CREATE VIEW v_v2 AS SELECT * FROM v2;
+
+GRANT SELECT, SHOW VIEW ON v_t1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_t2 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_f1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_v1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_v2 TO mysqluser1@localhost;
+
+--connect (connection1, localhost, mysqluser1,, mysqltest2)
+CREATE VIEW v_mysqluser1_t1 AS SELECT * FROM mysqltest1.t1;
+CREATE VIEW v_mysqluser1_t2 AS SELECT * FROM mysqltest1.t2;
+CREATE VIEW v_mysqluser1_f1 AS SELECT mysqltest1.f1() AS a;
+CREATE VIEW v_mysqluser1_v1 AS SELECT * FROM mysqltest1.v1;
+CREATE VIEW v_mysqluser1_v2 AS SELECT * FROM mysqltest1.v2;
+
+SHOW CREATE VIEW mysqltest1.v_t1;
+SHOW CREATE VIEW mysqltest1.v_t2;
+SHOW CREATE VIEW mysqltest1.v_f1;
+SHOW CREATE VIEW mysqltest1.v_v1;
+SHOW CREATE VIEW mysqltest1.v_v2;
+
+SHOW CREATE VIEW v_mysqluser1_t1;
+SHOW CREATE VIEW v_mysqluser1_t2;
+SHOW CREATE VIEW v_mysqluser1_f1;
+SHOW CREATE VIEW v_mysqluser1_v1;
+SHOW CREATE VIEW v_mysqluser1_v2;
+
+--connection default
+REVOKE SELECT     ON TABLE    t1 FROM mysqluser1@localhost;
+REVOKE SELECT (a) ON TABLE    t2 FROM mysqluser1@localhost;
+REVOKE EXECUTE    ON FUNCTION f1 FROM mysqluser1@localhost;
+REVOKE SELECT     ON TABLE    v1 FROM mysqluser1@localhost;
+
+--connection connection1
+SHOW CREATE VIEW mysqltest1.v_t1;
+SHOW CREATE VIEW mysqltest1.v_t2;
+SHOW CREATE VIEW mysqltest1.v_f1;
+SHOW CREATE VIEW mysqltest1.v_v1;
+SHOW CREATE VIEW mysqltest1.v_v2;
+
+SHOW CREATE VIEW v_mysqluser1_t1;
+SHOW CREATE VIEW v_mysqluser1_t2;
+SHOW CREATE VIEW v_mysqluser1_f1;
+SHOW CREATE VIEW v_mysqluser1_v1;
+SHOW CREATE VIEW v_mysqluser1_v2;
+
+--connection default
+--echo # Testing the case when the views reference missing objects.
+--echo # Obviously, there are no privileges to check for, so we
+--echo # need only each object type once.
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP VIEW v1;
+
+--connection connection1
+SHOW CREATE VIEW mysqltest1.v_t1;
+SHOW CREATE VIEW mysqltest1.v_f1;
+SHOW CREATE VIEW mysqltest1.v_v1;
+
+SHOW CREATE VIEW v_mysqluser1_t1;
+SHOW CREATE VIEW v_mysqluser1_f1;
+SHOW CREATE VIEW v_mysqluser1_v1;
+
+--connection default
+REVOKE SHOW VIEW ON v_t1 FROM mysqluser1@localhost;
+REVOKE SHOW VIEW ON v_f1 FROM mysqluser1@localhost;
+REVOKE SHOW VIEW ON v_v1 FROM mysqluser1@localhost;
+
+--connection connection1
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqltest1.v_t1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqltest1.v_f1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE VIEW mysqltest1.v_v1;
+SHOW CREATE VIEW v_mysqluser1_t1;
+SHOW CREATE VIEW v_mysqluser1_f1;
+SHOW CREATE VIEW v_mysqluser1_v1;
+
+--disconnect connection1
+--connection default
+DROP USER mysqluser1@localhost;
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+USE test;
+
+CREATE TABLE t1( a INT );
+CREATE DEFINER = no_such_user@no_such_host VIEW v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+DROP TABLE t1;
+DROP VIEW v1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
 

@@ -155,16 +155,35 @@ static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
-static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd, 
+static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
 static int innobase_savepoint(handlerton *hton, THD* thd, void *savepoint);
-static int innobase_release_savepoint(handlerton *hton, THD* thd, 
+static int innobase_release_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
 
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if index name matches a
+					reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name);	/* in: table name */
+
 static const char innobase_hton_name[]= "InnoDB";
+
+/* "GEN_CLUST_INDEX" is the name reserved for Innodb default
+system primary index. */
+static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
@@ -818,7 +837,22 @@ innobase_get_cset_width(
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
 	} else {
-		ut_a(cset == 0);
+		if (current_thd
+		    && (thd_sql_command(current_thd) == SQLCOM_DROP_TABLE)) {
+
+			/* Fix bug#46256: allow tables to be dropped if the
+			collation is not found, but issue a warning. */
+			if ((global_system_variables.log_warnings)
+			    && (cset != 0)){
+
+				sql_print_warning(
+					"Unknown collation #%lu.", cset);
+			}
+		} else {
+
+			ut_a(cset == 0);
+		}
+
 		*mbminlen = *mbmaxlen = 0;
 	}
 }
@@ -2515,12 +2549,28 @@ ha_innobase::innobase_initialize_autoinc()
 
 		dict_table_autoinc_initialize(innodb_table, auto_inc);
 
-	} else {
+	} else if (error == DB_RECORD_NOT_FOUND) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
-			"the MAX(%s) autoinc value from the "
-			"index (%s).\n", error, col_name, index->name);
-	}
+		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+			"dictionaries are out of sync.\n"
+			"InnoDB: Unable to find the AUTOINC column %s in the "
+			"InnoDB table %s.\n"
+			"InnoDB: We set the next AUTOINC column value to the "
+			"maximum possible value,\n"
+			"InnoDB: in effect disabling the AUTOINC next value "
+			"generation.\n"
+			"InnoDB: You can either set the next AUTOINC value "
+			"explicitly using ALTER TABLE\n"
+			"InnoDB: or fix the data dictionary by recreating "
+			"the table.\n",
+			col_name, index->table->name);
+
+		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+
+		dict_table_autoinc_initialize(innodb_table, auto_inc);
+
+		error = DB_SUCCESS;
+	} /* else other errors are still fatal */
 
 	return(ulong(error));
 }
@@ -2731,7 +2781,6 @@ retry:
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
 			error = innobase_initialize_autoinc();
-			/* Should always succeed! */
 			ut_a(error == DB_SUCCESS);
 		}
 
@@ -5132,6 +5181,28 @@ create_table_def(
 			}
 		}
 
+		/* First check whether the column to be added has a
+		system reserved name. */
+		if (dict_col_name_is_reserved(field->field_name)){
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column name '%s'. '%s' is a "
+				"reserved name. Please try to "
+				"re-create the table with a "
+				"different column name.",
+				table->name, (char*) field->field_name,
+				(char*) field->field_name);
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			error = DB_ERROR;
+			goto error_ret;
+		}
+
 		dict_mem_table_add_col(table, table->heap,
 			(char*) field->field_name,
 			col_type,
@@ -5147,6 +5218,7 @@ create_table_def(
 
 	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
+error_ret:
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);
@@ -5183,6 +5255,9 @@ create_index(
 	key = form->key_info + key_num;
 
 	n_fields = key->key_parts;
+
+	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
+	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
 	ind_type = 0;
 
@@ -5296,8 +5371,8 @@ create_clustered_index_when_no_primary(
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
-
-	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+	index = dict_mem_index_create(table_name,
+				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
 
@@ -5429,14 +5504,6 @@ ha_innobase::create(
 		flags |= DICT_TF_COMPACT;
 	}
 
-	error = create_table_def(trx, form, norm_name,
-		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags);
-
-	if (error) {
-		goto cleanup;
-	}
-
 	/* Look for a primary key */
 
 	primary_key_no= (form->s->primary_key != MAX_KEY ?
@@ -5447,6 +5514,22 @@ ha_innobase::create(
 	the primary key is always number 0, if it exists */
 
 	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(trx, form, norm_name)) {
+		error = -1;
+		goto cleanup;
+	}
+
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		flags);
+
+	if (error) {
+		goto cleanup;
+	}
+
 
 	/* Create the keys */
 
@@ -8392,6 +8475,46 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_ARRAY;
   var->value= (char *) &innodb_status_variables;
   return 0;
+}
+
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if an index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name)	/* in: table name */
+{
+	KEY*		key;
+	uint		key_num;	/* index number */
+
+	for (key_num = 0; key_num < form->s->keys; key_num++) {
+		key = form->key_info + key_num;
+
+		if (innobase_strcasecmp(key->name,
+					innobase_index_reserve_name) == 0) {
+			/* Push warning to mysql */
+			push_warning_printf((THD*) trx->mysql_thd,
+					    MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    ER_CANT_CREATE_TABLE,
+					    "Cannot Create Index with name "
+					    "'%s'. The name is reserved "
+					    "for the system default primary "
+					    "index.",
+					    innobase_index_reserve_name);
+
+			return(true);
+		}
+	}
+
+	return(false);
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {

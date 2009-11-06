@@ -456,4 +456,89 @@ SELECT SUM( DISTINCT e ) FROM t1 GROUP BY b,c,d HAVING (b,c,d) IN
   ((AVG( 1 ), 1 + c, 1 + d), (AVG( 1 ), 2 + c, 2 + d));
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #44139: Table scan when NULL appears in IN clause
+--echo #
+
+--disable_warnings
+
+CREATE TABLE t1 (
+  c_int INT NOT NULL,
+  c_decimal DECIMAL(5,2) NOT NULL,
+  c_float FLOAT(5, 2) NOT NULL,
+  c_bit BIT(10) NOT NULL,
+  c_date DATE NOT NULL, 
+  c_datetime DATETIME NOT NULL,
+  c_timestamp TIMESTAMP NOT NULL,
+  c_time TIME NOT NULL,
+  c_year YEAR NOT NULL,
+  c_char CHAR(10) NOT NULL,
+  INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
+  INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
+  INDEX(c_char));
+
+INSERT INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
+INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+
+--enable_warnings
+
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, 1, 2, 3);
+
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, NULL, 2, NULL, 3, NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_int IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, 1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_decimal IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, 1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_float IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, 1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_bit IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_date 
+  IN ('2009-09-01', '2009-09-02', '2009-09-03');
+EXPLAIN SELECT * FROM t1 WHERE c_date
+  IN (NULL, '2009-09-01', '2009-09-02', '2009-09-03');
+EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_date IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_datetime
+  IN ('2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
+EXPLAIN SELECT * FROM t1 WHERE c_datetime
+  IN (NULL, '2009-09-01 00:00:01', '2009-09-02 00:00:01', '2009-09-03 00:00:01');
+EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_datetime IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp
+  IN ('2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp
+  IN (NULL, '2009-09-01 00:00:01', '2009-09-01 00:00:02', '2009-09-01 00:00:03');
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_timestamp IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, 1, 2, 3);
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_year IN (NULL, NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE c_char IN ('1', '2', '3');
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, '1', '2', '3');
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL);
+EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
+
+DROP TABLE t1;
+
+--echo #
+
 --echo End of 5.1 tests
