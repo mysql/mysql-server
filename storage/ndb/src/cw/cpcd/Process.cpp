@@ -338,6 +338,7 @@ CPCD::Process::do_exec() {
 
 #ifdef _WIN32
   Vector<BaseString> saved;
+  char *cwd = 0;
   save_environment(m_env.c_str(), saved);
 #endif
 
@@ -346,6 +347,13 @@ CPCD::Process::do_exec() {
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
 
   if(strlen(m_cwd.c_str()) > 0) {
+#ifdef _WIN32
+    cwd = getcwd(0, 0);
+    if(!cwd)
+    {
+      logger.critical("Couldn't getcwd before spawn");
+    }
+#endif
     int err = chdir(m_cwd.c_str());
     if(err == -1) {
       BaseString err;
@@ -426,6 +434,14 @@ CPCD::Process::do_exec() {
   /* NOTREACHED */
 #else
   HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, m_path.c_str(), argv);
+
+  // go back up to original cwd
+  if(chdir(cwd))
+  {
+    logger.critical("Couldn't go back to saved cwd after spawn()");
+    logger.critical("%s", strerror(errno));
+  }
+  free(cwd);
 
   // get back to original std i/o
   for(i = 0; i < 3; i++) {
