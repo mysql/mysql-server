@@ -63,8 +63,9 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_FILENOTFOUND		29
 #define EE_FILE_NOT_CLOSED	30
 #define EE_CANT_CHMOD		31
-#define EE_CANT_COPY_OWNERSHIP  32
-#define EE_ERROR_LAST           32 /* Copy last error nr */
+#define EE_CANT_SEEK		32
+#define EE_CANT_COPY_OWNERSHIP  33
+#define EE_ERROR_LAST           33 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
   /* exit codes for all MySQL programs */
