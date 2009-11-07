@@ -5126,7 +5126,7 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
     }
     if (r==0)
 	// make entry in recovery log
-        r = toku_logger_log_fdelete(txn, iname, filenum, was_open);
+        r = toku_logger_log_fdelete(txn, iname);
     return r;
 }
 

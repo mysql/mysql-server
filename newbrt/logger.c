@@ -575,12 +575,12 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_
 
 
 // fname is the iname 
-int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_int8_t was_open) {
+int toku_logger_log_fdelete (TOKUTXN txn, const char *fname) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = (char *) fname };
     //No fsync.
-    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), was_open, filenum, bs);
+    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs);
     return r;
 }
 
