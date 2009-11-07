@@ -42,7 +42,7 @@ static void test_sub_block(int n) {
     }
 
     // write to the file
-    error = toku_close_brt(brt, 0, 0);
+    error = toku_close_brt(brt, 0);
     assert(error == 0);
 
     // verify the brt by walking a cursor through the rows
@@ -69,7 +69,7 @@ static void test_sub_block(int n) {
     error = toku_brt_cursor_close(cursor);
     assert(error == 0);
 
-    error = toku_close_brt(brt, 0, 0);
+    error = toku_close_brt(brt, 0);
     assert(error == 0);
 
     error = toku_cachetable_close(&ct);

@@ -594,7 +594,7 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uin
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fopen (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, filenum, treeflags);
+    return toku_log_fopen (txn->logger, (LSN*)0, 0, bs, filenum, treeflags);
 }
 
 static int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {

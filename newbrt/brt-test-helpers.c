@@ -5,9 +5,10 @@
 #include "includes.h"
 #include "ule.h"
 
+BOOL ignore_if_was_already_open;
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, 0);
 
@@ -21,7 +22,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
 int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens) {
     BRTNODE node;
     assert(n_children<=BRT_FANOUT);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, 0);
     node->u.n.n_children=n_children;
@@ -46,7 +47,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 }
 
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     brt->h->root = blocknum;
     brt->h->root_hash.valid = FALSE;

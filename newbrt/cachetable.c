@@ -660,7 +660,7 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
 
 static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
 
-int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN oplsn) {
 
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
@@ -750,11 +750,6 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	r = close(cf->fd);
 	assert(r == 0);
         cf->fd = -1;
-	if (logger) {
-	    //assert(cf->fname);
-	    //BYTESTRING bs = {.len=strlen(cf->fname), .data=cf->fname};
-	    //r = toku_log_cfclose(logger, 0, 0, bs, cf->filenum);
-	}
 
 	if (cf->fname_relative_to_env) toku_free(cf->fname_relative_to_env);
 	toku_free(cf);
@@ -2000,7 +1995,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
             ct->cachefiles_in_checkpoint = cf->next_in_checkpoint; 
             cf->next_in_checkpoint       = NULL;
             cf->for_checkpoint           = FALSE;
-            int r = toku_cachefile_close(&cf, logger, error_string, FALSE, ZERO_LSN);
+            int r = toku_cachefile_close(&cf, error_string, FALSE, ZERO_LSN);
             if (r!=0) {
                 retval = r;
                 goto panic;

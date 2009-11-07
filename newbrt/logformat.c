@@ -126,8 +126,7 @@ const struct logtype logtypes[] = {
 			{"BYTESTRING", "descriptor", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
-    {"fopen",   'O', FA{{"TXNID",      "txnid", 0},
-			{"BYTESTRING", "iname", 0},
+    {"fopen",   'O', FA{{"BYTESTRING", "iname", 0},
 			{"FILENUM",    "filenum", 0},
                         {"u_int32_t",  "treeflags", 0},
 			NULLFIELD}},

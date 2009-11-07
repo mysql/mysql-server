@@ -181,7 +181,7 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
 // object is freed.
 // If oplsn_valid is TRUE then use oplsn as the LSN of the close instead of asking the logger.  oplsn_valid being TRUE is only allowed during recovery, and requires that you are removing the last reference (otherwise the lsn wouldn't make it in.)
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string, BOOL oplsn_valid, LSN oplsn);
+int toku_cachefile_close (CACHEFILE*, char **error_string, BOOL oplsn_valid, LSN oplsn);
 
 // Flush the cachefile.
 // Effect: Flush everything owned by the cachefile from the cachetable. All dirty

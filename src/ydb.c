@@ -1649,7 +1649,7 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
 static int
 db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     char *error_string = 0;
-    int r1 = toku_close_brt(db->i->brt, db->dbenv->i->logger, &error_string);
+    int r1 = toku_close_brt(db->i->brt, &error_string);
     if (r1) {
 	db->dbenv->i->is_panicked = r1; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
 	db->dbenv->i->panic_string = error_string;

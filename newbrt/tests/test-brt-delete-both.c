@@ -46,7 +46,7 @@ doit (void) {
 	assert(pair.call_count==0);
     }
 
-    r = toku_close_brt(t, 0, 0);        assert(r==0);
+    r = toku_close_brt(t, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 

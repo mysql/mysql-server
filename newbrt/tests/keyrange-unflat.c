@@ -54,7 +54,7 @@ static void test_flat (void) {
 	assert(less>=prevless);	      prevless    = less;
 	assert(greater<=prevgreater); prevgreater = greater;
     }
-    r = toku_close_brt(t, 0, 0);          assert(r==0);
+    r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct);    assert(r==0);
 }
 
