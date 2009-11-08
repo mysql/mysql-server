@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 int ndbcluster_connect(int (*connect_callback)(void));
-int ndbcluster_disconnect();
+void ndbcluster_disconnect(void);
 
 Ndb_cluster_connection *ndb_get_cluster_connection();
 ulonglong ndb_get_latest_trans_gci();
