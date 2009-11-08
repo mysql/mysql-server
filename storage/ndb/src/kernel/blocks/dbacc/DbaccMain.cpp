@@ -36,12 +36,6 @@
 #include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
 
-#include <ndbinfo.h>
-#include <dbinfo/ndbinfo_tableids.h>
-
-// TO_DO_RONM is a label for comments on what needs to be improved in future versions
-// when more time is given.
-
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBACC: "<< x << endl;
 #else
@@ -8244,31 +8238,23 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
 
-  char buf[512];
-  struct dbinfo_ratelimit rl;
-  struct dbinfo_row r;
+  Ndbinfo::Ratelimit rl;
 
-  dbinfo_ratelimit_init(&rl, &req);
-
-  if(req.tableId == NDBINFO_MEMUSAGE_TABLEID)
+  if(req.tableId == Ndbinfo::MEMUSAGE_TABLEID)
   {
-    dbinfo_write_row_init(&r, buf, sizeof(buf));
-    const char *imstr= "IndexMemory";
-    dbinfo_write_row_column(&r, "IndexMemory", 11);
-    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-    Uint32 page_size_kb= sizeof(*rpPageptr.p);;
-    dbinfo_write_row_column(&r, (char*)&page_size_kb, 4); // 8kb
-    dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
-    dbinfo_write_row_column_uint32(&r, cpagesize); // number of pages
-    dbinfo_write_row_column(&r, "DBACC", strlen("DBACC"));
-    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    jam();
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(blockToMain(number())); // block number
+    row.write_uint32(instance());            // block instance
+    row.write_string("IndexMemory");
+    row.write_uint32(sizeof(page8));
+    row.write_uint32(cnoOfAllocatedPages);   // alloced pages
+    row.write_uint32(cpagesize);             // number of pages
+    ndbinfo_send_row(signal, req, row, rl);
   }
 
-  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
-  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
-  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
-  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
-             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 void

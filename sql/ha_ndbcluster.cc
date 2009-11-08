@@ -55,27 +55,16 @@
 extern ulong opt_ndb_cache_check_time;
 
 // ndb interface initialization/cleanup
-#ifdef  __cplusplus
-extern "C" {
-#endif
-extern void ndb_init_internal();
-extern void ndb_end_internal();
-#ifdef  __cplusplus
-}
-#endif
+extern "C" void ndb_init_internal();
+extern "C" void ndb_end_internal();
+
+static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
 
 const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
 TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
                                     "", ndb_distribution_names, NULL };
 const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
 enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
-
-/*
-  Provided for testing purposes to be able to run full test suite
-  with --ndbcluster option without getting warnings about cluster
-  not being connected
-*/
-my_bool ndbcluster_silent= 0;
 
 // Default value for parallelism
 static const int parallelism= 0;
@@ -5413,9 +5402,9 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   {
     /* We don't know how many will be inserted, guess */
     m_rows_to_insert=
-      (m_autoincrement_prefetch > NDB_DEFAULT_AUTO_PREFETCH)
+      (m_autoincrement_prefetch > DEFAULT_AUTO_PREFETCH)
       ? m_autoincrement_prefetch
-      : NDB_DEFAULT_AUTO_PREFETCH;
+      : DEFAULT_AUTO_PREFETCH;
     m_autoincrement_prefetch= m_rows_to_insert;
   }
   else
@@ -8111,7 +8100,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
-  m_autoincrement_prefetch((ha_rows) NDB_DEFAULT_AUTO_PREFETCH),
+  m_autoincrement_prefetch(DEFAULT_AUTO_PREFETCH),
   m_cond(NULL),
   m_multi_cursor(NULL)
 {
@@ -8804,10 +8793,8 @@ err:
                              share->key, share->use_count));
     free_share(&share);
   }
-  /*
-    ndbcluster_silent - avoid "cluster disconnected error"
-  */
-  if (ndb_error.code && (!ndbcluster_silent || ndb_error.code != 4009))
+
+  if (ndb_error.code)
   {
     ERR_RETURN(ndb_error);
   }
@@ -8832,12 +8819,6 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
   {
-    /*
-      ndbcluster_silent
-      - avoid "cluster failure" warning if cluster is not connected
-    */
-    if (ndbcluster_silent && dict->getNdbError().code == 4009)
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
     ERR_RETURN(dict->getNdbError());
   }
   for (uint i= 0 ; i < list.count ; i++)
@@ -13492,6 +13473,14 @@ SHOW_VAR ndb_status_variables_export[]= {
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
+
+#include "ha_ndbinfo.h"
+
+extern struct st_mysql_sys_var* ndbinfo_system_variables[];
+
+struct st_mysql_storage_engine ndbinfo_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
+
 mysql_declare_plugin(ndbcluster)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -13500,12 +13489,26 @@ mysql_declare_plugin(ndbcluster)
   "MySQL AB",
   "Clustered, fault-tolerant tables",
   PLUGIN_LICENSE_GPL,
-  ndbcluster_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
+  ndbcluster_init,            /* plugin init */
+  NULL,                       /* plugin deinit */
+  0x0100,                     /* plugin version */
   ndb_status_variables_export,/* status variables                */
   NULL,                       /* system variables                */
   NULL                        /* config options                  */
+},
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbinfo_storage_engine,
+  "ndbinfo",
+  "Sun Microsystems Inc.",
+  "MySQL Cluster system information storage engine",
+  PLUGIN_LICENSE_GPL,
+  ndbinfo_init,               /* plugin init */
+  ndbinfo_deinit,             /* plugin deinit */
+  0x0001,                     /* plugin version */
+  NULL,                       /* status variables */
+  ndbinfo_system_variables,   /* system variables */
+  NULL                        /* config options */
 }
 mysql_declare_plugin_end;
 

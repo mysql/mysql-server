@@ -58,6 +58,8 @@
 #include "ndbd_malloc_impl.hpp"
 #include <blocks/record_types.hpp>
 
+#include "Ndbinfo.hpp"
+
 #ifdef VM_TRACE
 #define D(x) \
   do { \
@@ -931,6 +933,22 @@ public:
   void debugOutUnlock() { globalSignalLoggers.unlock(); }
   const char* debugOutTag(char* buf, int line);
 #endif
+
+  void ndbinfo_send_row(Signal* signal,
+                        const DbinfoScanReq& req,
+                        const Ndbinfo::Row& row,
+                        Ndbinfo::Ratelimit& rl) const;
+
+  void ndbinfo_send_scan_break(Signal* signal,
+                               DbinfoScanReq& req,
+                               const Ndbinfo::Ratelimit& rl,
+                               Uint32 data1, Uint32 data2 = 0,
+                               Uint32 data3 = 0, Uint32 data4 = 0) const;
+
+  void ndbinfo_send_scan_conf(Signal* signal,
+                              DbinfoScanReq& req,
+                              const Ndbinfo::Ratelimit& rl) const;
+
 };
 
 // outside blocks e.g. within a struct

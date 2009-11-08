@@ -20,8 +20,7 @@ ndbinclude_HEADERS = \
 ndb_constants.h \
 ndb_init.h \
 ndb_types.h \
-ndb_version.h \
-ndbinfo.h
+ndb_version.h
 
 ndbapiinclude_HEADERS = \
 ndbapi/ndbapi_limits.h \

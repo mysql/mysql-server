@@ -43,8 +43,6 @@ extern my_bool opt_ndb_log_empty_epochs;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 
-extern my_bool ndbcluster_silent;
-
 extern my_bool ndb_log_binlog_index;
 
 /*
@@ -704,21 +702,13 @@ static void ndbcluster_reset_slave(THD *thd)
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
   run_query(thd, buf, end, NULL, TRUE, FALSE);
   if (thd->main_da.is_error() &&
-      ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE) ||
-       (thd->main_da.sql_errno() == ER_OPEN_AS_READONLY && ndbcluster_silent)))
+      ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)))
   {
     /*
       If table does not exist ignore the error as it
       is a consistant behavior
     */
     thd->main_da.reset_diagnostics_area();
-    /*
-      ndbcluster_silent
-      - avoid "no table mysql.ndb_apply_status" warning - ER_NO_SUCH_TABLE
-      - avoid "mysql.ndb_apply_status read only" warning - ER_OPEN_AS_READONLY
-    */
-    if (ndbcluster_silent)
-      mysql_reset_errors(thd, 1);
   }
 
   DBUG_VOID_RETURN;
@@ -872,11 +862,6 @@ static int ndbcluster_global_schema_lock(THD *thd, int no_lock_queue,
     DBUG_RETURN(0);
   }
 
-  /*
-    ndbcluster_silent - avoid "cluster disconnected error"
-  */
-  if (ndbcluster_silent)
-    report_cluster_disconnected= 0;
   if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
     sql_print_warning("NDB: Could not acquire global schema lock (%d)%s",
@@ -5478,6 +5463,9 @@ enum Binlog_thread_state
   BCCC_exit= 1,
   BCCC_restart= 2
 };
+
+extern ulong ndb_report_thresh_binlog_epoch_slip;
+extern ulong ndb_report_thresh_binlog_mem_usage;
 
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
