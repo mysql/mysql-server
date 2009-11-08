@@ -61,9 +61,10 @@ struct view {
     "  WHEN 0 THEN \"REDO\""
     "  WHEN 1 THEN \"DD-UNDO\""
     "  ELSE NULL "
-    " END AS log_id "
-    " log_part, node_id, total, used"
-  } 
+    " END AS log_type, "
+    " log_part, node_id, total, used "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>log_space"
+  }
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);
