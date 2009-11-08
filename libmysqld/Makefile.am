@@ -48,7 +48,7 @@ noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
-	ha_ndbcluster_connection.cc \
+	ha_ndbcluster_connection.cc ha_ndbinfo.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -118,6 +118,9 @@ ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_connection.o: ha_ndbcluster_connection.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbinfo.o: ha_ndbinfo.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # Until we can remove dependency on ha_ndbcluster.h

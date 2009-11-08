@@ -44,6 +44,11 @@ ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#
+ndbinfo_database	#
+ndbinfo_max_bytes	#
+ndbinfo_max_rows	#
+ndbinfo_show_hidden	#
+ndbinfo_table_prefix	#
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL,

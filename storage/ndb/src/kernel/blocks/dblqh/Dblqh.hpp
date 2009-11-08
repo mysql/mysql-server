@@ -2106,6 +2106,7 @@ private:
   void execREAD_PSEUDO_REQ(Signal* signal);
   void execSIGNAL_DROPPED_REP(Signal* signal);
 
+  void execDBINFO_SCANREQ(Signal* signal); 
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
