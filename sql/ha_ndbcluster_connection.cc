@@ -33,10 +33,10 @@ extern ulong opt_ndb_wait_connected;
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
-static Ndb_cluster_connection **g_ndb_cluster_connection_pool= NULL;
-static ulong g_ndb_cluster_connection_pool_alloc= 0;
-static ulong g_ndb_cluster_connection_pool_pos= 0;
-static pthread_mutex_t g_ndb_cluster_connection_pool_mutex;
+static Ndb_cluster_connection **g_pool= NULL;
+static ulong g_pool_alloc= 0;
+static ulong g_pool_pos= 0;
+static pthread_mutex_t g_pool_mutex;
 
 /*
   Global flag in ndbapi to specify if api should wait to connect
@@ -114,17 +114,16 @@ int ndbcluster_connect(int (*connect_callback)(void))
   }
 
   {
-    g_ndb_cluster_connection_pool_alloc= opt_ndb_cluster_connection_pool;
-    g_ndb_cluster_connection_pool= (Ndb_cluster_connection**)
-      my_malloc(g_ndb_cluster_connection_pool_alloc *
-                sizeof(Ndb_cluster_connection*),
+    g_pool_alloc= opt_ndb_cluster_connection_pool;
+    g_pool= (Ndb_cluster_connection**)
+      my_malloc(g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
-    pthread_mutex_init(&g_ndb_cluster_connection_pool_mutex,
+    pthread_mutex_init(&g_pool_mutex,
                        MY_MUTEX_INIT_FAST);
-    g_ndb_cluster_connection_pool[0]= g_ndb_cluster_connection;
-    for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
+    g_pool[0]= g_ndb_cluster_connection;
+    for (unsigned i= 1; i < g_pool_alloc; i++)
     {
-      if ((g_ndb_cluster_connection_pool[i]=
+      if ((g_pool[i]=
            new Ndb_cluster_connection(opt_ndb_connectstring,
                                       g_ndb_cluster_connection)) == 0)
       {
@@ -138,9 +137,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
         char buf[128];
         my_snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
                     mysqld_name, server_id, i+1);
-        g_ndb_cluster_connection_pool[i]->set_name(buf);
+        g_pool[i]->set_name(buf);
       }
-      g_ndb_cluster_connection_pool[i]->set_optimized_node_selection
+      g_pool[i]->set_optimized_node_selection
         (global_system_variables.ndb_optimized_node_selection & 1);
     }
   }
@@ -148,30 +147,30 @@ int ndbcluster_connect(int (*connect_callback)(void))
   if (res == 0)
   {
     connect_callback();
-    for (unsigned i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+    for (unsigned i= 0; i < g_pool_alloc; i++)
     {
-      int node_id= g_ndb_cluster_connection_pool[i]->node_id();
+      int node_id= g_pool[i]->node_id();
       if (node_id == 0)
       {
         // not connected to mgmd yet, try again
-        g_ndb_cluster_connection_pool[i]->connect(0,0,0);
-        if (g_ndb_cluster_connection_pool[i]->node_id() == 0)
+        g_pool[i]->connect(0,0,0);
+        if (g_pool[i]->node_id() == 0)
         {
           sql_print_warning("NDB[%u]: starting connect thread", i);
-          g_ndb_cluster_connection_pool[i]->start_connect_thread();
+          g_pool[i]->start_connect_thread();
           continue;
         }
-        node_id= g_ndb_cluster_connection_pool[i]->node_id();
+        node_id= g_pool[i]->node_id();
       }
       DBUG_PRINT("info",
                  ("NDBCLUSTER storage engine (%u) at %s on port %d", i,
-                  g_ndb_cluster_connection_pool[i]->get_connected_host(),
-                  g_ndb_cluster_connection_pool[i]->get_connected_port()));
+                  g_pool[i]->get_connected_host(),
+                  g_pool[i]->get_connected_port()));
 
       NDB_TICKS now_time;
       do
       {
-        res= g_ndb_cluster_connection_pool[i]->wait_until_ready(1, 1);
+        res= g_pool[i]->wait_until_ready(1, 1);
         now_time= NdbTick_CurrentMillisecond();
       } while (res != 0 && now_time < end_time);
 
@@ -194,9 +193,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
   }
   else if (res == 1)
   {
-    for (unsigned i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+    for (unsigned i= 0; i < g_pool_alloc; i++)
     {
-      if (g_ndb_cluster_connection_pool[i]->
+      if (g_pool[i]->
           start_connect_thread(i == 0 ? connect_callback :  NULL))
       {
         sql_print_error("NDB[%u]: failed to start connect thread", i);
@@ -236,20 +235,20 @@ int ndbcluster_disconnect()
     delete g_ndb;
   g_ndb= NULL;
   {
-    if (g_ndb_cluster_connection_pool)
+    if (g_pool)
     {
       /* first in pool is the main one, wait with release */
-      for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
+      for (unsigned i= 1; i < g_pool_alloc; i++)
       {
-        if (g_ndb_cluster_connection_pool[i])
-          delete g_ndb_cluster_connection_pool[i];
+        if (g_pool[i])
+          delete g_pool[i];
       }
-      my_free((uchar*) g_ndb_cluster_connection_pool, MYF(MY_ALLOW_ZERO_PTR));
-      pthread_mutex_destroy(&g_ndb_cluster_connection_pool_mutex);
-      g_ndb_cluster_connection_pool= 0;
+      my_free((uchar*) g_pool, MYF(MY_ALLOW_ZERO_PTR));
+      pthread_mutex_destroy(&g_pool_mutex);
+      g_pool= 0;
     }
-    g_ndb_cluster_connection_pool_alloc= 0;
-    g_ndb_cluster_connection_pool_pos= 0;
+    g_pool_alloc= 0;
+    g_pool_pos= 0;
   }
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
@@ -259,14 +258,12 @@ int ndbcluster_disconnect()
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
 {
-  pthread_mutex_lock(&g_ndb_cluster_connection_pool_mutex);
-  Ndb_cluster_connection *connection=
-    g_ndb_cluster_connection_pool[g_ndb_cluster_connection_pool_pos];
-  g_ndb_cluster_connection_pool_pos++;
-  if (g_ndb_cluster_connection_pool_pos ==
-      g_ndb_cluster_connection_pool_alloc)
-    g_ndb_cluster_connection_pool_pos= 0;
-  pthread_mutex_unlock(&g_ndb_cluster_connection_pool_mutex);
+  pthread_mutex_lock(&g_pool_mutex);
+  Ndb_cluster_connection *connection= g_pool[g_pool_pos];
+  g_pool_pos++;
+  if (g_pool_pos == g_pool_alloc)
+    g_pool_pos= 0;
+  pthread_mutex_unlock(&g_pool_mutex);
   return connection;
 }
 
@@ -274,9 +271,9 @@ ulonglong ndb_get_latest_trans_gci()
 {
   unsigned i;
   ulonglong val= *g_ndb_cluster_connection->get_latest_trans_gci();
-  for (i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
+  for (i= 1; i < g_pool_alloc; i++)
   {
-    ulonglong tmp= *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci();
+    ulonglong tmp= *g_pool[i]->get_latest_trans_gci();
     if (tmp > val)
       val= tmp;
   }
@@ -286,18 +283,18 @@ ulonglong ndb_get_latest_trans_gci()
 void ndb_set_latest_trans_gci(ulonglong val)
 {
   unsigned i;
-  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+  for (i= 0; i < g_pool_alloc; i++)
   {
-    *g_ndb_cluster_connection_pool[i]->get_latest_trans_gci()= val;
+    *g_pool[i]->get_latest_trans_gci()= val;
   }
 }
 
 int ndb_has_node_id(uint id)
 {
   unsigned i;
-  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+  for (i= 0; i < g_pool_alloc; i++)
   {
-    if (id == g_ndb_cluster_connection_pool[i]->node_id())
+    if (id == g_pool[i]->node_id())
       return 1;
   }
   return 0;
