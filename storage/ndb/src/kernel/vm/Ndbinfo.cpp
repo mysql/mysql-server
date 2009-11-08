@@ -124,6 +124,3 @@ Ndbinfo::Row::write_uint64(Uint64 value)
 }
 
 
-#include "NdbinfoTables.cpp"
-
-
