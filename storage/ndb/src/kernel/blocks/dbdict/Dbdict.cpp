@@ -99,8 +99,6 @@ extern EventLogger * g_eventLogger;
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <ndbinfo.h>
-#include <dbinfo/ndbinfo_tableids.h>
 
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
@@ -277,15 +275,13 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 void Dbdict::execDBINFO_SCANREQ(Signal *signal)
 {
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  char buf[512];
-  struct dbinfo_row r;
-  struct dbinfo_ratelimit rl;
-
-  dbinfo_ratelimit_init(&rl, &req);
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
 
   jamEntry();
 
-  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  if(req.tableId == Ndbinfo::POOLS_TABLEID)
   {
     struct {
       const char* poolname;
@@ -368,24 +364,30 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
           { NULL, 0, 0}
         };
 
-    for(int i=0; pools[i].poolname; i++)
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
     {
-      dbinfo_write_row_init(&r, buf, sizeof(buf));
-      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-      const char *blockname= "DBDICT";
-      dbinfo_write_row_column(&r, blockname, strlen(blockname));
-      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
-      dbinfo_write_row_column_uint32(&r, pools[i].free);
-      dbinfo_write_row_column_uint32(&r, pools[i].size);
-      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance()); // block instance
+      row.write_string(pools[pool].poolname);
+      row.write_uint32(pools[pool].free);
+      row.write_uint32(pools[pool].size);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
     }
   }
 
-  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
-  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
-  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
-  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
-             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 

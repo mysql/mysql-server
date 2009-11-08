@@ -1,0 +1,159 @@
+result_format: 2
+
+
+SELECT * FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE
+ndbinfo	0.1	ACTIVE	STORAGE ENGINE	50139.0	NULL	NULL	Sun Microsystems Inc.	MySQL Cluster system information storage engine	GPL
+
+## Creation of temporary tables should not be supported by NDBINFO engine
+CREATE TEMPORARY TABLE `t1` (
+  `dummy` INT UNSIGNED
+) ENGINE=NDBINFO;
+ERROR HY000: Table storage engine 'ndbinfo' does not support the create option 'TEMPORARY'
+
+@have_ndbinfo:= COUNT(*)
+1
+USE ndbinfo;
+
+SHOW CREATE TABLE ndb$tables;
+Table	Create Table
+ndb$tables	CREATE TABLE `ndb$tables` (
+  `table_id` int(10) unsigned DEFAULT NULL,
+  `table_name` varchar(512) DEFAULT NULL,
+  `comment` varchar(512) DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1
+
+SELECT * FROM ndb$tables;
+table_id	table_name	comment
+0	tables	
+1	columns	
+2	memusage	
+3	logdestination	
+4	backup_records	
+5	backup_parameters	
+6	pools	
+7	test	
+8	trp_status	
+SELECT COUNT(*) FROM ndb$tables;
+COUNT(*)
+9
+SELECT * FROM ndb$tables WHERE table_id = 2;
+table_id	table_name	comment
+2	memusage	
+SELECT * FROM ndb$tables WHERE table_id > 5;
+table_id	table_name	comment
+6	pools	
+7	test	
+8	trp_status	
+SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
+table_id	table_name	comment
+3	logdestination	
+SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+COUNT(*)
+81
+
+SELECT table_id, table_name, comment from ndb$tables
+  WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
+table_id	table_name	comment
+3	logdestination	
+4	backup_records	
+5	backup_parameters	
+SELECT table_id FROM ndb$tables  WHERE table_id = 2 ORDER BY table_name;
+table_id
+2
+SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
+table_id	table_name
+5	backup_parameters
+4	backup_records
+1	columns
+3	logdestination
+2	memusage
+6	pools
+0	tables
+7	test
+8	trp_status
+
+SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
+table_id	column_id	column_name
+0	0	table_id
+0	1	table_name
+0	2	comment
+1	0	table_id
+1	1	column_id
+1	2	column_name
+1	3	column_type
+
+UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
+ERROR HY000: Table 'ndb$tables' is read only
+
+UPDATE ndb$tables SET table_id=9 WHERE 1=0;
+ERROR HY000: Table 'ndb$tables' is read only
+
+UPDATE ndb$tables SET table_id=9 WHERE table_id > 1;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE table_id=3;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE 1=0;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE table_id > 1;
+ERROR HY000: Table 'ndb$tables' is read only
+
+FLUSH TABLES;
+SELECT table_id FROM ndb$tables;
+table_id
+0
+1
+2
+3
+4
+5
+6
+7
+8
+
+TRUNCATE ndb$tables;
+ERROR HY000: Table 'ndb$tables' is read only
+
+## Variables and status
+SHOW GLOBAL STATUS LIKE 'ndbinfo\_%';
+Variable_name	Value
+SHOW GLOBAL VARIABLES LIKE 'ndbinfo\_%';
+Variable_name	Value
+ndbinfo_database	ndbinfo
+ndbinfo_max_bytes	0
+ndbinfo_max_rows	10
+ndbinfo_show_hidden	OFF
+ndbinfo_table_prefix	ndb$
+
+SELECT counter, HEX(counter2) FROM ndb$test LIMIT 10;
+counter	HEX(counter2)
+0	0
+1	100000000
+2	200000000
+3	300000000
+4	400000000
+5	500000000
+6	600000000
+7	700000000
+8	800000000
+9	900000000
+
+SHOW TABLES LIKE 'ndb$te%';
+Tables_in_ndbinfo (ndb$te%)
+set @@ndbinfo_show_hidden=TRUE;
+SHOW TABLES LIKE 'ndb$te%';
+Tables_in_ndbinfo (ndb$te%)
+ndb$test
+set @@ndbinfo_show_hidden=default;
+
+set @@ndbinfo_table_prefix="somethingelse";
+ERROR HY000: Variable 'ndbinfo_table_prefix' is a read only variable
+
+set @@ndbinfo_database="somethingelse";
+ERROR HY000: Variable 'ndbinfo_database' is a read only variable
+
+## Cleanup
+DROP DATABASE ndbinfo;

@@ -13473,6 +13473,14 @@ SHOW_VAR ndb_status_variables_export[]= {
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
+
+#include "ha_ndbinfo.h"
+
+extern struct st_mysql_sys_var* ndbinfo_system_variables[];
+
+struct st_mysql_storage_engine ndbinfo_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
+
 mysql_declare_plugin(ndbcluster)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -13481,12 +13489,26 @@ mysql_declare_plugin(ndbcluster)
   "MySQL AB",
   "Clustered, fault-tolerant tables",
   PLUGIN_LICENSE_GPL,
-  ndbcluster_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
+  ndbcluster_init,            /* plugin init */
+  NULL,                       /* plugin deinit */
+  0x0100,                     /* plugin version */
   ndb_status_variables_export,/* status variables                */
   NULL,                       /* system variables                */
   NULL                        /* config options                  */
+},
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbinfo_storage_engine,
+  "ndbinfo",
+  "Sun Microsystems Inc.",
+  "MySQL Cluster system information storage engine",
+  PLUGIN_LICENSE_GPL,
+  ndbinfo_init,               /* plugin init */
+  ndbinfo_deinit,             /* plugin deinit */
+  0x0001,                     /* plugin version */
+  NULL,                       /* status variables */
+  ndbinfo_system_variables,   /* system variables */
+  NULL                        /* config options */
 }
 mysql_declare_plugin_end;
 

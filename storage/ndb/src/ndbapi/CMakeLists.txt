@@ -54,4 +54,7 @@ ADD_LIBRARY(ndbapi STATIC
             ndb_cluster_connection.cpp
             NdbBlob.cpp
             SignalSender.cpp
-            ObjectMap.cpp)
+            ObjectMap.cpp
+            NdbInfo.cpp
+            NdbInfoScanOperation.cpp)
+

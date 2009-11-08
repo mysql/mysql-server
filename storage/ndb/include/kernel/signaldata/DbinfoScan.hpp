@@ -1,4 +1,6 @@
-/* Copyright (C) 2007 MySQL AB
+/* 
+   Copyright (C) 2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,107 +22,62 @@
 
 struct DbinfoScanCursor
 {
-  Uint32 cur_requestInfo;
-  Uint32 cur_node;
-  Uint32 cur_block;
-  Uint32 cur_item;
+  Uint32 data[11];
 };
 
-/**
- * SENDER:  API,MGM
- * RECIVER: DBINFO
- */
-struct DbinfoScanReq
+struct DbinfoScan
 {
-  /* Reciver(s) */
-  friend class Dbinfo;
+  STATIC_CONST( SignalLength = 12 );
 
-  /* Sender(s) */
+  // API identifiers
+  Uint32 resultData;      // Will be returned in TransIdAI::connectPtr
+  Uint32 transId[2];      // ID unique to API
+  Uint32 resultRef;       // Where to send result rows
 
-  friend bool printDBINFO_SCANREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-
-  STATIC_CONST( SignalLength = 10 );
-  STATIC_CONST( SignalLengthWithCursor = 14 );
-//private:
+  // Parameters for the scan
   Uint32 tableId;         // DBINFO table ID
-  Uint32 senderRef;       // API doing scan
-  Uint32 apiTxnId;        // ID unique to API.
-  Uint32 colBitmapLo;     // bitmap of what columns you want. (64bit)
-  Uint32 colBitmapHi;
-  Uint32 requestInfo;     // start, endofdata
+  Uint32 colBitmap[2];     // bitmap of what columns you want. (64bit)
+  Uint32 requestInfo;     // flags
+  Uint32 maxRows;         // Max number of rows to return per REQ
+  Uint32 maxBytes;        // Max number of bytes to return per REQ
 
-  STATIC_CONST( StartScan  = 0x1 );
-  STATIC_CONST( AllColumns = 0x2 );
+  // Result from the scan
+  Uint32 returnedRows;    // Number of rows returned for this CONF
 
-  Uint32 maxRows;
-  Uint32 maxBytes;
-  Uint32 rows_total;
-  Uint32 word_total;
+  // Cursor that contains data used by the kernel for keeping track
+  // of where it is, how many bytes or rows it has sent etc.
+  // Set to zero in last CONF to indicate that scan is finished
+  Uint32 cursor_sz;
+  // Cursor data of cursor_sz size follows
+  DbinfoScanCursor cursor;
 
-  union
-  {
-    Uint32 cursordata[1];
-    struct DbinfoScanCursor cursor;
-  };
+  static const Uint32* getCursorPtr(const DbinfoScan* sig) {
+    return sig->cursor.data;
+  }
+  static Uint32* getCursorPtrSend(DbinfoScan* sig) {
+    return sig->cursor.data;
+  }
+
 };
 
-/**
- * SENDER:  DBINFO
- * RECIVER: API,MGM
- */
-class DbinfoScanConf {
-  /* Reciver(s) */
+typedef DbinfoScan DbinfoScanReq;
+typedef DbinfoScan DbinfoScanConf;
 
-  /* Sender(s) */
-  friend class Dbinfo;
+struct DbinfoScanRef
+{
+  STATIC_CONST( SignalLength = 5 );
 
-  friend bool printDBINFO_SCANCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+  // API identifiers
+  Uint32 resultData;      // Will be returned in TransIdAI::connectPtr
+  Uint32 transId[2];      // ID unique to API
+  Uint32 resultRef;       // Where to send result rows
 
-public:
-  STATIC_CONST( SignalLength = 10 );
-  STATIC_CONST( SignalLengthWithCursor = 14 );
-
-  Uint32 tableId;         // DBINFO table ID
-  Uint32 senderRef;       // API doing scan
-  Uint32 apiTxnId;        // ID unique to API.
-  Uint32 colBitmapLo;     // bitmap of what columns you want. (64bit)
-  Uint32 colBitmapHi;
-  Uint32 requestInfo;     // start, endofdata
-
-  STATIC_CONST( MoreData  = 0x1 );
-  STATIC_CONST( AllColumns = 0x2 );
-
-  Uint32 maxRows;
-  Uint32 maxBytes;
-  Uint32 rows_total;
-  Uint32 word_total;
-
-  union
-  {
-    Uint32 cursordata[1];
-    struct DbinfoScanCursor cursor;
-  };
-};
-
-/**
- * SENDER:  DBINFO
- * RECIVER: API,MGM
- */
-class DbinfoScanRef {
-  /* Reciver(s) */
-
-  /* Sender(s) */
-  friend class Dbinfo;
-
-  friend bool printDBINFO_SCANREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-
-public:
-  STATIC_CONST( SignalLength = 3 );
-
-private:
-  Uint32 tableId;         // DBINFO table ID
-  Uint32 apiTxnId;        // ID unique to API.
   Uint32 errorCode;       // Error Code
+  enum ErrorCode
+  {
+    NoError = 0,
+    NoTable = 4800
+  };
 };
 
 #endif

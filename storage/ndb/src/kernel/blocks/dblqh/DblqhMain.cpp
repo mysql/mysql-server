@@ -73,6 +73,7 @@
 #include <SectionReader.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/DbinfoScan.hpp>
 #include <NdbEnv.h>
 
 #include "../suma/Suma.hpp"
@@ -21332,6 +21333,61 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   }
 
 }//Dblqh::execDUMP_STATE_ORD()
+
+
+void Dblqh::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == Ndbinfo::LOG_SPACE_TABLEID)
+  {
+    Uint32 logpart = cursor->data[0];
+    while(logpart < clogPartFileSize)
+    {
+      jam();
+
+      logPartPtr.i = logpart;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo,
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+      Uint64 high = 0; // TODO
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(0);              // log id, always 0 in LQH
+      row.write_uint32(0);              // log type, 0 = REDO
+      row.write_uint32(logpart);        // log part
+      row.write_uint32(getOwnNodeId());
+      row.write_uint64(total);          // total allocated
+      row.write_uint64((total-mb));     // currently in use
+      row.write_uint64(high);           // in use high water mark
+      ndbinfo_send_row(signal, req, row, rl);
+
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, logpart);
+        return;
+      }
+      logpart++;
+    }
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
+
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */

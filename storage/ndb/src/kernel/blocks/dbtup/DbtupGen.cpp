@@ -56,6 +56,7 @@ void Dbtup::initData()
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
+  cTotNoFragPages = 0;
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
@@ -483,6 +484,11 @@ void Dbtup::initRecords()
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  // Check available data memory pages
+  Uint64 dataMem;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_DATA_MEM, &dataMem);
+  cTotPages = (Uint32)(dataMem / (ZWORDS_ON_PAGE * 4));
 
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();

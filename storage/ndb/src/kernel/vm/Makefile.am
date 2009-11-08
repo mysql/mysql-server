@@ -38,7 +38,8 @@ libkernel_a_SOURCES = \
 	ndbd_malloc_impl.cpp \
 	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
 	GlobalData.cpp \
-	SafeMutex.cpp
+	SafeMutex.cpp \
+	Ndbinfo.cpp
 
 libsched_a_SOURCES = TimeQueue.cpp		\
                      ThreadConfig.cpp \

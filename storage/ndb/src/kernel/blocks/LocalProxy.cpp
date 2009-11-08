@@ -83,6 +83,10 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &LocalProxy::execDROP_TRIG_IMPL_REQ);
   addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &LocalProxy::execDROP_TRIG_IMPL_CONF);
   addRecSignal(GSN_DROP_TRIG_IMPL_REF, &LocalProxy::execDROP_TRIG_IMPL_REF);
+
+  // GSN_DBINFO_SCANREQ
+  addRecSignal(GSN_DBINFO_SCANREQ, &LocalProxy::execDBINFO_SCANREQ);
+  addRecSignal(GSN_DBINFO_SCANCONF, &LocalProxy::execDBINFO_SCANCONF);
 }
 
 LocalProxy::~LocalProxy()
@@ -969,6 +973,145 @@ LocalProxy::sendDROP_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_DROP_TRIG_IMPL_REQ>(ssId);
+}
+
+// GSN_DBINFO_SCANREQ
+
+bool
+LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
+{
+  jam();
+  const Uint32 node = refToNode(cursor->currRef);
+  const Uint32 block = refToMain(cursor->currRef);
+  Uint32 instance = refToInstance(cursor->currRef);
+
+  ndbrequire(node == getOwnNodeId());
+  ndbrequire(block == number());
+
+  if (instance++ < c_workers)
+  {
+    cursor->currRef = numberToRef(block, instance, node);
+    return true;
+  }
+
+  cursor->currRef = numberToRef(block, node);
+  return false;
+}
+
+
+
+void
+LocalProxy::execDBINFO_SCANREQ(Signal* signal)
+{
+  jamEntry();
+  const DbinfoScanReq* req = (const DbinfoScanReq*) signal->getDataPtr();
+  Uint32 signal_length = signal->getLength();
+  ndbrequire(signal_length == DbinfoScanReq::SignalLength+req->cursor_sz);
+
+  Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(req);
+
+  if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) &&
+      cursor->saveCurrRef)
+  {
+    /* Continue in the saved block ref */
+    cursor->currRef = cursor->saveCurrRef;
+    cursor->saveCurrRef = 0;
+
+    // Set this block as sender and remember original sender
+    cursor->saveSenderRef = cursor->senderRef;
+    cursor->senderRef = reference();
+
+    sendSignal(cursor->currRef, GSN_DBINFO_SCANREQ,
+               signal, signal_length, JBB);
+    return;
+  }
+
+  Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, false);
+
+  if (find_next(cursor))
+  {
+    jam();
+    ndbrequire(cursor->currRef);
+    ndbrequire(cursor->saveCurrRef == 0);
+
+    // Set this block as sender and remember original sender
+    cursor->saveSenderRef = cursor->senderRef;
+    cursor->senderRef = reference();
+
+    sendSignal(cursor->currRef, GSN_DBINFO_SCANREQ,
+               signal, signal_length, JBB);
+    return;
+  }
+
+  /* Scan is done, send SCANCONF back to caller  */
+
+  /* Swap back saved senderRef */
+  const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
+  cursor->saveSenderRef = 0;
+
+  ndbrequire(cursor->currRef);
+  ndbrequire(cursor->saveCurrRef == 0);
+
+  ndbrequire(refToInstance(cursor->currRef) == 0);
+  sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
+  return;
+}
+
+void
+LocalProxy::execDBINFO_SCANCONF(Signal* signal)
+{
+  jamEntry();
+  const DbinfoScanConf* conf = (const DbinfoScanConf*)signal->getDataPtr();
+  Uint32 signal_length = signal->getLength();
+  ndbrequire(signal_length == DbinfoScanConf::SignalLength+conf->cursor_sz);
+
+  Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(conf);
+
+  if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags))
+  {
+    /* The underlying block want to continue */
+    jam();
+    
+    /* Swap back saved senderRef */
+    const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
+    cursor->saveSenderRef = 0;
+
+    /* Save currRef to continue with same instance again */
+    cursor->saveCurrRef = cursor->currRef;
+    cursor->currRef = reference();
+
+    sendSignal(senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
+    return;
+  } 
+  
+  /* The underlying block reported completed, find next if any */
+  if (find_next(cursor))
+  {
+    jam();
+
+    ndbrequire(cursor->senderRef == reference());
+    ndbrequire(cursor->saveSenderRef); // Should already be set
+
+    ndbrequire(cursor->saveCurrRef == 0);
+
+    sendSignal(cursor->currRef, GSN_DBINFO_SCANREQ,
+               signal, signal_length, JBB);
+    return;
+  }
+
+  /* Scan in this block and its instances are completed */
+
+  /* Swap back saved senderRef */
+  const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
+  cursor->saveSenderRef = 0;
+
+  ndbrequire(cursor->currRef);
+  ndbrequire(cursor->saveCurrRef == 0);
+
+  sendSignal(senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
+  return;
 }
 
 BLOCK_FUNCTIONS(LocalProxy)

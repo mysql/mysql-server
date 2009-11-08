@@ -1,4 +1,5 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007-2008 MySQL AB, 2009 Sun Microsystems Inc.
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +50,10 @@ protected:
   void execREAD_CONFIG_REQ(Signal*);
   void execDUMP_STATE_ORD(Signal* signal);
 
+  Uint32 find_next_node(Uint32 node) const;
+  Uint32 find_next_block(Uint32 block) const;
+  bool find_next(Ndbinfo::ScanCursor* cursor) const;
   void execDBINFO_SCANREQ(Signal *signal);
-  void execDBINFO_TRANSID_AI(Signal* signal);
   void execDBINFO_SCANCONF(Signal *signal);
 
   /* for maintaining c_aliveNodes */
