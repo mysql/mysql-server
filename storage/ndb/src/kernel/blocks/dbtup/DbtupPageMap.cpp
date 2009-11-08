@@ -262,7 +262,7 @@ Dbtup::allocFragPage(Fragrecord* regFragPtr)
   }
   
   regFragPtr->noOfPages = cnt + 1;
-  
+  cTotNoFragPages++; 
   c_page_pool.getPtr(pagePtr);
   init_page(regFragPtr, pagePtr, pageId);
   
@@ -370,6 +370,7 @@ Dbtup::allocFragPage(Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
   }
   
   fragPtrP->noOfPages = cnt + 1;
+  cTotNoFragPages++; 
   if (page_no + 1 > max)
   {
     jam();
@@ -427,6 +428,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   }
 
   fragPtrP->noOfPages = cnt - 1;
+  cTotNoFragPages++;
   if (DBUG_PAGE_MAP)
     ndbout_c("release(%u %u)@%s", logicalPageId, pagePtr.i, where);
   do_check_page_map(fragPtrP);

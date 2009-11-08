@@ -28,8 +28,7 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
-	    ndb_rand.c \
-	    ndbinfo.c
+	    ndb_rand.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 

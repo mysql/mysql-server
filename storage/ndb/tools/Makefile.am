@@ -16,8 +16,12 @@
 
 EXTRA_DIST = CMakeLists.txt
 
+BUILT_SOURCES = ndbinfo.sql
+
+noinst_PROGRAMS = 	ndbinfo_sql
+
 dist_bin_SCRIPTS =	ndb_size.pl ndb_error_reporter
-dist_pkgdata_DATA =
+dist_pkgdata_DATA =	ndbinfo.sql
 
 ndbtools_PROGRAMS = \
   ndb_test_platform \
@@ -65,6 +69,13 @@ ndb_config_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi \
 
 ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
                     $(LDADD)
+
+
+ndbinfo_sql_SOURCES = ndbinfo_sql.cpp
+
+# Build ndbinfo.sql by executing ndbinfo_sql
+ndbinfo.sql: ndbinfo_sql
+	$(builddir)/ndbinfo_sql$(EXEEXT) > $@
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am

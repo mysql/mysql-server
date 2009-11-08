@@ -198,18 +198,11 @@ extern Ndb_cluster_connection* g_ndb_cluster_connection;
 void ndbcluster_global_schema_lock_init();
 void ndbcluster_global_schema_lock_deinit();
 
-extern pthread_t ndb_binlog_thread;
-extern pthread_mutex_t injector_mutex;
-extern pthread_cond_t  injector_cond;
-
 extern unsigned char g_node_id_map[max_ndb_nodes];
-extern pthread_t ndb_util_thread;
 extern pthread_mutex_t LOCK_ndb_util_thread;
 extern pthread_cond_t COND_ndb_util_thread;
-extern int ndbcluster_util_inited;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
-extern long ndb_number_of_storage_nodes;
 
 /*
   Initialize the binlog part of the ndb handlerton

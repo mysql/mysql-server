@@ -43,6 +43,7 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/LocalRouteOrd.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -4034,3 +4035,98 @@ SimulatedBlock::wakeup()
   globalTransporterRegistry.wakeup();
 #endif
 }
+
+
+void
+SimulatedBlock::ndbinfo_send_row(Signal* signal,
+                                 const DbinfoScanReq& req,
+                                 const Ndbinfo::Row& row,
+                                 Ndbinfo::Ratelimit& rl) const
+{
+  // Check correct number of columns against table
+  assert(row.columns() == Ndbinfo::getTable(req.tableId).columns());
+
+  TransIdAI *tidai= (TransIdAI*)signal->getDataPtrSend();
+  tidai->connectPtr= req.resultData;
+  tidai->transId[0]= req.transId[0];
+  tidai->transId[1]= req.transId[1];
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = row.getDataPtr();
+  ptr[0].sz = row.getLength();
+
+  rl.rows++;
+  rl.bytes += row.getLength();
+
+  sendSignal(req.resultRef, GSN_DBINFO_TRANSID_AI,
+             signal, TransIdAI::HeaderLength, JBB, ptr, 1);
+}
+
+
+void
+SimulatedBlock::ndbinfo_send_scan_break(Signal* signal,
+                                       DbinfoScanReq& req,
+                                       const Ndbinfo::Ratelimit& rl,
+                                       Uint32 data1, Uint32 data2,
+                                       Uint32 data3, Uint32 data4) const
+{
+  DbinfoScanConf* conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  const Uint32 signal_length = DbinfoScanReq::SignalLength + req.cursor_sz;
+  MEMCOPY_NO_WORDS(conf, &req, signal_length);
+
+  conf->returnedRows = rl.rows;
+
+  // Update the cursor with current item number
+  Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtrSend(conf);
+
+  cursor->data[0] = data1;
+  cursor->data[1] = data2;
+  cursor->data[2] = data3;
+  cursor->data[3] = data4;
+
+  // Increase number of rows and bytes sent to far
+  cursor->totalRows += rl.rows;
+  cursor->totalBytes += rl.bytes;
+
+  Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, true);
+
+  sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
+             signal_length, JBB);
+}
+
+void
+SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
+                                       DbinfoScanReq& req,
+                                       const Ndbinfo::Ratelimit& rl) const
+{
+  DbinfoScanConf* conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  const Uint32 signal_length = DbinfoScanReq::SignalLength + req.cursor_sz;
+  Uint32 sender_ref = req.resultRef;
+  MEMCOPY_NO_WORDS(conf, &req, signal_length);
+
+  conf->returnedRows = rl.rows;
+
+  if (req.cursor_sz)
+  {
+    jam();
+    // Update the cursor with current item number
+    Ndbinfo::ScanCursor* cursor =
+      (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtrSend(conf);
+
+    // Reset all data holders
+    memset(cursor->data, 0, sizeof(cursor->data));
+
+    // Increase number of rows and bytes sent to far
+    cursor->totalRows += rl.rows;
+    cursor->totalBytes += rl.bytes;
+
+    Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, false);
+
+    sender_ref = cursor->senderRef;
+
+  }
+  sendSignal(sender_ref, GSN_DBINFO_SCANCONF, signal,
+             signal_length, JBB);
+}
+
