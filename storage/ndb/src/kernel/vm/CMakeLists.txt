@@ -37,6 +37,7 @@ ADD_LIBRARY(ndbkernel STATIC
 	    GlobalData.cpp
 	    SafeMutex.cpp
             Ndbinfo.cpp
+            NdbinfoTables.cpp
 )
 ADD_LIBRARY(ndbsched STATIC
             TimeQueue.cpp

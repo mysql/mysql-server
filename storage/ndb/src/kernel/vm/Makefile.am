@@ -39,7 +39,7 @@ libkernel_a_SOURCES = \
 	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
 	GlobalData.cpp \
 	SafeMutex.cpp \
-	Ndbinfo.cpp
+	Ndbinfo.cpp NdbinfoTables.cpp
 
 libsched_a_SOURCES = TimeQueue.cpp		\
                      ThreadConfig.cpp \
