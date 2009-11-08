@@ -34,9 +34,10 @@ table_id	table_name	comment
 6	pools	
 7	test	
 8	trp_status	
+9	log_space	
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-9
+10
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	memusage	
@@ -45,12 +46,13 @@ table_id	table_name	comment
 6	pools	
 7	test	
 8	trp_status	
+9	log_space	
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 3	logdestination	
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-81
+100
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -67,6 +69,7 @@ table_id	table_name
 4	backup_records
 1	columns
 3	logdestination
+9	log_space
 2	memusage
 6	pools
 0	tables
@@ -113,6 +116,7 @@ table_id
 6
 7
 8
+9
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
