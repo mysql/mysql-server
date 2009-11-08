@@ -228,7 +228,7 @@ ndbcluster_connect_error:
   DBUG_RETURN(-1);
 }
 
-int ndbcluster_disconnect()
+void ndbcluster_disconnect(void)
 {
   DBUG_ENTER("ndbcluster_disconnect");
   if (g_ndb)
@@ -253,7 +253,7 @@ int ndbcluster_disconnect()
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
