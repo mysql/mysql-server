@@ -47,7 +47,11 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
 #define INNODB_VERSION_BUGFIX	4
-#define PERCONA_INNODB_VERSION	7
+
+#ifndef PERCONA_INNODB_VERSION
+#define PERCONA_INNODB_VERSION unknown
+#endif
+
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -59,14 +63,15 @@ component, i.e. we show M.N.P as M.N */
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
 /* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c, d)	(#a "." #b "." #c "-" #d)
-#define _INNODB_VERSION(a, b, c, d)	__INNODB_VERSION(a, b, c, d)
+#define __INNODB_VERSION(a, b, c, d)   (#a "." #b "." #c "-" #d)
+#define _INNODB_VERSION(a, b, c, d)    __INNODB_VERSION(a, b, c, d)
+
 
 #define INNODB_VERSION_STR			\
 	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
 			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX,	\
-			PERCONA_INNODB_VERSION)
+			INNODB_VERSION_BUGFIX,  \
+                        PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
 
