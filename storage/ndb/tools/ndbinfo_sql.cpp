@@ -123,20 +123,20 @@ int main(int argc, char** argv){
   if ((handle_options(&argc, &argv, my_long_options, NULL)))
     return 2;
 
-  printf("--\n");
-  printf("-- SQL commands for creating the tables in MySQL Server which \n");
-  printf("-- are used by the NDBINFO storage engine to access system \n");
-  printf("-- information and statistics from MySQL Cluster\n");
-  printf("--\n");
+  printf("#\n");
+  printf("# SQL commands for creating the tables in MySQL Server which \n");
+  printf("# are used by the NDBINFO storage engine to access system \n");
+  printf("# information and statistics from MySQL Cluster\n");
+  printf("#\n");
 
   printf("CREATE DATABASE IF NOT EXISTS `%s`;\n\n", opt_ndbinfo_db);
 
-  printf("-- Only create tables if NDBINFO is enabled\n");
+  printf("# Only create tables if NDBINFO is enabled\n");
   printf("SELECT @have_ndbinfo:= COUNT(*) FROM "
                   "information_schema.engines WHERE engine='NDBINFO' "
                   "AND support IN ('YES', 'DEFAULT');\n\n");
 
-  printf("-- drop any old views in %s\n", opt_ndbinfo_db);
+  printf("# drop any old views in %s\n", opt_ndbinfo_db);
   for (size_t i = 0; i < num_views; i++)
   {
     printf("DROP VIEW IF EXISTS %s.%s;\n",
@@ -148,7 +148,7 @@ int main(int argc, char** argv){
   {
     const Ndbinfo::Table& table = Ndbinfo::getTable(i);
 
-    printf("-- %s.%s%s\n",
+    printf("# %s.%s%s\n",
             opt_ndbinfo_db, opt_table_prefix, table.m.name);
 
     /* Drop the table if it exists */
@@ -206,15 +206,15 @@ int main(int argc, char** argv){
 
   }
 
-  printf("--\n");
-  printf("-- %s views\n", opt_ndbinfo_db);
-  printf("--\n\n");
+  printf("#\n");
+  printf("# %s views\n", opt_ndbinfo_db);
+  printf("#\n\n");
 
   for (size_t i = 0; i < num_views; i++)
   {
     view v = views[i];
 
-    printf("-- %s.%s\n", opt_ndbinfo_db, v.name);
+    printf("# %s.%s\n", opt_ndbinfo_db, v.name);
 
     BaseString view_sql = replace_tags(v.sql);
 
