@@ -159,5 +159,9 @@ ERROR HY000: Variable 'ndbinfo_table_prefix' is a read only variable
 set @@ndbinfo_database="somethingelse";
 ERROR HY000: Variable 'ndbinfo_database' is a read only variable
 
+SELECT count(*) >= 20 FROM block;
+count(*) >= 20
+1
+
 ## Cleanup
 DROP DATABASE ndbinfo;

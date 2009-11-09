@@ -80,5 +80,8 @@ set @@ndbinfo_table_prefix="somethingelse";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@ndbinfo_database="somethingelse";
 
+# Check that block table has been created and contain data
+SELECT count(*) >= 20 FROM block;
+
 ## Cleanup
 DROP DATABASE ndbinfo;
