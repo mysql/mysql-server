@@ -8752,10 +8752,23 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   }//if
   
   // 1 scan record is reserved for node recovery
-  if (cscanNoFreeRec < 2) {
-    jam();
-    errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
-    goto error_handler;
+  // and one for LCP
+  {
+    Uint32 limit = 2;
+    if (ScanFragReq::getLcpScanFlag(reqinfo))
+    {
+      jam();
+      /**
+       * This code depends on the fact that LCP only scans one fragment at
+       *   at a time
+       */
+      limit = 1;
+    }
+    if (cscanNoFreeRec < limit) {
+      jam();
+      errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
+      goto error_handler;
+    }
   }
 
   // XXX adjust cmaxAccOps for range scans and remove this comment
