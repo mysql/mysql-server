@@ -1,0 +1,176 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+
+# Make source distribution
+# If bzr is present, run bzr export, add output of BUILD/autorun.sh
+# if autotools are present, also pack bison output into it.
+# Otherwise, just run cpack with source configuration.
+
+SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
+SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "@CPACK_SOURCE_PACKAGE_FILE_NAME@")
+SET(GLIBTOOLIZE_EXECUTABLE "@GLIBTOOLIZE_EXECUTABLE@")
+SET(LIBTOOLIZE_EXECUTABLE "@LIBTOOLIZE_EXECUTABLE@")
+SET(ACLOCAL_EXECUTABLE "@ACLOCAL_EXECUTABLE@")
+SET(AUTOCONF_EXECUTABLE "@AUTOCONF_EXECUTABLE@")
+SET(AUTOHEADER_EXECUTABLE "@AUTOHEADER_EXECUTABLE@")
+SET(AUTOMAKE_EXECUTABLE "@AUTOMAKE_EXECUTABLE@")
+SET(CMAKE_CPACK_COMMAND  "@CMAKE_CPACK_COMMAND@")
+SET(CMAKE_COMMAND  "@CMAKE_COMMAND@")
+SET(BZR_EXECUTABLE "@BZR_EXECUTABLE@")
+SET(GTAR_EXECUTABLE "@GTAR_EXECUTABLE@")
+SET(TAR_EXECUTABLE "@TAR_EXECUTABLE@")
+SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
+SET(CMAKE_MAKE_PROGRAM "@CMAKE_MAKE_PROGRAM@")
+SET(CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@")
+
+
+SET(PACKAGE_DIR  ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME})
+
+FILE(REMOVE_RECURSE ${PACKAGE_DIR})
+FILE(REMOVE ${PACKAGE_DIR}.tar.gz )
+
+IF(BZR_EXECUTABLE)
+  MESSAGE(STATUS "Running bzr export")
+  EXECUTE_PROCESS(
+    COMMAND "${BZR_EXECUTABLE}" export 
+    ${PACKAGE_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE RESULT
+  )
+
+  IF(NOT RESULT EQUAL 0)
+   SET(BZR_EXECUTABLE)
+  ENDIF()
+ENDIF()
+
+IF(NOT BZR_EXECUTABLE)
+  MESSAGE(STATUS "bzr not found or source dir is not a repo, use CPack")
+  
+  IF(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    # In-source build is the worst option, we have to cleanup source tree.
+
+    # Save bison output first.
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPY_ONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+       ${CMAKE_BINARY_DIR}/sql_yacc.h COPY_ONLY)
+
+    IF(CMAKE_GENERATOR MATCHES "Makefiles")
+    # make clean
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_MAKE_PROGRAM} clean 
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    ENDIF()
+    
+    # Restore bison output
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.cc
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPY_ONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h 
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPY_ONLY)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
+  ENDIF()
+
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CPACK_COMMAND} -G TGZ --config ./CPackSourceConfig.cmake 
+    ${CMAKE_BINARY_DIR}/CPackSourceConfig.cmake
+
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+  EXECUTE_PROCESS(
+  COMMAND ${CMAKE_COMMAND} -E tar xzf 
+    ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz 
+    ${PACK_SOURCE_PACKAGE_FILE_NAME} 
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+ENDIF()
+
+# Try to pack output of BUILD/autorun, if autotools are present
+IF(GLIBTOOLIZE_EXECUTABLE OR LIBTOOLIZE_EXECUTABLE)
+  IF(ACLOCAL_EXECUTABLE AND AUTOMAKE_EXECUTABLE AND AUTOCONF_EXECUTABLE 
+    AND AUTOHEADER_EXECUTABLE)
+    SET(HAVE_AUTOTOOLS 1)
+  ENDIF()
+ENDIF()
+
+IF(HAVE_AUTOTOOLS)
+  EXECUTE_PROCESS(COMMAND BUILD/autorun.sh
+  WORKING_DIRECTORY ${PACKAGE_DIR})
+ELSE()
+  MESSAGE( "Autotools not found, resulting source package can only be built"
+           " with cmake")
+  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/configure.pl 
+   ${PACKAGE_DIR}/configure
+  COPYONLY)
+  IF(UNIX)
+    EXECUTE_PROCESS(COMMAND chmod +x ${PACKAGE_DIR}/configure)
+  ENDIF()
+ENDIF()
+
+# Copy bison output
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+   ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+   ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
+
+
+# In case we used CPack, it could have copied some
+# extra files that are not usable on different machines.
+FILE(REMOVE ${PACKAGE_DIR}/CMakeCache.txt)
+
+# When packing source, prefer gnu tar  to "cmake -P tar"
+# cmake does not preserve timestamps.gnuwin32 tar is broken, cygwin is ok
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Windows")
+  IF (EXISTS C:/cygwin/bin/tar.exe)
+    SET(TAR_EXECUTABLE C:/cygwin/bin/tar.exe)
+  ENDIF()
+ENDIF()
+
+IF(GTAR_EXECUTABLE)
+  SET(GNUTAR ${GTAR_EXECUTABLE})
+ELSEIF(TAR_EXECUTABLE)
+  EXECUTE_PROCESS(
+    COMMAND "${TAR_EXECUTABLE}" --version
+    RESULT_VARIABLE RESULT OUTPUT_VARIABLE OUT ERROR_VARIABLE ERR
+  )
+  IF(RESULT EQUAL 0 AND OUT MATCHES "GNU")
+    SET(GNUTAR ${TAR_EXECUTABLE})
+  ENDIF()
+ENDIF()
+
+SET($ENV{GZIP} "--best")
+
+IF(GNUTAR)
+  SET(PACK_COMMAND 
+  ${GNUTAR} cfz 
+  ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz 
+  ${CPACK_SOURCE_PACKAGE_FILE_NAME}
+  )
+ELSE()
+  SET(PACK_COMMAND ${CMAKE_COMMAND} -E tar cfz
+  ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz 
+  ${CPACK_SOURCE_PACKAGE_FILE_NAME}
+)
+ENDIF()
+
+MESSAGE(STATUS "Creating source package")
+
+EXECUTE_PROCESS( 
+  COMMAND ${PACK_COMMAND}
+)
+MESSAGE(STATUS "Source package ${PACKAGE_DIR}.tar.gz created")

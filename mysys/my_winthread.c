@@ -129,4 +129,22 @@ error_return:
   return -1;
 }
 
+int pthread_cancel(pthread_t thread)
+{
+
+  HANDLE handle= 0;
+  BOOL ok= FALSE;
+
+  handle= OpenThread(THREAD_TERMINATE, FALSE, thread);
+  if (handle)
+  {
+     ok= TerminateThread(handle,0);
+     CloseHandle(handle);
+  }
+  if (ok)
+    return 0;
+
+  errno= EINVAL;
+  return -1;
+}
 #endif

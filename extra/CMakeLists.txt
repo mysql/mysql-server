@@ -12,42 +12,78 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(
+${CMAKE_SOURCE_DIR}/include 
+${ZLIB_INCLUDE_DIR}
+# Following is for perror, in case NDB is compiled in.
+${CMAKE_SOURCE_DIR}/storage/ndb/include
+${CMAKE_SOURCE_DIR}/storage/ndb/include/util  
+${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
+${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
+${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
 
-ADD_EXECUTABLE(comp_err comp_err.c)
-TARGET_LINK_LIBRARIES(comp_err dbug mysys strings zlib)
 
-GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
+IF(NOT CMAKE_CROSSCOMPILING)
+ ADD_EXECUTABLE(comp_err comp_err.c)
+ TARGET_LINK_LIBRARIES(comp_err ${ZLIB_LIBRARY} mysys)
+ENDIF()
 
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-                   COMMAND ${COMP_ERR_EXE}
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
+                   COMMAND comp_err
                     --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
-                    --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-                    --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-                    --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
+                    --out-dir=${PROJECT_BINARY_DIR}/sql/share/
+                    --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+                    --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+                    --state_file=${PROJECT_BINARY_DIR}/include/sql_state.h
                     --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+                   DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
+                   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.c)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
-                  DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h)
+                  DEPENDS 
+                  ${PROJECT_BINARY_DIR}/include/mysqld_error.h
+                  ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
+                  ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
 ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
-TARGET_LINK_LIBRARIES(my_print_defaults strings mysys dbug taocrypt)
+TARGET_LINK_LIBRARIES(my_print_defaults  mysys)
 
 ADD_EXECUTABLE(perror perror.c)
-TARGET_LINK_LIBRARIES(perror strings mysys dbug)
+ADD_DEPENDENCIES(perror GenError)
+TARGET_LINK_LIBRARIES(perror mysys)
 
 ADD_EXECUTABLE(resolveip resolveip.c)
-TARGET_LINK_LIBRARIES(resolveip strings mysys dbug)
+TARGET_LINK_LIBRARIES(resolveip mysys)
+# On Solaris, inet_aton() function used by resolveip could be in resolv library
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  INCLUDE(CheckFunctionExists)
+  INCLUDE(CheckLibraryExists)
+  CHECK_FUNCTION_EXISTS(inet_aton HAVE_INET_ATON)
+  IF(NOT HAVE_INET_ATON)
+    CHECK_LIBRARY_EXISTS(resolv inet_aton "" HAVE_INET_ATON_IN_RESOLV)
+    IF(HAVE_INET_ATON_IN_RESOLV)
+      TARGET_LINK_LIBRARIES(resolveip resolv)
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 
 ADD_EXECUTABLE(replace replace.c)
-TARGET_LINK_LIBRARIES(replace strings mysys dbug)
+TARGET_LINK_LIBRARIES(replace mysys)
+IF(UNIX)
+  ADD_EXECUTABLE(innochecksum innochecksum.c)
+  
+  ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
+  TARGET_LINK_LIBRARIES(resolve_stack_dump mysys)
+  
+  ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
+  TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
+  
+  INSTALL(TARGETS innochecksum mysql_waitpid resolve_stack_dump DESTINATION bin)
+ENDIF()
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
+INSTALL(TARGETS perror resolveip my_print_defaults replace DESTINATION bin)

@@ -20,6 +20,8 @@ noinst_HEADERS     = tap.h
 
 libmytap_a_SOURCES = tap.c
 
+EXTRA_DIST         = CMakeLists.txt 
+
 SUBDIRS            = . t
 
 # Don't update the files from bitkeeper

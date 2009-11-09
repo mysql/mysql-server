@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-SET(BLACKHOLE_SOURCES  ha_blackhole.cc ha_blackhole.h)
+SET(BLACKHOLE_PLUGIN_STATIC  "blackhole")
+SET(BLACKHOLE_PLUGIN_DYNAMIC "ha_blackhole")
 
+SET(BLACKHOLE_SOURCES  ha_blackhole.cc ha_blackhole.h)
 MYSQL_STORAGE_ENGINE(BLACKHOLE)

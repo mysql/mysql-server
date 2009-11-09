@@ -13,5 +13,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_EXECUTABLE(my_safe_process safe_process_win.cc)
-ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc)
+IF (WIN32)
+  ADD_EXECUTABLE(my_safe_process safe_process_win.cc)
+  ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc)
+ELSE()
+  ADD_EXECUTABLE(my_safe_process safe_process.cc)
+ENDIF()
+
+INSTALL(TARGETS my_safe_process DESTINATION "mysql-test/lib/My/SafeProcess")
+IF(WIN32)
+  INSTALL(TARGETS my_safe_kill DESTINATION "mysql-test/lib/My/SafeProcess")
+ENDIF()
+INSTALL(FILES safe_process.pl Base.pm DESTINATION "mysql-test/lib/My/SafeProcess")

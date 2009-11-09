@@ -15,40 +15,127 @@
 
 # This is the CMakeLists for InnoDB Plugin
 
+INCLUDE(CheckFunctionExists)
+INCLUDE(CheckCSourceCompiles)
+INCLUDE(CheckCSourceRuns)
 
-# TODO: remove the two FLAGS_DEBUG settings when merging into
-# 6.0-based trees, like is already the case for other engines in
-# those trees.
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+# OS tests
+IF(UNIX)
+  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    ADD_DEFINITIONS("-DUNIV_LINUX")
+  ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP*")
+    ADD_DEFINITIONS("-DUNIV_HPUX -DUNIV_MUST_NOT_INLINE")
+  ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+    ADD_DEFINITIONS("-DUNIV_AIX -DUNIX_MUST_NOT_INLINE")
+  ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    ADD_DEFINITIONS("-DUNIV_SOLARIS")
+  ELSE()
+   ADD_DEFINITIONS("-DUNIV_MUST_NOT_INLINE")
+  ENDIF()
+ENDIF()
 
-# Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
-# CMakeLists.txt still needs to work with previous versions of MySQL.
-IF (MYSQL_VERSION_ID GREATER "50137")
-	INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-ENDIF (MYSQL_VERSION_ID GREATER "50137")
+# Solaris atomics
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  CHECK_FUNCTION_EXISTS(atomic_cas_ulong  HAVE_ATOMIC_CAS_ULONG)
+  CHECK_FUNCTION_EXISTS(atomic_cas_32 HAVE_ATOMIC_CAS_32)
+  CHECK_FUNCTION_EXISTS(atomic_cas_64 HAVE_ATOMIC_CAS_64)
+  CHECK_FUNCTION_EXISTS(atomic_add_long HAVE_ATOMIC_ADD_LONG)
+  IF(HAVE_ATOMIC_CAS_ULONG AND HAVE_ATOMIC_CAS_32 AND
+    HAVE_ATOMIC_CAS_64 AND HAVE_ATOMIC_ADD_LONG)
+	SET(HAVE_SOLARIS_ATOMICS 1)
+  ENDIF()
+ENDIF()
 
-IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
-	SET(WIN64 TRUE)
-ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
+IF(HAVE_GCC_ATOMIC_BUILTINS)
+  CHECK_C_SOURCE_COMPILES("
+    #include <pthread.h>
+    #include <string.h>
+    int main()
+    {
+      pthread_t       x1;
+      pthread_t       x2;
+      pthread_t       x3;
+      __sync_bool_compare_and_swap(&x1, x2, x3);
+      return 0;
+    }" HAVE_ATOMIC_PTHREAD_T_GCC
+  )
+ENDIF()
+
+IF(NOT HAVE_ATOMIC_PTHREAD_T_GCC AND HAVE_SOLARIS_ATOMICS)
+  CHECK_C_SOURCE_COMPILES("
+  #include <pthread.h>
+  int main()
+  {
+    pthread_t x = 0;
+	return(0);
+  }" HAVE_ATOMIC_PTHREAD_T_SOLARIS
+  )
+  IF(HAVE_ATOMIC_PTHREAD_T_SOLARIS)
+    SET(CMAKE_EXTRA_INCLUDE_FILES pthread.h)
+    CHECK_TYPE_SIZE(pthread_t SIZEOF_PTHREAD_T)
+    SET(CMAKE_EXTRA_INCLUDE_FILES)
+  ENDIF()
+ENDIF()
+
+IF(NOT CMAKE_CROSSCOMPILING)
+  STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
+  IF(NOT WIN32 AND processor MATCHES "86" OR processor MATCHES "amd64" 
+     OR processor MATCHES "x64")
+  # Check for x86 PAUSE instruction
+  # We have to actually try running the test program, because of a bug
+  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
+  # supported when trying to run an application.  See
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
+  CHECK_C_SOURCE_RUNS("
+    int main()
+	{ 
+      __asm__ __volatile__ (\"pause\"); 
+      return 0;
+    }"  IB_HAVE_PAUSE_INSTRUCTION)
+  ENDIF()
+ENDIF()
+ 
+IF(HAVE_ATOMIC_PTHREAD_T_SOLARIS OR HAVE_ATOMIC_PTHREAD_T_GCC)
+  ADD_DEFINITIONS(-DHAVE_ATOMIC_PTHREAD_T=1)
+ENDIF()
+ 
+IF(HAVE_SOLARIS_ATOMICS)
+  ADD_DEFINITIONS(-DHAVE_SOLARIS_ATOMICS=1)
+ENDIF()
+ 
+IF(IB_HAVE_PAUSE_INSTRUCTIONS)
+  ADD_DEFINITIONS(-DIB_HAVE_PAUSE_INSTRUCTIONS=1)
+ENDIF()
+
+IF(SIZEOF_PTHREAD_T)
+  ADD_DEFINITIONS(-DSIZEOF_PTHREAD_T=${SIZEOF_PTHREAD_T})
+ENDIF()
+
+IF(MSVC)
+ ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
+ENDIF()
+
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
-# Include directories under mysql
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-		    ${CMAKE_SOURCE_DIR}/sql
-		    ${CMAKE_SOURCE_DIR}/regex
-		    ${CMAKE_SOURCE_DIR}/zlib
-		    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+# Sun Studio bug with -xO2
+IF(CMAKE_C_COMPILER_ID MATCHES "SunPro" 
+	AND CMAKE_C_FLAGS_RELEASE MATCHES "O2" 
+	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
+	# -xO3
+	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.c 
+    PROPERTIES COMPILE_FLAGS -xO3)
+ENDIF()
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF (MSVC AND $(WIN64))
+IF (MSVC AND CMAKE_SIZEOF_VOIDP EQUAL 8)
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF (MSVC AND $(WIN64))
+ENDIF()
 
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
@@ -83,20 +170,42 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
-ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
 
-IF (MYSQL_VERSION_ID GREATER "50137")
+IF(WITH_INNODB)
+  # Legacy option
+  SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
+ENDIF()
+
+SET(INNOBASE_PLUGIN_STATIC  "innobase")
+SET(INNOBASE_PLUGIN_DYNAMIC "ha_innodb")
+
+# Innobase depends on zlib. If server links with system
+# zlib shared library, and innobase builds as shared library,
+# innobase need to link with it too, to avoid unresolved symbols.
+IF(ZLIB_FOUND AND NOT WITH_ZLIB STREQUAL "bundled")
+	SET(INNOBASE_LIBS ${ZLIB_LIBRARY})
+ENDIF()
+
+#The plugin's CMakeLists.txt still needs to work with previous versions of MySQL.
+IF(EXISTS ${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
+	# Old plugin support on Windows only, 
+	# use tricks to force ha_innodb.dll name for DLL
+	INCLUDE(${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
 	MYSQL_STORAGE_ENGINE(INNOBASE)
-	# Use ha_innodb for plugin name, if plugin is built
 	GET_TARGET_PROPERTY(LIB_LOCATION ha_innobase LOCATION)
 	IF(LIB_LOCATION)
 		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
-	ENDIF(LIB_LOCATION)
-ELSE (MYSQL_VERSION_ID GREATER "50137")
+	ENDIF()
+ELSEIF (MYSQL_VERSION_ID LESS "50137")
+	# Windows only, no plugin support
 	IF (NOT SOURCE_SUBLIBS)
-		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
+		ADD_DEFINITIONS(-DMYSQL_SERVER)
 		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
 		# Require mysqld_error.h, which is built as part of the GenError
 		ADD_DEPENDENCIES(innobase GenError)
-	ENDIF (NOT SOURCE_SUBLIBS)
-ENDIF (MYSQL_VERSION_ID GREATER "50137")
+	ENDIF()
+ELSE()
+	# New plugin support, cross-platform , name for shared library
+	# is given in INNOBASE_PLUGIN_STATIC and INNOBASE_PLUGIN_DYNAMIC
+	MYSQL_STORAGE_ENGINE(INNOBASE)
+ENDIF()

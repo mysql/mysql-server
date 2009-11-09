@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2009 Sun Microsystems,Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,25 +11,22 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02
 
-# This is CMakeLists.txt for semi-sync replication plugins
+IF(WIN32)
+  SET(LIBPREFIX "")
+ELSE()
+  SET(LIBPREFIX "lib")
+ENDIF()
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+SET(SEMISYNC_MASTER_SOURCES  semisync.cc semisync_master.cc semisync_master_plugin.cc
+ semisync.h semisync_master.h)
 
-# Add common include directories
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+SET(SEMISYNC_MASTER_PLUGIN_DYNAMIC ${LIBPREFIX}semisync_master)
+MYSQL_PLUGIN(SEMISYNC_MASTER)
 
-SET(SEMISYNC_MASTER_SOURCES semisync.cc semisync_master.cc semisync_master_plugin.cc)
-SET(SEMISYNC_SLAVE_SOURCES semisync.cc semisync_slave.cc semisync_slave_plugin.cc)
+SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc semisync_slave_plugin.cc
+semisync.h semisync_slave.h )
+SET(SEMISYNC_SLAVE_PLUGIN_DYNAMIC ${LIBPREFIX}semisync_slave)
+MYSQL_PLUGIN(SEMISYNC_SLAVE)
 
-ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
-ADD_LIBRARY(semisync_master SHARED ${SEMISYNC_MASTER_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_master  mysqld)
-ADD_LIBRARY(semisync_slave SHARED ${SEMISYNC_SLAVE_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_slave  mysqld)
-MESSAGE("build SEMISYNC as DLL")

@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+SET(MYISAMMRG_PLUGIN_STATIC  "myisammrg")
+SET(MYISAMMRG_PLUGIN_MANDATORY 1)
 
 SET(MYISAMMRG_SOURCES  myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myrg_info.c
 				ha_myisammrg.cc
