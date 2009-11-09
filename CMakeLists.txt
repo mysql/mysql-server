@@ -26,8 +26,10 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
                               PROPERTIES COMPILE_FLAGS -Od)
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
-                    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
+INCLUDE_DIRECTORIES(
+					${CMAKE_SOURCE_DIR}/storage/innobase/include
+					${CMAKE_SOURCE_DIR}/storage/innobase/handler
+					)
 
 SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
 					 buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c 
@@ -62,3 +64,4 @@ SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c ut/ut0list.c ut/ut0wqueue.c)
 
 MYSQL_STORAGE_ENGINE(INNOBASE)
+
