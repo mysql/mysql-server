@@ -25,9 +25,9 @@ drop table t1;
 # Show status and variables
 #
 --replace_column 2 #
-SHOW GLOBAL STATUS LIKE 'ndb%';
+SHOW GLOBAL STATUS LIKE 'ndb\_%';
 --replace_column 2 #
-SHOW GLOBAL VARIABLES LIKE 'ndb%';
+SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 
 #
 # Create a normal table with primary key

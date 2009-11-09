@@ -7,7 +7,7 @@ attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 drop table t1;
-SHOW GLOBAL STATUS LIKE 'ndb%';
+SHOW GLOBAL STATUS LIKE 'ndb\_%';
 Variable_name	Value
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
@@ -21,7 +21,7 @@ Ndb_pruned_scan_count	#
 Ndb_cluster_connection_pool	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
-SHOW GLOBAL VARIABLES LIKE 'ndb%';
+SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
@@ -44,11 +44,6 @@ ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#
-ndbinfo_database	#
-ndbinfo_max_bytes	#
-ndbinfo_max_rows	#
-ndbinfo_show_hidden	#
-ndbinfo_table_prefix	#
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL,
