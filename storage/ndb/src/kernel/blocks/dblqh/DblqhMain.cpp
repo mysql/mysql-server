@@ -21397,14 +21397,13 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64((total-mb));     // currently in use
       row.write_uint64(high);           // in use high water mark
       ndbinfo_send_row(signal, req, row, rl);
-
+      logpart++;
       if (rl.need_break(req))
       {
         jam();
         ndbinfo_send_scan_break(signal, req, rl, logpart);
         return;
       }
-      logpart++;
     }
   }
 
