@@ -70,6 +70,34 @@ struct view {
 size_t num_views = sizeof(views)/sizeof(views[0]);
 
 
+#include "../src/common/debugger/BlockNames.cpp"
+static void fill_blocks(void)
+{
+  const char* separator = "";
+  for (BlockNumber i = 0; i < NO_OF_BLOCK_NAMES; i++)
+  {
+    const BlockName& bn = BlockNames[i];
+    printf("%s(%u, \"%s\")", separator, bn.number, bn.name);
+    separator = ", ";
+  }
+}
+
+struct lookup {
+  const char* name;
+  const char* columns;
+  void (*fill)(void);
+} lookups[] =
+{
+  { "block",
+    "no INT UNSIGNED, "
+    "name VARCHAR(512)",
+    &fill_blocks
+   }
+};
+
+size_t num_lookups = sizeof(lookups)/sizeof(lookups[0]);
+
+
 struct replace {
   const char* tag;
   const char* string;
@@ -144,6 +172,14 @@ int main(int argc, char** argv){
   }
   printf("\n");
 
+  printf("# drop any old lookup tables in %s\n", opt_ndbinfo_db);
+  for (size_t i = 0; i < num_lookups; i++)
+  {
+    printf("DROP TABLE IF EXISTS %s.%s;\n",
+            opt_ndbinfo_db, lookups[i].name);
+  }
+  printf("\n");
+
   for (int i = 0; i < Ndbinfo::getNumTables(); i++)
   {
     const Ndbinfo::Table& table = Ndbinfo::getTable(i);
@@ -205,6 +241,25 @@ int main(int argc, char** argv){
     printf("DROP PREPARE stmt;\n\n");
 
   }
+
+
+  for (size_t i = 0; i < num_lookups; i++)
+  {
+    lookup l = lookups[i];
+    printf("# %s.%s\n", opt_ndbinfo_db, l.name);
+
+    /* Create lookup table */
+    printf("CREATE TABLE `%s`.`%s` (%s);\n",
+           opt_ndbinfo_db, l.name, l.columns);
+
+    /* Insert data */
+    printf("INSERT INTO `%s`.`%s` VALUES ",
+           opt_ndbinfo_db, l.name);
+    l.fill();
+    printf(";\n");
+
+  }
+  printf("\n");
 
   printf("#\n");
   printf("# %s views\n", opt_ndbinfo_db);
