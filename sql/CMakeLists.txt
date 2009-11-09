@@ -12,32 +12,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
-SET(CMAKE_CXX_FLAGS_DEBUG 
-    "${CMAKE_CXX_FLAGS_DEBUG} -DUSE_SYMDIR /Zi")
-SET(CMAKE_C_FLAGS_DEBUG 
-    "${CMAKE_C_FLAGS_DEBUG} -DUSE_SYMDIR /Zi")
-SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /MAP /MAPINFO:EXPORTS") 
+IF(MSVC)
+    #Innodb plugin needs linker-generated map file to locate server exports
+    #see bug#42001
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
+ENDIF(MSVC)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-                    ${CMAKE_SOURCE_DIR}/sql 
-                    ${CMAKE_SOURCE_DIR}/regex 
-                    ${CMAKE_SOURCE_DIR}/zlib
+INCLUDE_DIRECTORIES(
+${CMAKE_SOURCE_DIR}/include 
+${CMAKE_SOURCE_DIR}/sql 
+${CMAKE_SOURCE_DIR}/regex 
+${ZLIB_INCLUDE_DIR}
+${SSL_INCLUDE_DIRS}
+${CMAKE_BINARY_DIR}/sql
 )
 
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
-                            ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-                            ${CMAKE_SOURCE_DIR}/include/mysql_version.h
-                            ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
-                            ${CMAKE_SOURCE_DIR}/sql/lex_hash.h 
-                            ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-                            ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-                            ${PROJECT_SOURCE_DIR}/include/sql_state.h 
-                              PROPERTIES GENERATED 1)
+SET(GEN_SOURCES
+${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DHAVE_EVENT_SCHEDULER)
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
+IF(SSL_DEFINES)
+ ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 
 
 SET (SQL_SOURCE
@@ -54,7 +58,7 @@ SET (SQL_SOURCE
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc 
-               nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
+               opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
                slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
@@ -77,79 +81,169 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc rpl_handler.cc
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-               ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-               ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h 
-               ${PROJECT_SOURCE_DIR}/include/sql_state.h
-               ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
-               ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
-               ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
-ADD_LIBRARY(sql ${SQL_SOURCE})
-
-IF (NOT EXISTS cmake_dummy.cc)
-  FILE (WRITE cmake_dummy.cc "")
-ENDIF (NOT EXISTS cmake_dummy.cc)
-ADD_EXECUTABLE(mysqld cmake_dummy.cc)
-
-SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
-SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
-
-SET (MYSQLD_CORE_LIBS mysys zlib dbug strings yassl taocrypt vio regex sql)
-TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_CORE_LIBS} ${MYSQLD_STATIC_ENGINE_LIBS})
+			   ${GEN_SOURCES}
+               ${MYSYS_LIBWRAP_SOURCE})
 
 
-IF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
-  # Set module definition file. Also use non-incremental linker, 
-  # incremental appears to crash from time to time,if used with /DEF option
-  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "/DEF:mysqld.def /INCREMENTAL:NO")
+SET (MYSQLD_CORE_LIBS mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES}  vio regex )
+IF(WIN32)
+  SET(SQL_SOURCE ${SQL_SOURCE} nt_servc.cc nt_servc.h)
+ENDIF()
+IF(MSVC)
+  ADD_LIBRARY(sql ${SQL_SOURCE})
+  ADD_EXECUTABLE(mysqld mysqld_dummy.cc)
+  ADD_CUSTOM_COMMAND( 
+        OUTPUT  mysqld_dummy.cc
+        COMMAND cmake ARGS -E touch mysqld_dummy.cc
+        VERBATIM)
+  SET(MYSQLD_CORE_LIBS ${MYSQLD_CORE_LIBS} sql)
+  
+ELSE()
+  ADD_EXECUTABLE(mysqld ${SQL_SOURCE})
+  DTRACE_INSTRUMENT(mysqld)
+ENDIF()  
 
-  FOREACH (CORELIB ${MYSQLD_CORE_LIBS})
-    GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
-    FILE(TO_NATIVE_PATH ${LOC} LOC)
-    SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
-  ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
+IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
+  IF (MINGW OR CYGWIN)
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "-Wl,--export-all-symbols")
+  ENDIF()
+  IF(MSVC)
+    # Set module definition file. Also use non-incremental linker, 
+    # incremental appears to crash from time to time,if used with /DEF option
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "/DEF:mysqld.def /INCREMENTAL:NO")
+
+    FOREACH (CORELIB ${MYSQLD_CORE_LIBS}  dbug strings)
+      GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
+      FILE(TO_NATIVE_PATH ${LOC} LOC)
+      SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
+    ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
  
-  ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
-    COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+    ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
+      COMMAND echo ${PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/sql)
-ENDIF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    ADD_DEPENDENCIES(sql GenError)
+  ENDIF()
+ENDIF()
 
-ADD_DEPENDENCIES(sql GenError)
+SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
+SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})  
+TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_STATIC_PLUGIN_LIBS} ${MYSQLD_CORE_LIBS} ${LIBWRAP_LIBRARY})
+INSTALL(TARGETS mysqld DESTINATION bin)
+INSTALL_DEBUG_SYMBOLS(mysqld)
+  
 
-# Sql Parser custom command
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-        COMMAND bison ARGS -y -p MYSQL --defines=sql_yacc.h
-                               --output=sql_yacc.cc sql_yacc.yy
-        DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy)
+FIND_PROGRAM(BISON_EXECUTABLE bison DOC "path to the bison executable")
+MARK_AS_ADVANCED(BISON_EXECUTABLE "")
 
+
+# Handle out-of-source build from source package with possibly broken 
+# bison. Copy bison output to from source to build directory, if not already 
+# there
+IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
+  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
+    IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
+      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc 
+        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc COPYONLY)
+      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
+        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h COPYONLY)
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient)
-GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
+TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
+
 ADD_CUSTOM_COMMAND(
-        OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h
-        COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
-        DEPENDS ${GEN_LEX_HASH_EXE})
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
+  COMMAND gen_lex_hash ARGS > lex_hash.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
+        
+ADD_CUSTOM_TARGET( 
+        GenServerSource
+        DEPENDS ${GEN_SOURCES}
+)
 
-ADD_CUSTOM_TARGET(
-        GenServerSource ALL
-        DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-                ${PROJECT_SOURCE_DIR}/sql/message.h
-                ${PROJECT_SOURCE_DIR}/sql/message.rc
-                ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
+#Need this only for embedded
+SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-ADD_DEPENDENCIES(mysqld GenServerSource)
+IF(WIN32 OR HAVE_DLOPEN)
+  ADD_LIBRARY(udf_example MODULE udf_example.c)
+  SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
+  # udf_example depends on strings 
+  IF(WIN32)
+    IF(MSVC)
+     SET_TARGET_PROPERTIES(udf_example PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
+    ENDIF()
+    TARGET_LINK_LIBRARIES(udf_example strings)
+  ENDIF()
+ENDIF()
 
-# Remove the auto-generated files as part of 'Clean Solution'
-SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
-  "lex_hash.h;sql_yacc.h;sql_yacc.cc;mysqld.def")
+FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
+ tar bzr)
+ STRING(TOUPPER ${tool}  TOOL)
+ FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
+ MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
+ENDFOREACH()
 
-ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
-ADD_DEPENDENCIES(udf_example strings GenError)
-TARGET_LINK_LIBRARIES(udf_example strings)
+CONFIGURE_FILE(
+  ${CMAKE_SOURCE_DIR}/cmake/make_dist.cmake.in ${CMAKE_BINARY_DIR}/make_dist.cmake @ONLY)
+
+ADD_CUSTOM_TARGET(dist 
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
+  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+
+
+
+
+# We need to create empty directories (data/test) the installation.  
+# This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
+# Avoid completely empty directories and install dummy file instead.
+
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+FILE(WRITE ${DUMMY_FILE} "")
+INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test)
+
+# Install initial database on windows
+IF(NOT CMAKE_CROSSCOMPILING)
+  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+ENDIF()
+IF(WIN32 AND MYSQLD_EXECUTABLE)
+  CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/cmake/create_initial_db.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
+    @ONLY
+  )
+  
+  MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
+  ADD_CUSTOM_COMMAND(
+     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+     COMMAND ${CMAKE_COMMAND} 
+	 -DCONFIG=${CMAKE_CFG_INTDIR} 
+	 -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
+     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     DEPENDS mysqld
+  )
+  ADD_CUSTOM_TARGET(initial_database  
+    ALL
+    DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
+  )
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data/mysql DESTINATION data)
+ELSE()
+  # Not windows or cross compiling, just install an empty directory
+  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
+ENDIF()

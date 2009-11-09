@@ -23,7 +23,7 @@ noinst_HEADERS =	chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.
 			sys.h config.h hist.h map.h prompt.h read.h \
 			search.h tty.h filecomplete.h np/vis.h
 
-EXTRA_DIST = makelist.sh
+EXTRA_DIST = makelist.sh CMakeLists.txt
 
 CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
 

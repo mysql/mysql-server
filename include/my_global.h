@@ -68,8 +68,8 @@
 #define C_MODE_END
 #endif
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
-#include <config-win.h>
+#if defined(_WIN32) 
+#include <my_config.h>
 #elif defined(__NETWARE__)
 #include <my_config.h>
 #include <config-netware.h>
@@ -106,6 +106,49 @@
 #define NETWARE_YIELD
 #define NETWARE_SET_SCREEN_MODE(A)
 #endif
+
+#if defined (_WIN32)
+/*
+ off_t is 32 bit long. We do not use C runtime functions
+ with off_t but native Win32 file IO APIs, that work with
+ 64 bit offsets.
+*/
+#undef SIZEOF_OFF_T
+#define SIZEOF_OFF_T 8
+
+/*
+ Prevent inclusion of  Windows GDI headers - they define symbol
+ ERROR that conflicts with mysql headers.
+*/
+#ifndef NOGDI
+#define NOGDI
+#endif
+
+/* Include common headers.*/
+#include <winsock2.h>
+#include <ws2tcpip.h> /* SOCKET */
+#include <io.h>       /* access(), chmod() */
+#include <process.h>  /* getpid() */
+
+#define sleep(a) Sleep((a)*1000)
+
+/* Define missing access() modes. */
+#define F_OK 0
+#define W_OK 2
+
+/* Define missing file locking constants. */
+#define F_RDLCK 1
+#define F_WRLCK 2
+#define F_UNLCK 3
+#define F_TO_EOF 0x3FFFFFFF
+
+/* Shared memory and named pipe connections are supported. */
+#define HAVE_SMEM 1
+#define HAVE_NAMED_PIPE 1
+#define shared_memory_buffer_length 16000
+#define default_shared_memory_base_name "MYSQL"
+#endif /* _WIN32*/
+
 
 /* Workaround for _LARGE_FILES and _LARGE_FILE_API incompatibility on AIX */
 #if defined(_AIX) && defined(_LARGE_FILE_API)
@@ -486,8 +529,11 @@ C_MODE_END
 
 /* Go around some bugs in different OS and compilers */
 #if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
 #endif
+#endif
+
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
@@ -656,7 +702,9 @@ C_MODE_END
 /* Some types that is different between systems */
 
 typedef int	File;		/* File descriptor */
-#ifndef Socket_defined
+#ifdef _WIN32
+typedef SOCKET my_socket;
+#else
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
@@ -744,7 +792,13 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
 #define FN_PARENTDIR	".."	/* Parent directory; Must be a string */
 
-#ifndef FN_LIBCHAR
+#ifdef _WIN32
+#define FN_LIBCHAR	'\\'
+#define FN_ROOTDIR	"\\"
+#define FN_DEVCHAR	':'
+#define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
+#define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
+#else
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
 #endif
@@ -828,13 +882,37 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
 #define closesocket(A)	close(A)
+#endif
+
+#if (_MSC_VER)
+#if !defined(_WIN64)
+inline double my_ulonglong2double(unsigned long long value)
+{
+  long long nr=(long long) value;
+  if (nr >= 0)
+    return (double) nr;
+  return (18446744073709551616.0 + (double) nr);
+}
+#define ulonglong2double my_ulonglong2double
+#define my_off_t2double  my_ulonglong2double
+#endif /* _WIN64 */
+inline unsigned long long my_double2ulonglong(double d)
+{
+  double t= d - (double) 0x8000000000000000ULL;
+
+  if (t >= 0)
+    return  ((unsigned long long) t) + 0x8000000000000000ULL;
+  return (unsigned long long) d;
+}
+#define double2ulonglong my_double2ulonglong
+#endif
+
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
 #endif
 #ifndef double2ulonglong
 #define double2ulonglong(A) ((ulonglong) (double) (A))
-#endif
 #endif
 
 #ifndef offsetof
@@ -1092,15 +1170,18 @@ typedef long long intptr;
 #define SYSTEM_SIZEOF_OFF_T SIZEOF_OFF_T
 #endif /* USE_RAID */
 
+#if defined(_WIN32)
+typedef unsigned long long my_off_t;
+typedef unsigned long long os_off_t;
+#else
+typedef off_t os_off_t;
 #if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;
 #else
 typedef unsigned long my_off_t;
 #endif
+#endif /*_WIN32*/
 #define MY_FILEPOS_ERROR	(~(my_off_t) 0)
-#if !defined(__WIN__)
-typedef off_t os_off_t;
-#endif
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
@@ -1127,9 +1208,6 @@ typedef uint8		int7;	/* Most effective integer 0 <= x <= 127 */
 typedef short		int15;	/* Most effective integer 0 <= x <= 32767 */
 typedef int		myf;	/* Type of MyFlags in my_funcs */
 typedef char		my_bool; /* Small bool */
-#if !defined(bool) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
-typedef char		bool;	/* Ordinary boolean values 0 1 */
-#endif
 	/* Macros for converting *constants* to the right type */
 #define INT8(v)		(int8) (v)
 #define INT16(v)	(int16) (v)
@@ -1522,12 +1600,15 @@ do { doubleget_union _tmp; \
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
-#ifdef HAVE_DLOPEN
-#if defined(__WIN__)
-#define dlsym(lib, name) GetProcAddress((HMODULE)lib, name)
+#if defined(_WIN32)
+#define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#elif defined(HAVE_DLFCN_H)
+#define HAVE_DLOPEN
+#endif
+
+#ifdef HAVE_DLOPEN
+#if defined(HAVE_DLFCN_H)
 #include <dlfcn.h>
 #endif
 #endif

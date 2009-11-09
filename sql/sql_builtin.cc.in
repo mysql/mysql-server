@@ -17,7 +17,12 @@
 
 typedef struct st_mysql_plugin builtin_plugin[];
 
-extern builtin_plugin 
+#if defined(_MSC_VER)
+extern "C"
+#else
+extern
+#endif
+builtin_plugin 
   builtin_binlog_plugin@mysql_plugin_defs@;
 
 struct st_mysql_plugin *mysqld_builtins[]=

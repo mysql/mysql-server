@@ -57,6 +57,7 @@
 #include <stdio.h>
 #include <tlhelp32.h>
 #include <signal.h>
+#include <stdlib.h>
 
 static int verbose= 0;
 static char safe_process_name[32]= {0};
@@ -248,6 +249,10 @@ int main(int argc, const char** argv )
     Make all processes associated with the job terminate when the
     last handle to the job is closed.
   */
+#ifndef JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE  0x00002000
+#endif
+
   jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
   if (SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation,
                               &jeli, sizeof(jeli)) == 0)

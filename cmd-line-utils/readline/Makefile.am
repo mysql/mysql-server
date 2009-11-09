@@ -29,7 +29,7 @@ noinst_HEADERS =	readline.h chardefs.h keymaps.h \
 			tilde.h rlconf.h rltty.h ansi_stdlib.h \
 			tcap.h rlstdc.h
 
-EXTRA_DIST=		emacs_keymap.c vi_keymap.c
+EXTRA_DIST=		emacs_keymap.c vi_keymap.c CMakeLists.txt
 
 DEFS =			-DMYSQL_CLIENT_NO_THREADS -DHAVE_CONFIG_H -DNO_KILL_INTR
 

@@ -15,24 +15,44 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libmysqld/include
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/zlib                   
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+                    ${CMAKE_SOURCE_DIR}/regex 
+                    ${READLINE_INCLUDE_DIR}                 
+                    )
 
-# Currently does not work with DBUG, there are missing symbols reported.
 
-ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
+ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
+
 
 ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
-               ../../client/mysql.cc ../../client/readline.cc
-               ../../client/sql_string.cc)
-TARGET_LINK_LIBRARIES(mysql_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysql_embedded libmysqld)
+               ../../client/mysql.cc ../../client/readline.cc)
+TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
+IF(UNIX)
+  ADD_DEFINITIONS(${READLINE_DEFINES})
+  TARGET_LINK_LIBRARIES(mysql_embedded ${READLINE_LIBRARY})
+ENDIF(UNIX)
 
 ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
-TARGET_LINK_LIBRARIES(mysqltest_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysqltest_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
-ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
-TARGET_LINK_LIBRARIES(mysql_client_test_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysql_client_test_embedded libmysqld)
+
+IF(CMAKE_GENERATOR MATCHES "Xcode")
+# It does not seem possible to tell Xcode the resulting target might need
+# to be linked with C++ runtime. The project needs to have at least one C++
+# file. Add a dummy one.
+  MYSQL_CREATE_EMPTY_FILE(mysql_client_test_embedded_dummy.cc)
+  ADD_EXECUTABLE(mysql_client_test_embedded
+    mysql_client_test_embedded_dummy.cc
+    ../../tests/mysql_client_test.c)
+ELSE()
+  ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+  SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
+ENDIF()
+TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)
+
+IF(UNIX)
+SET_TARGET_PROPERTIES(mysql_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+SET_TARGET_PROPERTIES(mysqltest_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+SET_TARGET_PROPERTIES(mysql_client_test_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+ENDIF()
+
+INSTALL(TARGETS mysql_embedded  mysqltest_embedded mysql_client_test_embedded DESTINATION bin)

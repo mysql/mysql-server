@@ -117,9 +117,11 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 void pthread_exit(void *a);
 int pthread_join(pthread_t thread, void **value_ptr);
+int pthread_cancel(pthread_t thread);
 
-
+#ifndef ETIMEDOUT
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
+#endif
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
@@ -154,6 +156,7 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_condattr_destroy(A)
 
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
+#define my_sigset(A,B) signal(A,B)
 
 #else /* Normal threads */
 
@@ -699,23 +702,30 @@ extern uint thd_lib_detected;
   Warning:
   When compiling without threads, this file is not included.
   See the *other* declarations of thread_safe_xxx in include/my_global.h
-
-  Second warning:
-  See include/config-win.h, for yet another implementation.
 */
 #ifdef THREAD
 #ifndef thread_safe_increment
+#ifdef _WIN32
+#define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
+#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
+#else
 #define thread_safe_increment(V,L) \
         (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
 #endif
+#endif
 
 #ifndef thread_safe_add
+#ifdef _WIN32
+#define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
+#define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
+#else
 #define thread_safe_add(V,C,L) \
         (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
+#endif
 #endif
 #endif
 
