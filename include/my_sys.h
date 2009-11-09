@@ -34,6 +34,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #include <stdarg.h>
 #include <typelib.h>
+#ifdef _WIN32
+#include <malloc.h> /*for alloca*/
+#endif
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}

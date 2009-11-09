@@ -13,6 +13,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+SET(ARCHIVE_PLUGIN_STATIC  "archive")
+SET(ARCHIVE_PLUGIN_DYNAMIC "ha_archive")
+
 SET(ARCHIVE_SOURCES  azio.c ha_archive.cc ha_archive.h)
 MYSQL_STORAGE_ENGINE(ARCHIVE)
+IF(NOT WITH_ARCHIVE_STORAGE_ENGINE AND NOT WITHOUT_ARCHIVE_STORAGE_ENGINE 
+   AND NOT WITH_ZLIB STREQUAL "bundled")
+  TARGET_LINK_LIBRARIES(archive ${ZLIB_LIBRARY})
+ENDIF()
+
+

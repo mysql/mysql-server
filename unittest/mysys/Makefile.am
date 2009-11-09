@@ -22,6 +22,8 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/strings/libmystrings.a
 
 noinst_PROGRAMS  = bitmap-t base64-t my_vsnprintf-t
+EXTRA_DIST       = CMakeLists.txt 
+
 
 if NEED_THREAD
 # my_atomic-t is used to check thread functions, so it is safe to 

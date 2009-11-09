@@ -13,16 +13,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
+INCLUDE_DIRECTORIES(
+ ${CMAKE_SOURCE_DIR}/include
+ ${CMAKE_SOURCE_DIR}/extra/yassl/include
+ ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
+ ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
 
-ADD_DEFINITIONS("-D_LIB -DYASSL_PREFIX")
-
+ADD_DEFINITIONS(${SSL_DEFINES})
+IF(CMAKE_COMPILER_IS_GNUXX)
+  #Remove -fno-implicit-templates 
+  #(yassl sources cannot  be compiled with  it)
+  STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
+${CMAKE_CXX_FLAGS})
+ENDIF()
 SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp src/handshake.cpp src/lock.cpp 
 				src/log.cpp src/socket_wrapper.cpp src/ssl.cpp src/timer.cpp src/yassl_error.cpp 
 				src/yassl_imp.cpp src/yassl_int.cpp)
-IF(NOT SOURCE_SUBLIBS)
-  ADD_LIBRARY(yassl ${YASSL_SOURCES})
-  ADD_DEPENDENCIES(yassl GenError)
-ENDIF(NOT SOURCE_SUBLIBS)
+USE_ABSOLUTE_FILENAMES(YASSL_SOURCES)
+ADD_LIBRARY(yassl ${YASSL_SOURCES})
+

@@ -1,0 +1,84 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+
+# This script creates initial database for packaging on Windows
+SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
+SET(CMAKE_CURRENT_BINARY_DIR "@CMAKE_CURRENT_BINARY_DIR@")
+SET(MYSQLD_EXECUTABLE "@MYSQLD_EXECUTABLE@")
+SET(CMAKE_CFG_INTDIR "@CMAKE_CFG_INTDIR@")
+SET(WIN32 "@WIN32@")
+SET ($ENV{VS_UNICODE_OUTPUT})
+IF(CMAKE_CFG_INTDIR)
+  IF(CONFIG)
+    MESSAGE(${CONFIG})
+    #Resolve build configuration variables
+    STRING(REPLACE "${CMAKE_CFG_INTDIR}" ${CONFIG} MYSQLD_EXECUTABLE 
+      "${MYSQLD_EXECUTABLE}")
+  ELSE()
+    MESSAGE(FATAL_ERROR "Please provide CONFIG parameter to the script")
+  ENDIF()
+ENDIF()
+
+# Create bootstrapper SQL script
+FILE(WRITE bootstrap.sql "use mysql;\n" )
+FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql
+   fill_help_tables.sql)
+   FILE(STRINGS ${CMAKE_SOURCE_DIR}/scripts/${FILENAME} CONTENTS)
+   FOREACH(STR ${CONTENTS})
+    IF(NOT STR MATCHES "@current_hostname")
+      FILE(APPEND bootstrap.sql "${STR}\n")
+    ENDIF()
+  ENDFOREACH()
+ENDFOREACH()
+
+
+MAKE_DIRECTORY(data)
+FILE(REMOVE_RECURSE data/mysql)
+MAKE_DIRECTORY(data/mysql)
+IF(WIN32)
+  SET(CONSOLE --console)
+ENDIF()
+
+SET(BOOTSTRAP_COMMAND 
+  ${MYSQLD_EXECUTABLE} 
+  --no-defaults 
+  ${CONSOLE}
+  --bootstrap 
+  --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
+  --basedir=.
+  --datadir=.
+  --loose-skip-innodb
+  --loose-skip-ndbcluster
+  --max_allowed_packet=8M
+  --net_buffer_length=16K
+)
+
+GET_FILENAME_COMPONENT(CWD . ABSOLUTE)
+EXECUTE_PROCESS(
+  COMMAND "@CMAKE_COMMAND@" -E echo Executing ${BOOTSTRAP_COMMAND}
+)
+EXECUTE_PROCESS (
+  COMMAND "@CMAKE_COMMAND@" -E echo input file bootstrap.sql, current directory ${CWD}
+)
+EXECUTE_PROCESS (  
+  COMMAND ${BOOTSTRAP_COMMAND}  INPUT_FILE bootstrap.sql OUTPUT_VARIABLE OUT
+  ERROR_VARIABLE ERR
+  RESULT_VARIABLE RESULT
+ )
+
+IF(NOT RESULT EQUAL 0)
+  MESSAGE(FATAL_ERROR "Could not create initial database \n ${OUT} \n ${ERR}")
+ENDIF()
+ 

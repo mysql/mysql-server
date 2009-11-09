@@ -29,6 +29,15 @@ sub get_basedir {
   return $basedir;
 }
 
+# Retrive build directory (which is different from basedir in out-of-source build)
+sub get_bindir {
+  if (defined $ENV{MTR_BINDIR})
+  {
+    return $ENV{MTR_BINDIR};
+  }
+  my ($self, $group)= @_;
+  return $self->get_basedir($group);
+}
 
 sub fix_charset_dir {
   my ($self, $config, $group_name, $group)= @_;
@@ -38,7 +47,7 @@ sub fix_charset_dir {
 
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
-  return my_find_dir($self->get_basedir($group),
+  return my_find_dir($self->get_bindir($group),
 		     \@share_locations);
 }
 

@@ -731,11 +731,6 @@ void THD::clear_data_list()
   cur_data= 0;
 }
 
-void THD::clear_error()
-{
-  if (stmt_da->is_error())
-    stmt_da->reset_diagnostics_area();
-}
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)

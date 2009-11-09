@@ -151,7 +151,9 @@ static signal_entry install_signal[]= {
   { SIGABRT, handle_core_signal },
   { SIGFPE,  handle_core_signal },
   { SIGSEGV, handle_core_signal },
+#ifdef SIGBUS
   { SIGBUS,  handle_core_signal }
+#endif
 #ifdef SIGXCPU
   , { SIGXCPU, handle_core_signal }
 #endif
@@ -167,7 +169,7 @@ static signal_entry install_signal[]= {
 };
 
 void
-plan(int const count)
+plan(int count)
 {
   /*
     Install signal handler
@@ -201,7 +203,7 @@ skip_all(char const *reason, ...)
 }
 
 void
-ok(int const pass, char const *fmt, ...)
+ok(int pass, char const *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
@@ -218,7 +220,7 @@ ok(int const pass, char const *fmt, ...)
 
 
 void
-skip(int how_many, char const *const fmt, ...)
+skip(int how_many, char const *fmt, ...)
 {
   char reason[80];
   if (fmt && *fmt)

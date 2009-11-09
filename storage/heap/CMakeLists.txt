@@ -13,8 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+SET(HEAP_PLUGIN_STATIC  "heap")
+SET(HEAP_PLUGIN_MANDATORY  TRUE)
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create.c
 				ha_heap.cc
 				hp_delete.c hp_extra.c hp_hash.c hp_info.c hp_open.c hp_panic.c

@@ -44,6 +44,7 @@ extern pthread_mutex_t THR_LOCK_charset, THR_LOCK_time;
 void my_error_unregister_all(void);
 
 #ifdef _WIN32
+#include <sys/stat.h>
 /* my_winfile.c exports, should not be used outside mysys */
 extern File     my_win_open(const char *path, int oflag);
 extern int      my_win_close(File fd);
@@ -59,8 +60,8 @@ extern FILE*    my_win_fopen(const char *filename, const char *type);
 extern File     my_win_fclose(FILE *file);
 extern File     my_win_fileno(FILE *file);
 extern FILE*    my_win_fdopen(File Filedes, const char *type);
-extern int      my_win_stat(const char *path, struct _stat64 *buf);
-extern int      my_win_fstat(File fd, struct _stat64 *buf);
+extern int      my_win_stat(const char *path, struct _stati64 *buf);
+extern int      my_win_fstat(File fd, struct _stati64 *buf);
 extern int      my_win_fsync(File fd);
 extern File     my_win_dup(File fd);
 extern File     my_win_sopen(const char *path, int oflag, int shflag, int perm);

@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+SET(CSV_PLUGIN_STATIC  "csv")
+SET(CSV_PLUGIN_MANDATORY TRUE)
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 SET(CSV_SOURCES  ha_tina.cc ha_tina.h transparent_file.cc transparent_file.h)
 MYSQL_STORAGE_ENGINE(CSV)

@@ -1,0 +1,243 @@
+How to Build MySQL server with CMake
+
+WHAT YOU NEED
+---------------------------------------------------------------
+CMake version 2.6 or later installed on your system.
+
+HOW TO INSTALL:
+
+Linux distributions:
+shell> sudo apt-get install cmake
+
+The above works on do Debian/Ubuntu based distributions.On others, command 
+line needs to be modified to e.g "yum install" on Fedora or "zypper install" 
+on OpenSUSE.
+
+OpenSolaris:
+shell> pfexec pkgadd install SUNWCMake
+
+Windows and Mac OSX:
+Download and install the latest distribution from 
+http://www.cmake.org/cmake/resources/software.html.On Windows, download 
+installer exe file and run it. On Mac, download the .dmg image and open it.
+
+Other Unixes:
+Precompiled packages for other Unix flavors (HPUX, AIX) are available from 
+http://www.cmake.org/cmake/resources/software.html 
+
+Alternatively, you can build from source, source package is also available on 
+CMake download page.
+
+
+Compiler Tools
+--------------
+You will need  a working compiler and make utility on your OS. 
+On Windows, install Visual Studio (Express editions will work too). 
+On Mac OSX, install Xcode tools.
+
+
+
+BUILD 
+---------------------------------------------------------------
+Ensure that compiler and cmake are in PATH.
+The following description assumes that current working directory 
+is the source directory. 
+
+
+- Generic build on Unix, using "Unix Makefiles" generator
+
+shell>cmake . 
+shell>make
+
+Note: by default, cmake build is less verbose than automake build. Use 
+"make VERBOSE=1" if you want to see add command lines for each compiled source.
+
+- Windows, using "Visual Studio 9 2008" generator
+shell>cmake . -G "Visual Studio 9 2008" 
+shell>devenv MySQL.sln /build /relwithdebinfo
+(alternatively, open MySQL.sln and build using the IDE)
+
+- Windows, using "NMake Makefiles" generator
+shell>cmake . -G "NMake Makefiles" 
+shell>nmake
+
+- Mac OSX build with Xcode
+shell>cmake . -G Xcode
+shell>xcodebuild -configuration Relwithdebinfo
+(alternatively, open MySQL.xcodeproj and build using the IDE)
+
+Command line build with CMake 2.8
+After creating project with cmake -G as above, issue
+cmake . --build 
+this works with any  CMake generator.
+
+For Visual Studio and Xcode you might want to add an extra 
+configuration parameter, to avoid building all configurations.
+
+cmake . --build --config Relwithdebinfo
+
+
+Building "out-of-source"
+---------------------------------------------------------------
+Building out-of-source provides additional benefits. For example it allows to 
+build both Release and Debug configurations using the single source tree.Or 
+build the same source with different version of the same compiler or with 
+different compilers. Also you will prevent polluting the source tree with the
+objects and binaries produced during the make. 
+
+Here is an example on how to do it (generic Unix), assuming the source tree is
+in directory named src and the current working directory is source root.
+
+shell>mkdir ../build # build directory is called build
+shell>cd ../build
+shell>cmake ../src
+
+Note: if a directory was used for in-source build, out-of-source will 
+not work. To reenable out-of-source build, remove <source-root>/CMakeCache.txt
+file.
+
+
+CONFIGURATION PARAMETERS
+---------------------------------------------------------------
+The procedure above will build with default configuration.
+
+Let's you want to change the  configuration parameters and have archive
+storage engine compiled into the server instead of building it as pluggable 
+module.
+
+1)You can provide parameters on the command line, like
+
+shell> cmake .  -DWITH_ARCHIVE_STORAGE_ENGINE=1
+
+This can be done during the initial configuration or any time later.
+
+Note, that parameters are "sticky", that is they are remebered in the CMake 
+cache (CMakeCache.txt file in the build directory)
+
+2) Configuration using cmake-gui (Windows, OSX, or Linux with cmake-gui 
+installed)
+
+From the build directory, issue
+shell> cmake-gui .
+
+- Check the WITH_INNOBASE_STORAGE_ENGINE checkbox
+- Click on "Configure" button
+- Click on "Generate" button
+- Close cmake-gui
+shell> make
+
+3)Using ccmake (Unix)
+ccmake is curses-based GUI application that provides the same functionality 
+as cmake-gui. It is less user-friendly compared to cmake-gui but works also 
+on exotic Unixes like HPUX, AIX or Solaris.
+
+Besides storage engines, probably the most important parameter from a 
+developer's point of view is WITH_DEBUG (this allows to build server with 
+dbug tracing library and with debug compile flags).
+
+After changing the configuration, recompile using
+shell> make
+
+
+Listing configuration parameters
+---------------------------------------------------------------
+shell> cmake -L 
+
+Gives a brief overview of important configuration parameters (dump to stdout)
+
+shell> cmake -LH
+
+Does the same but also provides a short help text for each parameter.
+
+shell> cmake -LAH 
+
+Dumps all config parameters (including advanced) to the stdout.
+
+PACKAGING
+---------------------------------------------------------------
+-- Binary distribution --
+Packaging in form of tar.gz archives (or .zip on Windows) is also supported
+To create a tar.gz package, 
+
+1)If you're using "generic" Unix build with makefiles
+
+shell> make package
+this will create a tar.gz file in the top level build directory.
+
+2)On Windows, using  "NMake Makefiles" generator
+
+shell> nmake package
+
+3)On Windows, using "Visual Studio"  generator
+
+shell> devenv mysql.sln /build relwithdebinfo /project package
+
+Note On Windows, 7Zip or Winzip must be installed and 7z.exe rsp winzip.exe 
+need to be in the PATH.
+
+
+Another way to build packages is calling cpack executable directly like
+shell> cpack -G TGZ --config CPackConfig.cmake
+(-G TGZ is for tar.gz generator, there is also -GZIP)
+
+-- Source distribution --
+"make dist" target is provided. 
+
+ADDITIONAL MAKE TARGETS: "make install" AND "make test"
+----------------------------------------------------------------
+install target also provided for Makefile based generators. Installation 
+directory can be controlled using configure-time parameter 
+CMAKE_INSTALL_PREFIX (default is /usr/local. It is also possible to install to
+non-configured directory, using
+
+shell> make install DESTDIR="/some/absolute/path"
+
+"make test" runs unit tests (uses CTest for it)
+"make test-force" runs mysql-test-run.pl tests with --test-force parameter
+
+FOR PROGRAMMERS: WRITING PLATFORM CHECKS
+--------------------------------------------------------------
+If you modify MySQL source and want to add a new platform check,please read 
+http://www.vtk.org/Wiki/CMake_HowToDoPlatformChecks first. In MySQL, most of 
+the platform tests are implemented in config.cmake and the template header file
+is config.h.cmake
+
+Bigger chunks of functionality, for example non-trivial macros are implemented 
+in files <src-root>/cmake subdirectory.
+
+For people with autotools background, it is important to remember CMake does 
+not provide autoheader functionality. That is, when you add a check
+
+CHECK_FUNCTION_EXISTS(foo HAVE_FOO)
+to config.cmake, then you will also need to add
+#cmakedefine HAVE_FOO 1
+to config.h.cmake
+
+Troubleshooting platform checks
+--------------------------------
+If you suspect that a platform check returned wrong result, examine 
+<build-root>/CMakeFiles/CMakeError.log and 
+<build-root>/CMakeFiles/CMakeOutput.log
+These files they contain compiler command line, and exact error messages.
+
+Troubleshooting CMake code
+----------------------------------
+While there are advanced flags for cmake like -debug-trycompile and --trace,
+a simple and efficient way to debug to add 
+MESSAGE("interesting variable=${some_invariable}")
+to the interesting places in CMakeLists.txt
+
+
+Tips:
+- When using Makefile generator it is easy to examine which compiler flags are 
+used to build. For example, compiler flags for mysqld are in 
+<build-root>/sql/CMakeFiles/mysqld.dir/flags.make and the linker command line
+is in <build-root>/sql/CMakeFiles/mysqld.dir/link.txt
+
+- CMake caches results of platform checks in CMakeCache.txt. It is a nice 
+feature because tests do not rerun when reconfiguring (e.g when a new test was 
+added).The downside of caching is that when a platform test was wrong and was 
+later corrected, the cached result is still used. If you encounter this 
+situation,  which should be a rare occation, you need either to remove the 
+offending entry from CMakeCache.txt (if test was for HAVE_FOO, remove lines 
+containing HAVE_FOO from CMakeCache.txt) or just remove the cache file.
