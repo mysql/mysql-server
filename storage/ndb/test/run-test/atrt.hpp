@@ -278,7 +278,7 @@ static inline int sh(const char *script){
 
   int rv = system(bs.c_str());
   if (rv) {
-    fprintf(stderr,"system returned %d\n", rv);
+    g_logger.debug("system returned %d\n", rv);
   }
   return rv;
 
