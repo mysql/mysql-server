@@ -39,9 +39,13 @@ IF(CMAKE_GENERATOR MATCHES "Xcode")
 # It does not seem possible to tell Xcode the resulting target might need
 # to be linked with C++ runtime. The project needs to have at least one C++
 # file. Add a dummy one.
-  MYSQL_CREATE_EMPTY_FILE(mysql_client_test_embedded_dummy.cc)
+  ADD_CUSTOM_COMMAND(OUTPUT  
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
+   COMMAND ${CMAKE_COMMAND} -E touch 
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
+  )
   ADD_EXECUTABLE(mysql_client_test_embedded
-    mysql_client_test_embedded_dummy.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
     ../../tests/mysql_client_test.c)
 ELSE()
   ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
