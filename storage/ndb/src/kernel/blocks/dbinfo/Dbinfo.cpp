@@ -24,7 +24,7 @@
 #include <signaldata/TransIdAI.hpp>
 
 Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
-                           TRIX, DBTUX, DBDICT, CMVMI, DBLQH, 0};
+                           TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx),
