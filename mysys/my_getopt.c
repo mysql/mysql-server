@@ -413,17 +413,17 @@ invalid value '%s'",
 	else if (optp->arg_type == OPT_ARG &&
 		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
                    (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
-	{
-	  if (optend == disabled_my_option)
-	    *((my_bool*) value)= (my_bool) 0;
-	  else
-	  {
-	    if (!optend) /* No argument -> enable option */
-	      *((my_bool*) value)= (my_bool) 1;
-            else
-              argument= optend;
-	  }
-	}
+  {
+    if (optend == disabled_my_option)
+      init_one_value(optp, value, 0);
+    else
+    {
+      if (!optend) /* No argument -> enable option */
+        init_one_value(optp, value, 1);
+      else
+        argument= optend;
+    }
+  }
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one */
