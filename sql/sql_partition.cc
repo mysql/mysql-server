@@ -196,26 +196,27 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 {
   DBUG_ENTER("partition_default_handling");
 
-  if (part_info->use_default_no_partitions)
+  if (!is_create_table_ind)
   {
-    if (!is_create_table_ind &&
-        table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (part_info->use_default_no_partitions)
     {
-      DBUG_RETURN(TRUE);
+      if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
     }
-  }
-  else if (part_info->is_sub_partitioned() &&
-           part_info->use_default_no_subpartitions)
-  {
-    uint no_parts;
-    if (!is_create_table_ind &&
-        (table->file->get_no_parts(normalized_path, &no_parts)))
+    else if (part_info->is_sub_partitioned() &&
+             part_info->use_default_no_subpartitions)
     {
-      DBUG_RETURN(TRUE);
+      uint no_parts;
+      if (table->file->get_no_parts(normalized_path, &no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      DBUG_ASSERT(part_info->no_parts > 0);
+      DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
+      part_info->no_subparts= no_parts / part_info->no_parts;
     }
-    DBUG_ASSERT(part_info->no_parts > 0);
-    part_info->no_subparts= no_parts / part_info->no_parts;
-    DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
