@@ -785,15 +785,21 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 
   if (cmp_type != CMP_DATE_DFLT)
   {
+    THD *thd= current_thd;
     /*
       Do not cache GET_USER_VAR() function as its const_item() may return TRUE
       for the current thread but it still may change during the execution.
+      Don't use cache while in the context analysis mode only (i.e. for 
+      EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
+      cases and can cause problems. For example evaluating subqueries can 
+      confuse storage engines since in context analysis mode tables 
+      aren't locked.
     */
-    if (cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
+    if (!thd->is_context_analysis_only() &&
+        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
     {
-      THD *thd= current_thd;
       ulonglong value;
       bool error;
       String tmp, *str_val= 0;
@@ -881,13 +887,13 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
 {
   enum enum_date_cmp_type cmp_type;
   ulonglong const_value= (ulonglong)-1;
+  thd= current_thd;
+  owner= owner_arg;
   a= a1;
   b= a2;
 
   if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
   {
-    thd= current_thd;
-    owner= owner_arg;
     a_type= (*a)->field_type();
     b_type= (*b)->field_type();
     a_cache= 0;
@@ -895,6 +901,10 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
 
     if (const_value != (ulonglong)-1)
     {
+      /*
+        cache_converted_constant can't be used here because it can't
+        correctly convert a DATETIME value from string to int representation.
+      */
       Item_cache_int *cache= new Item_cache_int();
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
@@ -920,8 +930,6 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
            (*b)->field_type() == MYSQL_TYPE_TIME)
   {
     /* Compare TIME values as integers. */
-    thd= current_thd;
-    owner= owner_arg;
     a_cache= 0;
     b_cache= 0;
     is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
@@ -940,7 +948,43 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
       return 1;
   }
 
+  a= cache_converted_constant(thd, a, &a_cache, type);
+  b= cache_converted_constant(thd, b, &b_cache, type);
   return set_compare_func(owner_arg, type);
+}
+
+
+/**
+  Convert and cache a constant.
+
+  @param value      [in]  An item to cache
+  @param cache_item [out] Placeholder for the cache item
+  @param type       [in]  Comparison type
+
+  @details
+    When given item is a constant and its type differs from comparison type
+    then cache its value to avoid type conversion of this constant on each
+    evaluation. In this case the value is cached and the reference to the cache
+    is returned.
+    Original value is returned otherwise.
+
+  @return cache item or original value.
+*/
+
+Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
+                                                Item **cache_item,
+                                                Item_result type)
+{
+  /* Don't need cache if doing context analysis only. */
+  if (!thd->is_context_analysis_only() &&
+      (*value)->const_item() && type != (*value)->result_type())
+  {
+    Item_cache *cache= Item_cache::get_cache(*value, type);
+    cache->store(*value);
+    *cache_item= cache;
+    return cache_item;
+  }
+  return value;
 }
 
 
@@ -1582,6 +1626,7 @@ longlong Item_in_optimizer::val_int()
   bool tmp;
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
+  cache->cache_value();
   
   if (cache->null_value)
   {

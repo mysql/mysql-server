@@ -480,6 +480,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
+  row[i]->cache_value();
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -1831,6 +1832,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
+    row[i]->store(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
@@ -1954,6 +1956,7 @@ int subselect_single_select_engine::exec()
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
             }
