@@ -1460,6 +1460,19 @@ DROP TABLE t1;
 
 --echo Start of 5.4 tests
 #
+# Bug#26180: Can't add columns to tables created with utf8 text indexes
+#
+CREATE TABLE t1 (
+  clipid INT NOT NULL,
+  Tape TINYTEXT,
+  PRIMARY KEY (clipid),
+  KEY tape(Tape(255))
+) CHARACTER SET=utf8;
+ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
 # Bug#26474: Add Sinhala script (Sri Lanka) collation to MySQL
 #
 --disable_warnings
