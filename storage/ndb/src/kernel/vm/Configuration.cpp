@@ -727,7 +727,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
 
   if (noOfLocalScanRecords == 0) {
-    noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
+    noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
+      1 /* NR */ + 
+      1 /* LCP */; 
   }
   if (noOfLocalOperations == 0) {
     noOfLocalOperations= (11 * noOfOperations) / 10;
