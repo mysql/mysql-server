@@ -187,6 +187,9 @@ IF(WIN32 OR HAVE_DLOPEN)
      SET_TARGET_PROPERTIES(udf_example PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
     ENDIF()
     TARGET_LINK_LIBRARIES(udf_example strings)
+  ELSE()
+    # udf_example is using safemutex exported by mysqld
+    TARGET_LINK_LIBRARIES(udf_example mysqld)
   ENDIF()
 ENDIF()
 
