@@ -858,6 +858,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               bool no_error);
 bool check_host_name(LEX_STRING *str);
 
+CHARSET_INFO *merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);

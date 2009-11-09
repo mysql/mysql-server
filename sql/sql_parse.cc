@@ -7951,3 +7951,37 @@ bool parse_sql(THD *thd,
 /**
   @} (end of group Runtime_Environment)
 */
+
+
+
+/**
+  Check and merge "CHARACTER SET cs [ COLLATE cl ]" clause
+
+  @param cs character set pointer.
+  @param cl collation pointer.
+
+  Check if collation "cl" is applicable to character set "cs".
+
+  If "cl" is NULL (e.g. when COLLATE clause is not specified),
+  then simply "cs" is returned.
+  
+  @return Error status.
+    @retval NULL, if "cl" is not applicable to "cs".
+    @retval pointer to merged CHARSET_INFO on success.
+*/
+
+
+CHARSET_INFO*
+merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl)
+{
+  if (cl)
+  {
+    if (!my_charset_same(cs, cl))
+    {
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), cl->name, cs->csname);
+      return NULL;
+    }
+    return cl;
+  }
+  return cs;
+}
