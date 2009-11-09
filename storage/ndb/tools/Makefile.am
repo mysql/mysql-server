@@ -75,7 +75,7 @@ ndbinfo_sql_SOURCES = ndbinfo_sql.cpp
 
 # Build ndbinfo.sql by executing ndbinfo_sql
 ndbinfo.sql: ndbinfo_sql
-	$(builddir)/ndbinfo_sql$(EXEEXT) > $@
+	$(top_builddir)/storage/ndb/tools/ndbinfo_sql$(EXEEXT) > $@
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
