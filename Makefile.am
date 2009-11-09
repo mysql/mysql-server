@@ -27,7 +27,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@pstack_dir@ \
 			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ @man_dirs@ tests \
-			netware \
+			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
