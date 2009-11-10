@@ -468,6 +468,90 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   DBUG_RETURN(result);
 }
 
+/**
+   @brief Creates a new SELECT_LEX for a UNION branch.
+
+   Sets up and initializes a SELECT_LEX structure for a query once the parser
+   discovers a UNION token. The current SELECT_LEX is pushed on the stack and
+   the new SELECT_LEX becomes the current one.
+
+   @param lex The parser state.
+
+   @param is_union_distinct True if the union preceding the new select statement
+   uses UNION DISTINCT.
+
+   @param is_top_level This should be @c TRUE if the newly created SELECT_LEX
+   is a non-nested statement.
+
+   @return <code>false</code> if successful, <code>true</code> if an error was
+   reported. In the latter case parsing should stop.
+ */
+bool add_select_to_union_list(LEX *lex, bool is_union_distinct, 
+                              bool is_top_level)
+{
+  /* 
+     Only the last SELECT can have INTO. Since the grammar won't allow INTO in
+     a nested SELECT, we make this check only when creating a top-level SELECT.
+  */
+  if (is_top_level && lex->result)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
+    return TRUE;
+  }
+  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
+  {
+    my_parse_error(ER(ER_SYNTAX_ERROR));
+    return TRUE;
+  }
+  /* This counter shouldn't be incremented for UNION parts */
+  lex->nest_level--;
+  if (mysql_new_select(lex, 0))
+    return TRUE;
+  mysql_init_select(lex);
+  lex->current_select->linkage=UNION_TYPE;
+  if (is_union_distinct) /* UNION DISTINCT - remember position */
+    lex->current_select->master_unit()->union_distinct=
+      lex->current_select;
+  return FALSE;
+}
+
+/**
+   @brief Initializes a SELECT_LEX for a query within parentheses (aka
+   braces).
+
+   @return false if successful, true if an error was reported. In the latter
+   case parsing should stop.
+ */
+bool setup_select_in_parentheses(LEX *lex) 
+{
+  SELECT_LEX * sel= lex->current_select;
+  if (sel->set_braces(1))
+  {
+    my_parse_error(ER(ER_SYNTAX_ERROR));
+    return TRUE;
+  }
+  if (sel->linkage == UNION_TYPE &&
+      !sel->master_unit()->first_select()->braces &&
+      sel->master_unit()->first_select()->linkage ==
+      UNION_TYPE)
+  {
+    my_parse_error(ER(ER_SYNTAX_ERROR));
+    return TRUE;
+  }
+  if (sel->linkage == UNION_TYPE &&
+      sel->olap != UNSPECIFIED_OLAP_TYPE &&
+      sel->master_unit()->fake_select_lex)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
+    return TRUE;
+  }
+  /* select in braces, can't contain global parameters */
+  if (sel->master_unit()->fake_select_lex)
+    sel->master_unit()->global_parameters=
+      sel->master_unit()->fake_select_lex;
+  return FALSE;
+}
+
 %}
 %union {
   int  num;
@@ -521,10 +605,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 168 shift/reduce conflicts.
+  Currently there are 174 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 168
+%expect 174
 
 /*
    Comments for TOKENS.
@@ -1240,6 +1324,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         join_table_list  join_table
         table_factor table_ref esc_table_ref
         select_derived derived_table_list
+        select_derived_union
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -1275,8 +1360,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <variable> internal_variable_name
 
-%type <select_lex> subselect take_first_select
-        get_select_lex
+%type <select_lex> subselect
+        get_select_lex query_specification 
+        query_expression_body
 
 %type <boolfunc2creator> comp_op
 
@@ -6757,35 +6843,20 @@ select_init:
 select_paren:
           SELECT_SYM select_part2
           {
-            LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select;
-            if (sel->set_braces(1))
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (setup_select_in_parentheses(Lex))
               MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                !sel->master_unit()->first_select()->braces &&
-                sel->master_unit()->first_select()->linkage ==
-                UNION_TYPE)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                sel->olap != UNSPECIFIED_OLAP_TYPE &&
-                sel->master_unit()->fake_select_lex)
-            {
-               my_error(ER_WRONG_USAGE, MYF(0),
-                        "CUBE/ROLLUP", "ORDER BY");
-               MYSQL_YYABORT;
-            }
-            /* select in braces, can't contain global parameters */
-            if (sel->master_unit()->fake_select_lex)
-              sel->master_unit()->global_parameters=
-                 sel->master_unit()->fake_select_lex;
           }
         | '(' select_paren ')'
+        ;
+
+/* The equivalent of select_paren for nested queries. */
+select_paren_derived:
+          SELECT_SYM select_part2_derived
+          {
+            if (setup_select_in_parentheses(Lex))
+              MYSQL_YYABORT;
+          }
+        | '(' select_paren_derived ')'
         ;
 
 select_init2:
@@ -8626,6 +8697,7 @@ when_list:
           }
         ;
 
+/* Equivalent to <table reference> in the SQL:2003 standard. */
 /* Warning - may return NULL in case of incomplete SELECT */
 table_ref:
           table_factor { $$=$1; }
@@ -8653,6 +8725,7 @@ esc_table_ref:
       | '{' ident table_ref '}' { $$=$3; }
       ;
 
+/* Equivalent to <table reference list> in the SQL:2003 standard. */
 /* Warning - may return NULL in case of incomplete SELECT */
 derived_table_list:
           esc_table_ref { $$=$1; }
@@ -8806,6 +8879,13 @@ normal_join:
         | CROSS JOIN_SYM {}
         ;
 
+/* 
+   This is a flattening of the rules <table factor> and <table primary>
+   in the SQL:2003 standard, since we don't have <sample clause>
+
+   I.e.
+   <table factor> ::= <table primary> [ <sample clause> ]
+*/   
 /* Warning - may return NULL in case of incomplete SELECT */
 table_factor:
           {
@@ -8843,12 +8923,29 @@ table_factor:
             /* incomplete derived tables return NULL, we must be
                nested in select_derived rule to be here. */
           }
-        | '(' get_select_lex select_derived union_opt ')' opt_table_alias
+          /*
+            Represents a flattening of the following rules from the SQL:2003
+            standard. This sub-rule corresponds to the sub-rule
+            <table primary> ::= ... | <derived table> [ AS ] <correlation name>
+            
+            The following rules have been flattened into query_expression_body
+            (since we have no <with clause>).
+
+            <derived table> ::= <table subquery>
+            <table subquery> ::= <subquery>
+            <subquery> ::= <left paren> <query expression> <right paren>
+            <query expression> ::= [ <with clause> ] <query expression body>
+
+            For the time being we use the non-standard rule
+            select_derived_union which is a compromise between the standard
+            and our parser. Possibly this rule could be replaced by our
+            query_expression_body.
+          */
+        | '(' get_select_lex select_derived_union ')' opt_table_alias
           {
             /* Use $2 instead of Lex->current_select as derived table will
                alter value of Lex->current_select. */
-
-            if (!($3 || $6) && $2->embedding &&
+            if (!($3 || $5) && $2->embedding &&
                 !$2->embedding->nested_join->join_list.elements)
             {
               /* we have a derived table ($3 == NULL) but no alias,
@@ -8870,7 +8967,7 @@ table_factor:
               if (ti == NULL)
                 MYSQL_YYABORT;
               if (!($$= sel->add_table_to_list(lex->thd,
-                                               ti, $6, 0,
+                                               new Table_ident(unit), $5, 0,
                                                TL_READ)))
 
                 MYSQL_YYABORT;
@@ -8878,7 +8975,8 @@ table_factor:
               lex->pop_context();
               lex->nest_level--;
             }
-            else if ($4 || $6)
+            else if ($3->select_lex &&
+                     $3->select_lex->master_unit()->is_union() || $5)
             {
               /* simple nested joins cannot have aliases or unions */
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -8891,6 +8989,62 @@ table_factor:
               $$= $3;
             }
           }
+        ;
+
+select_derived_union:
+          select_derived opt_order_clause opt_limit_clause
+        | select_derived_union
+          UNION_SYM
+          union_option
+          {
+            if (add_select_to_union_list(Lex, (bool)$3, FALSE))
+              MYSQL_YYABORT;
+          }
+          query_specification
+          {
+            /*
+              Remove from the name resolution context stack the context of the
+              last select in the union.
+             */
+            Lex->pop_context();
+          }
+          opt_order_clause opt_limit_clause
+        ;
+
+/* The equivalent of select_init2 for nested queries. */
+select_init2_derived:
+          select_part2_derived
+          {
+            LEX *lex= Lex;
+            SELECT_LEX * sel= lex->current_select;
+            if (lex->current_select->set_braces(0))
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            if (sel->linkage == UNION_TYPE &&
+                sel->master_unit()->first_select()->braces)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+/* The equivalent of select_part2 for nested queries. */
+select_part2_derived:
+          {
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;
+            if (sel->linkage != UNION_TYPE)
+              mysql_init_select(lex);
+            lex->current_select->parsing_place= SELECT_LIST;
+          }
+          select_options select_item_list
+          {
+            Select->parsing_place= NO_MATTER;
+          }
+          opt_select_from select_lock_type
         ;
 
 /* handle contents of parentheses in join expression */
@@ -9508,8 +9662,7 @@ procedure_item:
 select_var_list_init:
           {
             LEX *lex=Lex;
-            if (!lex->describe && 
-                  (!(lex->result= new select_dumpvar(lex->nest_level))))
+            if (!lex->describe && (!(lex->result= new select_dumpvar())))
               MYSQL_YYABORT;
           }
           select_var_list
@@ -9590,7 +9743,7 @@ into_destination:
             LEX *lex= Lex;
             lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
             if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
-                !(lex->result= new select_export(lex->exchange, lex->nest_level)))
+                !(lex->result= new select_export(lex->exchange)))
               MYSQL_YYABORT;
           }
           opt_load_data_charset
@@ -9604,7 +9757,7 @@ into_destination:
               lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
               if (!(lex->exchange= new sql_exchange($2.str,1)))
                 MYSQL_YYABORT;
-              if (!(lex->result= new select_dump(lex->exchange, lex->nest_level)))
+              if (!(lex->result= new select_dump(lex->exchange)))
                 MYSQL_YYABORT;
             }
           }
@@ -13223,33 +13376,8 @@ union_clause:
 union_list:
           UNION_SYM union_option
           {
-            LEX *lex=Lex;
-            if (lex->result && 
-               (lex->result->get_nest_level() == -1 ||
-                lex->result->get_nest_level() == lex->nest_level))
-              {
-                /* 
-                   Only the last SELECT can have INTO unless the INTO and UNION
-                   are at different nest levels. In version 5.1 and above, INTO
-                   will onle be allowed at top level.
-                */
-                my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-                MYSQL_YYABORT;
-              }
-            if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_select_to_union_list(Lex, (bool)$2, TRUE))
               MYSQL_YYABORT;
-            }
-            /* This counter shouldn't be incremented for UNION parts */
-            Lex->nest_level--;
-            if (mysql_new_select(lex, 0))
-              MYSQL_YYABORT;
-            mysql_init_select(lex);
-            lex->current_select->linkage=UNION_TYPE;
-            if ($2) /* UNION DISTINCT - remember position */
-              lex->current_select->master_unit()->union_distinct=
-                lex->current_select;
           }
           select_init
           {
@@ -13302,22 +13430,39 @@ union_option:
         | ALL       { $$=0; }
         ;
 
-take_first_select: /* empty */
-        {
-          $$= Lex->current_select->master_unit()->first_select();
-        };
+query_specification:
+          SELECT_SYM select_init2_derived
+          { 
+            $$= Lex->current_select->master_unit()->first_select();
+          }
+        | '(' select_paren_derived ')'
+          {
+            $$= Lex->current_select->master_unit()->first_select();
+          }
+        ;
 
+query_expression_body:
+          query_specification
+        | query_expression_body
+          UNION_SYM union_option 
+          {
+            if (add_select_to_union_list(Lex, (bool)$3, FALSE))
+              MYSQL_YYABORT;
+          }
+          query_specification
+          {
+            Lex->pop_context();
+            $$= $1;
+          }
+        ;
+
+/* Corresponds to <query expression> in the SQL:2003 standard. */
 subselect:
-        SELECT_SYM subselect_start select_init2 take_first_select 
-        subselect_end
-        {
-          $$= $4;
-        }
-        | '(' subselect_start select_paren take_first_select 
-        subselect_end ')'
-        {
-          $$= $4;
-        };
+          subselect_start query_expression_body subselect_end
+          { 
+            $$= $2;
+          }
+        ;
 
 subselect_start:
           {
