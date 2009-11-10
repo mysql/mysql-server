@@ -155,6 +155,7 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         //If this transaction needs an fsync (if it commits)
         //save that in the parent.  Since the commit really happens in the root txn.
         txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
+        txn->parent->has_done_work         |= txn->has_done_work;
     } else {
         // do the commit calls and free everything
         // we do the commit calls in reverse order too.
