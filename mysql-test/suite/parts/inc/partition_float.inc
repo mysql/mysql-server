@@ -28,6 +28,7 @@ delete from t2;
 let $count=$maxrows;
 --echo $maxrows*3 inserts;
 --disable_query_log
+begin;
 while ($count)
 {
 eval insert into t2 values ($count);
@@ -35,6 +36,7 @@ eval insert into t2 values ($count+0.33);
 eval insert into t2 values ($count+0.75);
 dec $count;
 }
+commit;
 --enable_query_log
 select count(*) from t2;
 drop table t2;
@@ -55,6 +57,8 @@ partition pa10 values less than (10)
 show create table t3;
 let $count=9;
 --echo $count*3 inserts;
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t3 values ($count);
@@ -62,6 +66,8 @@ eval insert into t3 values ($count+0.33);
 eval insert into t3 values ($count+0.75);
 dec $count;
 }
+commit;
+--enable_query_log
 select count(*) from t3;
 select * from t3;
 drop table t3;
@@ -75,6 +81,8 @@ partition pa10 values in (7,8,9,10)
 show create table t4;
 let $count=9;
 --echo $count*3 inserts;
+--disable_query_log
+begin;
 while ($count)
 {
 eval insert into t4 values ($count);
@@ -82,6 +90,8 @@ eval insert into t4 values ($count+0.33);
 eval insert into t4 values ($count+0.75);
 dec $count;
 }
+commit;
+--enable_query_log
 select count(*) from t4;
 select * from t4;
 drop table t4;

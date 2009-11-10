@@ -33,7 +33,8 @@ drop table t1;
 create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 
 let $1=100;
-disable_query_log;
+--disable_query_log
+begin;
 --disable_warnings
 SET SQL_WARNINGS=0;
 while ($1)
@@ -41,9 +42,10 @@ while ($1)
   eval insert into t1 (b) values(repeat(char(65+$1),65550-$1));
   dec $1;
 }
+commit;
 SET SQL_WARNINGS=1;
 --enable_warnings
-enable_query_log;
+--enable_query_log
 check table t1;
 repair table t1;
 delete from t1 where (a & 1);
@@ -380,14 +382,16 @@ check table t1;
 # check updating with keys
 #
 
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 100;
 while ($1)
 {
   eval insert into t1 (b) values (repeat(char(($1 & 32)+65), $1));
   dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 update t1 set b=repeat(left(b,1),255) where a between 1 and 5;
 update t1 set b=repeat(left(b,1),10) where a between 32 and 43;
 update t1 set b=repeat(left(b,1),2) where a between 64 and 66;
@@ -551,11 +555,13 @@ create table t2 (a int);
 let $i=1000;
 set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 --disable_query_log
+begin;
 while ($i)
 {
   dec $i;
   insert t2 values (rand()*100000);
 }
+commit;
 --enable_query_log
 insert t1 select * from t2;
 show keys from t1;
@@ -1360,11 +1366,13 @@ CREATE TABLE t1 (
 --disable_query_log
 let $count= 100;
 --echo # Insert $count rows. Query log disabled.
+begin;
 while ($count)
 {
   INSERT INTO t1 VALUES ('a', 'b');
   dec $count;
 }
+commit;
 --enable_query_log
 #
 # Change most of the rows into long character values with > 127 characters.
@@ -1444,11 +1452,13 @@ CREATE TABLE t1 (
 --disable_query_log
 let $count= 100;
 --echo # Insert $count rows. Query log disabled.
+begin;
 while ($count)
 {
   INSERT INTO t1 VALUES ('a', 'b');
   dec $count;
 }
+commit;
 --enable_query_log
 #
 # Change most of the rows into long character values with > 42 characters.

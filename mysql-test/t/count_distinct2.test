@@ -51,13 +51,15 @@ drop table t1;
 # test the conversion from tree to MyISAM
 create table t1 (n int default NULL);
 let $1=5000;
-disable_query_log;
+--disable_query_log
+begin;
 while ($1)
 {
  eval insert into t1 values($1);
  dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 
 flush status;
 select count(distinct n) from t1;
@@ -67,13 +69,15 @@ drop table t1;
 # Test use of MyISAM tmp tables
 create table t1 (s text);
 let $1=5000;
-disable_query_log;
+--disable_query_log
+begin;
 while ($1)
 {
  eval insert into t1 values('$1');
  dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 flush status;
 select count(distinct s) from t1;
 show status like 'Created_tmp_disk_tables';

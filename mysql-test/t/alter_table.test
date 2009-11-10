@@ -121,11 +121,15 @@ alter table t1 disable keys;
 show keys from t1;
 #let $1=10000;
 let $1=10;
+--disable_query_log
+begin;
 while ($1)
 {
  eval insert into t1 values($1,RAND()*1000,RAND()*1000,RAND());
  dec $1;
 }
+commit;
+--enable_query_log
 alter table t1 enable keys;
 show keys from t1;
 drop table t1;
@@ -144,11 +148,15 @@ drop table t1;
 
 create table t1 (a int, b int);
 let $1=100;
+--disable_query_log
+begin;
 while ($1)
 {
  eval insert into t1 values(1,$1), (2,$1), (3, $1);
  dec $1;
 }
+commit;
+--enable_query_log
 alter table t1 add unique (a,b), add key (b);
 show keys from t1;
 analyze table t1;
@@ -966,12 +974,14 @@ DROP TABLE t1;
 create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
 let $count= 50;
 --disable_query_log
+begin;
 while ($count)
 {
   EVAL insert into t1 values (1,1),(1,1),(1,1),(1,1),(1,1);
   EVAL insert into t1 values (2,2),(2,2),(2,2),(2,2),(2,2);
   dec $count ;
 }
+commit;
 --enable_query_log
 
 select index_length into @unpaked_keys_size from

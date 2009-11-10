@@ -20,6 +20,6 @@ a	b
 drop table federated.t1;
 drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;

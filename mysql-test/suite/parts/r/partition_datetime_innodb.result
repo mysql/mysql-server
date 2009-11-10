@@ -60,65 +60,6 @@ a
 2020-12-31 10:11:12
 delete from t2;
 59 inserts;
-insert into t2 values (19710101000000+59);
-insert into t2 values (19710101000000+58);
-insert into t2 values (19710101000000+57);
-insert into t2 values (19710101000000+56);
-insert into t2 values (19710101000000+55);
-insert into t2 values (19710101000000+54);
-insert into t2 values (19710101000000+53);
-insert into t2 values (19710101000000+52);
-insert into t2 values (19710101000000+51);
-insert into t2 values (19710101000000+50);
-insert into t2 values (19710101000000+49);
-insert into t2 values (19710101000000+48);
-insert into t2 values (19710101000000+47);
-insert into t2 values (19710101000000+46);
-insert into t2 values (19710101000000+45);
-insert into t2 values (19710101000000+44);
-insert into t2 values (19710101000000+43);
-insert into t2 values (19710101000000+42);
-insert into t2 values (19710101000000+41);
-insert into t2 values (19710101000000+40);
-insert into t2 values (19710101000000+39);
-insert into t2 values (19710101000000+38);
-insert into t2 values (19710101000000+37);
-insert into t2 values (19710101000000+36);
-insert into t2 values (19710101000000+35);
-insert into t2 values (19710101000000+34);
-insert into t2 values (19710101000000+33);
-insert into t2 values (19710101000000+32);
-insert into t2 values (19710101000000+31);
-insert into t2 values (19710101000000+30);
-insert into t2 values (19710101000000+29);
-insert into t2 values (19710101000000+28);
-insert into t2 values (19710101000000+27);
-insert into t2 values (19710101000000+26);
-insert into t2 values (19710101000000+25);
-insert into t2 values (19710101000000+24);
-insert into t2 values (19710101000000+23);
-insert into t2 values (19710101000000+22);
-insert into t2 values (19710101000000+21);
-insert into t2 values (19710101000000+20);
-insert into t2 values (19710101000000+19);
-insert into t2 values (19710101000000+18);
-insert into t2 values (19710101000000+17);
-insert into t2 values (19710101000000+16);
-insert into t2 values (19710101000000+15);
-insert into t2 values (19710101000000+14);
-insert into t2 values (19710101000000+13);
-insert into t2 values (19710101000000+12);
-insert into t2 values (19710101000000+11);
-insert into t2 values (19710101000000+10);
-insert into t2 values (19710101000000+9);
-insert into t2 values (19710101000000+8);
-insert into t2 values (19710101000000+7);
-insert into t2 values (19710101000000+6);
-insert into t2 values (19710101000000+5);
-insert into t2 values (19710101000000+4);
-insert into t2 values (19710101000000+3);
-insert into t2 values (19710101000000+2);
-insert into t2 values (19710101000000+1);
 select count(*) from t2;
 count(*)
 59
@@ -206,18 +147,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 12-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 11-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 10-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 9-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 8-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 7-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 6-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 5-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 4-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 3-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 2-1 month));
-insert into t3 values (date_add('1970-01-01 00:00:00',interval 1-1 month));
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select count(*) from t3;
@@ -260,18 +189,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB,
  PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 12-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 11-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 10-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 9-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 8-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 7-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 6-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 5-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 4-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 3-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 2-1 month));
-insert into t4 values (date_add('1970-01-01 00:00:00',interval 1-1 month));
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select count(*) from t4;
@@ -354,90 +271,6 @@ a
 2020-12-31
 delete from t2;
 28 inserts;
-insert into t2 values (19700101+28-1);
-insert into t2 values (19700201+28-1);
-insert into t2 values (19700301+28-1);
-insert into t2 values (19700101+27-1);
-insert into t2 values (19700201+27-1);
-insert into t2 values (19700301+27-1);
-insert into t2 values (19700101+26-1);
-insert into t2 values (19700201+26-1);
-insert into t2 values (19700301+26-1);
-insert into t2 values (19700101+25-1);
-insert into t2 values (19700201+25-1);
-insert into t2 values (19700301+25-1);
-insert into t2 values (19700101+24-1);
-insert into t2 values (19700201+24-1);
-insert into t2 values (19700301+24-1);
-insert into t2 values (19700101+23-1);
-insert into t2 values (19700201+23-1);
-insert into t2 values (19700301+23-1);
-insert into t2 values (19700101+22-1);
-insert into t2 values (19700201+22-1);
-insert into t2 values (19700301+22-1);
-insert into t2 values (19700101+21-1);
-insert into t2 values (19700201+21-1);
-insert into t2 values (19700301+21-1);
-insert into t2 values (19700101+20-1);
-insert into t2 values (19700201+20-1);
-insert into t2 values (19700301+20-1);
-insert into t2 values (19700101+19-1);
-insert into t2 values (19700201+19-1);
-insert into t2 values (19700301+19-1);
-insert into t2 values (19700101+18-1);
-insert into t2 values (19700201+18-1);
-insert into t2 values (19700301+18-1);
-insert into t2 values (19700101+17-1);
-insert into t2 values (19700201+17-1);
-insert into t2 values (19700301+17-1);
-insert into t2 values (19700101+16-1);
-insert into t2 values (19700201+16-1);
-insert into t2 values (19700301+16-1);
-insert into t2 values (19700101+15-1);
-insert into t2 values (19700201+15-1);
-insert into t2 values (19700301+15-1);
-insert into t2 values (19700101+14-1);
-insert into t2 values (19700201+14-1);
-insert into t2 values (19700301+14-1);
-insert into t2 values (19700101+13-1);
-insert into t2 values (19700201+13-1);
-insert into t2 values (19700301+13-1);
-insert into t2 values (19700101+12-1);
-insert into t2 values (19700201+12-1);
-insert into t2 values (19700301+12-1);
-insert into t2 values (19700101+11-1);
-insert into t2 values (19700201+11-1);
-insert into t2 values (19700301+11-1);
-insert into t2 values (19700101+10-1);
-insert into t2 values (19700201+10-1);
-insert into t2 values (19700301+10-1);
-insert into t2 values (19700101+9-1);
-insert into t2 values (19700201+9-1);
-insert into t2 values (19700301+9-1);
-insert into t2 values (19700101+8-1);
-insert into t2 values (19700201+8-1);
-insert into t2 values (19700301+8-1);
-insert into t2 values (19700101+7-1);
-insert into t2 values (19700201+7-1);
-insert into t2 values (19700301+7-1);
-insert into t2 values (19700101+6-1);
-insert into t2 values (19700201+6-1);
-insert into t2 values (19700301+6-1);
-insert into t2 values (19700101+5-1);
-insert into t2 values (19700201+5-1);
-insert into t2 values (19700301+5-1);
-insert into t2 values (19700101+4-1);
-insert into t2 values (19700201+4-1);
-insert into t2 values (19700301+4-1);
-insert into t2 values (19700101+3-1);
-insert into t2 values (19700201+3-1);
-insert into t2 values (19700301+3-1);
-insert into t2 values (19700101+2-1);
-insert into t2 values (19700201+2-1);
-insert into t2 values (19700301+2-1);
-insert into t2 values (19700101+1-1);
-insert into t2 values (19700201+1-1);
-insert into t2 values (19700301+1-1);
 select count(*) from t2;
 count(*)
 84
@@ -550,18 +383,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
-insert into t3 values (adddate(19700101,interval 12-1 month));
-insert into t3 values (adddate(19700101,interval 11-1 month));
-insert into t3 values (adddate(19700101,interval 10-1 month));
-insert into t3 values (adddate(19700101,interval 9-1 month));
-insert into t3 values (adddate(19700101,interval 8-1 month));
-insert into t3 values (adddate(19700101,interval 7-1 month));
-insert into t3 values (adddate(19700101,interval 6-1 month));
-insert into t3 values (adddate(19700101,interval 5-1 month));
-insert into t3 values (adddate(19700101,interval 4-1 month));
-insert into t3 values (adddate(19700101,interval 3-1 month));
-insert into t3 values (adddate(19700101,interval 2-1 month));
-insert into t3 values (adddate(19700101,interval 1-1 month));
 select count(*) from t3;
 count(*)
 12
@@ -602,18 +423,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB,
  PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
-insert into t4 values (adddate(19700101,interval 12-1 month));
-insert into t4 values (adddate(19700101,interval 11-1 month));
-insert into t4 values (adddate(19700101,interval 10-1 month));
-insert into t4 values (adddate(19700101,interval 9-1 month));
-insert into t4 values (adddate(19700101,interval 8-1 month));
-insert into t4 values (adddate(19700101,interval 7-1 month));
-insert into t4 values (adddate(19700101,interval 6-1 month));
-insert into t4 values (adddate(19700101,interval 5-1 month));
-insert into t4 values (adddate(19700101,interval 4-1 month));
-insert into t4 values (adddate(19700101,interval 3-1 month));
-insert into t4 values (adddate(19700101,interval 2-1 month));
-insert into t4 values (adddate(19700101,interval 1-1 month));
 select count(*) from t4;
 count(*)
 12
@@ -694,65 +503,6 @@ a
 14:15:16
 delete from t2;
 59 inserts;
-insert into t2 values (000100+59);
-insert into t2 values (000100+58);
-insert into t2 values (000100+57);
-insert into t2 values (000100+56);
-insert into t2 values (000100+55);
-insert into t2 values (000100+54);
-insert into t2 values (000100+53);
-insert into t2 values (000100+52);
-insert into t2 values (000100+51);
-insert into t2 values (000100+50);
-insert into t2 values (000100+49);
-insert into t2 values (000100+48);
-insert into t2 values (000100+47);
-insert into t2 values (000100+46);
-insert into t2 values (000100+45);
-insert into t2 values (000100+44);
-insert into t2 values (000100+43);
-insert into t2 values (000100+42);
-insert into t2 values (000100+41);
-insert into t2 values (000100+40);
-insert into t2 values (000100+39);
-insert into t2 values (000100+38);
-insert into t2 values (000100+37);
-insert into t2 values (000100+36);
-insert into t2 values (000100+35);
-insert into t2 values (000100+34);
-insert into t2 values (000100+33);
-insert into t2 values (000100+32);
-insert into t2 values (000100+31);
-insert into t2 values (000100+30);
-insert into t2 values (000100+29);
-insert into t2 values (000100+28);
-insert into t2 values (000100+27);
-insert into t2 values (000100+26);
-insert into t2 values (000100+25);
-insert into t2 values (000100+24);
-insert into t2 values (000100+23);
-insert into t2 values (000100+22);
-insert into t2 values (000100+21);
-insert into t2 values (000100+20);
-insert into t2 values (000100+19);
-insert into t2 values (000100+18);
-insert into t2 values (000100+17);
-insert into t2 values (000100+16);
-insert into t2 values (000100+15);
-insert into t2 values (000100+14);
-insert into t2 values (000100+13);
-insert into t2 values (000100+12);
-insert into t2 values (000100+11);
-insert into t2 values (000100+10);
-insert into t2 values (000100+9);
-insert into t2 values (000100+8);
-insert into t2 values (000100+7);
-insert into t2 values (000100+6);
-insert into t2 values (000100+5);
-insert into t2 values (000100+4);
-insert into t2 values (000100+3);
-insert into t2 values (000100+2);
-insert into t2 values (000100+1);
 select count(*) from t2;
 count(*)
 59
@@ -840,65 +590,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES LESS THAN (46) ENGINE = InnoDB,
  PARTITION quarter4 VALUES LESS THAN (61) ENGINE = InnoDB) */
 59 inserts;
-insert into t3 values (100000+59);
-insert into t3 values (100000+58);
-insert into t3 values (100000+57);
-insert into t3 values (100000+56);
-insert into t3 values (100000+55);
-insert into t3 values (100000+54);
-insert into t3 values (100000+53);
-insert into t3 values (100000+52);
-insert into t3 values (100000+51);
-insert into t3 values (100000+50);
-insert into t3 values (100000+49);
-insert into t3 values (100000+48);
-insert into t3 values (100000+47);
-insert into t3 values (100000+46);
-insert into t3 values (100000+45);
-insert into t3 values (100000+44);
-insert into t3 values (100000+43);
-insert into t3 values (100000+42);
-insert into t3 values (100000+41);
-insert into t3 values (100000+40);
-insert into t3 values (100000+39);
-insert into t3 values (100000+38);
-insert into t3 values (100000+37);
-insert into t3 values (100000+36);
-insert into t3 values (100000+35);
-insert into t3 values (100000+34);
-insert into t3 values (100000+33);
-insert into t3 values (100000+32);
-insert into t3 values (100000+31);
-insert into t3 values (100000+30);
-insert into t3 values (100000+29);
-insert into t3 values (100000+28);
-insert into t3 values (100000+27);
-insert into t3 values (100000+26);
-insert into t3 values (100000+25);
-insert into t3 values (100000+24);
-insert into t3 values (100000+23);
-insert into t3 values (100000+22);
-insert into t3 values (100000+21);
-insert into t3 values (100000+20);
-insert into t3 values (100000+19);
-insert into t3 values (100000+18);
-insert into t3 values (100000+17);
-insert into t3 values (100000+16);
-insert into t3 values (100000+15);
-insert into t3 values (100000+14);
-insert into t3 values (100000+13);
-insert into t3 values (100000+12);
-insert into t3 values (100000+11);
-insert into t3 values (100000+10);
-insert into t3 values (100000+9);
-insert into t3 values (100000+8);
-insert into t3 values (100000+7);
-insert into t3 values (100000+6);
-insert into t3 values (100000+5);
-insert into t3 values (100000+4);
-insert into t3 values (100000+3);
-insert into t3 values (100000+2);
-insert into t3 values (100000+1);
 select count(*) from t3;
 count(*)
 59
@@ -986,65 +677,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES IN (31,32,33,34,35,36,37,38,39,40,41,42,43,44,45) ENGINE = InnoDB,
  PARTITION quarter4 VALUES IN (46,47,48,49,50,51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
 59 inserts;
-insert into t4 values (100000+59);
-insert into t4 values (100000+58);
-insert into t4 values (100000+57);
-insert into t4 values (100000+56);
-insert into t4 values (100000+55);
-insert into t4 values (100000+54);
-insert into t4 values (100000+53);
-insert into t4 values (100000+52);
-insert into t4 values (100000+51);
-insert into t4 values (100000+50);
-insert into t4 values (100000+49);
-insert into t4 values (100000+48);
-insert into t4 values (100000+47);
-insert into t4 values (100000+46);
-insert into t4 values (100000+45);
-insert into t4 values (100000+44);
-insert into t4 values (100000+43);
-insert into t4 values (100000+42);
-insert into t4 values (100000+41);
-insert into t4 values (100000+40);
-insert into t4 values (100000+39);
-insert into t4 values (100000+38);
-insert into t4 values (100000+37);
-insert into t4 values (100000+36);
-insert into t4 values (100000+35);
-insert into t4 values (100000+34);
-insert into t4 values (100000+33);
-insert into t4 values (100000+32);
-insert into t4 values (100000+31);
-insert into t4 values (100000+30);
-insert into t4 values (100000+29);
-insert into t4 values (100000+28);
-insert into t4 values (100000+27);
-insert into t4 values (100000+26);
-insert into t4 values (100000+25);
-insert into t4 values (100000+24);
-insert into t4 values (100000+23);
-insert into t4 values (100000+22);
-insert into t4 values (100000+21);
-insert into t4 values (100000+20);
-insert into t4 values (100000+19);
-insert into t4 values (100000+18);
-insert into t4 values (100000+17);
-insert into t4 values (100000+16);
-insert into t4 values (100000+15);
-insert into t4 values (100000+14);
-insert into t4 values (100000+13);
-insert into t4 values (100000+12);
-insert into t4 values (100000+11);
-insert into t4 values (100000+10);
-insert into t4 values (100000+9);
-insert into t4 values (100000+8);
-insert into t4 values (100000+7);
-insert into t4 values (100000+6);
-insert into t4 values (100000+5);
-insert into t4 values (100000+4);
-insert into t4 values (100000+3);
-insert into t4 values (100000+2);
-insert into t4 values (100000+1);
 select count(*) from t4;
 count(*)
 59
@@ -1172,65 +804,6 @@ a
 2020-12-31 10:11:12
 delete from t2;
 59 inserts;
-insert into t2 values (19700101000000+59);
-insert into t2 values (19700101000000+58);
-insert into t2 values (19700101000000+57);
-insert into t2 values (19700101000000+56);
-insert into t2 values (19700101000000+55);
-insert into t2 values (19700101000000+54);
-insert into t2 values (19700101000000+53);
-insert into t2 values (19700101000000+52);
-insert into t2 values (19700101000000+51);
-insert into t2 values (19700101000000+50);
-insert into t2 values (19700101000000+49);
-insert into t2 values (19700101000000+48);
-insert into t2 values (19700101000000+47);
-insert into t2 values (19700101000000+46);
-insert into t2 values (19700101000000+45);
-insert into t2 values (19700101000000+44);
-insert into t2 values (19700101000000+43);
-insert into t2 values (19700101000000+42);
-insert into t2 values (19700101000000+41);
-insert into t2 values (19700101000000+40);
-insert into t2 values (19700101000000+39);
-insert into t2 values (19700101000000+38);
-insert into t2 values (19700101000000+37);
-insert into t2 values (19700101000000+36);
-insert into t2 values (19700101000000+35);
-insert into t2 values (19700101000000+34);
-insert into t2 values (19700101000000+33);
-insert into t2 values (19700101000000+32);
-insert into t2 values (19700101000000+31);
-insert into t2 values (19700101000000+30);
-insert into t2 values (19700101000000+29);
-insert into t2 values (19700101000000+28);
-insert into t2 values (19700101000000+27);
-insert into t2 values (19700101000000+26);
-insert into t2 values (19700101000000+25);
-insert into t2 values (19700101000000+24);
-insert into t2 values (19700101000000+23);
-insert into t2 values (19700101000000+22);
-insert into t2 values (19700101000000+21);
-insert into t2 values (19700101000000+20);
-insert into t2 values (19700101000000+19);
-insert into t2 values (19700101000000+18);
-insert into t2 values (19700101000000+17);
-insert into t2 values (19700101000000+16);
-insert into t2 values (19700101000000+15);
-insert into t2 values (19700101000000+14);
-insert into t2 values (19700101000000+13);
-insert into t2 values (19700101000000+12);
-insert into t2 values (19700101000000+11);
-insert into t2 values (19700101000000+10);
-insert into t2 values (19700101000000+9);
-insert into t2 values (19700101000000+8);
-insert into t2 values (19700101000000+7);
-insert into t2 values (19700101000000+6);
-insert into t2 values (19700101000000+5);
-insert into t2 values (19700101000000+4);
-insert into t2 values (19700101000000+3);
-insert into t2 values (19700101000000+2);
-insert into t2 values (19700101000000+1);
 select count(*) from t2;
 count(*)
 59
@@ -1318,18 +891,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
-insert into t3 values (adddate(19700101000000,interval 12-1 month));
-insert into t3 values (adddate(19700101000000,interval 11-1 month));
-insert into t3 values (adddate(19700101000000,interval 10-1 month));
-insert into t3 values (adddate(19700101000000,interval 9-1 month));
-insert into t3 values (adddate(19700101000000,interval 8-1 month));
-insert into t3 values (adddate(19700101000000,interval 7-1 month));
-insert into t3 values (adddate(19700101000000,interval 6-1 month));
-insert into t3 values (adddate(19700101000000,interval 5-1 month));
-insert into t3 values (adddate(19700101000000,interval 4-1 month));
-insert into t3 values (adddate(19700101000000,interval 3-1 month));
-insert into t3 values (adddate(19700101000000,interval 2-1 month));
-insert into t3 values (adddate(19700101000000,interval 1-1 month));
 select count(*) from t3;
 count(*)
 12
@@ -1370,18 +931,6 @@ SUBPARTITIONS 3
  PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB,
  PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
-insert into t4 values (adddate(19700101000000,interval 12-1 month));
-insert into t4 values (adddate(19700101000000,interval 11-1 month));
-insert into t4 values (adddate(19700101000000,interval 10-1 month));
-insert into t4 values (adddate(19700101000000,interval 9-1 month));
-insert into t4 values (adddate(19700101000000,interval 8-1 month));
-insert into t4 values (adddate(19700101000000,interval 7-1 month));
-insert into t4 values (adddate(19700101000000,interval 6-1 month));
-insert into t4 values (adddate(19700101000000,interval 5-1 month));
-insert into t4 values (adddate(19700101000000,interval 4-1 month));
-insert into t4 values (adddate(19700101000000,interval 3-1 month));
-insert into t4 values (adddate(19700101000000,interval 2-1 month));
-insert into t4 values (adddate(19700101000000,interval 1-1 month));
 select count(*) from t4;
 count(*)
 12

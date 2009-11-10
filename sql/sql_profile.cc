@@ -33,7 +33,7 @@
 #include "my_sys.h"
 
 #define TIME_FLOAT_DIGITS 9
-/** two vals encoded: (dec*100)+len */
+/** two vals encoded: (len*100)+dec */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
 #define MAX_QUERY_LENGTH 300

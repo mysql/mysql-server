@@ -178,8 +178,8 @@ INSERT INTO db_bogus.t1 VALUES ('2','this is bogus');
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
 DATABASE 'db_legitimate',
-USER 'root',
-PASSWORD '',
+USER 'test_fed',
+PASSWORD 'foo',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');

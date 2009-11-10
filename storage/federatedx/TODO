@@ -1,0 +1,30 @@
+Features
+
+* Add Pushdown conditions
+* Add other network driver interfaces
+* Handle large result sets
+* Auto-discovery of tables on foreign data sources
+
+Bugs (http://bugs.mysql.com)
+
+20026 2006-05-23 FEDERATED lacks support for auto_increment_increment and auto_increment_offset   
+20724 2006-06-27 FEDERATED does not honour SET INSERT_ID    
+28269 2007-05-06 Any FEDERATED engine fails to quote reserved words for field names
+25509 2007-01-10 Federated: Failure with non-ASCII characters   
+26697 2007-02-27 Every query to a federated table results in a full scan of MyISAM table.
+21360 2006-07-31 Microsoft Windows (Windows/Linux) mysqldump error on federated tables    
+34189 2008-01-31 Any ALTER TABLE t1 ENGINE=FEDERATED CONNECTION='connectionString' on MyISAM fails    
+31757 2007-10-22 Any Federated tables break replication  Antony Curtis
+33953 2008-01-21 Any mysqld dies on search federated table using nullable index with < or <= operator
+34015 2008-01-23 Linux Problems with float fields using federated tables
+21583 2006-08-11 Linux (Linux) Federated table returns broken strings.    
+33702 2008-01-05 Accessing a federated table with a non existing server returns random error code   
+25512 2007-01-10 Federated: CREATE failures   
+32426 2007-11-16 Any FEDERATED query returns corrupt results for ORDER BY on a TEXT field 
+25510 2007-01-10 Federated: double trigger activation   
+33250 2007-12-14 SELECT * FROM really_big_federated_table eats lots of virtual memory (OOM)   
+14874 2005-11-11 Error 2013: Lost connection to MySQL server with Federated table   
+25508 2007-01-10 Federated: Failure to Remove Partitioning    
+27180 2007-03-15 #1030 - Got error 1 from storage engine with big tables
+33947 2008-01-20 Any Join on Federated tables with Unique index and IS NOT NULL crashes server
+30051 (fixed) CREATE TABLE does not connect and check existence of remote table

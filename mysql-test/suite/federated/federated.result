@@ -47,9 +47,10 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
-SELECT * FROM federated.t1;
-ERROR HY000: The foreign data source you are trying to reference does not exist. Data source error:  error: 1146  'Table 'federated.t3' doesn't exist'
-DROP TABLE federated.t1;
+ERROR HY000: Can't create federated table. Foreign data src error:  database: 'federated'  username: 'root'  hostname: '127.0.0.1'
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `group` int NOT NULL default 0,
@@ -59,9 +60,10 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
-SELECT * FROM federated.t1;
-ERROR HY000: Unable to connect to foreign data source: Access denied for user 'user'@'localhost' (using password: YES)
-DROP TABLE federated.t1;
+ERROR HY000: Can't create federated table. Foreign data src error:  database: 'federated'  username: 'user'  hostname: '127.0.0.1'
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `group` int NOT NULL default 0,
@@ -1944,15 +1946,7 @@ Bug#18287 create federated table always times out, error 1159 ' '
 
 Test that self-references work
 
-create table federated.t1 (a int primary key);
-create table federated.t2 (a int primary key)
-ENGINE=FEDERATED
-connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
-insert into federated.t1 (a) values (1);
-select * from federated.t2;
-a
-1
-drop table federated.t1, federated.t2;
+fix LOCK_open before reenabling test for Bug#18287
 CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
 CREATE TABLE federated.t1 (a INT PRIMARY KEY)
 ENGINE=FEDERATED
@@ -1960,13 +1954,11 @@ CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
   DEFAULT CHARSET=utf8;
 SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
 transactions
-NO
+YES
 INSERT INTO federated.t1 VALUES (1);
 SET autocommit=0;
 INSERT INTO federated.t1 VALUES (2);
 ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET autocommit=1;
 SELECT * FROM federated.t1;
 a
@@ -2157,6 +2149,6 @@ End of 5.1 tests
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;

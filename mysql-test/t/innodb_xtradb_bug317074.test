@@ -1,4 +1,3 @@
---source include/big_test.inc
 --source include/have_innodb.inc
 
 SET @old_innodb_file_format=@@innodb_file_format;
@@ -7,16 +6,16 @@ SET @old_innodb_file_format_check=@@innodb_file_format_check;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;
 
--- disable_query_log
--- disable_result_log
-
+--disable_warnings
 DROP TABLE IF EXISTS `test1`;
+--enable_warnings
 CREATE TABLE IF NOT EXISTS `test1` (
  `a` int primary key auto_increment,
  `b` int default 0,
  `c` char(100) default 'testtest'
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
+set autocommit=0;
 delimiter |;
 CREATE PROCEDURE insert_many(p1 int)
 BEGIN
@@ -26,14 +25,18 @@ REPEAT
   insert into test1 set b=1;
   SET @x = @x + 1;
   SET @y = @y + 1;
-  IF @y >= 100 THEN
+  IF @y >= 1000 THEN
     commit;
     SET @y = 0;
   END IF;
 UNTIL @x >= p1 END REPEAT;
 END|
 delimiter ;|
+--disable_query_log
+--disable_result_log
 call insert_many(100000);
+--enable_query_log
+--enable_result_log
 DROP PROCEDURE insert_many;
 
 # The bug is hangup at the following statement

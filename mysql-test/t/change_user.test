@@ -57,13 +57,13 @@ FLUSH STATUS;
 --disable_query_log
 
 let $i = 100;
-
+begin;
 while ($i)
 {
   dec $i;
-
   SELECT 1;
 }
+commit;
 
 --enable_query_log
 --enable_result_log

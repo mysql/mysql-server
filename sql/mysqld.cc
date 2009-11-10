@@ -1889,7 +1889,9 @@ void close_connection(THD *thd, uint errcode, bool lock)
 extern "C" sig_handler end_mysqld_signal(int sig __attribute__((unused)))
 {
   DBUG_ENTER("end_mysqld_signal");
-  kill_mysql();                                 // Take down mysqld nicely 
+  /* Don't call kill_mysql() if signal thread is not running */
+  if (signal_thread_in_use)
+    kill_mysql();                          // Take down mysqld nicely 
   DBUG_VOID_RETURN;				/* purecov: deadcode */
 }
 
@@ -8082,7 +8084,7 @@ mysqld_get_one_option(int optid,
   switch(optid) {
 #ifndef DBUG_OFF
   case OPT_DEBUG_FLUSH:
-    argument= IF_WIN(default_dbug_option, (char*) "d:t:i:O,/tmp/mysqld.trace");
+    argument= IF_WIN((char*) default_dbug_option, (char*) "d:t:i:O,/tmp/mysqld.trace");
   /* fall through */
   case '#':
     if (!argument)

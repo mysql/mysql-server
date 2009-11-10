@@ -17,12 +17,16 @@ SHOW CREATE TABLE t1;
 
 let $1=150;
 let $2=150;
+--disable_query_log
+begin;
 while ($1)
 {
   eval INSERT INTO t1 (g) VALUES (GeomFromText('LineString($1 $1, $2 $2)'));
   dec $1;
   inc $2;
 }
+commit;
+--enable_query_log
 
 SELECT count(*) FROM t1;
 EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
@@ -35,6 +39,8 @@ CREATE TABLE t2 (
   g GEOMETRY NOT NULL
 ) ENGINE=MyISAM;
 
+--disable_query_log
+begin;
 let $1=10;
 while ($1)
 {
@@ -46,6 +52,8 @@ while ($1)
   }
   dec $1;
 }
+commit;
+--enable_query_log
 
 ALTER TABLE t2 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t2;
@@ -55,6 +63,8 @@ EXPLAIN SELECT fid, AsText(g) FROM t2 WHERE Within(g,
 SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
   GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 
+--disable_query_log
+begin;
 let $1=10;
 while ($1)
 {
@@ -67,6 +77,8 @@ while ($1)
   }
   dec $1;
 }
+commit;
+--enable_query_log
 
 DROP TABLE t2;
 

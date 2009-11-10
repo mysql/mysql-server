@@ -127,7 +127,6 @@ my $path_config_file;           # The generated config file, var/my.cnf
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 my $DEFAULT_SUITES= "binlog,federated,main,maria,rpl,innodb,parts";
-my $opt_suites;
 
 our $opt_usage;
 our $opt_list_options;
@@ -997,6 +996,12 @@ sub command_line_setup {
   # directory. And we install "/usr/share/mysql-test". Moving up one
   # more directory relative to "mysql-test" gives us a usable base
   # directory for RPM installs.
+  if ( ! $source_dist and ! -d "$basedir/bin" )
+  {
+    $basedir= dirname($basedir);
+  }
+  # For .deb, it's like RPM, but installed in /usr/share/mysql/mysql-test.
+  # So move up one more directory level yet.
   if ( ! $source_dist and ! -d "$basedir/bin" )
   {
     $basedir= dirname($basedir);

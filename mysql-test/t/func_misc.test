@@ -213,11 +213,15 @@ start_ts DATETIME, end_ts DATETIME,
 start_cached INTEGER, end_cached INTEGER);
 CREATE TABLE t1 (f1 BIGINT);
 let $num = `SELECT @row_count`;
+--disable_query_log
+begin;
 while ($num)
 {
    INSERT INTO t1 VALUES (1);
    dec $num;
 }
+commit;
+--enable_query_log
 
 let $loops = 4;
 let $num = $loops;

@@ -26,12 +26,15 @@ partition by key (a) partitions 27;
 show create table t2;
 let $letter=26;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+begin;
 while ($letter)
 {
 eval insert into t2 values (char(ascii('A')+$letter));
 dec $letter;
 }
+commit;
+--enable_query_log
 insert into t2 values ('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 select count(*) from t2;
 select * from t2;
@@ -55,12 +58,15 @@ partition pa36 values less than (37)
 show create table t3;
 let $letter=36;
 --echo $count inserts;
-#--disable_query_log
+--disable_query_log
+  begin;
 while ($letter)
 {
 #eval insert into t3 values ($letter);
 dec $letter;
 }
+commit;
+--enable_query_log
 select count(*) from t3;
 select * from t3;
 drop table t3;

@@ -116,8 +116,8 @@ extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 
-extern ulint    srv_show_locks_held;
-extern ulint    srv_show_verbose_locks;
+extern ulong    srv_show_locks_held;
+extern ulong    srv_show_verbose_locks;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
@@ -166,11 +166,11 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_sample_pages;
-extern ulint	srv_stats_method;
+extern ulong	srv_stats_method;
 #define SRV_STATS_METHOD_NULLS_EQUAL     0
 #define SRV_STATS_METHOD_NULLS_NOT_EQUAL 1
 #define SRV_STATS_METHOD_IGNORE_NULLS    2
-extern ulint	srv_stats_auto_update;
+extern ulong	srv_stats_auto_update;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -183,19 +183,19 @@ extern ulong	srv_max_purge_lag;
 
 extern ulong	srv_replication_delay;
 
-extern ulint	srv_io_capacity;
+extern ulong	srv_io_capacity;
 extern long long	srv_ibuf_max_size;
-extern ulint	srv_ibuf_active_contract;
-extern ulint	srv_ibuf_accel_rate;
-extern ulint	srv_flush_neighbor_pages;
-extern ulint	srv_enable_unsafe_group_commit;
-extern ulint	srv_read_ahead;
-extern ulint	srv_adaptive_checkpoint;
+extern ulong	srv_ibuf_active_contract;
+extern ulong	srv_ibuf_accel_rate;
+extern ulong	srv_flush_neighbor_pages;
+extern ulong	srv_enable_unsafe_group_commit;
+extern ulong	srv_read_ahead;
+extern ulong	srv_adaptive_checkpoint;
 
-extern ulint	srv_expand_import;
+extern ulong	srv_expand_import;
 
-extern ulint	srv_extra_rsegments;
-extern ulint	srv_dict_size_limit;
+extern ulong	srv_extra_rsegments;
+extern ulong	srv_dict_size_limit;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;

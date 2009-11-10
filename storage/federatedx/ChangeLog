@@ -1,0 +1,18 @@
+0.2 -  Thu March 8 00:00:00 EST 2008
+
+  - Fixed bug #30051 "CREATE TABLE does not connect and check existence of remote table"
+    Modified "real_connect" to take a share and create flag to in order to not rely
+    on any settings that are later instantiated and/or set by get_share
+    Also, put logic in the code to not attempt this if a localhost. There's an annoying
+    functionality that if federated tries to connect to itself during creater table, you 
+    get 1159 error (timeout) - only when local. This prevents having this functionality
+    and is probably part of the reason it was removed.
+
+0.1 -  Thu Feb 1 00:00:00 EST 2008
+
+  - This is the FederatedX Storage Engine, 
+    first release.
+  - Added documentation
+  - Added simple test and README file to explain
+    how to run the test
+  - Added FAQ

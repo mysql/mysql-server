@@ -146,6 +146,13 @@ then
   debug_cflags="$debug_cflags $debug_extra_cflags"
 fi
 
+static_link="--with-mysqld-ldflags=-all-static "
+static_link="$static_link --with-client-ldflags=-all-static"
+# we need local-infile in all binaries for rpl000001
+# if you need to disable local-infile in the client, write a build script
+# and unset local_infile_configs
+local_infile_configs="--enable-local-infile"
+
 #
 # Configuration options.
 #
@@ -154,6 +161,8 @@ base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
 base_configs="$base_configs --with-plugin-maria --with-maria-tmp-tables --without-plugin-innodb_plugin"
+# Compile our client programs with static libraries to allow them to be moved
+base_configs="$base_configs --with-mysqld-ldflags=-static --with-client-ldflags=-static"
 
 if test -d "$path/../cmd-line-utils/readline"
 then
@@ -162,14 +171,6 @@ elif test -d "$path/../cmd-line-utils/libedit"
 then
     base_configs="$base_configs --with-libedit"
 fi
-
-static_link="--with-mysqld-ldflags=-all-static "
-static_link="$static_link --with-client-ldflags=-all-static"
-# we need local-infile in all binaries for rpl000001
-# if you need to disable local-infile in the client, write a build script
-# and unset local_infile_configs
-local_infile_configs="--enable-local-infile"
-
 
 max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
 max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"

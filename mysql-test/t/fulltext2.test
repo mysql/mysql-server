@@ -18,6 +18,7 @@ CREATE TABLE t1 (
 
 # two-level entry, second-level tree with depth 2
 --disable_query_log
+begin;
 let $1=260;
 while ($1)
 {
@@ -40,6 +41,7 @@ while ($1)
   eval insert t1 (a) values ('aaayyy');
   dec $1;
 }
+commit;
 --enable_query_log
 
 # converting to two-level
@@ -113,6 +115,7 @@ CREATE TABLE t1 (
 # two-level entry, second-level tree with depth 2
 --disable_query_log
 let $1=260;
+begin;
 while ($1)
 {
   eval insert t1 (a) values ('aaaxxx');
@@ -130,6 +133,7 @@ while ($1)
   eval insert t1 (a) values ('aaayyy');
   dec $1;
 }
+commit;
 --enable_query_log
 
 select count(*) from t1 where match a against ('aaaxxx');
