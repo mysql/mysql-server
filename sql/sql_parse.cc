@@ -2268,7 +2268,7 @@ mysql_execute_command(THD *thd)
                               privileges_requested,
                               all_tables, FALSE, UINT_MAX, FALSE);
     else
-      res= check_access(thd, privileges_requested, any_db, 0, 0, 0, UINT_MAX);
+      res= check_access(thd, privileges_requested, any_db, 0, 0, 0, 0);
 
     if (res)
       break;
