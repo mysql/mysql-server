@@ -1223,6 +1223,10 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n Bug41915 D2
 
+max-time: 1500
+cmd: testSystemRestart
+args: -n Bug48436 T1
+
 max-time: 300
 cmd: test_event
 args: -n Bug31701 T1
@@ -1410,6 +1414,10 @@ args: -n -l 3 -n Bug43224 T1
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug43888 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug48474 T1
 
 max-time: 1200
 cmd: testNdbApi

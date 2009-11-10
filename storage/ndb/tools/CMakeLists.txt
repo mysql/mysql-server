@@ -53,3 +53,11 @@ SET(options "${options} -I${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon")
 #SET(options "${options} -DMYSQLCLUSTERDIR=\"\\\"\\\"\"")
 SET_TARGET_PROPERTIES(ndb_config PROPERTIES
                       COMPILE_FLAGS "${options}")
+
+# Build ndbinfo_sql and run it to create ndbinfo.sql
+ADD_EXECUTABLE(ndbinfo_sql ndbinfo_sql.cpp)
+GET_TARGET_PROPERTY(NDBINFO_SQL_EXE comp_sql LOCATION)
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
+                   COMMAND ${NDBINFO_SQL_EXE} > ndbinfo.sql
+                   DEPENDS ndbinfo_sql)
+

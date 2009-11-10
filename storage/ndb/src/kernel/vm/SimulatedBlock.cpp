@@ -43,6 +43,7 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/LocalRouteOrd.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -280,7 +281,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
-#define check_sections(signal, cnt) if (unlikely(cnt)) handle_invalid_sections_in_send_signal(signal)
+#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && signal->header.m_fragmentInfo != 0)) { handle_invalid_fragmentInfo(signal); } } while(0)
 
 void
 SimulatedBlock::handle_invalid_sections_in_send_signal(Signal* signal) const
@@ -318,6 +319,19 @@ SimulatedBlock::handle_lingering_sections_after_execute(SectionHandle* handle) c
 			     "");
 #else
   infoEvent("Unhandled sections(handle) after execute");
+#endif
+}
+
+void
+SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
+{
+#if defined VM_TRACE || defined ERROR_INSERT
+  ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                             "Incorrect header->m_fragmentInfo in sendSignal()",
+                             "");
+#else
+  signal->header.m_fragmentInfo = 0;
+  infoEvent("Incorrect header->m_fragmentInfo in sendSignal");
 #endif
 }
 
@@ -445,7 +459,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   signal->header.theReceiversBlockNumber = recBlock;
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
   
   Uint32 tSignalId = signal->header.theSignalId;
   
@@ -545,7 +559,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
 
   if ((length == 0) || (length > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
@@ -644,7 +658,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -753,7 +767,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -872,7 +886,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -979,7 +993,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1112,7 +1126,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1227,7 +1241,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -1348,7 +1362,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   
   BlockNumber bnr = refToBlock(ref);
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, 0);
   
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -1395,7 +1409,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     bnr_error();
   }//if
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -2958,7 +2972,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 noOfSections,
 				  Uint32 messageSize){
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   info.m_sectionPtr[0].m_linear.p = NULL;
   info.m_sectionPtr[1].m_linear.p = NULL;
@@ -4031,3 +4045,98 @@ SimulatedBlock::wakeup()
   globalTransporterRegistry.wakeup();
 #endif
 }
+
+
+void
+SimulatedBlock::ndbinfo_send_row(Signal* signal,
+                                 const DbinfoScanReq& req,
+                                 const Ndbinfo::Row& row,
+                                 Ndbinfo::Ratelimit& rl) const
+{
+  // Check correct number of columns against table
+  assert(row.columns() == Ndbinfo::getTable(req.tableId).columns());
+
+  TransIdAI *tidai= (TransIdAI*)signal->getDataPtrSend();
+  tidai->connectPtr= req.resultData;
+  tidai->transId[0]= req.transId[0];
+  tidai->transId[1]= req.transId[1];
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = row.getDataPtr();
+  ptr[0].sz = row.getLength();
+
+  rl.rows++;
+  rl.bytes += row.getLength();
+
+  sendSignal(req.resultRef, GSN_DBINFO_TRANSID_AI,
+             signal, TransIdAI::HeaderLength, JBB, ptr, 1);
+}
+
+
+void
+SimulatedBlock::ndbinfo_send_scan_break(Signal* signal,
+                                       DbinfoScanReq& req,
+                                       const Ndbinfo::Ratelimit& rl,
+                                       Uint32 data1, Uint32 data2,
+                                       Uint32 data3, Uint32 data4) const
+{
+  DbinfoScanConf* conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  const Uint32 signal_length = DbinfoScanReq::SignalLength + req.cursor_sz;
+  MEMCOPY_NO_WORDS(conf, &req, signal_length);
+
+  conf->returnedRows = rl.rows;
+
+  // Update the cursor with current item number
+  Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtrSend(conf);
+
+  cursor->data[0] = data1;
+  cursor->data[1] = data2;
+  cursor->data[2] = data3;
+  cursor->data[3] = data4;
+
+  // Increase number of rows and bytes sent to far
+  cursor->totalRows += rl.rows;
+  cursor->totalBytes += rl.bytes;
+
+  Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, true);
+
+  sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
+             signal_length, JBB);
+}
+
+void
+SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
+                                       DbinfoScanReq& req,
+                                       const Ndbinfo::Ratelimit& rl) const
+{
+  DbinfoScanConf* conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  const Uint32 signal_length = DbinfoScanReq::SignalLength + req.cursor_sz;
+  Uint32 sender_ref = req.resultRef;
+  MEMCOPY_NO_WORDS(conf, &req, signal_length);
+
+  conf->returnedRows = rl.rows;
+
+  if (req.cursor_sz)
+  {
+    jam();
+    // Update the cursor with current item number
+    Ndbinfo::ScanCursor* cursor =
+      (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtrSend(conf);
+
+    // Reset all data holders
+    memset(cursor->data, 0, sizeof(cursor->data));
+
+    // Increase number of rows and bytes sent to far
+    cursor->totalRows += rl.rows;
+    cursor->totalBytes += rl.bytes;
+
+    Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, false);
+
+    sender_ref = cursor->senderRef;
+
+  }
+  sendSignal(sender_ref, GSN_DBINFO_SCANCONF, signal,
+             signal_length, JBB);
+}
+

@@ -20,7 +20,7 @@
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
-#include <Vector.hpp>
+#include <util/Vector.hpp>
 #include "Bitmask.hpp"
 
 /**

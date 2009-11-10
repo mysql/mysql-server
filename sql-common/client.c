@@ -2048,10 +2048,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
-    struct addrinfo *res_lst= NULL, hints;
+    struct addrinfo *res_lst= NULL, *client_bind_ai_lst= NULL, *t_res, hints;
     int gai_errno;
     char port_buf[NI_MAXSERV];
- 
+    my_socket sock= my_socket_create_invalid();
+    int saved_error= 0, status= -1, bind_result= 0;
+    my_bool create_ok= 0, bind_ok= 0;
+
     unix_socket=0;				/* This is not used */
     if (!port)
       port=mysql_port;
@@ -2095,112 +2098,160 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
 
-    /* We only look at the first item (something to think about changing in the future) */
+    /* Get address info for client bind name if it is provided */
+    if (mysql->options.bind_name) 
+    {
+      int bind_gai_errno= 0;
+
+      DBUG_PRINT("info",("Resolving addresses for client bind name : %s",
+                         mysql->options.bind_name));
+      /* Lookup address info for name */
+      bind_gai_errno= getaddrinfo(mysql->options.bind_name, 0,
+                                  &hints, &client_bind_ai_lst);
+      if (bind_gai_errno)
+      {
+        DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
+        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                                 ER(CR_UNKNOWN_HOST), mysql->options.bind_name, errno);
+        
+        if (client_bind_ai_lst)
+          freeaddrinfo(client_bind_ai_lst);
+        
+        freeaddrinfo(res_lst);
+        goto error;
+      }
+      DBUG_PRINT("info", ("  got address info for client bind name"));
+    }
+
+    /* 
+      A hostname might map to multiple IP addresses (IPv4/IPv6). Go over the
+      list of IP addresses until a successful connection can be established.
+      For each IP address, attempt to bind the socket to each client address 
+      for the client-side bind hostname until the bind is successful.
+    */
+    for (t_res= res_lst; t_res; t_res= t_res->ai_next)    
     {
       DBUG_PRINT("info",("Creating socket : Family %d, Type %d, Protocol %d",
-                         res_lst->ai_family, res_lst->ai_socktype, res_lst->ai_protocol));
-      sock= my_socket_create(res_lst->ai_family, res_lst->ai_socktype, res_lst->ai_protocol);
+                         t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol));
+      create_ok= bind_ok= 0;
+      sock= my_socket_create(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
       if (!my_socket_valid(sock))
       {
         DBUG_PRINT("info",("Socket created was invalid"));
-        set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                                 ER(CR_IPSOCK_ERROR), socket_errno);
-        
-        freeaddrinfo(res_lst);
-        goto error; 
+        /* Try next address if there is one */
+        saved_error= socket_errno;
+        continue;
       }
+      create_ok= 1;
 
-      if (mysql->options.bind_name) {
+      if (client_bind_ai_lst) 
+      {
         /* TODOs for client bind:
            - check error codes
            - don't use socket for localhost if this option is given
         */
-        struct addrinfo* clientBindAddrInfo= NULL;
-        struct addrinfo* currAddr= NULL;
-        int gai_errno= 0;
-        int bindResult= -1;
+        struct addrinfo* curr_bind_ai= NULL;
+        DBUG_PRINT("info", ("Attempting to bind socket to bind address(es)"));
 
-        DBUG_PRINT("info",("Attempting client bind to address : %s",
-                           mysql->options.bind_name));
-        /* Lookup address info for name */
-        gai_errno= getaddrinfo(mysql->options.bind_name, 0,
-                               &hints, &clientBindAddrInfo);
-        if (gai_errno)
+        /* 
+           We'll attempt to bind to each of the addresses returned, until
+           we find one that works.
+           If none works, we'll try the next destination host address
+           (if any)
+        */
+        curr_bind_ai= client_bind_ai_lst;
+
+        while (curr_bind_ai != NULL)
         {
-          DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
-          set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                                   ER(CR_UNKNOWN_HOST), mysql->options.bind_name, errno);
+          /* Attempt to bind the socket to the given address */
+          bind_result= my_bind(sock, 
+                               curr_bind_ai->ai_addr, 
+                               curr_bind_ai->ai_addrlen);
 
-          if (clientBindAddrInfo)
-            freeaddrinfo(clientBindAddrInfo);
+          if (!bind_result)
+            break;   /* Success */
+
+          DBUG_PRINT("info", ("bind failed, attempting another bind address"));
+          /* Problem with the bind, move to next address if present */
+          curr_bind_ai= curr_bind_ai->ai_next;
+        }
+
+        if (bind_result)
+        {
+          DBUG_PRINT("info", ("All bind attempts with this address failed"));
+          saved_error= errno;
+          my_socket_close(sock);
+          my_socket_invalidate(&sock);
           
-          freeaddrinfo(res_lst);
-          goto error;
-        }
-        
-        DBUG_PRINT("info",("Got address info for address, attempting bind"));
-        
-        /* We'll attempt to bind to each of the addresses returned, until
-         * we find one that works
-         */
-        currAddr= clientBindAddrInfo;
-
-        while((currAddr != NULL) && (bindResult != 0))
-        {
-          /* Bind the socket to the given address */
-          bindResult= my_bind(sock, 
-                              currAddr->ai_addr, 
-                              currAddr->ai_addrlen);
-
-          if (bindResult)
-          {
-            DBUG_PRINT("info",("bind failed, attempting another bind address"));
-            /* Problem with the bind, move to next address if present */
-            currAddr= currAddr->ai_next;
-          }
-        }
-
-        freeaddrinfo(clientBindAddrInfo);
-
-        if (bindResult)
-        {
-          set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                                   ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
-          freeaddrinfo(res_lst);
-          goto error;
+          /* 
+             Could not bind to any client-side address with this destination
+             Try the next destination address (if any)
+          */
+          continue;
         }
         DBUG_PRINT("info", ("Successfully bound client side of socket"));
       }
+      bind_ok= 1;
 
-      net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
-      if (! net->vio )
+      status= my_connect(MY_SOCKET_FORMAT_VALUE(sock), t_res->ai_addr, t_res->ai_addrlen,
+                         mysql->options.connect_timeout);
+      
+      if (!status)
       {
-        DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
-        set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
-        my_socket_close(sock);
-        my_socket_invalidate(&sock);
-        freeaddrinfo(res_lst);
-        goto error;
+        break;    /* Success */
       }
 
-      if (my_connect(MY_SOCKET_FORMAT_VALUE(sock), res_lst->ai_addr, res_lst->ai_addrlen,
-                     mysql->options.connect_timeout))
-      {
-        DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
-                            host));
-        set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                                 ER(CR_CONN_HOST_ERROR), host, socket_errno);
-        vio_delete(net->vio);
-        net->vio = 0;
-        my_socket_close(sock);
-        my_socket_invalidate(&sock);
-        freeaddrinfo(res_lst);
+      /*
+        Save value as socket errno might be overwritten due to
+        calling a socket function below.
+      */
+      saved_error= socket_errno;
 
-        goto error; 
-      }
+      my_socket_close(sock);
+      my_socket_invalidate(&sock);
     }
 
     freeaddrinfo(res_lst);
+    if (client_bind_ai_lst)
+      freeaddrinfo(client_bind_ai_lst);
+
+    if (status != 0)
+    {
+      /* Some error creating socket, binding client side, or connecting */
+      assert(!my_socket_valid(sock));
+      if (!create_ok)
+      {
+        DBUG_PRINT("error",("Got error %d when attempting to create socket",
+                            saved_error));
+        set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
+                                 ER(CR_IPSOCK_ERROR), saved_error);
+      }
+      else if (!bind_ok)
+      {
+        DBUG_PRINT("error",("Got error %d when attempting client socket bind",
+                            saved_error));
+        set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
+                                 ER(CR_IPSOCK_ERROR), mysql->options.bind_name, saved_error);
+      }
+      else
+      {
+        DBUG_PRINT("error",("Got error %d on connect to '%s'", saved_error, host));
+        set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
+                                 ER(CR_CONN_HOST_ERROR), host, saved_error);
+      }
+      goto error;
+    }
+
+    /* Managed to connect if we get here, now setup VIO */
+    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
+    if (! net->vio )
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+      set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+      my_socket_close(sock);
+      my_socket_invalidate(&sock);
+      goto error;
+    }
   }
 
   if (!net->vio)

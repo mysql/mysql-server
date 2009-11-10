@@ -53,14 +53,39 @@ public:
                      CI_SECTION
   };
   enum Status      { CI_USED,            ///< Active
-		     CI_DEPRICATED,      ///< Can be, but shouldn't
-		     CI_NOTIMPLEMENTED,  ///< Is ignored.
-		     CI_INTERNAL         ///< Not configurable by the user
+                     CI_EXPERIMENTAL,    ///< Active but experimental
+                     CI_DEPRICATED,      ///< Can be used, but shouldn't
+                     CI_NOTIMPLEMENTED,  ///< Is ignored.
+                     CI_INTERNAL         ///< Not configurable by the user
   };
 
   enum Flags {
-    CI_UPDATEABLE = 1, // Parameter can be updated
-    CI_CHECK_WRITABLE = 2 // Path given by parameter should be writable
+    CI_ONLINE_UPDATEABLE  = 1, // Parameter can be updated online
+    CI_CHECK_WRITABLE = 2, // Path given by parameter should be writable
+
+    /*
+      Flags  telling how the system must be restarted for a changed
+      parameter to take effect
+
+      Default is none of these flags set, which means node restart
+      of one node at a time for the setting to take effect
+
+      CS_RESTART_INITIAL
+      Each data node need to be restarted one at a time with --initial
+
+      CS_RESTART_SYSTEM
+      The whole system need to be stopped and then started up again
+
+      CS_RESTART_SYSTEM + CS_RESTART_INITIAL
+      The whole system need to be stopped and then restarted with --initial
+      thus destroying any data in the cluster
+
+      These flags can not be combined with CI_ONLINE_UPDATABLE flag which
+      indicates that the parameter can be changed online without
+      restarting anything
+    */
+    CI_RESTART_SYSTEM = 4, // System restart is necessary to apply setting
+    CI_RESTART_INITIAL = 8 // Initial restart is necessary to apply setting
   };
 
   struct Typelib {

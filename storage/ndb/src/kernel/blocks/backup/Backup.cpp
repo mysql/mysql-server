@@ -63,8 +63,6 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <ndbinfo.h>
-#include <dbinfo/ndbinfo_tableids.h>
 
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
@@ -667,53 +665,62 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
 {
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
 
-  char buf[512];
-  struct dbinfo_ratelimit rl;
-  struct dbinfo_row r;
+  Ndbinfo::Ratelimit rl;
 
-  dbinfo_ratelimit_init(&rl, &req);
-
-  if(req.tableId == NDBINFO_BACKUP_RECORDS_TABLEID)
+  if(req.tableId == Ndbinfo::BACKUP_RECORDS_TABLEID)
   {
+#if 0
+// TODO
     BackupRecordPtr ptr LINT_SET_PTR;
-    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+    ptr.i = cursor->data[0];
+    while(c_backups.get(ptr))
     {
-      dbinfo_write_row_init(&r, buf, sizeof(buf));
-      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-      dbinfo_write_row_column_uint32(&r, ptr.i);
-      dbinfo_write_row_column_uint32(&r, ptr.p->backupId);
-      dbinfo_write_row_column_uint32(&r, ptr.p->masterRef);
-      dbinfo_write_row_column_uint32(&r, ptr.p->clientRef);
-      dbinfo_write_row_column_uint32(&r, ptr.p->slaveState.getState());
-      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfBytes); // TODO
-      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfRecords); // TODO
-      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogBytes); // TODO
-      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogRecords); //TODO
-      dbinfo_write_row_column_uint32(&r, ptr.p->errorCode);
-      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(ptr.i);
+      row.write_uint32(ptr.p->backupId);
+      row.write_uint32(ptr.p->masterRef);
+      row.write_uint32(ptr.p->clientRef);
+      row.write_uint32(ptr.p->slaveState.getState());
+      row.write_uint32((Uint32)ptr.p->noOfBytes); // TODO
+      row.write_uint32((Uint32)ptr.p->noOfRecords); // TODO
+      row.write_uint32((Uint32)ptr.p->noOfLogBytes); // TODO
+      row.write_uint32((Uint32)ptr.p->noOfLogRecords); //TODO
+      row.write_uint32(ptr.p->errorCode);
+      ndbinfo_send_row(signal, req, row, rl);
+      c_backups.next(ptr);
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
     }
+#endif
   }
-  else if( req.tableId == NDBINFO_BACKUP_PARAMETERS_TABLEID )
+  else if(req.tableId == Ndbinfo::BACKUP_PARAMETERS_TABLEID)
   {
-    dbinfo_write_row_init(&r, buf, sizeof(buf));
-    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-    dbinfo_write_row_column_uint32(&r, m_curr_disk_write_speed);
-    dbinfo_write_row_column_uint32(&r, 4*m_words_written_this_period);
-    dbinfo_write_row_column_uint32(&r, m_overflow_disk_write);
-    dbinfo_write_row_column_uint32(&r, m_reset_delay_used);
-    dbinfo_write_row_column_uint32(&r, 0); // Uninteresting m_reset_disk_speed_time);
-    dbinfo_write_row_column_uint32(&r, c_backupPool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_backupFilePool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_tablePool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_triggerPool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_fragmentPool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_pagePool.getSize());
-    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_backup);
-    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_lcp);
-    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(m_curr_disk_write_speed);
+    row.write_uint32(4*m_words_written_this_period);
+    row.write_uint32(m_overflow_disk_write);
+    row.write_uint32(m_reset_delay_used);
+    row.write_uint32(0); // Uninteresting m_reset_disk_speed_time);
+    row.write_uint32(c_backupPool.getSize());
+    row.write_uint32(c_backupFilePool.getSize());
+    row.write_uint32(c_tablePool.getSize());
+    row.write_uint32(c_triggerPool.getSize());
+    row.write_uint32(c_fragmentPool.getSize());
+    row.write_uint32(c_pagePool.getSize());
+    row.write_uint32(c_defaults.m_compressed_backup);
+    row.write_uint32(c_defaults.m_compressed_lcp);
+    ndbinfo_send_row(signal, req, row, rl);
   }
-  else if( req.tableId == NDBINFO_POOLS_TABLEID )
+  else if(req.tableId == Ndbinfo::POOLS_TABLEID)
   {
     struct {
       const char* poolname;
@@ -742,24 +749,30 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
           { NULL, 0, 0}
         };
 
-    for(int i=0; pools[i].poolname; i++)
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
     {
-      dbinfo_write_row_init(&r, buf, sizeof(buf));
-      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-      const char *blockname= "BACKUP";
-      dbinfo_write_row_column(&r, blockname, strlen(blockname));
-      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
-      dbinfo_write_row_column_uint32(&r, pools[i].free);
-      dbinfo_write_row_column_uint32(&r, pools[i].size);
-      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance()); // block instance
+      row.write_string(pools[pool].poolname);
+      row.write_uint32(pools[pool].free);
+      row.write_uint32(pools[pool].size);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
     }
   }
 
-  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
-  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
-  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
-  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
-             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 bool
@@ -3163,6 +3176,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
   c_backupPool.getPtr(ptr, conf->senderData);
 
   SectionHandle handle (this, signal);
+  signal->header.m_fragmentInfo = 0;
   if (noOfTables > 0)
   {
     ListTablesData ltd;

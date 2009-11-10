@@ -30,8 +30,6 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <ndbinfo.h>
-#include <dbinfo/ndbinfo_tableids.h>
 
 
 /* **************************************************************** */
@@ -76,16 +74,28 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
 {
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  const Uint32 reqlength= signal->getLength();
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
 
-  char buf[1024];
-  struct dbinfo_row r;
-  struct dbinfo_ratelimit rl;
+  Ndbinfo::Ratelimit rl;
 
-  dbinfo_ratelimit_init(&rl, &req);
-
-  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  if(req.tableId == Ndbinfo::MEMUSAGE_TABLEID)
   {
+    jam();
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(blockToMain(number())); // block number
+    row.write_uint32(instance());            // block instance
+    row.write_string("DataMemory");
+    row.write_uint32(sizeof(Page));
+    row.write_uint32(cTotNoFragPages);       // alloced pages
+    row.write_uint32(cTotPages);             // number of pages
+    ndbinfo_send_row(signal, req, row, rl);
+
+  }
+  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  {
+    jam();
     struct {
       const char* poolname;
       Uint32 free;
@@ -116,25 +126,55 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
           { NULL, 0, 0}
         };
 
-    for(int i=0; pools[i].poolname; i++)
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
     {
-      dbinfo_write_row_init(&r, buf, sizeof(buf));
-      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-      const char *blockname= "DBTUP";
-      dbinfo_write_row_column(&r, blockname, strlen(blockname));
-      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
-      dbinfo_write_row_column_uint32(&r, pools[i].free);
-      dbinfo_write_row_column_uint32(&r, pools[i].size);
-      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance()); // block instance
+      row.write_string(pools[pool].poolname);
+      row.write_uint32(pools[pool].free);
+      row.write_uint32(pools[pool].size);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+  }
+  if(req.tableId == Ndbinfo::TEST_TABLEID)
+  {
+    Uint32 counter = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(counter < 1000)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance()); // block instance
+      row.write_uint32(counter);
+      Uint64 counter2 = counter;
+      counter2 = counter2 << 32;
+      row.write_uint64(counter2);
+      ndbinfo_send_row(signal, req, row, rl);
+      counter++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, counter);
+        return;
+      }
     }
   }
 
-  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
-  memcpy(conf,&req, reqlength * sizeof(Uint32));
-  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
-  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
-             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
-  ndbout_c("DBTUP done doing DBINFO");
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 #ifdef VM_TRACE

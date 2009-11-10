@@ -150,8 +150,25 @@ public:
     return true;
   }
 
+  bool remove(size_t i) {
+    Entry* entry = (Entry*)my_hash_element(&m_hash, i);
+    if (entry == NULL)
+      return false;
+
+    if (my_hash_delete(&m_hash, (uchar*)entry))
+      return false;
+    return true;
+  }
+
   size_t entries(void) const {
     return m_hash.records;
+  }
+
+  T* value(size_t i) const {
+    Entry* entry = (Entry*)my_hash_element((HASH*)&m_hash, i);
+    if (entry == NULL)
+      return NULL;
+    return &(entry->m_value);
   }
 
 };

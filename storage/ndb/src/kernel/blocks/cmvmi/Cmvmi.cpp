@@ -40,6 +40,7 @@
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/EnableCom.hpp>
 #include <signaldata/RouteOrd.hpp>
+#include <signaldata/DbinfoScan.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -108,6 +109,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   addRecSignal(GSN_CONTINUEB, &Cmvmi::execCONTINUEB);
   addRecSignal(GSN_ROUTE_ORD, &Cmvmi::execROUTE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Cmvmi::execDBINFO_SCANREQ);
   
   subscriberPool.setSize(5);
   
@@ -1299,6 +1301,57 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 }//Cmvmi::execDUMP_STATE_ORD()
+
+
+void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == Ndbinfo::TRP_STATUS_TABLEID)
+  {
+    jam();
+    Uint32 rnode = cursor->data[0];
+    if (rnode == 0)
+      rnode++; // Skip node 0
+
+    while(rnode < MAX_NODES)
+    {
+      switch(getNodeInfo(rnode).m_type)
+      {
+      default:
+      {
+        jam();
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId()); // Node id
+        row.write_uint32(rnode); // Remote node id
+        row.write_uint32(globalTransporterRegistry.ioState(rnode)); // State
+        ndbinfo_send_row(signal, req, row, rl);
+       break;
+      }
+
+      case NodeInfo::INVALID:
+        jam();
+       break;
+      }
+
+      rnode++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, rnode);
+        return;
+      }
+    }
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
+
 
 void
 Cmvmi::execNODE_START_REP(Signal* signal)

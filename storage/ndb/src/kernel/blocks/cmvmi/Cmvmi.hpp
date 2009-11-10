@@ -73,7 +73,9 @@ private:
   void execCONTINUEB(Signal* signal);
 
   void execROUTE_ORD(Signal* signal);
-  
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 

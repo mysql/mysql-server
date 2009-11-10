@@ -47,6 +47,7 @@ protected:
   void sendSTTORRY(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   
