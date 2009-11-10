@@ -4316,7 +4316,7 @@ int ha_ndbcluster::end_bulk_insert()
       }
       else
       {
-        IF_DBUG(int res=) trans->restart();
+        int res __attribute__((unused))= trans->restart();
         DBUG_ASSERT(res == 0);
       }
     }
@@ -5928,7 +5928,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                              share->key, share->use_count));
-    IF_DBUG(int r=) rename_share(share, to);
+    int r __attribute__((unused))= rename_share(share, to);
     DBUG_ASSERT(r == 0);
   }
 #endif
@@ -5952,7 +5952,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #ifdef HAVE_NDB_BINLOG
     if (share)
     {
-      IF_DBUG(int ret=) rename_share(share, from);
+      int ret __attribute__((unused))= rename_share(share, from);
       DBUG_ASSERT(ret == 0);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",

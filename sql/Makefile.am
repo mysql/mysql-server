@@ -82,7 +82,7 @@ mysqld_LDADD =		libndb.la \
 
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
-			item_xmlfunc.h \
+			item_xmlfunc.h sql_plugin_services.h \
 			item_create.h item_subselect.h item_row.h \
 			mysql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
