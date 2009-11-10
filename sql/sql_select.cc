@@ -152,6 +152,7 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
+static int join_read_linked_key(JOIN_TAB *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
@@ -231,12 +232,6 @@ static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
-
-static enum_nested_loop_state sub_select_pushed(JOIN *join,
-                                                JOIN_TAB *join_tab,
-                                                bool end_of_records);
-static int join_read_key_pushed(JOIN* join, JOIN_TAB *tab, int nTabs, bool end_of_records);
-//static int join_read_key_pushed(JOIN_TAB *tab, int nTabs);
 
 
 /**
@@ -6435,35 +6430,57 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 }
 
 /** Set to true to enable query push down prototype code.*/
-static bool enable_pushed_operations = false;
+static my_bool enable_pushed_operations = FALSE;
 
-static bool is_pushable(const JOIN_TAB *tab, int nTabs)
+
+static int is_pushable(const JOIN_TAB *tab, int nTabs)
 {
-  if(!enable_pushed_operations)
+  if (!enable_pushed_operations
+   || !tab[0].table->file->isNdb())
   {
-    return false;
+    return 0;
   }
-  for(int i = 0; i<nTabs; i++)
+  for (int i = 1; i<nTabs; i++)
   {
-    if((tab[i].type != JT_EQ_REF) ||
-       (!tab[i].table->file->isNdb()))
-       return false;
-    for(uint keyPartNo = 1; keyPartNo < tab[i].ref.key_parts; keyPartNo++)
-    {
-      /* For now, all parts of the key must be fields in the preceeding 
-       table */
-      const Item_field* const keyItem = 
-        static_cast<Item_field*>(tab[i].ref.items[keyPartNo]);
+    if ((tab[i].type != JT_EQ_REF) ||
+         !tab[i].table->file->isNdb())
+      return i;
 
-      if(keyItem->type() != Item::FIELD_ITEM ||
-         keyItem->field->table != tab[i-1].table)
+    for (uint keyPartNo = 0; keyPartNo < tab[i].ref.key_parts; keyPartNo++)
+    {
+      /* All parts of the key must be fields in some of the preceeding 
+       * tables 
+       */
+      const Item* const keyItem = tab[i].ref.items[keyPartNo];
+      DBUG_PRINT("info", ("is_pushable?, keyfield:%d, type:%d\n", keyPartNo, keyItem->type()));
+      if (keyItem->type() != Item::FIELD_ITEM)
       {
-        return false;
+        DBUG_PRINT("info", ("  Not a FIELD_ITEM -> 'pushable' upto %d tables\n",i));
+        return i;
+      }
+
+      const Item_field* const keyItemField = static_cast<const Item_field*>(keyItem);
+      bool found = false;
+      for (const JOIN_TAB* ref = &tab[i-1]; ref >= tab; ref--)
+      {
+        if (keyItemField->field->table == ref->table)
+        {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found)
+      {
+        DBUG_PRINT("info", ("  ref'ed table not found -> 'pushable' upto %d tables\n", i));
+        return i;
       }
     }
   }
-  return true;
+  DBUG_PRINT("info", ("  Pushable for all %d tables\n", nTabs));
+  return nTabs;
 }
+
 
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
@@ -6474,6 +6491,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
   bool sorted= 1;
   DBUG_ENTER("make_join_readinfo");
 
+  int pushed= 0;
+
   for (i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
@@ -6481,10 +6500,6 @@ make_join_readinfo(JOIN *join, ulonglong options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
-    if(i<(join->tables-1) && is_pushable(tab+1, join->tables - i - 1))
-    {
-      tab->next_select=sub_select_pushed;
-    }
 
     /*
       Determine if the set is already ordered for ORDER BY, so it can 
@@ -6661,6 +6676,32 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_MAYBE_REF:
       abort();					/* purecov: deadcode */
     }
+
+    if (pushed <= 0)  // 'pushed > 0' -> Already included in a pushed sequence
+    {
+      pushed= is_pushable(tab, join->tables - i);
+      if (pushed < 2) // Need at least two tables in pushable join
+        pushed= 0;
+
+      if (pushed >= 2) 
+      {
+        sql_print_information("make_join_readinfo, pushable from table:%d, to:%d\n", i, i+pushed);
+        table->file->join_push(tab, pushed, table->s->primary_key);
+      }
+      else
+      {
+        sql_print_information("make_join_readinfo, not-pushable table:%d, to:%d\n", i, i+pushed);
+      }
+    }
+    else  // Is inside a previous sequence of pushed joins
+    {
+      // Replace 'read_key' access with it linked counterpart 
+      // ... Which is effectively a NOOP as the row is read as part of the linked operation
+      DBUG_ASSERT(tab->read_first_record == join_read_key);
+      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
+      tab->read_first_record= join_read_linked_key;
+    } 
+    pushed--;
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
   DBUG_VOID_RETURN;
@@ -11139,9 +11180,13 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
+  DBUG_ENTER("sub_select");
   join_tab->table->null_row=0;
   if (end_of_records)
-    return (*join_tab->next_select)(join,join_tab+1,end_of_records);
+  {
+    enum_nested_loop_state rc= (*join_tab->next_select)(join,join_tab+1,end_of_records);
+    DBUG_RETURN(rc);
+  }
 
   int error;
   enum_nested_loop_state rc;
@@ -11179,10 +11224,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     rc= evaluate_join_record(join, join_tab, error);
   }
 
+  DBUG_PRINT("info", ("first evaluate_join_record returned: %d\n", rc));
   while (rc == NESTED_LOOP_OK)
   {
+    DBUG_PRINT("info", ("next 'read_record'\n"));
     error= info->read_record(info);
+    DBUG_PRINT("info", ("next 'evaluate_join_record'\n"));
     rc= evaluate_join_record(join, join_tab, error);
+    DBUG_PRINT("info", ("next evaluate_join_record returned: %d\n", rc));
   }
 
   if (rc == NESTED_LOOP_NO_MORE_ROWS &&
@@ -11191,88 +11240,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (rc == NESTED_LOOP_NO_MORE_ROWS)
     rc= NESTED_LOOP_OK;
-  return rc;
-}
-
-enum_nested_loop_state
-sub_select_pushed(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
-{
-  join_tab->table->null_row=0;
-  if (end_of_records)
-    return NESTED_LOOP_OK;
-    //return (*join_tab->next_select)(join,join_tab+1,end_of_records);
-
-  int error;
-  enum_nested_loop_state rc;
-  READ_RECORD *info= &join_tab->read_record;
-
-  if (join->resume_nested_loop)
-  {
-    DBUG_ASSERT(false);
-    /* If not the last table, plunge down the nested loop */
-    if (join_tab < join->join_tab + join->tables - 1)
-      rc= (*join_tab->next_select)(join, join_tab + 1, 0);
-    else
-    {
-      join->resume_nested_loop= FALSE;
-      rc= NESTED_LOOP_OK;
-    }
-  }
-  else
-  {
-    join->return_tab= join_tab;
-
-    if (join_tab->last_inner)
-    {
-      DBUG_ASSERT(false);
-      /* join_tab is the first inner table for an outer join operation. */
-
-      /* Set initial state of guard variables for this table.*/
-      join_tab->found=0;
-      join_tab->not_null_compl= 1;
-
-      /* Set first_unmatched for the last inner table of this group */
-      join_tab->last_inner->first_unmatched= join_tab;
-    }
-    join->thd->row_count= 0;
-
-    int idx_of_current = -1;
-    for (uint i=join->const_tables ; i < join->tables ; i++)
-    {
-      if(join_tab==join->join_tab+i)
-        idx_of_current = i;
-    }
-    DBUG_ASSERT(idx_of_current != -1);  
-
-    error= join_read_key_pushed(join, 
-                                join_tab, 
-                                join->tables - idx_of_current,
-                                end_of_records);
-    DBUG_ASSERT(error==0);
-    //JOIN_TAB* const last_tab = join_tab + join->tables - join->const_tables -1;
-    //error= end_send(join, last_tab, end_of_records);
-    //error= (*join_tab->read_first_record)(join_tab);
-    //rc= evaluate_join_record(join, join_tab, error);
-    rc = NESTED_LOOP_NO_MORE_ROWS;
-  }
-
-  while (rc == NESTED_LOOP_OK)
-  {
-    DBUG_ASSERT(false);
-    error= info->read_record(info);
-    rc= evaluate_join_record(join, join_tab, error);
-  }
-
-  if (rc == NESTED_LOOP_NO_MORE_ROWS &&
-      join_tab->last_inner && !join_tab->found)
-  {
-    DBUG_ASSERT(false);
-    rc= evaluate_null_complemented_join_record(join, join_tab);
-  }
-
-  if (rc == NESTED_LOOP_NO_MORE_ROWS)
-    rc= NESTED_LOOP_OK;
-  return rc;
+//return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -11304,6 +11273,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
   if (!select_cond || select_cond->val_int())
   {
+    DBUG_PRINT("info", ("  Condition passed\n"));
     /*
       There is no select condition or the attached pushed down
       condition is true => a match is found.
@@ -11370,6 +11340,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
     if (found)
     {
+      DBUG_PRINT("info", ("  found match\n"));
       enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
@@ -11390,6 +11361,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   }
   else
   {
+    DBUG_PRINT("info", ("  not a match\n"));
     /*
       The condition pushed down to the table join_tab rejects all rows
       with the beginning coinciding with the current partial join.
@@ -11743,6 +11715,7 @@ join_read_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
+  DBUG_ENTER("join_read_key");
 
   if (!table->file->inited)
   {
@@ -11754,62 +11727,28 @@ join_read_key(JOIN_TAB *tab)
     if (tab->ref.key_err)
     {
       table->status=STATUS_NOT_FOUND;
-      return -1;
+      DBUG_RETURN(-1);
     }
     error=table->file->index_read_map(table->record[0],
                                       tab->ref.key_buff,
                                       make_prev_keypart_map(tab->ref.key_parts),
                                       HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      DBUG_RETURN(report_error(table, error));
   }
   table->null_row=0;
-  return table->status ? -1 : 0;
+  int rc = table->status ? -1 : 0;
+  DBUG_RETURN(rc);
 }
-
 
 static int
-join_read_key_pushed(JOIN* join, JOIN_TAB *tab, int nTabs, bool end_of_records)
+join_read_linked_key(JOIN_TAB *tab)
 {
-  int error;
-  TABLE *table= tab->table;
-
-  if (!table->file->inited)
-  {
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
-  }
-  if (cmp_buffer_with_ref(tab) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
-  {
-    if (tab->ref.key_err)
-    {
-      table->status=STATUS_NOT_FOUND;
-      return -1;
-    }
-    uchar* records[10];
-    DBUG_ASSERT(nTabs<=10);
-    for(int i = 0; i<nTabs; i++)
-    {
-      records[i] = tab[i].table->record[0];
-    }
-    Ha_pushed_join_params pushed_params(tab, records, nTabs);
-
-    error=table->file->index_read_map_pushed(&pushed_params,
-                                             tab->ref.key_buff,
-                                             make_prev_keypart_map(tab->ref.key_parts));
-    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
-  }
-  table->null_row=0;
-  if(error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-  {
-    JOIN_TAB* const last_tab = tab + join->tables - join->const_tables -1;
-    error= end_send(join, last_tab, end_of_records);
-    DBUG_ASSERT(error == 0);
-  }
-  return table->status ? -1 : 0;
+  DBUG_ENTER("join_read_linked_key");
+  // NOOP: Row already fetched through linked key operation
+  //table->null_row=0;  // TODO, check RowIsNull on NdbQueryOperation
+  DBUG_RETURN(0);
 }
-
 
 /*
   ref access method implementation: "read_first" function
