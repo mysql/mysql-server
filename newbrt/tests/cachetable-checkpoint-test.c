@@ -46,6 +46,10 @@ static void checkpoint_callback2(void * extra) {
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
 // verify that all of the items have been written and are clean.
 
+static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
+    return 0;
+}
+
 static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     if (verbose) printf("%s:%d n=%d dirty=%d\n", __FUNCTION__, __LINE__, n, (int) dirty);
     const int test_limit = n;
@@ -56,6 +60,8 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    toku_cachefile_set_userdata(f1, NULL, NULL, NULL, NULL, NULL, NULL,
+                                dummy_pin_unpin, dummy_pin_unpin);
 
     // insert items into the cachetable. all should be dirty
     int i;
@@ -84,7 +90,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
     
-    r = toku_checkpoint(ct, NULL, NULL, checkpoint_callback, &callback_was_called, checkpoint_callback2, &callback2_was_called);
+    r = toku_checkpoint(ct, NULL, checkpoint_callback, &callback_was_called, checkpoint_callback2, &callback2_was_called);
     assert(r == 0);
     assert(callback_was_called  != 0);
     assert(callback2_was_called != 0);
@@ -116,7 +122,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

@@ -228,6 +228,8 @@ struct cachefile {
     int (*begin_checkpoint_userdata)(CACHEFILE cf, LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, void *userdata); // when checkpointing a cachefile, call this function.
     int (*end_checkpoint_userdata)(CACHEFILE cf, void *userdata); // after checkpointing cachefiles call this function.
+    int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
+    int (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     toku_pthread_cond_t openfd_wait;    // openfd must wait until file is fully closed (purged from cachetable) if file is opened and closed simultaneously
     toku_pthread_cond_t closefd_wait;   // toku_cachefile_of_iname_and_add_reference() must wait until file is fully closed (purged from cachetable) if run while file is being closed.
     u_int32_t closefd_waiting;          // Number of threads waiting on closefd_wait (0 or 1, error otherwise).
@@ -240,15 +242,10 @@ checkpoint_thread (void *cachetable_v)
 //  If someone sets the checkpoint_shutdown boolean , then this thread exits. 
 // This thread notices those changes by waiting on a condition variable.
 {
-    char *error_string;
     CACHETABLE ct = cachetable_v;
-    int r = toku_checkpoint(ct, ct->logger, &error_string, NULL, NULL, NULL, NULL);
+    int r = toku_checkpoint(ct, ct->logger, NULL, NULL, NULL, NULL);
     if (r) {
-	if (error_string) {
-	    fprintf(stderr, "%s:%d Got error %d while doing: %s\n", __FILE__, __LINE__, r, error_string);
-	} else {
-	    fprintf(stderr, "%s:%d Got error %d while doing checkpoint\n", __FILE__, __LINE__, r);
-	}
+        fprintf(stderr, "%s:%d Got error %d while doing checkpoint\n", __FILE__, __LINE__, r);
 	abort(); // Don't quite know what to do with these errors.
     }
     return r;
@@ -297,9 +294,9 @@ cachefile_refup (CACHEFILE cf) {
 // the close has finished.
 // Once the close has finished, there must not be a cachefile with that name
 // in the cachetable.
-int toku_cachefile_of_iname_and_add_reference (CACHETABLE ct, const char *iname, CACHEFILE *cf) {
+int toku_cachefile_of_iname (CACHETABLE ct, const char *iname, CACHEFILE *cf) {
     BOOL restarted = FALSE;
-    cachetable_lock(ct);
+    cachefiles_lock(ct);
     CACHEFILE extant;
     int r;
 restart:
@@ -317,13 +314,12 @@ restart:
                 restarted = TRUE;
                 goto restart; //Restart and verify that it is not found in the second loop.
             }
-            cachefile_refup(extant);
 	    *cf = extant;
 	    r = 0;
             break;
 	}
     }
-    cachetable_unlock(ct);
+    cachefiles_unlock(ct);
     return r;
 }
 
@@ -1852,7 +1848,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 assert(cf->refcount>0);  //Must have a reference if not closing.
                 //Incremement reference count of cachefile because we're using it for the checkpoint.
                 //This will prevent closing during the checkpoint.
-                cachefile_refup(cf);
+                int r = cf->note_pin_by_checkpoint(cf, cf->userdata);
+                assert(r==0);
                 cf->next_in_checkpoint       = ct->cachefiles_in_checkpoint;
                 ct->cachefiles_in_checkpoint = cf;
                 cf->for_checkpoint           = TRUE;
@@ -1933,7 +1930,9 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 
 
 int
-toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*testcallback_f)(void*),  void * testextra) {
+toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
+                               void (*ydb_lock)(void), void (*ydb_unlock)(void),
+                               void (*testcallback_f)(void*),  void * testextra) {
     // Requires:   The big checkpoint lock must be held (see checkpoint.c).
     // Algorithm:  Write all pending nodes to disk
     //             Use checkpoint callback to write snapshot information to disk (header, btt)
@@ -1995,7 +1994,9 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
             ct->cachefiles_in_checkpoint = cf->next_in_checkpoint; 
             cf->next_in_checkpoint       = NULL;
             cf->for_checkpoint           = FALSE;
-            int r = toku_cachefile_close(&cf, error_string, FALSE, ZERO_LSN);
+            ydb_lock();
+            int r = cf->note_unpin_by_checkpoint(cf, cf->userdata);
+            ydb_unlock();
             if (r!=0) {
                 retval = r;
                 goto panic;
@@ -2160,13 +2161,17 @@ toku_cachefile_set_userdata (CACHEFILE cf,
 			     int (*close_userdata)(CACHEFILE, void*, char**, BOOL, LSN),
 			     int (*checkpoint_userdata)(CACHEFILE, void*),
 			     int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*),
-			     int (*end_checkpoint_userdata)(CACHEFILE, void*)) {
+                             int (*end_checkpoint_userdata)(CACHEFILE, void*),
+                             int (*note_pin_by_checkpoint)(CACHEFILE, void*),
+                             int (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
     cf->userdata = userdata;
     cf->log_fassociate_during_checkpoint = log_fassociate_during_checkpoint;
     cf->close_userdata = close_userdata;
     cf->checkpoint_userdata = checkpoint_userdata;
     cf->begin_checkpoint_userdata = begin_checkpoint_userdata;
     cf->end_checkpoint_userdata = end_checkpoint_userdata;
+    cf->note_pin_by_checkpoint = note_pin_by_checkpoint;
+    cf->note_unpin_by_checkpoint = note_unpin_by_checkpoint;
 }
 
 void *toku_cachefile_get_userdata(CACHEFILE cf) {

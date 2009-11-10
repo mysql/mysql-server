@@ -29,6 +29,7 @@ struct __toku_db_internal {
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function)
     BOOL val_compare_was_set;
     char *dname;    // dname is constant for this handle (handle must be closed before file is renamed)
+    BOOL is_zombie; // True if DB->close has been called on this DB
     struct toku_list dbs_that_must_close_before_abort;
 };
 

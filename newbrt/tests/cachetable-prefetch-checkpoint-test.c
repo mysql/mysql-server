@@ -31,6 +31,9 @@ static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, l
     return 0;
 }
 
+static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
+    return 0;
+}
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
 // verify that all of the items have been written and are clean.
 static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dirty) {
@@ -43,6 +46,8 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    toku_cachefile_set_userdata(f1, NULL, NULL, NULL, NULL, NULL, NULL,
+                                dummy_pin_unpin, dummy_pin_unpin);
 
     // prefetch block n+1. this will take 10 seconds.
     {
@@ -79,7 +84,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == n && n_write_me == n && n_keep_me == n);
 
@@ -108,7 +113,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

@@ -202,7 +202,7 @@ toku_checkpoint_destroy(void) {
 
 // Take a checkpoint of all currently open dictionaries
 int 
-toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, 
+toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 		void (*callback_f)(void*),  void * extra,
 		void (*callback2_f)(void*), void * extra2) {
     int r;
@@ -227,7 +227,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-	r = toku_cachetable_end_checkpoint(ct, logger, error_string, callback2_f, extra2);
+	r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
     }
     if (r==0 && logger) {
         LSN trim_lsn = (oldest_live_lsn.lsn < logger->checkpoint_lsn.lsn) ? oldest_live_lsn : logger->checkpoint_lsn;
