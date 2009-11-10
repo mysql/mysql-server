@@ -8271,8 +8271,7 @@ innobase_xa_prepare(
 		executing XA PREPARE and XA COMMIT commands.
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time.
-		*/
+		to block for undefined period of time. */
 		pthread_mutex_lock(&prepare_commit_mutex);
 		trx->active_trans = 2;
 	}
