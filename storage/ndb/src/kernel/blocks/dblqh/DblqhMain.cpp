@@ -20978,7 +20978,21 @@ Dblqh::closeFile_cache(Signal* signal,
   {
     jam();
     Ptr<LogFileRecord> evictPtr;
+    Uint32 logPartRec = filePtr.p->logPartRec;
+    /**
+     * Only evict file with same log-part, other redo-execution will continue
+     *   for the log-part once file is closed
+     *
+     * Note: 1) loop is guaranteed to terminate as filePtr must be in list
+     *       2) loop is ok as MAX_CACHED_OPEN_FILES is "small"
+     *          (if it was big, the m_lru should be split per log-part)
+     */
     m_redo_open_file_cache.m_lru.last(evictPtr);
+    while (evictPtr.p->logPartRec != logPartRec)
+    {
+      jam();
+      ndbrequire(m_redo_open_file_cache.m_lru.prev(evictPtr));
+    }
     m_redo_open_file_cache.m_lru.remove(evictPtr);
     evictPtr.p->logFileStatus = LogFileRecord::CLOSING_EXEC_LOG;
     closeFile(signal, evictPtr, line);
