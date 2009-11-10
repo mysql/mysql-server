@@ -114,11 +114,6 @@ static void reset_stmt_progress (tokudb_stmt_progress* val) {
 static int get_name_length(const char *name) {
     int n = 0;
     const char *newname = name;
-    if (tokudb_data_dir) {
-        n += strlen(tokudb_data_dir) + 1;
-        if (strncmp("./", name, 2) == 0) 
-            newname = name + 2;
-    }
     n += strlen(newname);
     n += strlen(ha_tokudb_ext);
     return n;
@@ -130,25 +125,37 @@ static int get_name_length(const char *name) {
 static int get_max_dict_name_path_length(const char *tablename) {
     int n = 0;
     n += get_name_length(tablename);
-    n += 1; //for the '/'
+    n += 1; //for the '-'
     n += MAX_DICT_NAME_LEN;
-    n += strlen(ha_tokudb_ext);
     return n;
 }
 
 static void make_name(char *newname, const char *tablename, const char *dictname) {
     const char *newtablename = tablename;
     char *nn = newname;
-    if (tokudb_data_dir) {
-        nn += sprintf(nn, "%s/", tokudb_data_dir);
-        if (strncmp("./", tablename, 2) == 0)
-            newtablename = tablename + 2;
-    }
-    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
-    if (dictname)
-        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
+    assert(tablename);
+    assert(dictname);
+    nn += sprintf(nn, "%s", newtablename);
+    nn += sprintf(nn, "-%s", dictname);
 }
 
+static inline void commit_txn(DB_TXN* txn, u_int32_t flags) {
+    int r;
+    r = txn->commit(txn, flags);
+    if (r != 0) {
+        sql_print_error("tried committing transaction 0x%x and got error code %d", txn, r);
+    }
+    assert(r == 0);
+}
+
+static inline void abort_txn(DB_TXN* txn) {
+    int r;
+    r = txn->abort(txn);
+    if (r != 0) {
+        sql_print_error("tried aborting transaction 0x%x and got error code %d", txn, r);
+    }
+    assert(r == 0);
+}
 
 
 #endif
