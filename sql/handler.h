@@ -1120,18 +1120,6 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
-class Ha_pushed_join_params
-{
-public:
-  class st_join_table* const m_join_tabs; 
-  uchar** const m_buffers;
-  const int m_join_count;
-  
-  Ha_pushed_join_params(class st_join_table* join_tabs, 
-			uchar* buffers[], int join_count):
-    m_join_tabs(join_tabs), m_buffers(buffers), m_join_count(join_count){}
-};
-
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1466,14 +1454,6 @@ public:
   {
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
-  }
-
-  virtual int index_read_map_pushed(const Ha_pushed_join_params* pushed_params,
-				    const uchar * key,
-				    key_part_map keypart_map)
-  {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return index_read_pushed(pushed_params, key, key_len);
   }
   /**
      @brief
@@ -1823,6 +1803,15 @@ public:
    Pops the top if condition stack, if stack is not empty.
  */
  virtual void cond_pop() { return; };
+
+ /**
+   Push join sequence down to the table handler.
+  */
+ virtual int join_push(struct st_join_table* join_tabs, 
+                       int count,
+                       int idx)
+ { return 0; };
+
  /*
     Part of old fast alter table, to be depricated
   */
@@ -1932,7 +1921,7 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
-  virtual bool isNdb()
+  virtual bool isNdb() const
   { return false; }
 
 protected:
@@ -2043,9 +2032,6 @@ private:
   virtual int end_bulk_insert() { return 0; }
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
-   { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_read_pushed(const Ha_pushed_join_params* pushed_params,
-				const uchar * key, uint key_len)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno= HA_ERR_WRONG_COMMAND); }
@@ -2296,4 +2282,3 @@ public:
   int lock(int no_queue= 0) { return 0; }
 };
 #endif
-

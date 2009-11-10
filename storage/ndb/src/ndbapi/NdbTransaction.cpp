@@ -652,8 +652,11 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   /***************************************************************************
    * Eager garbage collect queries which has completed execution 
    * w/ all its results made available to client.
+   * TODO: Add a member 'doEagerRelease' to check below.
    **************************************************************************/
-  releaseCompletedQueries();
+  if (false) {
+    releaseCompletedQueries();
+  }
 
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
@@ -1211,8 +1214,6 @@ NdbTransaction::releaseCompletedQueries()
     }
     query = next;
   } // while
-
-
 }//NdbTransaction::releaseCompletedQueries()
 
 
