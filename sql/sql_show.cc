@@ -4960,8 +4960,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       break;
     default:
       DBUG_ASSERT(0);
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      current_thd->fatal_error();
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(1);
     }
     table->field[7]->set_notnull();
