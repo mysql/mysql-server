@@ -662,11 +662,13 @@ int mysql_update(THD *thd,
             If (ignore && error is ignorable) we don't have to
             do anything; otherwise...
           */
+          myf flags= 0;
+
           if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-            thd->fatal_error(); /* Other handler errors are fatal */
+            flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
           prepare_record_for_error_message(error, table);
-	  table->file->print_error(error,MYF(0));
+	  table->file->print_error(error,MYF(flags));
 	  error= 1;
 	  break;
 	}
@@ -763,9 +765,8 @@ int mysql_update(THD *thd,
     */
   {
     /* purecov: begin inspected */
-    thd->fatal_error();
     prepare_record_for_error_message(loc_error, table);
-    table->file->print_error(loc_error,MYF(0));
+    table->file->print_error(loc_error,MYF(ME_FATALERROR));
     error= 1;
     /* purecov: end */
   }
@@ -1737,11 +1738,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
+            myf flags= 0;
+
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
-              thd->fatal_error(); /* Other handler errors are fatal */
+              flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
             prepare_record_for_error_message(error, table);
-            table->file->print_error(error,MYF(0));
+            table->file->print_error(error,MYF(flags));
             DBUG_RETURN(1);
           }
         }
@@ -2024,9 +2027,8 @@ int multi_update::do_updates()
 
 err:
   {
-    thd->fatal_error();
     prepare_record_for_error_message(local_error, table);
-    table->file->print_error(local_error,MYF(0));
+    table->file->print_error(local_error,MYF(ME_FATALERROR));
   }
 
 err2:

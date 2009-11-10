@@ -4012,10 +4012,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   TABLE_LIST *table;
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
-  {
-    thd->fatal_error();
     return NULL;
-  }
   table->db_length= strlen(db);
   table->db= thd->strmake(db, table->db_length);
   table->table_name_length= strlen(name);
