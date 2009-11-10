@@ -22,6 +22,28 @@
 
 #include "vio_priv.h"
 
+#if defined(__WIN__) || defined(HAVE_SMEM)
+
+/**
+  Stub poll_read method that defaults to indicate that there
+  is data to read.
+
+  Used for named pipe and shared memory VIO types.
+
+  @param vio      Unused.
+  @param timeout  Unused.
+
+  @retval FALSE   There is data to read.
+*/
+
+static my_bool no_poll_read(Vio *vio __attribute__((unused)),
+                            uint timeout __attribute__((unused)))
+{
+  return FALSE;
+}
+
+#endif
+
 /*
  * Helper to fill most of the Vio* with defaults.
  */
@@ -60,6 +82,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_ignore_timeout;
+    vio->poll_read      =no_poll_read;
+    vio->is_connected   =vio_is_connected_pipe;
   }
   else					/* default is VIO_TYPE_TCPIP */
 #endif
@@ -80,6 +104,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_ignore_timeout;
+    vio->poll_read      =no_poll_read;
+    vio->is_connected   =vio_is_connected_shared_memory;
   }
   else
 #endif   
@@ -100,6 +126,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
+    vio->poll_read      =vio_poll_read;
+    vio->is_connected   =vio_is_connected;
   }
   else					/* default is VIO_TYPE_TCPIP */
 #endif /* HAVE_OPENSSL */
@@ -118,6 +146,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
+    vio->poll_read      =vio_poll_read;
+    vio->is_connected   =vio_is_connected;
   }
   DBUG_VOID_RETURN;
 }

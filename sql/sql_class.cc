@@ -1618,30 +1618,6 @@ void THD::rollback_item_tree_changes()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
-/**
-  Check that the endpoint is still available.
-*/
-
-bool THD::vio_is_connected()
-{
-  uint bytes= 0;
-
-  /* End of input is signaled by poll if the socket is aborted. */
-  if (vio_poll_read(net.vio, 0))
-    return TRUE;
-
-  /* Socket is aborted if signaled but no data is available. */
-  if (vio_peek_read(net.vio, &bytes))
-    return TRUE;
-
-  return bytes ? TRUE : FALSE;
-}
-
-#endif
-
-
 /*****************************************************************************
 ** Functions to provide a interface to select results
 *****************************************************************************/
