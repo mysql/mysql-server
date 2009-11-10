@@ -4955,6 +4955,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   return;
 }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static int
 get_partition_column_description(THD *thd,
                                  partition_info *part_info,
@@ -4998,6 +4999,7 @@ get_partition_column_description(THD *thd,
   }
   DBUG_RETURN(0);
 }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
