@@ -4880,6 +4880,7 @@ ER_ZLIB_Z_DATA_ERROR
         spa "ZLIB: Dato de entrada fué corrompido para zlib"
 ER_CUT_VALUE_GROUP_CONCAT  
         eng "Row %u was cut by GROUP_CONCAT()"
+        por "Linha %u foi cortada por GROUP_CONCAT()"
 ER_WARN_TOO_FEW_RECORDS 01000 
         eng "Row %ld doesn't contain data for all columns"
         ger "Zeile %ld enthält nicht für alle Felder Daten"
