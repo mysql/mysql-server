@@ -307,7 +307,7 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
     // bind to filenum when opened
     toku_brt_set_filenum(brt, filenum);
 
-    // TODO mode
+    // TODO mode (FUTURE FEATURE)
     mode = mode;
 
     //Create fake DB for comparison functions.
