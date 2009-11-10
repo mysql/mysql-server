@@ -2421,6 +2421,27 @@ delimiter ;$$
 
 
 #
+# Bug#15192: "fatal errors" are caught by handlers in stored procedures
+#
+
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+set @old_recursion_depth = @@max_sp_recursion_depth;
+set @@max_sp_recursion_depth = 255;
+delimiter |;
+create procedure p1(a int)
+begin
+  declare continue handler for sqlexception select 'exception';
+  call p1(a+1);
+end|
+delimiter ;|
+--error 0,ER_STACK_OVERRUN_NEED_MORE
+call p1(1);
+set @@max_sp_recursion_depth = @old_recursion_depth;
+drop procedure p1;
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

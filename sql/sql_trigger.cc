@@ -1660,7 +1660,7 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
   DBUG_ENTER("drop_all_triggers");
 
   bzero(&table, sizeof(table));
-  init_alloc_root(&table.mem_root, 8192, 0);
+  init_sql_alloc(&table.mem_root, 8192, 0);
 
   if (Table_triggers_list::check_n_load(thd, db, name, &table, 1))
   {
@@ -1871,7 +1871,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   DBUG_ENTER("change_table_name");
 
   bzero(&table, sizeof(table));
-  init_alloc_root(&table.mem_root, 8192, 0);
+  init_sql_alloc(&table.mem_root, 8192, 0);
 
   /*
     This method interfaces the mysql server code protected by

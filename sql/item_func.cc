@@ -3818,7 +3818,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     uint size=ALIGN_SIZE(sizeof(user_var_entry))+name.length+1+extra_size;
     if (!my_hash_inited(hash))
       return 0;
-    if (!(entry = (user_var_entry*) my_malloc(size,MYF(MY_WME))))
+    if (!(entry = (user_var_entry*) my_malloc(size,MYF(MY_WME | ME_FATALERROR))))
       return 0;
     entry->name.str=(char*) entry+ ALIGN_SIZE(sizeof(user_var_entry))+
       extra_size;
@@ -3956,6 +3956,8 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
   @param dv             derivation for new value
   @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
 
+  @note Sets error and fatal error if allocation fails.
+
   @retval
     false   success
   @retval
@@ -3999,7 +4001,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 	if (entry->value == pos)
 	  entry->value=0;
         entry->value= (char*) my_realloc(entry->value, length,
-                                         MYF(MY_ALLOW_ZERO_PTR | MY_WME));
+                                         MYF(MY_ALLOW_ZERO_PTR | MY_WME |
+                                             ME_FATALERROR));
         if (!entry->value)
 	  return 1;
       }
@@ -4036,7 +4039,6 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
   if (::update_hash(entry, (null_value= args[0]->null_value),
                     ptr, length, res_type, cs, dv, unsigned_arg))
   {
-    current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
     return 1;
   }
@@ -4769,11 +4771,6 @@ void Item_func_get_user_var::fix_length_and_dec()
     m_cached_result_type= STRING_RESULT;
     max_length= MAX_BLOB_WIDTH;
   }
-
-  if (error)
-    thd->fatal_error();
-
-  return;
 }
 
 
@@ -4857,18 +4854,16 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 
 void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
 {
-  if (::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
-    current_thd->fatal_error();			// Probably end of memory
+  ::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
+                DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
 }
 
 
 void Item_user_var_as_out_param::set_value(const char *str, uint length,
                                            CHARSET_INFO* cs)
 {
-  if (::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
-    current_thd->fatal_error();			// Probably end of memory
+  ::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
+                DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
 }
 
 
