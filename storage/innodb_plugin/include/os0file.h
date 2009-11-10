@@ -157,6 +157,7 @@ log. */
 						to become available again */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
+#define	OS_FILE_INSUFFICIENT_RESOURCE	78
 /* @} */
 
 /** Types for aio operations @{ */

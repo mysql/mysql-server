@@ -907,6 +907,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
+    Drop_table_error_handler err_handler(thd->get_internal_handler());
+    thd->push_internal_handler(&err_handler);
+
     error= -1;
     /*
       We temporarily disable the binary log while dropping the objects
@@ -939,6 +942,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error = 0;
       reenable_binlog(thd);
     }
+    thd->pop_internal_handler();
   }
   if (!silent && deleted>=0)
   {
@@ -1446,11 +1450,11 @@ cmp_db_names(const char *db1_name,
 {
   return
          /* db1 is NULL and db2 is NULL */
-         !db1_name && !db2_name ||
+         (!db1_name && !db2_name) ||
 
          /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
-         db1_name && db2_name &&
-         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0;
+         (db1_name && db2_name &&
+         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
 }
 
 

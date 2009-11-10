@@ -2,6 +2,10 @@
 --source include/not_embedded.inc
 # Non-windows specific ps tests.
 --source include/not_windows.inc
+# requires dynamic loading
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip ps_not_windows requires dynamic loading
+}
 
 #
 # Bug #20665: All commands supported in Stored Procedures should work in
