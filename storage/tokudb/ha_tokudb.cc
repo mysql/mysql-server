@@ -4876,7 +4876,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     TOKUDB_DBUG_ENTER("ha_tokudb::create");
     int error;
     DB *status_block = NULL;
-    KEY* prim_key = NULL;
     uint version;
     uint capabilities;
     DB_TXN* txn = NULL;
@@ -5044,7 +5043,6 @@ cleanup:
 int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete) {
     int error;
     DB* status_db;
-    DB* db_to_delete = NULL;
     DBC* status_cursor = NULL;
     DB_TXN* txn = NULL;
     DBT curr_key;
