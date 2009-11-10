@@ -73,6 +73,7 @@
 #include <SectionReader.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/DbinfoScan.hpp>
 #include <NdbEnv.h>
 
 #include "../suma/Suma.hpp"
@@ -9409,10 +9410,23 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   }//if
   
   // 1 scan record is reserved for node recovery
-  if (cscanNoFreeRec < 2) {
-    jam();
-    errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
-    goto error_handler;
+  // and one for LCP
+  {
+    Uint32 limit = 2;
+    if (ScanFragReq::getLcpScanFlag(reqinfo))
+    {
+      jam();
+      /**
+       * This code depends on the fact that LCP only scans one fragment at
+       *   at a time
+       */
+      limit = 1;
+    }
+    if (cscanNoFreeRec < limit) {
+      jam();
+      errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
+      goto error_handler;
+    }
   }
 
   // XXX adjust cmaxAccOps for range scans and remove this comment
@@ -12070,42 +12084,51 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   tabptr.i = req->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   Uint32 fragId = req->fragId;
+  Uint32 flags = req->flags;
+  if (unlikely(signal->getLength() < CopyActiveReq::SignalLength))
+  {
+    jam();
+    flags = 0;
+  }
+
   ndbrequire(getFragmentrec(signal, fragId));
 
+  fragptr.p->fragStatus = Fragrecord::FSACTIVE;
   fragptr.p->fragDistributionKey = req->distributionKey;
   
+  if (TRACENR_FLAG)
+    TRACENR("tab: " << tabptr.i
+	    << " frag: " << fragId
+	    << " COPY ACTIVE"
+            << " flags: " << hex << flags << endl);
+
   ndbrequire(cnoActiveCopy < 3);
   cactiveCopy[cnoActiveCopy] = fragptr.i;
   cnoActiveCopy++;
   fragptr.p->masterBlockref = masterRef;
   fragptr.p->masterPtr = masterPtr;
-  if (fragptr.p->fragStatus == Fragrecord::FSACTIVE) {
+
+  if ((flags & CopyActiveReq::CAR_NO_LOGGING) == 0)
+  {
     jam();
-/*------------------------------------------------------*/
-/*       PROCESS HAVE ALREADY BEEN STARTED BY PREVIOUS  */
-/*       MASTER. WE HAVE ALREADY SET THE PROPER MASTER  */
-/*       BLOCK REFERENCE.                               */
-/*------------------------------------------------------*/
-    if (fragptr.p->activeTcCounter == 0) {
+    if (fragptr.p->lcpFlag == Fragrecord::LCP_STATE_TRUE)
+    {
       jam();
-/*------------------------------------------------------*/
-/*       PROCESS WAS EVEN COMPLETED.                    */
-/*------------------------------------------------------*/
-      sendCopyActiveConf(signal, tabptr.i);
-    }//if
-    return;
-  }//if
+      fragptr.p->logFlag = Fragrecord::STATE_TRUE;
+    }
+  }
   
-  fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-  if (TRACENR_FLAG)
-    TRACENR("tab: " << tabptr.i 
-	    << " frag: " << fragId 
-	    << " COPY ACTIVE" << endl);
-  
-  if (fragptr.p->lcpFlag == Fragrecord::LCP_STATE_TRUE) {
+  if (flags & CopyActiveReq::CAR_NO_WAIT)
+  {
     jam();
-    fragptr.p->logFlag = Fragrecord::STATE_TRUE;
-  }//if
+    ndbrequire(fragptr.p->activeTcCounter == 0);
+    Uint32 save = fragptr.p->startGci;
+    fragptr.p->startGci = 0;
+    sendCopyActiveConf(signal, tabptr.i);
+    fragptr.p->startGci = save;
+    return;
+  }
+
   fragptr.p->activeTcCounter = 1;
 /*------------------------------------------------------*/
 /*       SET IT TO ONE TO ENSURE THAT IT IS NOT POSSIBLE*/
@@ -12383,6 +12406,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   if (lcpFragOrd->lastFragmentFlag)
   {
     jam();
+    CRASH_INSERTION(5054);
     if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
       jam();
       /* ----------------------------------------------------------
@@ -21374,6 +21398,60 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
 }//Dblqh::execDUMP_STATE_ORD()
 
+
+void Dblqh::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == Ndbinfo::LOG_SPACE_TABLEID)
+  {
+    Uint32 logpart = cursor->data[0];
+    while(logpart < clogPartFileSize)
+    {
+      jam();
+
+      logPartPtr.i = logpart;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo,
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+      Uint64 high = 0; // TODO
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(0);              // log id, always 0 in LQH
+      row.write_uint32(0);              // log type, 0 = REDO
+      row.write_uint32(logpart);        // log part
+      row.write_uint32(getOwnNodeId());
+      row.write_uint64(total);          // total allocated
+      row.write_uint64((total-mb));     // currently in use
+      row.write_uint64(high);           // in use high water mark
+      ndbinfo_send_row(signal, req, row, rl);
+      logpart++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, logpart);
+        return;
+      }
+    }
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
+
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ---------------------- TRIGGER HANDLING ------------------------ */
@@ -21814,7 +21892,21 @@ Dblqh::closeFile_cache(Signal* signal,
   {
     jam();
     Ptr<LogFileRecord> evictPtr;
+    Uint32 logPartRec = filePtr.p->logPartRec;
+    /**
+     * Only evict file with same log-part, other redo-execution will continue
+     *   for the log-part once file is closed
+     *
+     * Note: 1) loop is guaranteed to terminate as filePtr must be in list
+     *       2) loop is ok as MAX_CACHED_OPEN_FILES is "small"
+     *          (if it was big, the m_lru should be split per log-part)
+     */
     m_redo_open_file_cache.m_lru.last(evictPtr);
+    while (evictPtr.p->logPartRec != logPartRec)
+    {
+      jam();
+      ndbrequire(m_redo_open_file_cache.m_lru.prev(evictPtr));
+    }
     m_redo_open_file_cache.m_lru.remove(evictPtr);
     evictPtr.p->logFileStatus = LogFileRecord::CLOSING_EXEC_LOG;
     closeFile(signal, evictPtr, line);

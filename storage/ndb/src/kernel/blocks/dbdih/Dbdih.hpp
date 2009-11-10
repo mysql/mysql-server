@@ -565,7 +565,10 @@ public:
       ,TO_CREATE_FRAG_COMMIT = 12  // Waiting for all (CREATE_FRAGREQ commit)
       ,TO_UPDATE_AFTER_COMMIT = 13 // Waiting for master (UPDATE_TOREQ)
 
-      ,TO_END_TO = 14               // Waiting for master (EBND_TOREQ)
+      ,TO_START_LOGGING = 14        // Enabling logging on all fragments
+      ,TO_SL_COPY_ACTIVE = 15       // Start logging: Copy active (local)
+      ,TO_SL_CREATE_FRAG = 16       // Start logging: Create Frag (dist)
+      ,TO_END_TO = 17               // Waiting for master (EBND_TOREQ)
     };
 
     /**
@@ -1087,11 +1090,12 @@ private:
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
                     Uint32& tfstLcp);
-  void newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr);
+  void newCrashedReplica(ReplicaRecordPtr ncrReplicaPtr);
   void packCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void releaseReplicas(Uint32 * replicaPtr);
-  void removeOldCrashedReplicas(ReplicaRecordPtr rocReplicaPtr);
+  void removeOldCrashedReplicas(Uint32, Uint32, ReplicaRecordPtr rocReplicaPtr);
   void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr);
+  void mergeCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void seizeReplicaRec(ReplicaRecordPtr& replicaPtr);
 
 //------------------------------------
@@ -1227,7 +1231,8 @@ private:
   void nr_start_fragments(Signal*, TakeOverRecordPtr);
   void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
   void nr_run_redo(Signal*, TakeOverRecordPtr);
-  
+  void nr_start_logging(Signal*, TakeOverRecordPtr);
+
   // Initialisation
   void initData();
   void initRecords();

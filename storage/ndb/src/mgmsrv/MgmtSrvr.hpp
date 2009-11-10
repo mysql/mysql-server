@@ -446,15 +446,6 @@ private:
   int check_nodes_stopping();
   int check_nodes_single_user();
 
-
-  Logger*  getLogger();
-
-  int ndbinfo(Uint32 tableId, Vector<BaseString> *cols, Vector<BaseString> *rows);
-
-  int ndbinfo(BaseString table_name,
-              Vector<BaseString> *cols,
-              Vector<BaseString> *rows);
-
   //**************************************************************************
 
   const MgmtOpts& m_opts;
@@ -462,10 +453,6 @@ private:
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;
-
-  Vector<BaseString> m_ndbinfo_table_names;
-  Vector< Vector<Uint32> > m_ndbinfo_column_types;
-  Vector< Vector<BaseString> > m_ndbinfo_column_names;
 
   NdbMutex* m_local_config_mutex;
   const Config* m_local_config;
@@ -483,7 +470,6 @@ private:
 
   void handleReceivedSignal(NdbApiSignal* signal);
   void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
-  void execDBINFO_SCANREQ(NdbApiSignal* signal);
 
   /**
      Callback function installed into TransporterFacade, will be called

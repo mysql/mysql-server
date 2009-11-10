@@ -1226,29 +1226,6 @@ extern "C" {
                           int len, char* str);
 
   /**
-   * Query NDB$INFO.
-   * On success, returns number of rows.
-   * ndb_mgm_ndbinfo_getrow() *MUST* be called that many times.
-   */
-  int ndb_mgm_ndbinfo(NdbMgmHandle handle, const char *query, int *rows);
-
-  /**
-   * Gets the column names for NDBINFO query
-   *
-   * Must be called after successful ndb_mgm_ndbinfo() but BEFORE
-   * ndb_mgm_getrows.
-   */
-  int ndb_mgm_ndbinfo_colcount(NdbMgmHandle h);
-  int ndb_mgm_ndbinfo_getcolums(NdbMgmHandle h, int n, int l, char** c);
-  char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len);
-
-  /**
-   * returns zero on success.
-   * Must be called after ndb_mgm_ndbinfo and after ndb_mgm_ndbinfo_getcolumns
-   */
-  int ndb_mgm_ndbinfo_getrow(NdbMgmHandle h, char* row, int len);
-
-  /**
    * Config iterator
    */
   typedef struct ndb_mgm_configuration_iterator ndb_mgm_configuration_iterator;

@@ -35,8 +35,6 @@
 #include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-#define NDB_DEFAULT_AUTO_PREFETCH 32
-
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
@@ -51,12 +49,6 @@ class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
-
-// connectstring to cluster if given by mysqld
-extern const char *ndbcluster_connectstring;
-extern ulong ndb_cache_check_time;
-extern ulong ndb_report_thresh_binlog_epoch_slip;
-extern ulong ndb_report_thresh_binlog_mem_usage;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,

@@ -294,6 +294,9 @@ ndbd_suma_dictlock_handover(Uint32 x)
 #define NDBD_API_TAKE_OVERTCCONF_62 NDB_MAKE_VERSION(6,2,17)
 #define NDBD_API_TAKE_OVERTCCONF_63 NDB_MAKE_VERSION(6,3,19)
 
+#define NDBD_DELAYED_COPY_ACTIVEREQ_63 NDB_MAKE_VERSION(6,3,29)
+#define NDBD_DELAYED_COPY_ACTIVEREQ_70 NDB_MAKE_VERSION(7,0,10)
+
 static
 inline
 int
@@ -313,6 +316,28 @@ ndb_takeovertc(Uint32 x)
     }
     
     return x >= NDBD_API_TAKE_OVERTCCONF_63;
+  }
+}
+
+static
+inline
+int
+ndb_delayed_copy_active_req(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+
+    if (major >= 6)
+    {
+      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_63;
+    }
+    else
+    {
+      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_70;
+    }
   }
 }
 

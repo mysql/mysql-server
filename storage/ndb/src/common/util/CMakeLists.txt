@@ -53,7 +53,6 @@ ADD_LIBRARY(ndbgeneral STATIC
             ndb_opts.c
             basestring_vsnprintf.c
             Bitmask.cpp
-	    ndbinfo.c
 )
 TARGET_LINK_LIBRARIES(ndbgeneral zlib mysys ws2_32)
 

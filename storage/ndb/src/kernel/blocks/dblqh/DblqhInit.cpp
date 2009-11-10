@@ -374,6 +374,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_FSWRITEREQ,
                &Dblqh::execFSWRITEREQ);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
 
   initData();
 

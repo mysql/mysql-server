@@ -61,7 +61,9 @@ libndbapi_la_SOURCES = \
 	NdbIndexStat.cpp \
         SignalSender.cpp \
         ObjectMap.cpp \
-	NdbInterpretedCode.cpp
+	NdbInterpretedCode.cpp \
+	NdbInfo.cpp \
+	NdbInfoScanOperation.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

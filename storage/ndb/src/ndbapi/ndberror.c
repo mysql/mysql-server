@@ -169,7 +169,7 @@ ErrorBundle ErrorCodes[] = {
    * TemporaryResourceError
    */
   { 217,  DMEC, TR, "217" },
-  { 218,  DMEC, TR, "218" },
+  { 218,  DMEC, TR, "Out of LongMessageBuffer" },
   { 219,  DMEC, TR, "219" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
@@ -180,6 +180,7 @@ ErrorBundle ErrorCodes[] = {
   { 419,  DMEC, TR, "419" },
   { 245,  DMEC, TR, "Too many active scans" },
   { 488,  DMEC, TR, "Too many active scans" },
+  { 489,  DMEC, TR, "Too many active scans" },
   { 490,  DMEC, TR, "Too many active scans" },
   { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },

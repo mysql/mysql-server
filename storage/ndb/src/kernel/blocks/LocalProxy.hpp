@@ -28,6 +28,7 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrigImpl.hpp>
+#include <signaldata/DbinfoScan.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -553,6 +554,11 @@ protected:
   void execDROP_TRIG_IMPL_CONF(Signal*);
   void execDROP_TRIG_IMPL_REF(Signal*);
   void sendDROP_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_DBINFO_SCANREQ
+  bool find_next(Ndbinfo::ScanCursor* cursor) const;
+  void execDBINFO_SCANREQ(Signal*);
+  void execDBINFO_SCANCONF(Signal*);
 };
 
 #endif

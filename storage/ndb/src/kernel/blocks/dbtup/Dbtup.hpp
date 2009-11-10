@@ -3058,6 +3058,8 @@ private:
   Uint32 czero;
   Uint32 cCopyProcedure;
   Uint32 cCopyLastSeg;
+  Uint32 cTotPages;
+  Uint32 cTotNoFragPages;
 
  // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
 #define ZATTR_BUFFER_SIZE 16384

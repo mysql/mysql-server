@@ -1285,7 +1285,18 @@ DblqhProxy::sendSTART_RECREQ_2(Signal* signal, Uint32 ssId)
   if (firstReply(ss)) {
     ss.m_req = *req;
   } else {
-    // ndbrequire(ss.m_req.lcpId == req->lcpId); wl4391_todo
+    jam();
+    /*
+     * Fragments can be started from different lcpId's.  LGMAN must run
+     * UNDO until lowest lcpId.  Each DBLQH instance computes the lowest
+     * lcpId in START_FRAGREQ.  In MT case the proxy further computes
+     * the lowest of the lcpId's from worker instances.
+     */
+    if (req->lcpId < ss.m_req.lcpId)
+    {
+      jam();
+      ss.m_req.lcpId = req->lcpId;
+    }
     ndbrequire(ss.m_req.proxyBlockNo == req->proxyBlockNo);
   }
 

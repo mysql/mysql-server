@@ -20,7 +20,7 @@
 #define NDB_VECTOR_HPP
 
 #include <ndb_global.h>
-#include <NdbMutex.h>
+#include <portlib/NdbMutex.h>
 
 template<class T>
 class Vector {

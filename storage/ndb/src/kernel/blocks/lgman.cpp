@@ -30,6 +30,7 @@
 #include <signaldata/LgmanContinueB.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/DbinfoScan.hpp>
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -69,6 +70,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_STTOR, &Lgman::execSTTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Lgman::execREAD_CONFIG_REQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Lgman::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Lgman::execDBINFO_SCANREQ);
   addRecSignal(GSN_CONTINUEB, &Lgman::execCONTINUEB);
   addRecSignal(GSN_NODE_FAILREP, &Lgman::execNODE_FAILREP);
 
@@ -418,6 +420,50 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       m_logfile_group_list.next(ptr);
     }
   }
+}
+
+void
+Lgman::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == Ndbinfo::LOG_SPACE_TABLEID)
+  {
+#if 0
+    Uint32 logid = cursor->data[0];
+    while(find_next_logid(logid))
+    {
+      jam();
+      Uint64 mb = Logfile_group::m_free_file_words;
+      Uint64 total = 0; // TODO
+      Uint64 high = 0; // TODO
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(logid);          // log id
+      row.write_uint32(1);              // log type, 1 = DD-UNDO
+      row.write_uint32(0);              // log part
+      row.write_uint32(getOwnNodeId());
+      row.write_uint64(total);          // total allocated
+      row.write_uint64((total-mb));     // currently in use
+      row.write_uint64(high);           // in use high water mark
+      ndbinfo_send_row(signal, req, row, rl);
+      logid++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, logpart);
+        return;
+      }
+    }
+#endif
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 void

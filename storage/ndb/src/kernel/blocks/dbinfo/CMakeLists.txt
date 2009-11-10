@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbinfo)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbdbinfo STATIC
-		      Dbinfo.cpp
-		      ndbinfo_helpers.cpp
+	Dbinfo.cpp
 )
 

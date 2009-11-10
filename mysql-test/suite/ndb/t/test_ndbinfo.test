@@ -1,0 +1,44 @@
+--perl
+use strict;
+
+use strict;
+use lib "lib/";
+use My::Find;
+use File::Basename;
+use IO::File;
+
+#
+# Check if the needed executable is available
+#
+my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
+my $basedir = dirname($mysql_test_dir);
+my $test_exe = my_find_bin($basedir,
+		           ["storage/ndb/test/ndbapi", "bin"],
+                           "testNdbinfo", NOT_REQUIRED);
+
+#
+# Communicate the location of the executable to the test
+# by creating a temporary include file
+#
+
+my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
+
+my $F = IO::File->new("$vardir/tmp/test_ndbinfo.inc", "w") or die;
+if ($test_exe)
+{
+  print $F "let \$TEST_NDBINFO=$test_exe;\n";
+}
+else
+{
+  print $F "skip Could not find testNdbinfo;";
+}
+EOF
+
+--source $MYSQLTEST_VARDIR/tmp/test_ndbinfo.inc
+
+let $log_file=$MYSQLTEST_VARDIR/tmp/test_ndbinfo.log;
+--exec $TEST_NDBINFO > $log_file 2>&1
+
+echo Sucessfully executed $TEST_NDBINFO;
+
+exit;
