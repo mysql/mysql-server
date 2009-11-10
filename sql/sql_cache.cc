@@ -1330,12 +1330,12 @@ end:
   @param thd Pointer to the thread handler
   @param sql A pointer to the sql statement *
   @param query_length Length of the statement in characters
- 
+
   @return status code
-  @retval 1  Query was not cached.
-  @retval 0  The query was cached and user was sent the result.
-  @retval -1 The query was cached but we didn't have rights to use it. 
-  
+  @retval 0  Query was not cached.
+  @retval 1  The query was cached and user was sent the result.
+  @retval -1 The query was cached but we didn't have rights to use it.
+
   In case of -1, no error is sent to the client.
 
   *) The buffer must be allocated memory of size:
