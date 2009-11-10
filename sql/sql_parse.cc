@@ -6486,13 +6486,17 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     DBUG_RETURN(0);				/* purecov: inspected */
   if (table->db.str)
   {
+    ptr->is_fqtn= TRUE;
     ptr->db= table->db.str;
     ptr->db_length= table->db.length;
   }
   else if (lex->copy_db_to(&ptr->db, &ptr->db_length))
     DBUG_RETURN(0);
+  else
+    ptr->is_fqtn= FALSE;
 
   ptr->alias= alias_str;
+  ptr->is_alias= alias ? TRUE : FALSE;
   if (lower_case_table_names && table->table.length)
     table->table.length= my_casedn_str(files_charset_info, table->table.str);
   ptr->table_name=table->table.str;
@@ -7539,6 +7543,63 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/*
+  Given a table in the source list, find a correspondent table in the
+  table references list.
+
+  @param lex Pointer to LEX representing multi-delete.
+  @param src Source table to match.
+  @param ref Table references list.
+
+  @remark The source table list (tables listed before the FROM clause
+  or tables listed in the FROM clause before the USING clause) may
+  contain table names or aliases that must match unambiguously one,
+  and only one, table in the target table list (table references list,
+  after FROM/USING clause).
+
+  @return Matching table, NULL otherwise.
+*/
+
+static TABLE_LIST *multi_delete_table_match(LEX *lex, TABLE_LIST *tbl,
+                                            TABLE_LIST *tables)
+{
+  TABLE_LIST *match= NULL;
+  DBUG_ENTER("multi_delete_table_match");
+
+  for (TABLE_LIST *elem= tables; elem; elem= elem->next_local)
+  {
+    int cmp;
+
+    if (tbl->is_fqtn && elem->is_alias)
+      continue; /* no match */
+    if (tbl->is_fqtn && elem->is_fqtn)
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+    else if (elem->is_alias)
+      cmp= my_strcasecmp(table_alias_charset, tbl->alias, elem->alias);
+    else
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+
+    if (cmp)
+      continue;
+
+    if (match)
+    {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
+      DBUG_RETURN(NULL);
+    }
+
+    match= elem;
+  }
+
+  if (!match)
+    my_error(ER_UNKNOWN_TABLE, MYF(0), tbl->table_name, "MULTI DELETE");
+
+  DBUG_RETURN(match);
+}
+
+
 /**
   Link tables in auxilary table list of multi-delete with corresponding
   elements in main table list, and set proper locks for them.
@@ -7564,20 +7625,9 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
   {
     lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
-    TABLE_LIST *walk;
-    for (walk= tables; walk; walk= walk->next_local)
-    {
-      if (!my_strcasecmp(table_alias_charset,
-			 target_tbl->alias, walk->alias) &&
-	  !strcmp(walk->db, target_tbl->db))
-	break;
-    }
+    TABLE_LIST *walk= multi_delete_table_match(lex, target_tbl, tables);
     if (!walk)
-    {
-      my_error(ER_UNKNOWN_TABLE, MYF(0),
-               target_tbl->table_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
-    }
     if (!walk->derived)
     {
       target_tbl->table_name= walk->table_name;
