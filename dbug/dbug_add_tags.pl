@@ -7,7 +7,7 @@ $ctags="exctags -x -f - --c-types=f -u";
 sub get_tag {
   local $.; local $_=<TAGS>;
   ($symbol, $line)= /^(.*\S)\s+function\s+(\d+)/;
-  $symbol=$1 if /\s(\S+)\s*\(/;
+  $symbol=$1 if /[\s*]([^\s*]+)\s*\(/;
   $line=1e50 unless $line;
 }
 
@@ -51,7 +51,7 @@ while($src=shift)
       $skip=!$semicolon;
       $semicolon= /;\s*$/;
       print && next if $skip ||
-        (/^\s+\w+((::\w+)?|<\w+>)\s+\**\w+/ && !/^\s*return/);
+        (/^\s+\w+((::\w+)?|<\w+>)\s+\**\w+/ && !/^\s*return\b/);
       last if /DBUG_ENTER/;
       print "$tab  DBUG_ENTER(\"$symbol\");\n";
       print "\n" unless $_ eq "\n";

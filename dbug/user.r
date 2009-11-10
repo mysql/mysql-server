@@ -512,7 +512,7 @@ possible since all code preceding the first call to
 .B DBUG_PUSH 
 is
 essentially invisible to 
-.B dbug
+.I dbug
 (this can be worked around by
 inserting a temporary 
 .B DBUG_PUSH(argv[1])
@@ -708,7 +708,7 @@ EX:\ \fCDBUG_PROCESS\ (argv[0]);\fR
 .SP 1
 .LI DBUG_PUSH\ 
 Sets a new debugger state by pushing the current
-.B dbug
+.I dbug
 state onto an internal stack and setting up the new state using the
 debug control string passed as the macro argument.  The most common
 usage is to set the state specified by a debug control string
@@ -769,14 +769,14 @@ the 'd' flag. Used to conditionally execute "dangerous" actions, e.g
 to crash the program testing how recovery works, or to introduce an
 artificial delay checking for race conditions.
 .SP 1
-EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ abort\ ());\fR
+EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ DBUG_ABORT()\ ());\fR
 .SP 1
 .LI DBUG_EVALUATE\ 
 The DBUG_EVALUATE macro is similar to DBUG_EXECUTE, but it can be used in
 the expression context. The first argument is the debug keyword that is used to
 choose whether the second (keyword is enabled) or the third (keyword is not
 enabled) argument is evaluated. When
-.B dbug
+.I dbug
 is compiled off, the third argument is evaluated.
 .SP 1
 EX:\fC
@@ -796,7 +796,7 @@ EX:\fC
 .br
     if (prepare_transaction () ||
 .br
-        DBUG_EVALUATE ("crashme", (abort (), 0), 0) ||
+        DBUG_EVALUATE ("crashme", (DBUG_ABORT(), 0), 0) ||
 .br
         commit_transaction () )\fR
 .SP 1
@@ -875,6 +875,12 @@ library. So there will be no need to disable asserts separately with NDEBUG.
 .SP 1
 EX:\ \fCDBUG_ASSERT(\ a\ >\ 0\ );\fR
 .SP 1
+.LI DBUG_ABORT\ 
+This macro could be used instead of abort(). It flushes DBUG_FILE stream
+to ensure that no
+.I dbug
+output is lost and then calls abort().
+.SP 1
 .LI DBUG_EXPLAIN\ 
 Generates control string corresponding to the current debug state.
 The macro takes two arguments - a buffer to store the result string
@@ -910,17 +916,17 @@ via the
 .B DBUG_PUSH 
 or
 .B DBUG_SET
-macros. Control string consists of colon separate flags.  Colons
+macros. Control string consists of colon separated flags.  Colons
 that are part of ':\\',  ':/', or '::' are not considered flag
 separators. A flag may take an argument or a list of arguments.
 If a control string starts from a '+' sign it works
 .I incrementally,
-that is, it can modify existing state without overriding it. In such a
-string every flag may be preceded by a '+' or '-' to enable or disable
-a corresponding option in the debugger state.  This section summarizes
-the currently available debugger options and the flag characters which
-enable or disable them.  Argument lists enclosed in '[' and ']' are
-optional.
+that is, it can modify existing state without overriding it.  Every
+flag may be preceded by a '+' or '-' to enable or disable a
+corresponding option in the debugger state or to add or remove
+arguments to the list. This section summarizes the currently available
+debugger options and the flag characters which enable or disable them.
+Argument lists enclosed in '[' and ']' are optional.
 .SP 2
 .BL 22
 .LI a[,file]
@@ -936,6 +942,9 @@ a complete log file in case of crashes. This mode is implicit in
 multi-threaded environment.
 .LI d[,keywords]
 Enable output from macros with specified keywords.
+Every keyword can be a
+.I glob(7)
+pattern.
 An empty list of keywords implies that all keywords are selected.
 .LI D[,time]
 Delay for specified time after each output line, to let output drain.
@@ -943,7 +952,19 @@ Time is given in tenths of a second (value of 10 is one second).
 Default is zero.
 .LI f[,functions]
 Limit debugger actions to the specified list of functions.
+Every function can be a
+.I glob(7)
+pattern.
 An empty list of functions implies that all functions are selected.
+Every function in the list may optionally be followed by a '/' -
+this will implicitly select all the functions down the call stack.
+.SP 1
+EX: \fCf,func1,func2/:-f,func3,func4/\fR
+.SP 1
+This would enable debugger in functions 'func1()', 'func2()' and all
+functions called from it (directly or indirectly). But not in
+functions 'func3()' or 'func4()' and all functions called from
+it.
 .LI F
 Mark each debugger output line with the name of the source file
 containing the macro causing the output.
@@ -952,6 +973,9 @@ Mark each debugger output line with the PID (or thread ID) of the
 current process.
 .LI g,[functions]
 Enable profiling for the specified list of functions.
+Every function can be a
+.I glob(7)
+pattern.
 An empty list of functions enables profiling for all functions.
 See
 .B PROFILING\ WITH\ DBUG
@@ -970,7 +994,11 @@ Like 'a[,file]' but overwrite old file, do not append.
 .LI O[,file]
 Like 'A[,file]' but overwrite old file, do not append.
 .LI p[,processes]
-Limit debugger actions to the specified processes.  An empty list
+Limit debugger actions to the specified processes.
+Every name can be a
+.I glob(7)
+pattern.
+An empty list
 implies all processes.  This is useful for processes which run child
 processes.  Note that each debugger output line can be marked with the
 name of the current process via the 'P' flag.  The process name must
