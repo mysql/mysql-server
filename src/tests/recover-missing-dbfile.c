@@ -57,7 +57,7 @@ static void run_recover (void) {
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
-    assert(r == DB_RUNRECOVERY);
+    CKERR2(r, DB_RUNRECOVERY);
 
     r = system("rm -rf " ENVDIR "/*.tokudb");
     CKERR(r);
