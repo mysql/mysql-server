@@ -1092,3 +1092,24 @@ FROM t3;
 2
 NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug #42760: Select doesn't return desired results when we have null
+# values
+#
+CREATE TABLE t1 (
+a INT,
+c INT,
+UNIQUE KEY a_c (a,c),
+KEY (a));
+INSERT INTO t1 VALUES (1, 10), (2, NULL);
+# Must use ref-or-null on the a_c index
+EXPLAIN
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	1	Using where
+# Must return 1 row
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+col
+1
+DROP TABLE t1;
+End of 5.0 tests
