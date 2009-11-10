@@ -197,7 +197,6 @@ setup_files(atrt_config& config, int setup, int sshx)
   }
   
   FILE * out = NULL;
-  bool retval = true;
   if (config.m_generated == false)
   {
     g_logger.info("Nothing configured...");
@@ -274,8 +273,7 @@ setup_files(atrt_config& config, int setup, int sshx)
 	if (fenv == 0)
 	{
 	  g_logger.error("Failed to open %s for writing", tmp.c_str());
-	  retval = false;
-          goto end;
+	  return false;
 	}
 	for (size_t k = 0; env[k]; k++)
 	{
@@ -312,8 +310,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         if (fenv == 0)
         {
           g_logger.error("Failed to open %s for writing", tmp.c_str());
-          retval = false;
-          goto end;
+          return false;
         }
         fprintf(fenv, "#!/bin/sh\n");
         fprintf(fenv, "cd %s\n", proc.m_proc.m_cwd.c_str());
@@ -326,14 +323,14 @@ setup_files(atrt_config& config, int setup, int sshx)
       }
     }
   }
-
-end:
+  
   if (out)
   {
+    fflush(out);
     fclose(out);
   }
 
-  return retval;
+  return true;
 }
 
 static int 
