@@ -5882,7 +5882,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
-      !(conf_func->compare_collation()->state & MY_CS_BINSORT))
+      !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
+        (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
     goto end;
 
   if (key_part->image_type == Field::itMBR)
