@@ -143,7 +143,7 @@ static inline void commit_txn(DB_TXN* txn, u_int32_t flags) {
     int r;
     r = txn->commit(txn, flags);
     if (r != 0) {
-        sql_print_error("tried committing transaction 0x%x and got error code %d", txn, r);
+        sql_print_error("tried committing transaction %p and got error code %d", txn, r);
     }
     assert(r == 0);
 }
@@ -152,7 +152,7 @@ static inline void abort_txn(DB_TXN* txn) {
     int r;
     r = txn->abort(txn);
     if (r != 0) {
-        sql_print_error("tried aborting transaction 0x%x and got error code %d", txn, r);
+        sql_print_error("tried aborting transaction %p and got error code %d", txn, r);
     }
     assert(r == 0);
 }
