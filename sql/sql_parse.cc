@@ -1362,54 +1362,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->stmt_da->disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
-
-#ifdef REMOVED
-  case COM_CREATE_DB:				// QQ: To be removed
-    {
-      LEX_STRING db, alias;
-      HA_CREATE_INFO create_info;
-
-      status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
-          thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
-          check_db_name(&db))
-      {
-	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
-	break;
-      }
-      if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
-                       is_schema_db(db.str)))
-	break;
-      general_log_print(thd, command, "%.*s", db.length, db.str);
-      bzero(&create_info, sizeof(create_info));
-      mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
-                      &create_info, 0);
-      break;
-    }
-  case COM_DROP_DB:				// QQ: To be removed
-    {
-      status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
-      LEX_STRING db;
-
-      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
-          check_db_name(&db))
-      {
-	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
-	break;
-      }
-      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0, is_schema_db(db.str)))
-	break;
-      if (thd->locked_tables || thd->active_transaction())
-      {
-	my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                   ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-	break;
-      }
-      general_log_write(thd, command, "%.*s", db.length, db.str);
-      mysql_rm_db(thd, db.str, 0, 0);
-      break;
-    }
-#endif
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
