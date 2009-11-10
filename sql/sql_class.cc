@@ -1626,7 +1626,6 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
-  nest_level= -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
