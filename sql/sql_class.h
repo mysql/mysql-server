@@ -1962,11 +1962,14 @@ public:
   }
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
-  bool vio_is_connected();
+  bool is_connected()
+  {
+    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+  }
 #else
   void clear_error();
   inline bool vio_ok() const { return TRUE; }
-  inline bool vio_is_connected() { return TRUE; }
+  inline bool is_connected() { return TRUE; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not

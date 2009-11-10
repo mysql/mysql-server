@@ -3471,7 +3471,7 @@ static int interruptible_wait(THD *thd, pthread_cond_t *cond,
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!timeout || !thd->vio_is_connected())
+      if (!timeout || !thd->is_connected())
         break;
     }
   } while (error && timeout);

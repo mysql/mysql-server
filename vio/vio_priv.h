@@ -25,6 +25,20 @@
 #include <m_string.h>
 #include <violite.h>
 
+#ifdef __WIN__
+size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
+size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
+my_bool vio_is_connected_pipe(Vio *vio);
+int vio_close_pipe(Vio * vio);
+#endif
+
+#ifdef HAVE_SMEM
+size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
+size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
+my_bool vio_is_connected_shared_memory(Vio *vio);
+int vio_close_shared_memory(Vio * vio);
+#endif
+
 void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
 void	vio_timeout(Vio *vio,uint which, uint timeout);
 

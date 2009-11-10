@@ -4859,6 +4859,8 @@ do_handle_error:
   <opts> - options to use for the connection
    * SSL - use SSL if available
    * COMPRESS - use compression if available
+   * SHM - use shared memory if available
+   * PIPE - use named pipe if available
 
 */
 
@@ -4867,6 +4869,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
+  my_bool con_pipe= 0, con_shm= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -4877,6 +4880,9 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+#ifdef HAVE_SMEM
+  static DYNAMIC_STRING ds_shm;
+#endif
   const struct command_arg connect_args[] = {
     { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
     { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
@@ -4903,6 +4909,11 @@ void do_connect(struct st_command *command)
     if (con_port == 0)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
+
+#ifdef HAVE_SMEM
+  /* Shared memory */
+  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+#endif
 
   /* Sock */
   if (ds_sock.length)
@@ -4942,6 +4953,10 @@ void do_connect(struct st_command *command)
       con_ssl= 1;
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
+    else if (!strncmp(con_options, "PIPE", 4))
+      con_pipe= 1;
+    else if (!strncmp(con_options, "SHM", 3))
+      con_shm= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -4994,6 +5009,26 @@ void do_connect(struct st_command *command)
   }
 #endif
 
+#ifdef __WIN__
+  if (con_pipe)
+  {
+    uint protocol= MYSQL_PROTOCOL_PIPE;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+#endif
+
+#ifdef HAVE_SMEM
+  if (con_shm)
+  {
+    uint protocol= MYSQL_PROTOCOL_MEMORY;
+    if (!ds_shm.length)
+      die("Missing shared memory base name");
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+  }
+#endif
+
+
   /* Use default db name */
   if (ds_database.length == 0)
     dynstr_set(&ds_database, opt_db);
@@ -5026,6 +5061,9 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+#ifdef HAVE_SMEM
+  dynstr_free(&ds_shm);
+#endif
   DBUG_VOID_RETURN;
 }
 
