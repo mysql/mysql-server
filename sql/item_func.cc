@@ -3437,6 +3437,48 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
 #endif
 
+
+/**
+  Wait for a given condition to be signaled within the specified timeout.
+
+  @param cond the condition variable to wait on
+  @param lock the associated mutex
+  @param abstime the amount of time in seconds to wait
+
+  @retval return value from pthread_cond_timedwait
+*/
+
+#define INTERRUPT_INTERVAL (5 * ULL(1000000000))
+
+static int interruptible_wait(THD *thd, pthread_cond_t *cond,
+                              pthread_mutex_t *lock, double time)
+{
+  int error;
+  struct timespec abstime;
+  ulonglong slice, timeout= (ulonglong) (time * 1000000000.0);
+
+  do
+  {
+    /* Wait for a fixed interval. */
+    if (timeout > INTERRUPT_INTERVAL)
+      slice= INTERRUPT_INTERVAL;
+    else
+      slice= timeout;
+
+    timeout-= slice;
+    set_timespec_nsec(abstime, slice);
+    error= pthread_cond_timedwait(cond, lock, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+      /* Return error if timed out or connection is broken. */
+      if (!timeout || !thd->vio_is_connected())
+        break;
+    }
+  } while (error && timeout);
+
+  return error;
+}
+
 /**
   Get a user level lock.  If the thread has an old lock this is first released.
 
@@ -3452,8 +3494,7 @@ longlong Item_func_get_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  longlong timeout=args[1]->val_int();
-  struct timespec abstime;
+  double timeout= args[1]->val_real();
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
@@ -3517,12 +3558,11 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
-  set_timespec(abstime,timeout);
   error= 0;
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
-    error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
+    error= interruptible_wait(thd, &ull->cond, &LOCK_user_locks, timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       DBUG_PRINT("info", ("lock wait timeout"));
@@ -3717,13 +3757,13 @@ void Item_func_benchmark::print(String *str, enum_query_type query_type)
 longlong Item_func_sleep::val_int()
 {
   THD *thd= current_thd;
-  struct timespec abstime;
   pthread_cond_t cond;
+  double timeout;
   int error;
 
   DBUG_ASSERT(fixed == 1);
 
-  double time= args[0]->val_real();
+  timeout= args[0]->val_real();
   /*
     On 64-bit OSX pthread_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 
@@ -3733,10 +3773,8 @@ longlong Item_func_sleep::val_int()
     We assume that the lines between this test and the call 
     to pthread_cond_timedwait() will be executed in less than 0.00001 sec.
   */
-  if (time < 0.00001)
+  if (timeout < 0.00001)
     return 0;
-    
-  set_timespec_nsec(abstime, (ulonglong)(time * ULL(1000000000)));
 
   pthread_cond_init(&cond, NULL);
   pthread_mutex_lock(&LOCK_user_locks);
@@ -3748,7 +3786,7 @@ longlong Item_func_sleep::val_int()
   error= 0;
   while (!thd->killed)
   {
-    error= pthread_cond_timedwait(&cond, &LOCK_user_locks, &abstime);
+    error= interruptible_wait(thd, &cond, &LOCK_user_locks, timeout);
     if (error == ETIMEDOUT || error == ETIME)
       break;
     error= 0;
