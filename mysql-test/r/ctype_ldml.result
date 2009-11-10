@@ -321,3 +321,11 @@ Vv
 Xx
 YyÝýỲỳỴỵỶỷỸỹ
 drop table t1;
+Bug#46448 trailing spaces are not ignored when user collation maps space != 0x20
+set names latin1;
+show collation like 'latin1_test';
+Collation	Charset	Id	Default	Compiled	Sortlen
+latin1_test	latin1	99		Yes	1
+select "foo" = "foo " collate latin1_test;
+"foo" = "foo " collate latin1_test
+1
