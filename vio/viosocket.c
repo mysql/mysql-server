@@ -360,9 +360,24 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 
 my_bool vio_poll_read(Vio *vio,uint timeout)
 {
-#ifndef HAVE_POLL
-  return 0;
-#else
+#ifdef __WIN__
+  int res, fd= vio->sd;
+  fd_set readfds, errorfds;
+  struct timeval tm;
+  DBUG_ENTER("vio_poll");
+  tm.tv_sec= timeout;
+  tm.tv_usec= 0;
+  FD_ZERO(&readfds);
+  FD_ZERO(&errorfds);
+  FD_SET(fd, &readfds);
+  FD_SET(fd, &errorfds);
+  if ((res= select(fd, &readfds, NULL, &errorfds, &tm) <= 0))
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);
+  }
+  res= FD_ISSET(fd, &readfds) || FD_ISSET(fd, &errorfds);
+  DBUG_RETURN(!res);
+#elif defined(HAVE_POLL)
   struct pollfd fds;
   int res;
   DBUG_ENTER("vio_poll");
@@ -373,10 +388,36 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   {
     DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
   }
-  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+  DBUG_RETURN(fds.revents & (POLLIN | POLLERR | POLLHUP) ? 0 : 1);
+#else
+  return 0;
 #endif
 }
 
+
+my_bool vio_peek_read(Vio *vio, uint *bytes)
+{
+#ifdef __WIN__
+  int len;
+  if (ioctlsocket(vio->sd, FIONREAD, &len))
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#elif FIONREAD
+  int len;
+  if (ioctl(vio->sd, FIONREAD, &len) < 0)
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#else
+  char buf[1024];
+  ssize_t res= recv(vio->sd, &buf, sizeof(buf), MSG_PEEK);
+  if (res < 0)
+    return TRUE;
+  *bytes= res;
+  return FALSE;
+#endif
+}
 
 void vio_timeout(Vio *vio, uint which, uint timeout)
 {
