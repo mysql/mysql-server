@@ -2941,23 +2941,23 @@ inline int ha_ndbcluster::next_result(uchar *buf)
     for (int i = 0; i < m_pushed_join->m_count; i++)
     {
       TABLE* tab = m_pushed_join->m_tabs[i].table;
-      memset(tab->record[0], 0xff, tab->s->null_bytes);
+      bfill(tab->null_flags, tab->s->null_bytes, 0xff);
     }
 
     res = m_pushed_join->m_active_query->nextResult();
     if (res == NdbQuery::NextResult_gotRow)
     {
       DBUG_PRINT("info", ("One more record found"));    
-
 //    unpack_record(buf, m_pushed_join->m_tabs[0].table->record[0]);
-      table->status= 0;
 
+      /* Set status & nullability for all tables w/ rows being fetched. */
       for (int i = 0; i < m_pushed_join->m_count; i++)
       {
-        TABLE* tab = m_pushed_join->m_tabs[i].table;
-        const NdbQueryOperation* op = 
-          m_pushed_join->m_active_query->getQueryOperation(i);
-        tab->null_row = op->isRowNULL();
+        TABLE* tab= m_pushed_join->m_tabs[i].table;
+        if (m_pushed_join->m_active_query->getQueryOperation(i)->isRowNULL())
+          mark_as_null_row(tab);
+        else
+          tab->status= 0;
       }
       DBUG_RETURN(0);
     }
@@ -3063,7 +3063,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   for (int i = 0; i < m_pushed_join->m_count; i++)
   {
     TABLE* tab = m_pushed_join->m_tabs[i].table;
-    memset(tab->record[0], 0xff, tab->s->null_bytes);
+    bfill(tab->null_flags, tab->s->null_bytes, 0xff);
   }
 
   if (table_share->primary_key == MAX_KEY)
@@ -3080,24 +3080,24 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     poptions= &options;
   }
 
-  const void* paramValues[10] = {NULL};
+  const void* paramValues[10]= {NULL};
   for (unsigned i = 0; i < key_rec->noOfColumns; i++)
   {
-    paramValues[i] = key+key_rec->columns[i].offset;
+    paramValues[i]= key+key_rec->columns[i].offset;
   }
 
-  NdbQuery* const query = m_thd_ndb->trans->createQuery(m_pushed_join->m_queryDef, paramValues);
+  NdbQuery* const query= m_thd_ndb->trans->createQuery(m_pushed_join->m_queryDef, paramValues);
   if (!query)
     return NULL;
 
   for (int i = 0; i<m_pushed_join->m_count; i++)
   {
-    const JOIN_TAB &join_tab = m_pushed_join->m_tabs[i];
-    const NdbRecord* const resultRec = 
-      static_cast<ha_ndbcluster*>(join_tab.table->file)->m_ndb_record;
+    TABLE* tab= m_pushed_join->m_tabs[i].table;
+    const NdbRecord* const resultRec= 
+      static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
     query->getQueryOperation(i)
       ->setResultRowBuf(resultRec,
-                        reinterpret_cast<char*>(join_tab.table->record[0]),
+                        reinterpret_cast<char*>(tab->record[0]),
                         NULL);
   }
 
@@ -3242,8 +3242,49 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   NdbIndexScanOperation::IndexBound *pbound = NULL;
   NdbInterpretedCode code(m_table);
 
-  if (m_pushed_join)  // FIXME SPJ
+  if (m_pushed_join)  // FIXME SPJ, incomplete && untested
   {
+    DBUG_ASSERT(!sorted);
+    DBUG_ASSERT(!descending);
+    DBUG_ASSERT(!(m_use_partition_pruning && m_user_defined_partitioning));
+
+    DBUG_PRINT("info", ("Starting index scan query for pushed joins\n"));
+    sql_print_information("ha_ndbcluster::ordered_index_scan() "
+                          "executing chain of a index scan + %d primary key lookups."
+                          " First table is %s.", 
+                          m_pushed_join->m_count-1,
+                          m_pushed_join->m_tabs[0].table->s->table_name
+                          );
+
+#if 1
+    const NdbQueryOperand* low[]  = {NULL};
+    const NdbQueryOperand* high[] = {NULL};
+    const NdbQueryIndexBound bound(low, high);  // TODO SPJ
+
+//  if (m_cond && m_cond->generate_scan_filter(&code, &options))
+//    ERR_RETURN(code.getNdbError());
+
+    const void* const* paramValues = NULL;
+    NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef, paramValues);
+    if (!query)
+      ERR_RETURN(trans->getNdbError());
+
+    for (int i = 0; i<m_pushed_join->m_count; i++)
+    {
+      TABLE* tab= m_pushed_join->m_tabs[i].table;
+      const NdbRecord* const resultRec= 
+        static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
+      query->getQueryOperation(i)
+        ->setResultRowBuf(resultRec,
+                          reinterpret_cast<char*>(tab->record[0]),
+                          NULL);
+    }
+
+    m_thd_ndb->m_scan_count++;
+//  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);  -- TODO SPJ
+    m_pushed_join->m_active_query= query;
+    DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
+#endif
   }
   else
   {
@@ -3405,9 +3446,9 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   if (m_pushed_join)
   {
-    DBUG_PRINT("info", ("Starting scan query for pushed join\n"));
+    DBUG_PRINT("info", ("Starting table scan query for pushed joins\n"));
     sql_print_information("ha_ndbcluster::full_table_scan() "
-                          "executing chain of a scan + %d primary key lookups."
+                          "executing chain of a table scan + %d primary key lookups."
                           " First table is %s.", 
                           m_pushed_join->m_count-1,
                           m_pushed_join->m_tabs[0].table->s->table_name
@@ -3418,14 +3459,14 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     if (!query)
       ERR_RETURN(trans->getNdbError());
 
-    for(int i= 0; i<m_pushed_join->m_count; i++)
+    for (int i = 0; i<m_pushed_join->m_count; i++)
     {
-      const JOIN_TAB &join_tab= m_pushed_join->m_tabs[i];
-      const NdbRecord* const resultRec = 
-        static_cast<ha_ndbcluster*>(join_tab.table->file)->m_ndb_record;
+      TABLE* tab= m_pushed_join->m_tabs[i].table;
+      const NdbRecord* const resultRec= 
+        static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
       query->getQueryOperation(i)
         ->setResultRowBuf(resultRec,
-                          reinterpret_cast<char*>(join_tab.table->record[0]),
+                          reinterpret_cast<char*>(tab->record[0]),
                           NULL);
     }
 

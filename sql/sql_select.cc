@@ -6430,7 +6430,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 }
 
 /** Set to true to enable query push down prototype code.*/
-static my_bool enable_pushed_operations = FALSE;
+static my_bool enable_pushed_operations = TRUE;
 
 
 static int is_pushable(const JOIN_TAB *tab, int nTabs)
@@ -11744,10 +11744,15 @@ join_read_key(JOIN_TAB *tab)
 static int
 join_read_linked_key(JOIN_TAB *tab)
 {
+  TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_key");
-  // NOOP: Row already fetched through linked key operation
-  //table->null_row=0;  // TODO, check RowIsNull on NdbQueryOperation
-  DBUG_RETURN(0);
+
+  // 'read' itself is a NOOP: Already fetched through linked key operation
+  // 'table->status' has also been correctly set previosly.
+
+  table->null_row=0;
+  int rc = table->status ? -1 : 0;
+  DBUG_RETURN(rc);
 }
 
 /*
