@@ -15,6 +15,7 @@
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR} )
 INCLUDE(CheckIncludeFile)
+include(CheckFunctionExists)
 CHECK_INCLUDE_FILES(term.h HAVE_TERM_H)
 
 SET(CMAKE_REQUIRED_LIBRARIES ${CURSES_CURSES_LIBRARY})
@@ -47,30 +48,11 @@ ENDIF()
 
 MARK_AS_ADVANCED(AWK_EXECUTABLE)
 SET(AWK ${AWK_EXECUTABLE})
-CONFIGURE_FILE(makelist.sh ${CMAKE_CURRENT_SOURCE_DIR}/makelist @ONLY)
+CONFIGURE_FILE(makelist.sh ${CMAKE_CURRENT_BINARY_DIR}/makelist @ONLY)
 
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CURSES_INCLUDE_PATH}
-                    }
-)
-
-SET(ASRC vi.c emacs.c common.c)
-SET(AHDR vi.h emacs.h common.h)
-
-
-SET(LIBEDIT_SOURCES
- chared.c el.c history.c map.c prompt.c readline.c 
- search.c tokenizer.c vi.c common.c emacs.c 
- hist.c key.c parse.c read.c refresh.c sig.c term.c
- tty.c help.c fcns.c filecomplete.c
- ${AHDR}
- )
-
-include(CheckFunctionExists)
 include(CheckIncludeFile)
-CHECK_INCLUDE_FILE(vis.h HAVE_VIS_H)
 
+CHECK_INCLUDE_FILE(vis.h HAVE_VIS_H)
 IF(HAVE_VIS_H)
   CHECK_FUNCTION_EXISTS(strvis HAVE_STRVIS)
   IF(NOT HAVE_STRVIS)
@@ -80,88 +62,107 @@ ENDIF()
 
 CHECK_FUNCTION_EXISTS(strvis HAVE_STRVIS)
 IF(NOT HAVE_STRVIS)
-  SET(LIBEDIT_SOURCES ${LIBEDIT_SOURCES}  np/vis.c)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES}  np/vis.c)
 ENDIF()
-
 
 CHECK_FUNCTION_EXISTS(strunvis HAVE_STRUNVIS)
 IF(NOT HAVE_STRUNVIS)
-  SET(LIBEDIT_SOURCES ${LIBEDIT_SOURCES} np/unvis.c)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/unvis.c)
 ENDIF()
 
 CHECK_FUNCTION_EXISTS(strlcpy HAVE_STRLCPY)
 IF(NOT HAVE_STRLCPY)
-  SET(LIBEDIT_SOURCES ${LIBEDIT_SOURCES} np/strlcpy.c)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/strlcpy.c)
 ENDIF()
-
 
 CHECK_FUNCTION_EXISTS(strlcat HAVE_STRLCAT)
 IF(NOT HAVE_STRLCAT)
-  SET(LIBEDIT_SOURCES ${LIBEDIT_SOURCES} np/strlcat.c)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/strlcat.c)
 ENDIF()
-
 
 CHECK_FUNCTION_EXISTS(fgetln HAVE_FGETLN)
 IF(NOT HAVE_FGETLN)
-  SET(LIBEDIT_SOURCES ${LIBEDIT_SOURCES} np/fgetln.c)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/fgetln.c)
 ENDIF()
 
+# Generate headers
+FOREACH(SRCBASENAME  vi emacs common)
+  SET(SRC ${CMAKE_CURRENT_SOURCE_DIR}/${SRCBASENAME}.c)
+  SET(HDR ${CMAKE_CURRENT_BINARY_DIR}/${SRCBASENAME}.h)
 
-ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/vi.h
-	COMMAND sh ./makelist -h vi.c > vi.h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS vi.c)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${HDR}
+    COMMAND sh ./makelist -h ${SRC} > ${HDR}
+    DEPENDS ${SRC})
 
-ADD_CUSTOM_COMMAND(OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/emacs.h
-	COMMAND sh ./makelist -h emacs.c > emacs.h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS emacs.c)
+  SET(AHDR ${AHDR} ${HDR})
+  SET(ASRC ${ASRC} ${SRC})
+ENDFOREACH()
 
-ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/common.h
-	COMMAND sh ./makelist -h common.c > common.h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDS common.c)
-
-ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/help.c
-	COMMAND sh ./makelist -bc ${ASRC} > help.c
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS ${ASRC}
-	)
-
-ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/help.h
-	COMMAND sh ./makelist -bh ${ASRC} > help.h
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS ${ASRC}
-	)
-
-ADD_CUSTOM_COMMAND(OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/fcns.h
-	COMMAND sh ./makelist -fh ${AHDR} > fcns.h
-	VERBATIM
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS ${AHDR}
-	)
-
-ADD_CUSTOM_COMMAND(OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/fcns.c
-	COMMAND sh ./makelist -fc ${AHDR} > fcns.c
-        VERBATIM
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS ${AHDR}
-	)
-
-
-ADD_CUSTOM_TARGET( 
-        GenLibeditSource
-        DEPENDS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/vi.h 
-        ${CMAKE_CURRENT_SOURCE_DIR}/emacs.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/common.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/help.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/help.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/fcns.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/fcns.h
+# Generate source files
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/help.c
+  COMMAND sh ./makelist -bc ${ASRC} > help.c
+  DEPENDS ${ASRC}
 )
 
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/help.h
+  COMMAND sh ./makelist -bh ${ASRC} > help.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS ${ASRC}
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/fcns.h
+  COMMAND sh ./makelist -fh ${AHDR} > fcns.h
+  VERBATIM
+  DEPENDS ${AHDR}
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/fcns.c
+  COMMAND sh ./makelist -fc ${AHDR} > fcns.c
+  VERBATIM
+  DEPENDS ${AHDR}
+)
+
+
+INCLUDE_DIRECTORIES(
+${CMAKE_SOURCE_DIR}/include
+${CMAKE_CURRENT_BINARY_DIR}
+${CURSES_INCLUDE_PATH}
+)
+
+SET(LIBEDIT_SOURCES
+  chared.c 
+  el.c 
+  history.c
+  map.c
+  prompt.c
+  readline.c 
+  search.c
+  tokenizer.c
+  vi.c
+  common.c
+  emacs.c 
+  hist.c
+  key.c
+  parse.c
+  read.c
+  refresh.c
+  sig.c
+  term.c
+  tty.c
+  filecomplete.c
+  ${CMAKE_CURRENT_BINARY_DIR}/help.c
+  ${CMAKE_CURRENT_BINARY_DIR}/help.h
+  ${CMAKE_CURRENT_BINARY_DIR}/fcns.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/fcns.h
+  ${AHDR} 
+  ${LIBEDIT_EXTRA_SOURCES}
+)
+MESSAGE(${LIBEDIT_EXTRA_SOURCES})
 ADD_LIBRARY(edit ${LIBEDIT_SOURCES})
-ADD_DEPENDENCIES(edit GenLibeditSource)
 TARGET_LINK_LIBRARIES(edit ${CURSES_LIBRARY})
 
