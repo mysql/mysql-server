@@ -1,0 +1,82 @@
+#
+# This test verifies if concurrent transactions that invoke a 
+# trigger that inserts more than one values into one or more 
+# tables with an auto_increment column will make the autoinc 
+# values become inconsistent on master and slave.
+#
+
+connection master;
+create table t1(a int, b int) engine=innodb;
+create table t2(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+eval create trigger tr1 $trigger_action on t1 for each row insert into t2(a) values(6);
+
+create table t3(a int, b int) engine=innodb;
+create table t4(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+create table t5(a int) engine=innodb;
+delimiter |;
+eval create trigger tr2 $trigger_action on t3 for each row begin
+    insert into t4(a) values(f1_insert_triggered());
+    insert into t4(a) values(f1_insert_triggered());
+    insert into t5(a) values(8);
+end |
+delimiter ;|
+
+create table t6(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+delimiter //;
+CREATE FUNCTION f1_insert_triggered() RETURNS INTEGER
+BEGIN
+   INSERT INTO t6(a) values(2),(3);
+   RETURN 1;
+END//
+delimiter ;//
+
+begin;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+insert into t1(a,b) values(1,1),(2,1);
+insert into t3(a,b) values(1,1),(2,1);
+update t1 set a = a + 5 where b = 1;
+update t3 set a = a + 5 where b = 1;
+delete from t1 where b = 1;
+delete from t3 where b = 1;
+
+connection master1;
+#The default autocommit is set to 1, so the statement is auto committed
+insert into t2(a) values(3);
+insert into t4(a) values(3);
+
+connection master;
+commit;
+insert into t1(a,b) values(4,2);
+insert into t3(a,b) values(4,2);
+update t1 set a = a + 5 where b = 2;
+update t3 set a = a + 5 where b = 2;
+delete from t1 where b = 2;
+delete from t3 where b = 2;
+--echo # To verify if insert/update in an autoinc column causes statement to be logged in row format
+source include/show_binlog_events.inc;
+commit;
+
+connection master;
+sync_slave_with_master;
+--echo #Test if the results are consistent on master and slave
+--echo #for 'INVOKES A TRIGGER with $trigger_action action'
+let $diff_table_1=master:test.t2;
+let $diff_table_2=slave:test.t2;
+source include/diff_tables.inc;
+let $diff_table_1=master:test.t4;
+let $diff_table_2=slave:test.t4;
+source include/diff_tables.inc;
+let $diff_table_1=master:test.t6;
+let $diff_table_2=slave:test.t6;
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP FUNCTION f1_insert_triggered;
+sync_slave_with_master;
+

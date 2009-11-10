@@ -1,4 +1,4 @@
-flush logs;
+RESET MASTER;
 create table t3 (f text character set utf8);
 create table t4 (f text character set cp932);
 flush logs;

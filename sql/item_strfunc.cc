@@ -631,6 +631,7 @@ String *Item_func_concat_ws::val_str(String *str)
   String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
          *sep_str, *res, *res2,*use_as_buff;
   uint i;
+  bool is_const= 0;
 
   null_value=0;
   if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
@@ -644,7 +645,11 @@ String *Item_func_concat_ws::val_str(String *str)
   // If not, return the empty string
   for (i=1; i < arg_count; i++)
     if ((res= args[i]->val_str(str)))
+    {
+      is_const= args[i]->const_item() || !args[i]->used_tables();
       break;
+    }
+
   if (i ==  arg_count)
     return &my_empty_string;
 
@@ -662,7 +667,7 @@ String *Item_func_concat_ws::val_str(String *str)
 			  current_thd->variables.max_allowed_packet);
       goto null;
     }
-    if (res->alloced_length() >=
+    if (!is_const && res->alloced_length() >=
 	res->length() + sep_str->length() + res2->length())
     {						// Use old buffer
       res->append(*sep_str);			// res->length() > 0 always
