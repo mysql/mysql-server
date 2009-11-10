@@ -3772,6 +3772,19 @@ INTO @var0;
 
 DROP TABLE t1;
  
+--echo #
+--echo # Bug #48458: simple query tries to allocate enormous amount of
+--echo #   memory
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2(c INT);
+--echo # Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+  WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+DROP TABLE t1,t2;
+
 
 --echo End of 5.0 tests
 
