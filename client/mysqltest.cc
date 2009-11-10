@@ -281,7 +281,7 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
-  Q_MOVE_FILE,
+  Q_MOVE_FILE, Q_SEND_EVAL,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -376,6 +376,7 @@ const char *command_names[]=
   "send_shutdown",
   "shutdown_server",
   "move_file",
+  "send_eval",
 
   0
 };
@@ -7006,7 +7007,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   /*
     Evaluate query if this is an eval command
   */
-  if (command->type == Q_EVAL)
+  if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
   {
     init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
     do_eval(&eval_query, command->query, command->end, FALSE);
@@ -7825,6 +7826,7 @@ int main(int argc, char **argv)
 	break;
       }
       case Q_SEND:
+      case Q_SEND_EVAL:
         if (!*command->first_argument)
         {
           /*
