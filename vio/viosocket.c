@@ -356,15 +356,26 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 }
 
 
-/* Return 0 if there is data to be read */
+/**
+  Indicate whether there is data to read on a given socket.
 
-my_bool vio_poll_read(Vio *vio,uint timeout)
+  @note An exceptional condition event and/or errors are
+        interpreted as if there is data to read.
+
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to poll.
+
+  @retval FALSE   There is data to read.
+  @retval TRUE    There is no data to read.
+*/
+
+static my_bool socket_poll_read(my_socket sd, uint timeout)
 {
 #ifdef __WIN__
-  int res, fd= vio->sd;
+  my_socket fd= sd;
   fd_set readfds, errorfds;
   struct timeval tm;
-  DBUG_ENTER("vio_poll");
+  DBUG_ENTER("socket_poll_read");
   tm.tv_sec= timeout;
   tm.tv_usec= 0;
   FD_ZERO(&readfds);
@@ -380,8 +391,8 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 #elif defined(HAVE_POLL)
   struct pollfd fds;
   int res;
-  DBUG_ENTER("vio_poll");
-  fds.fd=vio->sd;
+  DBUG_ENTER("socket_poll_read");
+  fds.fd=sd;
   fds.events=POLLIN;
   fds.revents=0;
   if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
@@ -395,7 +406,17 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 }
 
 
-my_bool vio_peek_read(Vio *vio, uint *bytes)
+/**
+  Retrieve the amount of data that can be read from a socket.
+
+  @param vio          A VIO object.
+  @param bytes[out]   The amount of bytes available.
+
+  @retval FALSE   Success.
+  @retval TRUE    Failure.
+*/
+
+static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
 #ifdef __WIN__
   int len;
@@ -418,6 +439,78 @@ my_bool vio_peek_read(Vio *vio, uint *bytes)
   return FALSE;
 #endif
 }
+
+
+/**
+  Indicate whether there is data to read on a given socket.
+
+  @remark Errors are interpreted as if there is data to read.
+
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to wait.
+
+  @retval FALSE   There is data (or EOF) to read. Also FALSE if error.
+  @retval TRUE    There is _NO_ data to read or timed out.
+*/
+
+my_bool vio_poll_read(Vio *vio, uint timeout)
+{
+  my_socket sd= vio->sd;
+  DBUG_ENTER("vio_poll_read");
+#ifdef HAVE_OPENSSL
+  if (vio->type == VIO_TYPE_SSL)
+    sd= SSL_get_fd((SSL*) vio->ssl_arg);
+#endif
+  DBUG_RETURN(socket_poll_read(sd, timeout));
+}
+
+
+/**
+  Determine if the endpoint of a connection is still available.
+
+  @remark The socket is assumed to be disconnected if an EOF
+          condition is encountered.
+
+  @param vio      The VIO object.
+
+  @retval TRUE    EOF condition not found.
+  @retval FALSE   EOF condition is signaled.
+*/
+
+my_bool vio_is_connected(Vio *vio)
+{
+  uint bytes= 0;
+  DBUG_ENTER("vio_is_connected");
+
+  /* In the presence of errors the socket is assumed to be connected. */
+
+  /*
+    The first step of detecting a EOF condition is veryfing
+    whether there is data to read. Data in this case would
+    be the EOF.
+  */
+  if (vio_poll_read(vio, 0))
+    DBUG_RETURN(TRUE);
+
+  /*
+    The second step is read() or recv() from the socket returning
+    0 (EOF). Unfortunelly, it's not possible to call read directly
+    as we could inadvertently read meaningful connection data.
+    Simulate a read by retrieving the number of bytes available to
+    read -- 0 meaning EOF.
+  */
+  if (socket_peek_read(vio, &bytes))
+    DBUG_RETURN(TRUE);
+
+#ifdef HAVE_OPENSSL
+  /* There might be buffered data at the SSL layer. */
+  if (!bytes && vio->type == VIO_TYPE_SSL)
+    bytes= SSL_pending((SSL*) vio->ssl_arg);
+#endif
+
+  DBUG_RETURN(bytes ? TRUE : FALSE);
+}
+
 
 void vio_timeout(Vio *vio, uint which, uint timeout)
 {
@@ -486,6 +579,16 @@ size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
   DBUG_PRINT("exit", ("%d", length));
   DBUG_RETURN((size_t) length);
 }
+
+
+my_bool vio_is_connected_pipe(Vio *vio)
+{
+  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
+    return TRUE;
+  else
+    return (GetLastError() != ERROR_BROKEN_PIPE);
+}
+
 
 int vio_close_pipe(Vio * vio)
 {
@@ -622,6 +725,12 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 
   DBUG_PRINT("exit", ("%lu", (ulong) length));
   DBUG_RETURN(length);
+}
+
+
+my_bool vio_is_connected_shared_memory(Vio *vio)
+{
+  return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
 }
 
 

@@ -51,9 +51,6 @@ Vio* vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
                                 HANDLE event_client_wrote,
                                 HANDLE event_client_read,
                                 HANDLE event_conn_closed);
-size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
-size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
-int vio_close_pipe(Vio * vio);
 #else
 #define HANDLE void *
 #endif /* __WIN__ */
@@ -87,8 +84,8 @@ my_socket vio_fd(Vio*vio);
 my_bool	vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 /* Remotes in_addr */
 void	vio_in_addr(Vio *vio, struct in_addr *in);
-my_bool	vio_poll_read(Vio *vio,uint timeout);
-my_bool vio_peek_read(Vio *vio, uint *bytes);
+my_bool vio_poll_read(Vio *vio, uint timeout);
+my_bool vio_is_connected(Vio *vio);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -137,12 +134,6 @@ struct st_VioSSLFd
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* HAVE_OPENSSL */
 
-#ifdef HAVE_SMEM
-size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
-size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
-int vio_close_shared_memory(Vio * vio);
-#endif
-
 void vio_end(void);
 
 #ifdef	__cplusplus
@@ -165,6 +156,8 @@ void vio_end(void);
 #define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
 #define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
+#define vio_poll_read(vio, timeout)             (vio)->poll_read(vio, timeout)
+#define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
 
 /* This enumerator is used in parser - should be always visible */
@@ -209,6 +202,8 @@ struct st_vio
   my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
+  my_bool (*poll_read)(Vio *vio, uint timeout);
+  my_bool (*is_connected)(Vio*);
 #ifdef HAVE_OPENSSL
   void	  *ssl_arg;
 #endif
