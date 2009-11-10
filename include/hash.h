@@ -45,7 +45,6 @@ extern "C" {
 #define hash_element    my_hash_element
 #define hash_search     my_hash_search
 #define hash_first      my_hash_first
-#define hash_first_from_hash_value      my_hash_first_from_hash_value
 #define hash_next       my_hash_next
 #define hash_insert     my_hash_insert
 #define hash_delete     my_hash_delete
@@ -65,6 +64,7 @@ extern "C" {
 /* flags for hash_init */
 #define HASH_UNIQUE     1       /* hash_insert fails on duplicate key */
 
+typedef uint my_hash_value_type;
 typedef uchar *(*my_hash_get_key)(const uchar *,size_t*,my_bool);
 typedef void (*my_hash_free_key)(void *);
 
@@ -95,13 +95,15 @@ void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 uchar *my_hash_element(HASH *hash, ulong idx);
 uchar *my_hash_search(const HASH *info, const uchar *key, size_t length);
-uchar *my_hash_search_using_hash_value(const HASH *info, uint hash_value,
+uchar *my_hash_search_using_hash_value(const HASH *info,
+                                       my_hash_value_type hash_value,
                                        const uchar *key, size_t length);
-uint my_calc_hash(const HASH *info, const uchar *key, size_t length);
+my_hash_value_type my_calc_hash(const HASH *info,
+                                const uchar *key, size_t length);
 uchar *my_hash_first(const HASH *info, const uchar *key, size_t length,
                      HASH_SEARCH_STATE *state);
 uchar *my_hash_first_from_hash_value(const HASH *info,
-                                     uint hash_value,
+                                     my_hash_value_type hash_value,
                                      const uchar *key,
                                      size_t length,
                                      HASH_SEARCH_STATE *state);

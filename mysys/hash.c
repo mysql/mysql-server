@@ -33,16 +33,18 @@ typedef struct st_hash_info {
   uchar *data;					/* data for current entry */
 } HASH_LINK;
 
-static uint my_hash_mask(size_t hashnr, size_t buffmax, size_t maxlength);
+static uint my_hash_mask(my_hash_value_type hashnr,
+                         size_t buffmax, size_t maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
                    size_t length);
 
-static uint calc_hash(const HASH *hash, const uchar *key, size_t length)
+static my_hash_value_type calc_hash(const HASH *hash,
+                                    const uchar *key, size_t length)
 {
   ulong nr1=1, nr2=4;
   hash->charset->coll->hash_sort(hash->charset,(uchar*) key,length,&nr1,&nr2);
-  return nr1;
+  return (my_hash_value_type)nr1;
 }
 
 /**
@@ -179,7 +181,8 @@ my_hash_key(const HASH *hash, const uchar *record, size_t *length,
 
 	/* Calculate pos according to keys */
 
-static uint my_hash_mask(size_t hashnr, size_t buffmax, size_t maxlength)
+static uint my_hash_mask(my_hash_value_type hashnr, size_t buffmax,
+                         size_t maxlength)
 {
   if ((hashnr & (buffmax-1)) < maxlength) return (hashnr & (buffmax-1));
   return (hashnr & ((buffmax >> 1) -1));
@@ -200,7 +203,7 @@ static
 #if !defined(__USLC__) && !defined(__sgi)
 inline
 #endif
-unsigned int rec_hashnr(HASH *hash,const uchar *record)
+my_hash_value_type rec_hashnr(HASH *hash,const uchar *record)
 {
   size_t length;
   uchar *key= (uchar*) my_hash_key(hash, record, &length, 0);
@@ -215,7 +218,7 @@ uchar* my_hash_search(const HASH *hash, const uchar *key, size_t length)
 }
 
 uchar* my_hash_search_using_hash_value(const HASH *hash, 
-                                       uint hash_value,
+                                       my_hash_value_type hash_value,
                                        const uchar *key,
                                        size_t length)
 {
@@ -224,7 +227,8 @@ uchar* my_hash_search_using_hash_value(const HASH *hash,
                                        key, length, &state);
 }
 
-uint my_calc_hash(const HASH *hash, const uchar *key, size_t length)
+my_hash_value_type my_calc_hash(const HASH *hash,
+                                const uchar *key, size_t length)
 {
   return calc_hash(hash, key, length ? length : hash->key_length);
 }
@@ -244,7 +248,7 @@ uchar* my_hash_first(const HASH *hash, const uchar *key, size_t length,
 }
                     
 uchar* my_hash_first_from_hash_value(const HASH *hash,
-                                     uint hash_value,
+                                     my_hash_value_type hash_value,
                                      const uchar *key,
                                      size_t length,
                                      HASH_SEARCH_STATE *current_record)
@@ -356,7 +360,8 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 my_bool my_hash_insert(HASH *info, const uchar *record)
 {
   int flag;
-  size_t idx,halfbuff,hash_nr,first_index;
+  size_t idx,halfbuff,first_index;
+  my_hash_value_type hash_nr;
   uchar *ptr_to_rec,*ptr_to_rec2;
   HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
 
@@ -497,7 +502,8 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 
 my_bool my_hash_delete(HASH *hash, uchar *record)
 {
-  uint blength,pos2,pos_hashnr,lastpos_hashnr,idx,empty_index;
+  uint blength,pos2,idx,empty_index;
+  my_hash_value_type pos_hashnr, lastpos_hashnr;
   HASH_LINK *data,*lastpos,*gpos,*pos,*pos3,*empty;
   DBUG_ENTER("my_hash_delete");
   if (!hash->records)
