@@ -1961,9 +1961,12 @@ public:
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
+  /** Return FALSE if connection to client is broken. */
+  bool vio_is_connected();
 #else
   void clear_error();
-  inline bool vio_ok() const { return true; }
+  inline bool vio_ok() const { return TRUE; }
+  inline bool vio_is_connected() { return TRUE; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
