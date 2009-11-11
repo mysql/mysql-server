@@ -929,7 +929,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
         bool old= (find_type(argv[0], &command_typelib, 2) ==
                    ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
-        uint pw_len= strlen(typed_password);
+        size_t pw_len= strlen(typed_password);
         if (pw_len > 1 && typed_password[0] == '\'' &&
             typed_password[pw_len-1] == '\'')
           printf("Warning: single quotes were not trimmed from the password by"
