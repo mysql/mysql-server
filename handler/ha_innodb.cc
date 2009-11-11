@@ -7912,7 +7912,10 @@ ha_innobase::external_lock(
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
 		if (tx_isolation <= ISO_READ_COMMITTED
                    && binlog_format == BINLOG_FORMAT_STMT
-                   && thd_binlog_filter_ok(thd))
+#if MYSQL_VERSION_ID > 50140
+                   && thd_binlog_filter_ok(thd)
+#endif /* MYSQL_VERSION_ID > 50140 */
+		   )
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
