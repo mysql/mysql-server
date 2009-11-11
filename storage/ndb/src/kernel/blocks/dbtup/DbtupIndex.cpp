@@ -663,23 +663,64 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
        *      i.e delete's shouldnt be added 
        *      (unless it's the first op, when "original" should be added)
        */
-      do 
+
+      /*
+       * Start from first operation.  This is only to make things more
+       * clear.  It is not required by ordered index implementation.
+       */
+      c_operation_pool.getPtr(pageOperPtr);
+      while (pageOperPtr.p->prevActiveOp != RNIL)
       {
-	c_operation_pool.getPtr(pageOperPtr);
-	if(pageOperPtr.p->op_struct.op_type != ZDELETE ||
-	   pageOperPtr.p->is_first_operation())
-	{
-	  req->errorCode = RNIL;
-	  req->tupVersion= pageOperPtr.p->tupVersion;
-	  EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
-			 signal, TuxMaintReq::SignalLength+2);
-	}
-	else
-	{
-	  req->errorCode= 0;
-	}
-	pageOperPtr.i= pageOperPtr.p->prevActiveOp;
-      } while(req->errorCode == 0 && pageOperPtr.i != RNIL);
+        jam();
+        pageOperPtr.i = pageOperPtr.p->prevActiveOp;
+        c_operation_pool.getPtr(pageOperPtr);
+      }
+      /*
+       * Do not use req->errorCode as global control.
+       */
+      bool ok = true;
+      /*
+       * If first operation is an update, add previous version.
+       * This version does not appear as the version of any operation.
+       * At commit this version is removed by executeTuxCommitTriggers.
+       * At abort it is preserved by executeTuxAbortTriggers.
+       */
+      if (pageOperPtr.p->op_struct.op_type == ZUPDATE)
+      {
+        jam();
+        req->errorCode = RNIL;
+        req->tupVersion = decr_tup_version(pageOperPtr.p->tupVersion);
+        EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
+                       signal, TuxMaintReq::SignalLength+2);
+        ok = (req->errorCode == 0);
+      }
+      /*
+       * Add versions from all operations.
+       *
+       * Each operation has a tuple version.  For insert and update it
+       * is the newly created version.  For delete it is the version
+       * deleted.  The existence of operation tuple version implies that
+       * a corresponding tuple version exists for TUX to read.
+       *
+       * We could be in the middle of a commit.  The process here makes
+       * no assumptions about operation commit order.  (It should be
+       * first to last but this is not the place to assert it).
+       *
+       * Duplicate versions are possible e.g. a delete in the middle
+       * may have same version as the previous operation.  TUX ignores
+       * duplicate version errors during index build.
+       */
+      while (pageOperPtr.i != RNIL && ok)
+      {
+        jam();
+        c_operation_pool.getPtr(pageOperPtr);
+        req->errorCode = RNIL;
+        req->tupVersion = pageOperPtr.p->tupVersion;
+        EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
+                       signal, TuxMaintReq::SignalLength+2);
+        pageOperPtr.i = pageOperPtr.p->nextActiveOp;
+        ok = (req->errorCode == 0);
+      }
     } 
     
     jamEntry();
