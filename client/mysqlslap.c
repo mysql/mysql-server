@@ -597,8 +597,8 @@ static struct my_option my_long_options[] =
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Comma separated list of storage engines to use for creating the table."
-     "The test is run for each engine. You can also specify an option for an engine"
-     "after a `:', like memory:max_row=2300",
+     " The test is run for each engine. You can also specify an option for an engine"
+     " after a `:', like memory:max_row=2300",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
