@@ -372,6 +372,7 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 static my_bool socket_poll_read(my_socket sd, uint timeout)
 {
 #ifdef __WIN__
+  int res;
   my_socket fd= sd;
   fd_set readfds, errorfds;
   struct timeval tm;
@@ -424,7 +425,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
     return TRUE;
   *bytes= len;
   return FALSE;
-#elif FIONREAD
+#elif FIONREAD_IN_SYS_IOCTL
   int len;
   if (ioctl(vio->sd, FIONREAD, &len) < 0)
     return TRUE;
