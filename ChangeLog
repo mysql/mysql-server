@@ -1,5 +1,12 @@
 2009-11-11	The InnoDB Team
 
+	* handler/ha_innodb.cc, mysql-test/innodb_bug47167.result,
+	mysql-test/innodb_bug47167.test, mysql-test/innodb_file_format.result:
+	Fix Bug#47167 "set global innodb_file_format_check" cannot set value
+	by User-Defined Variable
+
+2009-11-11	The InnoDB Team
+
 	* include/os0file.h, os/os0file.c:
 	Fix Bug#3139 Mysql crashes: 'windows error 995' after several selects
 	on a large DB
