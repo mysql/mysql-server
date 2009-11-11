@@ -4644,8 +4644,10 @@ static int
 pkupdateindexbuild(Par par)
 {
   if (par.m_no == 0) {
+    NdbSleep_MilliSleep(10 + urandom(100));
     CHK(createindex(par) == 0);
   } else {
+    NdbSleep_MilliSleep(10 + urandom(100));
     par.m_randomkey = true;
     CHK(pkupdate(par) == 0);
   }
