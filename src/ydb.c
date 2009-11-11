@@ -408,6 +408,26 @@ db_use_builtin_val_cmp(DB *db) {
 }
 
 
+static const char * currkey = "current_version";
+static const char * origkey = "original_version";
+static const uint64_t environment_version = (uint64_t) BRT_LAYOUT_VERSION;
+
+static void
+update_env(DB_ENV * env, DB_TXN * txn) {
+    int r;
+    uint64_t stored_env_version;
+    DBT key, val;
+
+    toku_fill_dbt(&key, currkey, strlen(currkey));
+    toku_init_dbt(&val);
+    r = toku_db_get(env->i->persistent_environment, txn, &key, &val, 0);
+    assert(r==0);
+    stored_env_version = *(uint64_t*)val.data;
+    assert(stored_env_version == environment_version);
+}
+
+
+
 //    DB *directory; //Maps dnames to inames
 //    DB *persistent_environment; //Stores environment settings, can be used for upgrade
 static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
@@ -550,9 +570,25 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         assert(r==0);
         r = db_use_builtin_val_cmp(env->i->persistent_environment);
         assert(r==0);
-        r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", DB_CREATE, mode);
-        assert(r==0);//For Now
-        //TODO: Insert environment variables into persistent environment
+        r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", 0, mode);
+	if (r == ENOENT) {
+	    // create new persistent_environment
+	    DBT key, val;
+	    r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", DB_CREATE, mode);
+	    assert(r==0);
+	    toku_fill_dbt(&key, origkey, strlen(origkey));
+	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
+	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
+	    assert(r==0);
+	    toku_fill_dbt(&key, currkey, strlen(currkey));
+	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
+	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
+	    assert(r==0);
+	}
+	else {
+	    assert(r==0);
+	    update_env(env, txn);
+	}
     }
     {
         r = toku_db_create(&env->i->directory, env, 0);
