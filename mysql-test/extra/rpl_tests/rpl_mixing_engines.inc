@@ -138,6 +138,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
 
   let $trans_id= 7;
+  let $tb_id= 1;
   let $stmt_id= 1;
   let $commands= '';
 
@@ -172,7 +173,7 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
   SET @commands= '';
 }
 
-if (`SELECT HEX(@commands) != HEX('')`)
+while (`SELECT HEX(@commands) != HEX('')`)
 {
   --disable_query_log
   SET @command= SUBSTRING_INDEX(@commands, ' ', 1);
@@ -413,54 +414,104 @@ if (`SELECT HEX(@commands) != HEX('')`)
   }
   if (`SELECT HEX(@command) = HEX('CS-T->T')`)
   {
-    --eval CREATE TABLE tt_xx_$trans_id engine=$engine_type SELECT * FROM tt_1;
+    --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=$engine_type SELECT * FROM tt_1;
   }
   if (`SELECT HEX(@command) = HEX('CS-N->N')`)
   {
-    --eval CREATE TABLE nt_xx_$trans_id engine=MyIsam SELECT * FROM nt_1;
+    --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;
   }
   if (`SELECT HEX(@command) = HEX('CS-T->N')`)
   {
-    --eval CREATE TABLE tt_xx_$trans_id engine=$engine_type SELECT * FROM nt_1;
+    --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=$engine_type SELECT * FROM nt_1;
   }
   if (`SELECT HEX(@command) = HEX('CS-N->T')`)
   {
-    --eval CREATE TABLE nt_xx_$trans_id engine=MyIsam SELECT * FROM tt_1;
+    --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;
   }
   if (`SELECT HEX(@command) = HEX('CSe-T->T')`)
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
-    --eval CREATE TABLE tt_xx_$trans_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM tt_1;
+    --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM tt_1;
   }
   if (`SELECT HEX(@command) = HEX('CSe-N->N')`)
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
-    --eval CREATE TABLE nt_xx_$trans_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;
+    --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;
   }
   if (`SELECT HEX(@command) = HEX('CSe-T->N')`)
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
-    --eval CREATE TABLE tt_xx_$trans_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM nt_1;
+    --eval CREATE TABLE tt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=$engine_type SELECT stmt_id FROM nt_1;
   }
   if (`SELECT HEX(@command) = HEX('CSe-N->T')`)
   {
     --error ER_DUP_ENTRY, ER_DUP_KEY
-    --eval CREATE TABLE nt_xx_$trans_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;
+    --eval CREATE TABLE nt_xx_$tb_id (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;
   }
   if (`SELECT HEX(@command) = HEX('CT')`)
   {
-    --eval CREATE TEMPORARY TABLE tt_xx_$trans_id (a int) engine=$engine_type;
+    --eval CREATE TEMPORARY TABLE tt_xx_$tb_id (a int) engine=$engine_type;
+  }
+  if (`SELECT HEX(@command) = HEX('IS-T<-N')`)
+  {
+    --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('ISe-T<-N')`)
+  {
+    --error ER_DUP_ENTRY, ER_DUP_KEY
+    --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('IS-N<-T')`)
+  {
+    --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('ISe-N<-T')`)
+  {
+    --error ER_DUP_ENTRY, ER_DUP_KEY
+    --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('IS-T<-T')`)
+  {
+    --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('ISe-T<-T')`)
+  {
+    --error ER_DUP_ENTRY, ER_DUP_KEY
+    --eval INSERT INTO tt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('IS-N<-N')`)
+  {
+    --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('ISe-N<-N')`)
+  {
+    --error ER_DUP_ENTRY, ER_DUP_KEY
+    --eval INSERT INTO nt_xx_$tb_id(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;
+  }
+  if (`SELECT HEX(@command) = HEX('trunc-CS-T')`)
+  {
+    eval TRUNCATE TABLE tt_xx_$tb_id;
+  }
+  if (`SELECT HEX(@command) = HEX('trunc-CS-N')`)
+  {
+    eval TRUNCATE TABLE nt_xx_$tb_id;
+  }
+  if (`SELECT HEX(@command) = HEX('trunc-CT')`)
+  {
+    eval TRUNCATE TABLE tt_xx_$tb_id;
   }
   if (`SELECT HEX(@command) = HEX('drop-CS')`)
   {
     --disable_warnings
-    eval DROP TABLE IF EXISTS tt_xx_$trans_id, nt_xx_$trans_id;
+    eval DROP TABLE IF EXISTS tt_xx_$tb_id, nt_xx_$tb_id;
+    inc $tb_id;
     --enable_warnings
   }
   if (`SELECT HEX(@command) = HEX('drop-CT')`)
   {
     --disable_warnings
-    eval DROP TEMPORARY TABLE IF EXISTS tt_xx_$trans_id;
+    eval DROP TEMPORARY TABLE IF EXISTS tt_xx_$tb_id;
+    inc $tb_id;
     --enable_warnings
   }
   if (`SELECT HEX(@command) = HEX('C')`)
@@ -498,6 +549,4 @@ if (`SELECT HEX(@commands) != HEX('')`)
     inc $trans_id;
     let $commands= '';
   }
-
-  --source extra/rpl_tests/rpl_mixing_engines.inc
 }

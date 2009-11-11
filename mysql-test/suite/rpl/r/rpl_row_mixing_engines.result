@@ -12382,244 +12382,1143 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #                            3 - CREATE TABLE...SELECT
 ###################################################################################
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE tt_xx_321 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM tt_1;;
+CREATE TABLE tt_xx_1 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE tt_xx_321 engine=Innodb SELECT * FROM tt_1;;
+CREATE TABLE tt_xx_1 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_321` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_321)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_321, nt_xx_321;
+DROP TABLE IF EXISTS tt_xx_1, nt_xx_1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_321, nt_xx_321
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_1, nt_xx_1
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->T CS-T->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_321` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_321)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_321, nt_xx_321
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_1, nt_xx_1
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->T CS-T->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->N << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_322 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;;
+CREATE TABLE nt_xx_2 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM nt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_322 engine=MyIsam SELECT * FROM nt_1;;
+CREATE TABLE nt_xx_2 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_322` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_322)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_2)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_322, nt_xx_322;
+DROP TABLE IF EXISTS tt_xx_2, nt_xx_2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_322, nt_xx_322
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_2, nt_xx_2
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->N CS-N->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_322` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_322)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_2)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_322, nt_xx_322
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_2, nt_xx_2
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->N CS-N->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE tt_xx_323 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM nt_1;;
+CREATE TABLE tt_xx_3 (PRIMARY KEY (stmt_id)) engine=Innodb SELECT stmt_id FROM nt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->N << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE tt_xx_323 engine=Innodb SELECT * FROM nt_1;;
+CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_323` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_323)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-T->N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_323, nt_xx_323;
+DROP TABLE IF EXISTS tt_xx_3, nt_xx_3;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_323, nt_xx_323
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N CS-T->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_323` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_323)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_323, nt_xx_323
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->N CS-T->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_324 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
+CREATE TABLE nt_xx_4 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_324 engine=MyIsam SELECT * FROM tt_1;;
+CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_324` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_324)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_4)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_324, nt_xx_324;
+DROP TABLE IF EXISTS tt_xx_4, nt_xx_4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_324, nt_xx_324
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_324` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_324)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_4)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_324, nt_xx_324
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_325 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
+CREATE TABLE nt_xx_5 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_325 engine=MyIsam SELECT * FROM tt_1;;
+CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_325` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_325)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_5)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_325, nt_xx_325;
+DROP TABLE IF EXISTS tt_xx_5, nt_xx_5;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_325, nt_xx_325
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_325` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_325)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_5)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_325, nt_xx_325
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_326 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
+CREATE TABLE nt_xx_6 (PRIMARY KEY (stmt_id)) engine=MyIsam SELECT stmt_id FROM tt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TABLE nt_xx_326 engine=MyIsam SELECT * FROM tt_1;;
+CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_326` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_326)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_6)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
-DROP TABLE IF EXISTS tt_xx_326, nt_xx_326;
+DROP TABLE IF EXISTS tt_xx_6, nt_xx_6;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_326, nt_xx_326
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_326` (
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
   `trans_id` int(11) NOT NULL DEFAULT '0',
   `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_326)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_6)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_326, nt_xx_326
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################
-#                         4 - ROLLBACK TEMPORARY TABLE
+#                            4 - INSERT TABLE...SELECT
+###################################################################################
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
+CREATE TABLE tt_xx_7 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=InnoDB
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=InnoDB
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_7;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B T IS-T<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T IS-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_7;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (329, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (329, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B T ISe-T<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T ISe-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_7;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (330, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B IS-T<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B IS-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_7;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (331, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B ISe-T<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B ISe-T<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TABLE IF EXISTS tt_xx_7, nt_xx_7;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_7, nt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_7, nt_xx_7
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
+CREATE TABLE tt_xx_8 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=InnoDB
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=InnoDB
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-T->T << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_8;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B T IS-T<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T IS-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_8;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (335, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (335, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B T ISe-T<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B T ISe-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_8;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (336, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B IS-T<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B IS-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE tt_xx_8;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (337, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-T B ISe-T<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-T B ISe-T<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TABLE IF EXISTS tt_xx_8, nt_xx_8;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_8, nt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_8, nt_xx_8
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
+CREATE TABLE nt_xx_9 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=MyISAM
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=MyISAM
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B T IS-N<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B T ISe-N<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (342, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B IS-N<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B IS-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (343, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B ISe-N<-T T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B ISe-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TABLE IF EXISTS tt_xx_9, nt_xx_9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_9, nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_9, nt_xx_9
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
+CREATE TABLE nt_xx_10 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=MyISAM
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> CS-N->N << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
+  `trans_id` int(11) NOT NULL DEFAULT '0',
+  `stmt_id` int(11) NOT NULL DEFAULT '0',
+  `info` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`trans_id`,`stmt_id`)
+) ENGINE=MyISAM
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> CS-N->N << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_10;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B T IS-N<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_10;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 3);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 6);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B T ISe-N<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_10;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (348, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B IS-N<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B IS-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N << -b-b-b-b-b-b-b-b-b-b-b-
+TRUNCATE TABLE nt_xx_10;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> ISe-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;;
+Got one of the listed errors
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (349, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> trunc-CS-N B ISe-N<-N T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B ISe-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TABLE IF EXISTS tt_xx_10, nt_xx_10;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_10, nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_10, nt_xx_10
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
+
+###################################################################################
+#                         5 - ROLLBACK TEMPORARY TABLE
 ###################################################################################
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (327, 2);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_327 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12630,12 +13529,20 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_11;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 2);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> S1 << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12643,11 +13550,11 @@ SAVEPOINT s1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> S1 << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 5);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_328 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R1 << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12664,20 +13571,28 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_12;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (329, 2);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_329 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (329, 5);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12688,12 +13603,20 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_13;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 330, 2, COUNT(*) FROM tt_1;
+INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
@@ -12701,11 +13624,11 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_330 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (330, 5);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12722,16 +13645,24 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_14;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_331 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (331, 3);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12742,12 +13673,20 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_15;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (332, 2);
+INSERT INTO nt_1(trans_id, stmt_id) VALUES (361, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
@@ -12755,11 +13694,11 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
-CREATE TEMPORARY TABLE tt_xx_332 (a int) engine=Innodb;;
+CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (332, 5);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12775,6 +13714,14 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+DROP TEMPORARY TABLE IF EXISTS tt_xx_16;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################
 #                               CHECK CONSISTENCY 
