@@ -19,8 +19,7 @@
 --echo #########################################################################
 --echo #                            CONFIGURATION
 --echo #########################################################################
-#Re-enable this after fixing BUG#46572
-#connection master;
+connection master;
 
 CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
 CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
@@ -353,23 +352,18 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY
 --echo ###################################################################################
-# Re-enable this after fixing BUG#46572
-# #--sync_slave_with_master
-#
-# #--let $diff_table_1= master:test.tt_1
-# #--let $diff_table_2= slave:test.tt_1
-# #--source include/diff_tables.inc
-#
+--sync_slave_with_master
+
+--let $diff_table_1= master:test.tt_1
+--let $diff_table_2= slave:test.tt_1
+--source include/diff_tables.inc
 
 --echo ###################################################################################
 --echo #                                        CLEAN
 --echo ###################################################################################
-#Re-enable this after fixing BUG#46572
-#connection master;
+connection master;
 
 DROP TABLE tt_1;
 DROP TABLE tt_2;
 
-
-#Re-enable this after fixing BUG#46572
-#sync_slave_with_master;
+sync_slave_with_master;
