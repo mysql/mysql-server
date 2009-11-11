@@ -1905,6 +1905,20 @@ perl;
   print "hello\n";
 EOF
 
+# Test perl within while, also with if being false first iteration
+let $outer= 3;
+let $ifval= 0;
+while ($outer) {
+  if ($ifval) {
+    perl UNTIL;
+      my $val= 5;
+      print "val is $val\n";
+UNTIL
+  }
+  inc $ifval;
+  dec $outer;
+}
+
 # ----------------------------------------------------------------------------
 # test for die
 # ----------------------------------------------------------------------------
