@@ -3584,7 +3584,301 @@ DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
   }
   return NDBT_OK;
 }
- 
+
+// Bug48604
+
+// string messages between local/remote steps identified by stepNo-1
+// each Msg<loc><rem> waits for Ack<loc><rem>
+
+static const uint MaxMsg = 100;
+
+static bool
+send_msg(NDBT_Context* ctx, int loc, int rem, const char* msg)
+{
+  char msgName[20], ackName[20];
+  sprintf(msgName, "Msg%d%d", loc, rem);
+  sprintf(ackName, "Ack%d%d", loc, rem);
+  g_info << loc << ": send to:" << rem << " msg:" << msg << endl;
+  ctx->setProperty(msgName, msg);
+  int cnt = 0;
+  while (1)
+  {
+    if (ctx->isTestStopped())
+      return false;
+    int ret;
+    if ((ret = ctx->getProperty(ackName, (Uint32)0)) != 0)
+      break;
+    if (++cnt % 100 == 0)
+      g_info << loc << ": send to:" << rem << " wait for ack" << endl;
+    NdbSleep_MilliSleep(10);
+  }
+  ctx->setProperty(ackName, (Uint32)0);
+  return true;
+}
+
+static bool
+poll_msg(NDBT_Context* ctx, int loc, int rem, char* msg)
+{
+  char msgName[20], ackName[20];
+  sprintf(msgName, "Msg%d%d", rem, loc);
+  sprintf(ackName, "Ack%d%d", rem, loc);
+  const char* ptr;
+  if ((ptr = ctx->getProperty(msgName, (char*)0)) != 0 && ptr[0] != 0)
+  {
+    assert(strlen(ptr) < MaxMsg);
+    memset(msg, 0, MaxMsg);
+    strcpy(msg, ptr);
+    g_info << loc << ": recv from:" << rem << " msg:" << msg << endl;
+    ctx->setProperty(msgName, "");
+    ctx->setProperty(ackName, (Uint32)1);
+    return true;
+  }
+  return false;
+}
+
+static int
+recv_msg(NDBT_Context* ctx, int loc, int rem, char* msg)
+{
+  uint cnt = 0;
+  while (1)
+  {
+    if (ctx->isTestStopped())
+      return false;
+    if (poll_msg(ctx, loc, rem, msg))
+      break;
+    if (++cnt % 100 == 0)
+      g_info << loc << ": recv from:" << rem << " wait for msg" << endl;
+    NdbSleep_MilliSleep(10);
+  }
+  return true;
+}
+
+const char* tabName_Bug48604 = "TBug48604";
+const char* indName_Bug48604 = "TBug48604X1";
+
+static const NdbDictionary::Table*
+runBug48604createtable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = 0;
+  int result = NDBT_OK;
+  do
+  {
+    NdbDictionary::Table tab(tabName_Bug48604);
+    {
+      NdbDictionary::Column col("a");
+      col.setType(NdbDictionary::Column::Unsigned);
+      col.setPrimaryKey(true);
+      tab.addColumn(col);
+    }
+    {
+      NdbDictionary::Column col("b");
+      col.setType(NdbDictionary::Column::Unsigned);
+      col.setNullable(false);
+      tab.addColumn(col);
+    }
+    CHECK(pDic->createTable(tab) == 0);
+    CHECK((pTab = pDic->getTable(tabName_Bug48604)) != 0);
+  }
+  while (0);
+  return pTab;
+}
+
+static const NdbDictionary::Index*
+runBug48604createindex(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const NdbDictionary::Index* pInd = 0;
+  int result = NDBT_OK;
+  do {
+    NdbDictionary::Index ind(indName_Bug48604);
+    ind.setTable(tabName_Bug48604);
+    ind.setType(NdbDictionary::Index::OrderedIndex);
+    ind.setLogging(false);
+    ind.addColumn("b");
+    g_info << "index create.." << endl;
+    CHECK(pDic->createIndex(ind) == 0);
+    CHECK((pInd = pDic->getIndex(indName_Bug48604, tabName_Bug48604)) != 0);
+    g_info << "index created" << endl;
+    return pInd;
+  }
+  while (0);
+  return pInd;
+}
+
+int
+runBug48604(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = 0;
+  const NdbDictionary::Index* pInd = 0;
+  (void)pDic->dropTable(tabName_Bug48604);
+  int loc = step->getStepNo() - 1;
+  assert(loc == 0);
+  g_err << "main" << endl;
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  char msg[MaxMsg];
+
+  do
+  {
+    CHECK((pTab = runBug48604createtable(ctx, step)) != 0);
+    CHECK(send_msg(ctx, 0, 1, "s"));
+
+    int loop = 0;
+    while (result == NDBT_OK && loop++ < loops)
+    {
+      g_err << "loop:" << loop << endl;
+      {
+        // create index fully while uncommitted ops wait
+        const char* ops[][3] =
+        {
+          { "ozin", "oc", "oa" },       // 0: before 1-2: after
+          { "oziun", "oc", "oa" },
+          { "ozidn", "oc", "oa" },
+          { "ozicun", "oc", "oa" },
+          { "ozicuuun", "oc", "oa" },
+          { "ozicdn", "oc", "oa" },
+          { "ozicdin", "oc", "oa" },
+          { "ozicdidiuuudidn", "oc", "oa" },
+          { "ozicdidiuuudidin", "oc", "oa" }
+        };
+        const int cnt = sizeof(ops)/sizeof(ops[0]);
+        int i;
+        for (i = 0; result == NDBT_OK && i < cnt; i++)
+        {
+          int j;
+          for (j = 1; result == NDBT_OK && j <= 2; j++)
+          {
+            if (ops[i][j] == 0)
+              continue;
+            CHECK(send_msg(ctx, 0, 1, ops[i][0]));
+            CHECK(recv_msg(ctx, 0, 1, msg) && msg[0] == 'o');
+            CHECK((pInd = runBug48604createindex(ctx, step)) != 0);
+            CHECK(send_msg(ctx, 0, 1, ops[i][j]));
+            CHECK(recv_msg(ctx, 0, 1, msg) && msg[0] == 'o');
+
+            CHECK(pDic->dropIndex(indName_Bug48604, tabName_Bug48604) == 0);
+            g_info << "index dropped" << endl;
+          }
+        }
+      }
+    }
+  }
+  while (0);
+
+  (void)send_msg(ctx, 0, 1, "x");
+  ctx->stopTest();
+  g_err << "main: exit:" << result << endl;
+  return result;
+}
+
+int
+runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = 0;
+  const NdbDictionary::Index* pInd = 0;
+  int loc = step->getStepNo() - 1;
+  assert(loc > 0);
+  g_err << "ops: loc:" << loc << endl;
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  char msg[MaxMsg];
+
+  do
+  {
+    CHECK(recv_msg(ctx, loc, 0, msg));
+    assert(msg[0] == 's');
+    CHECK((pTab = pDic->getTable(tabName_Bug48604)) != 0);
+    HugoOperations ops(*pTab);
+    bool have_trans = false;
+    int opseq = 0;
+
+    while (result == NDBT_OK && !ctx->isTestStopped())
+    {
+      CHECK(recv_msg(ctx, loc, 0, msg));
+      if (msg[0] == 'x')
+        break;
+      if (msg[0] == 'o')
+      {
+        char* p = &msg[1];
+        int c;
+        while (result == NDBT_OK && (c = *p++) != 0)
+        {
+          if (c == 'n')
+          {
+            assert(have_trans);
+            CHECK(ops.execute_NoCommit(pNdb) == 0);
+            g_info << loc << ": not committed" << endl;
+            continue;
+          }
+          if (c == 'c')
+          {
+            assert(have_trans);
+            CHECK(ops.execute_Commit(pNdb) == 0);
+            ops.closeTransaction(pNdb);
+            have_trans = false;
+            g_info << loc << ": committed" << endl;
+            continue;
+          }
+          if (c == 'a')
+          {
+            assert(have_trans);
+            CHECK(ops.execute_Rollback(pNdb) == 0);
+            ops.closeTransaction(pNdb);
+            have_trans = false;
+            g_info << loc << ": aborted" << endl;
+            continue;
+          }
+          if (c == 'i' || c == 'u' || c == 'd')
+          {
+            if (!have_trans)
+            {
+              CHECK(ops.startTransaction(pNdb) == 0);
+              have_trans = true;
+              g_info << loc << ": trans started" << endl;
+            }
+            int i;
+            for (i = 0; result == NDBT_OK && i < records; i++)
+            {
+              if (c == 'i')
+                  CHECK(ops.pkInsertRecord(pNdb, i, 1, opseq) == 0);
+              if (c == 'u')
+                CHECK(ops.pkUpdateRecord(pNdb, i, 1, opseq) == 0);
+              if (c == 'd')
+                CHECK(ops.pkDeleteRecord(pNdb, i, 1) == 0);
+            }
+            char op_str[2];
+            sprintf(op_str, "%c", c);
+            g_info << loc << ": op:" << op_str << " records:" << records << endl;
+            opseq++;
+            continue;
+          }
+          if (c == 'z')
+          {
+            CHECK(ops.clearTable(pNdb) == 0);
+            continue;
+          }
+          assert(false);
+        }
+        CHECK(send_msg(ctx, loc, 0, "o"));
+        continue;
+      }
+      assert(false);
+    }
+  } while (0);
+
+  g_err << "ops: loc:" << loc << " exit:" << result << endl;
+  if (result != NDBT_OK)
+    ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -3800,6 +4094,17 @@ TESTCASE("Bug36702", "")
 TESTCASE("Bug29186",
          ""){
   INITIALIZER(runBug29186);
+}
+TESTCASE("Bug48604",
+         "Online ordered index build.\n"
+         "Complements testOIBasic -case f"){
+  STEP(runBug48604);
+  STEP(runBug48604ops);
+#if 0 // for future MT test
+  STEP(runBug48604ops);
+  STEP(runBug48604ops);
+  STEP(runBug48604ops);
+#endif
 }
 NDBT_TESTSUITE_END(testDict);
 
