@@ -10,11 +10,6 @@ static const int log_format_version=TOKU_LOG_VERSION;
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static u_int32_t logger_lock_ctr = 0;	// useful for debug at a live installation
 
-static int toku_fsync(int UU(fd)) {
-    return fsync(fd);
-}
-
-static int (*toku_os_fsync_function)(int)=toku_fsync;
 static int open_logfile (TOKULOGGER logger);
 static int toku_logger_write_buffer (TOKULOGGER logger, int do_fsync);
 static int delete_logfile(TOKULOGGER logger, long long index);
@@ -170,7 +165,7 @@ static int write_it (int fd, const void *bufv, int nbytes) {
 static int close_and_open_logfile (TOKULOGGER logger) {
     int r;
     if (logger->write_log_files) {
-        r = toku_os_fsync_function(logger->fd);          if (r!=0) return errno;
+        r = toku_file_fsync(logger->fd);                 if (r!=0) return errno;
 	assert(logger->fsynced_lsn.lsn <= logger->written_lsn.lsn);
 	logger->fsynced_lsn = logger->written_lsn;
     }
@@ -480,7 +475,7 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 		logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
 	    } else {
 		assert(logger->fsynced_lsn.lsn < logger->written_lsn.lsn); // the fsynced_lsn was less than lsn, but not less than the written lsn?
-		r = toku_os_fsync_function(logger->fd);
+		r = toku_file_fsync(logger->fd);
 		if (r!=0) { r = errno; goto panic; }
 		logger->fsynced_lsn = logger->written_lsn;
 	    }
@@ -532,7 +527,7 @@ toku_logger_write_buffer (TOKULOGGER logger, int do_fsync)
 	    r = close_and_open_logfile(logger);  if (r!=0) goto panic;
 	    logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
 	} else if (do_fsync) {
-	    r = toku_os_fsync_function(logger->fd);
+	    r = toku_file_fsync(logger->fd);
 	    logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
 	} else {
 	    /* nothing */
@@ -945,11 +940,6 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
         rval    = 0;
     }
     return rval;
-}
-
-int toku_set_func_fsync (int (*fsync_function)(int)) {
-    toku_os_fsync_function = fsync_function;
-    return 0;
 }
 
 // Find the earliest LSN in a log

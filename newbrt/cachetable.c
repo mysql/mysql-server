@@ -2186,9 +2186,10 @@ void *toku_cachefile_get_userdata(CACHEFILE cf) {
 int
 toku_cachefile_fsync(CACHEFILE cf) {
     int r;
-
-    if (toku_cachefile_is_dev_null(cf)) r = 0; //Don't fsync /dev/null
-    else r = fsync(cf->fd);
+    if (toku_cachefile_is_dev_null(cf)) 
+        r = 0; //Don't fsync /dev/null
+    else 
+        r = toku_file_fsync(cf->fd);
     return r;
 }
 
