@@ -62,7 +62,7 @@ LOAD XML LOCAL INFILE "MYSQLTEST_VARDIR/tmp/loadxml-dump.xml"  INTO TABLE t2 ROW
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	test	Query	#	NULL	show processlist
-#	root	localhost	test	Query	#	Reading from net	LOAD XML LOCAL INFILE "/home/hf/work/mysql_common/51alik/mysql-test/var/tmp/loadxml-dump.xml"  INTO 
+#	root	localhost	test	Query	#	Reading from net	LOAD XML LOCAL INFILE "MYSQLTEST_VARDIR/tmp/loadxml-dump.xml"  INTO 
 drop table t1;
 drop table t2;
 create table t1 (
