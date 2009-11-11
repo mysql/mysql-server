@@ -74,7 +74,7 @@ MACRO (DTRACE_INSTRUMENT target)
      # link it together with target.
     IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
       SET(objdir ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir)
-      SET(outfile ${CMAKE_CURRENT_BINARY_DIR}/${target}_dtrace.o)
+      SET(outfile ${objdir}/${target}_dtrace.o)
   
       ADD_CUSTOM_COMMAND(
         TARGET ${target} PRE_LINK 
@@ -84,7 +84,7 @@ MACRO (DTRACE_INSTRUMENT target)
           -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
           -DDTRACE_FLAGS=${DTRACE_FLAGS}
           -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
-        WORKING_DIRECTORY ${OBJDIR}
+        WORKING_DIRECTORY ${objdir}
       )
       SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
     ENDIF()
