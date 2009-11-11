@@ -3464,10 +3464,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     */
     char buff[MAX_DOUBLE_STRING_REP_LENGTH];
     char *end;
-    /* TODO: move this to a header shared between client and server. */
-#define NOT_FIXED_DEC  31
     if (field->decimals >= NOT_FIXED_DEC)
-#undef NOT_FIXED_DEC
     {
       /*
         DBL_DIG below is to ensure that the server and client has the same
