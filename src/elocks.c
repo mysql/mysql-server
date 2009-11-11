@@ -29,7 +29,8 @@ struct ydb_big_lock {
 #if YDB_LOCK_MISS_TIME
     int32_t waiters;
     toku_pthread_key_t time_key;
-    uint64_t start_misscount, start_misstime;
+    uint64_t start_miss_count, start_miss_time;
+    uint64_t start_fsync_count, start_fsync_time;
 #endif
 };
 static struct ydb_big_lock ydb_big_lock;
@@ -155,7 +156,8 @@ toku_ydb_lock(void) {
         (void) toku_sync_fetch_and_add_int32(&ydb_big_lock.waiters, -1);
     }
     status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
-    toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_misscount, &ydb_big_lock.start_misstime);
+    toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_miss_count, &ydb_big_lock.start_miss_time);
+    toku_get_fsync_times(&ydb_big_lock.start_fsync_count, &ydb_big_lock.start_fsync_time);
 #endif
 
     status.ydb_lock_ctr++;
@@ -181,16 +183,18 @@ toku_ydb_unlock(void) {
     if (waiters == 0) {
 	theld = 0;
     } else {
-	uint64_t misscount, misstime;
-        toku_cachetable_get_miss_times(NULL, &misscount, &misstime);
-	misscount -= ydb_big_lock.start_misscount;  // how many cache misses for this operation
-	misstime -= ydb_big_lock.start_misstime;    // how many usec spent waiting for disk read this operation
-	if (0 && (misscount || misstime))
-	    printf("%d %"PRIu64" %"PRIu64"\n", waiters, misscount, misstime);
-	if (misscount == 0) {
+	uint64_t disk_count, disk_time;             // number of disk reads + fsyncs and the time waiting on disk reads + fsyncs
+        toku_cachetable_get_miss_times(NULL, &disk_count, &disk_time);
+	disk_count = disk_count - ydb_big_lock.start_miss_count;  // number of cache misses
+	disk_time = disk_time - ydb_big_lock.start_miss_time;     // usec spent waiting for disk reads
+        uint64_t fsync_count, fsync_time;
+        toku_get_fsync_times(&fsync_count, &fsync_time);          // number of fsync operations 
+        disk_count += fsync_count - ydb_big_lock.start_fsync_count; // time waiting for fsyncs to complete
+        disk_time += fsync_time - ydb_big_lock.start_fsync_time;
+	if (disk_count == 0) {
 	    theld = 0;
 	} else {
-	    theld = misstime ? misstime : misscount * 20000ULL; // if we decide not to compile in misstime, then backoff to 20 milliseconds per cache miss
+	    theld = disk_time ? disk_time : disk_count * 20000ULL; // if we decide not to compile in miss_time, then backoff to 20 milliseconds per cache miss
 
 	    if (theld < MAXTHELD) {
 		status.max_time_ydb_lock_held = u64max(status.max_time_ydb_lock_held, theld);
