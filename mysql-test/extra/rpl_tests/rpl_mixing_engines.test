@@ -214,8 +214,25 @@
 # CSe-T->N - Fails while creating a T-table selecting from a a N-table.
 # CSe-N->T - Fails while creating a N-table selecting from a T-table.
 # drop-CS - Drops any of the tables previously created.
+# trunc-CS-T - Truncates a T-table previously created.
+# trunc-CS-N - Truncates a N-table previously created.
 # CT - Creates a temporary T-table.
 # drop-CT - Drops a temporary T-table.
+#
+# - This is INSERT...SELECT:
+# IS-T<-T - Inserts data from a T-table into a T-table.
+# IS-T<-N - Inserts data from a N-table into a T-table.
+# IS-N<-T - Inserts data from a T-table into a N-table.
+# IS-N<-N - Inserts data from a N-table into a N-table.
+# ISe-T<-T - Fails while inserting data from a T-table into a T-table.
+# ISe-T<-N - Fails while inserting data from a N-table into a T-table.
+# ISe-N<-T - Fails while inserting data from a T-table into a N-table.
+# ISe-N<-N - Fails while inserting data from a N-table into a N-table.
+#
+# For the CREATE...SELECT and INSERT...SELECT, the table names are defined based
+# on the variable $tb_id which is automatically incremented after each drop.
+# This indirectly means that two tables cannot co-exist unless we manually keep
+# the variable $tb_id.
 #
 # The format of the entries in the binlog depends on the mode and on the type
 # statements: S - statement and R - row. And when it is clear from the context
@@ -1624,26 +1641,123 @@ SET @commands= 'CSe-N->T CS-N->T drop-CS';
 SET @commands= 'CSe-N->T CS-N->T drop-CS';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
+
 --echo ###################################################################################
---echo #                         4 - ROLLBACK TEMPORARY TABLE
+--echo #                            4 - INSERT TABLE...SELECT
+--echo ###################################################################################
+
+SET @commands= 'CS-T->T';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B T IS-T<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B T ISe-T<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B IS-T<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B ISe-T<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'CS-T->T';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B T IS-T<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B T ISe-T<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B IS-T<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-T B ISe-T<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'CS-N->N';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B T IS-N<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B T ISe-N<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B IS-N<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B ISe-N<-T T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'CS-N->N';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B T IS-N<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B T ISe-N<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B IS-N<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'trunc-CS-N B ISe-N<-N T C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CS';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo ###################################################################################
+--echo #                         5 - ROLLBACK TEMPORARY TABLE
 --echo ###################################################################################
 SET @commands= 'B T CT R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CT';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 SET @commands= 'B T S1 T CT R1 R';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
+SET @commands= 'drop-CT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
 SET @commands= 'B T CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CT';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 SET @commands= 'B tN CT T R';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
+SET @commands= 'drop-CT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
 SET @commands= 'B CT T R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CT';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 SET @commands= 'B N CT T R';
 --source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'drop-CT';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
 
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY 
