@@ -360,6 +360,12 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
     share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
+    /*
+      If archive version is less than 3, It should be upgraded before
+      use.
+    */
+    if (archive_tmp.version < ARCHIVE_VERSION)
+      *rc= HA_ERR_TABLE_NEEDS_UPGRADE;
     azclose(&archive_tmp);
 
     VOID(my_hash_insert(&archive_open_tables, (uchar*) share));
@@ -491,7 +497,15 @@ int ha_archive::open(const char *name, int mode, uint open_options)
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, &rc);
 
-  if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+ /*
+    Allow open on crashed table in repair mode only.
+    Block open on 5.0 ARCHIVE table. Though we have almost all
+    routines to access these tables, they were not well tested.
+    For now we have to refuse to open such table to avoid
+    potential data loss.
+  */
+  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
   {
     /* purecov: begin inspected */
     free_share();
