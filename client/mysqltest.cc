@@ -75,7 +75,8 @@
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES
+  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES,
+  OPT_RESULT_FORMAT_VERSION
 };
 
 static int record= 0, opt_sleep= -1;
@@ -85,6 +86,7 @@ const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
+static int opt_result_format_version;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
@@ -281,11 +283,13 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
+  Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
-  Q_COMMENT_WITH_COMMAND
+  Q_COMMENT_WITH_COMMAND,
+  Q_EMPTY_LINE
 };
 
 
@@ -375,6 +379,7 @@ const char *command_names[]=
   "list_files_append_file",
   "send_shutdown",
   "shutdown_server",
+  "result_format",
   "move_file",
 
   0
@@ -2187,6 +2192,59 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 
   mysql_free_result(res);
   DBUG_VOID_RETURN;
+}
+
+
+static void
+set_result_format_version(ulong new_version)
+{
+  switch (new_version){
+  case 1:
+    /* The first format */
+    break;
+  case 2:
+    /* New format that also writes comments and empty lines
+       from test file to result */
+    break;
+  default:
+    die("Version format %lu has not yet been implemented", new_version);
+    break;
+  }
+  opt_result_format_version= new_version;
+}
+
+
+/*
+  Set the result format version to use when generating
+  the .result file
+*/
+
+static void
+do_result_format_version(struct st_command *command)
+{
+  long version;
+  static DYNAMIC_STRING ds_version;
+  const struct command_arg result_format_args[] = {
+    "version", ARG_STRING, TRUE, &ds_version, "Version to use",
+  };
+
+  DBUG_ENTER("do_result_format_version");
+
+  check_command_args(command, command->first_argument,
+                     result_format_args,
+                     sizeof(result_format_args)/sizeof(struct command_arg),
+                     ',');
+
+  /* Convert version  number to int */
+  if (!str2int(ds_version.str, 10, (long) 0, (long) INT_MAX, &version))
+    die("Invalid version number: '%s'", ds_version.str);
+
+  set_result_format_version(version);
+
+  dynstr_append(&ds_res, "result_format: ");
+  dynstr_append_mem(&ds_res, ds_version.str, ds_version.length);
+  dynstr_append(&ds_res, "\n");
+  dynstr_free(&ds_version);
 }
 
 
@@ -5265,7 +5323,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote);
+  char c, UNINIT_VAR(last_quote), last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
@@ -5363,14 +5421,24 @@ int read_line(char *buf, int size)
       }
       else if (my_isspace(charset_info, c))
       {
-        /* Skip all space at begining of line */
 	if (c == '\n')
         {
+          if (last_char == '\n')
+          {
+            /* Two new lines in a row, return empty line */
+            DBUG_PRINT("info", ("Found two new lines in a row"));
+            *p++= c;
+            *p= 0;
+            DBUG_RETURN(0);
+          }
+
           /* Query hasn't started yet */
 	  start_lineno= cur_file->lineno;
           DBUG_PRINT("info", ("Query hasn't started yet, start_lineno: %d",
                               start_lineno));
         }
+
+        /* Skip all space at begining of line */
 	skip_char= 1;
       }
       else if (end_of_query(c))
@@ -5410,6 +5478,8 @@ int read_line(char *buf, int size)
       break;
 
     }
+
+    last_char= c;
 
     if (!skip_char)
     {
@@ -5620,9 +5690,10 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(1);
   }
 
-  convert_to_format_v1(read_command_buf);
+  if (opt_result_format_version == 1)
+    convert_to_format_v1(read_command_buf);
 
-  DBUG_PRINT("info", ("query: %s", read_command_buf));
+  DBUG_PRINT("info", ("query: '%s'", read_command_buf));
   if (*p == '#')
   {
     command->type= Q_COMMENT;
@@ -5631,6 +5702,10 @@ int read_command(struct st_command** command_ptr)
   {
     command->type= Q_COMMENT_WITH_COMMAND;
     p+= 2; /* Skip past -- */
+  }
+  else if (*p == '\n')
+  {
+    command->type= Q_EMPTY_LINE;
   }
 
   /* Skip leading spaces */
@@ -5726,6 +5801,11 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (uchar**) &result_file_name, (uchar**) &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"result-format-version", OPT_RESULT_FORMAT_VERSION,
+   "Version of the result file format to use",
+   (uchar**) &opt_result_format_version,
+   (uchar**) &opt_result_format_version, 0,
+   GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
@@ -5928,6 +6008,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef SAFEMALLOC
     sf_malloc_quick=1;
 #endif
+    break;
+  case OPT_RESULT_FORMAT_VERSION:
+    set_result_format_version(opt_result_format_version);
     break;
   case 'V':
     print_version();
@@ -7799,6 +7882,7 @@ int main(int argc, char **argv)
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
+      case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
 	break;
@@ -7915,9 +7999,38 @@ int main(int argc, char **argv)
 	do_sync_with_master2(command, 0);
 	break;
       }
-      case Q_COMMENT:				/* Ignore row */
+      case Q_COMMENT:
+      {
         command->last_argument= command->end;
+
+        /* Don't output comments in v1 */
+        if (opt_result_format_version == 1)
+          break;
+
+        /* Don't output comments if query logging is off */
+        if (disable_query_log)
+          break;
+
+        /* Write comment's with two starting #'s to result file */
+        const char* p= command->query;
+        if (p && *p == '#' && *(p+1) == '#')
+        {
+          dynstr_append_mem(&ds_res, command->query, command->query_len);
+          dynstr_append(&ds_res, "\n");
+        }
 	break;
+      }
+      case Q_EMPTY_LINE:
+        /* Don't output newline in v1 */
+        if (opt_result_format_version == 1)
+          break;
+
+        /* Don't output newline if query logging is off */
+        if (disable_query_log)
+          break;
+
+        dynstr_append(&ds_res, "\n");
+        break;
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
         break;
