@@ -279,3 +279,48 @@ ERROR 42000: Incorrect number of arguments for FUNCTION test.f1; expected 0, got
 DROP TABLE t1;
 DROP FUNCTION f1;
 End of 5.0 tests
+#
+# Bug#46958: Assertion in Diagnostics_area::set_ok_status, trigger, 
+# merge table
+#
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+CREATE TRIGGER tr1 BEFORE DELETE ON t2
+FOR EACH ROW INSERT INTO no_such_table VALUES (1);
+DELETE t1, t2, t3 FROM t1, t2, t3;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+SELECT * FROM t1;
+a
+SELECT * FROM t2;
+a
+1
+2
+SELECT * FROM t3;
+a
+1
+2
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+CREATE TRIGGER tr1 AFTER DELETE ON t2
+FOR EACH ROW INSERT INTO no_such_table VALUES (1);
+DELETE t1, t2, t3 FROM t1, t2, t3;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+SELECT * FROM t1;
+a
+SELECT * FROM t2;
+a
+2
+SELECT * FROM t3;
+a
+1
+2
+DROP TABLE t1, t2, t3;

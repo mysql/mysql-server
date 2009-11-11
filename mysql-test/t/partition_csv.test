@@ -10,6 +10,8 @@
 --source include/have_partition.inc
 --source include/have_csv.inc
 
+call mtr.add_suppression("Failed to write to mysql.general_log");
+
 #
 # Bug#19307: Partitions: csv delete failure
 #            = CSV engine crashes

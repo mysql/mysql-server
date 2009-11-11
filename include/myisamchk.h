@@ -154,6 +154,10 @@ typedef struct st_handler_check_param
   char temp_filename[FN_REFLEN];
   IO_CACHE read_cache;
   enum_handler_stats_method stats_method;
+#ifdef THREAD
+  pthread_mutex_t print_msg_mutex;
+  my_bool need_print_msg_lock;
+#endif
 } HA_CHECK;
 
 

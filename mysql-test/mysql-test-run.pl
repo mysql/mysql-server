@@ -150,7 +150,7 @@ our @opt_extra_mysqltest_opt;
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
-my $opt_ssl_supported;
+our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
@@ -216,6 +216,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
@@ -339,7 +340,8 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    $opt_parallel= 8 if ($opt_parallel > 8);
+    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
+    $opt_parallel= $max_par if ($opt_parallel > $max_par);
     $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
     $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
     $opt_parallel= 1 if ($opt_parallel < 1);
@@ -547,7 +549,8 @@ sub run_test_server ($$$) {
 	      }
 	    }
 	    $num_saved_datadir++;
-	    $num_failed_test++ unless $result->{retries};
+	    $num_failed_test++ unless ($result->{retries} ||
+                                       $result->{exp_fail});
 
             $test_failure= 1;
 	    if ( !$opt_force ) {
@@ -1052,6 +1055,9 @@ sub command_line_setup {
 
   if ( $opt_experimental )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     # read the list of experimental test cases from the file specified on
     # the command line
     open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
@@ -1062,6 +1068,15 @@ sub command_line_setup {
       # remove comments (# foo) at the beginning of the line, or after a 
       # blank at the end of the line
       s/( +|^)#.*$//;
+      # If @ platform specifier given, use this entry only if it contains
+      # @<platform> or @!<xxx> where xxx != platform
+      if (/\@.*/)
+      {
+	next if (/\@!$plat/);
+	next unless (/\@$plat/ or /\@!/);
+	# Then remove @ and everything after it
+	s/\@.*$//;
+      }
       # remove whitespace
       s/^ +//;              
       s/ +$//;
@@ -1321,6 +1336,21 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Set one week timeout (check-testcase timeout will be 1/10th)
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
+    # One day to shutdown
+    $opt_shutdown_timeout= 24 * 60;
+    # One day for PID file creation (this is given in seconds not minutes)
+    $opt_start_timeout= 24 * 60 * 60;
+  }
+
+  # --------------------------------------------------------------------------
+  # Modified behavior with --start options
+  # --------------------------------------------------------------------------
+  if ($opt_start or $opt_start_dirty) {
+    collect_option ('quick-collect', 1);
+    $start_only= 1;
   }
   if ($opt_debug)
   {
@@ -1334,7 +1364,7 @@ sub command_line_setup {
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
-  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  if ($opt_wait_all && ! $start_only)
   {
     mtr_error("--wait-all can only be used with --start or --start-dirty");
   }
@@ -1393,6 +1423,9 @@ sub command_line_setup {
     # Set valgrind_options to default unless already defined
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
+
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
@@ -1608,6 +1641,10 @@ sub collect_mysqld_features_from_running_server ()
       $mysqld_variables{$1}= $2;
     }
   }
+
+  # "Convert" innodb flag
+  $mysqld_variables{'innodb'}= "ON"
+    if ($mysqld_variables{'have_innodb'} eq "YES");
 
   # Parse version
   my $version_str= $mysqld_variables{'version'};
@@ -1909,11 +1946,11 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+  if ($mysql_version_id >= 50100) {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
-       $plugin_filename = "ha_example.dll"; 
+       $plugin_filename = "ha_example.dll";
     }
     else 
     {
@@ -1930,7 +1967,7 @@ sub environment_setup {
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
   }
 
   # ----------------------------------------------------
@@ -3004,7 +3041,7 @@ sub run_testcase_check_skip_test($)
 
   if ( $tinfo->{'skip'} )
   {
-    mtr_report_test_skipped($tinfo);
+    mtr_report_test_skipped($tinfo) unless $start_only;
     return 1;
   }
 
@@ -3174,7 +3211,8 @@ test case was executed:\n";
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
 	"The server $proc crashed while running ".
-	"'check testcase $mode test'";
+	"'check testcase $mode test'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
@@ -3292,7 +3330,8 @@ sub run_on_all($$)
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}.=
-	"The server $proc crashed while running '$run'";
+	"The server $proc crashed while running '$run'".
+	get_log_from_proc($proc, $tinfo->{name});
     }
 
     # Kill any check processes still running
@@ -3407,6 +3446,12 @@ sub run_testcase ($$) {
 
   mtr_verbose("Running test:", $tinfo->{name});
 
+  # Allow only alpanumerics pluss _ - + . in combination names
+  my $combination= $tinfo->{combination};
+  if ($combination && $combination !~ /^\w[-\w\.\+]+$/)
+  {
+    mtr_error("Combination '$combination' contains illegal characters");
+  }
   # -------------------------------------------------------
   # Init variables that can change between each test case
   # -------------------------------------------------------
@@ -3501,9 +3546,16 @@ sub run_testcase ($$) {
   # server exits
   # ----------------------------------------------------------------------
 
-  if ( $opt_start or $opt_start_dirty )
+  if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Port and socket path for server(s):");
+    foreach my $mysqld ( mysqlds() )
+    {
+      mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
+	      "  " . $mysqld->value('socket'));
+    }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
       My::SafeProcess->wait_all();
@@ -3597,7 +3649,7 @@ sub run_testcase ($$) {
 	my $check_res;
 	if ( restart_forced_by_test() )
 	{
-	  stop_all_servers();
+	  stop_all_servers($opt_shutdown_timeout);
 	}
 	elsif ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
@@ -3614,7 +3666,7 @@ sub run_testcase ($$) {
               # test.
             } else {
               # Not checking warnings, so can do a hard shutdown.
-              stop_all_servers();
+	      stop_all_servers($opt_shutdown_timeout);
             }
 	    mtr_report("Resuming tests...\n");
 	  }
@@ -3696,7 +3748,8 @@ sub run_testcase ($$) {
     {
       # Server failed, probably crashed
       $tinfo->{comment}=
-	"Server $proc failed during test run";
+	"Server $proc failed during test run" .
+	get_log_from_proc($proc, $tinfo->{name});
 
       # ----------------------------------------------------
       # It's not mysqltest that has exited, kill it
@@ -3809,16 +3862,15 @@ sub pre_write_errorlog {
   }
 }
 
+# Extract server log from after the last occurrence of named test
+# Return as an array of lines
 #
-# Perform a rough examination of the servers
-# error log and write all lines that look
-# suspicious into $error_log.warnings
-#
-sub extract_warning_lines ($) {
-  my ($error_log) = @_;
+
+sub extract_server_log ($$) {
+  my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
-  # belonging to current tets into @lines
+  # belonging to current test into @lines
   my $Ferr = IO::File->new($error_log)
     or return [];
   my $last_pos= $last_warning_position->{$error_log}{seek_pos};
@@ -3849,8 +3901,37 @@ sub extract_warning_lines ($) {
       }
     }
   }
+  return @lines;
+}
 
-  # Write all suspicious lines to $error_log.warnings file
+# Get log from server identified from its $proc object, from named test
+# Return as a single string
+#
+
+sub get_log_from_proc ($$) {
+  my ($proc, $name)= @_;
+  my $srv_log= "";
+
+  foreach my $mysqld (mysqlds()) {
+    if ($mysqld->{proc} eq $proc) {
+      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      last;
+    }
+  }
+  return $srv_log;
+}
+
+# Perform a rough examination of the servers
+# error log and write all lines that look
+# suspicious into $error_log.warnings
+#
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
+
+  my @lines= extract_server_log($error_log, $tname);
+
+# Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
   my $Fwarn = IO::File->new($warning_log, "w")
     or die("Could not open file '$warning_log' for writing: $!");
@@ -3858,16 +3939,9 @@ sub extract_warning_lines ($) {
 
   my @patterns =
     (
-     # The patterns for detection of [Warning] and [ERROR]
-     # in the server log files have been faulty for a longer period
-     # and correcting them shows a few additional harmless warnings.
-     # Thus those patterns are temporarily removed from the list
-     # of patterns. For more info see BUG#42408
-     # qr/^Warning:|mysqld: Warning|\[Warning\]/,
-     # qr/^Error:|\[ERROR\]/,
-     qr/^Warning:|mysqld: Warning/,
-     qr/^Error:/,
-     qr/^==.* at 0x/,
+     qr/^Warning:|mysqld: Warning|\[Warning\]/,
+     qr/^Error:|\[ERROR\]/,
+     qr/^==\d*==/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
@@ -3886,6 +3960,7 @@ sub extract_warning_lines ($) {
   # Perl code.
   my @antipatterns =
     (
+     qr/error .*connecting to master/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
      qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
     );
@@ -3933,7 +4008,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error);
+  extract_warning_lines($log_error, $tinfo->{name});
 
   my $args;
   mtr_init_args(\$args);
@@ -3980,7 +4055,7 @@ sub start_check_warnings ($$) {
 
 #
 # Loop through our list of processes and check the error log
-# for unexepcted errors and warnings
+# for unexpected errors and warnings
 #
 sub check_warnings ($) {
   my ($tinfo)= @_;
@@ -4067,7 +4142,8 @@ sub check_warnings ($) {
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
-	"The server $proc crashed while running 'check warnings'";
+	"The server $proc crashed while running 'check warnings'".
+	get_log_from_proc($proc, $tinfo->{name});
       $result= 3;
     }
 
@@ -4083,13 +4159,15 @@ sub check_warnings ($) {
 }
 
 # Check for warnings generated during shutdown of a mysqld server.
-# If any, report them to master server, and return true; else just return false.
+# If any, report them to master server, and return true; else just return
+# false.
+
 sub check_warnings_post_shutdown {
   my ($server_socket)= @_;
   my $testname_hash= { };
   foreach my $mysqld ( mysqlds())
   {
-    my $testlist= extract_warning_lines($mysqld->value('#log-error'));
+    my $testlist= extract_warning_lines($mysqld->value('#log-error'), "");
     $testname_hash->{$_}= 1 for @$testlist;
   }
   my @warning_tests= keys(%$testname_hash);
@@ -4343,6 +4421,7 @@ sub mysqld_stop {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--character-sets-dir=%s", $mysqld->value('character-sets-dir'));
   mtr_add_arg($args, "--user=%s", $opt_user);
   mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--port=%d", $mysqld->value('port'));
@@ -4392,7 +4471,7 @@ sub mysqld_arguments ($$$) {
 
   if (!using_extern() and $mysql_version_id >= 50106 )
   {
-    # Turn on logging to bothe tables and file
+    # Turn on logging to file and tables
     mtr_add_arg($args, "%s--log-output=table,file");
   }
 
@@ -4555,7 +4634,8 @@ sub mysqld_start ($$) {
 				 $opt_start_timeout,
 				 $mysqld->{'proc'}))
   {
-    mtr_error("Failed to start mysqld $mysqld->name()");
+    my $mname= $mysqld->name();
+    mtr_error("Failed to start mysqld $mname with command $exe");
   }
 
   # Remember options used when starting
@@ -4566,11 +4646,12 @@ sub mysqld_start ($$) {
 
 
 sub stop_all_servers () {
+  my $shutdown_timeout = $_[0] or 0;
 
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-  My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
+  My::SafeProcess::shutdown($shutdown_timeout,
 			    started(all_servers()));
 
   # Remove pidfiles
@@ -4940,7 +5021,8 @@ sub start_servers($) {
       my $logfile= $mysqld->value('#log-error');
       if ( defined $logfile and -f $logfile )
       {
-	$tinfo->{logfile}= mtr_fromfile($logfile);
+        my @srv_lines= extract_server_log($logfile, $tinfo->{name});
+	$tinfo->{logfile}= "Server log is:\n" . join ("", @srv_lines);
       }
       else
       {
@@ -5369,7 +5451,6 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--alignment=8");
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
@@ -5468,7 +5549,7 @@ Options to control what test suites or cases to run
   staging-run           Run a limited number of tests (no slow tests). Used
                         for running staging trees with valgrind.
   enable-disabled       Run also tests marked as disabled
-  print_testcases       Don't run the tests but print details about all the
+  print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
 
 Options that specify ports

@@ -9,29 +9,27 @@
 #############################################################################
 
 # Begin clean up test section
-connection master;
 --disable_warnings
-create database if not exists mysqltest1;
-DROP PROCEDURE IF EXISTS mysqltest1.p1;
-DROP PROCEDURE IF EXISTS mysqltest1.p2;
-DROP TABLE IF EXISTS mysqltest1.t2;
-DROP TABLE IF EXISTS mysqltest1.t1;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
 --enable_warnings
 # End of cleanup
 
 # Begin test section 1
-eval CREATE TABLE IF NOT EXISTS mysqltest1.t1(name CHAR(16), birth DATE,PRIMARY KEY(name))ENGINE=$engine_type;
-eval CREATE TABLE IF NOT EXISTS mysqltest1.t2(name CHAR(16), age INT ,PRIMARY KEY(name))ENGINE=$engine_type;
+eval CREATE TABLE IF NOT EXISTS t1(name CHAR(16), birth DATE,PRIMARY KEY(name))ENGINE=$engine_type;
+eval CREATE TABLE IF NOT EXISTS t2(name CHAR(16), age INT ,PRIMARY KEY(name))ENGINE=$engine_type;
 
 delimiter |;
-CREATE PROCEDURE mysqltest1.p1()
+CREATE PROCEDURE p1()
 BEGIN
   DECLARE done INT DEFAULT 0;
   DECLARE spa CHAR(16);
   DECLARE spb INT;
   DECLARE cur1 CURSOR FOR SELECT name, 
        (YEAR(CURDATE())-YEAR(birth))-(RIGHT(CURDATE(),5)<RIGHT(birth,5)) 
-       FROM mysqltest1.t1;
+       FROM t1;
    DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
 
   OPEN cur1;
@@ -41,7 +39,7 @@ BEGIN
     FETCH cur1 INTO spa, spb;
     IF NOT done THEN
        START TRANSACTION;
-          INSERT INTO mysqltest1.t2 VALUES (spa,spb);
+          INSERT INTO t2 VALUES (spa,spb);
        COMMIT;
      END IF;
   UNTIL done END REPEAT;
@@ -49,30 +47,29 @@ BEGIN
   SET AUTOCOMMIT=1;
   CLOSE cur1;
 END|
-CREATE PROCEDURE mysqltest1.p2()
+CREATE PROCEDURE p2()
 BEGIN
-  INSERT INTO mysqltest1.t1 VALUES ('MySQL','1993-02-04'),('ROCKS', '1990-08-27'),('Texas', '1999-03-30'),('kyle','2005-1-1');
+  INSERT INTO t1 VALUES ('MySQL','1993-02-04'),('ROCKS', '1990-08-27'),('Texas', '1999-03-30'),('kyle','2005-1-1');
 END|
 delimiter ;|
 
-CALL mysqltest1.p2();
+CALL p2();
 sync_slave_with_master;
 
 connection master;
-CALL mysqltest1.p1();
+CALL p1();
 sync_slave_with_master;
 
 connection master;
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/sp006_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/sp006_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp006_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp006_slave.sql
 
 
-DROP PROCEDURE IF EXISTS mysqltest1.p1;
-DROP PROCEDURE IF EXISTS mysqltest1.p2;
-DROP TABLE IF EXISTS mysqltest1.t1;
-DROP TABLE IF EXISTS mysqltest1.t2;
-DROP DATABASE mysqltest1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

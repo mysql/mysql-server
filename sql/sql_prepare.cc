@@ -752,7 +752,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
   const String *res;
   DBUG_ENTER("insert_params_with_log");
 
-  if (query->copy(stmt->query, stmt->query_length, default_charset_info))
+  if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
 
   for (Item_param **it= begin; it < end; ++it)
@@ -914,7 +914,7 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
 
   DBUG_ENTER("emb_insert_params_with_log");
 
-  if (query->copy(stmt->query, stmt->query_length, default_charset_info))
+  if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
 
   for (; it < end; ++it, ++client_param)
@@ -1065,7 +1065,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
 
   DBUG_ENTER("insert_params_from_vars");
 
-  if (query->copy(stmt->query, stmt->query_length, default_charset_info))
+  if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
 
   for (Item_param **it= begin; it < end; ++it)
@@ -2346,6 +2346,9 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+
+      /* clear the no_error flag for INSERT/UPDATE IGNORE */
+      sl->no_error= FALSE;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -2461,9 +2464,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   }
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-  thd->profiling.set_query_source(stmt->query, stmt->query_length);
+  thd->profiling.set_query_source(stmt->query(), stmt->query_length());
 #endif
-  DBUG_PRINT("exec_query", ("%s", stmt->query));
+  DBUG_PRINT("exec_query", ("%s", stmt->query()));
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
@@ -3032,7 +3035,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Parser_state parser_state(thd, thd->query, thd->query_length);
+  Parser_state parser_state(thd, thd->query(), thd->query_length());
   parser_state.m_lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
 
@@ -3121,7 +3124,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->spcont == NULL)
-      general_log_write(thd, COM_STMT_PREPARE, query, query_length);
+      general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
   }
   DBUG_RETURN(error);
 }
@@ -3312,7 +3315,7 @@ Prepared_statement::reprepare()
     return TRUE;
 
   error= ((name.str && copy.set_name(&name)) ||
-          copy.prepare(query, query_length) ||
+          copy.prepare(query(), query_length()) ||
           validate_metadata(&copy));
 
   if (cur_db_changed)
@@ -3550,8 +3553,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     to point at it even after we restore from backup. This is ok, as
     expanded query was allocated in thd->mem_root.
   */
-  stmt_backup.query= thd->query;
-  stmt_backup.query_length= thd->query_length;
+  stmt_backup.set_query_inner(thd->query(), thd->query_length());
 
   /*
     At first execution of prepared statement we may perform logical
@@ -3576,8 +3578,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       Note that multi-statements cannot exist here (they are not supported in
       prepared statements).
     */
-    if (query_cache_send_result_to_client(thd, thd->query,
-                                          thd->query_length) <= 0)
+    if (query_cache_send_result_to_client(thd, thd->query(),
+                                          thd->query_length()) <= 0)
     {
       error= mysql_execute_command(thd);
     }
@@ -3622,7 +3624,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     the general log.
   */
   if (error == 0 && thd->spcont == NULL)
-    general_log_write(thd, COM_STMT_EXECUTE, thd->query, thd->query_length);
+    general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
 
 error:
   flags&= ~ (uint) IS_IN_USE;
