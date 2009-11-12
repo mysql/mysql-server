@@ -1548,41 +1548,68 @@ void Suma::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Subscriber",
-           c_subscriberPool.getNoOfFree(),
-           c_subscriberPool.getSize() },
-          {"Table",
-           c_tablePool.getNoOfFree(),
-           c_tablePool.getSize() },
-          {"Subscription",
-           c_subscriptionPool.getNoOfFree(),
-           c_subscriptionPool.getSize() },
-          {"Sync",
-           c_syncPool.getNoOfFree(),
-           c_syncPool.getSize() },
-          {"Data Buffer",
-           c_dataBufferPool.getNoOfFree(),
-           c_dataBufferPool.getSize() },
-          {"SubOp",
-           c_subOpPool.getNoOfFree(),
-           c_subOpPool.getSize() },
-          {"Page Chunk",
-           c_page_chunk_pool.getNoOfFree(),
-           c_page_chunk_pool.getSize() },
-          {"GCP",
-           c_gcp_pool.getNoOfFree(),
-           c_gcp_pool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Subscriber",
+        c_subscriberPool.getUsed(),
+        c_subscriberPool.getSize(),
+        c_subscriberPool.getEntrySize(),
+        c_subscriberPool.getUsedHi(),
+        CFG_DB_SUBSCRIBERS,
+        CFG_DB_SUBSCRIPTIONS,
+        CFG_DB_NO_TABLES,0 },
+      { "Table",
+        c_tablePool.getUsed(),
+        c_tablePool.getSize(),
+        c_tablePool.getEntrySize(),
+        c_tablePool.getUsedHi(),
+        CFG_DB_NO_TABLES,0,0,0  },
+      { "Subscription",
+        c_subscriptionPool.getUsed(),
+        c_subscriptionPool.getSize(),
+        c_subscriptionPool.getEntrySize(),
+        c_subscriptionPool.getUsedHi(),
+        CFG_DB_SUBSCRIPTIONS,
+        CFG_DB_NO_TABLES,0,0  },
+      { "Sync",
+        c_syncPool.getUsed(),
+        c_syncPool.getSize(),
+        c_syncPool.getEntrySize(),
+        c_syncPool.getUsedHi(),
+        0,0,0,0  },
+      { "Data Buffer",
+        c_dataBufferPool.getUsed(),
+        c_dataBufferPool.getSize(),
+        c_dataBufferPool.getEntrySize(),
+        c_dataBufferPool.getUsedHi(),
+        CFG_DB_NO_ATTRIBUTES,0,0,0  },
+      { "SubOp",
+        c_subOpPool.getUsed(),
+        c_subOpPool.getSize(),
+        c_subOpPool.getEntrySize(),
+        c_subOpPool.getUsedHi(),
+        CFG_DB_SUB_OPERATIONS,0,0,0  },
+      { "Page Chunk",
+        c_page_chunk_pool.getUsed(),
+        c_page_chunk_pool.getSize(),
+        c_page_chunk_pool.getEntrySize(),
+        c_page_chunk_pool.getUsedHi(),
+        0,0,0,0  },
+      { "GCP",
+        c_gcp_pool.getUsed(),
+        c_gcp_pool.getSize(),
+        c_gcp_pool.getEntrySize(),
+        c_gcp_pool.getUsedHi(),
+        CFG_DB_API_HEARTBEAT_INTERVAL,
+        CFG_DB_GCP_INTERVAL,0,0  },
+      { NULL, 0,0,0,0,0,0,0,0}
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -1591,10 +1618,14 @@ void Suma::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -1604,6 +1635,10 @@ void Suma::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

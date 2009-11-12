@@ -81,7 +81,7 @@ set @@ndbinfo_table_prefix="somethingelse";
 set @@ndbinfo_database="somethingelse";
 
 # Check that block table has been created and contain data
-SELECT count(*) >= 20 FROM block;
+SELECT count(*) >= 20 FROM blocks;
 
 ## Cleanup
 DROP DATABASE ndbinfo;

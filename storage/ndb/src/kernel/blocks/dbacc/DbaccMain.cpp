@@ -485,6 +485,7 @@ void Dbacc::initialisePageRec(Signal* signal)
   cfreepage = 0;
   cfirstfreepage = RNIL;
   cnoOfAllocatedPages = 0;
+  cnoOfAllocatedPagesMax = 0;
 }//Dbacc::initialisePageRec()
 
 
@@ -8138,6 +8139,10 @@ void Dbacc::seizePage(Signal* signal)
     cfirstfreepage = spPageptr.p->word32[0];
     cnoOfAllocatedPages++;
   }//if
+
+  if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
+    cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
+
 }//Dbacc::seizePage()
 
 /* --------------------------------------------------------------------------------- */
@@ -8237,21 +8242,58 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
 {
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
 
   Ndbinfo::Ratelimit rl;
 
-  if(req.tableId == Ndbinfo::MEMUSAGE_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
     jam();
-    Ndbinfo::Row row(signal, req);
-    row.write_uint32(getOwnNodeId());
-    row.write_uint32(blockToMain(number())); // block number
-    row.write_uint32(instance());            // block instance
-    row.write_string("IndexMemory");
-    row.write_uint32(sizeof(page8));
-    row.write_uint32(cnoOfAllocatedPages);   // alloced pages
-    row.write_uint32(cpagesize);             // number of pages
-    ndbinfo_send_row(signal, req, row, rl);
+
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Index memory",
+        cnoOfAllocatedPages,
+        cpagesize,
+        sizeof(page8),
+        cnoOfAllocatedPagesMax = 0,
+        CFG_DB_INDEX_MEM,0,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0 }
+    };
+
+    static const size_t num_config_params =
+      sizeof(pools[0].config_params)/sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

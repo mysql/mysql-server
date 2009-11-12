@@ -79,53 +79,59 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
 
   Ndbinfo::Ratelimit rl;
 
-  if(req.tableId == Ndbinfo::MEMUSAGE_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
     jam();
-    Ndbinfo::Row row(signal, req);
-    row.write_uint32(getOwnNodeId());
-    row.write_uint32(blockToMain(number())); // block number
-    row.write_uint32(instance());            // block instance
-    row.write_string("DataMemory");
-    row.write_uint32(sizeof(Page));
-    row.write_uint32(cTotNoFragPages);       // alloced pages
-    row.write_uint32(cTotPages);             // number of pages
-    ndbinfo_send_row(signal, req, row, rl);
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Scan Lock",
+        c_scanLockPool.getUsed(),
+        c_scanLockPool.getSize(),
+        c_scanLockPool.getEntrySize(),
+        c_scanLockPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,CFG_DB_BATCH_SIZE,0,0 },
+      { "Scan Operation",
+        c_scanOpPool.getUsed(),
+        c_scanOpPool.getSize(),
+        c_scanOpPool.getEntrySize(),
+        c_scanOpPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+      { "Trigger",
+        c_triggerPool.getUsed(),
+        c_triggerPool.getSize(),
+        c_triggerPool.getEntrySize(),
+        c_triggerPool.getUsedHi(),
+        CFG_DB_NO_TRIGGERS,0,0,0 },
+      { "Stored Proc",
+        c_storedProcPool.getUsed(),
+        c_storedProcPool.getSize(),
+        c_storedProcPool.getEntrySize(),
+        c_storedProcPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+      { "Build Index",
+        c_buildIndexPool.getUsed(),
+        c_buildIndexPool.getSize(),
+        c_buildIndexPool.getEntrySize(),
+        c_buildIndexPool.getUsedHi(),
+        0,0,0,0 },
+      { "Operation",
+        c_operation_pool.getUsed(),
+        c_operation_pool.getSize(),
+        c_operation_pool.getEntrySize(),
+        c_operation_pool.getUsedHi(),
+        CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 },
+      { "Page",
+        c_page_pool.getUsed(),
+        c_page_pool.getSize(),
+        c_page_pool.getEntrySize(),
+        c_page_pool.getUsedHi(),
+        0,0,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0}
+    };
 
-  }
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
-  {
-    jam();
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Scan Lock",
-           c_scanLockPool.getNoOfFree(),
-           c_scanLockPool.getSize() },
-          {"Scan Operation",
-           c_scanOpPool.getNoOfFree(),
-           c_scanOpPool.getSize() },
-          {"Trigger",
-           c_triggerPool.getNoOfFree(),
-           c_triggerPool.getSize() },
-          {"Stored Proc",
-           c_storedProcPool.getNoOfFree(),
-           c_storedProcPool.getSize() },
-          {"Build Index",
-           c_buildIndexPool.getNoOfFree(),
-           c_buildIndexPool.getSize() },
-          {"Operation",
-           c_operation_pool.getNoOfFree(),
-           c_operation_pool.getSize() },
-          {"Page",
-           c_page_pool.getNoOfFree(),
-           c_page_pool.getSize() },
-          { NULL, 0, 0}
-        };
-
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -134,10 +140,15 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -147,8 +158,9 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
         return;
       }
     }
+    break;
   }
-  if(req.tableId == Ndbinfo::TEST_TABLEID)
+  case Ndbinfo::TEST_TABLEID:
   {
     Uint32 counter = cursor->data[0];
     BlockNumber bn = blockToMain(number());
@@ -172,6 +184,10 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

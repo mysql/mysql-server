@@ -461,18 +461,19 @@ void Dblqh::execCONTINUEB(Signal* signal)
 
   case ZOPERATION_EVENT_REP:
     jam();
-    /* --------------------------------------------------------------------- */
-    // Report information about transaction activity once per second.
-    /* --------------------------------------------------------------------- */
-    if (signal->theData[1] == 0) {
-      signal->theData[0] = NDB_LE_OperationReportCounters;
-      signal->theData[1] = c_Counters.operations;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-    }//if
-    c_Counters.clear();
-    signal->theData[0] = ZOPERATION_EVENT_REP;
-    signal->theData[1] = 0;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 2);
+    /* Send counter event report */
+    {
+      const Uint32 len = c_Counters.build_event_rep(signal);
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
+    }
+
+    {
+      const Uint32 report_interval = 5000;
+      const Uint32 len = c_Counters.build_continueB(signal);
+      signal->theData[0] = ZOPERATION_EVENT_REP;
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal,
+                          report_interval, len);
+    }
     break;
   case ZDROP_TABLE_WAIT_USAGE:
     jam();
@@ -738,9 +739,12 @@ void Dblqh::execNDB_STTOR(Signal* signal)
     //preComputedRequestInfoMask = 0x003d7fff;
     startphase1Lab(signal, /* dummy */ ~0, ownNodeId);
 
-    signal->theData[0] = ZOPERATION_EVENT_REP;
-    signal->theData[1] = 1;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 2);
+    {
+      /* Start counter activity event reporting. */
+      const Uint32 len = c_Counters.build_continueB(signal);
+      signal->theData[0] = ZOPERATION_EVENT_REP;
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, len);
+    }
     return;
     break;
   case ZSTART_PHASE2:
@@ -21367,7 +21371,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::LOG_SPACE_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::LOGSPACES_TABLEID:
   {
     Uint32 logpart = cursor->data[0];
     while(logpart < clogPartFileSize)
@@ -21389,13 +21394,14 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       Uint64 high = 0; // TODO
 
       Ndbinfo::Row row(signal, req);
-      row.write_uint32(0);              // log id, always 0 in LQH
-      row.write_uint32(0);              // log type, 0 = REDO
-      row.write_uint32(logpart);        // log part
       row.write_uint32(getOwnNodeId());
-      row.write_uint64(total);          // total allocated
-      row.write_uint64((total-mb));     // currently in use
-      row.write_uint64(high);           // in use high water mark
+      row.write_uint32(0);              // log type, 0 = REDO
+      row.write_uint32(0);              // log id, always 0 in LQH
+      row.write_uint32(logpart);        // log part
+
+      row.write_uint64(total*1024*1024);          // total allocated
+      row.write_uint64((total-mb)*1024*1024);     // currently in use
+      row.write_uint64(high*1024*1024);           // in use high water mark
       ndbinfo_send_row(signal, req, row, rl);
       logpart++;
       if (rl.need_break(req))
@@ -21405,6 +21411,63 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::LOGBUFFERS_TABLEID:
+  {
+    const size_t entry_size = sizeof(LogPageRecord);
+    const  Uint64 free = cnoOfLogPages;
+    const Uint64 total = clogPageFileSize;
+    const Uint64 high = 0; // TODO
+
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(0);              // log type, 0 = REDO
+    row.write_uint32(0);              // log id, always 0 in LQH
+    row.write_uint32(instance());     // log part, instance for ndbmtd
+
+    row.write_uint64(total*entry_size);        // total allocated
+    row.write_uint64((total-free)*entry_size); // currently in use
+    row.write_uint64(high*entry_size);         // in use high water mark
+    ndbinfo_send_row(signal, req, row, rl);
+
+    break;
+  }
+
+  case Ndbinfo::COUNTERS_TABLEID:
+  {
+    Ndbinfo::counter_entry counters[] = {
+      { Ndbinfo::OPERATIONS_COUNTER, c_Counters.operations }
+    };
+    const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
+
+    Uint32 i = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(i < num_counters)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_uint32(counters[i].id);
+
+      row.write_uint64(counters[i].val);
+      ndbinfo_send_row(signal, req, row, rl);
+      i++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, i);
+        return;
+      }
+    }
+    break;
+  }
+
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
