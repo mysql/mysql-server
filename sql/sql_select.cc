@@ -1301,7 +1301,7 @@ JOIN::optimize()
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
-             rollup.state != ROLLUP::STATE_NONE && select_distinct);
+             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   // No cache for MATCH
   make_join_readinfo(this,
