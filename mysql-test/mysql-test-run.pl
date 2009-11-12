@@ -820,7 +820,6 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
-	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -961,12 +960,12 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
-                                    "$basedir/sql/share/english",
-                                    "$basedir/share/english");
+  $path_language=   mtr_path_exists("$basedir/share/mysql",
+                                    "$basedir/sql/share",
+                                    "$basedir/share");
 
 
-  my $path_share= dirname($path_language);
+  my $path_share= $path_language;
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   if (using_extern())
@@ -1441,7 +1440,7 @@ sub collect_mysqld_features {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
-  mtr_add_arg($args, "--language=%s", $path_language);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
@@ -1829,6 +1828,44 @@ sub environment_setup {
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "";
     $ENV{'HA_EXAMPLE_SO'}= "";
     $ENV{'EXAMPLE_PLUGIN_LOAD'}= "";
+  }
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find semisync plugins
+  # --------------------------------------------------------------------------
+  if (!$opt_embedded_server) {
+    my $semisync_master_filename;
+    my $semisync_slave_filename;
+    if (IS_WINDOWS)
+    {
+       $semisync_master_filename = "semisync_master.dll";
+       $semisync_slave_filename = "semisync_slave.dll";
+    }
+    else
+    {
+       $semisync_master_filename = "libsemisync_master.so";
+       $semisync_slave_filename = "libsemisync_slave.so";
+    }
+    my $lib_semisync_master_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_master_filename),
+		      "$basedir/plugin/semisync/.libs/" . $semisync_master_filename,
+                      "$basedir/lib/mysql/plugin/" . $semisync_master_filename);
+    my $lib_semisync_slave_plugin=
+      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_slave_filename),
+		      "$basedir/plugin/semisync/.libs/" . $semisync_slave_filename,
+                      "$basedir/lib/mysql/plugin/" . $semisync_slave_filename);
+    if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
+    {
+      $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
+      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
+      $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
+    }
+    else
+    {
+      $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
+      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
+      $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
+    }
   }
 
   # ----------------------------------------------------
@@ -2709,7 +2746,7 @@ sub mysql_install_db {
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
   my $install_basedir= $mysqld->value('basedir');
-  my $install_lang= $mysqld->value('language');
+  my $install_lang= $mysqld->value('lc-messages-dir');
   my $install_chsdir= $mysqld->value('character-sets-dir');
 
   mtr_report("Installing system database...");
@@ -2732,7 +2769,7 @@ sub mysql_install_db {
 		$path_vardir_trace);
   }
 
-  mtr_add_arg($args, "--language=%s", $install_lang);
+  mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,

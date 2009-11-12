@@ -98,7 +98,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     thd= (THD *) mysql->thd;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
 
@@ -112,7 +112,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   /* Clear result variables */
   thd->clear_error();
-  thd->main_da.reset_diagnostics_area();
+  thd->stmt_da->reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -144,13 +144,13 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   thd->mysys_var= 0;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
   return result;
 }
 
-static void emb_flush_use_result(MYSQL *mysql)
+static void emb_flush_use_result(MYSQL *mysql, my_bool)
 {
   THD *thd= (THD*) mysql->thd;
   if (thd->cur_data)
@@ -219,7 +219,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->total_warn_count;
+  mysql->warning_count= thd->warning_info->statement_warn_count();
 
   if (thd->first_data)
   {
@@ -404,7 +404,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->main_da.message() : "";
+  return thd->is_error() ? thd->stmt_da->message() : "";
 }
 
 
@@ -656,7 +656,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
   result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
-  net_end_statement(thd);
+  thd->protocol->end_statement();
   emb_read_query_result(mysql);
   return result;
 }
@@ -706,9 +706,10 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 err:
   {
     NET *net= &mysql->net;
-    strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
+    strmake(net->last_error, thd->stmt_da->message(),
+            sizeof(net->last_error)-1);
     memcpy(net->sqlstate,
-           mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
+           mysql_errno_to_sqlstate(thd->stmt_da->sql_errno()),
            sizeof(net->sqlstate)-1);
   }
   return result;
@@ -732,8 +733,8 @@ void THD::clear_data_list()
 
 void THD::clear_error()
 {
-  if (main_da.is_error())
-    main_da.reset_diagnostics_area();
+  if (stmt_da->is_error())
+    stmt_da->reset_diagnostics_area();
 }
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
@@ -807,7 +808,7 @@ MYSQL_DATA *THD::alloc_new_dataset()
 
 static
 bool
-write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
+write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
 {
   if (!thd->mysql)            // bootstrap file handling
     return FALSE;
@@ -824,7 +825,7 @@ write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(total_warn_count, 65535));
+    (thd->spcont ? 0 : min(statement_warn_count, 65535));
   return FALSE;
 }
 
@@ -881,7 +882,7 @@ void Protocol_text::remove_last_row()
 }
 
 
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -890,7 +891,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
   CHARSET_INFO             *cs= system_charset_info;
   MYSQL_DATA               *data;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("send_result_set_metadata");
 
   if (!thd->mysql)            // bootstrap file handling
     DBUG_RETURN(0);
@@ -954,7 +955,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     client_field->catalog= dup_str_aux(field_alloc, "def", 3, cs, thd_cs);
     client_field->catalog_length= 3;
 
-    if (INTERNAL_NUM_FIELD(client_field))
+    if (IS_NUM(client_field->type))
       client_field->flags|= NUM_FLAG;
 
     if (flags & (int) Protocol::SEND_DEFAULTS)
@@ -981,9 +982,10 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   }
 
   if (flags & SEND_EOF)
-    write_eof_packet(thd, thd->server_status, thd->total_warn_count);
+    write_eof_packet(thd, thd->server_status,
+                     thd->warning_info->statement_warn_count());
 
-  DBUG_RETURN(prepare_for_send(list));
+  DBUG_RETURN(prepare_for_send(list->elements));
  err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
@@ -1043,25 +1045,24 @@ bool Protocol_binary::write()
 
 bool
 net_send_ok(THD *thd,
-            uint server_status, uint total_warn_count,
-            ha_rows affected_rows, ulonglong id, const char *message)
+            uint server_status, uint statement_warn_count,
+            ulonglong affected_rows, ulonglong id, const char *message)
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;
-  bool error;
   MYSQL *mysql= thd->mysql;
 
   if (!mysql)            // bootstrap file handling
     DBUG_RETURN(FALSE);
   if (!(data= thd->alloc_new_dataset()))
-    return TRUE;
+    DBUG_RETURN(TRUE);
   data->embedded_info->affected_rows= affected_rows;
   data->embedded_info->insert_id= id;
   if (message)
     strmake(data->embedded_info->info, message,
             sizeof(data->embedded_info->info)-1);
 
-  error= write_eof_packet(thd, server_status, total_warn_count);
+  bool error= write_eof_packet(thd, server_status, statement_warn_count);
   thd->cur_data= 0;
   DBUG_RETURN(error);
 }
@@ -1078,16 +1079,20 @@ net_send_ok(THD *thd,
 */
 
 bool
-net_send_eof(THD *thd, uint server_status, uint total_warn_count)
+net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 {
-  bool error= write_eof_packet(thd, server_status, total_warn_count);
+  bool error= write_eof_packet(thd, server_status, statement_warn_count);
   thd->cur_data= 0;
   return error;
 }
 
 
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
+                           const char *sqlstate)
 {
+  uint error;
+  uchar converted_err[MYSQL_ERRMSG_SIZE];
+  uint32 converted_err_len;
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
 
@@ -1102,8 +1107,13 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
-  strmake(ei->info, err, sizeof(ei->info)-1);
-  strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
+  converted_err_len= convert_error_message((char*)converted_err,
+                                           sizeof(converted_err),
+                                           thd->variables.character_set_results,
+                                           err, strlen(err),
+                                           system_charset_info, &error);
+  strmake(ei->info, (const char*) converted_err, sizeof(ei->info)-1);
+  strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;
   return FALSE;
@@ -1175,4 +1185,28 @@ int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
            format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
   return 0;
+}
+
+
+bool Protocol::net_store_data(const uchar *from, size_t length,
+                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  uint dummy_error;
+  char *field_buf;
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
+  if (!(field_buf= (char*) alloc_root(alloc, conv_length + sizeof(uint) + 1)))
+    return true;
+  *next_field= field_buf + sizeof(uint);
+  length= copy_and_convert(*next_field, conv_length, to_cs,
+                           (const char*) from, length, from_cs, &dummy_error);
+  *(uint *) field_buf= length;
+  (*next_field)[length]= 0;
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length= length;
+  ++next_field;
+  ++next_mysql_field;
+  return false;
 }

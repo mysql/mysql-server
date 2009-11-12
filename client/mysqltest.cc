@@ -81,6 +81,9 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
@@ -111,6 +114,8 @@ static uint my_end_arg= 0;
 
 /* Number of lines of the result to include in failure report */
 static uint opt_tail_lines= 0;
+
+static uint opt_connect_timeout= 0;
 
 static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
@@ -257,8 +262,7 @@ enum enum_commands {
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
   Q_PING,		    Q_EVAL,
-  Q_RPL_PROBE,	    Q_ENABLE_RPL_PARSE,
-  Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
+  Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_WAIT_FOR_SLAVE_TO_STOP,
@@ -317,9 +321,6 @@ const char *command_names[]=
   "replace_column",
   "ping",
   "eval",
-  "rpl_probe",
-  "enable_rpl_parse",
-  "disable_rpl_parse",
   "eval_result",
   /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
@@ -659,14 +660,6 @@ public:
 LogFile log_file;
 LogFile progress_file;
 
-
-/* Disable functions that only exist in MySQL 4.0 */
-#if MYSQL_VERSION_ID < 40000
-void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
-my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
-#endif
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
@@ -1135,7 +1128,7 @@ void free_used_memory()
 
   close_connections();
   close_files();
-  hash_free(&var_hash);
+  my_hash_free(&var_hash);
 
   for (i= 0 ; i < q_lines.elements ; i++)
   {
@@ -1168,7 +1161,6 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
-  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 
@@ -1998,8 +1990,8 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, (const uchar*) save_var_name,
-                                            length)))
+    if (!(v = (VAR*) my_hash_search(&var_hash, (const uchar*) save_var_name,
+                                    length)))
     {
       char buff[MAX_VAR_NAME_LENGTH+1];
       strmake(buff, save_var_name, length);
@@ -2030,7 +2022,7 @@ err:
 VAR *var_obtain(const char *name, int len)
 {
   VAR* v;
-  if ((v = (VAR*)hash_search(&var_hash, (const uchar *) name, len)))
+  if ((v = (VAR*)my_hash_search(&var_hash, (const uchar *) name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
   my_hash_insert(&var_hash, (uchar*)v);
@@ -2964,6 +2956,7 @@ void do_move_file(struct st_command *command)
 void do_chmod_file(struct st_command *command)
 {
   long mode= 0;
+  int err_code;
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
@@ -2983,7 +2976,10 @@ void do_chmod_file(struct st_command *command)
     die("You must write a 4 digit octal number for mode");
 
   DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
-  handle_command_error(command, chmod(ds_file.str, mode));
+  err_code= chmod(ds_file.str, mode);
+  if (err_code < 0)
+    err_code= 1;
+  handle_command_error(command, err_code);
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
   DBUG_VOID_RETURN;
@@ -3844,11 +3840,7 @@ int do_save_master_pos()
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
-  int rpl_parse;
   DBUG_ENTER("do_save_master_pos");
-
-  rpl_parse = mysql_rpl_parse_enabled(mysql);
-  mysql_disable_rpl_parse(mysql);
 
 #ifdef HAVE_NDB_BINLOG
   /*
@@ -3999,10 +3991,6 @@ int do_save_master_pos()
   strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res);
-
-  if (rpl_parse)
-    mysql_enable_rpl_parse(mysql);
-
   DBUG_RETURN(0);
 }
 
@@ -4062,29 +4050,6 @@ void do_let(struct st_command *command)
           (let_rhs_expr.str + let_rhs_expr.length));
   dynstr_free(&let_rhs_expr);
   DBUG_VOID_RETURN;
-}
-
-
-int do_rpl_probe(struct st_command *command __attribute__((unused)))
-{
-  DBUG_ENTER("do_rpl_probe");
-  if (mysql_rpl_probe(&cur_con->mysql))
-    die("Failed in mysql_rpl_probe(): '%s'", mysql_error(&cur_con->mysql));
-  DBUG_RETURN(0);
-}
-
-
-int do_enable_rpl_parse(struct st_command *command __attribute__((unused)))
-{
-  mysql_enable_rpl_parse(&cur_con->mysql);
-  return 0;
-}
-
-
-int do_disable_rpl_parse(struct st_command *command __attribute__((unused)))
-{
-  mysql_disable_rpl_parse(&cur_con->mysql);
-  return 0;
 }
 
 
@@ -4896,6 +4861,8 @@ do_handle_error:
   <opts> - options to use for the connection
    * SSL - use SSL if available
    * COMPRESS - use compression if available
+   * SHM - use shared memory if available
+   * PIPE - use named pipe if available
 
 */
 
@@ -4904,6 +4871,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
+  my_bool con_pipe= 0, con_shm= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -4914,6 +4882,9 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+#ifdef HAVE_SMEM
+  static DYNAMIC_STRING ds_shm;
+#endif
   const struct command_arg connect_args[] = {
     { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
     { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
@@ -4940,6 +4911,11 @@ void do_connect(struct st_command *command)
     if (con_port == 0)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
+
+#ifdef HAVE_SMEM
+  /* Shared memory */
+  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+#endif
 
   /* Sock */
   if (ds_sock.length)
@@ -4979,6 +4955,10 @@ void do_connect(struct st_command *command)
       con_ssl= 1;
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
+    else if (!strncmp(con_options, "PIPE", 4))
+      con_pipe= 1;
+    else if (!strncmp(con_options, "SHM", 3))
+      con_shm= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5003,6 +4983,11 @@ void do_connect(struct st_command *command)
 #endif
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
+
+  if (opt_connect_timeout)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  (void *) &opt_connect_timeout);
+
   if (opt_compress || con_compress)
     mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -5025,6 +5010,31 @@ void do_connect(struct st_command *command)
 #endif
   }
 #endif
+
+#ifdef __WIN__
+  if (con_pipe)
+  {
+    uint protocol= MYSQL_PROTOCOL_PIPE;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+#endif
+
+#ifdef HAVE_SMEM
+  if (con_shm)
+  {
+    uint protocol= MYSQL_PROTOCOL_MEMORY;
+    if (!ds_shm.length)
+      die("Missing shared memory base name");
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+  else if(shared_memory_base_name)
+  {
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+      shared_memory_base_name);
+  }
+#endif
+
 
   /* Use default db name */
   if (ds_database.length == 0)
@@ -5058,6 +5068,9 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+#ifdef HAVE_SMEM
+  dynstr_free(&ds_shm);
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5724,6 +5737,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
+   (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
+   0, 0, 0},
+#endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -5758,6 +5777,11 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
    (uchar**) &view_protocol, (uchar**) &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+   "Number of seconds before connection timeout.",
+   (uchar**) &opt_connect_timeout,
+   (uchar**) &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
+   120, 0, 3600 * 12, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6496,8 +6520,6 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
     if (!disable_result_log)
     {
-      ulonglong UNINIT_VAR(affected_rows);    /* Ok to be undef if 'disable_info' is set */
-
       if (res)
       {
 	MYSQL_FIELD *fields= mysql_fetch_fields(res);
@@ -6514,10 +6536,10 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
       /*
         Need to call mysql_affected_rows() before the "new"
-        query to find the warnings
+        query to find the warnings.
       */
       if (!disable_info)
-        affected_rows= mysql_affected_rows(mysql);
+	append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
       /*
         Add all warnings to the result. We can't do this if we are in
@@ -6532,9 +6554,6 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 	  dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
 	}
       }
-
-      if (!disable_info)
-	append_info(ds, affected_rows, mysql_info(mysql));
     }
 
     if (res)
@@ -6775,10 +6794,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
-  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6910,11 +6927,12 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
 
     /*
-      Need to grab affected rows information before getting
-      warnings here
+      Fetch info before fetching warnings, since it will be reset
+      otherwise.
     */
+
     if (!disable_info)
-      affected_rows= mysql_affected_rows(mysql);
+      append_info(ds, mysql_stmt_affected_rows(stmt), mysql_info(mysql));
 
     if (!disable_warnings)
     {
@@ -6927,21 +6945,17 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
           ds_warnings->length)
       {
         dynstr_append_mem(ds, "Warnings:\n", 10);
-	if (ds_warnings->length)
-	  dynstr_append_mem(ds, ds_warnings->str,
-			    ds_warnings->length);
-	if (ds_prepare_warnings.length)
-	  dynstr_append_mem(ds, ds_prepare_warnings.str,
-			    ds_prepare_warnings.length);
-	if (ds_execute_warnings.length)
-	  dynstr_append_mem(ds, ds_execute_warnings.str,
-			    ds_execute_warnings.length);
+        if (ds_warnings->length)
+          dynstr_append_mem(ds, ds_warnings->str,
+                            ds_warnings->length);
+        if (ds_prepare_warnings.length)
+          dynstr_append_mem(ds, ds_prepare_warnings.str,
+                            ds_prepare_warnings.length);
+        if (ds_execute_warnings.length)
+          dynstr_append_mem(ds, ds_execute_warnings.str,
+                            ds_execute_warnings.length);
       }
     }
-
-    if (!disable_info)
-      append_info(ds, affected_rows, mysql_info(mysql));
-
   }
 
 end:
@@ -6989,6 +7003,10 @@ int util_query(MYSQL* org_mysql, const char* query){
     DBUG_PRINT("info", ("Creating util_mysql"));
     if (!(mysql= mysql_init(mysql)))
       die("Failed in mysql_init()");
+
+    if (opt_connect_timeout)
+      mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                    (void *) &opt_connect_timeout);
 
     /* enable local infile, in non-binary builds often disabled by default */
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -7585,8 +7603,8 @@ int main(int argc, char **argv)
 
   my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
 
-  if (hash_init(&var_hash, charset_info,
-                1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (my_hash_init(&var_hash, charset_info,
+                   1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
   var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
@@ -7649,6 +7667,9 @@ int main(int argc, char **argv)
   st_connection *con= connections;
   if (!( mysql_init(&con->mysql)))
     die("Failed in mysql_init()");
+  if (opt_connect_timeout)
+    mysql_options(&con->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  (void *) &opt_connect_timeout);
   if (opt_compress)
     mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -7671,6 +7692,11 @@ int main(int argc, char **argv)
                   &opt_ssl_verify_server_cert);
 #endif
   }
+#endif
+
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
 
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
@@ -7748,9 +7774,6 @@ int main(int argc, char **argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:
 	do_close_connection(command); break;
-      case Q_RPL_PROBE: do_rpl_probe(command); break;
-      case Q_ENABLE_RPL_PARSE:	 do_enable_rpl_parse(command); break;
-      case Q_DISABLE_RPL_PARSE:  do_disable_rpl_parse(command); break;
       case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
       case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;

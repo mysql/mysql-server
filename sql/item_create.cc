@@ -927,10 +927,10 @@ protected:
 };
 
 
-class Create_func_format : public Create_func_arg2
+class Create_func_format : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_format s_singleton;
 
@@ -2050,6 +2050,18 @@ public:
 protected:
   Create_func_to_days() {}
   virtual ~Create_func_to_days() {}
+};
+
+class Create_func_to_seconds : public Create_func_arg1
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1);
+
+  static Create_func_to_seconds s_singleton;
+
+protected:
+  Create_func_to_seconds() {}
+  virtual ~Create_func_to_seconds() {}
 };
 
 
@@ -3352,9 +3364,34 @@ Create_func_floor::create(THD *thd, Item *arg1)
 Create_func_format Create_func_format::s_singleton;
 
 Item*
-Create_func_format::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_format::create_native(THD *thd, LEX_STRING name,
+                                  List<Item> *item_list)
 {
-  return new (thd->mem_root) Item_func_format(arg1, arg2);
+  Item *func= NULL;
+  int arg_count= item_list ? item_list->elements : 0;
+
+  switch (arg_count) {
+  case 2:
+  {
+    Item *param_1= item_list->pop();
+    Item *param_2= item_list->pop();
+    func= new (thd->mem_root) Item_func_format(param_1, param_2);
+    break;
+  }
+  case 3:
+  {
+    Item *param_1= item_list->pop();
+    Item *param_2= item_list->pop();
+    Item *param_3= item_list->pop();
+    func= new (thd->mem_root) Item_func_format(param_1, param_2, param_3);
+    break;
+  }
+  default:
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+
+  return func;
 }
 
 
@@ -4480,6 +4517,15 @@ Create_func_to_days::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_to_seconds Create_func_to_seconds::s_singleton;
+
+Item*
+Create_func_to_seconds::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_to_seconds(arg1);
+}
+
+
 #ifdef HAVE_SPATIAL
 Create_func_touches Create_func_touches::s_singleton;
 
@@ -4917,6 +4963,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
   { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
+  { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
   { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},
   { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},
@@ -4960,14 +5007,14 @@ int item_create_init()
 
   DBUG_ENTER("item_create_init");
 
-  if (hash_init(& native_functions_hash,
-                system_charset_info,
-                array_elements(func_array),
-                0,
-                0,
-                (hash_get_key) get_native_fct_hash_key,
-                NULL,                          /* Nothing to free */
-                MYF(0)))
+  if (my_hash_init(& native_functions_hash,
+                   system_charset_info,
+                   array_elements(func_array),
+                   0,
+                   0,
+                   (my_hash_get_key) get_native_fct_hash_key,
+                   NULL,                          /* Nothing to free */
+                   MYF(0)))
     DBUG_RETURN(1);
 
   for (func= func_array; func->builder != NULL; func++)
@@ -4979,7 +5026,7 @@ int item_create_init()
 #ifndef DBUG_OFF
   for (uint i=0 ; i < native_functions_hash.records ; i++)
   {
-    func= (Native_func_registry*) hash_element(& native_functions_hash, i);
+    func= (Native_func_registry*) my_hash_element(& native_functions_hash, i);
     DBUG_PRINT("info", ("native function: %s  length: %u",
                         func->name.str, (uint) func->name.length));
   }
@@ -4997,7 +5044,7 @@ int item_create_init()
 void item_create_cleanup()
 {
   DBUG_ENTER("item_create_cleanup");
-  hash_free(& native_functions_hash);
+  my_hash_free(& native_functions_hash);
   DBUG_VOID_RETURN;
 }
 
@@ -5008,9 +5055,9 @@ find_native_function_builder(THD *thd, LEX_STRING name)
   Create_func *builder= NULL;
 
   /* Thread safe */
-  func= (Native_func_registry*) hash_search(& native_functions_hash,
-                                            (uchar*) name.str,
-                                             name.length);
+  func= (Native_func_registry*) my_hash_search(& native_functions_hash,
+                                               (uchar*) name.str,
+                                               name.length);
 
   if (func)
   {

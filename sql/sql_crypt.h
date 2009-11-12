@@ -1,3 +1,6 @@
+#ifndef SQL_CRYPT_INCLUDED
+#define SQL_CRYPT_INCLUDED
+
 /* Copyright (C) 2000-2001, 2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -35,3 +38,5 @@ class SQL_CRYPT :public Sql_alloc
   void encode(char *str, uint length);
   void decode(char *str, uint length);
 };
+
+#endif /* SQL_CRYPT_INCLUDED */

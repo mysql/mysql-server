@@ -1,0 +1,85 @@
+# This test uses chmod, can't be run with root permissions
+--source include/not_as_root.inc
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#26704: Failing DROP DATABASE brings mysql-client out of sync.
+--echo # --
+
+--echo
+--disable_warnings
+DROP DATABASE IF EXISTS mysql_test;
+--enable_warnings
+
+--echo
+CREATE DATABASE mysql_test;
+CREATE TABLE mysql_test.t1(c INT);
+
+use mysql_test;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo
+--echo chmod 000 mysql_test/t1.frm
+--chmod 0000 $MYSQLD_DATADIR/mysql_test/t1.frm
+
+# NOTE: For the DROP DATABASE below we need:
+#   - disable result log because ER_DB_DROP_RMDIR contains errno, which can be
+#     different on different platforms.
+#   - expect different error codes, because Windows and UNIX behaves
+#     differently (see below).
+#
+# NOTE: Windows and UNIX behaves differently in this test case:
+#
+#   - on UNIX when t1.frm is chmoded to 000, it is perfectly deleted
+#     by the first DROP DATABASE, but some other files (t1.MYI and t1.MYD) left
+#     in the directory. So, we have to explicitly removes them before the
+#     second DROP DATABASE.
+#
+#   - on Windows when t1.frm is chmoded to 000, it is not deleted by the first
+#     DROP DATABASE, but all other files in the database directory are deleted.
+#     Thus, we have to change the t1.frm permissions again and delete it
+#     explicitly before the second DROP DATABASE.
+#
+# All those differences do not really matter for the idea of this test case:
+# checking that if DROP DATABASE failed, the client is Ok.
+
+--echo
+--disable_result_log
+--error ER_DB_DROP_RMDIR,6
+DROP DATABASE mysql_test;
+--enable_result_log
+
+--echo
+SELECT DATABASE();
+
+# Remove t1.MYI and t1.MYD. On UNIX it should succeed. On Windows, it fails.
+--echo
+--echo rm -f mysql_test/t1.MYD mysql_test/t1.MYI
+--error 0, 1
+--remove_file $MYSQLD_DATADIR/mysql_test/t1.MYD
+--error 0, 1
+--remove_file $MYSQLD_DATADIR/mysql_test/t1.MYI
+
+# Make t1.frm removable: fail on UNIX, succeed on Windows.
+--echo chmod 666 mysql_test/t1.frm
+--error 0, 1
+--chmod 0666 $MYSQLD_DATADIR/mysql_test/t1.frm
+
+# Remove t1.frm: fail on UNIX, succeed on Windows.
+--echo rm -f mysql_test/t1.frm
+--error 0, 1
+--remove_file $MYSQLD_DATADIR/mysql_test/t1.frm
+
+--echo
+DROP DATABASE mysql_test;
+
+--echo
+use test;
+
+--echo
+--echo # -- End of Bug#26704.
+
+###########################################################################

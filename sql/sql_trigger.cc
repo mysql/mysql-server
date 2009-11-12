@@ -409,7 +409,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       */
       result= FALSE;
       /* Still, we need to log the query ... */
-      stmt_query.append(thd->query, thd->query_length);
+      stmt_query.append(thd->query(), thd->query_length());
       goto end;
     }
   }
@@ -422,7 +422,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
     thd->lex->query_tables_own_last= 0;
 
-    err_status= check_table_access(thd, TRIGGER_ACL, tables, 1, FALSE);
+    err_status= check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, FALSE);
 
     thd->lex->query_tables_own_last= save_query_tables_own_last;
 
@@ -918,7 +918,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
   List_iterator<LEX_STRING> it_connection_cl_name(connection_cl_names);
   List_iterator<LEX_STRING> it_db_cl_name(db_cl_names);
 
-  stmt_query->append(thd->query, thd->query_length);
+  stmt_query->append(thd->query(), thd->query_length());
 
   while ((name= it_name++))
   {

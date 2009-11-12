@@ -123,80 +123,80 @@ set names utf8;
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
 SHOW CREATE EVENT root6;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root6		SYSTEM	CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root6		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root7 on schedule every 2 year do select 1;
 SHOW CREATE EVENT root7;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root7		SYSTEM	CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root7		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root8 on schedule every '2:5' year_month do select 1;
 SHOW CREATE EVENT root8;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root8		SYSTEM	CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root8		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root8_1 on schedule every '2:15' year_month do select 1;
 SHOW CREATE EVENT root8_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root8_1		SYSTEM	CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root8_1		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' do select 1;
 SHOW CREATE EVENT root9;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root9		SYSTEM	CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root9		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'коментар на кирилица' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root10 on schedule every '20:5' day_hour do select 1;
 SHOW CREATE EVENT root10;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root10		SYSTEM	CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root10		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root11 on schedule every '20:25' day_hour do select 1;
 SHOW CREATE EVENT root11;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root11		SYSTEM	CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root11		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root12 on schedule every '20:25' hour_minute do select 1;
 SHOW CREATE EVENT root12;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root12		SYSTEM	CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root12		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root13 on schedule every '25:25' hour_minute do select 1;
 SHOW CREATE EVENT root13;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root13		SYSTEM	CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root13		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root13_1 on schedule every '11:65' hour_minute do select 1;
 SHOW CREATE EVENT root13_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root13_1		SYSTEM	CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root13_1		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root14 on schedule every '35:35' minute_second do select 1;
 SHOW CREATE EVENT root14;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root14		SYSTEM	CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root14		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root15 on schedule every '35:66' minute_second do select 1;
 SHOW CREATE EVENT root15;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root15		SYSTEM	CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root15		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root16 on schedule every '35:56' day_minute do select 1;
 SHOW CREATE EVENT root16;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root16		SYSTEM	CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root16		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root17 on schedule every '35:12:45' day_minute do select 1;
 SHOW CREATE EVENT root17;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root17		SYSTEM	CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root17		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root17_1 on schedule every '35:25:65' day_minute do select 1;
 SHOW CREATE EVENT root17_1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root17_1		SYSTEM	CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root17_1		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root18 on schedule every '35:12:45' hour_second do select 1;
 SHOW CREATE EVENT root18;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root18		SYSTEM	CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root18		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root19 on schedule every '15:59:85' hour_second do select 1;
 SHOW CREATE EVENT root19;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root19		SYSTEM	CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root19		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
 SHOW CREATE EVENT root20;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-root20		SYSTEM	CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+root20		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
 set names cp1251;
 create event ����21 on schedule every '50:23:59:95' day_second COMMENT '���� � 1251 ��������' do select 1;
 SHOW CREATE EVENT ����21;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-����21		SYSTEM	CREATE EVENT `руут21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'това е 1251 коментар' DO select 1	cp1251	cp1251_general_ci	latin1_swedish_ci
+����21		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `руут21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'това е 1251 коментар' DO select 1	cp1251	cp1251_general_ci	latin1_swedish_ci
 insert into mysql.event (
 db,
 name,
@@ -271,7 +271,7 @@ event_name
 intact_check
 SHOW CREATE EVENT intact_check;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-intact_check		SYSTEM	CREATE EVENT `intact_check` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT "nothing"	latin1	latin1_swedish_ci	latin1_swedish_ci
+intact_check		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `intact_check` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT "nothing"	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT no_such_event;
 ERROR HY000: Unknown event 'no_such_event'
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;

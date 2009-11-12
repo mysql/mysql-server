@@ -22,12 +22,112 @@
 #undef NO_ALARM_LOOP
 #endif
 #include <my_alarm.h>
-#ifdef __WIN__
-#include <sys/locking.h>
-#endif
 #ifdef __NETWARE__
 #include <nks/fsio.h>
 #endif
+
+#ifdef _WIN32
+#define WIN_LOCK_INFINITE -1
+#define WIN_LOCK_SLEEP_MILLIS 100
+
+static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
+                int timeout_sec)
+{
+  LARGE_INTEGER liOffset,liLength;
+  DWORD dwFlags;
+  OVERLAPPED ov= {0};
+  HANDLE hFile= (HANDLE)my_get_osfhandle(fd);
+  DWORD  lastError= 0;
+  int i;
+  int timeout_millis= timeout_sec * 1000;
+
+  DBUG_ENTER("win_lock");
+
+  liOffset.QuadPart= start;
+  liLength.QuadPart= length;
+
+  ov.Offset=      liOffset.LowPart;
+  ov.OffsetHigh=  liOffset.HighPart;
+
+  if (locktype == F_UNLCK)
+  {
+    if (UnlockFileEx(hFile, 0, liLength.LowPart, liLength.HighPart, &ov))
+      DBUG_RETURN(0);
+    /*
+      For compatibility with fcntl implementation, ignore error,
+      if region was not locked
+    */
+    if (GetLastError() == ERROR_NOT_LOCKED)
+    {
+      SetLastError(0);
+      DBUG_RETURN(0);
+    }
+    goto error;
+  }
+  else if (locktype == F_RDLCK)
+    /* read lock is mapped to a shared lock. */
+    dwFlags= 0;
+  else
+    /* write lock is mapped to an exclusive lock. */
+    dwFlags= LOCKFILE_EXCLUSIVE_LOCK;
+
+  /*
+    Drop old lock first to avoid double locking.
+    During analyze of Bug#38133 (Myisamlog test fails on Windows)
+    I met the situation that the program myisamlog locked the file
+    exclusively, then additionally shared, then did one unlock, and
+    then blocked on an attempt to lock it exclusively again.
+    Unlocking before every lock fixed the problem.
+    Note that this introduces a race condition. When the application
+    wants to convert an exclusive lock into a shared one, it will now
+    first unlock the file and then lock it shared. A waiting exclusive
+    lock could step in here. For reasons described in Bug#38133 and
+    Bug#41124 (Server hangs on Windows with --external-locking after
+    INSERT...SELECT) and in the review thread at
+    http://lists.mysql.com/commits/60721 it seems to be the better
+    option than not to unlock here.
+    If one day someone notices a way how to do file lock type changes
+    on Windows without unlocking before taking the new lock, please
+    change this code accordingly to fix the race condition.
+  */
+  if (!UnlockFileEx(hFile, 0, liLength.LowPart, liLength.HighPart, &ov) &&
+      (GetLastError() != ERROR_NOT_LOCKED))
+    goto error;
+
+  if (timeout_sec == WIN_LOCK_INFINITE)
+  {
+    if (LockFileEx(hFile, dwFlags, 0, liLength.LowPart, liLength.HighPart, &ov))
+      DBUG_RETURN(0);
+    goto error;
+  }
+  
+  dwFlags|= LOCKFILE_FAIL_IMMEDIATELY;
+  timeout_millis= timeout_sec * 1000;
+  /* Try lock in a loop, until the lock is acquired or timeout happens */
+  for(i= 0; ;i+= WIN_LOCK_SLEEP_MILLIS)
+  {
+    if (LockFileEx(hFile, dwFlags, 0, liLength.LowPart, liLength.HighPart, &ov))
+     DBUG_RETURN(0);
+
+    if (GetLastError() != ERROR_LOCK_VIOLATION)
+      goto error;
+
+    if (i >= timeout_millis)
+      break;
+    Sleep(WIN_LOCK_SLEEP_MILLIS);
+  }
+
+  /* timeout */
+  errno= EAGAIN;
+  DBUG_RETURN(-1);
+
+error:
+   my_osmaperr(GetLastError());
+   DBUG_RETURN(-1);
+}
+#endif
+
+
 
 /* 
   Lock a part of a file 
@@ -48,8 +148,9 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #ifdef __NETWARE__
   int nxErrno;
 #endif
+
   DBUG_ENTER("my_lock");
-  DBUG_PRINT("my",("Fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
+  DBUG_PRINT("my",("fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(long) start,(long) length,MyFlags));
 #ifdef VMS
   DBUG_RETURN(0);
@@ -97,29 +198,16 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
         DBUG_RETURN(0);
     }
   }
-#elif defined(HAVE_LOCKING)
-  /* Windows */
+#elif defined(_WIN32)
   {
-    my_bool error= FALSE;
-    pthread_mutex_lock(&my_file_info[fd].mutex);
-    if (MyFlags & MY_SEEK_NOT_DONE) 
-    {
-      if( my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE))
-           == MY_FILEPOS_ERROR )
-      {
-        /*
-          If my_seek fails my_errno will already contain an error code;
-          just unlock and return error code.
-         */
-        DBUG_PRINT("error",("my_errno: %d (%d)",my_errno,errno));
-        pthread_mutex_unlock(&my_file_info[fd].mutex);
-        DBUG_RETURN(-1);
-      }
-    }
-    error= locking(fd,locktype,(ulong) length) && errno != EINVAL;
-    pthread_mutex_unlock(&my_file_info[fd].mutex);
-    if (!error)
-      DBUG_RETURN(0);
+    int timeout_sec;
+    if (MyFlags & MY_DONT_WAIT)
+      timeout_sec= 0;
+    else
+      timeout_sec= WIN_LOCK_INFINITE;
+
+    if(win_lock(fd, locktype, start, length, timeout_sec) == 0)
+         DBUG_RETURN(0);
   }
 #else
 #if defined(HAVE_FCNTL)

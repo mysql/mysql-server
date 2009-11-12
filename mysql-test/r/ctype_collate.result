@@ -548,6 +548,36 @@ SELECT * FROM t1 WHERE s2 = s3;
 s1	s2	s3
 a	A	A
 DROP TABLE t1;
+create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
+insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
+select * from t1 where a > 'B' collate latin1_bin;
+a
+a
+b
+C
+c
+select * from t1 where a <> 'B' collate latin1_bin;
+a
+A
+a
+b
+C
+c
+create index i on t1 (a);
+select * from t1 where a > 'B' collate latin1_bin;
+a
+a
+b
+C
+c
+select * from t1 where a <> 'B' collate latin1_bin;
+a
+A
+a
+b
+C
+c
+drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 
 (s1 char(10) COLLATE latin1_german1_ci,

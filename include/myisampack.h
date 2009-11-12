@@ -1,3 +1,6 @@
+#ifndef MYISAMPACK_INCLUDED
+#define MYISAMPACK_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -236,3 +239,4 @@
                                      mi_int4store(((T) + 4), A); }}
 #define mi_sizekorr(T)      mi_uint4korr((uchar*) (T) + 4)
 #endif
+#endif /* MYISAMPACK_INCLUDED */

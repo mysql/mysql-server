@@ -29,7 +29,11 @@ File my_dup(File file, myf MyFlags)
   const char *filename;
   DBUG_ENTER("my_dup");
   DBUG_PRINT("my",("file: %d  MyFlags: %d", file, MyFlags));
-  fd = dup(file);
+#ifdef _WIN32
+  fd= my_win_dup(file);
+#else
+  fd= dup(file);
+#endif
   filename= (((uint) file < my_file_limit) ?
 	     my_file_info[(int) file].name : "Unknown");
   DBUG_RETURN(my_register_filename(fd, filename, FILE_BY_DUP,

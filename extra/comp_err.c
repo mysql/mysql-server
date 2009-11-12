@@ -39,7 +39,7 @@ static char *OUTFILE= (char*) "errmsg.sys";
 static char *HEADERFILE= (char*) "mysqld_error.h";
 static char *NAMEFILE= (char*) "mysqld_ername.h";
 static char *STATEFILE= (char*) "sql_state.h";
-static char *TXTFILE= (char*) "../sql/share/errmsg.txt";
+static char *TXTFILE= (char*) "../sql/share/errmsg-utf8.txt";
 static char *DATADIRECTORY= (char*) "../sql/share/";
 #ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";

@@ -247,3 +247,21 @@ select * from t1 where a between '0000-00-01' and '0000-00-02';
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #33629: last_day function can return null, but has 'not null'
+--echo #             flag set for result
+--echo #
+
+SELECT 1 FROM (SELECT LAST_DAY('0')) a;
+SELECT 1 FROM (SELECT MAKEDATE(2011,0)) a;
+
+CREATE TABLE t1 AS
+  SELECT LAST_DAY('1970-01-01') AS f1,
+         MAKEDATE(1970, 1)      AS f2;
+DESCRIBE t1;
+DROP TABLE t1;
+
+--echo #
+
+--echo End of 6.0 tests

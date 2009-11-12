@@ -67,3 +67,38 @@ SHOW ERRORS;
 INSERT INTO t1 SELECT b FROM t1;
 DROP TABLE t1;
 # End of 5.0 tests
+
+#
+# testing the value encoding in the error messages of set_var
+#
+SET NAMES utf8;
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _binary x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create=_latin1 x'5452DC45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create='TRÜE';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create=TRÜE;
+
+SET NAMES latin1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _binary x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create=_latin1 x'5452DC45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create='TR.E';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create=TR.E;
+
+SET NAMES binary;
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _binary x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create= _utf8 x'5452C39C45';
+--error ER_WRONG_VALUE_FOR_VAR
+SET sql_quote_show_create=_latin1 x'5452DC45';

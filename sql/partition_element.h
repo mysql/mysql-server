@@ -1,4 +1,7 @@
-/* Copyright (C) 2006 MySQL AB
+#ifndef PARTITION_ELEMENT_INCLUDED
+#define PARTITION_ELEMENT_INCLUDED
+
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +35,38 @@ enum partition_state {
   PART_REORGED_DROPPED= 5,
   PART_CHANGED= 6,
   PART_IS_CHANGED= 7,
-  PART_IS_ADDED= 8
+  PART_IS_ADDED= 8,
+  PART_ADMIN= 9
 };
+
+/*
+  This struct is used to keep track of column expressions as part
+  of the COLUMNS concept in conjunction with RANGE and LIST partitioning.
+  The value can be either of MINVALUE, MAXVALUE and an expression that
+  must be constant and evaluate to the same type as the column it
+  represents.
+
+  The data in this fixed in two steps. The parser will only fill in whether
+  it is a max_value or provide an expression. Filling in
+  column_value, part_info, partition_id, null_value is done by the
+  function fix_column_value_function. However the item tree needs
+  fixed also before writing it into the frm file (in add_column_list_values).
+  To distinguish between those two variants, fixed= 1 after the
+  fixing in add_column_list_values and fixed= 2 otherwise. This is
+  since the fixing in add_column_list_values isn't a complete fixing.
+*/
+
+typedef struct p_column_list_val
+{
+  void* column_value;
+  Item* item_expression;
+  partition_info *part_info;
+  uint partition_id;
+  bool max_value;
+  bool null_value;
+  char fixed;
+} part_column_list_val;
+
 
 /*
   This struct is used to contain the value of an element
@@ -45,8 +78,10 @@ enum partition_state {
 typedef struct p_elem_val
 {
   longlong value;
+  uint added_items;
   bool null_value;
   bool unsigned_flag;
+  part_column_list_val *col_val_array;
 } part_elem_value;
 
 struct st_ddl_log_memory_entry;
@@ -68,8 +103,9 @@ public:
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
-  bool signed_flag;/* Indicate whether this partition uses signed constants */
-  bool max_value;  /* Indicate whether this partition uses MAXVALUE */
+  /* signed_flag and max_value only relevant for subpartitions */
+  bool signed_flag;
+  bool max_value;
 
   partition_element()
   : part_max_rows(0), part_min_rows(0), range_value(0),
@@ -97,3 +133,5 @@ public:
   }
   ~partition_element() {}
 };
+
+#endif /* PARTITION_ELEMENT_INCLUDED */

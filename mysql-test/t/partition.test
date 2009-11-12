@@ -352,12 +352,12 @@ drop table t1;
 #
 # BUG 16002: Handle unsigned integer functions properly
 #
---error ER_PARSE_ERROR
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
  partition p1 values less than (10));
---error ER_PARSE_ERROR
+--error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
 create table t1 (a bigint)
 partition by list (a)
 (partition p0 values in (0xFFFFFFFFFFFFFFFF),
@@ -1390,7 +1390,7 @@ PARTITION BY LIST (a)
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
---error ER_PARSE_ERROR
+--error ER_NULL_IN_VALUES_LESS_THAN
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE(a)
 (PARTITION p0 VALUES LESS THAN (NULL));

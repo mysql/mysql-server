@@ -269,6 +269,18 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 
   ulonglong m_table_map_version;
 
+  /* pointer to the sync period variable, for binlog this will be
+     sync_binlog_period, for relay log this will be
+     sync_relay_log_period
+  */
+  uint *sync_period_ptr;
+  uint sync_counter;
+
+  inline uint get_sync_period()
+  {
+    return *sync_period_ptr;
+  }
+
   int write_to_file(IO_CACHE *cache);
   /*
     This is used to start writing to a new log file. The difference from
@@ -284,7 +296,7 @@ public:
 
   /* This is relay log */
   bool is_relay_log;
-
+  ulong signal_cnt;  // update of the counter is checked by heartbeat
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -296,7 +308,7 @@ public:
   Format_description_log_event *description_event_for_exec,
     *description_event_for_queue;
 
-  MYSQL_BIN_LOG();
+  MYSQL_BIN_LOG(uint *sync_period);
   /*
     note that there's no destructor ~MYSQL_BIN_LOG() !
     The reason is that we don't want it to be automatically called
@@ -339,7 +351,8 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update();
-  void wait_for_update(THD* thd, bool master_or_slave);
+  void wait_for_update_relay_log(THD* thd);
+  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
   void set_need_start_event() { need_start_event = 1; }
   void init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
@@ -378,7 +391,20 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
-  bool flush_and_sync();
+  /**
+     Flush binlog cache and synchronize to disk.
+
+     This function flushes events in binlog cache to binary log file,
+     it will do synchronizing according to the setting of system
+     variable 'sync_binlog'. If file is synchronized, @c synced will
+     be set to 1, otherwise 0.
+
+     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+
+     @retval 0 Success
+     @retval other Failure
+  */
+  bool flush_and_sync(bool *synced);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
