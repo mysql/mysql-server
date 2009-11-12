@@ -23,6 +23,7 @@
 #include <TransporterRegistry.hpp>
 #include <NdbOut.hpp>
 #include <NdbMem.h>
+#include <NdbTick.h>
 
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
@@ -149,6 +150,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 
   c_memusage_report_frequency = 0;
+
+  m_start_time = NdbTick_CurrentMillisecond() / 1000; // seconds
 }
 
 Cmvmi::~Cmvmi()
@@ -1311,7 +1314,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::TRP_STATUS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::TRANSPORTERS_TABLEID:
   {
     jam();
     Uint32 rnode = cursor->data[0];
@@ -1346,6 +1350,59 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::RESOURCES_TABLEID:
+  {
+    jam();
+    Uint32 resource_id = cursor->data[0];
+    Resource_limit resource_limit;
+
+    while(m_ctx.m_mm.get_resource_limit(resource_id, resource_limit))
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId()); // Node id
+      row.write_uint32(resource_id);
+
+      row.write_uint32(resource_limit.m_min);
+      row.write_uint32(resource_limit.m_curr);
+      row.write_uint32(resource_limit.m_max);
+      row.write_uint32(0); //TODO
+      ndbinfo_send_row(signal, req, row, rl);
+      resource_id++;
+
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, resource_id);
+        return;
+      }
+    }
+    break;
+  }
+
+  case Ndbinfo::NODES_TABLEID:
+  {
+    jam();
+    const NodeState& nodeState = getNodeState();
+    const Uint32 start_level = nodeState.startLevel;
+    const NDB_TICKS uptime = (NdbTick_CurrentMillisecond()/1000) - m_start_time;
+
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId()); // Node id
+
+    row.write_uint64(uptime);         // seconds
+    row.write_uint32(start_level);
+    row.write_uint32(start_level == NodeState::SL_STARTING ?
+                     nodeState.starting.startPhase : 0);
+    ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

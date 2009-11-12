@@ -216,6 +216,7 @@ public:
     Undofile_list::Head m_files;     // Files in log
     Undofile_list::Head m_meta_files;// Files being created or dropped
     
+    Uint32 m_total_buffer_words;    // Total buffer page words
     Uint32 m_free_buffer_words;     // Free buffer page words
     Uint32 m_callback_buffer_words; // buffer words that has been
                                     // returned to user, but not yet consumed
@@ -245,7 +246,7 @@ public:
   typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
   typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
-
+  typedef KeyTableImpl<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
     // lgman
     ENDLCP_CALLBACK = 1,

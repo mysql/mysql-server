@@ -44,30 +44,136 @@ struct view {
   const char* sql;
 } views[] =
 {
-  { "trp_status",
+  { "pools",
+    "SELECT node_id, b.block_name, block_instance, pool_name, "
+    "used, total, high, entry_size, cp1.param_name AS param_name1, "
+    "cp2.param_name AS param_name2, cp3.param_name AS param_name3, "
+    "cp4.param_name AS param_name4 "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools p "
+    "JOIN <NDBINFO_DB>.blocks b ON p.block_number = b.block_number "
+    "LEFT JOIN <NDBINFO_DB>.config_params cp1 ON p.config_param1 = cp1.param_number "
+    "LEFT JOIN <NDBINFO_DB>.config_params cp2 ON p.config_param2 = cp2.param_number "
+    "LEFT JOIN <NDBINFO_DB>.config_params cp3 ON p.config_param3 = cp3.param_number "
+    "LEFT JOIN <NDBINFO_DB>.config_params cp4 ON p.config_param4 = cp4.param_number"
+  },
+  { "transporters",
     "SELECT node_id, remote_node_id, "
-    " CASE status"
-    "  WHEN 0 THEN \"connected\""
-    "  WHEN 1 THEN \"connecting\""
-    "  WHEN 2 THEN \"disconnected\""
-    "  WHEN 3 THEN \"disconnecting\""
+    " CASE connection_status"
+    "  WHEN 0 THEN \"CONNECTED\""
+    "  WHEN 1 THEN \"CONNECTING\""
+    "  WHEN 2 THEN \"DISCONNECTED\""
+    "  WHEN 3 THEN \"DISCONNECTING\""
     "  ELSE NULL "
     " END AS status "
-    "FROM <NDBINFO_DB>.<TABLE_PREFIX>trp_status"
-   },
-  { "log_space",
-    "SELECT log_id, "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>transporters"
+  },
+  { "logspaces",
+    "SELECT node_id, "
     " CASE log_type"
     "  WHEN 0 THEN \"REDO\""
     "  WHEN 1 THEN \"DD-UNDO\""
     "  ELSE NULL "
     " END AS log_type, "
-    " log_part, node_id, total, used "
-    "FROM <NDBINFO_DB>.<TABLE_PREFIX>log_space"
+    "log_id, log_part, total, used "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>logspaces"
+  },
+  { "logbuffers",
+    "SELECT node_id, "
+    " CASE log_type"
+    "  WHEN 0 THEN \"REDO\""
+    "  WHEN 1 THEN \"DD-UNDO\""
+    "  ELSE \"<unknown>\" "
+    " END AS log_type, "
+    "log_id, log_part, total, used "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>logbuffers"
+  },
+  { "resources",
+    "SELECT node_id, "
+    " CASE resource_id"
+    "  WHEN 0 THEN \"RESERVED\""
+    "  WHEN 1 THEN \"DISK_OPERATIONS\""
+    "  WHEN 2 THEN \"DISK_RECORDS\""
+    "  WHEN 3 THEN \"DATA_MEMORY\""
+    "  WHEN 4 THEN \"JOBBUFFER\""
+    "  WHEN 5 THEN \"FILE_BUFFERS\""
+    "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
+    "  ELSE \"<unknown>\" "
+    " END AS resource_id, "
+    "reserved, used, max, high "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources"
+   },
+   { "counters",
+    "SELECT node_id, b.block_name, block_instance, "
+    "counter_id, "
+    "CASE counter_id"
+    "  WHEN 1 THEN \"ATTRINFO\""
+    "  WHEN 2 THEN \"TRANSACTIONS\""
+    "  WHEN 3 THEN \"COMMITS\""
+    "  WHEN 4 THEN \"READS\""
+    "  WHEN 5 THEN \"SIMPLE_READS\""
+    "  WHEN 6 THEN \"WRITES\""
+    "  WHEN 7 THEN \"ABORTS\""
+    "  WHEN 8 THEN \"TABLE_SCANS\""
+    "  WHEN 9 THEN \"RANGE_SCANS\""
+    "  WHEN 10 THEN \"OPERATIONS\""
+    "  ELSE \"<unknown>\" "
+    " END AS counter_name, "
+    "val "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>counters c, "
+    "<NDBINFO_DB>.blocks b "
+    "WHERE c.block_number = b.block_number"
+   },
+   { "nodes",
+    "SELECT node_id, "
+    "uptime, "
+    "CASE status"
+    "  WHEN 0 THEN \"NOTHING\""
+    "  WHEN 1 THEN \"CMVMI\""
+    "  WHEN 2 THEN \"STARTING\""
+    "  WHEN 3 THEN \"STARTED\""
+    "  WHEN 4 THEN \"SINGLEUSER\""
+    "  WHEN 5 THEN \"STOPPING_1\""
+    "  WHEN 6 THEN \"STOPPING_2\""
+    "  WHEN 7 THEN \"STOPPING_3\""
+    "  WHEN 8 THEN \"STOPPING_4\""
+    "  ELSE \"<unknown>\" "
+    " END AS status, "
+    "start_phase "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
+   },
+  { "memoryusage",
+    "SELECT node_id, \"DATA_MEMORY\" "
+    "used, max, high "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources "
+    "WHERE resource_id = \"DATA_MEMORY|\" "
+    "UNION "
+    "SELECT node_id, \"INDEX_MEMORY\" "
+    "used, total, high "
+    "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools "
+    "WHERE pool_name = \"Index memory|\" "
   }
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);
+
+
+#include "../src/mgmsrv/ConfigInfo.cpp"
+static ConfigInfo g_info;
+static void fill_config_params(void)
+{
+  const char* separator = "";
+  const ConfigInfo::ParamInfo* pinfo= NULL;
+  ConfigInfo::ParamInfoIter param_iter(g_info,
+                                       CFG_SECTION_NODE,
+                                       NODE_TYPE_DB);
+  while((pinfo= param_iter.next())) {
+    if (pinfo->_paramId == 0 || // KEY_INTERNAL
+        pinfo->_status != ConfigInfo::CI_USED)
+      continue;
+    printf("%s(%u, \"%s\")", separator, pinfo->_paramId, pinfo->_fname); 
+    separator = ", ";
+  }
+}
 
 
 #include "../src/common/debugger/BlockNames.cpp"
@@ -88,10 +194,15 @@ struct lookup {
   void (*fill)(void);
 } lookups[] =
 {
-  { "block",
-    "no INT UNSIGNED, "
-    "name VARCHAR(512)",
+  { "blocks",
+    "block_number INT UNSIGNED, "
+    "block_name VARCHAR(512)",
     &fill_blocks
+   },
+  { "config_params",
+    "param_number INT UNSIGNED, "
+    "param_name VARCHAR(512)",
+    &fill_config_params
    }
 };
 

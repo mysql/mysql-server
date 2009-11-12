@@ -432,35 +432,119 @@ Lgman::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::LOG_SPACE_TABLEID)
+  switch(req.tableId) {
+  case Ndbinfo::LOGSPACES_TABLEID:
   {
-#if 0
-    Uint32 logid = cursor->data[0];
-    while(find_next_logid(logid))
+    jam();
+    Uint32 startBucket = cursor->data[0];
+    Logfile_group_hash_iterator iter;
+    m_logfile_group_hash.next(startBucket, iter);
+
+    while (!iter.curr.isNull())
     {
       jam();
-      Uint64 mb = Logfile_group::m_free_file_words;
-      Uint64 total = 0; // TODO
+
+      Uint32 currentBucket = iter.bucket;
+      Ptr<Logfile_group> ptr = iter.curr;
+
+      Uint64 free = ptr.p->m_free_file_words*4;
+
+      Uint64 total = 0;
+      Local_undofile_list list(m_file_pool, ptr.p->m_files);
+      Ptr<Undofile> filePtr;
+      for (list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
+      {
+        jam();
+        total += (Uint64)filePtr.p->m_file_size *
+          (Uint64)File_formats::NDB_PAGE_SIZE;
+      }
+
       Uint64 high = 0; // TODO
 
       Ndbinfo::Row row(signal, req);
-      row.write_uint32(logid);          // log id
-      row.write_uint32(1);              // log type, 1 = DD-UNDO
-      row.write_uint32(0);              // log part
       row.write_uint32(getOwnNodeId());
+      row.write_uint32(1); // log type, 1 = DD-UNDO
+      row.write_uint32(ptr.p->m_logfile_group_id); // log id
+      row.write_uint32(0); // log part
+
       row.write_uint64(total);          // total allocated
-      row.write_uint64((total-mb));     // currently in use
+      row.write_uint64((total-free));   // currently in use
       row.write_uint64(high);           // in use high water mark
       ndbinfo_send_row(signal, req, row, rl);
-      logid++;
-      if (rl.need_break(req))
+
+      // move to next
+      if (m_logfile_group_hash.next(iter) == false)
+      {
+        jam(); // no more...
+        break;
+      }
+      else if (iter.bucket == currentBucket)
       {
         jam();
-        ndbinfo_send_scan_break(signal, req, rl, logpart);
+        continue; // we need to iterate an entire bucket
+      }
+      else if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, iter.bucket);
         return;
       }
     }
-#endif
+    break;
+  }
+
+  case Ndbinfo::LOGBUFFERS_TABLEID:
+  {
+    jam();
+    Uint32 startBucket = cursor->data[0];
+    Logfile_group_hash_iterator iter;
+    m_logfile_group_hash.next(startBucket, iter);
+
+    while (!iter.curr.isNull())
+    {
+      jam();
+
+      Uint32 currentBucket = iter.bucket;
+      Ptr<Logfile_group> ptr = iter.curr;
+
+      Uint64 free = ptr.p->m_free_buffer_words*4;
+      Uint64 total = ptr.p->m_total_buffer_words*4;
+      Uint64 high = 0; // TODO
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(1); // log type, 1 = DD-UNDO
+      row.write_uint32(ptr.p->m_logfile_group_id); // log id
+      row.write_uint32(0); // log part
+
+      row.write_uint64(total);          // total allocated
+      row.write_uint64((total-free));   // currently in use
+      row.write_uint64(high);           // in use high water mark
+      ndbinfo_send_row(signal, req, row, rl);
+
+      // move to next
+      if (m_logfile_group_hash.next(iter) == false)
+      {
+        jam(); // no more...
+        break;
+      }
+      else if (iter.bucket == currentBucket)
+      {
+        jam();
+        continue; // we need to iterate an entire bucket
+      }
+      else if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, iter.bucket);
+        return;
+      }
+    }
+    break;
+  }
+
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
@@ -1067,6 +1151,7 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_file_pos[0].m_ptr_i= m_file_pos[1].m_ptr_i = RNIL;
 
   m_free_file_words = 0;
+  m_total_buffer_words = 0;
   m_free_buffer_words = 0;
   m_callback_buffer_words = 0;
 
@@ -1172,7 +1257,8 @@ Lgman::init_logbuffer_pointers(Ptr<Logfile_group> ptr)
     pages += range.m_idx;
   }
   
-  ptr.p->m_free_buffer_words = pages * File_formats::UNDO_PAGE_WORDS;
+  ptr.p->m_total_buffer_words =
+    ptr.p->m_free_buffer_words = pages * File_formats::UNDO_PAGE_WORDS;
 }
 
 Uint32

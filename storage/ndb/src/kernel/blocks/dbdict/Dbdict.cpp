@@ -281,89 +281,163 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Attribute Record",
-           c_attributeRecordPool.getNoOfFree(),
-           c_attributeRecordPool.getSize() },
-          {"Table Record",
-           c_tableRecordPool.getNoOfFree(),
-           c_tableRecordPool.getSize() },
-          {"Trigger Record",
-           c_triggerRecordPool.getNoOfFree(),
-           c_triggerRecordPool.getSize() },
-          {"FS Connect Record",
-           c_fsConnectRecordPool.getNoOfFree(),
-           c_fsConnectRecordPool.getSize() },
-          {"DictObject",
-           c_obj_pool.getNoOfFree(),
-           c_obj_pool.getSize() },
-          {"Schema Operation",
-           c_schemaOpPool.getNoOfFree(),
-           c_schemaOpPool.getSize() },
-          {"Schema Transaction",
-           c_schemaTransPool.getNoOfFree(),
-           c_schemaTransPool.getSize() },
-          {"Transaction Handle",
-           c_txHandlePool.getNoOfFree(),
-           c_txHandlePool.getSize() },
-          {"Create Table Record",
-           c_createTableRecPool.getNoOfFree(),
-           c_createTableRecPool.getSize() },
-          {"Drop Table Record",
-           c_dropTableRecPool.getNoOfFree(),
-           c_dropTableRecPool.getSize() },
-          {"Alter Table Record",
-           c_alterTableRecPool.getNoOfFree(),
-           c_alterTableRecPool.getSize() },
-          {"Create Index Record",
-           c_createIndexRecPool.getNoOfFree(),
-           c_createIndexRecPool.getSize() },
-          {"Drop Index Record",
-           c_dropIndexRecPool.getNoOfFree(),
-           c_dropIndexRecPool.getSize() },
-          {"Alter Index Record",
-           c_alterIndexRecPool.getNoOfFree(),
-           c_alterIndexRecPool.getSize() },
-          {"Build Index Record",
-           c_buildIndexRecPool.getNoOfFree(),
-           c_buildIndexRecPool.getSize() },
-          {"Create Hash Map Record",
-           c_createHashMapRecPool.getNoOfFree(),
-           c_createHashMapRecPool.getSize() },
-          {"Copy Data Record",
-           c_copyDataRecPool.getNoOfFree(),
-           c_copyDataRecPool.getSize() },
-          {"Create Trigger Record",
-           c_createTriggerRecPool.getNoOfFree(),
-           c_createTriggerRecPool.getSize() },
-          {"Drop Trigger Record",
-           c_dropTriggerRecPool.getNoOfFree(),
-           c_dropTriggerRecPool.getSize() },
-          {"Create Filegroup Record",
-           c_createFilegroupRecPool.getNoOfFree(),
-           c_createFilegroupRecPool.getSize() },
-          {"Create File Record",
-           c_createFileRecPool.getNoOfFree(),
-           c_createFileRecPool.getSize() },
-          {"Drop Filegroup Record",
-           c_dropFilegroupRecPool.getNoOfFree(),
-           c_dropFilegroupRecPool.getSize() },
-          {"Drop File Record",
-           c_dropFileRecPool.getNoOfFree(),
-           c_dropFileRecPool.getSize() },
-          {"Operation Record",
-           c_opRecordPool.getNoOfFree(),
-           c_opRecordPool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Attribute Record",
+        c_attributeRecordPool.getUsed(),
+        c_attributeRecordPool.getSize(),
+        c_attributeRecordPool.getEntrySize(),
+        c_attributeRecordPool.getUsedHi(),
+        CFG_DB_NO_ATTRIBUTES,0,0,0 },
+      { "Table Record",
+        c_tableRecordPool.getUsed(),
+        c_tableRecordPool.getSize(),
+        c_tableRecordPool.getEntrySize(),
+        c_tableRecordPool.getUsedHi(),
+        CFG_DB_NO_TABLES,0,0,0 },
+      { "Trigger Record",
+        c_triggerRecordPool.getUsed(),
+        c_triggerRecordPool.getSize(),
+        c_triggerRecordPool.getEntrySize(),
+        c_triggerRecordPool.getUsedHi(),
+        CFG_DB_NO_TRIGGERS,0,0,0 },
+      { "FS Connect Record",
+        c_fsConnectRecordPool.getUsed(),
+        c_fsConnectRecordPool.getSize(),
+        c_fsConnectRecordPool.getEntrySize(),
+        c_fsConnectRecordPool.getUsedHi(),
+        0,0,0,0 },
+      { "DictObject",
+        c_obj_pool.getUsed(),
+        c_obj_pool.getSize(),
+        c_obj_pool.getEntrySize(),
+        c_obj_pool.getUsedHi(),
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES,
+        CFG_DB_NO_TRIGGERS },
+      { "Schema Operation",
+        c_schemaOpPool.getUsed(),
+        c_schemaOpPool.getSize(),
+        c_schemaOpPool.getEntrySize(),
+        c_schemaOpPool.getUsedHi(),
+        0,0,0,0 },
+      { "Schema Transaction",
+        c_schemaTransPool.getUsed(),
+        c_schemaTransPool.getSize(),
+        c_schemaTransPool.getEntrySize(),
+        c_schemaTransPool.getUsedHi(),
+        0,0,0,0 },
+      { "Transaction Handle",
+        c_txHandlePool.getUsed(),
+        c_txHandlePool.getSize(),
+        c_txHandlePool.getEntrySize(),
+        c_txHandlePool.getUsedHi(),
+        0,0,0,0 },
+      { "Create Table Record",
+        c_createTableRecPool.getUsed(),
+        c_createTableRecPool.getSize(),
+        c_createTableRecPool.getEntrySize(),
+        c_createTableRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Drop Table Record",
+        c_dropTableRecPool.getUsed(),
+        c_dropTableRecPool.getSize(),
+        c_dropTableRecPool.getEntrySize(),
+        c_dropTableRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Alter Table Record",
+        c_alterTableRecPool.getUsed(),
+        c_alterTableRecPool.getSize(),
+        c_alterTableRecPool.getEntrySize(),
+        c_alterTableRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Create Index Record",
+        c_createIndexRecPool.getUsed(),
+        c_createIndexRecPool.getSize(),
+        c_createIndexRecPool.getEntrySize(),
+        c_createIndexRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Drop Index Record",
+        c_dropIndexRecPool.getUsed(),
+        c_dropIndexRecPool.getSize(),
+        c_dropIndexRecPool.getEntrySize(),
+        c_dropIndexRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Alter Index Record",
+        c_alterIndexRecPool.getUsed(),
+        c_alterIndexRecPool.getSize(),
+        c_alterIndexRecPool.getEntrySize(),
+        c_alterIndexRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Build Index Record",
+        c_buildIndexRecPool.getUsed(),
+        c_buildIndexRecPool.getSize(),
+        c_buildIndexRecPool.getEntrySize(),
+        c_buildIndexRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Create Hash Map Record",
+        c_createHashMapRecPool.getUsed(),
+        c_createHashMapRecPool.getSize(),
+        c_createHashMapRecPool.getEntrySize(),
+        c_createHashMapRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Copy Data Record",
+        c_copyDataRecPool.getUsed(),
+        c_copyDataRecPool.getSize(),
+        c_copyDataRecPool.getEntrySize(),
+        c_copyDataRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Create Trigger Record",
+        c_createTriggerRecPool.getUsed(),
+        c_createTriggerRecPool.getSize(),
+        c_createTriggerRecPool.getEntrySize(),
+        c_createTriggerRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Drop Trigger Record",
+        c_dropTriggerRecPool.getUsed(),
+        c_dropTriggerRecPool.getSize(),
+        c_dropTriggerRecPool.getEntrySize(),
+        c_dropTriggerRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Create Filegroup Record",
+        c_createFilegroupRecPool.getUsed(),
+        c_createFilegroupRecPool.getSize(),
+        c_createFilegroupRecPool.getEntrySize(),
+        c_createFilegroupRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Create File Record",
+        c_createFileRecPool.getUsed(),
+        c_createFileRecPool.getSize(),
+        c_createFileRecPool.getEntrySize(),
+        c_createFileRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Drop Filegroup Record",
+        c_dropFilegroupRecPool.getUsed(),
+        c_dropFilegroupRecPool.getSize(),
+        c_dropFilegroupRecPool.getEntrySize(),
+        c_dropFilegroupRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Drop File Record",
+        c_dropFileRecPool.getUsed(),
+        c_dropFileRecPool.getSize(),
+        c_dropFileRecPool.getEntrySize(),
+        c_dropFileRecPool.getUsedHi(),
+        0,0,0,0 },
+      { "Operation Record",
+        c_opRecordPool.getUsed(),
+        c_opRecordPool.getSize(),
+        c_opRecordPool.getEntrySize(),
+        c_opRecordPool.getUsedHi(),
+        0,0,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0}
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -372,10 +446,14 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -385,6 +463,10 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
