@@ -113,6 +113,7 @@ BDB_DONTRUN_TESTS = \
 	recover-compare-db \
 	recover-compare-db-descriptor \
 	test_cursor_delete_2119 \
+	transactional_fileops \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
