@@ -219,7 +219,7 @@ public:
   void releaseList(Uint32 n, Uint32 first, Uint32 last);
   //private:
 
-#ifdef DEBUG
+#if 0
   Uint32 getNoOfFree2() const {
     Uint32 c2 = size;
     for(Uint32 i = 0; i<((size + 31)>> 5); i++){
