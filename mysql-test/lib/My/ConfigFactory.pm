@@ -142,8 +142,9 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  my $basedir= $self->get_basedir($group);
-  return "$basedir/mysql-test/std_data";
+  return my_find_dir($self->get_basedir($group),
+		     ["share/mysql-test", "mysql-test"],
+		     "std_data");
 }
 
 sub ssl_supported {
