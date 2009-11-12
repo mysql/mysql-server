@@ -859,9 +859,72 @@ AC_CHECK_DECLS(MHA_MAPSIZE_VA,
 #include <sys/mman.h>
       ]
 )
-
-
 fi
+
+dnl Use of ALARMs to wakeup on timeout on sockets
+dnl
+dnl This feature makes use of a mutex and is a scalability hog we
+dnl try to avoid using. However we need support for SO_SNDTIMEO and
+dnl SO_RCVTIMEO socket options for this to work. So we will check
+dnl if this feature is supported by a simple AC_RUN_IFELSE macro. However
+dnl on some OS's there is support for setting those variables but
+dnl they are silently ignored. For those OS's we will not attempt
+dnl o use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
+dnl See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
+dnl To use alarm is simple, simply avoid setting anything.
+
+
+AC_CACHE_CHECK([whether SO_SNDTIMEO and SO_RCVTIMEO work],
+  [mysql_cv_socket_timeout],
+  [AC_RUN_IFELSE(
+    [AC_LANG_PROGRAM([[
+      #include <sys/types.h>
+      #include <sys/socket.h>
+      #include <sys/time.h>
+    ]],[[
+      int fd = socket(AF_INET, SOCK_STREAM, 0);
+      struct timeval tv;
+      int ret= 0;
+      tv.tv_sec= 2;
+      tv.tv_usec= 0;
+      ret|= setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+      ret|= setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+      return !!ret;
+    ]])],
+    [mysql_cv_socket_timeout=yes],
+    [mysql_cv_socket_timeout=no],
+    [mysql_cv_socket_timeout=no
+     AC_MSG_WARN([Socket timeout options disabled due to cross-compiling])])
+  ])
+
+use_alarm=yes
+
+if test "$mysql_cv_socket_timeout" = yes; then
+  case $SYSTEM_TYPE in
+    dnl We trust the result from the following systems
+    *solaris*) use_alarm=no ;;
+    *freebsd*) use_alarm=no ;;
+    *darwin*)  use_alarm=no ;;
+    *)
+      dnl We trust the result from Linux also
+      if test "$TARGET_LINUX" = "true"; then
+        use_alarm=no
+      fi
+      dnl We trust no one else for the moment
+      dnl (Windows is hardcoded to not use alarms)
+      ;;
+  esac
+fi
+
+AC_ARG_WITH(alarm,
+    AS_HELP_STRING([--with-alarm], [Use alarm to implement socket timeout.]),
+    [use_alarm=$withval], [])
+
+AC_MSG_CHECKING(whether to use alarms to implement socket timeout)
+if test "$use_alarm" = no ; then
+  AC_DEFINE([NO_ALARM], [1], [No need to use alarm for socket timeout])
+fi
+AC_MSG_RESULT($use_alarm)
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
