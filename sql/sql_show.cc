@@ -1787,10 +1787,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
         pthread_mutex_lock(&tmp->LOCK_thd_data);
-        if (tmp->query)
+        if (tmp->query())
         {
-          uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->strmake(tmp->query,length);
+          uint length= min(max_query_length, tmp->query_length());
+          thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
@@ -1915,11 +1915,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         pthread_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
-      if (tmp->query)
+      if (tmp->query())
       {
-        table->field[7]->store(tmp->query,
+        table->field[7]->store(tmp->query(),
                                min(PROCESS_LIST_INFO_WIDTH,
-                                   tmp->query_length), cs);
+                                   tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
 
@@ -4955,6 +4955,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   return;
 }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static int
 get_partition_column_description(THD *thd,
                                  partition_info *part_info,
@@ -4998,6 +4999,7 @@ get_partition_column_description(THD *thd,
   }
   DBUG_RETURN(0);
 }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
