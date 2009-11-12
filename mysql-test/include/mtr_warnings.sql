@@ -186,6 +186,14 @@ INSERT INTO global_suppressions VALUES
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
 
+ /* Messages from valgrind */
+ ("==[0-9]*== Memcheck,"),
+ ("==[0-9]*== Copyright"),
+ ("==[0-9]*== Using"),
+ ("==[0-9]*== For more details"),
+ /* This comes with innodb plugin tests */
+ ("==[0-9]*== Warning: set address range perms: large range .* .defined."),
+
  ("THE_LAST_SUPPRESSION")||
 
 
