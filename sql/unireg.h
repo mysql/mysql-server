@@ -1,3 +1,6 @@
+#ifndef UNIREG_INCLUDED
+#define UNIREG_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -15,8 +18,6 @@
 
 
 /*  Extra functions used by unireg library */
-
-#ifndef _unireg_h
 
 #ifndef NO_ALARM_LOOP
 #define NO_ALARM_LOOP		/* lib5 and popen can't use alarm */
@@ -39,7 +40,11 @@
 #define PLUGINDIR	"lib/plugin"
 #endif
 
-#define ER(X) errmesg[(X) - ER_ERROR_FIRST]
+#define CURRENT_THD_ERRMSGS current_thd->variables.lc_messages->errmsgs->errmsgs
+#define DEFAULT_ERRMSGS     my_default_lc_messages->errmsgs->errmsgs
+
+#define ER(X)         CURRENT_THD_ERRMSGS[(X) - ER_ERROR_FIRST]
+#define ER_DEFAULT(X) DEFAULT_ERRMSGS[(X) - ER_ERROR_FIRST]
 #define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? ER(X) : "Invalid error code")
 
 

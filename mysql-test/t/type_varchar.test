@@ -199,3 +199,21 @@ SELECT a,(a + 0) FROM t1 ORDER BY a;
 SELECT a,(a DIV 2) FROM t1 ORDER BY a;
 SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+#
+# Bug #28299: To-number conversion warnings work differenly with CHAR
+# and VARCHAR sp variables
+#
+# * Verify that 'Truncated incorrect DOUBLE value' is shown for 's' 
+#   when using both CHAR and VARCHAR.
+#
+
+CREATE TABLE t1 (a VARCHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a CHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+DROP TABLE t1;

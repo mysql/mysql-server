@@ -64,7 +64,7 @@ bool hostname_cache_init()
   uint offset= (uint) ((char*) (&tmp.ip) - (char*) &tmp);
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
 				     sizeof(struct in_addr),NULL,
-				     (hash_free_key) free,
+				     (my_hash_free_key) free,
 				     &my_charset_bin)))
     return 1;
   hostname_cache->clear();

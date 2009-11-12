@@ -383,6 +383,11 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 drop tables t1, t2;
 
 #
+# mysql client with 'init-command' option
+#
+--exec $MYSQL --init-command="SET lc_messages=ru_RU" -e "SHOW VARIABLES LIKE 'lc_messages';"
+
+#
 # Bug #27884: mysql --html does not quote HTML special characters in output
 # 
 --exec $MYSQL --html test -e "select '< & >' as '<'"

@@ -413,7 +413,7 @@ cleanup:
         therefore be treated as a DDL.
       */
       int log_result= thd->binlog_query(query_type,
-                                        thd->query, thd->query_length,
+                                        thd->query(), thd->query_length(),
                                         is_trans, FALSE, errcode);
 
       if (log_result)
@@ -850,7 +850,7 @@ void multi_delete::abort()
     {
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query, thd->query_length,
+                        thd->query(), thd->query_length(),
                         transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= true;
@@ -1024,7 +1024,7 @@ bool multi_delete::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode) &&
           !normal_tables)
       {
@@ -1101,6 +1101,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   {
     handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
+    /* Note that a temporary table cannot be partitioned */
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
 
@@ -1139,8 +1140,22 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
-                                      HTON_CAN_RECREATE))
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /*
+      TODO: Add support for TRUNCATE PARTITION for NDB and other engines
+      supporting native partitioning
+    */
+    if (table_type != DB_TYPE_PARTITION_DB &&
+        thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
+    {
+      my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+#endif
+    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd,
+                                                                table_type),
+                                      HTON_CAN_RECREATE) ||
+        thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
     if (lock_and_wait_for_table_name(thd, table_list))
@@ -1166,7 +1181,7 @@ end:
         TRUNCATE must always be statement-based binlogged (not row-based) so
         we don't test current_stmt_binlog_row_based.
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));

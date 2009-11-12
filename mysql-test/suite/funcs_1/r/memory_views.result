@@ -22845,6 +22845,9 @@ SELECT * FROM v1 order by 2;
 f1	my_sqrt
 ABC	0
 ABC	1.73205080756888
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 SELECT SQRT('DEF');
 SQRT('DEF')
 0
@@ -22865,7 +22868,12 @@ SELECT * FROM v2 order by 2;
 f1	my_sqrt
 ABC	0
 ABC	1.73205080756888
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0
@@ -22873,6 +22881,8 @@ f1	ABC
 my_sqrt	1.73205080756888
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0
@@ -22880,6 +22890,8 @@ f1	ABC
 my_sqrt	1.73205080756888
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0

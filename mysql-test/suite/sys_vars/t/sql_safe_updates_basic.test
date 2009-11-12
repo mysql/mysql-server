@@ -135,7 +135,7 @@ WHERE VARIABLE_NAME='sql_safe_updates';
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@session.sql_safe_updates = VARIABLE_VALUE 
+SELECT IF(@@session.sql_safe_updates, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_safe_updates';
 SELECT @@session.sql_safe_updates;

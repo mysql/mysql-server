@@ -42,6 +42,13 @@ ADD_DEFINITIONS(-DSHAREDIR="share")
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
+# Do not use SAFEMALLOC for Windows builds, as Debug CRT has the same functionality
+# Neither SAFE_MUTEX works on Windows and it has been explicitely undefined in 
+# my_pthread.h
+IF(NOT WIN32)
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+ENDIF(NOT WIN32)
 
 SET(localstatedir "C:\\mysql\\data")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
@@ -54,9 +61,6 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-medium.cnf.sh
                ${CMAKE_SOURCE_DIR}/support-files/my-medium.ini @ONLY)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-small.cnf.sh
                ${CMAKE_SOURCE_DIR}/support-files/my-small.ini @ONLY)
-
-
-ADD_DEFINITIONS(-D__NT__)
 
 IF(CYBOZU)
   ADD_DEFINITIONS(-DCYBOZU)
@@ -287,6 +291,10 @@ FOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
   ADD_SUBDIRECTORY(${DIR})
 ENDFOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
 
+# Add subdirectories for semisync plugin
+IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+  ADD_SUBDIRECTORY(plugin/semisync)
+ENDIF(NOT WITHOUT_DYNAMIC_PLUGINS)
 
 # FIXME "debug" only needed if build type is "Debug", but
 # CMAKE_BUILD_TYPE is not set during configure time.
@@ -303,6 +311,7 @@ ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(sql)
 ADD_SUBDIRECTORY(libmysql)
+ADD_SUBDIRECTORY(libservices)
 ADD_SUBDIRECTORY(tests)
 IF(WITH_EMBEDDED_SERVER) 
   ADD_SUBDIRECTORY(libmysqld)

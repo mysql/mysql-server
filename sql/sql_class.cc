@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         !my_strcasecmp(system_charset_info, field_name.str,
+                        other.field_name.str);
 }
 
 /**
@@ -200,19 +202,6 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-/** Push an error to the error stack and return TRUE for now. */
-
-bool
-Reprepare_observer::report_error(THD *thd)
-{
-  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
-
-  m_invalidated= TRUE;
-
-  return TRUE;
-}
-
-
 Open_tables_state::Open_tables_state(ulong version_arg)
   :version(version_arg), state_flags(0U)
 {
@@ -271,11 +260,31 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
                            (info != NULL) ? info : "(null)"));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
+}
+
+extern "C"
+const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
+                           pthread_mutex_t *mutex, const char *msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  return thd->enter_cond(cond, mutex, msg);
+}
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  thd->exit_cond(old_msg);
+  return;
 }
 
 extern "C"
@@ -305,7 +314,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->row_count++;
+  thd->warning_info->inc_current_row_for_warning();
 }
 
 
@@ -376,14 +385,14 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  if (thd->query)
+  if (thd->query())
   {
     if (max_query_len < 1)
-      len= thd->query_length;
+      len= thd->query_length();
     else
-      len= min(thd->query_length, max_query_len);
+      len= min(thd->query_length(), max_query_len);
     str.append('\n');
-    str.append(thd->query, len);
+    str.append(thd->query(), len);
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -402,7 +411,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 
 
 /**
-  Implementation of Drop_table_error_handler::handle_error().
+  Implementation of Drop_table_error_handler::handle_condition().
   The reason in having this implementation is to silence technical low-level
   warnings during DROP TABLE operation. Currently we don't want to expose
   the following warnings during DROP TABLE:
@@ -415,147 +424,16 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 
   @return TRUE if the condition is handled.
 */
-bool Drop_table_error_handler::handle_error(uint sql_errno,
-                                            const char *message,
-                                            MYSQL_ERROR::enum_warning_level level,
-                                            THD *thd)
+bool Drop_table_error_handler::handle_condition(THD *thd,
+                                                uint sql_errno,
+                                                const char* sqlstate,
+                                                MYSQL_ERROR::enum_warning_level level,
+                                                const char* msg,
+                                                MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
-}
-
-
-/**
-  Clear this diagnostics area. 
-
-  Normally called at the end of a statement.
-*/
-
-void
-Diagnostics_area::reset_diagnostics_area()
-{
-#ifdef DBUG_OFF
-  can_overwrite_status= FALSE;
-  /** Don't take chances in production */
-  m_message[0]= '\0';
-  m_sql_errno= 0;
-  m_server_status= 0;
-  m_affected_rows= 0;
-  m_last_insert_id= 0;
-  m_total_warn_count= 0;
-#endif
-  is_sent= FALSE;
-  /** Tiny reset in debug mode to see garbage right away */
-  m_status= DA_EMPTY;
-}
-
-
-/**
-  Set OK status -- ends commands that do not return a
-  result set, e.g. INSERT/UPDATE/DELETE.
-*/
-
-void
-Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
-                                ulonglong last_insert_id_arg,
-                                const char *message_arg)
-{
-  DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite an error or a custom response
-    with an OK packet.
-  */
-  if (is_error() || is_disabled())
-    return;
-#endif
-  /** Only allowed to report success if has not yet reported an error */
-
-  m_server_status= thd->server_status;
-  m_total_warn_count= thd->total_warn_count;
-  m_affected_rows= affected_rows_arg;
-  m_last_insert_id= last_insert_id_arg;
-  if (message_arg)
-    strmake(m_message, message_arg, sizeof(m_message) - 1);
-  else
-    m_message[0]= '\0';
-  m_status= DA_OK;
-}
-
-
-/**
-  Set EOF status.
-*/
-
-void
-Diagnostics_area::set_eof_status(THD *thd)
-{
-  /** Only allowed to report eof if has not yet reported an error */
-
-  DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite an error or a custom response
-    with an EOF packet.
-  */
-  if (is_error() || is_disabled())
-    return;
-#endif
-
-  m_server_status= thd->server_status;
-  /*
-    If inside a stored procedure, do not return the total
-    number of warnings, since they are not available to the client
-    anyway.
-  */
-  m_total_warn_count= thd->spcont ? 0 : thd->total_warn_count;
-
-  m_status= DA_EOF;
-}
-
-/**
-  Set ERROR status.
-*/
-
-void
-Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
-                                   const char *message_arg)
-{
-  /*
-    Only allowed to report error if has not yet reported a success
-    The only exception is when we flush the message to the client,
-    an error can happen during the flush.
-  */
-  DBUG_ASSERT(! is_set() || can_overwrite_status);
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite a custom response with an
-    ERROR packet.
-  */
-  if (is_disabled())
-    return;
-#endif
-
-  m_sql_errno= sql_errno_arg;
-  strmake(m_message, message_arg, sizeof(m_message) - 1);
-
-  m_status= DA_ERROR;
-}
-
-
-/**
-  Mark the diagnostics area as 'DISABLED'.
-
-  This is used in rare cases when the COM_ command at hand sends a response
-  in a custom format. One example is the query cache, another is
-  COM_STMT_PREPARE.
-*/
-
-void
-Diagnostics_area::disable_status()
-{
-  DBUG_ASSERT(! is_set());
-  m_status= DA_DISABLED;
 }
 
 
@@ -574,6 +452,8 @@ THD::THD()
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    examined_row_count(0),
+   warning_info(&main_warning_info),
+   stmt_da(&main_da),
    global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -584,10 +464,11 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_parser_state(NULL)
+   m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
-   , debug_sync_control(0)
+   debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   main_warning_info(0)
 {
   ulong tmp;
 
@@ -608,16 +489,14 @@ THD::THD()
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
-  hash_clear(&handler_tables_hash);
+  my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
-  cuted_fields= sent_row_count= row_count= 0L;
+  cuted_fields= 0L;
+  sent_row_count= 0L;
   limit_found_rows= 0;
   row_count_func= -1;
   statement_id_counter= 0UL;
-#ifdef ERROR_INJECT_SUPPORT
-  error_inject_value= 0UL;
-#endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
@@ -631,7 +510,6 @@ THD::THD()
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
-  warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
@@ -644,9 +522,6 @@ THD::THD()
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-#ifdef HAVE_QUERY_CACHE
-  query_cache_init_query(&net);                 // If error on boot
-#endif
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
@@ -667,15 +542,13 @@ THD::THD()
   *scramble= '\0';
 
   init();
-  /* Initialize sub structures */
-  init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
   user_connect=(USER_CONN *)0;
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -716,19 +589,27 @@ void THD::push_internal_handler(Internal_error_handler *handler)
   }
 }
 
-
-bool THD::handle_error(uint sql_errno, const char *message,
-                       MYSQL_ERROR::enum_warning_level level)
+bool THD::handle_condition(uint sql_errno,
+                           const char* sqlstate,
+                           MYSQL_ERROR::enum_warning_level level,
+                           const char* msg,
+                           MYSQL_ERROR ** cond_hdl)
 {
   if (!m_internal_handler)
+  {
+    *cond_hdl= NULL;
     return FALSE;
+  }
 
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= m_internal_handler->m_prev_internal_handler)
   {
-    if (error_handler->handle_error(sql_errno, message, level, this))
-    return TRUE;
+    if (error_handler-> handle_condition(this, sql_errno, sqlstate, level, msg,
+                                         cond_hdl))
+    {
+      return TRUE;
+    }
   }
 
   return FALSE;
@@ -741,6 +622,207 @@ void THD::pop_internal_handler()
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
 }
 
+
+void THD::raise_error(uint sql_errno)
+{
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         msg);
+}
+
+void THD::raise_error_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_error_printf");
+  DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_warning(uint sql_errno)
+{
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         msg);
+}
+
+void THD::raise_warning_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char    ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_warning_printf");
+  DBUG_PRINT("enter", ("warning: %u", sql_errno));
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_note(uint sql_errno)
+{
+  DBUG_ENTER("THD::raise_note");
+  DBUG_PRINT("enter", ("code: %d", sql_errno));
+  if (!(this->options & OPTION_SQL_NOTES))
+    DBUG_VOID_RETURN;
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         msg);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_note_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char    ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_note_printf");
+  DBUG_PRINT("enter",("code: %u", sql_errno));
+  if (!(this->options & OPTION_SQL_NOTES))
+    DBUG_VOID_RETURN;
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+MYSQL_ERROR* THD::raise_condition(uint sql_errno,
+                                  const char* sqlstate,
+                                  MYSQL_ERROR::enum_warning_level level,
+                                  const char* msg)
+{
+  MYSQL_ERROR *cond= NULL;
+  DBUG_ENTER("THD::raise_condition");
+
+  if (!(this->options & OPTION_SQL_NOTES) &&
+      (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
+    DBUG_RETURN(NULL);
+
+  warning_info->opt_clear_warning_info(query_id);
+
+  /*
+    TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
+    Bug#36768 are fixed: a SQL condition must have a real (!=0) error number
+    so that it can be caught by handlers.
+  */
+  if (sql_errno == 0)
+    sql_errno= ER_UNKNOWN_ERROR;
+  if (msg == NULL)
+    msg= ER(sql_errno);
+  if (sqlstate == NULL)
+   sqlstate= mysql_errno_to_sqlstate(sql_errno);
+
+  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+      really_abort_on_warning())
+  {
+    /*
+      FIXME:
+      push_warning and strict SQL_MODE case.
+    */
+    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    killed= THD::KILL_BAD_DATA;
+  }
+
+  switch (level)
+  {
+  case MYSQL_ERROR::WARN_LEVEL_NOTE:
+  case MYSQL_ERROR::WARN_LEVEL_WARN:
+    got_warning= 1;
+    break;
+  case MYSQL_ERROR::WARN_LEVEL_ERROR:
+    break;
+  default:
+    DBUG_ASSERT(FALSE);
+  }
+
+  if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
+    DBUG_RETURN(cond);
+
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  {
+    is_slave_error=  1; // needed to catch query errors during replication
+
+    /*
+      thd->lex->current_select == 0 if lex structure is not inited
+      (not query command (COM_QUERY))
+    */
+    if (lex->current_select &&
+        lex->current_select->no_error && !is_fatal_error)
+    {
+      DBUG_PRINT("error",
+                 ("Error converted to warning: current_select: no_error %d  "
+                  "fatal_error: %d",
+                  (lex->current_select ?
+                   lex->current_select->no_error : 0),
+                  (int) is_fatal_error));
+    }
+    else
+    {
+      if (! stmt_da->is_error())
+        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+    }
+  }
+
+  /*
+    If a continue handler is found, the error message will be cleared
+    by the stored procedures code.
+  */
+  if (!is_fatal_error && spcont &&
+      spcont->handle_condition(this, sql_errno, sqlstate, level, msg, &cond))
+  {
+    /*
+      Do not push any warnings, a handled error must be completely
+      silenced.
+    */
+    DBUG_RETURN(cond);
+  }
+
+  /* Un-handled conditions */
+
+  cond= raise_condition_no_handler(sql_errno, sqlstate, level, msg);
+  DBUG_RETURN(cond);
+}
+
+MYSQL_ERROR*
+THD::raise_condition_no_handler(uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg)
+{
+  MYSQL_ERROR *cond= NULL;
+  DBUG_ENTER("THD::raise_condition_no_handler");
+
+  query_cache_abort(&query_cache_tls);
+
+  /* FIXME: broken special case */
+  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
+    DBUG_RETURN(NULL);
+
+  cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
+  DBUG_RETURN(cond);
+}
 extern "C"
 void *thd_alloc(MYSQL_THD thd, unsigned int size)
 {
@@ -829,9 +911,6 @@ void THD::init(void)
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
   session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
-  warn_list.empty();
-  bzero((char*) warn_count, sizeof(warn_count));
-  total_warn_count= 0;
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
@@ -889,9 +968,9 @@ void THD::change_user(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 }
@@ -928,7 +1007,7 @@ void THD::cleanup(void)
 
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
-  hash_free(&user_vars);
+  my_hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
@@ -980,7 +1059,6 @@ THD::~THD()
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   safeFree(db);
-  free_root(&warn_root,MYF(0));
 #ifdef USING_TRANSACTIONS
   free_root(&transaction.mem_root,MYF(0));
 #endif
@@ -1447,8 +1525,8 @@ int THD::send_explain_fields(select_result *result)
   }
   item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
-  return (result->send_fields(field_list,
-                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+  return (result->send_result_set_metadata(field_list,
+                                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -1555,13 +1633,17 @@ bool select_result::check_simple_select() const
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
+static String default_xml_row_term("<row>", default_charset_info);
 
-sql_exchange::sql_exchange(char *name,bool flag)
+sql_exchange::sql_exchange(char *name, bool flag,
+                           enum enum_filetype filetype_arg)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
 {
+  filetype= filetype_arg;
   field_term= &default_field_term;
   enclosed=   line_start= &my_empty_string;
-  line_term=  &default_line_term;
+  line_term=  filetype == FILETYPE_CSV ?
+              &default_line_term : &default_xml_row_term;
   escaped=    &default_escaped;
   cs= NULL;
 }
@@ -1572,10 +1654,10 @@ bool sql_exchange::escaped_given(void)
 }
 
 
-bool select_send::send_fields(List<Item> &list, uint flags)
+bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
-  if (!(res= thd->protocol->send_fields(&list, flags)))
+  if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
     is_result_set_started= 1;
   return res;
 }
@@ -1583,21 +1665,19 @@ bool select_send::send_fields(List<Item> &list, uint flags)
 void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
-  if (is_result_set_started && thd->spcont &&
-      thd->spcont->find_handler(thd, thd->main_da.sql_errno(),
-                                MYSQL_ERROR::WARN_LEVEL_ERROR))
+
+  if (is_result_set_started && thd->spcont)
   {
     /*
       We're executing a stored procedure, have an open result
-      set, an SQL exception condition and a handler for it.
-      In this situation we must abort the current statement,
-      silence the error and start executing the continue/exit
-      handler.
+      set and an SQL exception condition. In this situation we
+      must abort the current statement, silence the error and
+      start executing the continue/exit handler if one is found.
       Before aborting the statement, let's end the open result set, as
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->protocol->end_partial_result_set(thd);
+    thd->spcont->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -1618,10 +1698,13 @@ void select_send::cleanup()
 
 bool select_send::send_data(List<Item> &items)
 {
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("select_send::send_data");
+
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    return 0;
+    DBUG_RETURN(FALSE);
   }
 
   /*
@@ -1631,36 +1714,18 @@ bool select_send::send_data(List<Item> &items)
   */
   ha_release_temporary_latches(thd);
 
-  List_iterator_fast<Item> li(items);
-  Protocol *protocol= thd->protocol;
-  char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), &my_charset_bin);
-  DBUG_ENTER("select_send::send_data");
-
   protocol->prepare_for_resend();
-  Item *item;
-  while ((item=li++))
-  {
-    if (item->send(protocol, &buffer))
-    {
-      protocol->free();				// Free used buffer
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      break;
-    }
-    /*
-      Reset buffer to its original state, as it may have been altered in
-      Item::send().
-    */
-    buffer.set(buff, sizeof(buff), &my_charset_bin);
-  }
-  thd->sent_row_count++;
-  if (thd->is_error())
+  if (protocol->send_result_set_row(&items))
   {
     protocol->remove_last_row();
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
+
+  thd->sent_row_count++;
+
   if (thd->vio_ok())
     DBUG_RETURN(protocol->write());
+
   DBUG_RETURN(0);
 }
 
@@ -2434,12 +2499,12 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  query(0),
-  query_length(0),
   cursor(0),
   db(NULL),
   db_length(0)
 {
+  query_string.length= 0;
+  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2455,8 +2520,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  query=          stmt->query;
-  query_length=   stmt->query_length;
+  query_string=   stmt->query_string;
   cursor=         stmt->cursor;
 }
 
@@ -2477,6 +2541,15 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
+{
+  query_string.str= query_arg;
+  query_string.length= query_length_arg;
 }
 
 
@@ -2558,12 +2631,12 @@ Statement_map::Statement_map() :
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
-            get_statement_id_as_hash_key,
-            delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
-            (hash_get_key) get_stmt_name_hash_key,
-            NULL,MYF(0));
+  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
+               get_statement_id_as_hash_key,
+               delete_statement_as_hash_key, MYF(0));
+  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_stmt_name_hash_key,
+               NULL,MYF(0));
 }
 
 
@@ -2628,9 +2701,9 @@ int Statement_map::insert(THD *thd, Statement *statement)
 
 err_max:
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar*) statement);
+    my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
-  hash_delete(&st_hash, (uchar*) statement);
+  my_hash_delete(&st_hash, (uchar*) statement);
 err_st_hash:
   return 1;
 }
@@ -2651,9 +2724,9 @@ void Statement_map::erase(Statement *statement)
   if (statement == last_found_statement)
     last_found_statement= 0;
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar *) statement);
+    my_hash_delete(&names_hash, (uchar *) statement);
 
-  hash_delete(&st_hash, (uchar *) statement);
+  my_hash_delete(&st_hash, (uchar *) statement);
   pthread_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -2683,8 +2756,8 @@ Statement_map::~Statement_map()
   prepared_stmt_count-= st_hash.records;
   pthread_mutex_unlock(&LOCK_prepared_stmt_count);
 
-  hash_free(&names_hash);
-  hash_free(&st_hash);
+  my_hash_free(&names_hash);
+  my_hash_free(&st_hash);
 }
 
 bool select_dumpvar::send_data(List<Item> &items)
@@ -2715,9 +2788,11 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      suv->fix_fields(thd, 0);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN (1);
       suv->save_item_result(item);
-      suv->update();
+      if (suv->update())
+        DBUG_RETURN (1);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -2993,9 +3068,24 @@ extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
   return(thd->charset());
 }
 
+/**
+  OBSOLETE : there's no way to ensure the string is null terminated.
+  Use thd_query_string instead()
+*/
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query);
+  return(&thd->query_string.str);
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param The MySQL internal thread pointer
+  @return query string and length. May be non-null-terminated.
+*/
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
+{
+  return(&thd->query_string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3019,6 +3109,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
+}
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
 }
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
@@ -3174,8 +3269,7 @@ void THD::set_statement(Statement *stmt)
 void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
   pthread_mutex_lock(&LOCK_thd_data);
-  query= query_arg;
-  query_length= query_length_arg;
+  set_query_inner(query_arg, query_length_arg);
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -3193,6 +3287,16 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
+    /*
+      Aborted transactions can not be IGNOREd.
+      Switch off the IGNORE flag for the current
+      SELECT_LEX. This should allow my_error()
+      to report the error and abort the execution
+      flow, even in presence
+      of IGNORE clause.
+    */
+    if (thd->lex->current_select)
+      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************
@@ -3221,15 +3325,15 @@ void xid_free_hash(void *ptr)
 bool xid_cache_init()
 {
   pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                   xid_get_hash_key, xid_free_hash, 0) != 0;
+  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+                      xid_get_hash_key, xid_free_hash, 0) != 0;
 }
 
 void xid_cache_free()
 {
-  if (hash_inited(&xid_cache))
+  if (my_hash_inited(&xid_cache))
   {
-    hash_free(&xid_cache);
+    my_hash_free(&xid_cache);
     pthread_mutex_destroy(&LOCK_xid_cache);
   }
 }
@@ -3237,7 +3341,8 @@ void xid_cache_free()
 XID_STATE *xid_cache_search(XID *xid)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, xid->key(), xid->key_length());
+  XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
+                                             xid->key_length());
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
@@ -3248,7 +3353,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   XID_STATE *xs;
   my_bool res;
   pthread_mutex_lock(&LOCK_xid_cache);
-  if (hash_search(&xid_cache, xid->key(), xid->key_length()))
+  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
     res=1;
@@ -3267,8 +3372,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
-                          xid_state->xid.key_length())==0);
+  DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
+                             xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
@@ -3278,7 +3383,7 @@ bool xid_cache_insert(XID_STATE *xid_state)
 void xid_cache_delete(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  hash_delete(&xid_cache, (uchar *)xid_state);
+  my_hash_delete(&xid_cache, (uchar *)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
 }
 

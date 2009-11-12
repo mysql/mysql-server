@@ -54,19 +54,19 @@ ERROR HY000: Variable 'autocommit' is a SESSION variable and can't be used with 
 SELECT @@global.autocommit;
 ERROR HY000: Variable 'autocommit' is a SESSION variable
 '#----------------------FN_DYNVARS_003_06------------------------#'
-SELECT @@session.autocommit = VARIABLE_VALUE 
+SELECT IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='autocommit';
-@@session.autocommit = VARIABLE_VALUE
-0
+IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE
+1
 Bug # 34839: Values in variable and information_schema do not match for autocommit
 '#----------------------FN_DYNVARS_003_07------------------------#'
 SET @@autocommit = 1;
-SELECT @@autocommit = VARIABLE_VALUE
+SELECT IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='autocommit';
-@@autocommit = VARIABLE_VALUE
-0
+IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
+1
 '#---------------------FN_DYNVARS_003_08-------------------------#'
 SET @@autocommit = OFF;
 SELECT @@autocommit;

@@ -1,0 +1,145 @@
+reset master;
+set @restore_slave_net_timeout= @@global.slave_net_timeout;
+set @@global.slave_net_timeout= 10;
+Warnings:
+Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	5.000
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294968;
+ERROR HY000: The requested value for the heartbeat period  is negative or exceeds the maximum  4294967 seconds
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	5.000
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.0009999;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  is less than 1 msec.  The period is reset to zero which means no heartbeats will be sending
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	0.000
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294967;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	4294967.000
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.001;
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	0.001
+reset slave;
+set @@global.slave_net_timeout= 5;
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 5.001;
+Warnings:
+Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	5.001
+reset slave;
+set @@global.slave_net_timeout= 5;
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4;
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	4.000
+set @@global.slave_net_timeout= 3 /* must be a warning */;
+Warnings:
+Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+reset slave;
+drop table if exists t1;
+set @@global.slave_net_timeout= 10;
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.5;
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	0.500
+start slave;
+create table t1 (f1 int);
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	280
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	280
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	280
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	280
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
+show status like 'Slave_heartbeat_period';;
+Variable_name	Slave_heartbeat_period
+Value	0.500
+A heartbeat has been received by the slave
+drop table t1;
+set @@global.slave_net_timeout= @restore_slave_net_timeout;
+End of tests

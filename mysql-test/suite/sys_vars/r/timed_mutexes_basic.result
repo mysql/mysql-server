@@ -67,11 +67,11 @@ WHERE VARIABLE_NAME='timed_mutexes';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_177_07------------------------#'
-SELECT @@global.timed_mutexes = VARIABLE_VALUE
+SELECT IF(@@global.timed_mutexes, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='timed_mutexes';
-@@global.timed_mutexes = VARIABLE_VALUE
-0
+IF(@@global.timed_mutexes, "ON", "OFF") = VARIABLE_VALUE
+1
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1

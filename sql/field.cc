@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1016,6 +1016,36 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   Static help functions
 *****************************************************************************/
 
+/**
+  Output a warning for erroneous conversion of strings to numerical 
+  values. For use with ER_TRUNCATED_WRONG_VALUE[_FOR_FIELD] 
+  
+  @param thd         THD object
+  @param str         pointer to string that failed to be converted
+  @param length      length of string
+  @param cs          charset for string
+  @param typestr     string describing type converted to
+  @param error       error value to output
+  @param field_name  (for *_FOR_FIELD) name of field
+  @param row_num     (for *_FOR_FIELD) row number
+ */
+static void push_numerical_conversion_warning(THD* thd, const char* str, 
+                                              uint length, CHARSET_INFO* cs,
+                                              const char* typestr, int error,
+                                              const char* field_name="UNKNOWN",
+                                              ulong row_num=0)
+{
+    char buf[max(max(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
+      LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE), 
+      DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE)];
+
+    String tmp(buf, sizeof(buf), cs);
+    tmp.copy(str, length, cs);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        error, ER(error), typestr, tmp.c_ptr(),
+                        field_name, row_num);
+}
+
 
 /**
   Check whether a field type can be partially indexed by a key.
@@ -1109,14 +1139,12 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
   /* Test if we get an empty string or wrong integer */
   if (str == int_end || error == MY_ERRNO_EDOM)
   {
-    char buff[128];
-    String tmp(buff, (uint32) sizeof(buff), system_charset_info);
-    tmp.copy(str, length, system_charset_info);
+    ErrConvString err(str, length, cs);
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "integer", tmp.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
+                        "integer", err.ptr(), field_name,
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
     return 1;
   }
   /* Test if we have garbage at the end of the given string. */
@@ -1529,7 +1557,12 @@ void Field::make_field(Send_field *field)
   if (orig_table && orig_table->s->db.str && *orig_table->s->db.str)
   {
     field->db_name= orig_table->s->db.str;
-    field->org_table_name= orig_table->s->table_name.str;
+    if (orig_table->pos_in_table_list && 
+        orig_table->pos_in_table_list->schema_table)
+      field->org_table_name= (orig_table->pos_in_table_list->
+                              schema_table->table_name);
+    else
+      field->org_table_name= orig_table->s->table_name.str;
   }
   else
     field->org_table_name= field->db_name= "";
@@ -1772,7 +1805,7 @@ bool Field::optimize_range(uint idx, uint part)
 }
 
 
-Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
                         bool keep_type __attribute__((unused)))
 {
   Field *tmp;
@@ -1793,7 +1826,7 @@ Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table,
 }
 
 
-Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
                             uchar *new_ptr, uchar *new_null_ptr,
                             uint new_null_bit)
 {
@@ -1810,7 +1843,7 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
 
 /* This is used to generate a field in TABLE from TABLE_SHARE */
 
-Field *Field::clone(MEM_ROOT *root, struct st_table *new_table)
+Field *Field::clone(MEM_ROOT *root, TABLE *new_table)
 {
   Field *tmp;
   if ((tmp= (Field*) memdup_root(root,(char*) this,size_of())))
@@ -2480,94 +2513,9 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  DBUG_ASSERT(precision >= dec);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
-}
-
-
-/**
-  Create a field to hold a decimal value from an item.
-
-  @remark The MySQL DECIMAL data type has a characteristic that needs to be
-          taken into account when deducing the type from a Item_decimal.
-
-  But first, let's briefly recap what is the new MySQL DECIMAL type:
-
-  The declaration syntax for a decimal is DECIMAL(M,D), where:
-
-  * M is the maximum number of digits (the precision).
-    It has a range of 1 to 65.
-  * D is the number of digits to the right of the decimal separator (the scale).
-    It has a range of 0 to 30 and must be no larger than M.
-
-  D and M are used to determine the storage requirements for the integer
-  and fractional parts of each value. The integer part is to the left of
-  the decimal separator and to the right is the fractional part. Hence:
-
-  M is the number of digits for the integer and fractional part.
-  D is the number of digits for the fractional part.
-
-  Consequently, M - D is the number of digits for the integer part. For
-  example, a DECIMAL(20,10) column has ten digits on either side of
-  the decimal separator.
-
-  The characteristic that needs to be taken into account is that the
-  backing type for Item_decimal is a my_decimal that has a higher
-  precision (DECIMAL_MAX_POSSIBLE_PRECISION, see my_decimal.h) than
-  DECIMAL.
-
-  Drawing a comparison between my_decimal and DECIMAL:
-
-  * M has a range of 1 to 81.
-  * D has a range of 0 to 81.
-
-  There can be a difference in range if the decimal contains a integer
-  part. This is because the fractional part must always be on a group
-  boundary, leaving at least one group for the integer part. Since each
-  group is 9 (DIG_PER_DEC1) digits and there are 9 (DECIMAL_BUFF_LENGTH)
-  groups, the fractional part is limited to 72 digits if there is at
-  least one digit in the integral part.
-
-  Although the backing type for a DECIMAL is also my_decimal, every
-  time a my_decimal is stored in a DECIMAL field, the precision and
-  scale are explicitly capped at 65 (DECIMAL_MAX_PRECISION) and 30
-  (DECIMAL_MAX_SCALE) digits, following my_decimal truncation procedure
-  (FIX_INTG_FRAC_ERROR).
-*/
-
-Field_new_decimal *
-Field_new_decimal::new_decimal_field(const Item *item)
-{
-  uint32 len;
-  uint intg= item->decimal_int_part(), scale= item->decimals;
-
-  DBUG_ASSERT(item->decimal_precision() >= item->decimals);
-
-  /*
-    Employ a procedure along the lines of the my_decimal truncation process:
-    - If the integer part is equal to or bigger than the maximum precision:
-      Truncate integer part to fit and the fractional becomes zero.
-    - Otherwise:
-      Truncate fractional part to fit.
-  */
-  if (intg >= DECIMAL_MAX_PRECISION)
-  {
-    intg= DECIMAL_MAX_PRECISION;
-    scale= 0;
-  }
-  else
-  {
-    uint room= min(DECIMAL_MAX_PRECISION - intg, DECIMAL_MAX_SCALE);
-    if (scale > room)
-      scale= room;
-  }
-
-  len= my_decimal_precision_to_length(intg + scale, scale, item->unsigned_flag);
-
-  return new Field_new_decimal(len, item->maybe_null, item->name, scale,
-                               item->unsigned_flag);
 }
 
 
@@ -2674,15 +2622,12 @@ int Field_new_decimal::store(const char *from, uint length,
                            &decimal_value)) &&
       table->in_use->abort_on_warning)
   {
-    /* Because "from" is not NUL-terminated and we use %s in the ER() */
-    String from_as_str;
-    from_as_str.copy(from, length, &my_charset_bin);
-
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    ErrConvString errmsg(from, length, &my_charset_bin);
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from_as_str.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
+                        "decimal", errmsg.ptr(), field_name,
+                        (ulong) table->in_use->warning_info->current_row_for_warning());
 
     DBUG_RETURN(err);
   }
@@ -2697,18 +2642,15 @@ int Field_new_decimal::store(const char *from, uint length,
     break;
   case E_DEC_BAD_NUM:
     {
-      /* Because "from" is not NUL-terminated and we use %s in the ER() */
-      String from_as_str;
-      from_as_str.copy(from, length, &my_charset_bin);
-
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                          "decimal", from_as_str.c_ptr(), field_name,
-                        (ulong) table->in_use->row_count);
-    my_decimal_set_zero(&decimal_value);
-
-    break;
+      ErrConvString errmsg(from, length, &my_charset_bin);
+      push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          "decimal", errmsg.ptr(), field_name,
+                          (ulong) table->in_use->warning_info->
+                          current_row_for_warning());
+      my_decimal_set_zero(&decimal_value);
+      break;
     }
   }
 
@@ -4569,10 +4511,11 @@ warn:
     char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
     String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
     str= val_str(&tmp, 0);
+    ErrConvString err(str);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        str->c_ptr());
+                        err.ptr());
   }
   return res;
 }
@@ -5358,7 +5301,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
                         ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
-                        thd->row_count);
+                        thd->warning_info->current_row_for_warning());
     return 1;
   }
   tmp=(long) sint3korr(ptr);
@@ -6352,21 +6295,20 @@ check_string_copy_error(Field_str *field,
 {
   const char *pos;
   char tmp[32];
-  
+  THD *thd= field->table->in_use;
+
   if (!(pos= well_formed_error_pos) &&
       !(pos= cannot_convert_error_pos))
     return FALSE;
 
   convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
 
-  push_warning_printf(field->table->in_use, 
-                      field->table->in_use->abort_on_warning ?
-                      MYSQL_ERROR::WARN_LEVEL_ERROR :
+  push_warning_printf(thd,
                       MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
+                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field->field_name,
-                      (ulong) field->table->in_use->row_count);
+                      thd->warning_info->current_row_for_warning());
   return TRUE;
 }
 
@@ -6400,7 +6342,7 @@ Field_longstr::report_if_important_data(const char *ptr, const char *end,
     if (test_if_important_data(field_charset, ptr, end))
     {
       if (table->in_use->abort_on_warning)
-        set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
       else
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       return 2;
@@ -6550,20 +6492,9 @@ uint Field::is_equal(Create_field *new_field)
 }
 
 
-/* If one of the fields is binary and the other one isn't return 1 else 0 */
-
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
-{
-  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
-         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
-}
-
-
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == real_type()) &&
@@ -6611,13 +6542,11 @@ double Field_string::val_real(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
-                        "DOUBLE", tmp.c_ptr());
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        err.ptr());
   }
   return result;
 }
@@ -6637,13 +6566,11 @@ longlong Field_string::val_int(void)
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
-    char buf[LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE];
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
-                        "INTEGER", tmp.c_ptr());
+                        "INTEGER", err.ptr());
   }
   return result;
 }
@@ -6675,14 +6602,11 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
                           charset(), decimal_value);
   if (!table->in_use->no_errors && err)
   {
-    char buf[DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE];
-    CHARSET_INFO *cs= charset();
-    String tmp(buf, sizeof(buf), cs);
-    tmp.copy((char*) ptr, field_length, cs);
+    ErrConvString errmsg((char*) ptr, field_length, charset());
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
-                        "DECIMAL", tmp.c_ptr());
+                        "DECIMAL", errmsg.ptr());
   }
 
   return decimal_value;
@@ -6745,9 +6669,8 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_string::sort_string(uchar *to,uint length)
 {
-  IF_DBUG(uint tmp=) my_strnxfrm(field_charset,
-                                 to, length,
-                                 ptr, field_length);
+  uint tmp __attribute__((unused))=
+    my_strnxfrm(field_charset, to, length, ptr, field_length);
   DBUG_ASSERT(tmp == length);
 }
 
@@ -7003,7 +6926,7 @@ uint Field_string::get_key_image(uchar *buff, uint length, imagetype type_arg)
 }
 
 
-Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
                                bool keep_type)
 {
   Field *field;
@@ -7114,22 +7037,46 @@ int Field_varstring::store(longlong nr, bool unsigned_val)
 double Field_varstring::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
+  int error;
+  char *end;
+  double result;
+  CHARSET_INFO* cs= charset();
+  
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  return my_strntod(field_charset, (char*) ptr+length_bytes, length,
-                    &end_not_used, &not_used);
+  result= my_strntod(cs, (char*)ptr+length_bytes, length, &end, &error);
+  
+  if (!table->in_use->no_errors && 
+       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+         !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs,"DOUBLE", 
+                                      ER_TRUNCATED_WRONG_VALUE);
+  }
+  return result;
 }
 
 
 longlong Field_varstring::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  int not_used;
-  char *end_not_used;
+  int error;
+  char *end;
+  CHARSET_INFO *cs= charset();
+  
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  return my_strntoll(field_charset, (char*) ptr+length_bytes, length, 10,
-                     &end_not_used, &not_used);
+  longlong result= my_strntoll(cs, (char*) ptr+length_bytes, length, 10,
+                     &end, &error);
+		     
+  if (!table->in_use->no_errors && 
+       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+         !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs, "INTEGER", 
+                                      ER_TRUNCATED_WRONG_VALUE);  
+  }
+  return result;
 }
 
 String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
@@ -7145,9 +7092,17 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  CHARSET_INFO *cs= charset();
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-  str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
-                 charset(), decimal_value);
+  int error= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
+                 cs, decimal_value);
+
+  if (!table->in_use->no_errors && error)
+  {
+    push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
+                                      length, cs, "DECIMAL", 
+                                      ER_TRUNCATED_WRONG_VALUE); 
+  }
   return decimal_value;
 }
 
@@ -7549,7 +7504,7 @@ int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
 }
 
 
-Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table,
                                   bool keep_type)
 {
   Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table,
@@ -7561,7 +7516,7 @@ Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table,
 
 
 Field *Field_varstring::new_key_field(MEM_ROOT *root,
-                                      struct st_table *new_table,
+                                      TABLE *new_table,
                                       uchar *new_ptr, uchar *new_null_ptr,
                                       uint new_null_bit)
 {
@@ -8329,7 +8284,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
@@ -8691,7 +8646,7 @@ void Field_enum::sql_type(String &res) const
 }
 
 
-Field *Field_enum::new_field(MEM_ROOT *root, struct st_table *new_table,
+Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
                              bool keep_type)
 {
   Field_enum *res= (Field_enum*) Field::new_field(root, new_table, keep_type);
@@ -8889,7 +8844,7 @@ uint Field_enum::is_equal(Create_field *new_field)
     The fields are compatible if they have the same flags,
     type, charset and have the same underlying length.
   */
-  if (compare_str_field_flags(new_field, flags) ||
+  if (new_field->field_flags_are_binary() != field_flags_are_binary() ||
       new_field->sql_type != real_type() ||
       new_field->charset != field_charset ||
       new_field->pack_length != pack_length())
@@ -9032,7 +8987,7 @@ Field_bit::do_last_null_byte() const
 
 
 Field *Field_bit::new_key_field(MEM_ROOT *root,
-                                struct st_table *new_table,
+                                TABLE *new_table,
                                 uchar *new_ptr, uchar *new_null_ptr,
                                 uint new_null_bit)
 {
@@ -9073,7 +9028,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
     set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
@@ -9484,7 +9439,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first uchar */
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
@@ -9658,7 +9613,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
 
     if (length == 0)
-      fld_length= 0; /* purecov: inspected */
+      fld_length= NULL; /* purecov: inspected */
   }
 
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
@@ -9810,8 +9765,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIMESTAMP:
     if (fld_length == NULL)
     {
-      /* Compressed date YYYYMMDDHHMMSS */
-      length= MAX_DATETIME_COMPRESSED_WIDTH;
+      length= MAX_DATETIME_WIDTH;
     }
     else if (length != MAX_DATETIME_WIDTH)
     {
@@ -9872,11 +9826,10 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_DATE:
     /* Old date type. */
-    if (protocol_version != PROTOCOL_VERSION-1)
-      sql_type= MYSQL_TYPE_NEWDATE;
+    sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
-    length= 10;
+    length= MAX_DATE_WIDTH;
     break;
   case MYSQL_TYPE_TIME:
     length= 10;
@@ -9955,6 +9908,17 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
     DBUG_RETURN(TRUE);
+  }
+
+  switch (fld_type) {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    charset= &my_charset_bin;
+    flags|= BINCMP_FLAG;
+  default: break;
   }
 
   DBUG_RETURN(FALSE); /* success */
@@ -10357,7 +10321,7 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     thd->cuted_fields+= cuted_increment;
     push_warning_printf(thd, level, code, ER(code), field_name,
-                        thd->row_count);
+                        thd->warning_info->current_row_for_warning());
     return 0;
   }
   return level >= MYSQL_ERROR::WARN_LEVEL_WARN;

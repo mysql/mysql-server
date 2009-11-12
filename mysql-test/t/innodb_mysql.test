@@ -461,4 +461,51 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #47963: Wrong results when index is used
+--echo #
+CREATE TABLE t1(
+  a VARCHAR(5) NOT NULL, 
+  b VARCHAR(5) NOT NULL,
+  c DATETIME NOT NULL,
+  KEY (c) 
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00.0';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00.0';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.000' AND c <= '2009-10-09 00:00:00.000';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.00' AND c <= '2009-10-09 00:00:00.001';
+SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
+EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND 
+  c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Test for bug #39932 "create table fails if column for FK is in different
+--echo #                      case than in corr index".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (pk int primary key) engine=InnoDB;
+--echo # Even although the below statement uses uppercased field names in
+--echo # foreign key definition it still should be able to find explicitly
+--echo # created supporting index. So it should succeed and should not
+--echo # create any additional supporting indexes.
+create table t2 (fk int, key x (fk),
+                 constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+drop table t2, t1;

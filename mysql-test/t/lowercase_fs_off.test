@@ -29,3 +29,65 @@ disconnect master;
 connection default;
 
 # End of 4.1 tests
+
+#
+# Bug#41049 does syntax "grant" case insensitive?
+#
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE T1(f1 INT);
+CREATE TABLE t1(f1 INT);
+GRANT SELECT ON T1 to user_1@localhost;
+
+connect (con1,localhost,user_1,,d1);
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from t1;
+select * from T1;
+connection default;
+GRANT SELECT ON t1 to user_1@localhost;
+connection con1;
+select * from information_schema.table_privileges;
+connection default;
+disconnect con1;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_1@localhost;
+DROP USER user_1@localhost;
+DROP DATABASE d1;
+USE test;
+
+CREATE DATABASE db1;
+USE db1;
+CREATE PROCEDURE p1() BEGIN END;
+CREATE FUNCTION f1(i INT) RETURNS INT RETURN i+1;
+
+GRANT USAGE ON db1.* to user_1@localhost;
+GRANT EXECUTE ON PROCEDURE db1.P1 to user_1@localhost;
+GRANT EXECUTE ON FUNCTION db1.f1 to user_1@localhost;
+GRANT UPDATE ON db1.* to USER_1@localhost;
+
+connect (con1,localhost,user_1,,db1);
+call p1();
+call P1();
+select f1(1);
+connect (con2,localhost,USER_1,,db1);
+--error ER_PROCACCESS_DENIED_ERROR
+call p1();
+--error ER_PROCACCESS_DENIED_ERROR
+call P1();
+--error ER_PROCACCESS_DENIED_ERROR
+select f1(1);
+
+connection default;
+disconnect con1;
+disconnect con2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM USER_1@localhost;
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+DROP USER user_1@localhost;
+DROP USER USER_1@localhost;
+DROP DATABASE db1;
+use test;
+
+# End of 5.0 tests

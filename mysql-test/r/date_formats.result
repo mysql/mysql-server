@@ -89,7 +89,7 @@ select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
 STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
 NULL
 Warnings:
-Error	1411	Incorrect time value: '22.30.61' for function str_to_date
+Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
@@ -361,21 +361,21 @@ Tuesday 52 2001	%W %u %x	NULL
 7 53 1998	%w %u %Y	NULL
 NULL	%m.%d.%Y	NULL
 Warnings:
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
-Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 date	format	con
 2003-01-02 10:11:12 PM	%Y-%m-%d %H:%i:%S %p	NULL
@@ -395,21 +395,21 @@ Tuesday 52 2001	%W %u %x	NULL
 7 53 1998	%w %u %Y	NULL
 NULL	%m.%d.%Y	NULL
 Warnings:
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
-Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
 truncate table t1;
 insert into t1 values
 ('10:20:10AM', '%h:%i:%s'),
@@ -449,7 +449,7 @@ select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
 str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
 NULL
 Warnings:
-Error	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
+Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

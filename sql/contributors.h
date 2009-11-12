@@ -1,3 +1,6 @@
+#ifndef CONTRIBUTORS_INCLUDED
+#define CONTRIBUTORS_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -37,3 +40,5 @@ struct show_table_contributors_st show_table_contributors[]= {
   {"Mark Shuttleworth", "London, UK.", "EFF contribution for UC2006 Auction"},
   {NULL, NULL, NULL}
 };
+
+#endif /* CONTRIBUTORS_INCLUDED */

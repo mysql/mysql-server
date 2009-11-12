@@ -1225,7 +1225,9 @@ Event_timed::get_create_event(THD *thd, String *buf)
                                                             expression))
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
-  buf->append(STRING_WITH_LEN("CREATE EVENT "));
+  buf->append(STRING_WITH_LEN("CREATE "));
+  append_definer(thd, buf, &definer_user, &definer_host);
+  buf->append(STRING_WITH_LEN("EVENT "));
   append_identifier(thd, buf, name.str, name.length);
 
   if (expression)
@@ -1433,7 +1435,7 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
-    Parser_state parser_state(thd, thd->query, thd->query_length);
+    Parser_state parser_state(thd, thd->query(), thd->query_length());
     lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))

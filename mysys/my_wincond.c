@@ -16,12 +16,11 @@
 /*****************************************************************************
 ** The following is a simple implementation of posix conditions
 *****************************************************************************/
+#if defined(_WIN32)
 
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
-#if defined(THREAD) && defined(__WIN__)
 #include <m_string.h>
-#undef getpid
 #include <process.h>
 #include <sys/timeb.h>
 
