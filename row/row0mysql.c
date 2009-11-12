@@ -4157,6 +4157,7 @@ row_check_table_for_mysql(
 			}
 
 			if (trx_is_interrupted(prebuilt->trx)) {
+				ret = DB_INTERRUPTED;
 				break;
 			}
 

@@ -785,6 +785,9 @@ convert_error_code_to_mysql(
 	case DB_SUCCESS:
 		return(0);
 
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		/* fall through */
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
@@ -7361,11 +7364,15 @@ ha_innobase::check(
 
 	ret = row_check_table_for_mysql(prebuilt);
 
-	if (ret == DB_SUCCESS) {
+	switch (ret) {
+	case DB_SUCCESS:
 		return(HA_ADMIN_OK);
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(-1);
+	default:
+		return(HA_ADMIN_CORRUPT);
 	}
-
-	return(HA_ADMIN_CORRUPT);
 }
 
 /*************************************************************//**
