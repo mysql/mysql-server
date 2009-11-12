@@ -112,6 +112,7 @@ BDB_DONTRUN_TESTS = \
 	test_dupsort_get_both_range_reverse \
 	recover-compare-db \
 	recover-compare-db-descriptor \
+	recover-tablelock \
 	test_cursor_delete_2119 \
 	transactional_fileops \
 #\ ends prev line
