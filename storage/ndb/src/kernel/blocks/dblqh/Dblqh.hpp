@@ -581,6 +581,7 @@ public:
     Uint8 lcpScan;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
+    Uint8 m_reserved;
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -2724,8 +2725,8 @@ private:
 // Configurable
   ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
-  UintR cscanNoFreeRec;
   Uint32 cscanrecFileSize;
+  DLList<ScanRecord> m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;

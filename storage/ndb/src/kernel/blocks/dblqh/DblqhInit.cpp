@@ -143,7 +143,6 @@ void Dblqh::initRecords()
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  cscanNoFreeRec = cscanrecFileSize;
   c_scanRecordPool.setSize(cscanrecFileSize);
   c_scanTakeOverHash.setSize(64);
 
@@ -188,6 +187,7 @@ void Dblqh::initRecords()
 
 Dblqh::Dblqh(Block_context& ctx):
   SimulatedBlock(DBLQH, ctx),
+  m_reserved_scans(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
