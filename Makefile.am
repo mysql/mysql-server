@@ -23,7 +23,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ \
+			@pstack_dir@ libservices \
 			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
@@ -32,7 +32,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack \
+			pstack libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \
@@ -98,7 +98,8 @@ test-pr:
 
 test-ns:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed ; \
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --suite=funcs_1
 
 test-binlog-statement:
 	cd mysql-test ; \
@@ -198,10 +199,16 @@ test-bt-fast:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress $(EXP)
 
+test-bt-fast:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol --report-features
+
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features $(EXP)
+
+test-bt-debug-fast:
 
 test-bt-debug-fast:
 

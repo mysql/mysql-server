@@ -861,9 +861,9 @@ static int get_options(int *argc, char ***argv)
   load_defaults("my",load_default_groups,argc,argv);
   defaults_argv= *argv;
 
-  if (hash_init(&ignore_table, charset_info, 16, 0, 0,
-                (hash_get_key) get_table_key,
-                (hash_free_key) free_table_ent, 0))
+  if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
+                   (my_hash_get_key) get_table_key,
+                   (my_hash_free_key) free_table_ent, 0))
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
@@ -1367,8 +1367,8 @@ static void free_resources()
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-  if (hash_inited(&ignore_table))
-    hash_free(&ignore_table);
+  if (my_hash_inited(&ignore_table))
+    my_hash_free(&ignore_table);
   if (extended_insert)
     dynstr_free(&extended_row);
   if (insert_pat_inited)
@@ -3958,7 +3958,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 my_bool include_table(const uchar *hash_key, size_t len)
 {
-  return !hash_search(&ignore_table, hash_key, len);
+  return ! my_hash_search(&ignore_table, hash_key, len);
 }
 
 

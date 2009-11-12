@@ -1200,14 +1200,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-      IF_DBUG({
-          int new_event_type=
-            description_event->event_type_permutation[event_type];
-          DBUG_PRINT("info",
-                     ("converting event type %d to %d (%s)",
-                      event_type, new_event_type,
-                      get_type_str((Log_event_type)new_event_type)));
-        });
+#ifndef DBUG_OFF
+      int new_event_type=
+        description_event->event_type_permutation[event_type];
+      DBUG_PRINT("info",
+                 ("converting event type %d to %d (%s)",
+                  event_type, new_event_type,
+                  get_type_str((Log_event_type)new_event_type)));
+#endif
       event_type= description_event->event_type_permutation[event_type];
     }
 
@@ -3060,7 +3060,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
@@ -3154,7 +3154,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
     }
     else
@@ -3166,7 +3166,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query, thd->query_length))
+      if (mysql_test_parse_for_slave(thd, thd->query(), thd->query_length()))
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
@@ -3176,7 +3176,7 @@ Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; . Query: '%s'", expected_error, thd->query);
+START SLAVE; . Query: '%s'", expected_error, thd->query());
         thd->is_slave_error= 1;
       }
       goto end;
@@ -3184,7 +3184,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
 
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
 
@@ -3609,10 +3609,12 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     */
     if (post_header_len)
     {
+#ifndef DBUG_OFF      
       // Allows us to sanity-check that all events initialized their
       // events (see the end of this 'if' block).
-      IF_DBUG(memset(post_header_len, 255,
-                     number_of_event_types*sizeof(uint8)););
+      memset(post_header_len, 255,
+                     number_of_event_types*sizeof(uint8));
+#endif
 
       /* Note: all event types must explicitly fill in their lengths here. */
       post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
@@ -3666,11 +3668,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
 
       // Sanity-check that all post header lengths are initialized.
-      IF_DBUG({
-          int i;
-          for (i=0; i<number_of_event_types; i++)
-            assert(post_header_len[i] != 255);
-        });
+      int i;
+      for (i=0; i<number_of_event_types; i++)
+        DBUG_ASSERT(post_header_len[i] != 255);
     }
     break;
 
@@ -4531,8 +4531,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
-  DBUG_ASSERT(thd->query == 0);
-  thd->query_length= 0;                         // Should not be needed
+  DBUG_ASSERT(thd->query() == 0);
+  thd->set_query_inner(NULL, 0);               // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -7550,7 +7550,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   if (get_flags(STMT_END_F))
-    if (error= rows_event_stmt_cleanup(rli, thd))
+    if ((error= rows_event_stmt_cleanup(rli, thd)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

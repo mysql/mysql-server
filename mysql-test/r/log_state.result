@@ -309,6 +309,30 @@ SET @@global.general_log_file = @old_general_log_file;
 SET @@global.slow_query_log = @old_slow_query_log;
 SET @@global.slow_query_log_file = @old_slow_query_log_file;
 End of 5.1 tests
+
+# --
+# -- Bug#38124: "general_log_file" variable silently unset when
+# --             using expression
+# --
+SET GLOBAL general_log_file = DEFAULT;
+SELECT @@general_log_file INTO @my_glf;
+SET GLOBAL general_log_file = 'BUG38124.LOG';
+SELECT @@general_log_file;
+@@general_log_file
+BUG38124.LOG
+SET GLOBAL general_log_file = concat('BUG38124-2.LOG');
+SELECT @@general_log_file;
+@@general_log_file
+BUG38124-2.LOG
+SET GLOBAL general_log_file = substr('BUG38124-2.LOG',3,6);
+SELECT @@general_log_file;
+@@general_log_file
+G38124
+SET GLOBAL general_log_file = DEFAULT;
+SELECT @@general_log_file = @my_glf;
+@@general_log_file = @my_glf
+1
+SET GLOBAL general_log_file = @old_general_log_file;
 # Close connection con1
 SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
