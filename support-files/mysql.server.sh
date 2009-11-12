@@ -53,13 +53,14 @@ datadir=
 # Negative numbers mean to wait indefinitely
 service_startup_timeout=900
 
+# Lock directory for RedHat / SuSE.
+lockdir='/var/lock/subsys'
+lock_file_path="$lockdir/mysql"
+
 # The following variables are only set for letting mysql.server find things.
 
 # Set some defaults
-pid_file=
-server_pid_file=
-use_mysqld_safe=1
-user=@MYSQLD_USER@
+mysqld_pid_file_path=
 if test -z "$basedir"
 then
   basedir=@prefix@
@@ -101,11 +102,14 @@ else
   }
 fi
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
+PATH="/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin"
 export PATH
 
 mode=$1    # start or stop
-shift
+
+[ $# -ge 1 ] && shift
+
+
 other_args="$*"   # uncommon, but needed when called from an RPM upgrade action
            # Expected: "--skip-networking --skip-grant-tables"
            # They are not checked here, intentionally, as it is the resposibility
@@ -131,59 +135,50 @@ parse_server_arguments() {
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'`
 		    datadir_set=1
 	;;
-      --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --pid-file=*) mysqld_pid_file_path=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --use-mysqld_safe) use_mysqld_safe=1;;
-      --use-manager)     use_mysqld_safe=0;;
-    esac
-  done
-}
-
-parse_manager_arguments() {
-  for arg do
-    case "$arg" in
-      --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
 }
 
 wait_for_pid () {
-  verb="$1"
-  manager_pid="$2"  # process ID of the program operating on the pid-file
+  verb="$1"           # created | removed
+  pid="$2"            # process ID of the program operating on the pid-file
+  pid_file_path="$3" # path to the PID file.
+
   i=0
   avoid_race_condition="by checking again"
+
   while test $i -ne $service_startup_timeout ; do
 
     case "$verb" in
       'created')
         # wait for a PID-file to pop into existence.
-        test -s $pid_file && i='' && break
+        test -s "$pid_file_path" && i='' && break
         ;;
       'removed')
         # wait for this PID-file to disappear
-        test ! -s $pid_file && i='' && break
+        test ! -s "$pid_file_path" && i='' && break
         ;;
       *)
-        echo "wait_for_pid () usage: wait_for_pid created|removed manager_pid"
+        echo "wait_for_pid () usage: wait_for_pid created|removed pid pid_file_path"
         exit 1
         ;;
     esac
 
-    # if manager isn't running, then pid-file will never be updated
-    if test -n "$manager_pid"; then
-      if kill -0 "$manager_pid" 2>/dev/null; then
-        :  # the manager still runs
+    # if server isn't running, then pid-file will never be updated
+    if test -n "$pid"; then
+      if kill -0 "$pid" 2>/dev/null; then
+        :  # the server still runs
       else
-        # The manager may have exited between the last pid-file check and now.  
+        # The server may have exited between the last pid-file check and now.  
         if test -n "$avoid_race_condition"; then
           avoid_race_condition=""
           continue  # Check again.
         fi
 
         # there's nothing that will affect the file.
-        log_failure_msg "Manager of pid-file quit without updating file."
+        log_failure_msg "The server quit without updating PID file ($pid_file_path)."
         return 1  # not waiting any more.
       fi
     fi
@@ -191,6 +186,7 @@ wait_for_pid () {
     echo $echo_n ".$echo_c"
     i=`expr $i + 1`
     sleep 1
+
   done
 
   if test -z "$i" ; then
@@ -259,28 +255,16 @@ fi
 
 parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
 
-# Look for the pidfile 
-parse_manager_arguments `$print_defaults $extra_args manager`
-
 #
 # Set pid file if not given
 #
-if test -z "$pid_file"
+if test -z "$mysqld_pid_file_path"
 then
-  pid_file=$datadir/mysqlmanager-`@HOSTNAME@`.pid
+  mysqld_pid_file_path=$datadir/`@HOSTNAME@`.pid
 else
-  case "$pid_file" in
+  case "$mysqld_pid_file_path" in
     /* ) ;;
-    * )  pid_file="$datadir/$pid_file" ;;
-  esac
-fi
-if test -z "$server_pid_file"
-then
-  server_pid_file=$datadir/`@HOSTNAME@`.pid
-else
-  case "$server_pid_file" in
-    /* ) ;;
-    * )  server_pid_file="$datadir/$server_pid_file" ;;
+    * )  mysqld_pid_file_path="$datadir/$mysqld_pid_file_path" ;;
   esac
 fi
 
@@ -291,53 +275,23 @@ case "$mode" in
     # Safeguard (relative paths, core dumps..)
     cd $basedir
 
-    manager=$bindir/mysqlmanager
-    if test -x $libexecdir/mysqlmanager
-    then
-      manager=$libexecdir/mysqlmanager
-    elif test -x $sbindir/mysqlmanager
-    then
-      manager=$sbindir/mysqlmanager
-    fi
-
     echo $echo_n "Starting MySQL"
-    if test -x $manager -a "$use_mysqld_safe" = "0"
-    then
-      if test -n "$other_args"
-      then
-        log_failure_msg "MySQL manager does not support options '$other_args'"
-        exit 1
-      fi
-      # Give extra arguments to mysqld with the my.cnf file. This script may
-      # be overwritten at next upgrade.
-      "$manager" \
-        --mysqld-safe-compatible \
-        --user="$user" \
-        --pid-file="$pid_file" >/dev/null 2>&1 &
-      wait_for_pid created $!; return_value=$?
-
-      # Make lock for RedHat / SuSE
-      if test -w /var/lock/subsys
-      then
-        touch /var/lock/subsys/mysqlmanager
-      fi
-      exit $return_value
-    elif test -x $bindir/mysqld_safe
+    if test -x $bindir/mysqld_safe
     then
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
-      pid_file=$server_pid_file
-      $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file $other_args >/dev/null 2>&1 &
-      wait_for_pid created $!; return_value=$?
+      $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null 2>&1 &
+      wait_for_pid created "$!" "$mysqld_pid_file_path"; return_value=$?
 
       # Make lock for RedHat / SuSE
-      if test -w /var/lock/subsys
+      if test -w "$lockdir"
       then
-        touch /var/lock/subsys/mysql
+        touch "$lock_file_path"
       fi
+
       exit $return_value
     else
-      log_failure_msg "Couldn't find MySQL manager ($manager) or server ($bindir/mysqld_safe)"
+      log_failure_msg "Couldn't find MySQL server ($bindir/mysqld_safe)"
     fi
     ;;
 
@@ -345,39 +299,29 @@ case "$mode" in
     # Stop daemon. We use a signal here to avoid having to know the
     # root password.
 
-    # The RedHat / SuSE lock directory to remove
-    lock_dir=/var/lock/subsys/mysqlmanager
-
-    # If the manager pid_file doesn't exist, try the server's
-    if test ! -s "$pid_file"
+    if test -s "$mysqld_pid_file_path"
     then
-      pid_file=$server_pid_file
-      lock_dir=/var/lock/subsys/mysql
-    fi
+      mysqld_pid=`cat "$mysqld_pid_file_path"`
 
-    if test -s "$pid_file"
-    then
-      mysqlmanager_pid=`cat $pid_file`
-      
-      if (kill -0 $mysqlmanager_pid 2>/dev/null)
+      if (kill -9 $mysqld_pid 2>/dev/null)
       then
         echo $echo_n "Shutting down MySQL"
-        kill $mysqlmanager_pid
-        # mysqlmanager should remove the pid_file when it exits, so wait for it.
-        wait_for_pid removed "$mysqlmanager_pid"; return_value=$?
+        kill $mysqld_pid
+        # mysqld should remove the pid file when it exits, so wait for it.
+        wait_for_pid removed "$mysqld_pid" "$mysqld_pid_file_path"; return_value=$?
       else
-        log_failure_msg "MySQL manager or server process #$mysqlmanager_pid is not running!"
-        rm $pid_file
+        log_failure_msg "MySQL server process #$mysqld_pid is not running!"
+        rm "$mysqld_pid_file_path"
       fi
-      
-      # delete lock for RedHat / SuSE
-      if test -f $lock_dir
+
+      # Delete lock for RedHat / SuSE
+      if test -f "$lock_file_path"
       then
-        rm -f $lock_dir
+        rm -f "$lock_file_path"
       fi
       exit $return_value
     else
-      log_failure_msg "MySQL manager or server PID file could not be found!"
+      log_failure_msg "MySQL server PID file could not be found!"
     fi
     ;;
 
@@ -393,10 +337,10 @@ case "$mode" in
     ;;
 
   'reload'|'force-reload')
-    if test -s "$server_pid_file" ; then
-      read mysqld_pid <  $server_pid_file
+    if test -s "$mysqld_pid_file_path" ; then
+      read mysqld_pid <  "$mysqld_pid_file_path"
       kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
-      touch $server_pid_file
+      touch "$mysqld_pid_file_path"
     else
       log_failure_msg "MySQL PID file could not be found!"
       exit 1
@@ -404,8 +348,8 @@ case "$mode" in
     ;;
   'status')
     # First, check to see if pid file exists
-    if test -s "$server_pid_file" ; then 
-      read mysqld_pid < $server_pid_file
+    if test -s "$mysqld_pid_file_path" ; then 
+      read mysqld_pid < "$mysqld_pid_file_path"
       if kill -0 $mysqld_pid 2>/dev/null ; then 
         log_success_msg "MySQL running ($mysqld_pid)"
         exit 0
@@ -417,13 +361,8 @@ case "$mode" in
       # Try to find appropriate mysqld process
       mysqld_pid=`pidof $libexecdir/mysqld`
       if test -z $mysqld_pid ; then 
-        if test "$use_mysqld_safe" = "0" ; then 
-          lockfile=/var/lock/subsys/mysqlmanager
-        else
-          lockfile=/var/lock/subsys/mysql
-        fi 
-        if test -f $lockfile ; then 
-          log_failure_msg "MySQL is not running, but lock exists"
+        if test -f "$lock_file_path" ; then 
+          log_failure_msg "MySQL is not running, but lock file ($lock_file_path) exists"
           exit 2
         fi 
         log_failure_msg "MySQL is not running"
@@ -436,7 +375,8 @@ case "$mode" in
     ;;
     *)
       # usage
-      echo "Usage: $0  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
+      basename=`basename "$0"`
+      echo "Usage: $basename  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
       exit 1
     ;;
 esac

@@ -1,3 +1,6 @@
+#ifndef ATOMIC_NOLOCK_INCLUDED
+#define ATOMIC_NOLOCK_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -59,3 +62,4 @@ typedef struct { } my_atomic_rwlock_t;
 
 #endif
 
+#endif /* ATOMIC_NOLOCK_INCLUDED */

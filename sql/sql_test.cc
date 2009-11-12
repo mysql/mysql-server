@@ -85,7 +85,7 @@ void print_cached_tables(void)
 
   for (idx=unused=0 ; idx < open_cache.records ; idx++)
   {
-    TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
+    TABLE *entry=(TABLE*) my_hash_element(&open_cache,idx);
     printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
            entry->s->db.str, entry->s->table_name.str, entry->s->version,
 	   entry->in_use ? entry->in_use->thread_id : 0L,
@@ -113,7 +113,7 @@ void print_cached_tables(void)
   if (count != unused)
     printf("Unused_links (%d) doesn't match open_cache: %d\n", count,unused);
   printf("\nCurrent refresh version: %ld\n",refresh_version);
-  if (hash_check(&open_cache))
+  if (my_hash_check(&open_cache))
     printf("Error: File hash table is corrupted\n");
   fflush(stdout);
   VOID(pthread_mutex_unlock(&LOCK_open));

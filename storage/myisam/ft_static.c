@@ -30,8 +30,8 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
   0,                                            /* Bit pos */
   HA_VAR_LENGTH_PART | HA_PACK_KEY,             /* flag */
   HA_FT_MAXBYTELEN,                             /* length */
-  HA_KEYTYPE_VARTEXT2,                          /* type */
   63,                                           /* language (will be overwritten) */
+  HA_KEYTYPE_VARTEXT2,                          /* type */
   0,                                            /* null_bit */
   2, 0, 0                                       /* bit_start, bit_end, bit_length */
 },
@@ -41,7 +41,7 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
       be packed in any way, otherwise w_search() won't be able to
       update key entry 'in vivo'
     */
-  0, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, HA_FT_WTYPE, 63, 0, 0, 0, 0
+  0, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, 63, HA_FT_WTYPE, 0, 0, 0, 0
 }
 };
 

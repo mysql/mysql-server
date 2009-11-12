@@ -21,7 +21,7 @@
 #define BUFF_SIZE 1024
 #define RESERVE 1024                   /* Extend buffer with this extent */
 
-#ifdef __WIN__
+#ifdef _WIN32
 #define NEWLINE "\r\n"
 #define NEWLINE_LEN 2
 #else
@@ -78,7 +78,7 @@ int modify_defaults_file(const char *file_location, const char *option,
     DBUG_RETURN(2);
 
   /* my_fstat doesn't use the flag parameter */
-  if (my_fstat(fileno(cnf_file), &file_stat, MYF(0)))
+  if (my_fstat(my_fileno(cnf_file), &file_stat, MYF(0)))
     goto malloc_err;
 
   if (option && option_value)
@@ -213,7 +213,7 @@ int modify_defaults_file(const char *file_location, const char *option,
   if (opt_applied)
   {
     /* Don't write the file if there are no changes to be made */
-    if (my_chsize(fileno(cnf_file), (my_off_t) (dst_ptr - file_buffer), 0,
+    if (my_chsize(my_fileno(cnf_file), (my_off_t) (dst_ptr - file_buffer), 0,
                   MYF(MY_WME)) ||
         my_fseek(cnf_file, 0, MY_SEEK_SET, MYF(0)) ||
         my_fwrite(cnf_file, (uchar*) file_buffer, (size_t) (dst_ptr - file_buffer),

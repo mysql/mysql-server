@@ -21,9 +21,11 @@ end|
 call bug4902_2()|
 show warnings|
 Level	Code	Message
+Note	1305	PROCEDURE bug4902_2 does not exist
 call bug4902_2()|
 show warnings|
 Level	Code	Message
+Note	1305	PROCEDURE bug4902_2 does not exist
 drop procedure bug4902_2|
 drop table if exists t1|
 create table t1 (

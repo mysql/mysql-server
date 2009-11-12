@@ -1,0 +1,26 @@
+#
+# Simple tests to verify truncate partition syntax
+#
+--source include/have_partition.inc
+--disable_warnings
+drop table if exists t1, t2, t3, t4;
+--enable_warnings
+
+create table t1 (a int)
+partition by list (a)
+(partition p1 values in (0));
+--error ER_WRONG_PARTITION_NAME
+alter table t1 truncate partition p1,p1;
+--error ER_WRONG_PARTITION_NAME
+alter table t1 truncate partition p0;
+drop table t1;
+
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+subpartitions 1
+(partition p1 values in (1)
+ (subpartition sp1));
+--error ER_WRONG_PARTITION_NAME
+alter table t1 truncate partition sp1;
+drop table t1;

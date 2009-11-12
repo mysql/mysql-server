@@ -13,12 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef CLIENT_SETTINGS_INCLUDED
+#define CLIENT_SETTINGS_INCLUDED
+#else
+#error You have already included an client_settings.h and it should not be included twice
+#endif /* CLIENT_SETTINGS_INCLUDED */
+
 extern uint		mysql_port;
 extern char *	mysql_unix_port;
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
-                             CLIENT_TRANSACTIONS | \
-			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | \
+                             CLIENT_LONG_FLAG |     \
+                             CLIENT_TRANSACTIONS |  \
+                             CLIENT_PROTOCOL_41 | \
+                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_MULTI_RESULTS | \
+                             CLIENT_PS_MULTI_RESULTS)
 
 sig_handler my_pipe_sig_handler(int sig);
 void read_user_name(char *name);

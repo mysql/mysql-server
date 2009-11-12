@@ -34,7 +34,7 @@ purge binary logs TO 'master-bin.000002';
 ERROR HY000: Fatal error during log purge
 show warnings;
 Level	Code	Message
-Error	1377	a problem with deleting master-bin.000001; consider examining correspondence of your binlog index file to the actual binlog files
+Warning	1377	a problem with deleting master-bin.000001; consider examining correspondence of your binlog index file to the actual binlog files
 Error	1377	Fatal error during log purge
 reset master;
 End of tests

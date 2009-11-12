@@ -34,7 +34,8 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag;
+static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
+               opt_systables_only;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
@@ -121,6 +122,10 @@ static struct my_option my_long_options[]=
 #include <sslopt-longopts.h>
   {"tmpdir", 't', "Directory for temporary files",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"upgrade-system-tables", 's', "Only upgrade the system tables "
+   "do not try to upgrade the data.",
+   (uchar**)&opt_systables_only, (uchar**)&opt_systables_only, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
    (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process",
@@ -838,8 +843,15 @@ int main(int argc, char **argv)
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
 
-  /* Find mysqlcheck */
-  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+  if (!opt_systables_only)
+  {
+    /* Find mysqlcheck */
+    find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+  }
+  else
+  {
+    printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
+  }
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
@@ -856,8 +868,8 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if (run_mysqlcheck_fixnames() ||
-      run_mysqlcheck_upgrade() ||
+  if ((!opt_systables_only &&
+       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
       run_sql_fix_privilege_tables())
   {
     /*

@@ -107,8 +107,8 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
     1   Error
 */
 
-bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
-                              table_map *map)
+bool check_view_single_update(List<Item> &fields, List<Item> *values,
+                              TABLE_LIST *view, table_map *map)
 {
   /* it is join view => we need to find the table for update */
   List_iterator_fast<Item> it(fields);
@@ -118,6 +118,17 @@ bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
 
   while ((item= it++))
     tables|= item->used_tables();
+
+  if (values)
+  {
+    it.init(*values);
+    while ((item= it++))
+      tables|= item->used_tables();
+  }
+
+  /* Convert to real table bits */
+  tables&= ~PSEUDO_TABLE_BITS;
+
 
   /* Check found map against provided map */
   if (*map)
@@ -165,7 +176,9 @@ error:
 
 static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
                                List<Item> &fields, List<Item> &values,
-                               bool check_unique, table_map *map)
+                               bool check_unique,
+                               bool fields_and_values_from_different_maps,
+                               table_map *map)
 {
   TABLE *table= table_list->table;
 
@@ -238,7 +251,10 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      if (check_view_single_update(fields, table_list, map))
+      if (check_view_single_update(fields,
+                                   fields_and_values_from_different_maps ?
+                                   (List<Item>*) 0 : &values,
+                                   table_list, map))
         return -1;
       table= table_list->table;
     }
@@ -298,7 +314,8 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 */
 
 static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
-                               List<Item> &update_fields, table_map *map)
+                               List<Item> &update_fields,
+                               List<Item> &update_values, table_map *map)
 {
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark= 0;
@@ -318,7 +335,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
-      check_view_single_update(update_fields, insert_table_list, map))
+      check_view_single_update(update_fields, &update_values,
+                               insert_table_list, map))
     return -1;
 
   if (table->timestamp_field)
@@ -567,7 +585,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
-  char *query= thd->query;
+  char *query= thd->query();
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
@@ -801,7 +819,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
-      LEX_STRING const st_query = { query, thd->query_length };
+      LEX_STRING const st_query = { query, thd->query_length() };
       error=write_delayed(thd, table, duplic, st_query, ignore, log_on);
       query=0;
     }
@@ -810,7 +828,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error=write_record(thd, table ,&info);
     if (error)
       break;
-    thd->row_count++;
+    thd->warning_info->inc_current_row_for_warning();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -894,7 +912,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query, thd->query_length,
+                              thd->query(), thd->query_length(),
 			      transactional_table, FALSE,
 			      errcode))
         {
@@ -949,10 +967,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
-	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
+	      (ulong) (info.records - info.copied),
+              (ulong) thd->warning_info->statement_warn_count());
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
+	      (ulong) (info.deleted + updated),
+              (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func= info.copied + info.deleted + updated;
     ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
@@ -1240,9 +1260,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    res= check_insert_fields(thd, context->table_list, fields, *values,
-                             !insert_into_view, &map) ||
-      setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+    res= (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0) ||
+          check_insert_fields(thd, context->table_list, fields, *values,
+                              !insert_into_view, 0, &map));
 
     if (!res && check_fields)
     {
@@ -1255,18 +1275,19 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->abort_on_warning= saved_abort_on_warning;
     }
 
+   if (!res)
+     res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
+
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= TRUE;
-      res= check_update_fields(thd, context->table_list, update_fields, &map);
+      res= check_update_fields(thd, context->table_list, update_fields,
+                               update_values, &map);
       select_lex->no_wrap_view_item= FALSE;
     }
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
-
-    if (!res)
-      res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
   }
 
   if (res)
@@ -1764,7 +1785,7 @@ public:
     pthread_cond_destroy(&cond);
     pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
-    x_free(thd.query);
+    x_free(thd.query());
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
@@ -1910,7 +1931,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       pthread_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
-      if (di->thd.db == NULL || di->thd.query == NULL)
+      if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
@@ -1919,7 +1940,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       }
       di->table_list= *table_list;			// Needed to open table
       /* Replace volatile strings with local copies */
-      di->table_list.alias= di->table_list.table_name= di->thd.query;
+      di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
       di->lock();
       pthread_mutex_lock(&di->mutex);
@@ -1955,7 +1976,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
             main thread. Use of my_message will enable stored
             procedures continue handlers.
           */
-          my_message(di->thd.main_da.sql_errno(), di->thd.main_da.message(),
+          my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
                      MYF(0));
 	}
 	di->unlock();
@@ -2032,7 +2053,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      my_message(thd.main_da.sql_errno(), thd.main_da.message(), MYF(0));
+      my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
       goto error;
     }
   }
@@ -2281,8 +2302,8 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
   if (init_thr_lock() || thd->store_globals())
   {
     /* Can't use my_error since store_globals has perhaps failed */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
+    thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                   ER(ER_OUT_OF_RESOURCES), NULL);
     thd->fatal_error();
     goto err;
   }
@@ -2496,21 +2517,16 @@ pthread_handler_t handle_delayed_insert(void *arg)
     since it does not find one in the list.
   */
   pthread_mutex_lock(&di->mutex);
-#if !defined( __WIN__) /* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
     /* Can't use my_error since store_globals has not yet been called */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
+    thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                   ER(ER_OUT_OF_RESOURCES), NULL);
     goto end;
   }
-#endif
-
   handle_delayed_insert_impl(thd, di);
 
-#ifndef __WIN__
 end:
-#endif
   /*
     di should be unlinked from the thread handler list and have no active
     clients
@@ -2732,6 +2748,12 @@ bool Delayed_insert::handle_inserts(void)
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
     pthread_mutex_lock(&mutex);
 
+    /*
+      Reset the table->auto_increment_field_not_null as it is valid for
+      only one row.
+    */
+    table->auto_increment_field_not_null= FALSE;
+
     delete row;
     /*
       Let READ clients do something once in a while
@@ -2753,7 +2775,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s", thd.main_da.message());
+	  sql_print_error("%s", thd.stmt_da->message());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -2795,7 +2817,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s", thd.main_da.message());
+    sql_print_error("%s", thd.stmt_da->message());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
@@ -2934,9 +2956,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     we are fixing fields from insert list.
   */
   lex->current_select= &lex->select_lex;
-  res= check_insert_fields(thd, table_list, *fields, values,
-                           !insert_into_view, &map) ||
-       setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0);
+  res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
+        check_insert_fields(thd, table_list, *fields, values,
+                            !insert_into_view, 1, &map));
 
   if (!res && fields->elements)
   {
@@ -2963,7 +2985,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
     lex->select_lex.no_wrap_view_item= TRUE;
     res= res || check_update_fields(thd, context->table_list,
-                                    *info.update_fields, &map);
+                                    *info.update_fields, *info.update_values,
+                                    &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate functions 
@@ -3250,7 +3273,7 @@ bool select_insert::send_eof()
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     thd->binlog_query(THD::ROW_QUERY_TYPE,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       trans_table, FALSE, errcode);
   }
   table->file->ha_release_auto_increment();
@@ -3263,10 +3286,12 @@ bool select_insert::send_eof()
   char buff[160];
   if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
+	    (ulong) (info.records - info.copied),
+            (ulong) thd->warning_info->statement_warn_count());
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
+	    (ulong) (info.deleted+info.updated),
+            (ulong) thd->warning_info->statement_warn_count());
   thd->row_count_func= info.copied + info.deleted +
                        ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                         info.touched : info.updated);
@@ -3320,7 +3345,8 @@ void select_insert::abort() {
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
+          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
+                            thd->query_length(),
                             transactional_table, FALSE, errcode);
         }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
@@ -3838,6 +3864,7 @@ void select_create::abort()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+    table->auto_increment_field_not_null= FALSE;
     if (!create_info->table_existed)
       drop_open_table(thd, table, create_table->db, create_table->table_name);
     table=0;                                    // Safety

@@ -129,4 +129,5 @@ SET @@SESSION log_queries_not_using_indexes= TRUE;
 
 
 SET @@global.log_queries_not_using_indexes= @start_value;
+SELECT IF(@@GLOBAL.log_queries_not_using_indexes, "ON", "OFF") = VARIABLE_VALUE
 

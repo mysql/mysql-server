@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
@@ -222,6 +223,8 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     return NULL;
   }
 
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+
   switch (database_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
@@ -283,6 +286,15 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
+const char **handler_errmsgs;
+
+
+const char **get_handler_errmsgs()
+{
+  return handler_errmsgs;
+}
+
+
 /**
   Register handler error messages for use with my_error().
 
@@ -294,61 +306,61 @@ handler *get_ha_partition(partition_info *part_info)
 
 int ha_init_errors(void)
 {
-#define SETMSG(nr, msg) errmsgs[(nr) - HA_ERR_FIRST]= (msg)
+#define SETMSG(nr, msg) handler_errmsgs[(nr) - HA_ERR_FIRST]= (msg)
   const char    **errmsgs;
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
-  if (! (errmsgs= (const char**) my_malloc(HA_ERR_ERRORS * sizeof(char*),
-                                           MYF(MY_WME | MY_ZEROFILL))))
+  if (! (handler_errmsgs= (const char**) my_malloc(HA_ERR_ERRORS * sizeof(char*),
+                                                   MYF(MY_WME | MY_ZEROFILL))))
     return 1;
 
   /* Set the dedicated error messages. */
-  SETMSG(HA_ERR_KEY_NOT_FOUND,          ER(ER_KEY_NOT_FOUND));
-  SETMSG(HA_ERR_FOUND_DUPP_KEY,         ER(ER_DUP_KEY));
+  SETMSG(HA_ERR_KEY_NOT_FOUND,          ER_DEFAULT(ER_KEY_NOT_FOUND));
+  SETMSG(HA_ERR_FOUND_DUPP_KEY,         ER_DEFAULT(ER_DUP_KEY));
   SETMSG(HA_ERR_RECORD_CHANGED,         "Update wich is recoverable");
   SETMSG(HA_ERR_WRONG_INDEX,            "Wrong index given to function");
-  SETMSG(HA_ERR_CRASHED,                ER(ER_NOT_KEYFILE));
-  SETMSG(HA_ERR_WRONG_IN_RECORD,        ER(ER_CRASHED_ON_USAGE));
+  SETMSG(HA_ERR_CRASHED,                ER_DEFAULT(ER_NOT_KEYFILE));
+  SETMSG(HA_ERR_WRONG_IN_RECORD,        ER_DEFAULT(ER_CRASHED_ON_USAGE));
   SETMSG(HA_ERR_OUT_OF_MEM,             "Table handler out of memory");
   SETMSG(HA_ERR_NOT_A_TABLE,            "Incorrect file format '%.64s'");
   SETMSG(HA_ERR_WRONG_COMMAND,          "Command not supported");
-  SETMSG(HA_ERR_OLD_FILE,               ER(ER_OLD_KEYFILE));
+  SETMSG(HA_ERR_OLD_FILE,               ER_DEFAULT(ER_OLD_KEYFILE));
   SETMSG(HA_ERR_NO_ACTIVE_RECORD,       "No record read in update");
   SETMSG(HA_ERR_RECORD_DELETED,         "Intern record deleted");
-  SETMSG(HA_ERR_RECORD_FILE_FULL,       ER(ER_RECORD_FILE_FULL));
+  SETMSG(HA_ERR_RECORD_FILE_FULL,       ER_DEFAULT(ER_RECORD_FILE_FULL));
   SETMSG(HA_ERR_INDEX_FILE_FULL,        "No more room in index file '%.64s'");
   SETMSG(HA_ERR_END_OF_FILE,            "End in next/prev/first/last");
-  SETMSG(HA_ERR_UNSUPPORTED,            ER(ER_ILLEGAL_HA));
+  SETMSG(HA_ERR_UNSUPPORTED,            ER_DEFAULT(ER_ILLEGAL_HA));
   SETMSG(HA_ERR_TO_BIG_ROW,             "Too big row");
   SETMSG(HA_WRONG_CREATE_OPTION,        "Wrong create option");
-  SETMSG(HA_ERR_FOUND_DUPP_UNIQUE,      ER(ER_DUP_UNIQUE));
+  SETMSG(HA_ERR_FOUND_DUPP_UNIQUE,      ER_DEFAULT(ER_DUP_UNIQUE));
   SETMSG(HA_ERR_UNKNOWN_CHARSET,        "Can't open charset");
-  SETMSG(HA_ERR_WRONG_MRG_TABLE_DEF,    ER(ER_WRONG_MRG_TABLE));
-  SETMSG(HA_ERR_CRASHED_ON_REPAIR,      ER(ER_CRASHED_ON_REPAIR));
-  SETMSG(HA_ERR_CRASHED_ON_USAGE,       ER(ER_CRASHED_ON_USAGE));
-  SETMSG(HA_ERR_LOCK_WAIT_TIMEOUT,      ER(ER_LOCK_WAIT_TIMEOUT));
-  SETMSG(HA_ERR_LOCK_TABLE_FULL,        ER(ER_LOCK_TABLE_FULL));
-  SETMSG(HA_ERR_READ_ONLY_TRANSACTION,  ER(ER_READ_ONLY_TRANSACTION));
-  SETMSG(HA_ERR_LOCK_DEADLOCK,          ER(ER_LOCK_DEADLOCK));
-  SETMSG(HA_ERR_CANNOT_ADD_FOREIGN,     ER(ER_CANNOT_ADD_FOREIGN));
-  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW_2));
-  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED_2));
+  SETMSG(HA_ERR_WRONG_MRG_TABLE_DEF,    ER_DEFAULT(ER_WRONG_MRG_TABLE));
+  SETMSG(HA_ERR_CRASHED_ON_REPAIR,      ER_DEFAULT(ER_CRASHED_ON_REPAIR));
+  SETMSG(HA_ERR_CRASHED_ON_USAGE,       ER_DEFAULT(ER_CRASHED_ON_USAGE));
+  SETMSG(HA_ERR_LOCK_WAIT_TIMEOUT,      ER_DEFAULT(ER_LOCK_WAIT_TIMEOUT));
+  SETMSG(HA_ERR_LOCK_TABLE_FULL,        ER_DEFAULT(ER_LOCK_TABLE_FULL));
+  SETMSG(HA_ERR_READ_ONLY_TRANSACTION,  ER_DEFAULT(ER_READ_ONLY_TRANSACTION));
+  SETMSG(HA_ERR_LOCK_DEADLOCK,          ER_DEFAULT(ER_LOCK_DEADLOCK));
+  SETMSG(HA_ERR_CANNOT_ADD_FOREIGN,     ER_DEFAULT(ER_CANNOT_ADD_FOREIGN));
+  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER_DEFAULT(ER_NO_REFERENCED_ROW_2));
+  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER_DEFAULT(ER_ROW_IS_REFERENCED_2));
   SETMSG(HA_ERR_NO_SAVEPOINT,           "No savepoint with that name");
   SETMSG(HA_ERR_NON_UNIQUE_BLOCK_SIZE,  "Non unique key block size");
   SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
-  SETMSG(HA_ERR_TABLE_EXIST,            ER(ER_TABLE_EXISTS_ERROR));
+  SETMSG(HA_ERR_TABLE_EXIST,            ER_DEFAULT(ER_TABLE_EXISTS_ERROR));
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
-  SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
+  SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER_DEFAULT(ER_TABLE_DEF_CHANGED));
   SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
-  SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
-  SETMSG(HA_ERR_TABLE_READONLY,         ER(ER_OPEN_AS_READONLY));
-  SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
-  SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
-  SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER_DEFAULT(ER_TABLE_NEEDS_UPGRADE));
+  SETMSG(HA_ERR_TABLE_READONLY,         ER_DEFAULT(ER_OPEN_AS_READONLY));
+  SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER_DEFAULT(ER_AUTOINC_READ_FAILED));
+  SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
+  SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
 
   /* Register the error messages for use with my_error(). */
-  return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
+  return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
 }
 
 
@@ -414,7 +426,13 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     reuse an array slot. Otherwise the number of uninstall/install
     cycles would be limited.
   */
-  hton2plugin[hton->slot]= NULL;
+  if (hton->slot != HA_SLOT_UNDEF)
+  {
+    /* Make sure we are not unpluging another plugin */
+    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < MAX_HA);
+    hton2plugin[hton->slot]= NULL;
+  }
 
   my_free((uchar*)hton, MYF(0));
 
@@ -431,6 +449,15 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
   hton= (handlerton *)my_malloc(sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
+
+  if (hton == NULL)
+  {
+    sql_print_error("Unable to allocate memory for plugin '%s' handlerton.",
+                    plugin->name.str);
+    goto err_no_hton_memory;
+  }
+
+  hton->slot= HA_SLOT_UNDEF;
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
@@ -541,6 +568,7 @@ err_deinit:
           
 err:
   my_free((uchar*) hton, MYF(0));
+err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
 }
@@ -1191,6 +1219,7 @@ int ha_commit_trans(THD *thd, bool all)
     if (cookie)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
@@ -1312,8 +1341,9 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request)
-      thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
+    if (is_real_trans && thd->transaction_rollback_request &&
+        thd->transaction.xid_state.xa_state != XA_NOTR)
+      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
   }
@@ -1338,6 +1368,7 @@ int ha_rollback_trans(THD *thd, bool all)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }
 
@@ -1372,7 +1403,14 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
+  else
 #endif
+  {
+    if (!error)
+      RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    else
+      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  }
   DBUG_RETURN(error);
 }
 
@@ -1533,7 +1571,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
         }
         // recovery mode
         if (info->commit_list ?
-            hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
+            my_hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
         {
 #ifndef DBUG_OFF
@@ -1644,12 +1682,12 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_xid_cache);
-  while ((xs= (XID_STATE*)hash_element(&xid_cache, i++)))
+  while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
     {
@@ -1944,23 +1982,28 @@ const char *get_canonical_filename(handler *file, const char *path,
 struct Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_error(uint sql_errno,
-                            const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
 };
 
 
 bool
 Ha_delete_table_error_handler::
-handle_error(uint sql_errno,
-             const char *message,
-             MYSQL_ERROR::enum_warning_level level,
-             THD *thd)
+handle_condition(THD *,
+                 uint,
+                 const char*,
+                 MYSQL_ERROR::enum_warning_level,
+                 const char* msg,
+                 MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   /* Grab the error message */
-  strmake(buff, message, sizeof(buff)-1);
+  strmake(buff, msg, sizeof(buff)-1);
   return TRUE;
 }
 
@@ -2019,7 +2062,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
@@ -2772,6 +2815,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLE_NEEDS_UPGRADE:
     textno=ER_TABLE_NEEDS_UPGRADE;
     break;
+  case HA_ERR_NO_PARTITION_FOUND:
+    textno=ER_WRONG_PARTITION_NAME;
+    break;
   case HA_ERR_TABLE_READONLY:
     textno= ER_OPEN_AS_READONLY;
     break;
@@ -2964,9 +3010,9 @@ static bool update_frm_version(TABLE *table)
     if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) hash_first(&open_cache,(uchar*) key,key_length, &state);
+    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
          entry;
-         entry= (TABLE*) hash_next(&open_cache,(uchar*) key,key_length, &state))
+         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
       entry->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
@@ -4422,7 +4468,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 

@@ -78,7 +78,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
-      uint actual_error= thd->main_da.sql_errno();
+      uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -87,7 +87,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? thd->main_da.message() :
+                    (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -216,17 +216,17 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+  rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    thd->is_error() ? thd->main_da.message() : "");
+                    thd->is_error() ? thd->stmt_da->message() : "");
   thd->is_slave_error= 1;
   break;
       }
 
       row_start= row_end;
     }
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
     if (!ev->cache_stmt)
@@ -245,12 +245,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+    rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                thd->is_error() ? thd->main_da.message() : "");
+                thd->is_error() ? thd->stmt_da->message() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -267,34 +267,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
-  }
-
-  /*
-    This code would ideally be placed in do_update_pos() instead, but
-    since we have no access to table there, we do the setting of
-    last_event_start_time here instead.
-  */
-  if (table && (table->s->primary_key == MAX_KEY) &&
-      !ev->cache_stmt && 
-      ev->get_flags(Old_rows_log_event::STMT_END_F) == Old_rows_log_event::RLE_NO_FLAGS)
-  {
-    /*
-      ------------ Temporary fix until WL#2975 is implemented ---------
-
-      This event is not the last one (no STMT_END_F). If we stop now
-      (in case of terminate_slave_thread()), how will we restart? We
-      have to restart from Table_map_log_event, but as this table is
-      not transactional, the rows already inserted will still be
-      present, and idempotency is not guaranteed (no PK) so we risk
-      that repeating leads to double insert. So we desperately try to
-      continue, hope we'll eventually leave this buggy situation (by
-      executing the final Old_rows_log_event). If we are in a hopeless
-      wait (reached end of last relay log and nothing gets appended
-      there), we timeout after one minute, and notify DBA about the
-      problem.  When WL#2975 is implemented, just remove the member
-      st_relay_log_info::last_event_start_time and all its occurences.
-    */
-    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(0);
@@ -1744,7 +1716,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
  
     } // row processing loop
 
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
     if (!cache_stmt)
@@ -1842,7 +1814,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if (error= ha_autocommit_or_rollback(thd, 0))
+    if ((error= ha_autocommit_or_rollback(thd, 0)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

@@ -812,16 +812,16 @@ select @@lc_time_names;
 @@lc_time_names
 en_US
 LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=108;
-select @@lc_time_names;
-@@lc_time_names
-zh_HK
-LC_TIME_NAMES: testing a number beyond the valid ID range:
 set lc_time_names=109;
-ERROR HY000: Unknown locale: '109'
 select @@lc_time_names;
 @@lc_time_names
-zh_HK
+el_GR
+LC_TIME_NAMES: testing a number beyond the valid ID range:
+set lc_time_names=110;
+ERROR HY000: Unknown locale: '110'
+select @@lc_time_names;
+@@lc_time_names
+el_GR
 LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
 select @@lc_time_names;
@@ -864,7 +864,7 @@ select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
 set global sql_mode=repeat('a',80);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 End of 4.1 tests
 create table t1 (a int);
 select a into @x from t1;
@@ -1176,18 +1176,18 @@ ERROR HY000: Variable 'init_file' is a read only variable
 SET @@global.init_file= 'x';
 ERROR HY000: Variable 'init_file' is a read only variable
 #
-SHOW VARIABLES like 'language';
+SHOW VARIABLES like 'lc_messages_dir';
 Variable_name	Value
-language	#
-SELECT @@session.language;
-ERROR HY000: Variable 'language' is a GLOBAL variable
-SELECT @@global.language;
-@@global.language
+lc_messages_dir	#
+SELECT @@session.lc_messages_dir;
+ERROR HY000: Variable 'lc_messages_dir' is a GLOBAL variable
+SELECT @@global.lc_messages_dir;
+@@global.lc_messages_dir
 #
-SET @@session.language= 'x';
-ERROR HY000: Variable 'language' is a read only variable
-SET @@global.language= 'x';
-ERROR HY000: Variable 'language' is a read only variable
+SET @@session.lc_messages_dir= 'x';
+ERROR HY000: Variable 'lc_messages_dir' is a read only variable
+SET @@global.lc_messages_dir= 'x';
+ERROR HY000: Variable 'lc_messages_dir' is a read only variable
 #
 SHOW VARIABLES like 'large_page_size';
 Variable_name	Value
@@ -1488,3 +1488,168 @@ SELECT @@GLOBAL.max_binlog_cache_size;
 5368709120
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 End of 5.1 tests
+
+#
+# Bug#34828: OF is taken as OFF and a value of 0 is set for variable SQL_notes.
+#
+
+# Checking sql_notes...
+SET @sql_notes_saved = @@sql_notes;
+
+SET @@sql_notes = ON;
+SELECT @@sql_notes;
+@@sql_notes
+1
+
+SET @@sql_notes = OF;
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
+SELECT @@sql_notes;
+@@sql_notes
+1
+
+SET @@sql_notes = OFF;
+SELECT @@sql_notes;
+@@sql_notes
+0
+
+SET @@sql_notes = @sql_notes_saved;
+
+# Checking delay_key_write...
+SET @delay_key_write_saved = @@delay_key_write;
+
+SET GLOBAL delay_key_write = ON;
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = OF;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'OF'
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = AL;
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'AL'
+SELECT @@delay_key_write;
+@@delay_key_write
+ON
+
+SET GLOBAL delay_key_write = OFF;
+SELECT @@delay_key_write;
+@@delay_key_write
+OFF
+
+SET GLOBAL delay_key_write = ALL;
+SELECT @@delay_key_write;
+@@delay_key_write
+ALL
+
+SET GLOBAL delay_key_write = @delay_key_write_saved;
+
+# Checking sql_safe_updates...
+SET @sql_safe_updates_saved = @@sql_safe_updates;
+
+SET @@sql_safe_updates = ON;
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+1
+
+SET @@sql_safe_updates = OF;
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'OF'
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+1
+
+SET @@sql_safe_updates = OFF;
+SELECT @@sql_safe_updates;
+@@sql_safe_updates
+0
+
+SET @@sql_safe_updates = @sql_safe_updates_saved;
+
+# Checking foreign_key_checks...
+SET @foreign_key_checks_saved = @@foreign_key_checks;
+
+SET @@foreign_key_checks = ON;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+
+SET @@foreign_key_checks = OF;
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+
+SET @@foreign_key_checks = OFF;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+0
+
+SET @@foreign_key_checks = @foreign_key_checks_saved;
+
+# Checking unique_checks...
+SET @unique_checks_saved = @@unique_checks;
+
+SET @@unique_checks = ON;
+SELECT @@unique_checks;
+@@unique_checks
+1
+
+SET @@unique_checks = OF;
+ERROR 42000: Variable 'unique_checks' can't be set to the value of 'OF'
+SELECT @@unique_checks;
+@@unique_checks
+1
+
+SET @@unique_checks = OFF;
+SELECT @@unique_checks;
+@@unique_checks
+0
+
+SET @@unique_checks = @unique_checks_saved;
+
+# Checking sql_buffer_result...
+SET @sql_buffer_result_saved = @@sql_buffer_result;
+
+SET @@sql_buffer_result = ON;
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+1
+
+SET @@sql_buffer_result = OF;
+ERROR 42000: Variable 'sql_buffer_result' can't be set to the value of 'OF'
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+1
+
+SET @@sql_buffer_result = OFF;
+SELECT @@sql_buffer_result;
+@@sql_buffer_result
+0
+
+SET @@sql_buffer_result = @sql_buffer_result_saved;
+
+# Checking sql_quote_show_create...
+SET @sql_quote_show_create_saved = @@sql_quote_show_create;
+
+SET @@sql_quote_show_create = ON;
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+1
+
+SET @@sql_quote_show_create = OF;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'OF'
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+1
+
+SET @@sql_quote_show_create = OFF;
+SELECT @@sql_quote_show_create;
+@@sql_quote_show_create
+0
+
+SET @@sql_quote_show_create = @sql_quote_show_create_saved;
+
+# End of Bug#34828.
+

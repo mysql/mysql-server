@@ -93,7 +93,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
 explain partitions select * from t1 where a >= 1 and a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t1	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	9	Using where
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
