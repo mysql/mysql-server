@@ -249,6 +249,10 @@ sub collect_one_suite($)
       $suitedir= my_find_dir($::basedir,
 			     ["mysql-test/suite",
 			      "mysql-test",
+			      "share/mysql-test/suite",
+			      "share/mysql-test",
+			      "share/mysql/mysql-test/suite",
+			      "share/mysql/mysql-test",
 			      # Look in storage engine specific suite dirs
 			      "storage/*/mysql-test-suites"
 			     ],

@@ -72,7 +72,7 @@ static void wait_for_kill_signal(THD *thd)
   @brief Helper function for explain_filename
 */
 static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, int errcode)
+                           const char* name, uint name_len, bool add_quotes)
 {
   uint res;
   uint errors;
@@ -92,18 +92,44 @@ static char* add_identifier(char *to_p, const char * end_p,
   res= strconvert(&my_charset_filename, conv_name, system_charset_info,
                   conv_string, FN_REFLEN, &errors);
   if (!res || errors)
+  {
+    DBUG_PRINT("error", ("strconvert of '%s' failed with %u (errors: %u)", conv_name, res, errors));
     conv_name= name;
+  }
   else
   {
     DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
     conv_name= conv_string;
   }
 
-  if (errcode)
-    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  if (add_quotes && (end_p - to_p > 2))
+  {
+    *(to_p++)= '`';
+    while (*conv_name && (end_p - to_p - 1) > 0)
+    {
+      uint length= my_mbcharlen(system_charset_info, *conv_name);
+      if (!length)
+        length= 1;
+      if (length == 1 && *conv_name == '`')
+      { 
+        if ((end_p - to_p) < 3)
+          break;
+        *(to_p++)= '`';
+        *(to_p++)= *(conv_name++);
+      }
+      else if (((long) length) < (end_p - to_p))
+      {
+        to_p= strnmov(to_p, conv_name, length);
+        conv_name+= length;
+      }
+      else
+        break;                               /* string already filled */
+    }
+    to_p= strnmov(to_p, "`", end_p - to_p);
+  }
   else
-    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
-  return to_p;
+    to_p= strnmov(to_p, conv_name, end_p - to_p);
+  DBUG_RETURN(to_p);
 }
 
 
@@ -135,6 +161,8 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
+                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
@@ -245,28 +273,39 @@ uint explain_filename(const char *from,
         part_name_len-= 5;
     }
   }
+  else
+    table_name_len= strlen(table_name);
   if (db_name)
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         ER_TABLE_NAME);
+  {
+    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+  }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -280,15 +319,22 @@ uint explain_filename(const char *from,
         to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
+    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    *(to_p++)= ' ';
     to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         ER_PARTITION_NAME);
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      *(to_p++)= ' ';
       to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           ER_SUBPARTITION_NAME);
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
@@ -2441,7 +2487,8 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   }
-  if (!(sql_field->flags & NOT_NULL_FLAG))
+  if (!(sql_field->flags & NOT_NULL_FLAG) ||
+      (sql_field->vcol_info))  /* Make virtual columns allow NULL values */
     sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
   if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
     sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
@@ -2755,6 +2802,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
           sql_field->interval=          dup_field->interval;
+          sql_field->vcol_info=         dup_field->vcol_info;
+          sql_field->stored_in_db=      dup_field->stored_in_db;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -2787,7 +2836,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    record_offset+= sql_field->pack_length;
+    /*
+      For now skip fields that are not physically stored in the database
+      (virtual fields) and update their offset later 
+      (see the next loop).
+    */
+    if (sql_field->stored_in_db)
+      record_offset+= sql_field->pack_length;
+  }
+  /* Update virtual fields' offset*/
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    if (!sql_field->stored_in_db)
+    {
+      sql_field->offset= record_offset;
+      record_offset+= sql_field->pack_length;
+    }
   }
   if (timestamps_with_niladic > 1)
   {
@@ -2837,6 +2902,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
+      if (((Foreign_key *)key)->validate(alter_info->create_list))
+        DBUG_RETURN(TRUE);
       Foreign_key *fk_key= (Foreign_key*) key;
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
@@ -3123,6 +3190,17 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	}
 #endif
+        if (!sql_field->stored_in_db)
+        {
+          /* Key fields must always be physically stored. */
+          my_error(ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
+        if (key->type == Key::PRIMARY && sql_field->vcol_info)
+        {
+          my_error(ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)
@@ -3476,6 +3554,41 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 
 
 /*
+  Write CREATE TABLE binlog
+
+  SYNOPSIS
+    write_create_table_bin_log()
+    thd               Thread object
+    create_info       Create information
+    internal_tmp_table  Set to 1 if this is an internal temporary table
+
+  DESCRIPTION
+    This function only is called in mysql_create_table_no_lock and
+    mysql_create_table
+
+  RETURN VALUES
+    NONE
+ */
+static inline void write_create_table_bin_log(THD *thd,
+                                              const HA_CREATE_INFO *create_info,
+                                              bool internal_tmp_table)
+{
+  /*
+    Don't write statement if:
+    - It is an internal temporary table,
+    - Row-based logging is used and it we are creating a temporary table, or
+    - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
+   */
+  if (!internal_tmp_table &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3739,6 +3852,7 @@ bool mysql_create_table_no_lock(THD *thd,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
+      write_create_table_bin_log(thd, create_info, internal_tmp_table);
       goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -3866,18 +3980,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -3893,6 +3996,7 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   goto unlock_and_end;
 }
 
@@ -3944,6 +4048,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                             table_name);
         create_info->table_existed= 1;
         result= FALSE;
+        write_create_table_bin_log(thd, create_info, internal_tmp_table);
       }
       else
       {
@@ -5285,6 +5390,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;	    /* purecov: inspected */
   }
 
+goto binlog;
+
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(warn_buff, sizeof(warn_buff),
+		ER(ER_TABLE_EXISTS_ERROR), table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_TABLE_EXISTS_ERROR,warn_buff);
+  }
+  else
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+    goto err;
+  }
+
+binlog:
   DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
@@ -5348,20 +5471,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
-  goto err;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= FALSE;
-  }
-  else
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   if (name_lock)
@@ -5640,6 +5749,19 @@ compare_tables(TABLE *table,
     {
       DBUG_PRINT("info", ("NULL behaviour difference in field '%s' -> "
                           "ALTER_TABLE_DATA_CHANGED", new_field->field_name));
+      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+      DBUG_RETURN(0);
+    }
+
+    /*
+      Check if the altered column is computed and either
+      is stored or is used in the partitioning expression.
+      TODO: Mark such a column with an alter flag only if
+      the defining expression has changed.
+    */
+    if (field->vcol_info && 
+        (field->stored_in_db || field->vcol_info->is_in_partitioning_expr()))
+    {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
@@ -6008,6 +6130,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (def)
     {						// Field is changed
       def->field=field;
+      if (field->stored_in_db != def->stored_in_db)
+      {
+        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+                 MYF(0),
+                 "Changing the STORED status");
+        goto err;
+      }
       if (!def->after)
       {
 	new_create_list.push_back(def);
@@ -6220,6 +6349,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
+      if (key->type == Key::FOREIGN_KEY &&
+          ((Foreign_key *)key)->validate(new_create_list))
+        goto err;
       if (key->type != Key::FOREIGN_KEY)
         new_key_list.push_back(key);
       if (key->name &&
@@ -7600,6 +7732,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
+  to->mark_virtual_columns_for_write();
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   errpos= 4;
   if (ignore)
@@ -7614,6 +7747,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
+    update_virtual_fields(from);
     thd->row_count++;
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
@@ -7634,6 +7768,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
+    update_virtual_fields(to, TRUE);
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)

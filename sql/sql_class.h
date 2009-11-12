@@ -249,6 +249,8 @@ public:
   */
   virtual Key *clone(MEM_ROOT *mem_root) const
   { return new (mem_root) Foreign_key(*this, mem_root); }
+  /* Used to validate foreign key options */
+  bool validate(List<Create_field> &table_fields);
 };
 
 typedef struct st_mysql_lock

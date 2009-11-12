@@ -352,6 +352,8 @@ typedef struct st_table_share
   ulong   version, mysql_version;
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
+  /* Stored record length. No generated-only virtual fields are included */
+  ulong   stored_rec_length;            
 
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
@@ -372,6 +374,8 @@ typedef struct st_table_share
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
+  /* Number of stored fields, generated-only virtual fields are not included */
+  uint stored_fields;                   
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
   uint max_key_length, max_unique_length, total_key_length;
@@ -393,6 +397,7 @@ typedef struct st_table_share
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
+  uint vfields;                         /* Number of computed (virtual) fields */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -657,6 +662,7 @@ struct st_table {
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
   Field_timestamp *timestamp_field;
+  Field **vfield;                       /* Pointer to virtual fields*/
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
@@ -666,6 +672,7 @@ struct st_table {
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  MY_BITMAP     vcol_set;                 /* set of used virtual columns */
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
@@ -819,6 +826,8 @@ struct st_table {
   void mark_columns_needed_for_update(void);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
+  bool mark_virtual_col(Field *field);
+  void mark_virtual_columns_for_write(void);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {

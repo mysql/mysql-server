@@ -1,0 +1,7 @@
+SET @@session.storage_engine = 'blackhole';
+create table t1 (a int, b int as (a+1));
+ERROR HY000: 'Specified storage engine' is not yet supported for computed columns.
+create table t1 (a int);
+alter table t1 add column b int as (a+1);
+ERROR HY000: 'Specified storage engine' is not yet supported for computed columns.
+drop table t1;

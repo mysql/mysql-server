@@ -245,6 +245,7 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
+  bool check_if_supported_virtual_columns(void) { return TRUE;}
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:

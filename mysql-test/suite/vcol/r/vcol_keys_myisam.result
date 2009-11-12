@@ -1,0 +1,158 @@
+SET @@session.storage_engine = 'MyISAM';
+#            - UNIQUE KEY
+#            - INDEX
+#            - FULLTEXT INDEX
+#            - SPATIAL INDEX (not supported)
+#            - FOREIGN INDEX (partially supported)
+#            - CHECK (allowed but not used)
+# UNIQUE
+create table t1 (a int, b int as (a*2) unique);
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+create table t1 (a int, b int as (a*2) persistent unique);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) AS (a*2) PERSISTENT,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	VIRTUAL
+drop table t1;
+create table t1 (a int, b int as (a*2), unique key (b));
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+create table t1 (a int, b int as (a*2) persistent, unique (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) AS (a*2) PERSISTENT,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	VIRTUAL
+drop table t1;
+create table t1 (a int, b int as (a*2));
+alter table t1 add unique key (b);
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+drop table t1;
+create table t1 (a int, b int as (a*2) persistent);
+alter table t1 add unique key (b);
+drop table t1;
+# Testing data manipulation operations involving UNIQUE keys 
+# on virtual columns can be found in:
+#  - vcol_ins_upd.inc
+#  - vcol_select.inc
+# 
+# INDEX
+create table t1 (a int, b int as (a*2), index (b));
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+create table t1 (a int, b int as (a*2), index (a,b));
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+create table t1 (a int, b int as (a*2) persistent, index (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) AS (a*2) PERSISTENT,
+  KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	MUL	NULL	VIRTUAL
+drop table t1;
+create table t1 (a int, b int as (a*2) persistent, index (a,b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) AS (a*2) PERSISTENT,
+  KEY `a` (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	MUL	NULL	
+b	int(11)	YES		NULL	VIRTUAL
+drop table t1;
+create table t1 (a int, b int as (a*2));
+alter table t1 add index (b);
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+alter table t1 add index (a,b);
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+drop table t1;
+create table t1 (a int, b int as (a*2) persistent);
+alter table t1 add index (b);
+drop table t1;
+create table t1 (a int, b int as (a*2) persistent);
+alter table t1 add index (a,b);
+create table t2 like t1;
+drop table t2;
+drop table t1;
+# Testing data manipulation operations involving INDEX
+# on virtual columns can be found in:
+#  - vcol_select.inc
+#
+# TODO: FULLTEXT INDEX
+# SPATIAL INDEX
+# Error "All parts of a SPATIAL index must be NOT NULL"
+create table t1 (a int, b int as (a+1) persistent, spatial index (b));
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+create table t1 (a int, b int as (a+1) persistent);
+alter table t1 add spatial index (b);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+drop table t1;
+# FOREIGN KEY
+# Rejected FK options.
+create table t1 (a int, b int as (a+1) persistent,
+foreign key (b) references t2(a) on update set null);
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column.
+create table t1 (a int, b int as (a+1) persistent,
+foreign key (b) references t2(a) on update cascade);
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column.
+create table t1 (a int, b int as (a+1) persistent,
+foreign key (b) references t2(a) on delete set null);
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column.
+create table t1 (a int, b int as (a+1) persistent);
+alter table t1 add foreign key (b) references t2(a) on update set null;
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a computed column.
+alter table t1 add foreign key (b) references t2(a) on update cascade;
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a computed column.
+alter table t1 add foreign key (b) references t2(a) on delete set null;
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a computed column.
+drop table t1;
+create table t1 (a int, b int as (a+1),
+foreign key (b) references t2(a));
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+create table t1 (a int, b int as (a+1));
+alter table t1 add foreign key (b) references t2(a);
+ERROR HY000: Key/Index cannot be defined on a non-stored computed column.
+drop table t1;
+# Allowed FK options.
+create table t2 (a int primary key, b char(5));
+create table t1 (a int, b int as (a % 10) persistent,
+foreign key (b) references t2(a) on update restrict);
+drop table t1;
+create table t1 (a int, b int as (a % 10) persistent,
+foreign key (b) references t2(a) on update no action);
+drop table t1;
+create table t1 (a int, b int as (a % 10) persistent,
+foreign key (b) references t2(a) on delete restrict);
+drop table t1;
+create table t1 (a int, b int as (a % 10) persistent,
+foreign key (b) references t2(a) on delete cascade);
+drop table t1;
+create table t1 (a int, b int as (a % 10) persistent,
+foreign key (b) references t2(a) on delete no action);
+drop table t1;
+
+# Testing data manipulation operations involving FOREIGN KEY 
+# on virtual columns can be found in:
+#  - vcol_ins_upd.inc
+#  - vcol_select.inc
+#
+# TODO: CHECK

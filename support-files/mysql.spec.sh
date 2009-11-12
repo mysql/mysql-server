@@ -926,7 +926,7 @@ fi
 - Install plugin libraries in appropriate packages.
 - Disable libdaemon_example and ftexample plugins.
 
-* Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
+* Thu Aug 20 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Update variable used for mysql-test suite location to match source.
 

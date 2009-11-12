@@ -344,6 +344,10 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 #include "sql_crypt.h"
@@ -381,6 +385,11 @@ public:
     call
   */
   virtual const char *fully_qualified_func_name() const = 0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(
+                                           fully_qualified_func_name());
+  }
 };
 
 
@@ -644,6 +653,10 @@ public:
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -840,5 +853,9 @@ public:
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 

@@ -1067,6 +1067,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
   bzero((char*) &create_info,sizeof(create_info));
 
+  /* Remove tables from the HANDLER's hash. */
+  mysql_ha_rm_tables(thd, table_list, FALSE);
+
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {

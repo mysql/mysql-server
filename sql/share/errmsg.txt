@@ -6184,17 +6184,17 @@ ER_FUNC_INEXISTENT_NAME_COLLISION 42000
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # mysql_priv.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
-  eng "Database `%s`"
-  swe "Databas `%s`"
+  eng "Database"
+  swe "Databas"
 ER_TABLE_NAME
-  eng "Table `%s`"
-  swe "Tabell `%s`"
+  eng "Table"
+  swe "Tabell"
 ER_PARTITION_NAME
-  eng "Partition `%s`"
-  swe "Partition `%s`"
+  eng "Partition"
+  swe "Partition"
 ER_SUBPARTITION_NAME
-  eng "Subpartition `%s`"
-  swe "Subpartition `%s`"
+  eng "Subpartition"
+  swe "Subpartition"
 ER_TEMPORARY_NAME
   eng "Temporary"
   swe "Temporär"
@@ -6206,3 +6206,30 @@ ER_TOO_MANY_CONCURRENT_TRXS
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
+
+ER_VCOL_BASED_ON_VCOL
+        eng "A computed column cannot be based on a computed column"
+
+ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
+        eng "Function or expression is not allowed for column '%s'."
+
+ER_DATA_CONVERSION_ERROR_FOR_VIRTUAL_COLUMN
+        eng "Generated value for computed column '%s' cannot be converted to type '%s'."
+
+ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN
+        eng "Primary key cannot be defined upon a computed column."
+
+ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN
+        eng "Key/Index cannot be defined on a non-stored computed column."
+
+ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
+        eng "Cannot define foreign key with %s clause on a computed column."
+
+ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+        eng "The value specified for computed column '%s' in table '%s' ignored."
+
+ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
+        eng "'%s' is not yet supported for computed columns."
+
+ER_CONST_EXPR_IN_VCOL
+         eng "Constant expression in computed column function is not allowed."

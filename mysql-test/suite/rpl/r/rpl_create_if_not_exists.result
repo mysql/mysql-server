@@ -1,0 +1,33 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE IF NOT EXISTS mysqltest;
+USE mysqltest;
+CREATE TABLE IF NOT EXISTS t(c1 int);
+CREATE TABLE IF NOT EXISTS t1 LIKE t;
+CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
+CREATE EVENT IF NOT EXISTS e 
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT now();
+DROP DATABASE mysqltest;
+CREATE DATABASE IF NOT EXISTS mysqltest;
+USE mysqltest;
+CREATE TABLE IF NOT EXISTS t(c1 int);
+CREATE TABLE IF NOT EXISTS t1 LIKE t;
+CREATE TABLE IF NOT EXISTS t2 SELECT * FROM t;
+CREATE EVENT IF NOT EXISTS e 
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT now();
+SHOW TABLES in mysqltest;
+Tables_in_mysqltest
+t
+t1
+t2
+SHOW EVENTS in mysqltest;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+mysqltest	e	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP DATABASE IF EXISTS mysqltest;

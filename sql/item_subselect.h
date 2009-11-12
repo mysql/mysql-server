@@ -136,6 +136,10 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   bool mark_as_eliminated_processor(uchar *arg);
   bool enumerate_field_refs_processor(uchar *arg);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("subselect");
+  }
 
   /**
     Get the SELECT_LEX structure associated with this Item.

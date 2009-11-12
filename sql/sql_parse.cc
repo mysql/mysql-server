@@ -468,7 +468,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    char *query;
+    char *query, *res;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -6102,7 +6102,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        LEX_STRING *comment,
 		       char *change,
                        List<String> *interval_list, CHARSET_INFO *cs,
-		       uint uint_geom_type)
+		       uint uint_geom_type,
+		       Virtual_column_info *vcol_info)
 {
   register Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -6188,7 +6189,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type))
+                      interval_list, cs, uint_geom_type, vcol_info))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);

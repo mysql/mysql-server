@@ -1,0 +1,25 @@
+SET @@session.storage_engine = 'InnoDB';
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int, b int as (a+1));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) AS (a+1) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (1,default);
+insert into t1 values (2,default);
+select * from t1;
+a	b
+1	2
+2	3
+select * from t1;
+a	b
+1	2
+2	3
+drop table t1;

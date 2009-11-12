@@ -2436,7 +2436,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   m_start_key.length= 0;
   m_rec0= table->record[0];
-  m_rec_length= table_share->reclength;
+  m_rec_length= table_share->stored_rec_length;
   alloc_len= m_tot_parts * (m_rec_length + PARTITION_BYTES_IN_POS);
   alloc_len+= table_share->max_key_length;
   if (!m_ordered_rec_buffer)

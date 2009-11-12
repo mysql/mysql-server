@@ -18,6 +18,24 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+inline
+bool trace_unsupported_func(const char *where, const char *processor_name)
+{
+  char buff[64];                                                         
+  sprintf(buff, "%s::%s", where, processor_name);
+  DBUG_ENTER(buff);
+  sprintf(buff, "%s returns TRUE: unsupported function", processor_name);
+  DBUG_PRINT("info", (buff));
+  DBUG_RETURN(TRUE);
+}
+
+inline
+bool trace_unsupported_by_check_vcol_func_processor(const char *where)
+{
+  return trace_unsupported_func(where, "check_vcol_func_processor");
+}
+
+
 class Protocol;
 struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
@@ -397,13 +415,20 @@ public:
   from INT_RESULT, may be NULL, or are unsigned.
   It will be possible to address this issue once the related partitioning bugs
   (BUG#16002, BUG#15447, BUG#13436) are fixed.
+
+  The NOT_NULL enums are used in TO_DAYS, since TO_DAYS('2001-00-00') returns
+  NULL which puts those rows into the NULL partition, but
+  '2000-12-31' < '2001-00-00' < '2001-01-01'. So special handling is needed
+  for this (see Bug#20577).
 */
 
 typedef enum monotonicity_info 
 {
    NON_MONOTONIC,              /* none of the below holds */
    MONOTONIC_INCREASING,       /* F() is unary and (x < y) => (F(x) <= F(y)) */
-   MONOTONIC_STRICT_INCREASING /* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_INCREASING_NOT_NULL,  /* But only for valid/real x and y */
+   MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
 
 /*************************************************************************/
@@ -576,8 +601,8 @@ public:
         left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
                    TRUE   <=> The interval is "x > const" or "x >= const"
 
-        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
-                        FALSE <=> the comparison is '<=' or '>='
+        incl_endp  IN   FALSE <=> the comparison is '<' or '>'
+                        TRUE  <=> the comparison is '<=' or '>='
                    OUT  The same but for the "F(x) $CMP$ F(const)" comparison
 
     DESCRIPTION
@@ -759,9 +784,10 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  /** Returns the uncapped decimal precision of this item. */
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
-  { return my_decimal_int_part(decimal_precision(), decimals); }
+  { return decimal_precision() - decimals; }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -895,6 +921,11 @@ public:
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   /*
+    The next function differs from the previous one that a bitmap to be updated
+    is passed as uchar *arg.
+  */
+  virtual bool register_field_in_bitmap(uchar *arg) { return 0; }
+  /*
     Check if a partition function is allowed
     SYNOPSIS
       check_partition_func_processor()
@@ -946,11 +977,43 @@ public:
     fields.
   */
   virtual bool check_partition_func_processor(uchar *bool_arg) { return TRUE;}
+  /*
+    @brief
+    Processor used to mark virtual columns used in partitioning expression
+
+    @param
+    arg     always ignored
+
+    @retval
+      FALSE      always
+  */
+  virtual bool vcol_in_partition_func_processor(uchar *arg)
+  {
+    return FALSE;
+  }
+
   virtual bool subst_argument_checker(uchar **arg)
-  { 
+  {
     if (*arg)
-      *arg= NULL; 
-    return TRUE;     
+      *arg= NULL;
+    return TRUE;
+  }
+  /*
+    @brief
+    Processor used to check acceptability of an item in the defining
+    expression for a virtual column 
+    
+    @param
+      arg     always ignored
+      
+    @retval
+      FALSE    the item is accepted in the definition of a virtual column
+    @retval 
+      TRUE     otherwise
+  */
+  virtual bool check_vcol_func_processor(uchar *arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor(full_name());
   }
 
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
@@ -1327,6 +1390,10 @@ public:
   {
     return value_item->send(protocol, str);
   }
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("name_const");
+  }
 };
 
 bool agg_item_collations(DTCollation &c, const char *name,
@@ -1346,6 +1413,7 @@ public:
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1505,7 +1573,10 @@ public:
   bool collect_item_field_processor(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
+  bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool vcol_in_partition_func_processor(uchar *bool_arg);
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
   bool enumerate_field_refs_processor(uchar *arg);
   void cleanup();
   bool result_as_longlong()
@@ -1566,6 +1637,7 @@ public:
 
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1579,7 +1651,11 @@ public:
     save_in_field(result_field, no_conversions);
   }
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
-};  
+  bool check_vcol_func_processor(uchar *arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor(full_name());
+  }
+};
 
 /* Item represents one placeholder ('?') of prepared statement */
 
@@ -1720,6 +1796,7 @@ public:
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
+
 };
 
 
@@ -1755,6 +1832,7 @@ public:
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_vcol_func_processor(uchar arg) { return FALSE;}
 };
 
 
@@ -1773,6 +1851,7 @@ public:
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 
@@ -1814,6 +1893,7 @@ public:
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 
@@ -1971,6 +2051,7 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -2024,7 +2105,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end);
 class Item_static_string_func :public Item_string
 {
   const char *func_name;
-public:
+ public:
   Item_static_string_func(const char *name_par, const char *str, uint length,
                           CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
@@ -2038,6 +2119,10 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name);
+  }
 };
 
 
@@ -2049,6 +2134,10 @@ public:
                                   CHARSET_INFO *cs= NULL):
     Item_string(name_arg, length, cs)
   {}
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("safe_string");
+  }
 };
 
 
@@ -2128,6 +2217,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 
@@ -2158,6 +2248,7 @@ public:
     save_in_field(result_field, no_conversions);
   }
   void cleanup();
+  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 
@@ -2287,7 +2378,10 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
-
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("ref");
+  }
 };
 
 
@@ -2563,6 +2657,10 @@ public:
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("copy");
+  }
 
   /*  
     Override the methods below as pure virtual to make sure all the 
@@ -2805,6 +2903,10 @@ public:
     return arg->walk(processor, walk_subquery, args) ||
 	    (this->*processor)(args);
   }
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("values");
+  }
 };
 
 
@@ -2901,6 +3003,10 @@ private:
     BEFORE INSERT of BEFORE UPDATE trigger.
   */
   bool read_only;
+  virtual bool check_vcol_func_processor(uchar *arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor("trigger");
+  }
 };
 
 
@@ -2960,6 +3066,11 @@ public:
   {
     return this == item;
   }
+  bool check_vcol_func_processor(uchar *arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("cache");
+  }
+
 };
 
 
@@ -3152,4 +3263,4 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
-extern bool field_is_equal_to_item(Field *field,Item *item);
+extern int stored_field_cmp_to_item(Field *field, Item *item);

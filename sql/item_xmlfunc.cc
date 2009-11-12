@@ -220,6 +220,11 @@ public:
     collation.collation= pxml->charset();
   }
   const char *func_name() const { return "nodeset"; }
+  bool check_vcol_func_processor(uchar *int_arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
+
 };
 
 
@@ -526,6 +531,10 @@ public:
   enum Type type() const { return XPATH_NODESET_CMP; };
   const char *func_name() const { return "xpath_nodeset_to_const_comparator"; }
   bool is_bool_func() { return 1; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 
   longlong val_int()
   {

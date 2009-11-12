@@ -1,0 +1,40 @@
+Q. What is the FederatedX pluggable storage engine?
+
+A. It is a fork of the Federated Storage Engine that Brian Aker and I
+(Patrick Galbraith) developed originally . It is a storage engine that
+uses a client connection to a remote MySQL data source as its data
+source instead of a local file on disk.
+
+Q. Why did you fork from Federated?
+
+A. To enhance the storage engine independently of the
+MySQL Server release schedule. Many people have been 
+mentioning their dissatisfaction with the limitations
+of Federated. I think the engine is a great concept and 
+have a sense of obligation to continue to improve it.
+There are some patches already that are in dire need
+of being applied and tested.
+
+Q. What do you plan to do with FederatedX?
+
+A. Many things need addressing:
+
+- Outstanding bugs
+- How do deal with huge result sets
+- Pushdown conditions (being able to pass things like LIMIT
+  to the remote connection to keep from returning huge
+  result sets).
+- Better transactional support
+- Other connection mechanisms (ODBC, JDBC, native drivers
+  of other RDBMSs)
+
+Q. What FederatedX is and is not?
+
+A. FederatedX is not yet a complete "federated" solution in 
+   the sense that other venders have developed (IBM, etc). It
+   is essentially a networked storage engine. It is my hope
+   to make it a real federated solution.
+
+Q. In which MySQL distributions/forks/branches can I find FederateX
+
+A. MariaDB (http://www.mariadb.com)

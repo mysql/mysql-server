@@ -399,6 +399,10 @@ public:
   Item *get_arg(int i) { return args[i]; }
   Item *set_arg(int i, THD *thd, Item *new_val);
   uint get_arg_count() { return arg_count; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name()); 
+  }
 };
 
 
@@ -679,6 +683,10 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("avg_field");
+  }
 };
 
 
@@ -747,6 +755,10 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("var_field");
+  }
 };
 
 

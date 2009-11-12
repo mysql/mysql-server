@@ -816,6 +816,8 @@ sp_head::create_result_field(uint field_max_length, const char *field_name,
                       m_return_field_def.interval,
                       field_name ? field_name : (const char *) m_name.str);
 
+  field->vcol_info= m_return_field_def.vcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
   
@@ -2197,7 +2199,8 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      lex->uint_geom_type))
+                      lex->uint_geom_type,
+		      lex->vcol_info))
     return TRUE;
 
   if (field_def->interval_list.elements)

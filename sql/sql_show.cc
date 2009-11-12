@@ -1186,6 +1186,19 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
+    if (field->vcol_info)
+    {
+      packet->append(STRING_WITH_LEN(" AS ("));
+      packet->append(field->vcol_info->expr_str.str,
+                     field->vcol_info->expr_str.length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+      if (field->stored_in_db)
+        packet->append(STRING_WITH_LEN(" PERSISTENT"));
+      else
+        packet->append(STRING_WITH_LEN(" VIRTUAL"));
+    }
+
     if (field->has_charset() &&
         !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
     {
@@ -1216,7 +1229,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (get_field_default_value(thd, table, field, &def_value, 1))
+    if (!field->vcol_info &&
+        get_field_default_value(thd, table, field, &def_value, 1))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
@@ -4221,6 +4235,8 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
       table->field[16]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
                               cs);
+    if (field->vcol_info)
+      table->field[16]->store(STRING_WITH_LEN("VIRTUAL"), cs);
 
     table->field[18]->store(field->comment.str, field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -5996,6 +6012,12 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       {
         DBUG_RETURN(0);
       }
+      /*
+        Create a type holder, as we want the type of the item to defined
+        the type of the object, not the value
+      */
+      if (!(item= new Item_type_holder(thd, item)))
+        DBUG_RETURN(0);
       item->unsigned_flag= (fields_info->field_flags & MY_I_S_UNSIGNED);
       item->decimals= fields_info->field_length%10;
       item->max_length= (fields_info->field_length/100)%100;
@@ -7490,8 +7512,6 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 
     /* Perform closing actions and return error status. */
   }
-
-  DBUG_ASSERT(num_tables == 1);
 
   Table_triggers_list *triggers= lst->table->triggers;
 

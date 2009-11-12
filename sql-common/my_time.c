@@ -160,7 +160,7 @@ enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut)
 {
-  uint field_length, year_length, digits, i, number_of_fields;
+  uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
@@ -174,7 +174,6 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
 
   LINT_INIT(field_length);
-  LINT_INIT(year_length);
   LINT_INIT(last_field_pos);
 
   *was_cut= 0;
@@ -450,9 +449,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     }
   }
 
-  DBUG_RETURN(l_time->time_type=
-              (number_of_fields <= 3 ? MYSQL_TIMESTAMP_DATE :
-                                       MYSQL_TIMESTAMP_DATETIME));
+  DBUG_RETURN(l_time->time_type);
 
 err:
   bzero((char*) l_time, sizeof(*l_time));
@@ -778,11 +775,12 @@ long calc_daynr(uint year,uint month,uint day)
 
   if (y == 0 && month == 0 && day == 0)
     DBUG_RETURN(0);				/* Skip errors */
-  delsum= (long) (365L * y+ 31*(month-1) +day);
+  /* Cast to int to be able to handle month == 0 */
+  delsum= (long) (365 * y + 31 *((int) month - 1) + (int) day);
   if (month <= 2)
       y--;
   else
-    delsum-= (long) (month*4+23)/10;
+    delsum-= (long) ((int) month * 4 + 23) / 10;
   temp=(int) ((y/100+1)*3)/4;
   DBUG_PRINT("exit",("year: %d  month: %d  day: %d -> daynr: %ld",
 		     y+(month <= 2),month,day,delsum+y/4-temp));

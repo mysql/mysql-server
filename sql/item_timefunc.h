@@ -70,6 +70,7 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -86,6 +87,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -111,6 +113,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -124,6 +127,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_vcol_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -140,6 +144,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -156,6 +161,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -172,6 +178,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -188,6 +195,7 @@ public:
      maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -204,6 +212,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -234,6 +243,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -252,6 +262,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -282,6 +293,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -294,6 +306,7 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -310,6 +323,14 @@ public:
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    /*
+      TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
+      of the expression for a virtual column
+    */
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -325,6 +346,7 @@ public:
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -445,6 +467,10 @@ public:
   */
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
   bool result_as_longlong() { return TRUE; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -481,6 +507,10 @@ public:
   void fix_length_and_dec();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -521,6 +551,10 @@ public:
   void fix_length_and_dec();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -578,6 +612,7 @@ public:
   const char *func_name() const { return "from_days"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -705,6 +740,7 @@ class Item_extract :public Item_int_func
   bool eq(const Item *item, bool binary_cmp) const;
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -953,6 +989,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 

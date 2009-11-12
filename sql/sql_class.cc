@@ -194,6 +194,59 @@ bool foreign_key_prefix(Key *a, Key *b)
 #endif
 }
 
+/*
+  @brief
+  Check if the foreign key options are compatible with the specification
+  of the columns on which the key is created
+
+  @retval
+    FALSE   The foreign key options are compatible with key columns
+  @retval
+    TRUE    Otherwise
+*/
+bool Foreign_key::validate(List<Create_field> &table_fields)
+{
+  Create_field  *sql_field;
+  Key_part_spec *column;
+  List_iterator<Key_part_spec> cols(columns);
+  List_iterator<Create_field> it(table_fields);
+  DBUG_ENTER("Foreign_key::validate");
+  while ((column= cols++))
+  {
+    it.rewind();
+    while ((sql_field= it++) &&
+           my_strcasecmp(system_charset_info,
+                         column->field_name,
+                         sql_field->field_name)) {}
+    if (!sql_field)
+    {
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name);
+      DBUG_RETURN(TRUE);
+    }
+    if (type == Key::FOREIGN_KEY && sql_field->vcol_info)
+    {
+      if (delete_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN, MYF(0), 
+                 "ON DELETE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN, MYF(0), 
+                 "ON UPDATE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_CASCADE)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN, MYF(0), 
+                 "ON UPDATE CASCADE");
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
 
 /****************************************************************************
 ** Thread specific functions

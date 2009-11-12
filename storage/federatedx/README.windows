@@ -1,0 +1,23 @@
+The following files are changed in order to build a new engine on Windows:
+
+- Update win\configure.js with
+case "WITH_FEDERATEDX_STORAGE_ENGINE":
+to make sure it will pass WITH_FEDERATEDX_STORAGE_ENGINE in.
+
+- Update CMakeFiles.txt under mysql root:
+  IF(WITH_FEDERATEDX_STORAGE_ENGINE)
+      ADD_DEFINITIONS(-D WITH_FEDERATEDX_STORAGE_ENGINE)
+  SET (mysql_plugin_defs
+      "${mysql_plugin_defs},builtin_skeleton_plugin")
+  ENDIF(WITH_FEDERATEDX_STORAGE_ENGINE)
+
+  and,
+
+  IF(WITH_FEDERATEDX_STORAGE_ENGINE)
+    ADD_SUBDIRECTORY(storage/skeleton/src)
+  ENDIF(WITH_FEDERATEDX_STORAGE_ENGINE)
+
+  - Update CMakeFiles.txt under sql:
+  IF(WITH_FEDERATEDX_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(mysqld skeleton)
+  ENDIF(WITH_FEDERATEDX_STORAGE_ENGINE)
