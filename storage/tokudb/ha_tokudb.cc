@@ -5145,7 +5145,14 @@ cleanup:
 //
 int ha_tokudb::delete_table(const char *name) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
-    TOKUDB_DBUG_RETURN(delete_or_rename_table(name, NULL, true));
+    int error;
+    error = delete_or_rename_table(name, NULL, true);
+    if (error == DB_LOCK_NOTGRANTED) {
+        sql_print_error("Could not delete table %s because \
+another transaction has accessed the table. \
+To drop the table, make sure no transactions touch the table.", name);
+    }
+    TOKUDB_DBUG_RETURN(error);
 }
 
 
@@ -5162,6 +5169,11 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     TOKUDB_DBUG_ENTER("%s %s %s", __FUNCTION__, from, to);
     int error;
     error = delete_or_rename_table(from, to, false);
+    if (error == DB_LOCK_NOTGRANTED) {
+        sql_print_error("Could not rename table from %s to %s because \
+another transaction has accessed the table. \
+To rename the table, make sure no transactions touch the table.", from, to);
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -5753,6 +5765,11 @@ cleanup:
             commit_txn(txn,0);
         }
     }
+            if (error == DB_LOCK_NOTGRANTED) {
+                sql_print_error("Could not add indexes to table %s because \
+another transaction has accessed the table. \
+To add indexes, make sure no transactions touch the table.", share->table_name);
+            }
     my_free(tmp_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_prim_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
@@ -5803,6 +5820,11 @@ cleanup:
             commit_txn(txn,0);
         }
     }
+        if (error == DB_LOCK_NOTGRANTED) {
+            sql_print_error("Could not drop indexes from table %s because \
+another transaction has accessed the table. \
+To drop indexes, make sure no transactions touch the table.", share->table_name);
+        }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -6042,6 +6064,11 @@ cleanup:
         }
     }
 
+            if (error == DB_LOCK_NOTGRANTED) {
+                sql_print_error("Could not truncate table %s because \
+another transaction has accessed the table. \
+To truncate the table, make sure no transactions touch the table.", share->table_name);
+            }
     //
     // regardless of errors, need to reopen the DB's
     //    
