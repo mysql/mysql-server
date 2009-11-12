@@ -712,8 +712,8 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key)
 {
-  uint keys,length,last_length,key_ref_length;
-  uchar *end,*lastpos,*prevpos;
+  uint keys,length,UNINIT_VAR(last_length),key_ref_length;
+  uchar *end,*lastpos,*UNINIT_VAR(prevpos);
   uchar key_buff[MI_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_find_last_pos");
 
@@ -732,8 +732,6 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
     DBUG_RETURN(end);
   }
 
-  LINT_INIT(prevpos);
-  LINT_INIT(last_length);
   end=page+length-key_ref_length;
   *key='\0';
   length=0;

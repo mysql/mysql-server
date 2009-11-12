@@ -1,0 +1,56 @@
+#############################################################################
+# BUG#43579 mysql_upgrade tries to alter log tables on replicated database
+# Master and slave should be upgraded separately.  All statements executed by
+# mysql_upgrade will not be binlogged. --write-binlog and --skip-write-binlog
+# options are added into mysql_upgrade. These options control whether sql
+# statements are binlogged or not. 
+#############################################################################
+--source include/master-slave.inc
+
+# Only run test if "mysql_upgrade" is found
+--source include/have_mysql_upgrade.inc
+
+connection master;
+--disable_warnings
+DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;
+CREATE DATABASE `#mysql50#mysqltest-1`;
+--enable_warnings
+sync_slave_with_master;
+
+connection master;
+let $before_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+#With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
+#--skip-write-binlog option disables binlog.
+--exec $MYSQL_UPGRADE --skip-write-binlog --skip-verbose --force --user=root > $MYSQLTEST_VARDIR/log/mysql_upgrade.log 2>&1
+sync_slave_with_master;
+
+connection master;
+let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+if (`SELECT '$before_position'='$after_position'`)
+{
+  echo Master position is not changed;
+}
+
+#Some log events of the mysql_upgrade's will cause errors on slave.
+connection slave;
+STOP SLAVE SQL_THREAD;
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection master;
+#With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
+--exec $MYSQL_UPGRADE --skip-verbose --force --user=root > $MYSQLTEST_VARDIR/log/mysql_upgrade.log 2>&1
+
+connection master;
+let $after_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+if (!`SELECT '$before_position'='$after_position'`)
+{
+  echo Master position has been changed;
+}
+
+DROP DATABASE `mysqltest-1`;
+connection slave;
+DROP DATABASE `#mysql50#mysqltest-1`;

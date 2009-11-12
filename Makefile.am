@@ -1,4 +1,4 @@
-# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
 			@pstack_dir@ \
-			@sql_union_dirs@ unittest storage plugin \
+			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
