@@ -109,6 +109,8 @@ toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off)
 }
 
 static int (*t_fsync)(int) = 0;
+static uint64_t toku_fsync_count;
+static uint64_t toku_fsync_time;
 
 int
 toku_set_func_fsync(int (*fsync_function)(int)) {
@@ -125,3 +127,10 @@ toku_file_fsync(int fd) {
         r = fsync(fd);
     return r;
 }
+
+void
+toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
+    *fsync_count = toku_fsync_count;
+    *fsync_time = toku_fsync_time;
+}
+
