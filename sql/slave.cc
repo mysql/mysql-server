@@ -583,7 +583,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
+    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
@@ -1087,7 +1087,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   if (io_slave_killed(thd, mi))
   {
     if (info && global_system_variables.log_warnings)
-      sql_print_information(info);
+      sql_print_information("%s", info);
     return TRUE;
   }
   return FALSE;
@@ -1552,7 +1552,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db = (char*)db;
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
-  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
+  /* run create table */
+  mysql_parse(thd, thd->query(), packet_len, &found_semicolon);
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
@@ -1873,7 +1874,7 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 

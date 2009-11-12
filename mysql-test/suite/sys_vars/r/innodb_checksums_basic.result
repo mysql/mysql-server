@@ -12,11 +12,11 @@ COUNT(@@GLOBAL.innodb_checksums)
 1
 1 Expected
 '#---------------------BS_STVARS_023_03----------------------#'
-SELECT @@GLOBAL.innodb_checksums = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.innodb_checksums, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_checksums';
-@@GLOBAL.innodb_checksums = VARIABLE_VALUE
-0
+IF(@@GLOBAL.innodb_checksums, "ON", "OFF") = VARIABLE_VALUE
+1
 1 Expected
 SELECT COUNT(@@GLOBAL.innodb_checksums);
 COUNT(@@GLOBAL.innodb_checksums)

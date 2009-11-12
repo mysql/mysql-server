@@ -3009,5 +3009,209 @@ execute stmt;
 drop table t1;
 deallocate prepare stmt;
 
+###########################################################################
 
+--echo 
 --echo End of 5.1 tests.
+
+###########################################################################
+
+--echo
+--echo #
+--echo # WL#4435: Support OUT-parameters in prepared statements.
+--echo #
+--echo
+
+# The idea of this test case is to check that
+#   - OUT-parameters of four allowed types (string, double, int, decimal) work
+#     properly;
+#   - INOUT and OUT parameters work properly;
+#   - A mix of IN and OUT parameters work properly;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p_string;
+DROP PROCEDURE IF EXISTS p_double;
+DROP PROCEDURE IF EXISTS p_int;
+DROP PROCEDURE IF EXISTS p_decimal;
+--enable_warnings
+
+delimiter |;
+
+--echo
+CREATE PROCEDURE p_string(
+  IN v0 INT,
+  OUT v1 CHAR(32),
+  IN v2 CHAR(32),
+  INOUT v3 CHAR(32))
+BEGIN
+  SET v0 = -1;
+  SET v1 = 'test_v1';
+  SET v2 = 'n/a';
+  SET v3 = 'test_v3';
+END|
+
+--echo
+CREATE PROCEDURE p_double(
+  IN v0 INT,
+  OUT v1 DOUBLE(4, 2),
+  IN v2 DOUBLE(4, 2),
+  INOUT v3 DOUBLE(4, 2))
+BEGIN
+  SET v0 = -1;
+  SET v1 = 12.34;
+  SET v2 = 98.67;
+  SET v3 = 56.78;
+END|
+
+--echo
+CREATE PROCEDURE p_int(
+  IN v0 CHAR(10),
+  OUT v1 INT,
+  IN v2 INT,
+  INOUT v3 INT)
+BEGIN
+  SET v0 = 'n/a';
+  SET v1 = 1234;
+  SET v2 = 9876;
+  SET v3 = 5678;
+END|
+
+--echo
+CREATE PROCEDURE p_decimal(
+  IN v0 INT,
+  OUT v1 DECIMAL(4, 2),
+  IN v2 DECIMAL(4, 2),
+  INOUT v3 DECIMAL(4, 2))
+BEGIN
+  SET v0 = -1;
+  SET v1 = 12.34;
+  SET v2 = 98.67;
+  SET v3 = 56.78;
+END|
+
+delimiter ;|
+
+--echo
+PREPARE stmt_str FROM 'CALL p_string(?, ?, ?, ?)';
+PREPARE stmt_dbl FROM 'CALL p_double(?, ?, ?, ?)';
+PREPARE stmt_int FROM 'CALL p_int(?, ?, ?, ?)';
+PREPARE stmt_dec FROM 'CALL p_decimal(?, ?, ?, ?)';
+
+--echo
+SET @x_str_1 = NULL;
+SET @x_str_2 = NULL;
+SET @x_str_3 = NULL;
+SET @x_dbl_1 = NULL;
+SET @x_dbl_2 = NULL;
+SET @x_dbl_3 = NULL;
+SET @x_int_1 = NULL;
+SET @x_int_2 = NULL;
+SET @x_int_3 = NULL;
+SET @x_dec_1 = NULL;
+SET @x_dec_2 = NULL;
+SET @x_dec_3 = NULL;
+
+--echo
+--echo -- Testing strings...
+
+--echo
+EXECUTE stmt_str USING @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+SELECT @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+
+--echo
+EXECUTE stmt_str USING @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+SELECT @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+
+--echo
+--echo -- Testing doubles...
+
+--echo
+EXECUTE stmt_dbl USING @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+SELECT @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+
+--echo
+EXECUTE stmt_dbl USING @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+SELECT @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+
+--echo
+--echo -- Testing ints...
+
+--echo
+EXECUTE stmt_int USING @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+SELECT @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+
+--echo
+EXECUTE stmt_int USING @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+SELECT @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+
+--echo
+--echo -- Testing decs...
+
+--echo
+EXECUTE stmt_dec USING @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+SELECT @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+
+--echo
+EXECUTE stmt_dec USING @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+SELECT @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+
+--echo
+DEALLOCATE PREPARE stmt_str;
+DEALLOCATE PREPARE stmt_dbl;
+DEALLOCATE PREPARE stmt_int;
+DEALLOCATE PREPARE stmt_dec;
+
+--echo
+DROP PROCEDURE p_string;
+DROP PROCEDURE p_double;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_decimal;
+
+#
+# Another test case for WL#4435: check out parameters in Dynamic SQL.
+#
+
+--echo
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+--echo
+
+CREATE PROCEDURE p1(OUT v1 CHAR(10))
+  SET v1 = 'test1';
+
+--echo
+
+delimiter |;
+CREATE PROCEDURE p2(OUT v2 CHAR(10))
+BEGIN
+  SET @query = 'CALL p1(?)';
+  PREPARE stmt1 FROM @query;
+  EXECUTE stmt1 USING @u1;
+  DEALLOCATE PREPARE stmt1;
+
+  SET v2 = @u1;
+END|
+delimiter ;|
+
+--echo
+
+CALL p2(@a);
+SELECT @a;
+
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--echo
+--echo # End of WL#4435.
+
+###########################################################################
+
+--echo
+--echo End of 6.0 tests.
+
+###########################################################################

@@ -34,10 +34,10 @@ table_mapping::table_mapping()
     No "free_element" function for entries passed here, as the entries are
     allocated in a MEM_ROOT (freed as a whole in the destructor), they cannot
     be freed one by one.
-    Note that below we don't test if hash_init() succeeded. This constructor
-    is called at startup only.
+    Note that below we don't test if my_hash_init() succeeded. This
+    constructor is called at startup only.
   */
-  (void) hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
+  (void) my_hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
 		   offsetof(entry,table_id),sizeof(ulong),
 		   0,0,0);
   /* We don't preallocate any block, this is consistent with m_free=0 above */
@@ -49,7 +49,7 @@ table_mapping::~table_mapping()
 #ifdef MYSQL_CLIENT
   clear_tables();
 #endif
-  hash_free(&m_table_ids);
+  my_hash_free(&m_table_ids);
   free_root(&m_mem_root, MYF(0));
 }
 
@@ -115,7 +115,7 @@ int table_mapping::set_table(ulong table_id, TABLE* table)
 #ifdef MYSQL_CLIENT
     free_table_map_log_event(e->table);
 #endif
-    hash_delete(&m_table_ids,(uchar *)e);
+    my_hash_delete(&m_table_ids,(uchar *)e);
   }
   e->table_id= table_id;
   e->table= table;
@@ -132,7 +132,7 @@ int table_mapping::remove_table(ulong table_id)
   entry *e= find_entry(table_id);
   if (e)
   {
-    hash_delete(&m_table_ids,(uchar *)e);
+    my_hash_delete(&m_table_ids,(uchar *)e);
     /* we add this entry to the chain of free (free for use) entries */
     e->next= m_free;
     m_free= e;
@@ -150,7 +150,7 @@ void table_mapping::clear_tables()
   DBUG_ENTER("table_mapping::clear_tables()");
   for (uint i= 0; i < m_table_ids.records; i++)
   {
-    entry *e= (entry *)hash_element(&m_table_ids, i);
+    entry *e= (entry *)my_hash_element(&m_table_ids, i);
 #ifdef MYSQL_CLIENT
     free_table_map_log_event(e->table);
 #endif

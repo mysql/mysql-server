@@ -110,9 +110,16 @@ sql_print_message_func sql_print_message_handlers[3] =
 };
 
 
+/**
+  Create the name of the default general log file
+  
+  @param[IN] buff    Location for building new string.
+  @param[IN] log_ext The extension for the file (e.g .log)
+  @returns Pointer to a new string containing the name
+*/
 char *make_default_log_name(char *buff,const char* log_ext)
 {
-  strmake(buff, pidfile_name, FN_REFLEN-5);
+  strmake(buff, default_logfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
@@ -1555,7 +1562,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
   trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
 
-end:
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt commit
   DBUG_RETURN(error);
@@ -1723,7 +1729,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   int const error=
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query, thd->query_length, TRUE, FALSE, errcode);
+                      thd->query(), thd->query_length(), TRUE, FALSE, errcode);
   DBUG_RETURN(error);
 }
 
@@ -1742,7 +1748,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query, thd->query_length, TRUE, FALSE, errcode);
+                        thd->query(), thd->query_length(), TRUE, FALSE, errcode);
     DBUG_RETURN(error);
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
@@ -3610,7 +3616,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   }
   old_name=name;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
 
   /*
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
@@ -3625,8 +3631,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
      trigger temp tables deletion on slaves.
   */
 
-  open(old_name, log_type, new_name_ptr,
-       io_cache_type, no_auto_events, max_size, 1);
+  /* reopen index binlog file, BUG#34582 */
+  if (!open_index_file(index_file_name, 0))
+    open(old_name, log_type, new_name_ptr, 
+         io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:
@@ -5493,8 +5501,8 @@ int TC_LOG_MMAP::recover()
     goto err1;
   }
 
-  if (hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
-                sizeof(my_xid), 0, 0, MYF(0)))
+  if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
+                   sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   for ( ; p < end_p ; p++)
@@ -5507,12 +5515,12 @@ int TC_LOG_MMAP::recover()
   if (ha_recover(&xids))
     goto err2;
 
-  hash_free(&xids);
+  my_hash_free(&xids);
   bzero(data, (size_t)file_length);
   return 0;
 
 err2:
-  hash_free(&xids);
+  my_hash_free(&xids);
 err1:
   sql_print_error("Crash recovery failed. Either correct the problem "
                   "(if it's, for example, out of memory error) and restart, "
@@ -5696,8 +5704,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
   MEM_ROOT mem_root;
 
   if (! fdle->is_valid() ||
-      hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                sizeof(my_xid), 0, 0, MYF(0)))
+      my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
+                   sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   init_alloc_root(&mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
@@ -5722,12 +5730,12 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     goto err2;
 
   free_root(&mem_root, MYF(0));
-  hash_free(&xids);
+  my_hash_free(&xids);
   return 0;
 
 err2:
   free_root(&mem_root, MYF(0));
-  hash_free(&xids);
+  my_hash_free(&xids);
 err1:
   sql_print_error("Crash recovery failed. Either correct the problem "
                   "(if it's, for example, out of memory error) and restart, "

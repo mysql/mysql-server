@@ -106,7 +106,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -115,7 +115,7 @@ int ha_blackhole::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -134,7 +134,7 @@ int ha_blackhole::rnd_next(uchar *buf)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -224,7 +224,7 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -241,7 +241,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_idx");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -257,7 +257,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_last");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -319,8 +319,9 @@ static st_blackhole_share *get_share(const char *table_name)
   length= (uint) strlen(table_name);
   pthread_mutex_lock(&blackhole_mutex);
     
-  if (!(share= (st_blackhole_share*) hash_search(&blackhole_open_tables,
-                                                 (uchar*) table_name, length)))
+  if (!(share= (st_blackhole_share*)
+        my_hash_search(&blackhole_open_tables,
+                       (uchar*) table_name, length)))
   {
     if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
                                                  length,
@@ -350,7 +351,7 @@ static void free_share(st_blackhole_share *share)
 {
   pthread_mutex_lock(&blackhole_mutex);
   if (!--share->use_count)
-    hash_delete(&blackhole_open_tables, (uchar*) share);
+    my_hash_delete(&blackhole_open_tables, (uchar*) share);
   pthread_mutex_unlock(&blackhole_mutex);
 }
 
@@ -377,16 +378,16 @@ static int blackhole_init(void *p)
   blackhole_hton->flags= HTON_CAN_RECREATE;
   
   VOID(pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST));
-  (void) hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
-                   (hash_get_key) blackhole_get_key,
-                   (hash_free_key) blackhole_free_key, 0);
+  (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
+                      (my_hash_get_key) blackhole_get_key,
+                      (my_hash_free_key) blackhole_free_key, 0);
 
   return 0;
 }
 
 static int blackhole_fini(void *p)
 {
-  hash_free(&blackhole_open_tables);
+  my_hash_free(&blackhole_open_tables);
   pthread_mutex_destroy(&blackhole_mutex);
 
   return 0;

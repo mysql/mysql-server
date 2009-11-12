@@ -2220,3 +2220,39 @@ tr1		CREATE DEFINER=`root`@`localhost` TRIGGER tr1 AFTER INSERT ON t3 FOR EACH R
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 End of 5.1 tests
+#
+# An additional test case for Bug#27430 Crash in subquery code
+# when in PS and table DDL changed after PREPARE
+#
+# Test merge table with too many merge children.
+#
+drop table if exists t_parent;
+set @save_table_definition_cache=@@global.table_definition_cache;
+#
+# Set @@global.table_definition_cache to minimum
+#
+set @@global.table_definition_cache=400;
+set @a=null;
+#
+# Create 400 merge children
+#
+set @a=concat("create table t_parent (a int) union(", @a,
+") insert_method=first engine=mrg_myisam");
+prepare stmt from @a;
+execute stmt;
+prepare stmt from "select * from t_parent";
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+deallocate prepare stmt;
+#
+# Create merge parent 
+#
+#
+# Cleanup
+#
+drop table t_parent;
+set @@global.table_definition_cache=@save_table_definition_cache;
