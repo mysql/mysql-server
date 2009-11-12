@@ -32,38 +32,64 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Index",
-           c_indexPool.getNoOfFree(),
-           c_indexPool.getSize() },
-          {"Fragment",
-           c_fragPool.getNoOfFree(),
-           c_fragPool.getSize() },
-          {"Descriptor page",
-           c_descPagePool.getNoOfFree(),
-           c_descPagePool.getSize() },
-          {"Fragment Operation",
-           c_fragOpPool.getNoOfFree(),
-           c_fragOpPool.getSize() },
-          {"Scan Operation",
-           c_scanOpPool.getNoOfFree(),
-           c_scanOpPool.getSize() },
-          {"Scan Bound",
-           c_scanBoundPool.getNoOfFree(),
-           c_scanBoundPool.getSize() },
-          {"Scan Lock",
-           c_scanLockPool.getNoOfFree(),
-           c_scanLockPool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Index",
+        c_indexPool.getUsed(),
+        c_indexPool.getSize(),
+        c_indexPool.getEntrySize(),
+        c_indexPool.getUsedHi(),
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+      { "Fragment",
+        c_fragPool.getUsed(),
+        c_fragPool.getSize(),
+        c_fragPool.getEntrySize(),
+        c_fragPool.getUsedHi(),
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_REPLICAS,0,0 },
+      { "Descriptor page",
+        c_descPagePool.getUsed(),
+        c_descPagePool.getSize(),
+        c_descPagePool.getEntrySize(),
+        c_descPagePool.getUsedHi(),
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+      { "Fragment Operation",
+        c_fragOpPool.getUsed(),
+        c_fragOpPool.getSize(),
+        c_fragOpPool.getEntrySize(),
+        c_fragOpPool.getUsedHi(),
+        0,0,0,0 },
+      { "Scan Operation",
+        c_scanOpPool.getUsed(),
+        c_scanOpPool.getSize(),
+        c_scanOpPool.getEntrySize(),
+        c_scanOpPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+      { "Scan Bound",
+        c_scanBoundPool.getUsed(),
+        c_scanBoundPool.getSize(),
+        c_scanBoundPool.getEntrySize(),
+        c_scanBoundPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+      { "Scan Lock",
+        c_scanLockPool.getUsed(),
+        c_scanLockPool.getSize(),
+        c_scanLockPool.getEntrySize(),
+        c_scanLockPool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,
+        CFG_DB_BATCH_SIZE,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0 }
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -72,10 +98,14 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -85,6 +115,10 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

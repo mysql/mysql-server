@@ -39,14 +39,14 @@ public:
   enum TableId {
     TABLES_TABLEID =             0,
     COLUMNS_TABLEID =            1,
-    MEMUSAGE_TABLEID =           2,
-    LOGDESTINATION_TABLEID =     3,
-    BACKUP_RECORDS_TABLEID =     4,
-    BACKUP_PARAMETERS_TABLEID =  5,
-    POOLS_TABLEID =              6,
-    TEST_TABLEID =               7,
-    TRP_STATUS_TABLEID =         8,
-    LOG_SPACE_TABLEID =          9
+    TEST_TABLEID =               2,
+    POOLS_TABLEID =              3,
+    TRANSPORTERS_TABLEID =       4,
+    LOGSPACES_TABLEID =          5,
+    LOGBUFFERS_TABLEID =         6,
+    RESOURCES_TABLEID =          7,
+    COUNTERS_TABLEID =           8,
+    NODES_TABLEID =              9
   };
 
   struct Table {
@@ -155,6 +155,33 @@ public:
         return true; // More than max bytes already sent
       return false;
     }
+  };
+
+  struct pool_entry {
+    const char* poolname;
+    Uint64 used;
+    Uint64 total;
+    Uint64 entry_size;
+    Uint64 used_hi;
+    Uint32 config_params[4];
+  };
+
+  enum counter_id {
+    ATTRINFO_COUNTER = 1,
+    TRANSACTIONS_COUNTER = 2,
+    COMMITS_COUNTER = 3,
+    READS_COUNTER = 4,
+    SIMPLE_READS_COUNTER = 5,
+    WRITES_COUNTER = 6,
+    ABORTS_COUNTER = 7,
+    TABLE_SCANS_COUNTER = 8,
+    RANGE_SCANS_COUNTER = 9,
+    OPERATIONS_COUNTER = 10
+  };
+
+  struct counter_entry {
+    counter_id id;
+    Uint64 val;
   };
 };
 

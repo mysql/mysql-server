@@ -765,38 +765,58 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Page",
-           c_pagePool.getNoOfFree(),
-           c_pagePool.getSize() },
-          {"Prepare",
-           c_preparePool.getNoOfFree(),
-           c_preparePool.getSize() },
-          {"Prepared Operation",
-           c_preparedOperationPool.getNoOfFree(),
-           c_preparedOperationPool.getSize() },
-          {"Operation",
-           c_operationPool.getNoOfFree(),
-           c_operationPool.getSize() },
-          {"Transaction",
-           c_transactionPool.getNoOfFree(),
-           c_transactionPool.getSize() },
-          {"Attribute Mapping",
-           c_attrMappingPool.getNoOfFree(),
-           c_attrMappingPool.getSize() },
-          {"Data Buffer",
-           c_dataBufPool.getNoOfFree(),
-           c_dataBufPool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Page",
+        c_pagePool.getUsed(),
+        c_pagePool.getSize(),
+        c_pagePool.getEntrySize(),
+        c_pagePool.getUsedHi(),
+        0,0,0,0 },
+      { "Prepare",
+        c_preparePool.getUsed(),
+        c_preparePool.getSize(),
+        c_preparePool.getEntrySize(),
+        c_preparePool.getUsedHi(),
+        0,0,0,0 },
+      { "Prepared Operation",
+        c_preparedOperationPool.getUsed(),
+        c_preparedOperationPool.getSize(),
+        c_preparedOperationPool.getEntrySize(),
+        c_preparedOperationPool.getUsedHi(),
+        0,0,0,0 },
+      { "Operation",
+        c_operationPool.getUsed(),
+        c_operationPool.getSize(),
+        c_operationPool.getEntrySize(),
+        c_operationPool.getUsedHi(),
+        0,0,0,0 },
+      { "Transaction",
+        c_transactionPool.getUsed(),
+        c_transactionPool.getSize(),
+        c_transactionPool.getEntrySize(),
+        c_transactionPool.getUsedHi(),
+        0,0,0,0 },
+      { "Attribute Mapping",
+        c_attrMappingPool.getUsed(),
+        c_attrMappingPool.getSize(),
+        c_attrMappingPool.getEntrySize(),
+        c_attrMappingPool.getUsedHi(),
+        0,0,0,0 },
+      { "Data Buffer",
+        c_dataBufPool.getUsed(),
+        c_dataBufPool.getSize(),
+        c_dataBufPool.getEntrySize(),
+        c_dataBufPool.getUsedHi(),
+        0,0,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0 }
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -805,10 +825,14 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -818,10 +842,15 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
 }
+
 void
 DbUtil::mutex_created(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;

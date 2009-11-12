@@ -127,6 +127,8 @@ private:
 
   Uint32 c_memusage_report_frequency;
   void reportDMUsage(Signal* signal, int incDec);
+
+  NDB_TICKS m_start_time;
 };
 
 #endif

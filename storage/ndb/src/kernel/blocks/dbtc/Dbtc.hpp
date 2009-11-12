@@ -1693,40 +1693,88 @@ private:
 
   Uint64 tcheckGcpId;
 
-  struct TransCounters {
-    TransCounters() {}
-    enum { Off, Timer, Started } c_trans_status;
-    UintR cattrinfoCount;
-    UintR ctransCount;
-    UintR ccommitCount;
-    UintR creadCount;
-    UintR csimpleReadCount;
-    UintR cwriteCount;
-    UintR cabortCount;
-    UintR cconcurrentOp;
-    Uint32 c_scan_count;
-    Uint32 c_range_scan_count;
-    void reset () { 
-      cattrinfoCount = ctransCount = ccommitCount = creadCount =
-	csimpleReadCount = cwriteCount = cabortCount =
-	c_scan_count = c_range_scan_count = 0; 
-    }
-    Uint32 report(Signal* signal){
+  // Montonically increasing counters
+  struct MonotonicCounters {
+    Uint64 cattrinfoCount;
+    Uint64 ctransCount;
+    Uint64 ccommitCount;
+    Uint64 creadCount;
+    Uint64 csimpleReadCount;
+    Uint64 cwriteCount;
+    Uint64 cabortCount;
+    Uint64 c_scan_count;
+    Uint64 c_range_scan_count;
+
+    // Resource usage counter(not monotonic)
+    Uint32 cconcurrentOp;
+
+    MonotonicCounters() :
+     cattrinfoCount(0),
+     ctransCount(0),
+     ccommitCount(0),
+     creadCount(0),
+     csimpleReadCount(0),
+     cwriteCount(0),
+     cabortCount(0),
+     c_scan_count(0),
+     c_range_scan_count(0),
+     cconcurrentOp(0) {}
+
+    Uint32 build_event_rep(Signal* signal)
+    {
+      /*
+        Read saved value from CONTINUEB, subtract from
+        counter and write to EVENT_REP
+      */
+      const Uint32 attrinfoCount =    diff(signal, 1, cattrinfoCount);
+      const Uint32 transCount =       diff(signal, 3, ctransCount);
+      const Uint32 commitCount =      diff(signal, 5, ccommitCount);
+      const Uint32 readCount =        diff(signal, 7, creadCount);
+      const Uint32 simpleReadCount =  diff(signal, 9, csimpleReadCount);
+      const Uint32 writeCount =       diff(signal, 11, cwriteCount);
+      const Uint32 abortCount =       diff(signal, 13, cabortCount);
+      const Uint32 scan_count =       diff(signal, 15, c_scan_count);
+      const Uint32 range_scan_count = diff(signal, 17, c_range_scan_count);
+
       signal->theData[0] = NDB_LE_TransReportCounters;
-      signal->theData[1] = ctransCount;
-      signal->theData[2] = ccommitCount;
-      signal->theData[3] = creadCount;
-      signal->theData[4] = csimpleReadCount;
-      signal->theData[5] = cwriteCount;
-      signal->theData[6] = cattrinfoCount;
-      signal->theData[7] = cconcurrentOp;
-      signal->theData[8] = cabortCount;
-      signal->theData[9] = c_scan_count;
-      signal->theData[10] = c_range_scan_count;
+      signal->theData[1] = transCount;
+      signal->theData[2] = commitCount;
+      signal->theData[3] = readCount;
+      signal->theData[4] = simpleReadCount;
+      signal->theData[5] = writeCount;
+      signal->theData[6] = attrinfoCount;
+      signal->theData[7] = cconcurrentOp; // Exception that confirms the rule!
+      signal->theData[8] = abortCount;
+      signal->theData[9] = scan_count;
+      signal->theData[10] = range_scan_count;
       return 11;
     }
+
+    Uint32 build_continueB(Signal* signal) const
+    {
+      /* Save current value of counters to CONTINUEB */
+      const Uint64* vars[] = {
+        &cattrinfoCount, &ctransCount, &ccommitCount,
+        &creadCount, &csimpleReadCount, &cwriteCount,
+        &cabortCount, &c_scan_count, &c_range_scan_count };
+      const size_t num = sizeof(vars)/sizeof(vars[0]);
+
+      for (size_t i = 0; i < num; i++)
+      {
+        signal->theData[1+i*2] = Uint32(*vars[i] >> 32);
+        signal->theData[1+i*2+1] = Uint32(*vars[i]);
+      }
+      return 1 + num * 2;
+    }
+  private:
+    Uint32 diff(Signal* signal, size_t pos, Uint64 curr) const
+    {
+      const Uint64 old =
+        (signal->theData[pos+1] | (Uint64(signal->theData[pos]) << 32));
+      return (Uint32)(curr - old);
+    }
   } c_counters;
-  
+
   Uint16 cownNodeid;
   Uint16 terrorCode;
 

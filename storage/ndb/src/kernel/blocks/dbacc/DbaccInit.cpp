@@ -44,7 +44,7 @@ void Dbacc::initData()
   scanRec = 0;
   tabrec = 0;
 
-  cnoOfAllocatedPages = cpagesize = 0;
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
