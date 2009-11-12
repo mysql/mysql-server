@@ -8751,26 +8751,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler;
   }//if
   
-  // 1 scan record is reserved for node recovery
-  // and one for LCP
-  {
-    Uint32 limit = 2;
-    if (ScanFragReq::getLcpScanFlag(reqinfo))
-    {
-      jam();
-      /**
-       * This code depends on the fact that LCP only scans one fragment at
-       *   at a time
-       */
-      limit = 1;
-    }
-    if (cscanNoFreeRec < limit) {
-      jam();
-      errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
-      goto error_handler;
-    }
-  }
-
   // XXX adjust cmaxAccOps for range scans and remove this comment
   if ((cbookedAccOps + max_rows) > cmaxAccOps) {
     jam();
@@ -8778,7 +8758,19 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler;
   }//if
 
-  ndbrequire(c_scanRecordPool.seize(scanptr));
+  if (ScanFragReq::getLcpScanFlag(reqinfo))
+  {
+    jam();
+    ndbrequire(m_reserved_scans.first(scanptr));
+    m_reserved_scans.remove(scanptr);
+  }
+  else if (!c_scanRecordPool.seize(scanptr))
+  {
+    jam();
+    errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
+    goto error_handler;
+  }
+
   initScanTc(scanFragReq,
              transid1,
              transid2,
@@ -8792,7 +8784,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     jam();
     goto error_handler2;
   }//if
-  cscanNoFreeRec--;
   cbookedAccOps += max_rows;
 
   hashIndex = (tcConnectptr.p->transid[0] ^ tcConnectptr.p->tcOprec) & 1023;
@@ -8819,7 +8810,16 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
 error_handler2:
   // no scan number allocated
-  c_scanRecordPool.release(scanptr);
+  if (scanptr.p->m_reserved == 0)
+  {
+    jam();
+    c_scanRecordPool.release(scanptr);
+  }
+  else
+  {
+    jam();
+    m_reserved_scans.add(scanptr);
+  }
 error_handler:
   ref = (ScanFragRef*)&signal->theData[0];
   tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
@@ -10157,9 +10157,21 @@ void Dblqh::finishScanrec(Signal* signal)
                                     fragptr.p->m_queuedScans :
                                     fragptr.p->m_queuedTupScans);
   
-  if(scanptr.p->scanState == ScanRecord::IN_QUEUE){
+  if (scanptr.p->scanState == ScanRecord::IN_QUEUE)
+  {
     jam();
-    queue.release(scanptr);
+    if (scanptr.p->m_reserved == 0)
+    {
+      jam();
+      queue.release(scanptr);
+    }
+    else
+    {
+      jam();
+      queue.remove(scanptr);
+      m_reserved_scans.add(scanptr);
+    }
+
     return;
   }
 
@@ -10174,7 +10186,17 @@ void Dblqh::finishScanrec(Signal* signal)
   }
   
   LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
-  scans.release(scanptr);
+  if (scanptr.p->m_reserved == 0)
+  {
+    jam();
+    scans.release(scanptr);
+  }
+  else
+  {
+    jam();
+    scans.remove(scanptr);
+    m_reserved_scans.add(scanptr);
+  }
   
   FragrecordPtr tFragPtr;
   tFragPtr.i = scanptr.p->fragPtrI;
@@ -10251,7 +10273,6 @@ void Dblqh::releaseScanrec(Signal* signal)
   scanptr.p->scanType = ScanRecord::ST_IDLE;
   scanptr.p->scanTcWaiting = 0;
   cbookedAccOps -= scanptr.p->m_max_batch_size_rows;
-  cscanNoFreeRec++;
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -10564,7 +10585,10 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }//if
   
   LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
-  ndbrequire(scans.seize(scanptr));
+  ndbrequire(m_reserved_scans.first(scanptr));
+  m_reserved_scans.remove(scanptr);
+  scans.add(scanptr);
+
 /* ------------------------------------------------------------------------- */
 // We keep track of how many operation records in ACC that has been booked.
 // Copy fragment has records always booked and thus need not book any. The
@@ -17995,8 +18019,19 @@ void Dblqh::initialiseScanrec(Signal* signal)
     scanptr.p->prevHash = RNIL;
     scanptr.p->scan_acc_index= 0;
     scanptr.p->scan_acc_attr_recs= 0;
+    scanptr.p->m_reserved = 0;
   }
   tmp.release();
+
+  /**
+   * just seize records from pool and put into
+   *   dedicated list
+   */
+  m_reserved_scans.seize(scanptr); // LCP
+  scanptr.p->m_reserved = 1;
+  m_reserved_scans.seize(scanptr); // NR
+  scanptr.p->m_reserved = 1;
+
 }//Dblqh::initialiseScanrec()
 
 /* ========================================================================== 
