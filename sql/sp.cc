@@ -1005,7 +1005,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
   }
 
@@ -1075,7 +1075,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
   }
 
