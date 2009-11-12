@@ -45,6 +45,7 @@ int toku_brt_set_filenum(BRT brt, FILENUM filenum);
 
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
+int toku_brt_open_recovery(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, int recovery_force_fcreate);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
