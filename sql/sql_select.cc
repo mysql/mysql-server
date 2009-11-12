@@ -8937,7 +8937,7 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
       //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
     }
-    if (table->table && (table->table->map & ~join->eliminated_tables))
+    if (!table->table || (table->table->map & ~join->eliminated_tables))
       n++;
   }
   DBUG_RETURN(n);
