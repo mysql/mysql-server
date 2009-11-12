@@ -3223,7 +3223,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
      false - condition not met
 */
 
-bool st_relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
+bool st_relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -3232,8 +3232,12 @@ bool st_relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
   
   if (until_condition == UNTIL_MASTER_POS)
   {
+    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+      return FALSE;
     log_name= group_master_log_name;
-    log_pos= master_beg_pos;
+    log_pos= (!ev)? group_master_log_pos :
+      ((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+       group_master_log_pos : ev->log_pos - ev->data_written);
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */
@@ -3333,9 +3337,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       hits the UNTIL barrier.
     */
     if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
-        rli->is_until_satisfied((thd->options & OPTION_BEGIN || !ev->log_pos) ?
-                                rli->group_master_log_pos :
-                                ev->log_pos - ev->data_written))
+        rli->is_until_satisfied(thd, ev))
     {
       char buf[22];
       sql_print_information("Slave SQL thread stopped because it reached its"
@@ -4065,7 +4067,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
   */
   pthread_mutex_lock(&rli->data_lock);
   if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
-      rli->is_until_satisfied(rli->group_master_log_pos))
+      rli->is_until_satisfied(thd, NULL))
   {
     char buf[22];
     sql_print_information("Slave SQL thread stopped because it reached its"
