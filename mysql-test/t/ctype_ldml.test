@@ -86,3 +86,8 @@ select hex(c1) as h, c1 from t1 order by c1, h;
 select group_concat(hex(c1) order by hex(c1)) from t1 group by c1;
 select group_concat(c1 order by hex(c1) SEPARATOR '') from t1 group by c1;
 drop table t1;
+
+--echo Bug#46448 trailing spaces are not ignored when user collation maps space != 0x20
+set names latin1;
+show collation like 'latin1_test';
+select "foo" = "foo " collate latin1_test;

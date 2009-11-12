@@ -5,6 +5,8 @@
 
 -- source include/have_innodb.inc
 
+let $file_format=`select @@innodb_file_format`;
+let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;
 
@@ -1153,3 +1155,5 @@ DROP TABLE IF EXISTS table4;
 DROP TABLE IF EXISTS table5;
 DROP TABLE IF EXISTS table6;
 
+EVAL SET GLOBAL innodb_file_format=$file_format;
+EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

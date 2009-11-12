@@ -83,10 +83,13 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 			  String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
 #ifndef EMBEDDED_LIBRARY
-static bool write_execute_load_query_log_event(THD *thd,
-					       bool duplicates, bool ignore,
-					       bool transactional_table,
-                                               int errcode);
+static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
+                                               const char* db_arg,
+                                               const char* table_name_arg,
+                                               enum enum_duplicates duplicates,
+                                               bool ignore,
+                                               bool transactional_table,
+                                               int errocode);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -497,8 +500,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
           
 	  if (thd->transaction.stmt.modified_non_trans_table)
-	    write_execute_load_query_log_event(thd, handle_duplicates,
-					       ignore, transactional_table,
+            write_execute_load_query_log_event(thd, ex,
+                                               tdb, table_list->table_name,
+                                               handle_duplicates, ignore,
+                                               transactional_table,
                                                errcode);
 	  else
 	  {
@@ -542,8 +547,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (lf_info.wrote_create_file)
       {
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-        write_execute_load_query_log_event(thd, handle_duplicates, ignore,
-                                           transactional_table, errcode);
+        write_execute_load_query_log_event(thd, ex,
+                                           tdb, table_list->table_name,
+                                           handle_duplicates, ignore,
+                                           transactional_table,
+                                           errcode);
       }
     }
   }
@@ -564,15 +572,95 @@ err:
 #ifndef EMBEDDED_LIBRARY
 
 /* Not a very useful function; just to avoid duplication of code */
-static bool write_execute_load_query_log_event(THD *thd,
-					       bool duplicates, bool ignore,
-					       bool transactional_table,
+static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
+                                               const char* db_arg,
+                                               const char* table_name_arg,
+                                               enum enum_duplicates duplicates,
+                                               bool ignore,
+                                               bool transactional_table,
                                                int errcode)
 {
+  char                *load_data_query,
+                      *end,
+                      *fname_start,
+                      *fname_end,
+                      *p= NULL;
+  size_t               pl= 0;
+  List<Item>           fv;
+  Item                *item, *val;
+  String               pfield, pfields;
+  int                  n;
+
+  Load_log_event       lle(thd, ex, db_arg, table_name_arg, fv, duplicates,
+                           ignore, transactional_table);
+
+  /*
+    force in a LOCAL if there was one in the original.
+  */
+  if (thd->lex->local_file)
+    lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
+
+  /*
+    prepare fields-list and SET if needed; print_query won't do that for us.
+  */
+  if (!thd->lex->field_list.is_empty())
+  {
+    List_iterator<Item>  li(thd->lex->field_list);
+
+    pfields.append(" (");
+    n= 0;
+
+    while ((item= li++))
+    {
+      if (n++)
+        pfields.append(", ");
+      if (item->name)
+        pfields.append(item->name);
+      else
+        item->print(&pfields, QT_ORDINARY);
+    }
+    pfields.append(")");
+  }
+
+  if (!thd->lex->update_list.is_empty())
+  {
+    List_iterator<Item> lu(thd->lex->update_list);
+    List_iterator<Item> lv(thd->lex->value_list);
+
+    pfields.append(" SET ");
+    n= 0;
+
+    while ((item= lu++))
+    {
+      val= lv++;
+      if (n++)
+        pfields.append(", ");
+      pfields.append(item->name);
+      pfields.append("=");
+      val->print(&pfields, QT_ORDINARY);
+    }
+  }
+
+  p= pfields.c_ptr_safe();
+  pl= strlen(p);
+
+  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
+    return TRUE;
+
+  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+                  load_data_query, &end,
+                  (char **)&fname_start, (char **)&fname_end);
+
+  strcpy(end, p);
+  end += pl;
+
+  thd->query_length= end - load_data_query;
+  thd->query= load_data_query;
+
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
-      (uint) ((char*)thd->lex->fname_start - (char*)thd->query),
-      (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
+      (uint) ((char*)fname_start - (char*)thd->query - 1),
+      (uint) ((char*)fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);

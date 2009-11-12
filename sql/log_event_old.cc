@@ -1217,8 +1217,8 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -1381,7 +1381,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
@@ -1759,32 +1759,32 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_RETURN(error);
   }
 
-  DBUG_RETURN(0);
-}
-
-
-Log_event::enum_skip_reason
-Old_rows_log_event::do_shall_skip(Relay_log_info *rli)
-{
   /*
-    If the slave skip counter is 1 and this event does not end a
-    statement, then we should not start executing on the next event.
-    Otherwise, we defer the decision to the normal skipping logic.
+    This code would ideally be placed in do_update_pos() instead, but
+    since we have no access to table there, we do the setting of
+    last_event_start_time here instead.
   */
-  if (rli->slave_skip_counter == 1 && !get_flags(STMT_END_F))
-    return Log_event::EVENT_SKIP_IGNORE;
-  else
-    return Log_event::do_shall_skip(rli);
-}
+  if (table && (table->s->primary_key == MAX_KEY) &&
+      !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
+  {
+    /*
+      ------------ Temporary fix until WL#2975 is implemented ---------
 
-int
-Old_rows_log_event::do_update_pos(Relay_log_info *rli)
-{
-  DBUG_ENTER("Old_rows_log_event::do_update_pos");
-  int error= 0;
-
-  DBUG_PRINT("info", ("flags: %s",
-                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+      This event is not the last one (no STMT_END_F). If we stop now
+      (in case of terminate_slave_thread()), how will we restart? We
+      have to restart from Table_map_log_event, but as this table is
+      not transactional, the rows already inserted will still be
+      present, and idempotency is not guaranteed (no PK) so we risk
+      that repeating leads to double insert. So we desperately try to
+      continue, hope we'll eventually leave this buggy situation (by
+      executing the final Old_rows_log_event). If we are in a hopeless
+      wait (reached end of last relay log and nothing gets appended
+      there), we timeout after one minute, and notify DBA about the
+      problem.  When WL#2975 is implemented, just remove the member
+      Relay_log_info::last_event_start_time and all its occurrences.
+    */
+    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
+  }
 
   if (get_flags(STMT_END_F))
   {
@@ -1814,7 +1814,12 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error= ha_autocommit_or_rollback(thd, 0);
+    if (error= ha_autocommit_or_rollback(thd, 0))
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
 
     /*
       Now what if this is not a transactional engine? we still need to
@@ -1827,33 +1832,51 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
     */
 
     thd->reset_current_stmt_binlog_row_based();
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-       */
-      rli->stmt_done(log_pos, when);
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
 
-      /*
-        Clear any errors pushed in thd->net.client_last_err* if for
-        example "no key found" (as this is allowed). This is a safety
-        measure; apparently those errors (e.g. when executing a
-        Delete_rows_log_event_old of a non-existing row, like in
-        rpl_row_mystery22.test, thd->net.last_error = "Can't
-        find record in 't1'" and last_errno=1032) do not become
-        visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
+  DBUG_RETURN(error);
+}
+
+
+Log_event::enum_skip_reason
+Old_rows_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  /*
+    If the slave skip counter is 1 and this event does not end a
+    statement, then we should not start executing on the next event.
+    Otherwise, we defer the decision to the normal skipping logic.
+  */
+  if (rli->slave_skip_counter == 1 && !get_flags(STMT_END_F))
+    return Log_event::EVENT_SKIP_IGNORE;
+  else
+    return Log_event::do_shall_skip(rli);
+}
+
+int
+Old_rows_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Old_rows_log_event::do_update_pos");
+  int error= 0;
+
+  DBUG_PRINT("info", ("flags: %s",
+                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  if (get_flags(STMT_END_F))
+  {
+    /*
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+     */
+    rli->stmt_done(log_pos, when);
+    /*
+      Clear any errors in thd->net.last_err*. It is not known if this is
+      needed or not. It is believed that any errors that may exist in
+      thd->net.last_err* are allowed. Examples of errors are "key not
+      found", which is produced in the test case rpl_row_conflicts.test
+    */
+    thd->clear_error();
   }
   else
   {
