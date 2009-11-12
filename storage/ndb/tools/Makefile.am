@@ -71,7 +71,11 @@ ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
                     $(LDADD)
 
 
-ndbinfo_sql_SOURCES = ndbinfo_sql.cpp
+ndbinfo_sql_SOURCES = ndbinfo_sql.cpp \
+	../src/mgmsrv/Config.cpp \
+	../src/mgmsrv/InitConfigFileParser.cpp
+
+ndbinfo_sql_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
 # Build ndbinfo.sql by executing ndbinfo_sql
 ndbinfo.sql: ndbinfo_sql

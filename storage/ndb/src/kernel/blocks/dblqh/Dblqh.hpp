@@ -3076,17 +3076,56 @@ public:
 
   void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeID, Uint32 ignoredRc);
 
-  struct Counters {
-    Counters() {}
-    Uint32 operations;
-    
-    inline void clear(){
-      operations = 0;
-    }
-  };
+  struct MonotonicCounters {
+    MonotonicCounters() :
+      operations(0) {}
 
-  Counters c_Counters;
-  
+    Uint64 operations;
+
+    Uint32 build_event_rep(Signal* signal) const
+    {
+      /*
+        Read saved value from CONTINUEB, subtract from
+        counter and write to EVENT_REP
+      */
+      struct { const Uint64* ptr; Uint64 old; } vars[] = {
+        { &operations, 0 }
+      };
+      const size_t num = sizeof(vars)/sizeof(vars[0]);
+
+      signal->theData[0] = NDB_LE_TransReportCounters;
+
+      // Read old values from signal
+      for (size_t i = 0; i < num ; i++)
+      {
+        vars[i].old =
+          (signal->theData[1+num+1] | (Uint64(signal->theData[1+num]) << 32));
+      }
+
+      // Write difference back to signal
+      for (size_t i = 0; i < num ; i++)
+      {
+        signal->theData[i] = (Uint32)(*vars[i].ptr - vars[i].old);
+      }
+      return 1 + num;
+    }
+
+    Uint32 build_continueB(Signal* signal) const
+    {
+      /* Save current value of counters to CONTINUEB */
+      const Uint64* vars[] = { &operations };
+      const size_t num = sizeof(vars)/sizeof(vars[0]);
+
+      for (size_t i = 0; i < num ; i++)
+      {
+        signal->theData[1+i*2] = Uint32(*vars[i] >> 32);
+        signal->theData[1+i*2+1] = Uint32(*vars[i]);
+      }
+      return 1 + num * 2;
+    }
+
+  } c_Counters;
+
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }

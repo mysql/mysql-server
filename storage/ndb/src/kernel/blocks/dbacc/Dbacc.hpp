@@ -960,6 +960,7 @@ private:
   Uint32 cfreepage;
   Uint32 cpagesize;
   Uint32 cnoOfAllocatedPages;
+  Uint32 cnoOfAllocatedPagesMax;
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
 /*          DURING EXPAND FRAGMENT PROCESS, EACH FRAGMEND WILL BE EXPAND INTO TWO    */
