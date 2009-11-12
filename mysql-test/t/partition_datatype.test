@@ -4,6 +4,7 @@
 # as partition by key
 # Created to verify the fix for Bug#31705
 # Partitions: crash if varchar length > 65530
+# BUG#48164 limited size to 3072 bytes
 #
 -- source include/have_partition.inc
 
@@ -192,27 +193,29 @@ create table t1 (a set('y','n')) partition by key (a);
 insert into t1 values ('y');
 select * from t1 where a = 'y';
 drop table t1;
-create table t1 (a varchar(65531)) partition by key (a);
+create table t1 (a varchar(3068)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(65532)) partition by key (a);
+create table t1 (a varchar(3069)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
-create table t1 (a varchar(65533) not null) partition by key (a);
+create table t1 (a varchar(3070) not null) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
 select * from t1 where a = 'bbbb';
 drop table t1;
+-- error ER_PARTITION_FIELDS_TOO_LONG
+create table t1 (a varchar(3070)) partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
 create table t1 (a varchar(65533)) partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE

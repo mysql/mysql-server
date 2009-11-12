@@ -812,7 +812,7 @@ int mysql_update(THD *thd,
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_table, FALSE, errcode))
       {
         error=1;				// Rollback update
@@ -833,7 +833,7 @@ int mysql_update(THD *thd,
     char buff[STRING_BUFFER_USUAL_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-	        (ulong) thd->warning_info->statement_warn_count());
+                (ulong) thd->warning_info->statement_warn_count());
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     my_ok(thd, (ulong) thd->row_count_func, id, buff);
@@ -922,7 +922,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
       DBUG_RETURN(TRUE);
     }
   }
@@ -1077,7 +1076,7 @@ reopen_tables:
       if (check_access(thd, want_privilege,
                        tl->db, &tl->grant.privilege, 0, 0, 
                        test(tl->schema_table)) ||
-          check_grant(thd, want_privilege, tl, 0, 1, 0))
+          check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
         DBUG_RETURN(TRUE);
     }
   }
@@ -1704,6 +1703,11 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                TRG_EVENT_UPDATE))
 	DBUG_RETURN(1);
 
+      /*
+        Reset the table->auto_increment_field_not_null as it is valid for
+        only one row.
+      */
+      table->auto_increment_field_not_null= FALSE;
       found++;
       if (!can_compare_record || compare_record(table))
       {
@@ -1868,7 +1872,7 @@ void multi_update::abort()
       */
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query, thd->query_length,
+                        thd->query(), thd->query_length(),
                         transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
@@ -2101,7 +2105,7 @@ bool multi_update::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update

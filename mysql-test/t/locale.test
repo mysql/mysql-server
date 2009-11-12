@@ -34,10 +34,23 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#46633 Obsolete Serbian locale name
 --echo #
---error ER_UNKNOWN_LOCALE
-set lc_messages=sr_YU;
-set lc_messages=sr_RS;
-set lc_time_names=sr_RS;
-select format(123456.789, 3, 'sr_RS');
+SET lc_messages=sr_YU;
+SHOW VARIABLES LIKE 'lc_messages';
+SET lc_messages=sr_RS;
+SHOW VARIABLES LIKE 'lc_messages';
+SET lc_time_names=sr_RS;
+SELECT format(123456.789, 3, 'sr_RS');
 
+--echo #
+--echo # Bug#43207 wrong LC_TIME names for romanian locale
+--echo #
+SET NAMES utf8;
+SET lc_time_names=ro_RO;
+SELECT DATE_FORMAT('2001-01-01', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-02', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-03', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-04', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-05', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-06', '%w %a %W');
+SELECT DATE_FORMAT('2001-01-07', '%w %a %W');
 --echo End of 5.4 tests

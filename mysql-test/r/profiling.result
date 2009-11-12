@@ -298,6 +298,13 @@ id
 1
 2
 3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
+Warning	1292	Truncated incorrect DOUBLE value: 'hello'
 select @@profiling;
 @@profiling
 1

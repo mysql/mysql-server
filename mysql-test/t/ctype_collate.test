@@ -172,6 +172,18 @@ DROP TABLE t1;
 #
 # Test that optimizer doesn't use indexes with wrong collation
 #
+#
+# BUG#48447, Delivering too few records with indexes using collate syntax
+#
+create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
+insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
+select * from t1 where a > 'B' collate latin1_bin;
+select * from t1 where a <> 'B' collate latin1_bin;
+create index i on t1 (a);
+select * from t1 where a > 'B' collate latin1_bin;
+select * from t1 where a <> 'B' collate latin1_bin;
+drop table t1;
+
 SET NAMES latin1;
 CREATE TABLE t1 
 (s1 char(10) COLLATE latin1_german1_ci,

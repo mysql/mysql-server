@@ -3,7 +3,7 @@ drop view if exists v1,v2;
 drop function if exists f1;
 drop function if exists f2;
 use INFORMATION_SCHEMA;
-show tables where Tables_in_information_schema not like "Innodb%";
+show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
 Tables_in_information_schema
 CHARACTER_SETS
 COLLATIONS
@@ -119,12 +119,12 @@ create table t1 (f1 char(4));
 create view v1 as select f1 from t1;
 grant insert on v1 to testdb_2@localhost;
 create view v5 as select f1 from t1;
-grant show view on v5 to testdb_2@localhost;
+grant select, show view on v5 to testdb_2@localhost;
 create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 use testdb_1;
 create view v6 as select f1 from t1;
-grant show view on v6 to testdb_2@localhost;
+grant select, show view on v6 to testdb_2@localhost;
 create table t2 (f1 char(4));
 create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
 Warnings:
@@ -152,11 +152,13 @@ create view v2 as select f1 from testdb_1.v1;
 create view v4 as select f1,f2 from testdb_1.v3;
 show fields from testdb_1.v5;
 Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
 show create view testdb_1.v5;
 View	Create View	character_set_client	collation_connection
 v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
 show fields from testdb_1.v6;
 Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
 v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
@@ -171,9 +173,9 @@ v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 revoke insert(f1) on v3 from testdb_2@localhost;
-revoke show view on v5 from testdb_2@localhost;
+revoke select,show view on v5 from testdb_2@localhost;
 use testdb_1;
-revoke show view on v6 from testdb_2@localhost;
+revoke select,show view on v6 from testdb_2@localhost;
 show fields from testdb_1.v5;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v5'
 show create view testdb_1.v5;
@@ -203,7 +205,7 @@ show create view v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
 show create view testdb_1.v1;
-ERROR 42000: SHOW VIEW command denied to user 'testdb_2'@'localhost' for table 'v1'
+ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a
 where a.table_name = 'v2';
 table_name

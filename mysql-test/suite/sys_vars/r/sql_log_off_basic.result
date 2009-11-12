@@ -71,10 +71,10 @@ WHERE VARIABLE_NAME='sql_log_off';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_157_07------------------------#'
-SELECT @@session.sql_log_off = VARIABLE_VALUE 
+SELECT IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_log_off';
-@@session.sql_log_off = VARIABLE_VALUE
+IF(@@session.sql_log_off, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_log_off;
 @@session.sql_log_off

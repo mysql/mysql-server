@@ -21,7 +21,8 @@ HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
-			my_xml.h mysql_embed.h \
+			my_xml.h mysql_embed.h mysql/services.h \
+			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 		  	my_pthread.h my_no_pthread.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
@@ -36,7 +37,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
-			my_handler.h my_time.h \
+			my_handler.h my_time.h service_versions.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
                         atomic/solaris.h \
