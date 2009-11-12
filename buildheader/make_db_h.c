@@ -389,6 +389,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t        aborts;                  /* ydb txn abort operations             */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                    */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries               */ \n");
+    printf("  u_int64_t        fsync_count;             /* number of times fsync performed      */ \n");
+    printf("  u_int64_t        fsync_time;              /* total time required to fsync         */ \n");
     printf("} ENGINE_STATUS;\n");
 
 

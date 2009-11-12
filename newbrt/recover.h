@@ -28,6 +28,10 @@ int tokudb_needs_recovery(const char *logdir, BOOL ignore_empty_log);
 // Ruturns 0 if success
 int tokudb_recover_delete_rolltmp_files(const char *datadir, const char *logdir);
 
+// Return 0 if recovery log exists, ENOENT if log is missing
+int tokudb_recover_log_exists(const char * log_dir);
+
+
 extern int toku_recover_trace;
 
 #endif // TOKURECOVER_H

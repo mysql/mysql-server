@@ -88,6 +88,8 @@ typedef struct __toku_engine_status {
   u_int64_t        aborts;                  /* ydb txn abort operations             */ 
   u_int64_t        point_queries;           /* ydb point queries                    */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries               */ 
+  u_int64_t        fsync_count;             /* number of times fsync performed      */ 
+  u_int64_t        fsync_time;              /* total time required to fsync         */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
