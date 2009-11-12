@@ -606,7 +606,7 @@ SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
 v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no-such-user'@'localhost') does not exist
 SELECT * FROM v;
 ERROR HY000: The user specified as a definer ('no-such-user'@'localhost') does not exist
 DROP VIEW v;
@@ -963,7 +963,7 @@ SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
 Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
@@ -971,7 +971,7 @@ SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
 Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_2') does not exist
@@ -979,7 +979,7 @@ SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`no_such`@`user_2` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
-Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Note	1449	The user specified as a definer ('no_such'@'user_2') does not exist
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE USER mysqluser1@localhost;
@@ -1044,3 +1044,177 @@ DROP DATABASE mysqltest1;
 DROP VIEW test.v3;
 DROP USER mysqluser1@localhost;
 USE test;
+#
+# Bug#35996: SELECT + SHOW VIEW should be enough to display view 
+# definition
+#
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+GRANT USAGE, SELECT, CREATE VIEW, SHOW VIEW 
+ON mysqltest2.* TO mysqluser1@localhost;
+USE mysqltest1;
+CREATE TABLE t1( a INT );
+CREATE TABLE t2( a INT, b INT );
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE VIEW v1 AS SELECT 1 AS a;
+CREATE VIEW v2 AS SELECT 1 AS a, 2 AS b;
+GRANT SELECT        ON TABLE    t1 TO mysqluser1@localhost;
+GRANT SELECT (a, b) ON TABLE    t2 TO mysqluser1@localhost;
+GRANT EXECUTE       ON FUNCTION f1 TO mysqluser1@localhost;
+GRANT SELECT        ON TABLE    v1 TO mysqluser1@localhost;
+GRANT SELECT (a, b) ON TABLE    v2 TO mysqluser1@localhost;
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+CREATE VIEW v_f1 AS SELECT f1() AS a;
+CREATE VIEW v_v1 AS SELECT * FROM v1;
+CREATE VIEW v_v2 AS SELECT * FROM v2;
+GRANT SELECT, SHOW VIEW ON v_t1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_t2 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_f1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_v1 TO mysqluser1@localhost;
+GRANT SELECT, SHOW VIEW ON v_v2 TO mysqluser1@localhost;
+CREATE VIEW v_mysqluser1_t1 AS SELECT * FROM mysqltest1.t1;
+CREATE VIEW v_mysqluser1_t2 AS SELECT * FROM mysqltest1.t2;
+CREATE VIEW v_mysqluser1_f1 AS SELECT mysqltest1.f1() AS a;
+CREATE VIEW v_mysqluser1_v1 AS SELECT * FROM mysqltest1.v1;
+CREATE VIEW v_mysqluser1_v2 AS SELECT * FROM mysqltest1.v2;
+SHOW CREATE VIEW mysqltest1.v_t1;
+View	Create View	character_set_client	collation_connection
+v_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_t2;
+View	Create View	character_set_client	collation_connection
+v_t2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_t2` AS select `mysqltest1`.`t2`.`a` AS `a`,`mysqltest1`.`t2`.`b` AS `b` from `mysqltest1`.`t2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_f1;
+View	Create View	character_set_client	collation_connection
+v_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_f1` AS select `f1`() AS `a`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_v1;
+View	Create View	character_set_client	collation_connection
+v_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_v2;
+View	Create View	character_set_client	collation_connection
+v_v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_v2` AS select `v2`.`a` AS `a`,`v2`.`b` AS `b` from `mysqltest1`.`v2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_t1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_t2;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t2	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t2` AS select `mysqltest1`.`t2`.`a` AS `a`,`mysqltest1`.`t2`.`b` AS `b` from `mysqltest1`.`t2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_f1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_f1` AS select `mysqltest1`.`f1`() AS `a`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_v1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_v2;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v2	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v2` AS select `v2`.`a` AS `a`,`v2`.`b` AS `b` from `mysqltest1`.`v2`	latin1	latin1_swedish_ci
+REVOKE SELECT     ON TABLE    t1 FROM mysqluser1@localhost;
+REVOKE SELECT (a) ON TABLE    t2 FROM mysqluser1@localhost;
+REVOKE EXECUTE    ON FUNCTION f1 FROM mysqluser1@localhost;
+REVOKE SELECT     ON TABLE    v1 FROM mysqluser1@localhost;
+SHOW CREATE VIEW mysqltest1.v_t1;
+View	Create View	character_set_client	collation_connection
+v_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_t2;
+View	Create View	character_set_client	collation_connection
+v_t2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_t2` AS select `mysqltest1`.`t2`.`a` AS `a`,`mysqltest1`.`t2`.`b` AS `b` from `mysqltest1`.`t2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_f1;
+View	Create View	character_set_client	collation_connection
+v_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_f1` AS select `f1`() AS `a`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_v1;
+View	Create View	character_set_client	collation_connection
+v_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW mysqltest1.v_v2;
+View	Create View	character_set_client	collation_connection
+v_v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_v2` AS select `v2`.`a` AS `a`,`v2`.`b` AS `b` from `mysqltest1`.`v2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_t1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_t2;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t2	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t2` AS select `mysqltest1`.`t2`.`a` AS `a`,`mysqltest1`.`t2`.`b` AS `b` from `mysqltest1`.`t2`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_f1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_f1` AS select `mysqltest1`.`f1`() AS `a`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_v1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v_mysqluser1_v2;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v2	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v2` AS select `v2`.`a` AS `a`,`v2`.`b` AS `b` from `mysqltest1`.`v2`	latin1	latin1_swedish_ci
+# Testing the case when the views reference missing objects.
+# Obviously, there are no privileges to check for, so we
+# need only each object type once.
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP VIEW v1;
+SHOW CREATE VIEW mysqltest1.v_t1;
+View	Create View	character_set_client	collation_connection
+v_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqltest1.v_f1;
+View	Create View	character_set_client	collation_connection
+v_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_f1` AS select `f1`() AS `a`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest1.v_f1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW mysqltest1.v_v1;
+View	Create View	character_set_client	collation_connection
+v_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest1`.`v_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest1.v_v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW v_mysqluser1_t1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW v_mysqluser1_f1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_f1` AS select `mysqltest1`.`f1`() AS `a`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_f1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW v_mysqluser1_v1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+REVOKE SHOW VIEW ON v_t1 FROM mysqluser1@localhost;
+REVOKE SHOW VIEW ON v_f1 FROM mysqluser1@localhost;
+REVOKE SHOW VIEW ON v_v1 FROM mysqluser1@localhost;
+SHOW CREATE VIEW mysqltest1.v_t1;
+ERROR 42000: SHOW VIEW command denied to user 'mysqluser1'@'localhost' for table 'v_t1'
+SHOW CREATE VIEW mysqltest1.v_f1;
+ERROR 42000: SHOW VIEW command denied to user 'mysqluser1'@'localhost' for table 'v_f1'
+SHOW CREATE VIEW mysqltest1.v_v1;
+ERROR 42000: SHOW VIEW command denied to user 'mysqluser1'@'localhost' for table 'v_v1'
+SHOW CREATE VIEW v_mysqluser1_t1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_t1` AS select `mysqltest1`.`t1`.`a` AS `a` from `mysqltest1`.`t1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW v_mysqluser1_f1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_f1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_f1` AS select `mysqltest1`.`f1`() AS `a`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_f1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW CREATE VIEW v_mysqluser1_v1;
+View	Create View	character_set_client	collation_connection
+v_mysqluser1_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL SECURITY DEFINER VIEW `v_mysqluser1_v1` AS select `v1`.`a` AS `a` from `mysqltest1`.`v1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'mysqltest2.v_mysqluser1_v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP USER mysqluser1@localhost;
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+USE test;
+CREATE TABLE t1( a INT );
+CREATE DEFINER = no_such_user@no_such_host VIEW v1 AS SELECT * FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+Warnings:
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
+DROP TABLE t1;
+DROP VIEW v1;

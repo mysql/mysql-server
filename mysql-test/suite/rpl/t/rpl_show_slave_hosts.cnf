@@ -1,0 +1,20 @@
+!include ../my.cnf
+
+[mysqld.1]
+server_id=1
+
+[mysqld.2]
+server_id=2
+report-host=
+report-user=
+
+[mysqld.3]
+server_id=3
+report-host=slave2
+slave-net-timeout=5
+
+[ENV]
+SLAVE_MYPORT2=		@mysqld.3.port
+SLAVE_MYSOCK2=		@mysqld.3.socket
+
+

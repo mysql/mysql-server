@@ -1191,7 +1191,7 @@ row_ins_check_foreign_constraint(
 /*=============================*/
 	ibool		check_ref,/*!< in: TRUE if we want to check that
 				the referenced table is ok, FALSE if we
-				want to to check the foreign key table */
+				want to check the foreign key table */
 	dict_foreign_t*	foreign,/*!< in: foreign constraint; NOTE that the
 				tables mentioned in it must be in the
 				dictionary cache if they exist at all */

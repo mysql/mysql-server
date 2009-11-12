@@ -146,6 +146,7 @@ sub mtr_report_test ($) {
           }
         }
         $fail = "exp-fail";
+        $tinfo->{exp_fail}= 1;
         last;
       }
     }

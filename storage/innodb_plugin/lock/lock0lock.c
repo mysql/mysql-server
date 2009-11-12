@@ -214,7 +214,7 @@ a waiting s-lock request on the next record? If this s-lock was placed
 by a read cursor moving in the ascending order in the index, we cannot
 do the insert immediately, because when we finally commit our transaction,
 the read cursor should see also the new inserted record. So we should
-move the read cursor backward from the the next record for it to pass over
+move the read cursor backward from the next record for it to pass over
 the new inserted record. This move backward may be too cumbersome to
 implement. If we in this situation just enqueue a second x-lock request
 for our transaction on the next record, then the deadlock mechanism
@@ -360,10 +360,9 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no);/*!< in: page number */
-
-/* Define the following in order to enable lock_rec_validate_page() checks. */
-# undef UNIV_DEBUG_LOCK_VALIDATE
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -2622,6 +2621,7 @@ lock_move_reorganize_page(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
 }
@@ -2711,8 +2711,10 @@ lock_move_rec_list_end(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(new_block)));
 #endif
 }
@@ -2822,6 +2824,7 @@ lock_move_rec_list_start(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
 }
@@ -3574,7 +3577,8 @@ lock_table_remove_low(
 		and lock_grant()). Therefore it can be empty and we
 		need to check for that. */
 
-		if (!ib_vector_is_empty(trx->autoinc_locks)) {
+		if (!lock_get_wait(lock)
+		    && !ib_vector_is_empty(trx->autoinc_locks)) {
 			lock_t*	autoinc_lock;
 
 			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
@@ -3647,8 +3651,10 @@ lock_table_enqueue_waiting(
 
 	if (lock_deadlock_occurs(lock, trx)) {
 
-		lock_reset_lock_and_trx_wait(lock);
+		/* The order here is important, we don't want to
+		lose the state of the lock before calling remove. */
 		lock_table_remove_low(lock);
+		lock_reset_lock_and_trx_wait(lock);
 
 		return(DB_DEADLOCK);
 	}
@@ -4627,6 +4633,10 @@ lock_rec_queue_validate(
 		next function call: we have to release lock table mutex
 		to obey the latching order */
 
+		/* If this thread is holding the file space latch
+		(fil_space_t::latch), the following check WILL break
+		latching order and may cause a deadlock of threads. */
+
 		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
 			rec, index, offsets);
 
@@ -4684,6 +4694,8 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no)/*!< in: page number */
 {
 	dict_index_t*	index;
@@ -4694,7 +4706,6 @@ lock_rec_validate_page(
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
-	ulint		zip_size;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4705,7 +4716,6 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	zip_size = fil_space_get_zip_size(space);
 	ut_ad(zip_size != ULINT_UNDEFINED);
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
@@ -4749,6 +4759,11 @@ loop:
 				(ulong) space, (ulong) page_no);
 
 			lock_mutex_exit_kernel();
+
+			/* If this thread is holding the file space
+			latch (fil_space_t::latch), the following
+			check WILL break the latching order and may
+			cause a deadlock of threads. */
 
 			lock_rec_queue_validate(block, rec, index, offsets);
 
@@ -4840,7 +4855,9 @@ lock_validate(void)
 
 			lock_mutex_exit_kernel();
 
-			lock_rec_validate_page(space, page_no);
+			lock_rec_validate_page(space,
+					       fil_space_get_zip_size(space),
+					       page_no);
 
 			lock_mutex_enter_kernel();
 
@@ -5361,6 +5378,20 @@ lock_release_autoinc_last_lock(
 
 	/* This will remove the lock from the trx autoinc_locks too. */
 	lock_table_dequeue(lock);
+}
+
+/*******************************************************************//**
+Check if a transaction holds any autoinc locks. 
+@return TRUE if the transaction holds any AUTOINC locks. */
+UNIV_INTERN
+ibool
+lock_trx_holds_autoinc_locks(
+/*=========================*/
+	const trx_t*	trx)		/*!< in: transaction */
+{
+	ut_a(trx->autoinc_locks != NULL);
+
+	return(!ib_vector_is_empty(trx->autoinc_locks));
 }
 
 /*******************************************************************//**
