@@ -85,7 +85,8 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
         r = toku_close_brt(tuple->brt, &error_string);
         if (!recovery_succeeded) {
-            printf("%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
+            if (toku_recover_trace)
+                printf("%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
             assert(r != 0);
         } else
             assert(r == 0);
@@ -571,11 +572,13 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
 	assert(bs->checkpoint_lsn.lsn == l->lsn.lsn);
 	bs->bs = BS_SAW_CKPT;
 	if (bs->n_live_txns==0) {
-	    fprintf(stderr, "Turning around at begin_checkpoint %" PRIu64 "\n", l->lsn.lsn);
+	    fprintf(stderr, "Tokudb recovery turning around at begin checkpoint %"PRIu64"\n", l->lsn.lsn);
             renv->goforward = TRUE;
 	    return 0;
-	} else 
+	} else {
+	    fprintf(stderr, "Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64"\n", l->lsn.lsn, bs->min_live_txn);
             return 0;
+        }
     case BS_SAW_CKPT:
 	return 0; // ignore it
     default:
@@ -675,11 +678,13 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, RECOVER_ENV r
 	assert(bs->n_live_txns > 0); // the only thing we are doing here is looking for a live txn, so there better be one
 	// If we got to the min, return nonzero
 	if (bs->min_live_txn >= l->lsn.lsn) {
-	    fprintf(stderr, "Turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
+            if (toku_recover_trace)
+                fprintf(stderr, "Tokudb recovery turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
             renv->goforward = TRUE;
 	    return 0;
 	} else {
-	    fprintf(stderr, "Scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 ")\n", l->lsn.lsn, bs->min_live_txn);
+	    if (toku_recover_trace)
+                fprintf(stderr, "Tokudb recovery scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 ")\n", l->lsn.lsn, bs->min_live_txn);
 	    return 0;
 	}
     default:
@@ -815,6 +820,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     TOKULOGCURSOR logcursor = NULL;
     struct log_entry *le = NULL;
 
+    fprintf(stderr, "Tokudb recovery starting\n");
+
     char org_wd[1000];
     {
 	char *wd=getcwd(org_wd, sizeof(org_wd));
@@ -853,6 +860,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan backwards
+    fprintf(stderr, "Tokudb recovery scanning backward from %"PRIu64"\n", lastlsn.lsn);
     backward_scan_state_init(&renv->bs);
     while (1) {
         le = NULL;
@@ -887,6 +895,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan forwards
+    LSN lsn = toku_log_entry_get_lsn(le);
+    fprintf(stderr, "Tokudb recovery scanning forward from %"PRIu64"\n", lsn.lsn);
     while (1) {
         le = NULL;
         r = toku_logcursor_next(logcursor, &le);
@@ -914,10 +924,12 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     // restart logging
     toku_logger_restart(renv->logger, lastlsn);
 
-    // abort the live transactions 
+    // abort the live transactions
+    fprintf(stderr, "Tokudb recovery aborting uncommited transactions\n");
     recover_abort_live_txns(renv);
 
     // close the open dictionaries
+    fprintf(stderr, "Tokudb recovery closing dictionaries\n");
     file_map_close_dictionaries(&renv->fmap, TRUE);
 
     // write a recovery log entry
@@ -926,8 +938,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     assert(r == 0);
 
     // checkpoint 
+    fprintf(stderr, "Tokudb recovery making a checkpoint\n");
     r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL);
     assert(r == 0);
+    fprintf(stderr, "Tokudb recovery done\n");
 
     r = chdir(org_wd); 
     assert(r == 0);
@@ -935,6 +949,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     return 0;
 
  errorexit:
+    fprintf(stderr, "Tokudb recovery failed %d\n", rr);
+
     if (logcursor) {
         r = toku_logcursor_destroy(&logcursor);
         assert(r == 0);
