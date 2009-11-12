@@ -85,7 +85,7 @@ static u_int32_t tokudb_init_flags =
     DB_INIT_LOCK | 
     DB_INIT_MPOOL |
     DB_INIT_TXN | 
-    0 | // disabled for 1.0.2 DB_INIT_LOG |
+    DB_INIT_LOG |
     DB_RECOVER;
 static u_int32_t tokudb_env_flags = 0;
 // static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
@@ -853,6 +853,11 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("txn commits", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.aborts);
       STATPRINT("txn aborts", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_count);
+      STATPRINT("fsync count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_time);
+      STATPRINT("fsync time", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
