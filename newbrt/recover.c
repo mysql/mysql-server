@@ -731,7 +731,7 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
     }
     int result = 0;
     while ((de=readdir(d))) {
-	char rolltmp_prefix[] = "__rolltmp.";
+	char rolltmp_prefix[] = "__tokudb_rolltmp.";
 	int r = memcmp(de->d_name, rolltmp_prefix, sizeof(rolltmp_prefix) - 1);
 	if (r == 0) {
 	    int fnamelen = strlen(log_dir) + strlen(de->d_name) + 2; // One for the slash and one for the trailing NUL.
