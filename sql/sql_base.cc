@@ -5286,9 +5286,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         We can solve these problems in mixed mode by switching to binlogging 
         if at least one updated table is used by sub-statement
       */
-      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing 
-         warnings, but it will be removed by fixing bug#45827 */
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables && 
+      if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
       {
         thd->lex->set_stmt_unsafe();

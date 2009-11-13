@@ -42,6 +42,9 @@ INSERT INTO t2 VALUES (NULL);
 RETURN i;
 END//
 CALL p1();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Intvar	#	#	INSERT_ID=1
@@ -98,6 +101,9 @@ SELECT * FROM t2;
 id
 DROP TRIGGER tr1;
 CALL p2();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Intvar	#	#	INSERT_ID=11

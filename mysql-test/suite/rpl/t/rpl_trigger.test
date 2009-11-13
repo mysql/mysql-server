@@ -38,10 +38,12 @@ insert into t3 values(100,"log",0,0,0);
 SET @@RAND_SEED1=658490765, @@RAND_SEED2=635893186;
 
 # Emulate that we have rows 2-9 deleted on the slave
+--disable_warnings
 insert into t1 values(1,1,rand()),(NULL,2,rand());
 insert into t2 (b) values(last_insert_id());
 insert into t2 values(3,0),(NULL,0);
 insert into t2 values(NULL,0),(500,0);
+--enable_warnings
 
 select a,b, truncate(rand_value,4) from t1;
 select * from t2;

@@ -456,7 +456,11 @@ return n;
 end|
 reset master;
 insert into t2 values (bug27417(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 insert into t2 select bug27417(2);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -473,6 +477,8 @@ select count(*) from t2;
 count(*)
 2
 delete from t2 where a=bug27417(3);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -485,6 +491,8 @@ select count(*) from t1 /* must be 5 */;
 count(*)
 5
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 affected rows: 0
 select count(*) from t1 /* must be 7 */;
 count(*)
@@ -700,7 +708,11 @@ return n;
 end|
 reset master;
 insert into t2 values (bug27417(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 insert into t2 select bug27417(2);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -716,6 +728,8 @@ select count(*) from t2;
 count(*)
 2
 delete from t2 where a=bug27417(3);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -727,6 +741,8 @@ select count(*) from t1 /* must be 5 */;
 count(*)
 5
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 affected rows: 0
 select count(*) from t1 /* must be 7 */;
 count(*)
