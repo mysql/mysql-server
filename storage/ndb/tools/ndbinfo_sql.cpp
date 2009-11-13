@@ -142,15 +142,15 @@ struct view {
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
    },
   { "memoryusage",
-    "SELECT node_id, \"DATA_MEMORY\" "
-    "used, max, high "
+    "SELECT node_id, \"DATA_MEMORY\", "
+    "used, max "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources "
-    "WHERE resource_id = \"DATA_MEMORY|\" "
+    "WHERE resource_id = 3 "
     "UNION "
-    "SELECT node_id, \"INDEX_MEMORY\" "
-    "used, total, high "
+    "SELECT node_id, \"INDEX_MEMORY\", "
+    "used, total "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools "
-    "WHERE pool_name = \"Index memory|\" "
+    "WHERE block_number = 248 AND pool_name = \"Index memory\" "
   }
 };
 
