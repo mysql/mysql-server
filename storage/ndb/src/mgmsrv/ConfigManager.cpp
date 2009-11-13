@@ -1655,6 +1655,10 @@ ConfigManager::run()
 
   m_started.set(m_facade->ownId());
 
+  // exclude nowait-nodes from config change protcol
+  m_all_mgm.bitANDC(m_opts.nowait_nodes);
+  m_all_mgm.set(m_facade->ownId()); // Never exclude own node
+
   start_checkers();
 
   while (!is_stopped())
