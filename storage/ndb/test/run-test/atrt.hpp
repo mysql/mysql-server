@@ -312,6 +312,8 @@ static inline int sh(const char *script){
 
   g_logger.debug("script: %s", clean);
   int rv = system(bs.c_str());
+  unlink(result);
+
   if (rv) {
     g_logger.debug("system returned %d\n", rv);
   }
