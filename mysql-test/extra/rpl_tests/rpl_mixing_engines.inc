@@ -516,10 +516,12 @@ while (`SELECT HEX(@commands) != HEX('')`)
   }
   if (`SELECT HEX(@command) = HEX('C')`)
   {
+    --error 0, ER_GET_ERRMSG
     eval COMMIT;
   }
   if (`SELECT HEX(@command) = HEX('R')`)
   {
+    --error 0, ER_GET_ERRMSG
     eval ROLLBACK;
   }
   if (`SELECT HEX(@command) = HEX('S1')`)
