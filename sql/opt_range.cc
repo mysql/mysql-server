@@ -5882,8 +5882,30 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
-      !(conf_func->compare_collation()->state & MY_CS_BINSORT))
+      !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
+        (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
     goto end;
+
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
 
   if (param->using_real_indexes)
     optimize_range= field->optimize_range(param->real_keynr[key_part->key],
@@ -6067,6 +6089,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  /*
+    Any sargable predicate except "<=>" involving NULL as a constant is always
+    FALSE
+  */
+  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
+  {
+    tree= &null_element;
+    goto end;
+  }
+  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -6112,7 +6145,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(field,value) == 0)
+    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -6127,14 +6160,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field, value) <= 0))
+        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
       tree->min_flag=NEAR_MIN;
     tree->max_flag= NO_MAX_RANGE;
     break;
   case Item_func::GE_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field,value) < 0))
+        (stored_field_cmp_to_item(param->thd, field, value) < 0))
       tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;

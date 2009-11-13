@@ -54,6 +54,8 @@ extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
+extern bool volatile shutdown_in_progress;
+
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
@@ -675,9 +677,12 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  char *query;
-  uint32 query_length;                          // current query length
+  LEX_STRING query_string;
   Server_side_cursor *cursor;
+
+  inline char *query() { return query_string.str; }
+  inline uint32 query_length() { return query_string.length; }
+  void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
     Name of the current (default) database.
@@ -2047,7 +2052,11 @@ public:
   {
     int err= killed_errno();
     if (err)
+    {
+      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
+    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()

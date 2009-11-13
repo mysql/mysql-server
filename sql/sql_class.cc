@@ -385,14 +385,14 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  if (thd->query)
+  if (thd->query())
   {
     if (max_query_len < 1)
-      len= thd->query_length;
+      len= thd->query_length();
     else
-      len= min(thd->query_length, max_query_len);
+      len= min(thd->query_length(), max_query_len);
     str.append('\n');
-    str.append(thd->query, len);
+    str.append(thd->query(), len);
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -2499,12 +2499,12 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  query(0),
-  query_length(0),
   cursor(0),
   db(NULL),
   db_length(0)
 {
+  query_string.length= 0;
+  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2520,8 +2520,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  query=          stmt->query;
-  query_length=   stmt->query_length;
+  query_string=   stmt->query_string;
   cursor=         stmt->cursor;
 }
 
@@ -2542,6 +2541,15 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
+{
+  query_string.str= query_arg;
+  query_string.length= query_length_arg;
 }
 
 
@@ -2780,9 +2788,11 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      suv->fix_fields(thd, 0);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN (1);
       suv->save_item_result(item);
-      suv->update();
+      if (suv->update())
+        DBUG_RETURN (1);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -3058,9 +3068,24 @@ extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
   return(thd->charset());
 }
 
+/**
+  OBSOLETE : there's no way to ensure the string is null terminated.
+  Use thd_query_string instead()
+*/
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query);
+  return(&thd->query_string.str);
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param The MySQL internal thread pointer
+  @return query string and length. May be non-null-terminated.
+*/
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
+{
+  return(&thd->query_string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3084,6 +3109,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
+}
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
 }
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
@@ -3239,8 +3269,7 @@ void THD::set_statement(Statement *stmt)
 void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
   pthread_mutex_lock(&LOCK_thd_data);
-  query= query_arg;
-  query_length= query_length_arg;
+  set_query_inner(query_arg, query_length_arg);
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -3258,6 +3287,16 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
+    /*
+      Aborted transactions can not be IGNOREd.
+      Switch off the IGNORE flag for the current
+      SELECT_LEX. This should allow my_error()
+      to report the error and abort the execution
+      flow, even in presence
+      of IGNORE clause.
+    */
+    if (thd->lex->current_select)
+      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************
