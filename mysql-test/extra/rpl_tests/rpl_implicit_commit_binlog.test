@@ -21,8 +21,9 @@
 --echo #########################################################################
 connection master;
 
-CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
-CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
+eval CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = $engine;
+eval CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = $engine;
+eval CREATE TABLE nt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = MyIsam;
 
 INSERT INTO tt_1(ddl_case) VALUES(0);
 INSERT INTO tt_2(ddl_case) VALUES(0);
@@ -36,6 +37,7 @@ while (`SELECT $ddl_cases >= 1`)
 {
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
   let $in_temporary= "no";
+  let $ok= "yes";
   #
   # In SBR and MIXED modes, the commit event is usually the third event in the
   # binary log:
@@ -62,16 +64,55 @@ while (`SELECT $ddl_cases >= 1`)
   {
     let $commit_event_row_number= 4;
   }
+  #
+  # In NDB (RBR and MIXED modes), the commit event is usually the seventh event
+  # in the binary log:
+  #
+  # 1: COMMAND
+  # 2: BEGIN
+  # 3: TABLE MAP EVENT
+  # 4: TABLE MAP EVENT (ndb_apply_status)
+  # 5: ROW EVENT
+  # 6: ROW EVENT
+  # 7: COMMIT
+  #
+  if (`select '$engine' = 'NDB'`)
+  {
+    let $commit_event_row_number= 7;
+  }
+  
   let $first_binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1);
   --enable_query_log
   eval INSERT INTO tt_1(ddl_case) VALUES ($ddl_cases);
   if (`SELECT $ddl_cases = 41`)
   {
     let $cmd= LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      # This seems to be related to epochs.
+      # We need to check this against an updated version or avoid it.
+      let $ok= "no";
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 40`)
   {
-    let $cmd= LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;
+    let $cmd= LOAD INDEX INTO CACHE tt_1, tt_2 IGNORE LEAVES;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 39`)
   {
@@ -80,6 +121,21 @@ while (`SELECT $ddl_cases >= 1`)
   if (`SELECT $ddl_cases = 38`)
   {
     let $cmd= CHECK TABLE nt_1;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 37`)
   {
@@ -92,10 +148,40 @@ while (`SELECT $ddl_cases >= 1`)
   if (`SELECT $ddl_cases = 35`)
   {
     let $cmd= LOCK TABLES tt_1 WRITE;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 34`)
   {
     let $cmd= UNLOCK TABLES;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 33`)
   {
@@ -108,6 +194,43 @@ while (`SELECT $ddl_cases >= 1`)
   if (`SELECT $ddl_cases = 31`)
   {
     let $cmd= SET PASSWORD FOR 'user'@'localhost' = PASSWORD('newpass');
+    #
+    # In NDB (RBR mode), the commit event is the eleventh event
+    # in the binary log:
+    #
+    # 1: DDL EVENT which triggered the previous commmit.
+    # 2: BEGIN
+    # 3: TABLE MAP EVENT
+    # 4: ROW EVENT
+    # 5: COMMIT
+    # 6: BEGIN
+    # 7: TABLE MAP EVENT
+    # 8: TABLE MAP EVENT (ndb_apply_status)
+    # 9: ROW EVENT
+    # 10: ROW EVENT
+    # 11: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format = 'ROW'`)
+    {
+      let $commit_event_row_number= 11;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the eighth event
+    # in the binary log:
+    #
+    # 1: DDL EVENT which triggered the previous commmit.
+    # 2: COMMIT
+    # 3: BEGIN
+    # 4: TABLE MAP EVENT
+    # 5: TABLE MAP EVENT (ndb_apply_status)
+    # 6: ROW EVENT
+    # 7: ROW EVENT
+    # 8: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'`)
+    {
+      let $commit_event_row_number= 7;
+    }
   }
   if (`SELECT $ddl_cases = 30`)
   {
@@ -150,7 +273,7 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: COMMIT
     # 6: DDL EVENT which triggered the previous commmit.
     #
-    if (`select @@binlog_format = 'ROW'`)
+    if (`select @@binlog_format = 'ROW' && '$engine' != 'NDB'`)
     {
       let $commit_event_row_number= 5;
     }
@@ -194,10 +317,42 @@ while (`SELECT $ddl_cases >= 1`)
   if (`SELECT $ddl_cases = 13`)
   {
     let $cmd= CREATE INDEX ix ON tt_1(ddl_case);
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    # 7: DDL EVENT which triggered the previous commmit.
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 12`)
   {
-     let $cmd= DROP INDEX ix ON tt_1;
+    let $cmd= DROP INDEX ix ON tt_1;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    # 7: DDL EVENT which triggered the previous commmit.
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 11`)
   {
@@ -221,6 +376,39 @@ while (`SELECT $ddl_cases >= 1`)
     {
       let $commit_event_row_number= 4;
     }
+    #
+    # In NDB (RBR mode), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format = 'ROW'` )
+    {
+      let $commit_event_row_number= 6;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the nineth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: DDL EVENT which triggered the previous commmit.
+    # 3: COMMIT
+    # 4: BEGIN
+    # 5: TABLE MAP EVENT
+    # 6: TABLE MAP EVENT (ndb_apply_status)
+    # 7: ROW EVENT
+    # 8: ROW EVENT
+    # 9: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'` )
+    {
+      let $commit_event_row_number= 9;
+    }
   }
   if (`SELECT $ddl_cases = 10`)
   {
@@ -238,6 +426,21 @@ while (`SELECT $ddl_cases >= 1`)
     {
       let $commit_event_row_number= 4;
     }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 9`)
   {
@@ -254,6 +457,21 @@ while (`SELECT $ddl_cases >= 1`)
     if (`select @@binlog_format = 'MIXED'`)
     {
       let $commit_event_row_number= 4;
+    }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
     }
   }
   if (`SELECT $ddl_cases = 8`)
@@ -290,6 +508,39 @@ while (`SELECT $ddl_cases >= 1`)
     {
       let $commit_event_row_number= 5;
     }
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
+    #
+    # In NDB (MIXED mode), the commit event is the nineth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: DDL EVENT which triggered the previous commmit.
+    # 3: COMMIT
+    # 4: BEGIN
+    # 5: TABLE MAP EVENT
+    # 6: TABLE MAP EVENT (ndb_apply_status)
+    # 7: ROW EVENT
+    # 8: ROW EVENT
+    # 9: COMMIT
+    #
+    if (`SELECT '$engine' = 'NDB' && @@binlog_format != 'ROW'` )
+    {
+      let $commit_event_row_number= 9;
+    }
   }
   if (`SELECT $ddl_cases = 7`)
   {
@@ -314,10 +565,42 @@ while (`SELECT $ddl_cases >= 1`)
   if (`SELECT $ddl_cases = 2`)
   {
     let $cmd= CREATE DATABASE db;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    # 7: DDL EVENT which triggered the previous commmit.
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   if (`SELECT $ddl_cases = 1`)
   {
     let $cmd= DROP DATABASE IF EXISTS db;
+    #
+    # In NDB (RBR and MIXED modes), the commit event is the sixth event
+    # in the binary log:
+    #
+    # 1: BEGIN
+    # 2: TABLE MAP EVENT
+    # 3: TABLE MAP EVENT (ndb_apply_status)
+    # 4: ROW EVENT
+    # 5: ROW EVENT
+    # 6: COMMIT
+    # 7: DDL EVENT which triggered the previous commmit.
+    #
+    if (`SELECT '$engine' = 'NDB'`)
+    {
+      let $commit_event_row_number= 6;
+    }
   }
   --eval $cmd
   --disable_query_log
@@ -333,11 +616,14 @@ while (`SELECT $ddl_cases >= 1`)
   let $event_commit= query_get_value("SHOW BINLOG EVENTS FROM $first_binlog_position", Info, $commit_event_row_number);
   if (`SELECT SUBSTRING("$event_commit",1,6) != "COMMIT"`)
   {
-    --echo it *does not* commit the current transaction.
-    --echo $cmd
-    --echo $event_commit
-    SHOW BINLOG EVENTS;
-    exit;
+    if (`SELECT $ok = "yes"`)
+    {
+      --echo it *does not* commit the current transaction.
+      --echo $cmd
+      --echo $event_commit
+      SHOW BINLOG EVENTS;
+      exit;
+    }
   }
   --echo -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
   let $binlog_start= $first_binlog_position;
@@ -365,5 +651,6 @@ connection master;
 
 DROP TABLE tt_1;
 DROP TABLE tt_2;
+DROP TABLE nt_1;
 
 sync_slave_with_master;
