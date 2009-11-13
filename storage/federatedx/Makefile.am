@@ -22,7 +22,6 @@ pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
 ha_federatedx_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_federatedx_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federatedx_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federatedx_la_SOURCES =	ha_federatedx.cc
 
 
 EXTRA_LIBRARIES =	libfederatedx.a
