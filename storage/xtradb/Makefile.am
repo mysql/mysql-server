@@ -78,6 +78,7 @@ noinst_HEADERS=		\
 			include/fil0fil.h	\
 			include/fsp0fsp.h	\
 			include/fsp0fsp.ic	\
+			include/fsp0types.h	\
 			include/fut0fut.h	\
 			include/fut0fut.ic	\
 			include/fut0lst.h	\
