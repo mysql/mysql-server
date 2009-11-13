@@ -1664,7 +1664,8 @@ set @old_recursion_depth = @@max_sp_recursion_depth;
 set @@max_sp_recursion_depth = 255;
 create procedure p1(a int)
 begin
-declare continue handler for sqlexception select 'exception';
+declare continue handler for 1436 -- ER_STACK_OVERRUN_NEED_MORE
+select 'exception';
 call p1(a+1);
 end|
 call p1(1);
