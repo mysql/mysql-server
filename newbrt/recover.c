@@ -7,7 +7,9 @@
 #include "log_header.h"
 #include "checkpoint.h"
 
-int toku_recover_trace = 0;
+int tokudb_recovery_trace = 0;
+
+#define TOKUDB_RECOVERY "Tokudb recovery"
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
@@ -85,8 +87,8 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
         r = toku_close_brt(tuple->brt, &error_string);
         if (!recovery_succeeded) {
-            if (toku_recover_trace)
-                printf("%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
+            if (tokudb_recovery_trace)
+                fprintf(stderr, "%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
             assert(r != 0);
         } else
             assert(r == 0);
@@ -163,8 +165,8 @@ static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_
     file_map_init(&renv->fmap);
     renv->goforward = FALSE;
 
-    if (toku_recover_trace)
-        printf("%s:%d\n", __FUNCTION__, __LINE__);
+    if (tokudb_recovery_trace)
+        fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
     return r;
 }
 
@@ -180,8 +182,8 @@ static void recover_env_cleanup (RECOVER_ENV renv, BOOL recovery_succeeded) {
     r = toku_cachetable_close(&renv->ct);
     assert(r == 0);
 
-    if (toku_recover_trace)
-        printf("%s:%d\n", __FUNCTION__, __LINE__);
+    if (tokudb_recovery_trace)
+        fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
 }
 
 // Null function supplied to transaction commit and abort
@@ -253,7 +255,7 @@ static void create_dir_from_file (const char *fname) {
 		mode_t oldu = umask(0);
 		int r = toku_os_mkdir(tmp, S_IRWXU);
 		if (r!=0 && errno!=EEXIST) {
-		    printf("error: %s\n", strerror(errno));
+		    fprintf(stderr, "error: %s\n", strerror(errno));
 		}
 		assert (r == 0 || (errno==EEXIST));
 		umask(oldu);
@@ -290,7 +292,7 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
         // maybe unlink
         r = unlink(fixedfname);
         if (r != 0 && errno != ENOENT) {
-            printf("%s:%d unlink %d\n", __FUNCTION__, __LINE__, errno);
+            fprintf(stderr, "%s:%d unlink %d\n", __FUNCTION__, __LINE__, errno);
             return r;
         }
     }
@@ -682,12 +684,12 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, RECOVER_ENV r
 	assert(ss->n_live_txns > 0); // the only thing we are doing here is looking for a live txn, so there better be one
 	// If we got to the min, return nonzero
 	if (ss->min_live_txn >= l->lsn.lsn) {
-            if (toku_recover_trace)
+            if (tokudb_recovery_trace)
                 fprintf(stderr, "Tokudb recovery turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
             renv->goforward = TRUE;
 	    return 0;
 	} else {
-	    if (toku_recover_trace)
+	    if (tokudb_recovery_trace)
                 fprintf(stderr, "Tokudb recovery scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 ")\n", l->lsn.lsn, ss->min_live_txn);
 	    return 0;
 	}
@@ -818,6 +820,14 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
     }
 }
 
+static void recover_trace_le(const char *f, int l, int r, struct log_entry *le) {
+    if (le) {
+        LSN thislsn = toku_log_entry_get_lsn(le);
+        fprintf(stderr, "%s:%d r=%d cmd=%c lsn=%"PRIu64"\n", f, l, r, le->cmd, thislsn.lsn);
+    } else
+        fprintf(stderr, "%s:%d r=%d cmd=?\n", f, l, r);
+}
+
 static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_dir) {
     int r;
     int rr = 0;
@@ -830,7 +840,6 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     {
 	char *wd=getcwd(org_wd, sizeof(org_wd));
 	assert(wd!=0);
-	//printf("%s:%d org_wd=\"%s\"\n", __FILE__, __LINE__, org_wd);
     }
 
     r = toku_logger_open(log_dir, renv->logger);
@@ -845,8 +854,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     
     r = toku_logcursor_last(logcursor, &le);
     if (r != 0) {
-        if (toku_recover_trace) 
-            printf("RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
+        if (tokudb_recovery_trace) 
+            fprintf(stderr, "RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
         rr = DB_RUNRECOVERY; goto errorexit;
     }
 
@@ -869,8 +878,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     while (1) {
         le = NULL;
         r = toku_logcursor_prev(logcursor, &le);
-        if (toku_recover_trace) 
-            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (tokudb_recovery_trace) 
+            recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
             if (r == DB_RUNRECOVERY) {
                 rr = DB_RUNRECOVERY; goto errorexit;
@@ -878,20 +887,20 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
             break;
         }
         logtype_dispatch_assign(le, toku_recover_backward_, r, renv);
-        if (toku_recover_trace) 
-            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (tokudb_recovery_trace) 
+            recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
-            if (toku_recover_trace) 
-                printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
+            if (tokudb_recovery_trace) 
+                fprintf(stderr, "DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
             rr = DB_RUNRECOVERY; goto errorexit;
         }
         if (renv->goforward) {
             logtype_dispatch_assign(le, toku_recover_, r, renv);
-            if (toku_recover_trace) 
-                printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+            if (tokudb_recovery_trace) 
+                recover_trace_le(__FUNCTION__, __LINE__, r, le);
             if (r != 0) {
-                if (toku_recover_trace) 
-                    printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
+                if (tokudb_recovery_trace) 
+                    fprintf(stderr, "DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
                 rr = DB_RUNRECOVERY; goto errorexit;
             }
             break;
@@ -899,13 +908,13 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan forwards
-    LSN lsn = toku_log_entry_get_lsn(le);
-    fprintf(stderr, "Tokudb recovery scanning forward from %"PRIu64"\n", lsn.lsn);
+    LSN thislsn = toku_log_entry_get_lsn(le);
+    fprintf(stderr, "Tokudb recovery scanning forward from %"PRIu64"\n", thislsn.lsn);
     while (1) {
         le = NULL;
         r = toku_logcursor_next(logcursor, &le);
-        if (toku_recover_trace) 
-            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (tokudb_recovery_trace) 
+            recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
             if (r == DB_RUNRECOVERY) {
                 rr = DB_RUNRECOVERY; goto errorexit;
@@ -913,11 +922,11 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
             break;
         }
         logtype_dispatch_assign(le, toku_recover_, r, renv);
-        if (toku_recover_trace) 
-            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (tokudb_recovery_trace) 
+            recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
-            if (toku_recover_trace) 
-                printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
+            if (tokudb_recovery_trace) 
+                fprintf(stderr, "DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
             rr = DB_RUNRECOVERY; goto errorexit;
         }
     }
@@ -976,7 +985,7 @@ static int recover_lock(const char *lock_dir, int *lockfd) {
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
         int e = errno;
-        printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
+        fprintf(stderr, "Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
         return e;
     }
     return 0;
