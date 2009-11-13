@@ -4331,8 +4331,9 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
             if (r==0 && env_is_db_with_dname_open(env, dname))
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
+            DB* zombie = NULL;
             if (r==0) {
-                DB* zombie = env_get_zombie_db_with_dname(env, dname);
+                zombie = env_get_zombie_db_with_dname(env, dname);
                 if (zombie)
                     r = toku_db_pre_acquire_table_lock(zombie, child);
                 if (r!=0)
@@ -4340,12 +4341,12 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             }
             if (r==0 && env_is_db_with_dname_open(env, newname))
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
-            if (r==0) {
-                DB* zombie = env_get_zombie_db_with_dname(env, newname);
-                if (zombie)
-                    r = toku_db_pre_acquire_table_lock(zombie, child);
-                if (r!=0)
-                    toku_ydb_do_error(env, r, "Cannot rename dictionary.\n");
+            if (r==0 && zombie) {
+                //Update zombie in list if exists.
+                env_note_zombie_db_closed(env, zombie);  // tell env that this db is no longer a zombie (it is completely closed)
+                toku_free(zombie->i->dname);
+                zombie->i->dname = toku_xstrdup(newname);
+                env_note_zombie_db(env, zombie);  // tell env that this db is a zombie
             }
 	}
     }
