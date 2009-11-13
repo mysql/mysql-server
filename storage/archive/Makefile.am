@@ -77,7 +77,7 @@ libarchive_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 ha_archive_la_LIBADD = probes_sh_mysql.o
 ha_archive_la_DEPENDENCIES = probes_sh_mysql.o dtrace_shared_files dtrace_providers
 
-CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers dtrace_shared_files
+CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers dtrace_shared_files dtrace_sources
 DTRACEFILES = libarchive_a-ha_archive.o
 DTRACESHAREDFILES = .libs/ha_archive_la-ha_archive.o
 # Hack: We "depend" on ".libs/" but have no rule for it,
