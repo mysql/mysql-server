@@ -809,7 +809,6 @@ show columns in t1;
 show slave hosts;
 show keys in t1;
 show column types;
-show table types;
 show storage engines;
 show authors;
 show contributors;
@@ -1292,11 +1291,6 @@ delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
-show full plugin;
-show warnings;
-Level	Code	Message
-Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 6.0. Please use 'SHOW PLUGINS' instead
-show plugin;
 show plugins;
 create database `mysqlttest\1`;
 create table `mysqlttest\1`.`a\b` (a int);
@@ -1448,7 +1442,6 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
-SHOW TABLE TYPES;
 CREATE USER test_u@localhost;
 GRANT PROCESS ON *.* TO test_u@localhost;
 SHOW ENGINE MYISAM MUTEX;
