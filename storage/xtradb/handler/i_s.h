@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file handler/i_s.h
 InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
 Created July 18, 2007 Vasil Dimov

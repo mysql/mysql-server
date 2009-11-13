@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mysql_addons.h
 This file contains functions that need to be added to
 MySQL code but have not been added yet.
 

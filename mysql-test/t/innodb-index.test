@@ -515,4 +515,28 @@ SHOW CREATE TABLE t2;
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+connection b;
+BEGIN;
+SELECT * FROM t1;
+connection a;
+CREATE INDEX t1a ON t1(a);
+connection b;
+SELECT * FROM t1;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+SELECT * FROM t1;
+COMMIT;
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+connection default;
+disconnect a;
+disconnect b;
+
+DROP TABLE t1;
+
 SET GLOBAL innodb_file_format_check=@save_innodb_file_format_check;

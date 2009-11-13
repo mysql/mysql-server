@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0merge.c
 New index creation routines using a merge sort
 
 Created 12/4/2005 Jan Lindstrom
@@ -57,69 +58,74 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 
 #ifdef UNIV_DEBUG
-/* Set these in order ot enable debug printout. */
+/** Set these in order ot enable debug printout. */
+/* @{ */
 static ibool	row_merge_print_cmp;
 static ibool	row_merge_print_read;
 static ibool	row_merge_print_write;
+/* @} */
 #endif /* UNIV_DEBUG */
 
-/* Block size for I/O operations in merge sort.  The minimum is
-UNIV_PAGE_SIZE, or page_get_free_space_of_empty() rounded to a power of 2.
+/** @brief Block size for I/O operations in merge sort.
+
+The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
+rounded to a power of 2.
 
 When not creating a PRIMARY KEY that contains column prefixes, this
 can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
 ut_ad(data_size < sizeof(row_merge_block_t)). */
-
 typedef byte	row_merge_block_t[1048576];
 
-/* Secondary buffer for I/O operations of merge records.  This buffer
-is used for writing or reading a record that spans two row_merge_block_t.
-Thus, it must be able to hold one merge record, whose maximum size is
-the same as the minimum size of row_merge_block_t. */
+/** @brief Secondary buffer for I/O operations of merge records.
 
+This buffer is used for writing or reading a record that spans two
+row_merge_block_t.  Thus, it must be able to hold one merge record,
+whose maximum size is the same as the minimum size of
+row_merge_block_t. */
 typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
 
-/* Merge record in row_merge_block_t.  The format is the same as a
-record in ROW_FORMAT=COMPACT with the exception that the
-REC_N_NEW_EXTRA_BYTES are omitted. */
+/** @brief Merge record in row_merge_block_t.
+
+The format is the same as a record in ROW_FORMAT=COMPACT with the
+exception that the REC_N_NEW_EXTRA_BYTES are omitted. */
 typedef byte	mrec_t;
 
-/* Buffer for sorting in main memory. */
+/** Buffer for sorting in main memory. */
 struct row_merge_buf_struct {
-	mem_heap_t*	heap;		/* memory heap where allocated */
-	dict_index_t*	index;		/* the index the tuples belong to */
-	ulint		total_size;	/* total amount of data bytes */
-	ulint		n_tuples;	/* number of data tuples */
-	ulint		max_tuples;	/* maximum number of data tuples */
-	const dfield_t**tuples;		/* array of pointers to
+	mem_heap_t*	heap;		/*!< memory heap where allocated */
+	dict_index_t*	index;		/*!< the index the tuples belong to */
+	ulint		total_size;	/*!< total amount of data bytes */
+	ulint		n_tuples;	/*!< number of data tuples */
+	ulint		max_tuples;	/*!< maximum number of data tuples */
+	const dfield_t**tuples;		/*!< array of pointers to
 					arrays of fields that form
 					the data tuples */
-	const dfield_t**tmp_tuples;	/* temporary copy of tuples,
+	const dfield_t**tmp_tuples;	/*!< temporary copy of tuples,
 					for sorting */
 };
 
+/** Buffer for sorting in main memory. */
 typedef struct row_merge_buf_struct row_merge_buf_t;
 
-/* Information about temporary files used in merge sort are stored
-to this structure */
-
+/** Information about temporary files used in merge sort */
 struct merge_file_struct {
-	int	fd;		/* File descriptor */
-	ulint	offset;		/* File offset */
+	int	fd;		/*!< file descriptor */
+	ulint	offset;		/*!< file offset */
 };
 
+/** Information about temporary files used in merge sort */
 typedef struct merge_file_struct merge_file_t;
 
 #ifdef UNIV_DEBUG
-/**********************************************************
+/******************************************************//**
 Display a merge tuple. */
 static
 void
 row_merge_tuple_print(
 /*==================*/
-	FILE*		f,	/* in: output stream */
-	const dfield_t*	entry,	/* in: tuple to print */
-	ulint		n_fields)/* in: number of fields in the tuple */
+	FILE*		f,	/*!< in: output stream */
+	const dfield_t*	entry,	/*!< in: tuple to print */
+	ulint		n_fields)/*!< in: number of fields in the tuple */
 {
 	ulint	j;
 
@@ -146,17 +152,17 @@ row_merge_tuple_print(
 }
 #endif /* UNIV_DEBUG */
 
-/**********************************************************
-Allocate a sort buffer. */
+/******************************************************//**
+Allocate a sort buffer.
+@return	own: sort buffer */
 static
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
-					/* out,own: sort buffer */
-	mem_heap_t*	heap,		/* in: heap where allocated */
-	dict_index_t*	index,		/* in: secondary index */
-	ulint		max_tuples,	/* in: maximum number of data tuples */
-	ulint		buf_size)	/* in: size of the buffer, in bytes */
+	mem_heap_t*	heap,		/*!< in: heap where allocated */
+	dict_index_t*	index,		/*!< in: secondary index */
+	ulint		max_tuples,	/*!< in: maximum number of data tuples */
+	ulint		buf_size)	/*!< in: size of the buffer, in bytes */
 {
 	row_merge_buf_t*	buf;
 
@@ -175,14 +181,14 @@ row_merge_buf_create_low(
 	return(buf);
 }
 
-/**********************************************************
-Allocate a sort buffer. */
+/******************************************************//**
+Allocate a sort buffer.
+@return	own: sort buffer */
 static
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
-				/* out,own: sort buffer */
-	dict_index_t*	index)	/* in: secondary index */
+	dict_index_t*	index)	/*!< in: secondary index */
 {
 	row_merge_buf_t*	buf;
 	ulint			max_tuples;
@@ -201,14 +207,14 @@ row_merge_buf_create(
 	return(buf);
 }
 
-/**********************************************************
-Empty a sort buffer. */
+/******************************************************//**
+Empty a sort buffer.
+@return	sort buffer */
 static
 row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
-					/* out: sort buffer */
-	row_merge_buf_t*	buf)	/* in,own: sort buffer */
+	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 {
 	ulint		buf_size;
 	ulint		max_tuples	= buf->max_tuples;
@@ -222,28 +228,27 @@ row_merge_buf_empty(
 	return(row_merge_buf_create_low(heap, index, max_tuples, buf_size));
 }
 
-/**********************************************************
+/******************************************************//**
 Deallocate a sort buffer. */
 static
 void
 row_merge_buf_free(
 /*===============*/
-	row_merge_buf_t*	buf)	/* in,own: sort buffer, to be freed */
+	row_merge_buf_t*	buf)	/*!< in,own: sort buffer, to be freed */
 {
 	mem_heap_free(buf->heap);
 }
 
-/**********************************************************
-Insert a data tuple into a sort buffer. */
+/******************************************************//**
+Insert a data tuple into a sort buffer.
+@return	TRUE if added, FALSE if out of space */
 static
 ibool
 row_merge_buf_add(
 /*==============*/
-					/* out: TRUE if added,
-					FALSE if out of space */
-	row_merge_buf_t*	buf,	/* in/out: sort buffer */
-	const dtuple_t*		row,	/* in: row in clustered index */
-	const row_ext_t*	ext)	/* in: cache of externally stored
+	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
+	const dtuple_t*		row,	/*!< in: row in clustered index */
+	const row_ext_t*	ext)	/*!< in: cache of externally stored
 					column prefixes, or NULL */
 {
 	ulint			i;
@@ -389,23 +394,24 @@ row_merge_buf_add(
 	return(TRUE);
 }
 
-/* Structure for reporting duplicate records. */
+/** Structure for reporting duplicate records. */
 struct row_merge_dup_struct {
-	const dict_index_t*	index;		/* index being sorted */
-	TABLE*			table;		/* MySQL table object */
-	ulint			n_dup;		/* number of duplicates */
+	const dict_index_t*	index;		/*!< index being sorted */
+	TABLE*			table;		/*!< MySQL table object */
+	ulint			n_dup;		/*!< number of duplicates */
 };
 
+/** Structure for reporting duplicate records. */
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
-/*****************************************************************
+/*************************************************************//**
 Report a duplicate key. */
 static
 void
 row_merge_dup_report(
 /*=================*/
-	row_merge_dup_t*	dup,	/* in/out: for reporting duplicates */
-	const dfield_t*		entry)	/* in: duplicate index entry */
+	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
+	const dfield_t*		entry)	/*!< in: duplicate index entry */
 {
 	mrec_buf_t 		buf;
 	const dtuple_t*		tuple;
@@ -442,18 +448,17 @@ row_merge_dup_report(
 	}
 }
 
-/*****************************************************************
-Compare two tuples. */
+/*************************************************************//**
+Compare two tuples.
+@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
 static
 int
 row_merge_tuple_cmp(
 /*================*/
-					/* out: 1, 0, -1 if a is greater,
-					equal, less, respectively, than b */
-	ulint			n_field,/* in: number of fields */
-	const dfield_t*		a,	/* in: first tuple to be compared */
-	const dfield_t*		b,	/* in: second tuple to be compared */
-	row_merge_dup_t*	dup)	/* in/out: for reporting duplicates */
+	ulint			n_field,/*!< in: number of fields */
+	const dfield_t*		a,	/*!< in: first tuple to be compared */
+	const dfield_t*		b,	/*!< in: second tuple to be compared */
+	row_merge_dup_t*	dup)	/*!< in/out: for reporting duplicates */
 {
 	int		cmp;
 	const dfield_t*	field	= a;
@@ -484,53 +489,64 @@ func_exit:
 	return(cmp);
 }
 
-/**************************************************************************
+/** Wrapper for row_merge_tuple_sort() to inject some more context to
+UT_SORT_FUNCTION_BODY().
+@param a	array of tuples that being sorted
+@param b	aux (work area), same size as tuples[]
+@param c	lower bound of the sorting area, inclusive
+@param d	upper bound of the sorting area, inclusive */
+#define row_merge_tuple_sort_ctx(a,b,c,d) \
+	row_merge_tuple_sort(n_field, dup, a, b, c, d)
+/** Wrapper for row_merge_tuple_cmp() to inject some more context to
+UT_SORT_FUNCTION_BODY().
+@param a	first tuple to be compared
+@param b	second tuple to be compared
+@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
+#define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, a, b, dup)
+
+/**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
 static
 void
 row_merge_tuple_sort(
 /*=================*/
-	ulint			n_field,/* in: number of fields */
-	row_merge_dup_t*	dup,	/* in/out: for reporting duplicates */
-	const dfield_t**	tuples,	/* in/out: tuples */
-	const dfield_t**	aux,	/* in/out: work area */
-	ulint			low,	/* in: lower bound of the
+	ulint			n_field,/*!< in: number of fields */
+	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
+	const dfield_t**	tuples,	/*!< in/out: tuples */
+	const dfield_t**	aux,	/*!< in/out: work area */
+	ulint			low,	/*!< in: lower bound of the
 					sorting area, inclusive */
-	ulint			high)	/* in: upper bound of the
+	ulint			high)	/*!< in: upper bound of the
 					sorting area, exclusive */
 {
-#define row_merge_tuple_sort_ctx(a,b,c,d) \
-	row_merge_tuple_sort(n_field, dup, a, b, c, d)
-#define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, a, b, dup)
-
 	UT_SORT_FUNCTION_BODY(row_merge_tuple_sort_ctx,
 			      tuples, aux, low, high, row_merge_tuple_cmp_ctx);
 }
 
-/**********************************************************
+/******************************************************//**
 Sort a buffer. */
 static
 void
 row_merge_buf_sort(
 /*===============*/
-	row_merge_buf_t*	buf,	/* in/out: sort buffer */
-	row_merge_dup_t*	dup)	/* in/out: for reporting duplicates */
+	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
+	row_merge_dup_t*	dup)	/*!< in/out: for reporting duplicates */
 {
 	row_merge_tuple_sort(dict_index_get_n_unique(buf->index), dup,
 			     buf->tuples, buf->tmp_tuples, 0, buf->n_tuples);
 }
 
-/**********************************************************
+/******************************************************//**
 Write a buffer to a block. */
 static
 void
 row_merge_buf_write(
 /*================*/
-	const row_merge_buf_t*	buf,	/* in: sorted buffer */
+	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
 #ifdef UNIV_DEBUG
-	const merge_file_t*	of,	/* in: output file */
+	const merge_file_t*	of,	/*!< in: output file */
 #endif /* UNIV_DEBUG */
-	row_merge_block_t*	block)	/* out: buffer for writing to file */
+	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
 #ifndef UNIV_DEBUG
 # define row_merge_buf_write(buf, of, block) row_merge_buf_write(buf, block)
 #endif /* !UNIV_DEBUG */
@@ -599,16 +615,16 @@ row_merge_buf_write(
 #endif /* UNIV_DEBUG */
 }
 
-/**********************************************************
-Create a memory heap and allocate space for row_merge_rec_offsets(). */
+/******************************************************//**
+Create a memory heap and allocate space for row_merge_rec_offsets().
+@return	memory heap */
 static
 mem_heap_t*
 row_merge_heap_create(
 /*==================*/
-						/* out: memory heap */
-	const dict_index_t*	index,		/* in: record descriptor */
-	ulint**			offsets1,	/* out: offsets */
-	ulint**			offsets2)	/* out: offsets */
+	const dict_index_t*	index,		/*!< in: record descriptor */
+	ulint**			offsets1,	/*!< out: offsets */
+	ulint**			offsets2)	/*!< out: offsets */
 {
 	ulint		i	= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
@@ -623,17 +639,16 @@ row_merge_heap_create(
 	return(heap);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Search an index object by name and column names.  If several indexes match,
-return the index with the max id. */
+return the index with the max id.
+@return	matching index, NULL if not found */
 static
 dict_index_t*
 row_merge_dict_table_get_index(
 /*===========================*/
-						/* out: matching index,
-						NULL if not found */
-	dict_table_t*		table,		/* in: table */
-	const merge_index_def_t*index_def)	/* in: index definition */
+	dict_table_t*		table,		/*!< in: table */
+	const merge_index_def_t*index_def)	/*!< in: index definition */
 {
 	ulint		i;
 	dict_index_t*	index;
@@ -653,17 +668,16 @@ row_merge_dict_table_get_index(
 	return(index);
 }
 
-/************************************************************************
-Read a merge block from the file system. */
+/********************************************************************//**
+Read a merge block from the file system.
+@return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_read(
 /*===========*/
-					/* out: TRUE if request was
-					successful, FALSE if fail */
-	int			fd,	/* in: file descriptor */
-	ulint			offset,	/* in: offset where to read */
-	row_merge_block_t*	buf)	/* out: data */
+	int			fd,	/*!< in: file descriptor */
+	ulint			offset,	/*!< in: offset where to read */
+	row_merge_block_t*	buf)	/*!< out: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
 	ibool		success;
@@ -681,17 +695,16 @@ row_merge_read(
 	return(UNIV_LIKELY(success));
 }
 
-/************************************************************************
-Read a merge block from the file system. */
+/********************************************************************//**
+Read a merge block from the file system.
+@return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_write(
 /*============*/
-				/* out: TRUE if request was
-				successful, FALSE if fail */
-	int		fd,	/* in: file descriptor */
-	ulint		offset,	/* in: offset where to write */
-	const void*	buf)	/* in: data */
+	int		fd,	/*!< in: file descriptor */
+	ulint		offset,	/*!< in: offset where to write */
+	const void*	buf)	/*!< in: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
 		* sizeof(row_merge_block_t);
@@ -702,25 +715,23 @@ row_merge_write(
 					 sizeof(row_merge_block_t))));
 }
 
-/************************************************************************
-Read a merge record. */
+/********************************************************************//**
+Read a merge record.
+@return	pointer to next record, or NULL on I/O error or end of list */
 static
 const byte*
 row_merge_read_rec(
 /*===============*/
-					/* out: pointer to next record,
-					or NULL on I/O error
-					or end of list */
-	row_merge_block_t*	block,	/* in/out: file buffer */
-	mrec_buf_t*		buf,	/* in/out: secondary buffer */
-	const byte*		b,	/* in: pointer to record */
-	const dict_index_t*	index,	/* in: index of the record */
-	int			fd,	/* in: file descriptor */
-	ulint*			foffs,	/* in/out: file offset */
-	const mrec_t**		mrec,	/* out: pointer to merge record,
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
+	const byte*		b,	/*!< in: pointer to record */
+	const dict_index_t*	index,	/*!< in: index of the record */
+	int			fd,	/*!< in: file descriptor */
+	ulint*			foffs,	/*!< in/out: file offset */
+	const mrec_t**		mrec,	/*!< out: pointer to merge record,
 					or NULL on end of list
 					(non-NULL on I/O error) */
-	ulint*			offsets)/* out: offsets of mrec */
+	ulint*			offsets)/*!< out: offsets of mrec */
 {
 	ulint	extra_size;
 	ulint	data_size;
@@ -838,7 +849,14 @@ err_exit:
 	avail_size = block[1] - b;
 	memcpy(*buf, b, avail_size);
 	*mrec = *buf + extra_size;
-	rec_offs_make_valid(*mrec, index, offsets);
+#ifdef UNIV_DEBUG
+	/* We cannot invoke rec_offs_make_valid() here, because there
+	are no REC_N_NEW_EXTRA_BYTES between extra_size and data_size.
+	Similarly, rec_offs_validate() would fail, because it invokes
+	rec_get_status(). */
+	offsets[2] = (ulint) *mrec;
+	offsets[3] = (ulint) index;
+#endif /* UNIV_DEBUG */
 
 	if (!row_merge_read(fd, ++(*foffs), block)) {
 
@@ -866,21 +884,21 @@ func_exit:
 	return(b);
 }
 
-/************************************************************************
+/********************************************************************//**
 Write a merge record. */
 static
 void
 row_merge_write_rec_low(
 /*====================*/
-	byte*		b,	/* out: buffer */
-	ulint		e,	/* in: encoded extra_size */
+	byte*		b,	/*!< out: buffer */
+	ulint		e,	/*!< in: encoded extra_size */
 #ifdef UNIV_DEBUG
-	ulint		size,	/* in: total size to write */
-	int		fd,	/* in: file descriptor */
-	ulint		foffs,	/* in: file offset */
+	ulint		size,	/*!< in: total size to write */
+	int		fd,	/*!< in: file descriptor */
+	ulint		foffs,	/*!< in: file offset */
 #endif /* UNIV_DEBUG */
-	const mrec_t*	mrec,	/* in: record to write */
-	const ulint*	offsets)/* in: offsets of mrec */
+	const mrec_t*	mrec,	/*!< in: record to write */
+	const ulint*	offsets)/*!< in: offsets of mrec */
 #ifndef UNIV_DEBUG
 # define row_merge_write_rec_low(b, e, size, fd, foffs, mrec, offsets)	\
 	row_merge_write_rec_low(b, e, mrec, offsets)
@@ -909,21 +927,20 @@ row_merge_write_rec_low(
 	ut_ad(b + rec_offs_size(offsets) == end);
 }
 
-/************************************************************************
-Write a merge record. */
+/********************************************************************//**
+Write a merge record.
+@return	pointer to end of block, or NULL on error */
 static
 byte*
 row_merge_write_rec(
 /*================*/
-					/* out: pointer to end of block,
-					or NULL on error */
-	row_merge_block_t*	block,	/* in/out: file buffer */
-	mrec_buf_t*		buf,	/* in/out: secondary buffer */
-	byte*			b,	/* in: pointer to end of block */
-	int			fd,	/* in: file descriptor */
-	ulint*			foffs,	/* in/out: file offset */
-	const mrec_t*		mrec,	/* in: record to write */
-	const ulint*		offsets)/* in: offsets of mrec */
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
+	byte*			b,	/*!< in: pointer to end of block */
+	int			fd,	/*!< in: file descriptor */
+	ulint*			foffs,	/*!< in/out: file offset */
+	const mrec_t*		mrec,	/*!< in: record to write */
+	const ulint*		offsets)/*!< in: offsets of mrec */
 {
 	ulint	extra_size;
 	ulint	size;
@@ -977,18 +994,17 @@ row_merge_write_rec(
 	return(b);
 }
 
-/************************************************************************
-Write an end-of-list marker. */
+/********************************************************************//**
+Write an end-of-list marker.
+@return	pointer to end of block, or NULL on error */
 static
 byte*
 row_merge_write_eof(
 /*================*/
-					/* out: pointer to end of block,
-					or NULL on error */
-	row_merge_block_t*	block,	/* in/out: file buffer */
-	byte*			b,	/* in: pointer to end of block */
-	int			fd,	/* in: file descriptor */
-	ulint*			foffs)	/* in/out: file offset */
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	byte*			b,	/*!< in: pointer to end of block */
+	int			fd,	/*!< in: file descriptor */
+	ulint*			foffs)	/*!< in/out: file offset */
 {
 	ut_ad(block);
 	ut_ad(b >= block[0]);
@@ -1018,22 +1034,20 @@ row_merge_write_eof(
 	return(block[0]);
 }
 
-/*****************************************************************
-Compare two merge records. */
+/*************************************************************//**
+Compare two merge records.
+@return	1, 0, -1 if mrec1 is greater, equal, less, respectively, than mrec2 */
 static
 int
 row_merge_cmp(
 /*==========*/
-						/* out: 1, 0, -1 if
-						mrec1 is greater, equal, less,
-						respectively, than mrec2 */
-	const mrec_t*		mrec1,		/* in: first merge
+	const mrec_t*		mrec1,		/*!< in: first merge
 						record to be compared */
-	const mrec_t*		mrec2,		/* in: second merge
+	const mrec_t*		mrec2,		/*!< in: second merge
 						record to be compared */
-	const ulint*		offsets1,	/* in: first record offsets */
-	const ulint*		offsets2,	/* in: second record offsets */
-	const dict_index_t*	index)		/* in: index */
+	const ulint*		offsets1,	/*!< in: first record offsets */
+	const ulint*		offsets2,	/*!< in: second record offsets */
+	const dict_index_t*	index)		/*!< in: index */
 {
 	int	cmp;
 
@@ -1052,26 +1066,26 @@ row_merge_cmp(
 	return(cmp);
 }
 
-/************************************************************************
+/********************************************************************//**
 Reads clustered index of the table and create temporary files
-containing the index entries for the indexes to be built. */
+containing the index entries for the indexes to be built.
+@return	DB_SUCCESS or error */
 static
 ulint
 row_merge_read_clustered_index(
 /*===========================*/
-					/* out: DB_SUCCESS or error */
-	trx_t*			trx,	/* in: transaction */
-	TABLE*			table,	/* in/out: MySQL table object,
+	trx_t*			trx,	/*!< in: transaction */
+	TABLE*			table,	/*!< in/out: MySQL table object,
 					for reporting erroneous records */
-	const dict_table_t*	old_table,/* in: table where rows are
+	const dict_table_t*	old_table,/*!< in: table where rows are
 					read from */
-	const dict_table_t*	new_table,/* in: table where indexes are
+	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created; identical to old_table
 					unless creating a PRIMARY KEY */
-	dict_index_t**		index,	/* in: indexes to be created */
-	merge_file_t*		files,	/* in: temporary files */
-	ulint			n_index,/* in: number of indexes to create */
-	row_merge_block_t*	block)	/* in/out: file buffer */
+	dict_index_t**		index,	/*!< in: indexes to be created */
+	merge_file_t*		files,	/*!< in: temporary files */
+	ulint			n_index,/*!< in: number of indexes to create */
+	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -1298,41 +1312,9 @@ func_exit:
 	return(err);
 }
 
-/*****************************************************************
-Merge two blocks of linked lists on disk and write a bigger block. */
-static
-ulint
-row_merge_blocks(
-/*=============*/
-					/* out: DB_SUCCESS or error code */
-	const dict_index_t*	index,	/* in: index being created */
-	merge_file_t*		file,	/* in/out: file containing
-					index entries */
-	row_merge_block_t*	block,	/* in/out: 3 buffers */
-	ulint*			foffs0,	/* in/out: offset of first
-					source list in the file */
-	ulint*			foffs1,	/* in/out: offset of second
-					source list in the file */
-	merge_file_t*		of,	/* in/out: output file */
-	TABLE*			table)	/* in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
-{
-	mem_heap_t*	heap;	/* memory heap for offsets0, offsets1 */
-
-	mrec_buf_t	buf[3];	/* buffer for handling split mrec in block[] */
-	const byte*	b0;	/* pointer to block[0] */
-	const byte*	b1;	/* pointer to block[1] */
-	byte*		b2;	/* pointer to block[2] */
-	const mrec_t*	mrec0;	/* merge rec, points to block[0] or buf[0] */
-	const mrec_t*	mrec1;	/* merge rec, points to block[1] or buf[1] */
-	ulint*		offsets0;/* offsets of mrec0 */
-	ulint*		offsets1;/* offsets of mrec1 */
-
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
-
-	/* Write a record and read the next record.  Split the output
-	file in two halves, which can be merged on the following pass. */
+/** Write a record via buffer 2 and read the next record to buffer N.
+@param N	number of the buffer (0 or 1)
+@param AT_END	statement to execute at end of input */
 #define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
 	do {								\
 		b2 = row_merge_write_rec(&block[2], &buf[2], b2,	\
@@ -1352,6 +1334,42 @@ row_merge_blocks(
 			AT_END;						\
 		}							\
 	} while (0)
+
+/*************************************************************//**
+Merge two blocks of linked lists on disk and write a bigger block.
+@return	DB_SUCCESS or error code */
+static
+ulint
+row_merge_blocks(
+/*=============*/
+	const dict_index_t*	index,	/*!< in: index being created */
+	merge_file_t*		file,	/*!< in/out: file containing
+					index entries */
+	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
+	ulint*			foffs0,	/*!< in/out: offset of first
+					source list in the file */
+	ulint*			foffs1,	/*!< in/out: offset of second
+					source list in the file */
+	merge_file_t*		of,	/*!< in/out: output file */
+	TABLE*			table)	/*!< in/out: MySQL table, for
+					reporting erroneous key value
+					if applicable */
+{
+	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
+
+	mrec_buf_t	buf[3];	/*!< buffer for handling split mrec in block[] */
+	const byte*	b0;	/*!< pointer to block[0] */
+	const byte*	b1;	/*!< pointer to block[1] */
+	byte*		b2;	/*!< pointer to block[2] */
+	const mrec_t*	mrec0;	/*!< merge rec, points to block[0] or buf[0] */
+	const mrec_t*	mrec1;	/*!< merge rec, points to block[1] or buf[1] */
+	ulint*		offsets0;/* offsets of mrec0 */
+	ulint*		offsets1;/* offsets of mrec1 */
+
+	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+
+	/* Write a record and read the next record.  Split the output
+	file in two halves, which can be merged on the following pass. */
 
 	if (!row_merge_read(file->fd, *foffs0, &block[0])
 	    || !row_merge_read(file->fd, *foffs1, &block[1])) {
@@ -1419,27 +1437,27 @@ done1:
 	return(b2 ? DB_SUCCESS : DB_CORRUPTION);
 }
 
-/*****************************************************************
-Merge disk files. */
+/*************************************************************//**
+Merge disk files.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_merge(
 /*======*/
-					/* out: DB_SUCCESS or error code */
-	const dict_index_t*	index,	/* in: index being created */
-	merge_file_t*		file,	/* in/out: file containing
+	const dict_index_t*	index,	/*!< in: index being created */
+	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
-	ulint			half,	/* in: half the file */
-	row_merge_block_t*	block,	/* in/out: 3 buffers */
-	int*			tmpfd,	/* in/out: temporary file handle */
-	TABLE*			table)	/* in/out: MySQL table, for
+	ulint			half,	/*!< in: half the file */
+	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
+	int*			tmpfd,	/*!< in/out: temporary file handle */
+	TABLE*			table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {
-	ulint		foffs0;	/* first input offset */
-	ulint		foffs1;	/* second input offset */
-	ulint		error;	/* error code */
-	merge_file_t	of;	/* output file */
+	ulint		foffs0;	/*!< first input offset */
+	ulint		foffs1;	/*!< second input offset */
+	ulint		error;	/*!< error code */
+	merge_file_t	of;	/*!< output file */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
 	ut_ad(half > 0);
@@ -1483,23 +1501,23 @@ row_merge(
 	return(DB_SUCCESS);
 }
 
-/*****************************************************************
-Merge disk files. */
+/*************************************************************//**
+Merge disk files.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_merge_sort(
 /*===========*/
-					/* out: DB_SUCCESS or error code */
-	const dict_index_t*	index,	/* in: index being created */
-	merge_file_t*		file,	/* in/out: file containing
+	const dict_index_t*	index,	/*!< in: index being created */
+	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
-	row_merge_block_t*	block,	/* in/out: 3 buffers */
-	int*			tmpfd,	/* in/out: temporary file handle */
-	TABLE*			table)	/* in/out: MySQL table, for
+	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
+	int*			tmpfd,	/*!< in/out: temporary file handle */
+	TABLE*			table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {
-	ulint	blksz;	/* block size */
+	ulint	blksz;	/*!< block size */
 
 	for (blksz = 1; blksz < file->offset; blksz *= 2) {
 		ulint	half;
@@ -1517,17 +1535,17 @@ row_merge_sort(
 	return(DB_SUCCESS);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Copy externally stored columns to the data tuple. */
 static
 void
 row_merge_copy_blobs(
 /*=================*/
-	const mrec_t*	mrec,	/* in: merge record */
-	const ulint*	offsets,/* in: offsets of mrec */
-	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
-	dtuple_t*	tuple,	/* in/out: data tuple */
-	mem_heap_t*	heap)	/* in/out: memory heap */
+	const mrec_t*	mrec,	/*!< in: merge record */
+	const ulint*	offsets,/*!< in: offsets of mrec */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	dtuple_t*	tuple,	/*!< in/out: data tuple */
+	mem_heap_t*	heap)	/*!< in/out: memory heap */
 {
 	ulint	i;
 	ulint	n_fields = dtuple_get_n_fields(tuple);
@@ -1555,21 +1573,21 @@ row_merge_copy_blobs(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Read sorted file containing index data tuples and insert these data
-tuples to the index */
+tuples to the index
+@return	DB_SUCCESS or error number */
 static
 ulint
 row_merge_insert_index_tuples(
 /*==========================*/
-					/* out: DB_SUCCESS or error number */
-	trx_t*			trx,	/* in: transaction */
-	dict_index_t*		index,	/* in: index */
-	dict_table_t*		table,	/* in: new table */
-	ulint			zip_size,/* in: compressed page size of
+	trx_t*			trx,	/*!< in: transaction */
+	dict_index_t*		index,	/*!< in: index */
+	dict_table_t*		table,	/*!< in: new table */
+	ulint			zip_size,/*!< in: compressed page size of
 					 the old table, or 0 if uncompressed */
-	int			fd,	/* in: file descriptor */
-	row_merge_block_t*	block)	/* in/out: file buffer */
+	int			fd,	/*!< in: file descriptor */
+	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	mrec_buf_t		buf;
 	const byte*		b;
@@ -1677,16 +1695,16 @@ err_exit:
 	return(error);
 }
 
-/*************************************************************************
-Sets an exclusive lock on a table, for the duration of creating indexes. */
+/*********************************************************************//**
+Sets an exclusive lock on a table, for the duration of creating indexes.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 ulint
 row_merge_lock_table(
 /*=================*/
-					/* out: error code or DB_SUCCESS */
-	trx_t*		trx,		/* in/out: transaction */
-	dict_table_t*	table,		/* in: table to lock */
-	enum lock_mode	mode)		/* in: LOCK_X or LOCK_S */
+	trx_t*		trx,		/*!< in/out: transaction */
+	dict_table_t*	table,		/*!< in: table to lock */
+	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
@@ -1756,7 +1774,7 @@ run_again:
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Drop an index from the InnoDB system tables.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed. */
@@ -1764,9 +1782,9 @@ UNIV_INTERN
 void
 row_merge_drop_index(
 /*=================*/
-	dict_index_t*	index,	/* in: index to be removed */
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx)	/* in: transaction handle */
+	dict_index_t*	index,	/*!< in: index to be removed */
+	dict_table_t*	table,	/*!< in: table */
+	trx_t*		trx)	/*!< in: transaction handle */
 {
 	ulint		err;
 	pars_info_t*	info = pars_info_create();
@@ -1807,7 +1825,7 @@ row_merge_drop_index(
 	trx->op_info = "";
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Drop those indexes which were created before an error occurred when
 building an index.  The data dictionary must have been locked
 exclusively by the caller, because the transaction will not be
@@ -1816,10 +1834,10 @@ UNIV_INTERN
 void
 row_merge_drop_indexes(
 /*===================*/
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: table containing the indexes */
-	dict_index_t**	index,		/* in: indexes to drop */
-	ulint		num_created)	/* in: number of elements in index[] */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	table,		/*!< in: table containing the indexes */
+	dict_index_t**	index,		/*!< in: indexes to drop */
+	ulint		num_created)	/*!< in: number of elements in index[] */
 {
 	ulint	key_num;
 
@@ -1828,7 +1846,7 @@ row_merge_drop_indexes(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Drop all partially created indexes during crash recovery. */
 UNIV_INTERN
 void
@@ -1842,14 +1860,11 @@ row_merge_drop_temp_indexes(void)
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
-#if TEMP_INDEX_PREFIX != '\377'
-# error "TEMP_INDEX_PREFIX != '\377'"
-#endif
 	static const char drop_temp_indexes[] =
 		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
 		"indexid CHAR;\n"
 		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
-		"WHERE SUBSTR(NAME,0,1)='\377';\n"
+		"WHERE SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "';\n"
 		"BEGIN\n"
 		"\tOPEN c;\n"
 		"\tWHILE 1=1 LOOP\n"
@@ -1884,25 +1899,25 @@ row_merge_drop_temp_indexes(void)
 	trx_free_for_background(trx);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Create a merge file. */
 static
 void
 row_merge_file_create(
 /*==================*/
-	merge_file_t*	merge_file)	/* out: merge file structure */
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	merge_file->fd = innobase_mysql_tmpfile();
 	merge_file->offset = 0;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Destroy a merge file. */
 static
 void
 row_merge_file_destroy(
 /*===================*/
-	merge_file_t*	merge_file)	/* out: merge file structure */
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	if (merge_file->fd != -1) {
 		close(merge_file->fd);
@@ -1910,18 +1925,17 @@ row_merge_file_destroy(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Determine the precise type of a column that is added to a tem
-if a column must be constrained NOT NULL. */
+if a column must be constrained NOT NULL.
+@return	col->prtype, possibly ORed with DATA_NOT_NULL */
 UNIV_INLINE
 ulint
 row_merge_col_prtype(
 /*=================*/
-						/* out: col->prtype, possibly
-						ORed with DATA_NOT_NULL */
-	const dict_col_t*	col,		/* in: column */
-	const char*		col_name,	/* in: name of the column */
-	const merge_index_def_t*index_def)	/* in: the index definition
+	const dict_col_t*	col,		/*!< in: column */
+	const char*		col_name,	/*!< in: name of the column */
+	const merge_index_def_t*index_def)	/*!< in: the index definition
 						of the primary key */
 {
 	ulint	prtype = col->prtype;
@@ -1946,20 +1960,19 @@ row_merge_col_prtype(
 	return(prtype);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Create a temporary table for creating a primary key, using the definition
-of an existing table. */
+of an existing table.
+@return	table, or NULL on error */
 UNIV_INTERN
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
-						/* out: table,
-						or NULL on error */
-	const char*		table_name,	/* in: new table name */
-	const merge_index_def_t*index_def,	/* in: the index definition
+	const char*		table_name,	/*!< in: new table name */
+	const merge_index_def_t*index_def,	/*!< in: the index definition
 						of the primary key */
-	const dict_table_t*	table,		/* in: old table definition */
-	trx_t*			trx)		/* in/out: transaction
+	const dict_table_t*	table,		/*!< in: old table definition */
+	trx_t*			trx)		/*!< in/out: transaction
 						(sets error_state) */
 {
 	ulint		i;
@@ -1999,17 +2012,17 @@ row_merge_create_temporary_table(
 	return(new_table);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Rename the temporary indexes in the dictionary to permanent ones.  The
 data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed. */
+because the transaction will not be committed.
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
 ulint
 row_merge_rename_indexes(
 /*=====================*/
-					/* out: DB_SUCCESS if all OK */
-	trx_t*		trx,		/* in/out: transaction */
-	dict_table_t*	table)		/* in/out: table with new indexes */
+	trx_t*		trx,		/*!< in/out: transaction */
+	dict_table_t*	table)		/*!< in/out: table with new indexes */
 {
 	ulint		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
@@ -2017,15 +2030,12 @@ row_merge_rename_indexes(
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
 
-#if TEMP_INDEX_PREFIX != '\377'
-# error "TEMP_INDEX_PREFIX != '\377'"
-#endif
-
 	static const char rename_indexes[] =
 		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
-		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='\377';\n"
+		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='"
+		TEMP_INDEX_PREFIX_STR "';\n"
 		"END;\n";
 
 	ut_ad(table);
@@ -2053,21 +2063,21 @@ row_merge_rename_indexes(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
-will not be committed. */
+will not be committed.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 ulint
 row_merge_rename_tables(
 /*====================*/
-					/* out: error code or DB_SUCCESS */
-	dict_table_t*	old_table,	/* in/out: old table, renamed to
+	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
 					tmp_name */
-	dict_table_t*	new_table,	/* in/out: new table, renamed to
+	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
-	const char*	tmp_name,	/* in: new name for old_table */
-	trx_t*		trx)		/* in: transaction handle */
+	const char*	tmp_name,	/*!< in: new name for old_table */
+	trx_t*		trx)		/*!< in: transaction handle */
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
@@ -2128,20 +2138,20 @@ err_exit:
 	return(err);
 }
 
-/*************************************************************************
-Create and execute a query graph for creating an index. */
+/*********************************************************************//**
+Create and execute a query graph for creating an index.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_merge_create_index_graph(
 /*=========================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table,		/* in: table */
-	dict_index_t*	index)		/* in: index */
+	trx_t*		trx,		/*!< in: trx */
+	dict_table_t*	table,		/*!< in: table */
+	dict_index_t*	index)		/*!< in: index */
 {
-	ind_node_t*	node;		/* Index creation node */
-	mem_heap_t*	heap;		/* Memory heap */
-	que_thr_t*	thr;		/* Query thread */
+	ind_node_t*	node;		/*!< Index creation node */
+	mem_heap_t*	heap;		/*!< Memory heap */
+	que_thr_t*	thr;		/*!< Query thread */
 	ulint		err;
 
 	ut_ad(trx);
@@ -2165,17 +2175,17 @@ row_merge_create_index_graph(
 	return(err);
 }
 
-/*************************************************************************
-Create the index and load in to the dictionary. */
+/*********************************************************************//**
+Create the index and load in to the dictionary.
+@return	index, or NULL on error */
 UNIV_INTERN
 dict_index_t*
 row_merge_create_index(
 /*===================*/
-					/* out: index, or NULL on error */
-	trx_t*		trx,		/* in/out: trx (sets error_state) */
-	dict_table_t*	table,		/* in: the index is on this table */
-	const merge_index_def_t*	/* in: the index definition */
-			index_def)
+	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
+	dict_table_t*		table,	/*!< in: the index is on this table */
+	const merge_index_def_t*index_def)
+					/*!< in: the index definition */
 {
 	dict_index_t*	index;
 	ulint		err;
@@ -2208,12 +2218,11 @@ row_merge_create_index(
 
 		ut_a(index);
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = trx->id;
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
+		index->trx_id = (ib_uint64_t)
+			ut_conv_dulint_to_longlong(trx->id);
 	} else {
 		index = NULL;
 	}
@@ -2221,33 +2230,30 @@ row_merge_create_index(
 	return(index);
 }
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-/*************************************************************************
+/*********************************************************************//**
 Check if a transaction can use an index. */
 UNIV_INTERN
 ibool
 row_merge_is_index_usable(
 /*======================*/
-	const trx_t*		trx,	/* in: transaction */
-	const dict_index_t*	index)	/* in: index to check */
+	const trx_t*		trx,	/*!< in: transaction */
+	const dict_index_t*	index)	/*!< in: index to check */
 {
-	if (!trx->read_view) {
-		return(TRUE);
-	}
-
-	return(ut_dulint_cmp(index->trx_id, trx->read_view->low_limit_id) < 0);
+	return(!trx->read_view || read_view_sees_trx_id(
+		       trx->read_view,
+		       ut_dulint_create((ulint) (index->trx_id >> 32),
+					(ulint) index->trx_id & 0xFFFFFFFF)));
 }
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
 
-/*************************************************************************
-Drop the old table. */
+/*********************************************************************//**
+Drop the old table.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 row_merge_drop_table(
 /*=================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table)		/* in: table to drop */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	table)		/*!< in: table to drop */
 {
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_mysql_handles_opened == 0);
@@ -2255,24 +2261,24 @@ row_merge_drop_table(
 	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
-these index entries and inserting sorted index entries to indexes. */
+these index entries and inserting sorted index entries to indexes.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 row_merge_build_indexes(
 /*====================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	old_table,	/* in: table where rows are
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	old_table,	/*!< in: table where rows are
 					read from */
-	dict_table_t*	new_table,	/* in: table where indexes are
+	dict_table_t*	new_table,	/*!< in: table where indexes are
 					created; identical to old_table
 					unless creating a PRIMARY KEY */
-	dict_index_t**	indexes,	/* in: indexes to be created */
-	ulint		n_indexes,	/* in: size of indexes[] */
-	TABLE*		table)		/* in/out: MySQL table, for
+	dict_index_t**	indexes,	/*!< in: indexes to be created */
+	ulint		n_indexes,	/*!< in: size of indexes[] */
+	TABLE*		table)		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 {

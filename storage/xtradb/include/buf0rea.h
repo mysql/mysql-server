@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/buf0rea.h
 The database buffer read
 
 Created 11/5/1995 Heikki Tuuri
@@ -28,22 +29,22 @@ Created 11/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "buf0types.h"
 
-/************************************************************************
+/********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
-sensible. */
+sensible.
+@return number of page read requests issued: this can be greater than
+1 if read-ahead occurred */
 UNIV_INTERN
 ulint
 buf_read_page(
 /*==========*/
-			/* out: number of page read requests issued: this can
-			be > 1 if read-ahead occurred */
-	ulint	space,	/* in: space id */
-	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint	offset);/* in: page number */
-/************************************************************************
+	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset);/*!< in: page number */
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
@@ -65,17 +66,17 @@ function must be written such that it cannot end up waiting for these
 latches!
 NOTE 3: the calling thread must want access to the page given: this rule is
 set to prevent unintended read-aheads performed by ibuf routines, a situation
-which could result in a deadlock if the OS does not support asynchronous io. */
+which could result in a deadlock if the OS does not support asynchronous io.
+@return	number of page read requests issued */
 UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-			/* out: number of page read requests issued */
-	ulint	space,	/* in: space id */
-	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint	offset);/* in: page number of a page; NOTE: the current thread
+	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset);/*!< in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
@@ -83,54 +84,56 @@ UNIV_INTERN
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool		sync,		/* in: TRUE if the caller
+	ibool		sync,		/*!< in: TRUE if the caller
 					wants this function to wait
 					for the highest address page
 					to get read in, before this
 					function returns */
-	const ulint*	space_ids,	/* in: array of space ids */
-	const ib_int64_t* space_versions,/* in: the spaces must have
+	const ulint*	space_ids,	/*!< in: array of space ids */
+	const ib_int64_t* space_versions,/*!< in: the spaces must have
 					this version number
 					(timestamp), otherwise we
 					discard the read; we use this
 					to cancel reads if DISCARD +
 					IMPORT may have changed the
 					tablespace size */
-	const ulint*	page_nos,	/* in: array of page numbers
+	const ulint*	page_nos,	/*!< in: array of page numbers
 					to read, with the highest page
 					number the last in the
 					array */
-	ulint		n_stored);	/* in: number of elements
+	ulint		n_stored);	/*!< in: number of elements
 					in the arrays */
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which recovery wants to read in. */
 UNIV_INTERN
 void
 buf_read_recv_pages(
 /*================*/
-	ibool		sync,		/* in: TRUE if the caller
+	ibool		sync,		/*!< in: TRUE if the caller
 					wants this function to wait
 					for the highest address page
 					to get read in, before this
 					function returns */
-	ulint		space,		/* in: space id */
-	ulint		zip_size,	/* in: compressed page size in
+	ulint		space,		/*!< in: space id */
+	ulint		zip_size,	/*!< in: compressed page size in
 					bytes, or 0 */
-	const ulint*	page_nos,	/* in: array of page numbers
+	const ulint*	page_nos,	/*!< in: array of page numbers
 					to read, with the highest page
 					number the last in the
 					array */
-	ulint		n_stored);	/* in: number of page numbers
+	ulint		n_stored);	/*!< in: number of page numbers
 					in the array */
 
-/* The size in pages of the area which the read-ahead algorithms read if
+/** The size in pages of the area which the read-ahead algorithms read if
 invoked */
-
 #define	BUF_READ_AHEAD_AREA					\
 	ut_min(64, ut_2_power_up(buf_pool->curr_size / 32))
 
-/* Modes used in read-ahead */
+/** @name Modes used in read-ahead @{ */
+/** read only pages belonging to the insert buffer tree */
 #define BUF_READ_IBUF_PAGES_ONLY	131
+/** read any page */
 #define BUF_READ_ANY_PAGE		132
+/* @} */
 
 #endif

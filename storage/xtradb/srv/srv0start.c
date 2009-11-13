@@ -22,113 +22,152 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/***********************************************************************
 
-/************************************************************************
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+***********************************************************************/
+
+/********************************************************************//**
+@file srv/srv0start.c
 Starts the InnoDB database server
 
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
-#include "os0proc.h"
-#include "sync0sync.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
 #include "buf0buf.h"
-#include "buf0flu.h"
-#include "buf0rea.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "rem0rec.h"
-#include "rem0cmp.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
 #include "trx0trx.h"
-#include "dict0boot.h"
-#include "dict0load.h"
 #include "trx0sys.h"
-#include "dict0crea.h"
 #include "btr0btr.h"
-#include "btr0pcur.h"
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "rem0rec.h"
-#include "srv0srv.h"
-#include "que0que.h"
-#include "usr0sess.h"
-#include "lock0lock.h"
-#include "trx0roll.h"
-#include "trx0purge.h"
-#include "row0ins.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "row0mysql.h"
-#include "lock0lock.h"
 #include "ibuf0ibuf.h"
-#include "pars0pars.h"
-#include "btr0sea.h"
 #include "srv0start.h"
-#include "que0que.h"
+#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0proc.h"
+# include "sync0sync.h"
+# include "buf0flu.h"
+# include "buf0rea.h"
+# include "dict0boot.h"
+# include "dict0load.h"
+# include "que0que.h"
+# include "usr0sess.h"
+# include "lock0lock.h"
+# include "trx0roll.h"
+# include "trx0purge.h"
+# include "lock0lock.h"
+# include "pars0pars.h"
+# include "btr0sea.h"
+# include "rem0cmp.h"
+# include "dict0crea.h"
+# include "row0ins.h"
+# include "row0sel.h"
+# include "row0upd.h"
+# include "row0row.h"
+# include "row0mysql.h"
+# include "btr0pcur.h"
 
-/* Log sequence number immediately after startup */
+/** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
-/* Log sequence number at shutdown */
+/** Log sequence number at shutdown */
 UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
+/** TRUE if the F_FULLFSYNC option is available */
 UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 #endif
 
+/** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** TRUE if the server is being started, before rolling back any
+incomplete transactions */
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+/** TRUE if the server is being started */
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
+/** TRUE if the server was successfully started */
 UNIV_INTERN ibool	srv_was_started = FALSE;
-#ifndef UNIV_HOTBACKUP
+/** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool	srv_start_has_been_called = FALSE;
-#endif /* !UNIV_HOTBACKUP */
 
-/* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
-and then to SRV_SHUTDOWN_LAST_PHASE */
-UNIV_INTERN ulint		srv_shutdown_state = 0;
+/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
+SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
+UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
-#ifndef UNIV_HOTBACKUP
+/** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
+/** Mutex protecting the ios count */
 static mutex_t		ios_mutex;
+/** Count of I/O operations in io_handler_thread() */
 static ulint		ios;
 
+/** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+/** io_handler_thread identifiers */
 static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
-/* We use this mutex to test the return value of pthread_mutex_trylock
+/** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
 static os_fast_mutex_t	srv_os_test_mutex;
 
-/* Name of srv_monitor_file */
+/** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
 
+/** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 
+/*********************************************************************//**
+Convert a numeric string that optionally ends in G or M, to a number
+containing megabytes.
+@return	next character in string */
 static
 char*
 srv_parse_megabytes(
 /*================*/
-			/* out: next character in string */
-	char*	str,	/* in: string containing a quantity in bytes */
-	ulint*	megs)	/* out: the number in megabytes */
+	char*	str,	/*!< in: string containing a quantity in bytes */
+	ulint*	megs)	/*!< out: the number in megabytes */
 {
 	char*	endp;
 	ulint	size;
@@ -153,15 +192,15 @@ srv_parse_megabytes(
 	return(str);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads the data files and their sizes from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str)	/* in/out: the data file path string */
+	char*	str)	/*!< in/out: the data file path string */
 {
 	char*	input_str;
 	char*	path;
@@ -337,15 +376,15 @@ srv_parse_data_file_paths_and_sizes(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads log group home directories from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str)	/* in/out: character string */
+	char*	str)	/*!< in/out: character string */
 {
 	char*	input_str;
 	char*	path;
@@ -409,7 +448,7 @@ srv_parse_log_group_home_dirs(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN
@@ -428,14 +467,15 @@ srv_free_paths_and_sizes(void)
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************************
-I/o-handler thread function. */
+/********************************************************************//**
+I/o-handler thread function.
+@return	OS_THREAD_DUMMY_RETURN */
 static
-
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
-	void*	arg)
+	void*	arg)	/*!< in: pointer to the number of the segment in
+			the aio array */
 {
 	ulint	segment;
 	ulint	i;
@@ -471,13 +511,13 @@ io_handler_thread(
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
-/*************************************************************************
+/*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str __attribute__((unused)))	/* in/out: null-terminated
+	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
 						character string */
 {
 #ifdef __WIN__
@@ -490,16 +530,15 @@ srv_normalize_path_for_win(
 #endif
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
-and the string is not empty. */
+and the string is not empty.
+@return	string which has the separator if the string is not empty */
 UNIV_INTERN
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out: string which has the separator if the
-			string is not empty */
-	char*	str)	/* in: null-terminated character string */
+	char*	str)	/*!< in: null-terminated character string */
 {
 	char*	out_str;
 	ulint	len	= ut_strlen(str);
@@ -518,50 +557,48 @@ srv_add_path_separator_if_needed(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Calculates the low 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes. */
+database pages is converted to the number of bytes.
+@return	low 32 bytes of file size when expressed in bytes */
 static
 ulint
 srv_calc_low32(
 /*===========*/
-				/* out: low 32 bytes of file size when
-				expressed in bytes */
-	ulint	file_size)	/* in: file size in database pages */
+	ulint	file_size)	/*!< in: file size in database pages */
 {
 	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the high 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes. */
+database pages is converted to the number of bytes.
+@return	high 32 bytes of file size when expressed in bytes */
 static
 ulint
 srv_calc_high32(
 /*============*/
-				/* out: high 32 bytes of file size when
-				expressed in bytes */
-	ulint	file_size)	/* in: file size in database pages */
+	ulint	file_size)	/*!< in: file size in database pages */
 {
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
-Creates or opens the log files and closes them. */
+/*********************************************************************//**
+Creates or opens the log files and closes them.
+@return	DB_SUCCESS or error code */
 static
 ulint
 open_or_create_log_file(
 /*====================*/
-					/* out: DB_SUCCESS or error code */
-	ibool	create_new_db,		/* in: TRUE if we should create a
+	ibool	create_new_db,		/*!< in: TRUE if we should create a
 					new database */
-	ibool*	log_file_created,	/* out: TRUE if new log file
+	ibool*	log_file_created,	/*!< out: TRUE if new log file
 					created */
-	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
+	ibool	log_file_has_been_opened,/*!< in: TRUE if a log file has been
 					opened before: then it is an error
 					to try to create another log file */
-	ulint	k,			/* in: log group number */
-	ulint	i)			/* in: log file number in group */
+	ulint	k,			/*!< in: log group number */
+	ulint	i)			/*!< in: log file number in group */
 {
 	ibool	ret;
 	ulint	size;
@@ -699,26 +736,26 @@ open_or_create_log_file(
 	return(DB_SUCCESS);
 }
 
-/*************************************************************************
-Creates or opens database data files and closes them. */
+/*********************************************************************//**
+Creates or opens database data files and closes them.
+@return	DB_SUCCESS or error code */
 static
 ulint
 open_or_create_data_files(
 /*======================*/
-					/* out: DB_SUCCESS or error code */
-	ibool*		create_new_db,	/* out: TRUE if new database should be
+	ibool*		create_new_db,	/*!< out: TRUE if new database should be
 					created */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,/* out: min of archived log
+	ulint*		min_arch_log_no,/*!< out: min of archived log
 					numbers in data files */
-	ulint*		max_arch_log_no,/* out: max of archived log
+	ulint*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,/* out: min of flushed lsn
+	ib_uint64_t*	min_flushed_lsn,/*!< out: min of flushed lsn
 					values in data files */
-	ib_uint64_t*	max_flushed_lsn,/* out: max of flushed lsn
+	ib_uint64_t*	max_flushed_lsn,/*!< out: max of flushed lsn
 					values in data files */
-	ulint*		sum_of_new_sizes)/* out: sum of sizes of the
+	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
 {
 	ibool	ret;
@@ -971,14 +1008,14 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Starts InnoDB and creates a new database if database files
-are not found and the user wants. */
+are not found and the user wants.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
-				/* out: DB_SUCCESS or error code */
 {
 	buf_pool_t*	ret;
 	ibool		create_new_db;
@@ -996,6 +1033,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	ulint		err;
 	ulint		i;
+	ulint		io_limit;
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
@@ -1069,13 +1107,29 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	fprintf(stderr,
 		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
+# else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	fprintf(stderr,
 		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#elif defined(HAVE_SOLARIS_ATOMICS)
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	fprintf(stderr,
+		"InnoDB: Mutexes and rw_locks use Solaris atomic functions.\n");
+# else
+	fprintf(stderr,
+		"InnoDB: Mutexes use Solaris atomic functions.\n");
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#elif HAVE_WINDOWS_ATOMICS
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	fprintf(stderr,
+		"InnoDB: Mutexes and rw_locks use Windows interlocked functions.\n");
+# else
+	fprintf(stderr,
+		"InnoDB: Mutexes use Windows interlocked functions.\n");
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 #else /* HAVE_GCC_ATOMIC_BUILTINS */
 	fprintf(stderr,
 		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
@@ -1108,25 +1162,26 @@ innobase_start_or_create_for_mysql(void)
 	os_aio_use_native_aio = FALSE;
 
 #ifdef __WIN__
-	if (os_get_os_version() == OS_WIN95
-	    || os_get_os_version() == OS_WIN31
-	    || os_get_os_version() == OS_WINNT) {
-
+	switch (os_get_os_version()) {
+	case OS_WIN95:
+	case OS_WIN31:
+	case OS_WINNT:
 		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
 		and NT use simulated aio. In NT Windows provides async i/o,
 		but when run in conjunction with InnoDB Hot Backup, it seemed
 		to corrupt the data files. */
 
 		os_aio_use_native_aio = FALSE;
-	} else {
-		/* On Win 2000 and XP currently native async i/o
-                   is not used for xtradb by default */
+		break;
+	default:
+		/* On Win 2000 and XP use async i/o */
 		//os_aio_use_native_aio = TRUE;
 		os_aio_use_native_aio = FALSE;
 		fprintf(stderr,
 			"InnoDB: Windows native async i/o is disabled as default.\n"
 			"InnoDB:   It is not applicable for the current"
 			" multi io threads implementation.\n");
+		break;
 	}
 #endif
 	if (srv_file_flush_method_str == NULL) {
@@ -1250,32 +1305,37 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	/* over write innodb_file_io_threads */
-	srv_n_file_io_threads = 2 + srv_n_read_io_threads + srv_n_write_io_threads;
-
-	/* Restrict the maximum number of file i/o threads */
-	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
-
-		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
-		srv_n_read_io_threads = srv_n_write_io_threads = (SRV_MAX_N_IO_THREADS - 2) / 2;
+	/* If user has set the value of innodb_file_io_threads then
+	we'll emit a message telling the user that this parameter
+	is now deprecated. */
+	if (srv_n_file_io_threads != 4) {
+		fprintf(stderr, "InnoDB: Warning:"
+			" innodb_file_io_threads is deprecated."
+			" Please use innodb_read_io_threads and"
+			" innodb_write_io_threads instead\n");
 	}
 
+	/* Now overwrite the value on srv_n_file_io_threads */
+	srv_n_file_io_threads = 2 + srv_n_read_io_threads
+				+ srv_n_write_io_threads;
+
+	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
+
+	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
+	still applies to windows. */
 	if (!os_aio_use_native_aio) {
-		/* In simulated aio we currently have use only for 4 threads */
-		/*srv_n_file_io_threads = 4;*/
-
-		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_read_io_threads, srv_n_write_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
 	} else {
-		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_read_io_threads, srv_n_write_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
 
-	fil_init(srv_max_n_open_files);
+	os_aio_init(io_limit,
+		    srv_n_read_io_threads,
+		    srv_n_write_io_threads,
+		    SRV_MAX_N_PENDING_SYNC_IOS);
+
+	fil_init(srv_file_per_table ? 50000 : 5000,
+		 srv_max_n_open_files);
 
 	ret = buf_pool_init();
 
@@ -1484,6 +1544,12 @@ innobase_start_or_create_for_mysql(void)
 		dict_create();
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
+		if (trx_doublewrite == NULL) {
+			/* Create the doublewrite buffer here to avoid assertion error
+			   about page_no of doublewrite_buf */
+			trx_sys_create_doublewrite_buf();
+		}
+
 		if (srv_extra_rsegments)
 			trx_sys_create_extra_rseg(srv_extra_rsegments);
 #ifdef UNIV_LOG_ARCHIVE
@@ -1671,6 +1737,11 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	if (srv_use_purge_thread) {
+		os_thread_create(&srv_purge_thread, NULL, thread_ids
+				 + (4 + SRV_MAX_N_IO_THREADS));
+	}
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
@@ -1822,8 +1893,7 @@ innobase_start_or_create_for_mysql(void)
 			" to an earlier version of\n"
 			"InnoDB: InnoDB! But if you absolutely need to"
 			" downgrade, see\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"multiple-tablespaces.html\n"
+			"InnoDB: " REFMAN "multiple-tablespaces.html\n"
 			"InnoDB: for instructions.\n");
 	}
 
@@ -1843,13 +1913,13 @@ innobase_start_or_create_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 
-/********************************************************************
-Shuts down the InnoDB database. */
+/****************************************************************//**
+Shuts down the InnoDB database.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void)
 /*=============================*/
-				/* out: DB_SUCCESS or error code */
 {
 	ulint	i;
 #ifdef __NETWARE__
@@ -1884,7 +1954,7 @@ innobase_shutdown_for_mysql(void)
 	}
 
 #ifdef __NETWARE__
-	if(!panic_shutdown)
+	if (!panic_shutdown)
 #endif
 		logs_empty_and_mark_files_at_shutdown();
 
