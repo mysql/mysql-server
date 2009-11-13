@@ -1189,7 +1189,6 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
         cmd.appfmt("%s/bin/", g_prefix);
       }
       cmd.append(tc.m_command.c_str());
-      to_native(cmd);
 
       if (0) // valgrind
       {
