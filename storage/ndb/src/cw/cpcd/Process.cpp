@@ -433,8 +433,14 @@ CPCD::Process::do_exec() {
   logger.error("Exec failed: %s\n", strerror(errno));
   /* NOTREACHED */
 #else
-  HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, m_path.c_str(), argv);
+  BaseString cmd;
+  cmd.assfmt("'%s %s'", m_path.c_str(), m_args.c_str());
+  const char *sh_argv[] = {"sh", "-c", cmd.c_str(), 0};
+  BaseString shcmd;
+  shcmd.assfmt("sh -c '%s'", cmd.c_str());
+  logger.critical(shcmd.c_str());
 
+  HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, "sh", sh_argv);
   // go back up to original cwd
   if(chdir(cwd))
   {
@@ -456,7 +462,7 @@ CPCD::Process::do_exec() {
   DWORD exitcode;
   BOOL result = GetExitCodeProcess(proc, &exitcode);
   //maybe a short running process
-  if (result && exitcode == 259) {
+  if (result && exitcode != 259) {
     m_status = STOPPED;
     logger.warning("Process terminated\n");
   }
