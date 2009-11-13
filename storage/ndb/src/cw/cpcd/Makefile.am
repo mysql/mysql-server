@@ -15,6 +15,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ndbbin_PROGRAMS = ndb_cpcd
+EXTRA_DIST = CMakeLists.txt
 
 ndb_cpcd_SOURCES = main.cpp CPCD.cpp Process.cpp APIService.cpp Monitor.cpp common.cpp
 
