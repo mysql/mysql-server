@@ -500,9 +500,10 @@ BaseString
 BaseString::getPrettyText(unsigned size, const Uint32 data[])
 {
   const char* delimiter = "";
-  unsigned i, found = 0, MAX_BITS = 8 * size;
+  unsigned found = 0;
+  const unsigned MAX_BITS = sizeof(Uint32) * 8 * size;
   BaseString to;
-  for (i = 0; i < MAX_BITS; i++)
+  for (unsigned i = 0; i < MAX_BITS; i++)
   {
     if (BitmaskImpl::get(size, data, i))
     {
@@ -521,9 +522,9 @@ BaseString
 BaseString::getPrettyTextShort(unsigned size, const Uint32 data[])
 {
   const char* delimiter = "";
-  unsigned i, MAX_BITS = 8 * size;
+  const unsigned MAX_BITS = sizeof(Uint32) * 8 * size;
   BaseString to;
-  for (i = 0; i < MAX_BITS; i++)
+  for (unsigned i = 0; i < MAX_BITS; i++)
   {
     if (BitmaskImpl::get(size, data, i))
     {
