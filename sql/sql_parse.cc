@@ -124,6 +124,14 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
 */
 static bool xa_trans_rollback(THD *thd)
 {
+  /*
+    Resource Manager error is meaningless at this point, as we perform
+    explicit rollback request by user. We must reset rm_error before
+    calling ha_rollback(), so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+
   bool status= test(ha_rollback(thd));
 
   thd->options&= ~(ulong) OPTION_BEGIN;
@@ -131,7 +139,6 @@ static bool xa_trans_rollback(THD *thd)
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
-  thd->transaction.xid_state.rm_error= 0;
 
   return status;
 }
@@ -478,10 +485,10 @@ static void handle_bootstrap_impl(THD *thd)
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
     thd->set_query(query, length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query, length);
+    thd->profiling.set_query_source(thd->query(), length);
 #endif
 
     /*
@@ -490,7 +497,7 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query, length, & found_semicolon);
+    mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -1213,24 +1220,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(thd->query, thd->thread_id,
+    MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
                       thd->security_ctx->priv_user,
                       (char *) thd->security_ctx->host_or_ip);
-    char *packet_end= thd->query + thd->query_length;
+    char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char* end_of_stmt= NULL;
 
-    general_log_write(thd, command, thd->query, thd->query_length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    general_log_write(thd, command, thd->query(), thd->query_length());
+    DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
-    thd->profiling.set_query_source(thd->query, thd->query_length);
+    thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd, thd->query, thd->query_length, &end_of_stmt);
+    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1694,7 +1701,8 @@ void log_slow_statement(THD *thd)
     {
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query, thd->query_length, end_utime_of_query);
+      slow_log_print(thd, thd->query(), thd->query_length(), 
+                     end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
@@ -3084,7 +3092,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3116,7 +3124,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3139,7 +3147,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3156,7 +3164,7 @@ end_with_restore_list:
       goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
-    MYSQL_UPDATE_START(thd->query);
+    MYSQL_UPDATE_START(thd->query());
     res= (up_result= mysql_update(thd, all_tables,
                                   select_lex->item_list,
                                   lex->value_list,
@@ -3230,7 +3238,7 @@ end_with_restore_list:
 #endif
     {
       multi_update *result_obj;
-      MYSQL_MULTI_UPDATE_START(thd->query);
+      MYSQL_MULTI_UPDATE_START(thd->query());
       res= mysql_multi_update(thd, all_tables,
                               &select_lex->item_list,
                               &lex->value_list,
@@ -3298,7 +3306,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    MYSQL_INSERT_START(thd->query);
+    MYSQL_INSERT_START(thd->query());
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3340,7 +3348,7 @@ end_with_restore_list:
     }
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
-      MYSQL_INSERT_SELECT_START(thd->query);
+      MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= (uchar*) second_table;
@@ -3426,7 +3434,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    MYSQL_DELETE_START(thd->query);
+    MYSQL_DELETE_START(thd->query());
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
@@ -3461,7 +3469,7 @@ end_with_restore_list:
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
-    MYSQL_MULTI_DELETE_START(thd->query);
+    MYSQL_MULTI_DELETE_START(thd->query());
     if ((res= mysql_multi_delete_prepare(thd)))
     {
       MYSQL_MULTI_DELETE_DONE(1, 0);
@@ -4121,7 +4129,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query, thd->query_length);
+        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
       }
       my_ok(thd);
     } 
@@ -4693,7 +4701,7 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query, thd->query_length);
+          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
@@ -5232,8 +5240,6 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
-      !(all_tables->view &&
-        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, FALSE, 1, no_errors))
     goto deny;
 
@@ -6184,9 +6190,10 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (*found_semicolon &&
-              (thd->query_length= (ulong)(*found_semicolon - thd->query)))
-            thd->query_length--;
+          if (*found_semicolon && (ulong) (*found_semicolon - thd->query()))
+            thd->set_query_inner(thd->query(),
+                                 (uint32) (*found_semicolon -
+                                           thd->query() - 1));
           /* Actually execute the query */
           if (*found_semicolon)
           {
@@ -6194,7 +6201,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(thd->query,
+          MYSQL_QUERY_EXEC_START(thd->query(),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
                                  thd->security_ctx->priv_user,
@@ -8056,7 +8063,7 @@ bool parse_sql(THD *thd,
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
-  MYSQL_QUERY_PARSE_START(thd->query);
+  MYSQL_QUERY_PARSE_START(thd->query());
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;

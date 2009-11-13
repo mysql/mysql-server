@@ -50,9 +50,6 @@
            is killed.
 */
 
-/* Requires Windows 2000 or higher */
-#define _WIN32_WINNT 0x0500
-
 #include <windows.h>
 #include <stdio.h>
 #include <tlhelp32.h>

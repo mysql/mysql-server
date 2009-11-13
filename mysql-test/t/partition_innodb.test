@@ -6,6 +6,21 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# BUG#47774, Assertion failure in InnoDB using column list partitioning
+#
+create table t1 (a varchar(5), b int signed, c varchar(10), d datetime)
+partition by range columns(b,c)
+subpartition by hash(to_seconds(d))
+( partition p0 values less than (2, 'b'),
+  partition p1 values less than (4, 'd'),
+  partition p2 values less than (10, 'za'));
+insert into t1 values ('a', 3, 'w', '2001-10-27 04:34:00');
+insert into t1 values ('r', 7, 'w', '2001-10-27 05:34:00');
+insert into t1 values ('g', 10, 'w', '2001-10-27 06:34:00');
+update t1 set a = 'c' where a > 'f';
+drop table t1;
+
+#
 # BUG#47776, Failed to update for MEMORY engine, crash for InnoDB and success for MyISAM
 #
 create table t1 (a varchar(5))
