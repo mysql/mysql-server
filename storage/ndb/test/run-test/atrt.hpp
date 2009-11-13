@@ -22,6 +22,7 @@
 #include <ndb_global.h>
 #include <Vector.hpp>
 #include <BaseString.hpp>
+#include <NdbAutoPtr.hpp>
 #include <Logger.hpp>
 #include <mgmapi.h>
 #include <CpcClient.hpp>
@@ -243,6 +244,38 @@ static inline char* to_fwd_slashes(char* bs) {
   return replace_chars(bs, '\\', '/');
 }
 
+//you must free() the result
+static inline char* replace_drive_letters(const char* path) {
+
+  int i, j;
+  int count; // number of ':'s in path
+  char *retval; // return value
+  const char cygdrive[] = "/cygdrive";
+  size_t cyglen = strlen(cygdrive), retval_len;
+
+  for(i = 0, count = 0; path[i]; i++) {
+    count +=  path[i] == ':';
+  }
+  retval_len = strlen(path) + count * cyglen + 1;
+  retval = (char*)malloc(retval_len);
+
+  for(i = j = 0; path[i]; i++) {
+    if(path[i] && path[i+1]) {
+      if( (!i || isspace(path[i-1]) || ispunct(path[i-1])) && path[i+1] == ':')
+{
+        assert(path[i+2] == '/');
+        j += BaseString::snprintf(retval + j, retval_len - 1, "%s/%c", cygdrive, path[i]);
+        i++;
+        continue;
+      }
+    }
+    retval[j++] = path[i];
+  }
+  retval[j] = 0;
+
+  return retval;
+}
+
 static inline int sh(const char *script){
 
 #ifdef _WIN32
@@ -254,28 +287,30 @@ static inline int sh(const char *script){
   char *templat = "fnXXXXXX";
   char *result;
 
+  NdbAutoPtr<char> clean = replace_drive_letters(script);
   tmp.assfmt("%s\\%s", getenv("TEMP"), templat);
   result = _mktemp( (char*)tmp.c_str() );  // C4996
   if (result == NULL) {
-     printf( "Problem creating the template\n" );
+     g_logger.error( "Problem creating the template\n" );
      if (errno == EINVAL) {
-         printf( "Bad parameter\n");
+         g_logger.error( "Bad parameter\n");
      }
      else if (errno == EEXIST) {
-         printf( "Out of unique filenames\n");
+         g_logger.error( "Out of unique filenames\n");
      }
      return -1;
   }
   else {
      fp = fopen(result, "w" );
      if( fp == NULL ) {
-        printf( "Cannot open %s\n", result );
+        g_logger.error( "Cannot open %s\n", result );
      }
-     fprintf(fp, "%s", script);
+     fprintf(fp, "%s", clean);
      fclose(fp);
      bs.assfmt("sh %s", result);
   }
 
+  g_logger.debug("script: %s", clean);
   int rv = system(bs.c_str());
   if (rv) {
     g_logger.debug("system returned %d\n", rv);
