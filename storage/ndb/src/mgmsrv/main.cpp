@@ -85,6 +85,7 @@ bool g_RestartServer= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
 static const char* opt_logname = "MgmtSrvr";
+static const char* opt_nowait_nodes = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -141,6 +142,10 @@ static struct my_option my_long_options[] =
   { "log-name", 256,
     "Name to use when logging messages for this node",
     (uchar**) &opt_logname, (uchar**) &opt_logname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nowait-nodes", 256,
+    "Nodes that will not be waited for during start",
+    (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -219,6 +224,24 @@ static int mgmd_main(int argc, char** argv)
   {
     g_eventLogger->error("Both --mycnf and -f is not supported");
     mgmd_exit(1);
+  }
+
+
+  if (opt_nowait_nodes)
+  {
+    int res = opts.nowait_nodes.parseMask(opt_nowait_nodes);
+    if(res == -2 || (res > 0 && opts.nowait_nodes.get(0)))
+    {
+      g_eventLogger->error("Invalid nodeid specified in nowait-nodes: '%s'",
+                           opt_nowait_nodes);
+      mgmd_exit(1);
+    }
+    else if (res < 0)
+    {
+      g_eventLogger->error("Unable to parse nowait-nodes argument: '%s'",
+                           opt_nowait_nodes);
+      mgmd_exit(1);
+    }
   }
 
   /**
