@@ -98,7 +98,7 @@ struct view {
     "  WHEN 5 THEN \"FILE_BUFFERS\""
     "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
     "  ELSE \"<unknown>\" "
-    " END AS resource_id, "
+    " END AS resource_name, "
     "reserved, used, max, high "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources"
    },
