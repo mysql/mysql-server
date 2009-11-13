@@ -80,6 +80,9 @@ ha_archive_la_DEPENDENCIES = probes_sh_mysql.o dtrace_shared_files dtrace_provid
 CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers dtrace_shared_files
 DTRACEFILES = libarchive_a-ha_archive.o
 DTRACESHAREDFILES = .libs/ha_archive_la-ha_archive.o
+# Hack: We "depend" on ".libs/" but have no rule for it,
+# but it is created as a byproduct of the ".lo"
+DTRACESHAREDDEPEND = ha_archive_la-ha_archive.lo
 DTRACEPROVIDER = probes_mysql.d
 
 dtrace_files:
@@ -93,7 +96,7 @@ probes_mysql.d:
 	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 	echo timestamp > dtrace_sources
 
-probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDFILES)
+probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDDEPEND)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACESHAREDFILES) -o $@
 
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
