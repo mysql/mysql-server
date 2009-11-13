@@ -1,0 +1,27 @@
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+set global log_bin_trust_routine_creators=1;
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+set table_type='MyISAM';
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+select @@table_type='MyISAM';
+--error ER_PARSE_ERROR
+backup table t1 to 'data.txt';
+--error ER_PARSE_ERROR
+restore table t1 from 'data.txt';
+--error ER_PARSE_ERROR
+show plugin;
+--error ER_PARSE_ERROR
+load table t1 from master;
+--error ER_PARSE_ERROR
+load data from master;
+--error ER_PARSE_ERROR
+SHOW INNODB STATUS;
+--error ER_PARSE_ERROR
+create table t1 (t6 timestamp(6));
+--error ER_PARSE_ERROR
+create table t1 (t6 timestamp) type=myisam;
+--error ER_PARSE_ERROR
+show table types;
+--error ER_PARSE_ERROR
+show mutex status;
+
