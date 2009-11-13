@@ -7,9 +7,7 @@
 #include "log_header.h"
 #include "checkpoint.h"
 
-int tokudb_recovery_trace = 0;
-
-#define TOKUDB_RECOVERY "Tokudb recovery"
+int tokudb_recovery_trace = 0;                    // turn on recovery tracing, default off.
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
@@ -50,7 +48,6 @@ static void file_map_tuple_destroy(struct file_map_tuple *tuple) {
 }
 
 // Map filenum to brt, fname
-// TODO why can't we use the cachetable to find by filenum?
 struct file_map {
     OMT filenums;
 };
@@ -62,6 +59,10 @@ static void file_map_init(struct file_map *fmap) {
 
 static void file_map_destroy(struct file_map *fmap) {
     toku_omt_destroy(&fmap->filenums);
+}
+
+static uint32_t file_map_get_num_dictionaries(struct file_map *fmap) {
+    return toku_omt_size(fmap->filenums);
 }
 
 static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_succeeded) {
@@ -151,10 +152,10 @@ struct recover_env {
 };
 typedef struct recover_env *RECOVER_ENV;
 
-static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_compare_func dup_compare) {
+static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_compare_func dup_compare, size_t cachetable_size) {
     int r;
 
-    r = toku_create_cachetable(&renv->ct, 1<<25, (LSN){0}, 0);
+    r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, 0);
     assert(r == 0);
     r = toku_logger_create(&renv->logger);
     assert(r == 0);
@@ -578,11 +579,13 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
 	assert(ss->checkpoint_lsn.lsn == l->lsn.lsn);
 	ss->ss = SS_BACKWARD_SAW_CKPT;
 	if (ss->n_live_txns==0) {
-	    fprintf(stderr, "Tokudb recovery turning around at begin checkpoint %"PRIu64"\n", l->lsn.lsn);
+            time_t tnow = time(NULL);
+	    fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %"PRIu64"\n", ctime(&tnow), l->lsn.lsn);
             renv->goforward = TRUE;
 	    return 0;
 	} else {
-	    fprintf(stderr, "Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64"\n", l->lsn.lsn, ss->min_live_txn);
+            time_t tnow = time(NULL);
+	    fprintf(stderr, "%.24s Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64"\n", ctime(&tnow), l->lsn.lsn, ss->min_live_txn);
             return 0;
         }
     case SS_BACKWARD_SAW_CKPT:
@@ -684,7 +687,7 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, RECOVER_ENV r
 	assert(ss->n_live_txns > 0); // the only thing we are doing here is looking for a live txn, so there better be one
 	// If we got to the min, return nonzero
 	if (ss->min_live_txn >= l->lsn.lsn) {
-            if (tokudb_recovery_trace)
+            if (tokudb_recovery_trace) 
                 fprintf(stderr, "Tokudb recovery turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
             renv->goforward = TRUE;
 	    return 0;
@@ -798,6 +801,10 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     return needs_recovery;
 }
 
+static uint32_t recover_get_num_live_txns(RECOVER_ENV renv) {
+    return toku_omt_size(renv->logger->live_txns);
+}
+
 // abort all of the remaining live transactions in descending transaction id order
 static void recover_abort_live_txns(RECOVER_ENV renv) {
     int r;
@@ -833,8 +840,9 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     int rr = 0;
     TOKULOGCURSOR logcursor = NULL;
     struct log_entry *le = NULL;
-
-    fprintf(stderr, "Tokudb recovery starting\n");
+    
+    time_t tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery starting\n", ctime(&tnow));
 
     char org_wd[1000];
     {
@@ -873,7 +881,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan backwards
-    fprintf(stderr, "Tokudb recovery scanning backward from %"PRIu64"\n", lastlsn.lsn);
+    tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery scanning backward from %"PRIu64"\n", ctime(&tnow), lastlsn.lsn);
     scan_state_init(&renv->ss);
     while (1) {
         le = NULL;
@@ -909,7 +918,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
     // scan forwards
     LSN thislsn = toku_log_entry_get_lsn(le);
-    fprintf(stderr, "Tokudb recovery scanning forward from %"PRIu64"\n", thislsn.lsn);
+    tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery scanning forward from %"PRIu64"\n", ctime(&tnow), thislsn.lsn);
     while (1) {
         le = NULL;
         r = toku_logcursor_next(logcursor, &le);
@@ -938,11 +948,20 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     toku_logger_restart(renv->logger, lastlsn);
 
     // abort the live transactions
-    fprintf(stderr, "Tokudb recovery aborting uncommited transactions\n");
+    uint32_t n = recover_get_num_live_txns(renv);
+    if (n > 0) {
+        tnow = time(NULL);
+        fprintf(stderr, "%.24s Tokudb recovery aborting %"PRIu32" live transactions\n", ctime(&tnow), n);
+    }
+
     recover_abort_live_txns(renv);
 
     // close the open dictionaries
-    fprintf(stderr, "Tokudb recovery closing dictionaries\n");
+    n = file_map_get_num_dictionaries(&renv->fmap);
+    if (n > 0) {
+        tnow = time(NULL);
+        fprintf(stderr, "%.24s Tokudb recovery closing %"PRIu32" dictionaries\n", ctime(&tnow), n);
+    }
     file_map_close_dictionaries(&renv->fmap, TRUE);
 
     // write a recovery log entry
@@ -951,10 +970,12 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     assert(r == 0);
 
     // checkpoint 
-    fprintf(stderr, "Tokudb recovery making a checkpoint\n");
+    tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery making a checkpoint\n", ctime(&tnow));
     r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL);
     assert(r == 0);
-    fprintf(stderr, "Tokudb recovery done\n");
+    tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery done\n", ctime(&tnow));
 
     r = chdir(org_wd); 
     assert(r == 0);
@@ -962,7 +983,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     return 0;
 
  errorexit:
-    fprintf(stderr, "Tokudb recovery failed %d\n", rr);
+    tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery failed %d\n", ctime(&tnow), rr);
 
     if (logcursor) {
         r = toku_logcursor_destroy(&logcursor);
@@ -1014,7 +1036,7 @@ int tokudb_recover_delete_rolltmp_files(const char *UU(data_dir), const char *lo
     return r;
 }
 
-int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare) {
+int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare, size_t cachetable_size) {
     int r;
     int lockfd = -1;
 
@@ -1031,7 +1053,7 @@ int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt
     int rr = 0;
     if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
-        r = recover_env_init(&renv, bt_compare, dup_compare);
+        r = recover_env_init(&renv, bt_compare, dup_compare, cachetable_size);
         assert(r == 0);
 
         rr = do_recovery(&renv, env_dir, log_dir);

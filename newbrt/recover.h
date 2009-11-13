@@ -16,7 +16,7 @@
 
 // Run tokudb recovery from the log
 // Returns 0 if success
-int tokudb_recover(const char *envdir, const char *logdir, brt_compare_func bt_compare, brt_compare_func dup_compare);
+int tokudb_recover(const char *envdir, const char *logdir, brt_compare_func bt_compare, brt_compare_func dup_compare, size_t cachetable_size);
 
 // Effect: Check the tokudb logs to determine whether or not we need to run recovery.
 // If the log is empty or if there is a clean shutdown at the end of the log, then we

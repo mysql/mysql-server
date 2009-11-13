@@ -337,7 +337,7 @@ ydb_do_recovery (DB_ENV *env) {
 	logdir = toku_strdup(env->i->dir);
     }
     toku_ydb_unlock();
-    int r = tokudb_recover(envdir, logdir, env->i->bt_compare, env->i->dup_compare);
+    int r = tokudb_recover(envdir, logdir, env->i->bt_compare, env->i->dup_compare, env->i->cachetable_size);
     toku_ydb_lock();
     toku_free(logdir);
     return r;
