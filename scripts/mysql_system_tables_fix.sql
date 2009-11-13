@@ -342,7 +342,7 @@ ALTER TABLE procs_priv
     COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
 
 ALTER TABLE procs_priv
-  MODIFY Timestamp timestamp(14) AFTER Proc_priv;
+  MODIFY Timestamp timestamp AFTER Proc_priv;
 
 #
 # proc
