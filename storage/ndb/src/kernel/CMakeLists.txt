@@ -82,3 +82,4 @@ ADD_EXECUTABLE(ndbd
               ../mgmsrv/Config.cpp
               ../mgmsrv/InitConfigFileParser.cpp
 )
+INSTALL(TARGETS ndbd DESTINATION libexec)

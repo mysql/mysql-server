@@ -43,3 +43,5 @@ ADD_EXECUTABLE(ndb_mgmd
                Services.cpp
                ConfigManager.cpp)
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)
+
+INSTALL(TARGETS ndb_mgmd DESTINATION libexec)
