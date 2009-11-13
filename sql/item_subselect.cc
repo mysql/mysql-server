@@ -311,9 +311,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str, enum_query_type query_type)
 {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 
@@ -1951,6 +1956,7 @@ int subselect_single_select_engine::exec()
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
             }
