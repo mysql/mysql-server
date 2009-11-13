@@ -9,6 +9,7 @@ start slave;
 #########################################################################
 CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
 CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = Innodb;
+CREATE TABLE nt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = MyIsam;
 INSERT INTO tt_1(ddl_case) VALUES(0);
 INSERT INTO tt_2(ddl_case) VALUES(0);
 #########################################################################
@@ -19,8 +20,7 @@ SET AUTOCOMMIT= 0;
 INSERT INTO tt_1(ddl_case) VALUES (41);
 LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
-test.nt_1	preload_keys	Error	Table 'test.nt_1' doesn't exist
-test.nt_1	preload_keys	status	Operation failed
+test.nt_1	preload_keys	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -31,12 +31,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(ddl_case) VALUES (40);
-LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;
+LOAD INDEX INTO CACHE tt_1, tt_2 IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
-test.t1	preload_keys	Error	Table 'test.t1' doesn't exist
-test.t1	preload_keys	status	Operation failed
-test.t2	preload_keys	Error	Table 'test.t2' doesn't exist
-test.t2	preload_keys	status	Operation failed
+test.tt_1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+test.tt_2	preload_keys	note	The storage engine for the table doesn't support preload_keys
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -49,8 +47,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 INSERT INTO tt_1(ddl_case) VALUES (39);
 ANALYZE TABLE nt_1;
 Table	Op	Msg_type	Msg_text
-test.nt_1	analyze	Error	Table 'test.nt_1' doesn't exist
-test.nt_1	analyze	status	Operation failed
+test.nt_1	analyze	status	Table is already up to date
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -64,8 +61,7 @@ master-bin.000001	#	Query	#	#	use `test`; ANALYZE TABLE nt_1
 INSERT INTO tt_1(ddl_case) VALUES (38);
 CHECK TABLE nt_1;
 Table	Op	Msg_type	Msg_text
-test.nt_1	check	Error	Table 'test.nt_1' doesn't exist
-test.nt_1	check	status	Operation failed
+test.nt_1	check	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -78,8 +74,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 INSERT INTO tt_1(ddl_case) VALUES (37);
 OPTIMIZE TABLE nt_1;
 Table	Op	Msg_type	Msg_text
-test.nt_1	optimize	Error	Table 'test.nt_1' doesn't exist
-test.nt_1	optimize	status	Operation failed
+test.nt_1	optimize	status	Table is already up to date
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -93,8 +88,7 @@ master-bin.000001	#	Query	#	#	use `test`; OPTIMIZE TABLE nt_1
 INSERT INTO tt_1(ddl_case) VALUES (36);
 REPAIR TABLE nt_1;
 Table	Op	Msg_type	Msg_text
-test.nt_1	repair	Error	Table 'test.nt_1' doesn't exist
-test.nt_1	repair	status	Operation failed
+test.nt_1	repair	status	OK
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -536,3 +530,4 @@ Comparing tables master:test.tt_1 and slave:test.tt_1
 ###################################################################################
 DROP TABLE tt_1;
 DROP TABLE tt_2;
+DROP TABLE nt_1;
