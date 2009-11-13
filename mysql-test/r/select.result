@@ -4591,4 +4591,22 @@ field2
 15:13:38
 drop table A,AA,B,BB;
 #end of test for bug#45266
+# 
+# BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+# 
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+v
+DROP TABLE t1;
 End of 5.1 tests
