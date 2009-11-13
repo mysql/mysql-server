@@ -166,6 +166,10 @@ do_reset_proc(atrt_config& config, SqlResultSet& command,
 bool
 do_command(atrt_config& config){
 
+#ifdef _WIN32
+  return true;
+#endif
+
   MYSQL* mysql= find_atrtdb_client(config);
   if (!mysql)
     return true;

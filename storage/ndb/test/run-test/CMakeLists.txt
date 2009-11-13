@@ -34,3 +34,18 @@ LINK_LIBRARIES(ndbNDBT ndbclient dbug mysys strings mysqlclient
                        ndbdbutil ${NDB_SCI_LIBS} )
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 
+INSTALL(TARGETS atrt DESTINATION bin)
+INSTALL(FILES
+               atrt-analyze-result.sh
+               atrt-backtrace.sh
+               atrt-gather-result.sh
+               atrt-setup.sh
+               autotest-boot.sh
+               autotest-run.sh
+               check-tests.sh
+               make-config.sh
+               make-html-reports.sh
+               make-index.sh
+               ndb-autotest.sh
+               upgrade-boot.sh
+         DESTINATION bin)
