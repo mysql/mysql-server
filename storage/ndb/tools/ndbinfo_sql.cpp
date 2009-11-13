@@ -99,7 +99,7 @@ struct view {
     "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
     "  ELSE \"<unknown>\" "
     " END AS resource_name, "
-    "reserved, used, max, high "
+    "reserved, used, max "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources"
    },
    { "counters",
