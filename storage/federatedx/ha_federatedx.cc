@@ -1786,7 +1786,7 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
 int ha_federatedx::close(void)
 {
   int retval, error;
-  THD *thd= current_thd;
+  THD *thd;
   DBUG_ENTER("ha_federatedx::close");
 
   /* free the result set */
@@ -1794,13 +1794,26 @@ int ha_federatedx::close(void)
     retval= free_result();
 
   /* Disconnect from mysql */
-  if (txn || thd && (txn= get_txn(thd, true)))
+  if (!(thd= current_thd) || !(txn= get_txn(thd, true)))
+  {
+    federatedx_txn tmp_txn;
+
+    tmp_txn.release(&io);
+
+    DBUG_ASSERT(io == NULL);
+    
+    if ((error= free_share(&tmp_txn, share)))
+      retval= error;
+  }
+  else
+  {
     txn->release(&io);
 
-  DBUG_ASSERT(io == NULL);
+    DBUG_ASSERT(io == NULL);
 
-  if ((error= free_share(txn, share)))
-    retval= error;
+    if ((error= free_share(txn, share)))
+      retval= error;
+  }
 
   DBUG_RETURN(retval);
 }
