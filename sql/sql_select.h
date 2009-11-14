@@ -211,6 +211,10 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
+
+  /** Optional 'pushed-join' covering this table and some of it descendants */
+  ha_pushed_join *pushed_join;
+
   /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
 

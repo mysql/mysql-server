@@ -27,18 +27,19 @@
 #define QRY_OPERAND_HAS_WRONG_TYPE 4803
 #define QRY_CHAR_OPERAND_TRUNCATED 4804
 #define QRY_NUM_OPERAND_RANGE 4805
-#define QRY_UNKONWN_PARENT 4806
-#define QRY_UNKNOWN_COLUMN 4807
-#define QRY_UNRELATED_INDEX 4808
-#define QRY_WRONG_INDEX_TYPE 4809
-#define QRY_OPERAND_ALREADY_BOUND 4810
-#define QRY_DEFINITION_TOO_LARGE 4811
-#define QRY_DUPLICATE_COLUMN_IN_PROJ 4812
-#define QRY_NEED_PARAMETER 4813
-#define QRY_RESULT_ROW_ALREADY_DEFINED 4814
-#define QRY_HAS_ZERO_OPERATIONS 4815
-#define QRY_IN_ERROR_STATE 4816
-#define QRY_ILLEGAL_STATE 4817
+#define QRY_MULTIPLE_PARENTS 4806
+#define QRY_UNKONWN_PARENT 4807
+#define QRY_UNKNOWN_COLUMN 4808
+#define QRY_UNRELATED_INDEX 4809
+#define QRY_WRONG_INDEX_TYPE 4810
+#define QRY_OPERAND_ALREADY_BOUND 4811
+#define QRY_DEFINITION_TOO_LARGE 4812
+#define QRY_DUPLICATE_COLUMN_IN_PROJ 4813
+#define QRY_NEED_PARAMETER 4814
+#define QRY_RESULT_ROW_ALREADY_DEFINED 4815
+#define QRY_HAS_ZERO_OPERATIONS 4816
+#define QRY_IN_ERROR_STATE 4817
+#define QRY_ILLEGAL_STATE 4818
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -283,11 +284,8 @@ public:
     return m_id;
   }
 
-  // Register a operation as parent of this operation
-  void addParent(NdbQueryOperationDefImpl*);
-
-  // Register a linked child refering this operation
-  void addChild(NdbQueryOperationDefImpl*);
+  // Establish a linked parent <-> child relationship with this operation
+  int linkWithParent(NdbQueryOperationDefImpl* parentOp);
 
   // Register a linked reference to a column from operation
   // Return position in list of refered columns available from
@@ -358,6 +356,7 @@ protected:
      m_spjProjection()
   {}
 
+public:
   // Get the ordinal position of this operation within the query def.
   Uint32 getQueryOperationIx() const
   { return m_ix; }
@@ -366,6 +365,7 @@ protected:
   Uint32 getQueryOperationId() const
   { return m_id; }
 
+protected:
   // Get type of query operation
   virtual Type getType() const = 0;
 
@@ -374,6 +374,15 @@ protected:
   void appendParentList(Uint32Buffer& serializedDef) const;
 
 private:
+  bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
+
+  // Register a linked child refering specified operation
+  void addChild(NdbQueryOperationDefImpl*);
+
+  // Remove a linked child refering specified operation
+  void removeChild(const NdbQueryOperationDefImpl*);
+
+ private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array

@@ -201,38 +201,39 @@ struct st_ndb_status {
   long transaction_hint_count[MAX_NDB_NODES];
 };
 
-class ha_pushed_join
+class ha_ndbcluster_pushed_join : public ha_pushed_join
 {
 public:
-  ha_pushed_join(struct st_join_table* join_tabs, 
-                 int count,
-                 const NdbQueryDef* queryDef)
-  : m_tabs(join_tabs),
+  ha_ndbcluster_pushed_join(struct st_join_table* join_tabs, 
+                            int count,
+                            const NdbQueryDef* queryDef)
+  : ha_pushed_join(),
+    m_tabs(join_tabs),
     m_count(count),
-    m_queryDef(queryDef),
-    m_active_query(NULL)
-  {}
+    m_queryDef(queryDef) {}
 
-  ~ha_pushed_join()
+  ~ha_ndbcluster_pushed_join()
   {
-    if (m_active_query)
-      m_active_query->close();
     if (m_queryDef)
       m_queryDef->release();
   }
 
+  uint cntPushed() const
+  {
+    return m_count;
+  }
+
   struct st_join_table* const m_tabs; 
-  const int m_count;
+  const uint m_count;
   const NdbQueryDef* const m_queryDef;  // Definition of pushed join query
-  NdbQuery* m_active_query;             // Current instance of active query.
 };
 
-int
-ha_ndbcluster::join_push(struct st_join_table* join_tabs, 
-                         int count,
-                         int idx)
-{
 
+ha_pushed_join*
+ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs, 
+                         int count,
+                         int idx) const
+{
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
 
   const NdbRecord *key_rec;
@@ -240,8 +241,6 @@ ha_ndbcluster::join_push(struct st_join_table* join_tabs,
     key_rec= m_index[idx].ndb_unique_record_key;
   else
     key_rec= m_ndb_hidden_key_record;
-
-  sql_print_information("::join_push(): Build query definition for %d pushed joins\n", count);
 
   const NdbQueryOperationDef* operationDefs[32];
   DBUG_ASSERT (count<= 32);
@@ -252,14 +251,22 @@ ha_ndbcluster::join_push(struct st_join_table* join_tabs,
     for (uint i = 0; i < key_rec->noOfColumns; i++)
     {
       rootKey[i] = builder.paramValue();
+      if (!rootKey[i])
+        return 0;
     }
     operationDefs[0] = builder.readTuple(m_table, rootKey);
+  }
+  else if (join_tabs[0].type == JT_REF)  // || JT_REF_OR_NULL?
+  {
+//  operationDefs[0] = builder.scanIndex(m_table);  // TODO SPJ
+    return 0;
   }
   else
   {
     operationDefs[0] = builder.scanTable(m_table);
   }
-  DBUG_ASSERT(operationDefs[0] != NULL);
+  if (!operationDefs[0])
+    return 0;
 
   for (int joinNo = 1; joinNo<count; joinNo++)
   {
@@ -286,28 +293,39 @@ ha_ndbcluster::join_push(struct st_join_table* join_tabs,
           const NdbQueryOperationDef* parent = operationDefs[ref-join_tabs];
           key[keyPartNo] = 
             builder.linkedValue(parent, keyItem->field->field_name);
-          DBUG_ASSERT(key[keyPartNo] != NULL);
+          if (!key[keyPartNo])
+            return 0;
           break;
         }
       }
-      DBUG_ASSERT(key[keyPartNo] != NULL);
+      if (!key[keyPartNo])
+        return 0;
     }
 
     const NdbDictionary::Table* const ndbTab = 
       static_cast<ha_ndbcluster*>(join_tab.table->file)->m_table;
     
     operationDefs[joinNo] = builder.readTuple(ndbTab, key);
-    DBUG_ASSERT(operationDefs[joinNo] != NULL);
+    if (!operationDefs[joinNo])
+      return 0;
   }
   
   const NdbQueryDef* const queryDef = builder.prepare();
-  DBUG_ASSERT(queryDef != NULL);
+  if (!queryDef)
+    return 0;
   DBUG_ASSERT(builder.getNdbError().status==NdbError::Success);
 
-  m_pushed_join = new ha_pushed_join(join_tabs, count, queryDef);
-  return 0;
+  return new ha_ndbcluster_pushed_join(join_tabs, count, queryDef);
 }
 
+int
+ha_ndbcluster::use_pushed_join(ha_pushed_join* pushed_join)
+{
+  DBUG_ENTER("use_pushed_join");
+  m_pushed_join = static_cast<ha_ndbcluster_pushed_join*>(pushed_join);
+  DBUG_PRINT("info", ("handler:%p, pushed_join:%p", this, m_pushed_join));
+  DBUG_RETURN(0);
+}
 
 
 static struct st_ndb_status g_ndb_status;
@@ -654,6 +672,8 @@ void
 ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
                                             NdbTransaction *trans)
 {
+  DBUG_ENTER("ha_ndbcluster::release_completed_operations");
+  DBUG_PRINT("info",("release_completed, possible also m_active_query"));
   /**
    * mysqld reads/write blobs fully,
    *   which means that it does not keep blobs
@@ -664,6 +684,7 @@ ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
    */
   trans->releaseCompletedOperations();
   trans->releaseCompletedQueries();
+  DBUG_VOID_RETURN;
 }
 
 int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
@@ -2391,14 +2412,13 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
     NdbQuery::NextResultOutcome result = query->nextResult();
     if (result == NdbQuery::NextResult_gotRow)
     {
-      table->status = 0;
       for (uint i = 0; i<query->getNoOfOperations(); i++)
       {
+        TABLE* _table= m_pushed_join->m_tabs[i].table;
         if (query->getQueryOperation(i)->isRowNULL())
-        {
-          DBUG_ASSERT(query->nextResult() == NdbQuery::NextResult_scanComplete);
-          DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
-        }
+          mark_as_null_row(_table);
+        else
+          _table->status= 0;
       }
       DBUG_ASSERT(query->nextResult() == NdbQuery::NextResult_scanComplete);
       DBUG_RETURN(0);
@@ -2935,7 +2955,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
   }
-  else if (m_pushed_join && m_pushed_join->m_active_query)
+  else if (m_active_query)
   {
     /* Initialize the null bitmap, setting unused null bits to 1. */
     for (int i = 0; i < m_pushed_join->m_count; i++)
@@ -2944,20 +2964,20 @@ inline int ha_ndbcluster::next_result(uchar *buf)
       bfill(tab->null_flags, tab->s->null_bytes, 0xff);
     }
 
-    res = m_pushed_join->m_active_query->nextResult();
+    res = m_active_query->nextResult();
     if (res == NdbQuery::NextResult_gotRow)
     {
       DBUG_PRINT("info", ("One more record found"));    
-//    unpack_record(buf, m_pushed_join->m_tabs[0].table->record[0]);
 
       /* Set status & nullability for all tables w/ rows being fetched. */
       for (int i = 0; i < m_pushed_join->m_count; i++)
       {
         TABLE* tab= m_pushed_join->m_tabs[i].table;
-        if (m_pushed_join->m_active_query->getQueryOperation(i)->isRowNULL())
+        if (m_active_query->getQueryOperation(i)->isRowNULL())
           mark_as_null_row(tab);
         else
           tab->status= 0;
+//      unpack_record(buf, tab->record[0]);
       }
       DBUG_RETURN(0);
     }
@@ -3040,11 +3060,10 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
                                                Uint32 *ppartition_id)
 {
   DBUG_ENTER("pk_unique_index_read_key_pushed");
-  sql_print_information("ha_ndbcluster::pk_unique_index_read_key_pushed() "
-                        "executing chain of %d primary key lookups."
-                        " First table is %s.", 
+  DBUG_PRINT("info", ("executing chain of %d primary key lookups."
+                      " First table is %s.", 
                         m_pushed_join->m_count,
-                        m_pushed_join->m_tabs[0].table->s->table_name
+                        m_pushed_join->m_tabs[0].table->s->table_name)
                         );
   const NdbRecord *key_rec;
   NdbOperation::OperationOptions options;
@@ -3114,7 +3133,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     return NULL;
 #endif
 
-//m_pushed_join->m_active_query = query;
+//m_active_query = query;
   DBUG_RETURN(query);
 }
 
@@ -3242,21 +3261,20 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   NdbIndexScanOperation::IndexBound *pbound = NULL;
   NdbInterpretedCode code(m_table);
 
-  if (m_pushed_join)  // FIXME SPJ, incomplete && untested
+  DBUG_ASSERT (!m_pushed_join);  // FIXME SPJ, incomplete && untested
+  if (m_pushed_join)
   {
     DBUG_ASSERT(!sorted);
     DBUG_ASSERT(!descending);
     DBUG_ASSERT(!(m_use_partition_pruning && m_user_defined_partitioning));
 
-    DBUG_PRINT("info", ("Starting index scan query for pushed joins\n"));
-    sql_print_information("ha_ndbcluster::ordered_index_scan() "
-                          "executing chain of a index scan + %d primary key lookups."
-                          " First table is %s.", 
+//  DBUG_PRINT("info", ("Starting index scan query for pushed joins\n"));
+    DBUG_PRINT("info", ("executing chain of a index scan + %d primary key joins."
+                        " First table is %s.", 
                           m_pushed_join->m_count-1,
-                          m_pushed_join->m_tabs[0].table->s->table_name
+                          m_pushed_join->m_tabs[0].table->s->table_name)
                           );
 
-#if 1
     const NdbQueryOperand* low[]  = {NULL};
     const NdbQueryOperand* high[] = {NULL};
     const NdbQueryIndexBound bound(low, high);  // TODO SPJ
@@ -3282,9 +3300,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
     m_thd_ndb->m_scan_count++;
 //  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);  -- TODO SPJ
-    m_pushed_join->m_active_query= query;
+    m_active_query= query;
+    DBUG_PRINT("info", ("created active_query:%p", m_active_query));
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
-#endif
   }
   else
   {
@@ -3312,13 +3330,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     /* Explicitly set partition id when pruning User-defined partitioned scan */
     options.partitionId = part_spec->start_part;
     options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
-    DBUG_ASSERT(!m_pushed_join);
   }
 
   if (m_cond && m_cond->generate_scan_filter(&code, &options))
     ERR_RETURN(code.getNdbError());
 
-  DBUG_ASSERT(!m_pushed_join);
   if (!(op= trans->scanIndex(key_rec, row_rec, lm,
                              (uchar *)(table->read_set->bitmap),
                              pbound,
@@ -3446,12 +3462,11 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   if (m_pushed_join)
   {
-    DBUG_PRINT("info", ("Starting table scan query for pushed joins\n"));
-    sql_print_information("ha_ndbcluster::full_table_scan() "
-                          "executing chain of a table scan + %d primary key lookups."
-                          " First table is %s.", 
+//  DBUG_PRINT("info", ("Starting table scan query for pushed joins\n"));
+    DBUG_PRINT("info", ("executing chain of a table scan + %d primary key joins."
+                        " First table is %s.", 
                           m_pushed_join->m_count-1,
-                          m_pushed_join->m_tabs[0].table->s->table_name
+                          m_pushed_join->m_tabs[0].table->s->table_name)
                           );
 
     const void* const* paramValues = NULL;
@@ -3472,7 +3487,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
     m_thd_ndb->m_scan_count++;
 //  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);  -- TODO SPJ
-    m_pushed_join->m_active_query= query;
+    m_active_query= query;
+    DBUG_PRINT("info", ("created active_query:%p", m_active_query));
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
   }
   else
@@ -5191,7 +5207,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 		  (m_use_partition_pruning)? &(part_spec.start_part) : NULL);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
-    DBUG_ASSERT(!m_pushed_join);
     break;
   case UNIQUE_ORDERED_INDEX:
   case UNIQUE_INDEX:
@@ -5219,7 +5234,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   default:
     break;
   }
-  DBUG_ASSERT(!m_pushed_join);
   if (!m_use_partition_pruning && !m_thd_ndb->trans)
   {
     get_partition_set(table, buf, active_index, start_key, &part_spec);
@@ -5276,11 +5290,14 @@ int ha_ndbcluster::close_scan()
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
   DBUG_ENTER("close_scan");
+  DBUG_PRINT("info", ("handler:%p, pushed_join:%p, active_query:%p", this, m_pushed_join, m_active_query));
 
-  if (m_pushed_join && m_pushed_join->m_active_query)
+  if (m_active_query)
   {
-    m_pushed_join->m_active_query->close(m_thd_ndb->m_force_send);
-    m_pushed_join->m_active_query= NULL;
+    DBUG_PRINT("info",("Close active_query:%p", m_active_query));
+    m_active_query->close(m_thd_ndb->m_force_send);
+    m_active_query= NULL;
+    m_pushed_join= NULL;
   }
 
   NdbScanOperation *cursor= m_active_cursor;
@@ -5310,6 +5327,7 @@ int ha_ndbcluster::close_scan()
     }
   }
   
+  DBUG_PRINT("info",("Close scan cursor"));
   cursor->close(m_thd_ndb->m_force_send, TRUE);
   m_active_cursor= NULL;
   m_multi_cursor= NULL;
@@ -5330,7 +5348,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 
   if (m_active_cursor)
     DBUG_RETURN(next_result(buf));
-  else if (m_pushed_join && m_pushed_join->m_active_query)
+  else if (m_active_query)
     DBUG_RETURN(next_result(buf));
   else
     DBUG_RETURN(full_table_scan(NULL, NULL, 0, buf));
@@ -6267,6 +6285,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       it can't have open cursors, ops or blobs pending.
     */
     m_thd_ndb= NULL;    
+
+    DBUG_PRINT("info", ("active_query:%p", m_active_query));
+    if (m_active_query)
+      DBUG_PRINT("warning", ("m_active_query != NULL"));
+    m_active_query= NULL;
 
     if (m_active_cursor)
       DBUG_PRINT("warning", ("m_active_cursor != NULL"));
@@ -8450,6 +8473,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   handler(hton, table_arg),
   m_thd_ndb(NULL),
   m_active_cursor(NULL),
+  m_active_query(NULL),
   m_table(NULL),
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
@@ -8534,6 +8558,7 @@ ha_ndbcluster::~ha_ndbcluster()
 
   // Check for open cursor/transaction
   DBUG_ASSERT(m_active_cursor == NULL);
+  DBUG_ASSERT(m_active_query == NULL);
   DBUG_ASSERT(m_thd_ndb == NULL);
 
   // Discard any generated condition
@@ -8542,12 +8567,6 @@ ha_ndbcluster::~ha_ndbcluster()
   {
     delete m_cond;
     m_cond= NULL;
-  }
-
-  if (m_pushed_join)
-  {
-    delete m_pushed_join;
-    m_pushed_join= NULL;
   }
 
   DBUG_VOID_RETURN;
@@ -11343,6 +11362,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
 
+  DBUG_ASSERT(!m_pushed_join);
+
   /**
    * blobs and unique hash index with NULL can't be batched currently
    */
@@ -11709,6 +11730,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
     DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
   }
 
+  DBUG_ASSERT(!m_pushed_join);
   const ulong reclength= table_share->reclength;
 
   while (multi_range_curr < m_multi_range_defined_end)
@@ -11854,6 +11876,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
 {
   NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_multi_cursor;
 
+  DBUG_ASSERT(!m_pushed_join);
   if (!cursor)
     return 0;                                   // Scan already done.
 
