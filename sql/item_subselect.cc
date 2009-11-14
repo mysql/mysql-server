@@ -159,17 +159,14 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
     return TRUE;
   
   in_fix_fields++;
-  res= engine->prepare();
 
-  // all transformation is done (used by prepared statements)
-  changed= 1;
-
-  if (!res)
+  if (!(res= engine->prepare()))
   {
+    // all transformation is done (used by prepared statements)
+    changed= 1;
+
     if (substitution)
     {
-      int ret= 0;
-
       // did we changed top item of WHERE condition
       if (unit->outer_select()->where == (*ref))
 	unit->outer_select()->where= substitution; // correct WHERE for PS
@@ -183,22 +180,20 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       substitution= 0;
       thd->where= "checking transformed subquery";
       if (!(*ref)->fixed)
-	ret= (*ref)->fix_fields(thd, ref);
-      thd->where= save_where;
-      in_fix_fields--;
-      return ret;
+	res= (*ref)->fix_fields(thd, ref);
+      goto end;
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      in_fix_fields--;
-      return TRUE;
+      res= 1;
+      goto end;
     }
     fix_length_and_dec();
   }
   else
-    goto err;
+    goto end;
   
   if ((uncacheable= engine->uncacheable()))
   {
@@ -208,7 +203,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   }
   fixed= 1;
 
-err:
+end:
   in_fix_fields--;
   thd->where= save_where;
   return res;
@@ -339,9 +334,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str, enum_query_type query_type)
 {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 
@@ -1977,6 +1977,7 @@ int subselect_single_select_engine::exec()
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
             }

@@ -1032,7 +1032,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   TABLE_LIST *top_view= table->top_table();
   bool parse_status;
   bool result, view_is_mergeable;
-  TABLE_LIST *view_main_select_tables;
+  TABLE_LIST *UNINIT_VAR(view_main_select_tables);
+
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
@@ -1309,7 +1310,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       old_lex->set_stmt_unsafe();
     view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                         lex->can_be_merged());
-    LINT_INIT(view_main_select_tables);
 
     if (view_is_mergeable)
     {
@@ -1652,7 +1652,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    write_bin_log(thd, !something_wrong, thd->query, thd->query_length);
+    write_bin_log(thd, !something_wrong, thd->query(), thd->query_length());
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));

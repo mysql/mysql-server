@@ -1,3 +1,229 @@
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#47125 auto_increment start value is ignored if an index is
+	created and engine=innodb
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug47777.result,
+	mysql-test/innodb_bug47777.test:
+	Fix Bug#47777 innodb dies with spatial pk: Failing assertion: buf <=
+	original_buf + buf_len
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#38996 Race condition in ANALYZE TABLE
+
+2009-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix bug#42383: Can't create table 'test.bug39438'
+
+2009-10-29	The InnoDB Team
+
+	* os/os0proc.c:
+	Fix Bug#48237 Error handling in os_mem_alloc_large appears to
+	be incorrect
+
+2009-10-29	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, include/buf0buf.h, include/buf0buf.ic:
+	Fix corruption of the buf_pool->LRU_old list and improve debug
+	assertions.
+
+2009-10-28	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug#41490 After enlargement of InnoDB page size, the error message
+	become inaccurate
+
+2009-10-26	The InnoDB Team
+
+	* row/row0ins.c:
+	When allocating a data tuple, zero out the system fields in order
+	to avoid Valgrind warnings about uninitialized fields in
+	dtuple_validate().
+
+2009-10-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, mysql-test/innodb_bug44369.result,
+	mysql-test/innodb_bug44369.test:
+	Fix Bug#47233 Innodb calls push_warning(MYSQL_ERROR::WARN_LEVEL_ERROR)
+
+2009-10-19	The InnoDB Team
+
+	* mysql-test/innodb_information_schema.test:
+	Fix Bug#47808 innodb_information_schema.test fails when run under
+	valgrind
+
+2009-10-15	The InnoDB Team
+
+	* include/page0page.ic:
+	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
+	cc/CC 5.10
+
+2009-10-05	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Do not invalidate buffer pool while an LRU batch is active. Added code
+	to buf_pool_invalidate() to wait for the running batches to finish.
+
+2009-10-01	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#47763 typo in error message: Failed to open table %s after %lu
+	attemtps.
+
+2009-10-01	The InnoDB Team
+
+	* fsp/fsp0fsp.c, row/row0merge.c:
+	Clean up after a crash during DROP INDEX. When InnoDB crashes
+	while dropping an index, ensure that the index will be completely
+	dropped during crash recovery. The MySQL .frm file may still
+	contain the dropped index, but there is little that we can do
+	about it.
+
+2009-09-28	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	When a secondary index exists in the MySQL .frm file but not in
+	the InnoDB data dictionary, return an error instead of letting an
+	assertion fail in index_read.
+
+2009-09-28	The InnoDB Team
+
+	* btr/btr0btr.c, buf/buf0buf.c, include/page0page.h,
+	include/page0zip.h, page/page0cur.c, page/page0page.c,
+	page/page0zip.c:
+	Do not write to PAGE_INDEX_ID when restoring an uncompressed page
+	after a compression failure. The field should only be written
+	when creating a B-tree page. This fix addresses a race condition
+	in a debug assertion.
+
+2009-09-28	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Try to prevent the reuse of tablespace identifiers after InnoDB
+	has crashed during table creation. Also, refuse to start if files
+	with duplicate tablespace identifiers are encountered.
+
+2009-09-25	The InnoDB Team
+
+	* include/os0file.h, os/os0file.c:
+	Fix Bug#47055 unconditional exit(1) on ERROR_WORKING_SET_QUOTA
+	1453 (0x5AD) for InnoDB backend
+
+2009-09-19	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-consistent-master.opt,
+	mysql-test/innodb-consistent.result,
+	mysql-test/innodb-consistent.test:
+	Fix Bug#37232 Innodb might get too many read locks for DML with
+	repeatable-read
+
+2009-09-19	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#31183 Tablespace full problems not reported in error log,
+	error message unclear
+
+2009-09-17	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
+	Make the test pass with zlib 1.2.3.3. Apparently, the definition
+	of compressBound() has changed between zlib versions, and the
+	maximum record size of a table with 1K compressed page size has
+	been reduced by one byte. This is an arbitrary test. In practical
+	applications, for good write performance, the compressed page size
+	should be chosen to be bigger than the absolute minimum.
+
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#46256 drop table with unknown collation crashes innodb
+
+2009-09-16	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc,
+	mysql-test/innodb_bug44369.result, mysql-test/innodb_bug44369.test,
+	row/row0mysql.c:
+	Fix Bug#44369 InnoDB: Does not uniformly disallow disallowed column
+	names
+
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/db0err.h,
+	mysql-test/innodb_bug46000.result, mysql-test/innodb_bug46000.test:
+	Fix Bug#46000 using index called GEN_CLUST_INDEX crashes server
+
+2009-09-02	The InnoDB Team
+
+	* include/lock0lock.h, include/row0mysql.h, lock/lock0lock.c,
+	row/row0mysql.c:
+	Fix a regression introduced by the fix for MySQL bug#26316. We check
+	whether a transaction holds any AUTOINC locks before we acquire
+	the kernel mutex and release those locks.
+
+2009-08-27	The InnoDB Team
+
+	* dict/dict0dict.c, include/dict0dict.h,
+	mysql-test/innodb_bug44571.result, mysql-test/innodb_bug44571.test:
+	Fix Bug#44571 InnoDB Plugin crashes on ADD INDEX
+
+2009-08-27	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix a bug in the merge sort that can corrupt indexes in fast index
+	creation. Add some consistency checks. Check that the number of
+	records remains constant in every merge sort pass.
+
+2009-08-27	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
+	include/ut0ut.h, ut/ut0ut.c:
+	Make it possible to tune the buffer pool LRU eviction policy to be
+	more resistant against index scans. Introduce the settable global
+	variables innodb_old_blocks_pct and innodb_old_blocks_time for
+	controlling the buffer pool eviction policy. The parameter
+	innodb_old_blocks_pct (5..95) controls the desired amount of "old"
+	blocks in the LRU list. The default is 37, corresponding to the
+	old fixed ratio of 3/8. Each time a block is accessed, it will be
+	moved to the "new" blocks if its first access was at least
+	innodb_old_blocks_time milliseconds ago (default 0, meaning every
+	block). The idea is that in index scans, blocks will be accessed
+	a few times within innodb_old_blocks_time, and they will remain in
+	the "old" section of the LRU list. Thus, when innodb_old_blocks_time
+	is nonzero, blocks retrieved for one-time index scans will be more
+	likely candidates for eviction than blocks that are accessed in
+	random patterns.
+
+2009-08-26	The InnoDB Team
+
+	* handler/ha_innodb.cc, os/os0file.c:
+	Fix Bug#42885 buf_read_ahead_random, buf_read_ahead_linear counters,
+	thread wakeups
+
+2009-08-20	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#46650 Innodb assertion autoinc_lock == lock in
+	lock_table_remove_low on INSERT SELECT
+
+2009-08-13	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix Bug#46657 InnoDB plugin: invalid read in index_merge_innodb test
+	(Valgrind)
+
+2009-08-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.4 released
+
 2009-07-20	The InnoDB Team
 
 	* buf/buf0rea.c, handler/ha_innodb.cc, include/srv0srv.h,

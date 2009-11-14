@@ -22,7 +22,6 @@ pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
 ha_federatedx_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_federatedx_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federatedx_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federatedx_la_SOURCES =	ha_federatedx.cc
 
 
 EXTRA_LIBRARIES =	libfederatedx.a
@@ -34,7 +33,7 @@ libfederatedx_a_SOURCES=	ha_federatedx.cc federatedx_txn.cc \
 			        federatedx_io_mysql.cc
 
 EXTRA_DIST =		CMakeLists.txt plug.in ha_federatedx.h \
-			federatedx_probes.d
+			federatedx_probes.h
 
 ha_federatedx_la_SOURCES = ha_federatedx.cc federatedx_txn.cc \
 			   federatedx_io.cc federatedx_io_null.cc \

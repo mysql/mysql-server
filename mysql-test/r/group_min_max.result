@@ -876,10 +876,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
@@ -924,7 +924,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
 explain select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	idx_t2_1	146	NULL	#	Using where; Using index for group-by
+1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
@@ -2502,3 +2502,15 @@ a	MAX(b)
 2	1
 DROP TABLE t;
 End of 5.0 tests
+#
+# Bug #46607: Assertion failed: (cond_type == Item::FUNC_ITEM) results in
+#              server crash
+#
+CREATE TABLE t (a INT, b INT, INDEX (a,b));
+INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
+INSERT INTO t SELECT * FROM t;
+SELECT a, MAX(b) FROM t WHERE b GROUP BY a;
+a	MAX(b)
+2	1
+DROP TABLE t;
+End of 5.1 tests

@@ -70,6 +70,11 @@ check_cpu () {
     Alpha*EV6*)
       cpu_arg="ev6";
       ;;
+    #Core 2 Duo  
+    *Intel*Core\(TM\)2*)
+      cpu_arg="nocona"
+      core2="yes"
+      ;;
     # Intel ia32
     *Intel*Core*|*X[eE][oO][nN]*)
       # a Xeon is just another pentium4 ...
@@ -133,10 +138,6 @@ check_cpu () {
       ;;
     *i386*)
       cpu_arg="i386"
-      ;;
-    #Core 2 Duo  
-    *Intel*Core\(TM\)2*)
-      cpu_arg="nocona"
       ;;
     # Intel ia64
     *Itanium*)

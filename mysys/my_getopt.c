@@ -115,7 +115,7 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
-  char **pos, **pos_end, *optend, *prev_found,
+  char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
   uchar* *value;
@@ -1017,9 +1017,11 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
   case GET_LL:
     *((longlong*) variable)= (longlong) getopt_ll_limit_value((longlong) value, option, NULL);
     break;
-  case GET_ULL: /* Fall through */
-  case GET_SET:
+  case GET_ULL:
     *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
+    break;
+  case GET_SET:
+    *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
     *((double*) variable)=  (double) value;

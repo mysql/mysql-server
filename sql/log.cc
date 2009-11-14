@@ -153,7 +153,7 @@ private:
 class binlog_trx_data {
 public:
   binlog_trx_data()
-    : at_least_one_stmt(0), incident(FALSE), m_pending(0),
+    : at_least_one_stmt_committed(0), incident(FALSE), m_pending(0),
     before_stmt_pos(MY_OFF_T_UNDEF)
   {
     trans_log.end_of_file= max_binlog_cache_size;
@@ -182,7 +182,10 @@ public:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     DBUG_PRINT("info", ("before_stmt_pos=%lu", (ulong) pos));
-    delete pending();
+    if (pending())
+    {
+      delete pending();
+    }
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
     trans_log.end_of_file= max_binlog_cache_size;
@@ -192,12 +195,12 @@ public:
     /*
       The only valid positions that can be truncated to are at the
       beginning of a statement. We are relying on this fact to be able
-      to set the at_least_one_stmt flag correctly. In other word, if
+      to set the at_least_one_stmt_committed flag correctly. In other word, if
       we are truncating to the beginning of the transaction cache,
       there will be no statements in the cache, otherwhise, we will
       have at least one statement in the transaction cache.
      */
-    at_least_one_stmt= (pos > 0);
+    at_least_one_stmt_committed= (pos > 0);
   }
 
   /*
@@ -239,7 +242,7 @@ public:
     Boolean that is true if there is at least one statement in the
     transaction cache.
   */
-  bool at_least_one_stmt;
+  bool at_least_one_stmt_committed;
   bool incident;
 
 private:
@@ -1035,14 +1038,10 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   Log_event_handler **current_handler= general_log_handler_list;
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
-  ulong id;
   uint user_host_len= 0;
   time_t current_time;
 
-  if (thd)
-    id= thd->thread_id;                 /* Normal thread */
-  else
-    id= 0;                              /* Log from connect handler */
+  DBUG_ASSERT(thd);
 
   lock_shared();
   if (!opt_log)
@@ -1061,7 +1060,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
-                  user_host_len, id,
+                  user_host_len, thd->thread_id,
                   command_name[(uint) command].str,
                   command_name[(uint) command].length,
                   query, query_length,
@@ -1275,6 +1274,25 @@ int LOGGER::set_handlers(uint error_log_printer,
   return 0;
 }
 
+/** 
+    This function checks if a transactional talbe was updated by the
+    current statement.
+
+    @param thd The client thread that executed the current statement.
+    @return
+      @c true if a transactional table was updated, @false otherwise.
+*/
+static bool stmt_has_updated_trans_table(THD *thd)
+{
+  Ha_trx_info *ha_info;
+
+  for (ha_info= thd->transaction.stmt.ha_list; ha_info && ha_info->is_started(); ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
+      return (TRUE);
+  }
+  return (FALSE);
+}
 
  /*
   Save position of binary log transaction cache.
@@ -1516,9 +1534,9 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   /*
     We commit the transaction if:
 
-     - We are not in a transaction and committing a statement, or
+    - We are not in a transaction and committing a statement, or
 
-     - We are in a transaction and a full transaction is committed
+    - We are in a transaction and a full transaction is committed
 
     Otherwise, we accumulate the statement
   */
@@ -1531,21 +1549,18 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (thd->options & OPTION_BIN_LOG)
+
+  if (!in_transaction || all ||
+      (!all && !trx_data->at_least_one_stmt_committed &&
+       !stmt_has_updated_trans_table(thd) &&
+       thd->transaction.stmt.modified_non_trans_table))
   {
-    if (!in_transaction || all)
-    {
-      Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
-      error= binlog_end_trans(thd, trx_data, &qev, all);
-      goto end;
-    }
-  }
-  else
-  {
-    trx_data->reset();
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
+    error= binlog_end_trans(thd, trx_data, &qev, all);
   }
 
-end:
+  trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
+
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt commit
   DBUG_RETURN(error);
@@ -1611,15 +1626,18 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   {
    /*
       We flush the cache with a rollback, wrapped in a beging/rollback if:
-        . aborting a transcation that modified a non-transactional table or;
+        . aborting a transaction that modified a non-transactional table;
         . aborting a statement that modified both transactional and
-          non-transctional tables but which is not in the boundaries of any
-          transaction;
+          non-transactional tables but which is not in the boundaries of any
+          transaction or there was no early change;
         . the OPTION_KEEP_LOG is activate.
     */
     if ((all && thd->transaction.all.modified_non_trans_table) ||
         (!all && thd->transaction.stmt.modified_non_trans_table &&
          !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
+        (!all && thd->transaction.stmt.modified_non_trans_table &&
+         !trx_data->at_least_one_stmt_committed &&
+         thd->current_stmt_binlog_row_based) ||
         ((thd->options & OPTION_KEEP_LOG)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
@@ -1711,7 +1729,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   int const error=
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query, thd->query_length, TRUE, FALSE, errcode);
+                      thd->query(), thd->query_length(), TRUE, FALSE, errcode);
   DBUG_RETURN(error);
 }
 
@@ -1730,7 +1748,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query, thd->query_length, TRUE, FALSE, errcode);
+                        thd->query(), thd->query_length(), TRUE, FALSE, errcode);
     DBUG_RETURN(error);
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
@@ -3622,7 +3640,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   }
   old_name=name;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
 
   /*
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
@@ -3637,8 +3655,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
      trigger temp tables deletion on slaves.
   */
 
-  open(old_name, log_type, new_name_ptr,
-       io_cache_type, no_auto_events, max_size, 1);
+  /* reopen index binlog file, BUG#34582 */
+  if (!open_index_file(index_file_name, 0))
+    open(old_name, log_type, new_name_ptr, 
+         io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:
@@ -4077,8 +4097,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
-	(!binlog_filter->db_ok(local_db)))
+    if ((!(thd->options & OPTION_BIN_LOG)) ||
+        (!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_RETURN(0);
@@ -4104,7 +4124,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
-      if (event_info->get_cache_stmt() || trans_log_pos != 0)
+      if (event_info->get_cache_stmt() || trans_log_pos != 0 ||
+          stmt_has_updated_trans_table(thd))
       {
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
@@ -4856,7 +4877,8 @@ bool flush_error_log()
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
    {
-     freopen(log_error_file,"a+",stderr);
+     FILE *reopen;
+     reopen= freopen(log_error_file,"a+",stderr);
      setbuf(stderr, NULL);
    }
    else

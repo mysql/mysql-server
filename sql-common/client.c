@@ -389,7 +389,7 @@ HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
-			    0,
+			    FILE_FLAG_OVERLAPPED,
 			    NULL )) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
@@ -480,6 +480,15 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   static const char *name_prefixes[] = {"","Global\\"};
   const char *prefix;
   int i;
+
+  /*
+    If this is NULL, somebody freed the MYSQL* options.  mysql_close()
+    is a good candidate.  We don't just silently (re)set it to
+    def_shared_memory_base_name as that would create really confusing/buggy
+    behavior if the user passed in a different name on the command-line or
+    in a my.cnf.
+  */
+  DBUG_ASSERT(shared_memory_base_name != NULL);
 
   /*
      get enough space base-name + '_' + longest suffix we might ever send
@@ -614,7 +623,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 err2:
   if (error_allow == 0)
   {
-    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+    net->vio= vio_new_win32shared_memory(handle_file_map,handle_map,
                                          event_server_wrote,
                                          event_server_read,event_client_wrote,
                                          event_client_read,event_conn_closed);
@@ -933,6 +942,9 @@ void end_server(MYSQL *mysql)
   {
     init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
+#ifdef MYSQL_SERVER
+    slave_io_thread_detach_vio();
+#endif
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
     reset_sigpipe(mysql);
@@ -1851,7 +1863,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  char		*end,*host_info;
+  char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1869,7 +1881,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
-  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -2022,7 +2033,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     else
     {
-      net->vio=vio_new_win32pipe(hPipe);
+      net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }

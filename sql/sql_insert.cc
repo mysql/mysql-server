@@ -589,7 +589,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
-  char *query= thd->query;
+  char *query= thd->query();
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
@@ -826,7 +826,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
-      LEX_STRING const st_query = { query, thd->query_length };
+      LEX_STRING const st_query = { query, thd->query_length() };
       error=write_delayed(thd, table, duplic, st_query, ignore, log_on);
       query=0;
     }
@@ -919,7 +919,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query, thd->query_length,
+                              thd->query(), thd->query_length(),
 			      transactional_table, FALSE,
 			      errcode))
         {
@@ -1791,7 +1791,7 @@ public:
     pthread_cond_destroy(&cond);
     pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
-    x_free(thd.query);
+    x_free(thd.query());
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
@@ -1937,7 +1937,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       pthread_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
-      if (di->thd.db == NULL || di->thd.query == NULL)
+      if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
@@ -1946,7 +1946,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       }
       di->table_list= *table_list;			// Needed to open table
       /* Replace volatile strings with local copies */
-      di->table_list.alias= di->table_list.table_name= di->thd.query;
+      di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
       di->lock();
       pthread_mutex_lock(&di->mutex);
@@ -2302,44 +2302,9 @@ void kill_delayed_threads(void)
 }
 
 
-/*
- * Create a new delayed insert thread
-*/
-
-pthread_handler_t handle_delayed_insert(void *arg)
+static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 {
-  Delayed_insert *di=(Delayed_insert*) arg;
-  THD *thd= &di->thd;
-
-  pthread_detach_this_thread();
-  /* Add thread to THD list so that's it's visible in 'show processlist' */
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  thd->set_current_time();
-  threads.append(thd);
-  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
-  pthread_mutex_unlock(&LOCK_thread_count);
-
-  /*
-    Wait until the client runs into pthread_cond_wait(),
-    where we free it after the table is opened and di linked in the list.
-    If we did not wait here, the client might detect the opened table
-    before it is linked to the list. It would release LOCK_delayed_create
-    and allow another thread to create another handler for the same table,
-    since it does not find one in the list.
-  */
-  pthread_mutex_lock(&di->mutex);
-#if !defined( __WIN__) /* Win32 calls this in pthread_create */
-  if (my_thread_init())
-  {
-    /* Can't use my_error since store_globals has not yet been called */
-    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                  ER(ER_OUT_OF_RESOURCES));
-    goto end;
-  }
-#endif
-
-  DBUG_ENTER("handle_delayed_insert");
+  DBUG_ENTER("handle_delayed_insert_impl");
   thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
@@ -2528,6 +2493,49 @@ err:
    */
   ha_autocommit_or_rollback(thd, 1);
 
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+ * Create a new delayed insert thread
+*/
+
+pthread_handler_t handle_delayed_insert(void *arg)
+{
+  Delayed_insert *di=(Delayed_insert*) arg;
+  THD *thd= &di->thd;
+
+  pthread_detach_this_thread();
+  /* Add thread to THD list so that's it's visible in 'show processlist' */
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  thd->set_current_time();
+  threads.append(thd);
+  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
+  /*
+    Wait until the client runs into pthread_cond_wait(),
+    where we free it after the table is opened and di linked in the list.
+    If we did not wait here, the client might detect the opened table
+    before it is linked to the list. It would release LOCK_delayed_create
+    and allow another thread to create another handler for the same table,
+    since it does not find one in the list.
+  */
+  pthread_mutex_lock(&di->mutex);
+#if !defined( __WIN__) /* Win32 calls this in pthread_create */
+  if (my_thread_init())
+  {
+    /* Can't use my_error since store_globals has not yet been called */
+    thd->main_da.set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                  ER(ER_OUT_OF_RESOURCES));
+    goto end;
+  }
+#endif
+
+  handle_delayed_insert_impl(thd, di);
+
 #ifndef __WIN__
 end:
 #endif
@@ -2552,7 +2560,8 @@ end:
 
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 
@@ -3269,7 +3278,7 @@ bool select_insert::send_eof()
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     thd->binlog_query(THD::ROW_QUERY_TYPE,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       trans_table, FALSE, errcode);
   }
   table->file->ha_release_auto_increment();
@@ -3339,7 +3348,8 @@ void select_insert::abort() {
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
+          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
+                            thd->query_length(),
                             transactional_table, FALSE, errcode);
         }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
@@ -3420,25 +3430,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   bool not_used;
   DBUG_ENTER("create_table_from_items");
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
-
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      create_table->table->db_stat)
-  {
-    /* Table already exists and was open at open_and_lock_tables() stage. */
-    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    {
-      create_info->table_existed= 1;		// Mark that table existed
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          create_table->table_name);
-      DBUG_RETURN(create_table->table);
-    }
-
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-    DBUG_RETURN(0);
-  }
-
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
   tmp_table.s= &share;
@@ -3456,10 +3447,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     Create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
+    {
       if (item->result_type() != STRING_RESULT)
         field= item->tmp_table_field(&tmp_table);
       else
         field= item->tmp_table_field_from_field_type(&tmp_table, 0);
+    }
     else
       field= create_tmp_field(thd, &tmp_table, item, item->type(),
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
@@ -3647,10 +3640,35 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
-  if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values,
-                                       &extra_lock, hook_ptr)))
-    DBUG_RETURN(-1);				// abort() deletes table
+  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_table->table && create_table->table->db_stat))
+  {
+    /* Table already exists and was open at open_and_lock_tables() stage. */
+    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    {
+      /* Mark that table existed */
+      create_info->table_existed= 1;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                          create_table->table_name);
+      if (thd->current_stmt_binlog_row_based)
+        binlog_show_create_table(&(create_table->table), 1);
+      table= create_table->table;
+    }
+    else
+    {
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
+      DBUG_RETURN(-1);
+    }
+  }
+  else
+    if (!(table= create_table_from_items(thd, create_info, create_table,
+                                         alter_info, &values,
+                                         &extra_lock, hook_ptr)))
+      /* abort() deletes table */
+      DBUG_RETURN(-1);
 
   if (extra_lock)
   {

@@ -392,8 +392,8 @@ int federatedx_db_init(void *p)
   DBUG_ENTER("federatedx_db_init");
   handlerton *federatedx_hton= (handlerton *)p;
   federatedx_hton->state= SHOW_OPTION_YES;
-  /* This is no longer needed for plugin storage engines */
-  federatedx_hton->db_type= DB_TYPE_DEFAULT;
+  /* Needed to work with old .frm files */
+  federatedx_hton->db_type= DB_TYPE_FEDERATED_DB;
   federatedx_hton->savepoint_offset= sizeof(ulong);
   federatedx_hton->close_connection= ha_federatedx::disconnect;
   federatedx_hton->savepoint_set= ha_federatedx::savepoint_set;
@@ -1418,12 +1418,18 @@ static void fill_server(MEM_ROOT *mem_root, FEDERATEDX_SERVER *server,
     database.reserve(database.length());
     database.length(my_casedn_str(system_charset_info, database.c_ptr_safe()));
   }
-  
+
+#ifndef __WIN__
+  /*
+    TODO: there is no unix sockets under windows so the engine should be
+    revised about using sockets in such environment.
+  */
   if (lower_case_file_system && socket.length())
   {
     socket.reserve(socket.length());
     socket.length(my_casedn_str(files_charset_info, socket.c_ptr_safe()));
   }
+#endif
 
   /* start with all bytes zeroed */  
   bzero(server, sizeof(*server));
@@ -1788,13 +1794,14 @@ int ha_federatedx::close(void)
     retval= free_result();
 
   /* Disconnect from mysql */
-  if ((txn= get_txn(thd, true)))
+  if (txn || thd && (txn= get_txn(thd, true)))
     txn->release(&io);
 
   DBUG_ASSERT(io == NULL);
 
   if ((error= free_share(txn, share)))
     retval= error;
+
   DBUG_RETURN(retval);
 }
 

@@ -78,7 +78,8 @@ uint find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 
 int find_type(char *x, const TYPELIB *typelib, uint full_name)
 {
-  int find,pos,findpos;
+  int find,pos;
+  int UNINIT_VAR(findpos);                       /* guarded by find */
   reg1 char * i;
   reg2 const char *j;
   DBUG_ENTER("find_type");
@@ -89,7 +90,6 @@ int find_type(char *x, const TYPELIB *typelib, uint full_name)
     DBUG_PRINT("exit",("no count"));
     DBUG_RETURN(0);
   }
-  LINT_INIT(findpos);
   find=0;
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
@@ -190,7 +190,10 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
   {
     (*err)++;
     i= x;
-    while (*x && *x != field_separator) x++;
+    while (*x && *x != field_separator)
+      x++;
+    if (x[0] && x[1])                            // skip separator if found
+      x++;
     if ((find= find_type(i, lib, 2 | 8) - 1) < 0)
       DBUG_RETURN(0);
     result|= (ULL(1) << find);

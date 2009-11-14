@@ -208,11 +208,10 @@ InitConfigFileParser::run_config_rules(Context& ctx)
   ctx.m_config->put("NoOfNodes", nNodes);
 
   char tmpLine[MAX_LINE_LENGTH];
-  BaseString::snprintf(tmpLine, MAX_LINE_LENGTH, "EXTERNAL SYSTEM_");
-  strncat(tmpLine, system, MAX_LINE_LENGTH);
-  strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
+  BaseString::snprintf(tmpLine, MAX_LINE_LENGTH,
+                       "EXTERNAL SYSTEM_%s:NoOfConnections", system);
   ctx.m_config->put(tmpLine, nExtConnections);
-  
+
   Config * ret = new Config();
   ret->m_configValues = (struct ndb_mgm_configuration*)ctx.m_configValues.getConfigValues();
   ret->m_oldConfig = ctx.m_config; ctx.m_config = 0;

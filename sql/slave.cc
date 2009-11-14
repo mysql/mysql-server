@@ -1238,7 +1238,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db = (char*)db;
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
-  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
+  /* run create table */
+  mysql_parse(thd, thd->query(), packet_len, &found_semicolon);
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
@@ -1961,9 +1962,6 @@ static int has_temporary_error(THD *thd)
 {
   DBUG_ENTER("has_temporary_error");
 
-  if (thd->is_fatal_error)
-    DBUG_RETURN(0);
-
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
                   if (thd->main_da.is_error())
                   {
@@ -2036,8 +2034,7 @@ static int has_temporary_error(THD *thd)
   @retval 2 No error calling ev->apply_event(), but error calling
   ev->update_pos().
 */
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
-                               bool skip)
+int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
 
@@ -2082,37 +2079,33 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     ev->when= my_time(0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
-  if (skip)
-  {
-    int reason= ev->shall_skip(rli);
-    if (reason == Log_event::EVENT_SKIP_COUNT)
-      --rli->slave_skip_counter;
-    pthread_mutex_unlock(&rli->data_lock);
-    if (reason == Log_event::EVENT_SKIP_NOT)
-      exec_res= ev->apply_event(rli);
-#ifndef DBUG_OFF
-    /*
-      This only prints information to the debug trace.
-
-      TODO: Print an informational message to the error log?
-    */
-    static const char *const explain[] = {
-      // EVENT_SKIP_NOT,
-      "not skipped",
-      // EVENT_SKIP_IGNORE,
-      "skipped because event should be ignored",
-      // EVENT_SKIP_COUNT
-      "skipped because event skip counter was non-zero"
-    };
-    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                        thd->options & OPTION_BEGIN ? 1 : 0,
-                        rli->get_flag(Relay_log_info::IN_STMT)));
-    DBUG_PRINT("skip_event", ("%s event was %s",
-                              ev->get_type_str(), explain[reason]));
-#endif
-  }
-  else
+  int reason= ev->shall_skip(rli);
+  if (reason == Log_event::EVENT_SKIP_COUNT)
+    --rli->slave_skip_counter;
+  pthread_mutex_unlock(&rli->data_lock);
+  if (reason == Log_event::EVENT_SKIP_NOT)
     exec_res= ev->apply_event(rli);
+
+#ifndef DBUG_OFF
+  /*
+    This only prints information to the debug trace.
+
+    TODO: Print an informational message to the error log?
+  */
+  static const char *const explain[] = {
+    // EVENT_SKIP_NOT,
+    "not skipped",
+    // EVENT_SKIP_IGNORE,
+    "skipped because event should be ignored",
+    // EVENT_SKIP_COUNT
+    "skipped because event skip counter was non-zero"
+  };
+  DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                      thd->options & OPTION_BEGIN ? 1 : 0,
+                      rli->get_flag(Relay_log_info::IN_STMT)));
+  DBUG_PRINT("skip_event", ("%s event was %s",
+                            ev->get_type_str(), explain[reason]));
+#endif
 
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
@@ -2232,7 +2225,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       delete ev;
       DBUG_RETURN(1);
     }
-    exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
+    exec_res= apply_event_and_update_pos(ev, thd, rli);
 
     /*
       Format_description_log_event should not be deleted because it will be
@@ -2632,15 +2625,19 @@ Log entry on master is longer than max_allowed_packet (%ld) on \
 slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
+          mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
+                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
-          sql_print_error(ER(mysql_error_number), mysql_error_number,
-                          mysql_error(mysql));
+          mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
+                     ER(ER_MASTER_FATAL_ERROR_READING_BINLOG),
+                     mysql_error_number, mysql_error(mysql));
           goto err;
-        case EE_OUTOFMEMORY:
-        case ER_OUTOFMEMORY:
+        case ER_OUT_OF_RESOURCES:
           sql_print_error("\
 Stopping slave I/O thread due to out-of-memory error from master");
+          mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
+                     "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
@@ -2749,9 +2746,11 @@ err:
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 /*
@@ -3107,10 +3106,11 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_cond_broadcast(&rli->stop_cond);
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
-  
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -3688,6 +3688,31 @@ void end_relay_log_info(Relay_log_info* rli)
   rli->close_temporary_tables();
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Hook to detach the active VIO before closing a connection handle.
+
+  The client API might close the connection (and associated data)
+  in case it encounters a unrecoverable (network) error. This hook
+  is called from the client code before the VIO handle is deleted
+  allows the thread to detach the active vio so it does not point
+  to freed memory.
+
+  Other calls to THD::clear_active_vio throughout this module are
+  redundant due to the hook but are left in place for illustrative
+  purposes.
+*/
+
+extern "C" void slave_io_thread_detach_vio()
+{
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  THD *thd= current_thd;
+  if (thd && thd->slave_thread)
+    thd->clear_active_vio();
+#endif
+}
+
 
 /*
   Try to connect until successful or slave killed

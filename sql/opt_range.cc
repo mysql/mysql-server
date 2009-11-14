@@ -2243,7 +2243,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     KEY *key_info;
     PARAM param;
 
-    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE + sizeof(PARAM), buff))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
@@ -4839,11 +4839,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows best_records;
+  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_records); /* protected by key_to_read */
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -5711,6 +5710,27 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
+
   if (param->using_real_indexes)
     optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                           key_part->part);
@@ -5827,6 +5847,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
+        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -5856,11 +5877,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
             but we'll need to convert '>' to '>=' and '<' to '<='. This will
             be done together with other types at the end of this function
-            (grep for field_is_equal_to_item)
+            (grep for stored_field_cmp_to_item)
           */
         }
         else
+        {
+          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
+        }
       }
     }
 
@@ -5874,6 +5898,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       if (type == Item_func::LT_FUNC && (value->val_int() > 0))
         type = Item_func::LE_FUNC;
       else if (type == Item_func::GT_FUNC &&
+               (field->type() != FIELD_TYPE_BIT) &&
                !((Field_num*)field)->unsigned_flag &&
                !((Item_int*)value)->unsigned_flag &&
                (value->val_int() < 0))
@@ -5888,6 +5913,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  /*
+    Any sargable predicate except "<=>" involving NULL as a constant is always
+    FALSE
+  */
+  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
+  {
+    tree= &null_element;
+    goto end;
+  }
+  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -5911,7 +5947,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
    */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((Field_num*)field)->unsigned_flag && !((Item_int*)value)->unsigned_flag)
+      ((field->type() == FIELD_TYPE_BIT || 
+       ((Field_num *) field)->unsigned_flag) && 
+       !((Item_int*) value)->unsigned_flag))
   {
     longlong item_val= value->val_int();
     if (item_val < 0)
@@ -5931,7 +5969,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (field_is_equal_to_item(field,value))
+    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5945,11 +5983,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     break;
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
-    if (field_is_equal_to_item(field,value) &&
-        !(key_part->flag & HA_PART_KEY_SEG))
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
       tree->min_flag=NEAR_MIN;
-    /* fall through */
+    tree->max_flag= NO_MAX_RANGE;
+    break;
   case Item_func::GE_FUNC:
+    /* Don't use open ranges for partial key_segments */
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(param->thd, field, value) < 0))
+      tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
@@ -6440,13 +6483,6 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     return 0;					// Can't optimize this
   }
 
-  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
-  {
-    key1->free_tree();
-    key2->free_tree();
-    return 0;					// Can't optimize this
-  }
-
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -6509,6 +6545,63 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 }
 
 
+/**
+   Combine two range expression under a common OR. On a logical level, the
+   transformation is key_or( expr1, expr2 ) => expr1 OR expr2.
+
+   Both expressions are assumed to be in the SEL_ARG format. In a logic sense,
+   theformat is reminiscent of DNF, since an expression such as the following
+
+   ( 1 < kp1 < 10 AND p1 ) OR ( 10 <= kp2 < 20 AND p2 )
+
+   where there is a key consisting of keyparts ( kp1, kp2, ..., kpn ) and p1
+   and p2 are valid SEL_ARG expressions over keyparts kp2 ... kpn, is a valid
+   SEL_ARG condition. The disjuncts appear ordered by the minimum endpoint of
+   the first range and ranges must not overlap. It follows that they are also
+   ordered by maximum endpoints. Thus
+
+   ( 1 < kp1 <= 2 AND ( kp2 = 2 OR kp2 = 3 ) ) OR kp1 = 3
+
+   Is a a valid SER_ARG expression for a key of at least 2 keyparts.
+   
+   For simplicity, we will assume that expr2 is a single range predicate,
+   i.e. on the form ( a < x < b AND ... ). It is easy to generalize to a
+   disjunction of several predicates by subsequently call key_or for each
+   disjunct.
+
+   The algorithm iterates over each disjunct of expr1, and for each disjunct
+   where the first keypart's range overlaps with the first keypart's range in
+   expr2:
+   
+   If the predicates are equal for the rest of the keyparts, or if there are
+   no more, the range in expr2 has its endpoints copied in, and the SEL_ARG
+   node in expr2 is deallocated. If more ranges became connected in expr1, the
+   surplus is also dealocated. If they differ, two ranges are created.
+   
+   - The range leading up to the overlap. Empty if endpoints are equal.
+
+   - The overlapping sub-range. May be the entire range if they are equal.
+
+   Finally, there may be one more range if expr2's first keypart's range has a
+   greater maximum endpoint than the last range in expr1.
+
+   For the overlapping sub-range, we recursively call key_or. Thus in order to
+   compute key_or of
+
+     (1) ( 1 < kp1 < 10 AND 1 < kp2 < 10 ) 
+
+     (2) ( 2 < kp1 < 20 AND 4 < kp2 < 20 )
+
+   We create the ranges 1 < kp <= 2, 2 < kp1 < 10, 10 <= kp1 < 20. For the
+   first one, we simply hook on the condition for the second keypart from (1)
+   : 1 < kp2 < 10. For the second range 2 < kp1 < 10, key_or( 1 < kp2 < 10, 4
+   < kp2 < 20 ) is called, yielding 1 < kp2 < 20. For the last range, we reuse
+   the range 4 < kp2 < 20 from (2) for the second keypart. The result is thus
+   
+   ( 1  <  kp1 <= 2 AND 1 < kp2 < 10 ) OR
+   ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
+   ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
+*/
 static SEL_ARG *
 key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 {
@@ -6660,7 +6753,21 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 	  key1=key1->tree_delete(save);
 	}
         last->copy_min(tmp);
-	if (last->copy_min(key2) || last->copy_max(key2))
+        bool full_range= last->copy_min(key2);
+        if (!full_range)
+        {
+          if (last->next && key2->cmp_max_to_min(last->next) >= 0)
+          {
+            last->max_value= last->next->min_value;
+            if (last->next->min_flag & NEAR_MIN)
+              last->max_flag&= ~NEAR_MAX;
+            else
+              last->max_flag|= NEAR_MAX;
+          }
+          else
+            full_range= last->copy_max(key2);
+        }
+	if (full_range)
 	{					// Full range
 	  key1->free_tree();
 	  for (; key2 ; key2=key2->next)
@@ -6670,8 +6777,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 	  return 0;
 	}
       }
-      key2=key2->next;
-      continue;
     }
 
     if (cmp >= 0 && tmp->cmp_min_to_min(key2) < 0)
@@ -6797,9 +6902,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par);
-  LINT_INIT(last_element);
+  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
 
   for (element= this; element != &null_element ; )
   {
@@ -8066,7 +8169,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
       if (cur_quick->init() || cur_quick->reset())
+      {
+        delete unique;
         DBUG_RETURN(1);
+      }
     }
 
     if (result)
@@ -8074,13 +8180,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (result != HA_ERR_END_OF_FILE)
       {
         cur_quick->range_end();
+        delete unique;
         DBUG_RETURN(result);
       }
       break;
     }
 
     if (thd->killed)
+    {
+      delete unique;
       DBUG_RETURN(1);
+    }
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges())
@@ -8089,8 +8199,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     cur_quick->file->position(cur_quick->record);
     result= unique->unique_add((char*)cur_quick->file->ref);
     if (result)
+    {
+      delete unique;
       DBUG_RETURN(1);
-
+    }
   }
 
   /*
@@ -9395,7 +9507,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         goto next_index;
     }
     else
+    {
       DBUG_ASSERT(FALSE);
+    }
 
     /* Check (SA2). */
     if (min_max_arg_item)
@@ -9629,7 +9743,17 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   */
   if (cond_type == Item::SUBSELECT_ITEM)
     DBUG_RETURN(FALSE);
-  
+
+  /*
+    Condition of the form 'field' is equivalent to 'field <> 0' and thus
+    satisfies the SA3 condition.
+  */
+  if (cond_type == Item::FIELD_ITEM)
+  {
+    DBUG_PRINT("info", ("Analyzing: %s", cond->full_name()));
+    DBUG_RETURN(TRUE);
+  }
+
   /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
 
@@ -9787,11 +9911,22 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       return FALSE;
 
     uint field_length= cur_part->store_length;
-    if ((cur_range->maybe_null &&
-         cur_range->min_value[0] && cur_range->max_value[0]) ||
-        !memcmp(cur_range->min_value, cur_range->max_value, field_length))
-    {
-      /* cur_range specifies 'IS NULL' or an equality condition. */
+    if (cur_range->maybe_null &&
+         cur_range->min_value[0] && cur_range->max_value[0])
+    { 
+      /*
+        cur_range specifies 'IS NULL'. In this case the argument points
+        to a "null value" (is_null_string) that may not always be long
+        enough for a direct memcpy to a field.
+      */
+      DBUG_ASSERT (field_length > 0);
+      *key_ptr= 1;
+      bzero(key_ptr+1,field_length-1);
+      key_ptr+= field_length;
+      *key_infix_len+= field_length;
+    }
+    else if (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0)
+    { /* cur_range specifies an equality condition. */
       memcpy(key_ptr, cur_range->min_value, field_length);
       key_ptr+= field_length;
       *key_infix_len+= field_length;

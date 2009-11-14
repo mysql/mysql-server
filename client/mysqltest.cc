@@ -82,6 +82,9 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
@@ -429,6 +432,7 @@ static struct st_expected_errors saved_expected_errors;
 struct st_command
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
+  DYNAMIC_STRING content;
   int first_word_len, query_len;
   my_bool abort_on_error;
   struct st_expected_errors expected_errors;
@@ -443,10 +447,12 @@ DYNAMIC_STRING ds_res;
 
 char builtin_echo[FN_REFLEN];
 
+static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
+
 void die(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
 void verbose_msg(const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 void log_msg(const char *fmt, ...)
@@ -1150,6 +1156,8 @@ void free_used_memory()
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
+    if ((*q)->content.str)
+      dynstr_free(&(*q)->content);
     my_free((*q),MYF(0));
   }
   for (i= 0; i < 10; i++)
@@ -1175,6 +1183,7 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
+  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 
@@ -1541,7 +1550,7 @@ void show_diff(DYNAMIC_STRING* ds,
   else
     diff_name = 0;
 #else
-  diff_name = "diff";		// Otherwise always assume it's called diff
+  diff_name = "diff";           /* Otherwise always assume it's called diff */
 #endif
 
   if (diff_name)
@@ -3319,21 +3328,30 @@ void do_write_file_command(struct st_command *command, my_bool append)
                      sizeof(write_file_args)/sizeof(struct command_arg),
                      ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
-
   if (!append && access(ds_filename.str, F_OK) == 0)
   {
     /* The file should not be overwritten */
     die("File already exist: '%s'", ds_filename.str);
   }
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
-  dynstr_free(&ds_content);
+  ds_content= command->content;
+  /* If it hasn't been done already by a loop iteration, fill it in */
+  if (! ds_content.str)
+  {
+    /* If no delimiter was provided, use EOF */
+    if (ds_delimiter.length == 0)
+      dynstr_set(&ds_delimiter, "EOF");
+
+    init_dynamic_string(&ds_content, "", 1024, 1024);
+    read_until_delimiter(&ds_content, &ds_delimiter);
+    command->content= ds_content;
+  }
+  /* This function could be called even if "false", so check before printing */
+  if (cur_block->ok)
+  {
+    DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+    str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  }
   dynstr_free(&ds_filename);
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -3476,12 +3494,17 @@ void do_diff_files(struct st_command *command)
     die("command \"diff_files\" failed, file '%s' does not exist",
         ds_filename2.str);
 
-  if ((error= compare_files(ds_filename.str, ds_filename2.str)))
+  if ((error= compare_files(ds_filename.str, ds_filename2.str)) &&
+      match_expected_error(command, error, NULL) < 0)
   {
     /* Compare of the two files failed, append them to output
-       so the failure can be analyzed
+       so the failure can be analyzed, but only if it was not
+       expected to fail.
     */
     show_diff(&ds_res, ds_filename.str, ds_filename2.str);
+    log_file.write(&ds_res);
+    log_file.flush();
+    dynstr_set(&ds_res, 0);
   }
 
   dynstr_free(&ds_filename);
@@ -3737,10 +3760,9 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *res;
+    MYSQL_RES *UNINIT_VAR(res);
     MYSQL_ROW row;
     int done;
-    LINT_INIT(res);
 
     if (mysql_query(mysql,"show status like 'Slave_running'") ||
 	!(res=mysql_store_result(mysql)))
@@ -4909,6 +4931,8 @@ do_handle_error:
   <opts> - options to use for the connection
    * SSL - use SSL if available
    * COMPRESS - use compression if available
+   * SHM - use shared memory if available
+   * PIPE - use named pipe if available
 
 */
 
@@ -4917,6 +4941,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
+  my_bool con_pipe= 0, con_shm= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -4927,6 +4952,9 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+#ifdef HAVE_SMEM
+  static DYNAMIC_STRING ds_shm;
+#endif
   const struct command_arg connect_args[] = {
     { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
     { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
@@ -4953,6 +4981,11 @@ void do_connect(struct st_command *command)
     if (con_port == 0)
       die("Illegal argument for port: '%s'", ds_port.str);
   }
+
+#ifdef HAVE_SMEM
+  /* Shared memory */
+  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+#endif
 
   /* Sock */
   if (ds_sock.length)
@@ -4992,6 +5025,10 @@ void do_connect(struct st_command *command)
       con_ssl= 1;
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
+    else if (!strncmp(con_options, "PIPE", 4))
+      con_pipe= 1;
+    else if (!strncmp(con_options, "SHM", 3))
+      con_shm= 1;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5042,6 +5079,31 @@ void do_connect(struct st_command *command)
   }
 #endif
 
+#ifdef __WIN__
+  if (con_pipe)
+  {
+    uint protocol= MYSQL_PROTOCOL_PIPE;
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+#endif
+
+#ifdef HAVE_SMEM
+  if (con_shm)
+  {
+    uint protocol= MYSQL_PROTOCOL_MEMORY;
+    if (!ds_shm.length)
+      die("Missing shared memory base name");
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  }
+  else if(shared_memory_base_name)
+  {
+    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+      shared_memory_base_name);
+  }
+#endif
+
+
   /* Use default db name */
   if (ds_database.length == 0)
     dynstr_set(&ds_database, opt_db);
@@ -5074,6 +5136,9 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+#ifdef HAVE_SMEM
+  dynstr_free(&ds_shm);
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5275,13 +5340,12 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, last_quote;
+  char c, UNINIT_VAR(last_quote);
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
-  LINT_INIT(last_quote);
 
   start_lineno= cur_file->lineno;
   DBUG_PRINT("info", ("Starting to read at lineno: %d", start_lineno));
@@ -5746,6 +5810,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
+   (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
+   0, 0, 0},
+#endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -6530,8 +6600,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
     if (!disable_result_log)
     {
-      ulonglong affected_rows;    /* Ok to be undef if 'disable_info' is set */
-      LINT_INIT(affected_rows);
+      ulonglong UNINIT_VAR(affected_rows);    /* Ok to be undef if 'disable_info' is set */
 
       if (res)
       {
@@ -6810,8 +6879,10 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
+  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
+  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6951,32 +7022,43 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       */
     }
 
-    if (!disable_warnings)
+    /*
+      Need to grab affected rows information before getting
+      warnings here
+    */
     {
-      /* Get the warnings from execute */
+      ulonglong affected_rows;
+      LINT_INIT(affected_rows);
 
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
+      if (!disable_info)
+	affected_rows= mysql_affected_rows(mysql);
+
+      if (!disable_warnings)
       {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-	if (ds_warnings->length)
-	  dynstr_append_mem(ds, ds_warnings->str,
-			    ds_warnings->length);
-	if (ds_prepare_warnings.length)
-	  dynstr_append_mem(ds, ds_prepare_warnings.str,
-			    ds_prepare_warnings.length);
-	if (ds_execute_warnings.length)
-	  dynstr_append_mem(ds, ds_execute_warnings.str,
-			    ds_execute_warnings.length);
+	/* Get the warnings from execute */
+
+	/* Append warnings to ds - if there are any */
+	if (append_warnings(&ds_execute_warnings, mysql) ||
+	    ds_execute_warnings.length ||
+	    ds_prepare_warnings.length ||
+	    ds_warnings->length)
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  if (ds_warnings->length)
+	    dynstr_append_mem(ds, ds_warnings->str,
+			      ds_warnings->length);
+	  if (ds_prepare_warnings.length)
+	    dynstr_append_mem(ds, ds_prepare_warnings.str,
+			      ds_prepare_warnings.length);
+	  if (ds_execute_warnings.length)
+	    dynstr_append_mem(ds, ds_execute_warnings.str,
+			      ds_execute_warnings.length);
+	}
       }
+
+      if (!disable_info)
+	append_info(ds, affected_rows, mysql_info(mysql));
     }
-
-    if (!disable_info)
-      append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
-
   }
 
 end:
@@ -7225,6 +7307,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
+  dynstr_free(&ds_warnings);
+  if (command->type == Q_EVAL)
+    dynstr_free(&eval_query);
+
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
@@ -7255,11 +7341,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     check_require(ds, command->require_file);
   }
 
-  dynstr_free(&ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
-  if (command->type == Q_EVAL)
-    dynstr_free(&eval_query);
   DBUG_VOID_RETURN;
 }
 
@@ -7705,6 +7788,11 @@ int main(int argc, char **argv)
   }
 #endif
 
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
+
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
@@ -7743,7 +7831,32 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    if (cur_block->ok)
+    my_bool ok_to_do= cur_block->ok;
+    /*
+      Some commands need to be "done" the first time if they may get
+      re-iterated over in a true context. This can only happen if there's 
+      a while loop at some level above the current block.
+    */
+    if (!ok_to_do)
+    {
+      if (command->type == Q_SOURCE ||
+          command->type == Q_ERROR ||
+          command->type == Q_WRITE_FILE ||
+          command->type == Q_APPEND_FILE ||
+	  command->type == Q_PERL)
+      {
+	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
+	{
+	  if (stb->cmd == cmd_while)
+	  {
+	    ok_to_do= 1;
+	    break;
+	  }
+	}
+      }
+    }
+
+    if (ok_to_do)
     {
       command->last_argument= command->first_argument;
       processed = 1;
@@ -8054,6 +8167,8 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
+  my_bool empty_result= FALSE;
+  
   /*
     The whole test has been executed _sucessfully_.
     Time to compare result or save it to record file.
@@ -8094,11 +8209,20 @@ int main(int argc, char **argv)
   }
   else
   {
-    die("The test didn't produce any output");
+    /* Empty output is an error *unless* we also have an empty result file */
+    if (! result_file_name || record ||
+        compare_files (log_file.file_name(), result_file_name))
+    {
+      die("The test didn't produce any output");
+    }
+    else 
+    {
+      empty_result= TRUE;  /* Meaning empty was expected */
+    }
   }
 
-  if (!command_executed && result_file_name)
-    die("No queries executed but result file found!");
+  if (!command_executed && result_file_name && !empty_result)
+    die("No queries executed but non-empty result file found!");
 
   verbose_msg("Test has succeeded!");
   timer_output();
@@ -8185,6 +8309,8 @@ void do_get_replace_column(struct st_command *command)
   }
   my_free(start, MYF(0));
   command->last_argument= command->end;
+
+  DBUG_VOID_RETURN;
 }
 
 

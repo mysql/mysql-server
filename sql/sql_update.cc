@@ -730,6 +730,7 @@ int mysql_update(THD *thd,
       break;
     }
   }
+  table->auto_increment_field_not_null= FALSE;
   dup_key_found= 0;
   /*
     Caching the killed status to pass as the arg to query event constuctor;
@@ -809,7 +810,7 @@ int mysql_update(THD *thd,
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_table, FALSE, errcode))
       {
         error=1;				// Rollback update
@@ -1695,6 +1696,11 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                TRG_EVENT_UPDATE))
 	DBUG_RETURN(1);
 
+      /*
+        Reset the table->auto_increment_field_not_null as it is valid for
+        only one row.
+      */
+      table->auto_increment_field_not_null= FALSE;
       found++;
       if (!can_compare_record || compare_record(table))
       {
@@ -1859,7 +1865,7 @@ void multi_update::abort()
       */
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query, thd->query_length,
+                        thd->query(), thd->query_length(),
                         transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
@@ -2092,7 +2098,7 @@ bool multi_update::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update

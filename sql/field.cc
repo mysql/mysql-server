@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1923,16 +1923,16 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *int_digits_tail_from;
+  const uchar *UNINIT_VAR(int_digits_tail_from);
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
-  uint int_digits_added_zeros;
+  uint UNINIT_VAR(int_digits_added_zeros);
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *frac_digits_head_end;
+  const uchar *UNINIT_VAR(frac_digits_head_end);
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
-  uint frac_digits_added_zeros;
+  uint UNINIT_VAR(frac_digits_added_zeros);
   uchar *pos,*tmp_left_pos,*tmp_right_pos;
   /* Pointers that are used as limits (begin and end of the field buffer) */
   uchar *left_wall,*right_wall;
@@ -1942,11 +1942,6 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     to do that only once
   */
   bool is_cuted_fields_incr=0;
-
-  LINT_INIT(int_digits_tail_from);
-  LINT_INIT(int_digits_added_zeros);
-  LINT_INIT(frac_digits_head_end);
-  LINT_INIT(frac_digits_added_zeros);
 
   /*
     There are three steps in this function :
@@ -6475,20 +6470,9 @@ uint Field::is_equal(Create_field *new_field)
 }
 
 
-/* If one of the fields is binary and the other one isn't return 1 else 0 */
-
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
-{
-  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
-         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
-}
-
-
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == real_type()) &&
@@ -8254,7 +8238,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
@@ -8758,38 +8742,81 @@ bool Field::eq_def(Field *field)
 
 
 /**
+  Compare the first t1::count type names.
+
+  @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
+*/
+
+static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+{
+  for (uint i= 0; i < t1->count; i++)
+    if (my_strnncoll(charset,
+                     (const uchar*) t1->type_names[i],
+                     t1->type_lengths[i],
+                     (const uchar*) t2->type_names[i],
+                     t2->type_lengths[i]))
+      return FALSE;
+  return TRUE;
+}
+
+/**
   @return
   returns 1 if the fields are equally defined
 */
 
 bool Field_enum::eq_def(Field *field)
 {
+  TYPELIB *values;
+
   if (!Field::eq_def(field))
-    return 0;
-  return compare_enum_values(((Field_enum*) field)->typelib);
-}
+    return FALSE;
 
+  values= ((Field_enum*) field)->typelib;
 
-bool Field_enum::compare_enum_values(TYPELIB *values)
-{
+  /* Definition must be strictly equal. */
   if (typelib->count != values->count)
     return FALSE;
-  for (uint i= 0; i < typelib->count; i++)
-    if (my_strnncoll(field_charset,
-                     (const uchar*) typelib->type_names[i],
-                     typelib->type_lengths[i],
-                     (const uchar*) values->type_names[i],
-                     values->type_lengths[i]))
-      return FALSE;
-  return TRUE;
+
+  return compare_type_names(field_charset, typelib, values);
 }
 
+
+/**
+  Check whether two fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they retain the same
+  pack length and if new members are added to the end of the list.
+
+  @return IS_EQUAL_YES if fields are compatible.
+          IS_EQUAL_NO otherwise.
+*/
 
 uint Field_enum::is_equal(Create_field *new_field)
 {
-  if (!Field_str::is_equal(new_field))
-    return 0;
-  return compare_enum_values(new_field->interval);
+  TYPELIB *values= new_field->interval;
+
+  /*
+    The fields are compatible if they have the same flags,
+    type, charset and have the same underlying length.
+  */
+  if (new_field->field_flags_are_binary() != field_flags_are_binary() ||
+      new_field->sql_type != real_type() ||
+      new_field->charset != field_charset ||
+      new_field->pack_length != pack_length())
+    return IS_EQUAL_NO;
+
+  /*
+    Changing the definition of an ENUM or SET column by adding a new
+    enumeration or set members to the end of the list of valid member
+    values only alters table metadata and not table data.
+  */
+  if (typelib->count > values->count)
+    return IS_EQUAL_NO;
+
+  /* Check whether there are modification before the end. */
+  if (! compare_type_names(field_charset, typelib, new_field->interval))
+    return IS_EQUAL_NO;
+
+  return IS_EQUAL_YES;
 }
 
 
@@ -9542,7 +9569,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
 
     if (length == 0)
-      fld_length= 0; /* purecov: inspected */
+      fld_length= NULL; /* purecov: inspected */
   }
 
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
@@ -9694,8 +9721,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIMESTAMP:
     if (fld_length == NULL)
     {
-      /* Compressed date YYYYMMDDHHMMSS */
-      length= MAX_DATETIME_COMPRESSED_WIDTH;
+      length= MAX_DATETIME_WIDTH;
     }
     else if (length != MAX_DATETIME_WIDTH)
     {
@@ -9759,7 +9785,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
-    length= 10;
+    length= MAX_DATE_WIDTH;
     break;
   case MYSQL_TYPE_TIME:
     length= 10;
@@ -9838,6 +9864,17 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
     DBUG_RETURN(TRUE);
+  }
+
+  switch (fld_type) {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    charset= &my_charset_bin;
+    flags|= BINCMP_FLAG;
+  default: break;
   }
 
   DBUG_RETURN(FALSE); /* success */
@@ -9923,10 +9960,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  TYPELIB *interval,
 		  const char *field_name)
 {
-  uchar *bit_ptr;
-  uchar bit_offset;
-  LINT_INIT(bit_ptr);
-  LINT_INIT(bit_offset);
+  uchar *UNINIT_VAR(bit_ptr);
+  uchar UNINIT_VAR(bit_offset);
   if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;

@@ -10,7 +10,8 @@
 #
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
-innodb_bug39438          : Bug#42383 2009-01-28 lsoares "This fails in embedded and on windows.  Note that this test is not run on windows and on embedded in PB for main trees currently"
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-init_connect             : Bug#44920 2009-07-06 pcrews MTR not processing master.opt input properly on Windows.  *Must be done this way due to the nature of the bug*
-
+partition_innodb_builtin : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
+partition_innodb_plugin  : Bug#32430 2009-09-25 mattiasj Waiting for push of Innodb changes
+innodb-autoinc           : Bug#48482 2009-11-02 svoj innodb-autoinc.test fails with results difference
+rpl_killed_ddl           : Bug#45520: rpl_killed_ddl fails sporadically in pb2

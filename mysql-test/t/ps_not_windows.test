@@ -2,7 +2,7 @@
 --source include/not_embedded.inc
 # Non-windows specific ps tests.
 --source include/not_windows.inc
-# Requires ability to install plugins.
+# requires dynamic loading
 --source include/have_dynamic_loading.inc
 
 #

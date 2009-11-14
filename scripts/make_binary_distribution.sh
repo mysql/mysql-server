@@ -305,11 +305,6 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     fi
   fi
 
-  # FIXME let this script be in "bin/", where it is in the RPMs?
-  # http://dev.mysql.com/doc/refman/5.1/en/mysql-install-db-problems.html
-  mkdir $DEST/scripts
-  mv $DEST/bin/mysql_install_db $DEST/scripts/
-
   # Note, no legacy "safe_mysqld" link to "mysqld_safe" in 5.1
 
   # Copy readme and license files
@@ -342,18 +337,25 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   #
   # Move things to make them easier to find in tar installation
   #
-  mv $DEST/libexec/* $DEST/bin
+
+  # The following test is needed if the original configure was done with
+  # something like --libexecdir=/usr/local/mysql/bin
+  if test -f $DEST/libexec/mysqld
+  then
+    mv $DEST/libexec/* $DEST/bin
+    rmdir $DEST/libexec
+  fi
   mv $DEST/share/man $DEST
   mv $DEST/share/mysql/binary-configure $DEST/configure
   mv $DEST/share/mysql/*.sql $DEST/share
   mv $DEST/share/mysql/*.cnf $DEST/share/mysql/*.server $DEST/share/mysql/mysql-log-rotate $DEST/support-files
-  rmdir $DEST/libexec
 
   #
   # Move some scripts that are only run once to 'scripts' directory
   # but add symbolic links instead to old place for compatibility
   #
-  for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables
+  mkdir $DEST/scripts
+  for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables mysql_install_db
   do
     mv $DEST/bin/$i $DEST/scripts
     ln -s "../scripts/$i" $DEST/bin/$i

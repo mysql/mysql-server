@@ -139,11 +139,11 @@ typedef long long longlong;
 #include <mysql.h>
 #include <ctype.h>
 
+#ifdef HAVE_DLOPEN
+
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static pthread_mutex_t LOCK_hostname;
 #endif
-
-#ifdef HAVE_DLOPEN
 
 /* These must be right or mysqld will not find the symbol! */
 

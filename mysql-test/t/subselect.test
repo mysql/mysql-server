@@ -3342,6 +3342,38 @@ EXPLAIN EXTENDED SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
 DROP TABLE C;
 --echo # End of test for bug#45061.
 
+
+--echo #
+--echo # Bug #46749: Segfault in add_key_fields() with outer subquery level 
+--echo #   field references
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b int,
+  UNIQUE (a), KEY (b)
+);
+INSERT INTO t1 VALUES (1,1), (2,1);
+
+CREATE TABLE st1 like t1;
+INSERT INTO st1 VALUES (1,1), (2,1);
+
+CREATE TABLE st2 like t1;
+INSERT INTO st2 VALUES (1,1), (2,1);
+
+# should have "impossible where"
+EXPLAIN
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+
+# should not crash
+SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
+FROM t1 
+WHERE a = 230;
+
+DROP TABLE t1, st1, st2;
+
 --echo End of 5.0 tests.
 
 #
@@ -3521,5 +3553,20 @@ where v in(select v
            from t2
            where t1.g=t2.g) is unknown;
 drop table t1, t2;
+
+#
+# Bug #31157: Crash when select+order by the avg of some field within the
+# group by
+#
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY
+  (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+DROP TABLE t1;
 
 --echo End of 5.1 tests.

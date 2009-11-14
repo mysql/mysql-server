@@ -1851,6 +1851,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
 {
   const uchar *value0= value;
   const uchar *null_bits= value;
+  uint null_bit_index= 0;
   char typestr[64]= "";
   
   value+= (m_width + 7) / 8;
@@ -1859,7 +1860,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   
   for (size_t i= 0; i < td->size(); i ++)
   {
-    int is_null= (null_bits[i / 8] >> (i % 8))  & 0x01;
+    int is_null= (null_bits[null_bit_index / 8] 
+                  >> (null_bit_index % 8))  & 0x01;
 
     if (bitmap_is_set(cols_bitmap, i) == 0)
       continue;
@@ -1896,6 +1898,8 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     }
     
     my_b_printf(file, "\n");
+    
+    null_bit_index++;
   }
   return value - value0;
 }
@@ -2948,6 +2952,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 {
   LEX_STRING new_db;
   int expected_error,actual_error= 0;
+  HA_CREATE_INFO db_options;
+
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
     lead to bugs as here thd->catalog is a part of an alloced block,
@@ -2959,6 +2965,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);       /* allocates a copy of 'db' */
+
+  /*
+    Setting the character set and collation of the current database thd->db.
+   */
+  load_db_opt_by_name(thd, thd->db, &db_options);
+  if (db_options.default_table_charset)
+    thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -3029,7 +3042,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
@@ -3123,7 +3136,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
     }
     else
@@ -3135,7 +3148,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query, thd->query_length))
+      if (mysql_test_parse_for_slave(thd, thd->query(), thd->query_length()))
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
@@ -3145,7 +3158,7 @@ Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; . Query: '%s'", expected_error, thd->query);
+START SLAVE; . Query: '%s'", expected_error, thd->query());
         thd->is_slave_error= 1;
       }
       goto end;
@@ -3153,13 +3166,13 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
 
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
 
      /*
       If we expected a non-zero error code, and we don't get the same error
-      code, and none of them should be ignored.
+      code, and it should be ignored or is related to a concurrency issue.
     */
     actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
@@ -3182,7 +3195,8 @@ Default database: '%s'. Query: '%s'",
       thd->is_slave_error= 1;
     }
     /*
-      If we get the same error code as expected, or they should be ignored. 
+      If we get the same error code as expected and it is not a concurrency
+      issue, or should be ignored.
     */
     else if ((expected_error == actual_error && 
               !concurrency_error_code(expected_error)) ||
@@ -3191,7 +3205,24 @@ Default database: '%s'. Query: '%s'",
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
+      /*
+        When an error is expected and matches the actual error the
+        slave does not report any error and by consequence changes
+        on transactional tables are not rolled back in the function
+        close_thread_tables(). For that reason, we explicitly roll
+        them back here.
+      */
+      if (expected_error && expected_error == actual_error)
+        ha_autocommit_or_rollback(thd, TRUE);
     }
+    /*
+      If we expected a non-zero error code and get nothing and, it is a concurrency
+      issue or should be ignored.
+    */
+    else if (expected_error && !actual_error && 
+             (concurrency_error_code(expected_error) ||
+              ignored_error_code(expected_error)))
+      ha_autocommit_or_rollback(thd, TRUE);
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -3827,6 +3858,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  int ret= 0;
   DBUG_ENTER("Format_description_log_event::do_apply_event");
 
 #ifdef USING_TRANSACTIONS
@@ -3868,17 +3900,21 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
       0, then 96, then jump to first really asked event (which is
       >96). So this is ok.
     */
-    DBUG_RETURN(Start_log_event_v3::do_apply_event(rli));
+    ret= Start_log_event_v3::do_apply_event(rli);
   }
-  DBUG_RETURN(0);
+
+  if (!ret)
+  {
+    /* Save the information describing this binlog */
+    delete rli->relay_log.description_event_for_exec;
+    const_cast<Relay_log_info *>(rli)->relay_log.description_event_for_exec= this;
+  }
+
+  DBUG_RETURN(ret);
 }
 
 int Format_description_log_event::do_update_pos(Relay_log_info *rli)
 {
-  /* save the information describing this binlog */
-  delete rli->relay_log.description_event_for_exec;
-  rli->relay_log.description_event_for_exec= this;
-
   if (server_id == (uint32) ::server_id)
   {
     /*
@@ -3982,7 +4018,7 @@ uint Load_log_event::get_query_buffer_length()
 }
 
 
-void Load_log_event::print_query(bool need_db, char *buf,
+void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
                                  char **end, char **fn_start, char **fn_end)
 {
   char *pos= buf;
@@ -4006,9 +4042,9 @@ void Load_log_event::print_query(bool need_db, char *buf,
   pos= strmov(pos+fname_len, "' ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
-    pos= strmov(pos, " REPLACE ");
+    pos= strmov(pos, "REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG)
-    pos= strmov(pos, " IGNORE ");
+    pos= strmov(pos, "IGNORE ");
 
   pos= strmov(pos ,"INTO");
 
@@ -4019,8 +4055,16 @@ void Load_log_event::print_query(bool need_db, char *buf,
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
-  /* We have to create all optinal fields as the default is not empty */
-  pos= strmov(pos, "` FIELDS TERMINATED BY ");
+  if (cs != NULL)
+  {
+    pos= strmov(pos ,"` CHARACTER SET ");
+    pos= strmov(pos ,  cs);
+  }
+  else
+    pos= strmov(pos, "`");
+
+  /* We have to create all optional fields as the default is not empty */
+  pos= strmov(pos, " FIELDS TERMINATED BY ");
   pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
   if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
     pos= strmov(pos, " OPTIONALLY ");
@@ -4074,7 +4118,7 @@ void Load_log_event::pack_info(Protocol *protocol)
 
   if (!(buf= (char*) my_malloc(get_query_buffer_length(), MYF(MY_WME))))
     return;
-  print_query(TRUE, buf, &end, 0, 0);
+  print_query(TRUE, NULL, buf, &end, 0, 0);
   protocol->store(buf, end-buf, &my_charset_bin);
   my_free(buf, MYF(0));
 }
@@ -4339,9 +4383,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   my_b_printf(&cache, "INFILE '%-*s' ", fname_len, fname);
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
-    my_b_printf(&cache," REPLACE ");
+    my_b_printf(&cache,"REPLACE ");
   else if (sql_ex.opt_flags & IGNORE_FLAG)
-    my_b_printf(&cache," IGNORE ");
+    my_b_printf(&cache,"IGNORE ");
   
   my_b_printf(&cache, "INTO TABLE `%s`", table_name);
   my_b_printf(&cache, " FIELDS TERMINATED BY ");
@@ -4453,8 +4497,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
-  DBUG_ASSERT(thd->query == 0);
-  thd->query_length= 0;                         // Should not be needed
+  DBUG_ASSERT(thd->query() == 0);
+  thd->set_query_inner(NULL, 0);               // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -4549,8 +4593,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         goto error;
       }
 
-      print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
-                  (char **)&thd->lex->fname_end);
+      print_query(FALSE, NULL, load_data_query, &end, NULL, NULL);
       *end= 0;
       thd->set_query(load_data_query, (uint) (end - load_data_query));
 
@@ -6707,7 +6750,7 @@ void Execute_load_query_log_event::print(FILE* file,
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
-    my_b_printf(&cache, " INTO ");
+    my_b_printf(&cache, " INTO");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
     my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
@@ -7470,6 +7513,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
+    DBUG_RETURN(error);
   }
   /*
     This code would ideally be placed in do_update_pos() instead, but
@@ -7497,6 +7541,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
+
+  if (get_flags(STMT_END_F))
+    if ((error= rows_event_stmt_cleanup(rli, thd)))
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
 
   DBUG_RETURN(error);
 }
@@ -7596,33 +7648,19 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
   if (get_flags(STMT_END_F))
   {
-    if ((error= rows_event_stmt_cleanup(rli, thd)) == 0)
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-      */
-      rli->stmt_done(log_pos, when);
-
-      /*
-        Clear any errors pushed in thd->net.last_err* if for example "no key
-        found" (as this is allowed). This is a safety measure; apparently
-        those errors (e.g. when executing a Delete_rows_log_event of a
-        non-existing row, like in rpl_row_mystery22.test,
-        thd->net.last_error = "Can't find record in 't1'" and last_errno=1032)
-        do not become visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-    {
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
-    }
+    /*
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+    */
+    rli->stmt_done(log_pos, when);
+    /*
+      Clear any errors in thd->net.last_err*. It is not known if this is
+      needed or not. It is believed that any errors that may exist in
+      thd->net.last_err* are allowed. Examples of errors are "key not
+      found", which is produced in the test case rpl_row_conflicts.test
+    */
+    thd->clear_error();
   }
   else
   {
@@ -8287,6 +8325,16 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
   
   /* Honor next number column if present */
   m_table->next_number_field= m_table->found_next_number_field;
+  /*
+   * Fixed Bug#45999, In RBR, Store engine of Slave auto-generates new
+   * sequence numbers for auto_increment fields if the values of them are 0.
+   * If generateing a sequence number is decided by the values of
+   * table->auto_increment_field_not_null and SQL_MODE(if includes
+   * MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
+   * SQL_MODE of slave sql thread is always consistency with master's.
+   * In RBR, auto_increment fields never are NULL.
+   */
+  m_table->auto_increment_field_not_null= TRUE;
   return error;
 }
 
@@ -8296,6 +8344,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
 {
   int local_error= 0;
   m_table->next_number_field=0;
+  m_table->auto_increment_field_not_null= FALSE;
   if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
@@ -8799,11 +8848,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0)
+  if (table->s->keys > 0 && table->s->keys_in_use.is_set(0))
   {
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
-    /* We have a key: search the table using the index */
+    /* The 0th key is active: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));

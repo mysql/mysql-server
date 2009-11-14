@@ -189,6 +189,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     collect_cmp_types()
       items             Array of items to collect types from
       nitems            Number of items in the array
+      skip_nulls        Don't collect types of NULL items if TRUE
 
   DESCRIPTION
     This function collects different result types for comparison of the first
@@ -199,7 +200,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     Bitmap of collected types - otherwise
 */
 
-static uint collect_cmp_types(Item **items, uint nitems)
+static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
 {
   uint i;
   uint found_types;
@@ -208,6 +209,8 @@ static uint collect_cmp_types(Item **items, uint nitems)
   found_types= 0;
   for (i= 1; i < nitems ; i++)
   {
+    if (skip_nulls && items[i]->type() == Item::NULL_ITEM)
+      continue; // Skip NULL constant items
     if ((left_result == ROW_RESULT || 
          items[i]->result_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
@@ -215,6 +218,12 @@ static uint collect_cmp_types(Item **items, uint nitems)
     found_types|= 1<< (uint)item_cmp_type(left_result,
                                            items[i]->result_type());
   }
+  /*
+   Even if all right-hand items are NULLs and we are skipping them all, we need
+   at least one type bit in the found_type bitmask.
+  */
+  if (skip_nulls && !found_types)
+    found_types= 1 << (uint)left_result;
   return found_types;
 }
 
@@ -395,11 +404,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     ulong orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
-    ulonglong orig_field_val; /* original field value if valid */
+    ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
 
     LINT_INIT(old_maps[0]);
     LINT_INIT(old_maps[1]);
-    LINT_INIT(orig_field_val);
 
     if (table)
       dbug_tmp_use_all_columns(table, old_maps, 
@@ -628,6 +636,62 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   return 0;
 }
 
+/**
+  Parse date provided in a string to a MYSQL_TIME.
+
+  @param[in]   thd        Thread handle
+  @param[in]   str        A string to convert
+  @param[in]   warn_type  Type of the timestamp for issuing the warning
+  @param[in]   warn_name  Field name for issuing the warning
+  @param[out]  l_time     The MYSQL_TIME objects is initialized.
+
+  Parses a date provided in the string str into a MYSQL_TIME object. If the
+  string contains an incorrect date or doesn't correspond to a date at all
+  then a warning is issued. The warn_type and the warn_name arguments are used
+  as the name and the type of the field when issuing the warning. If any input
+  was discarded (trailing or non-timestamp-y characters), return value will be
+  TRUE.
+
+  @return Status flag
+  @retval FALSE Success.
+  @retval True Indicates failure.
+*/
+
+bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
+                             const char *warn_name, MYSQL_TIME *l_time)
+{
+  bool value;
+  int error;
+  enum_mysql_timestamp_type timestamp_type;
+
+  timestamp_type= 
+    str_to_datetime(str->ptr(), str->length(), l_time,
+                    (TIME_FUZZY_DATE | MODE_INVALID_DATES |
+                     (thd->variables.sql_mode &
+                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
+                    &error);
+
+  if (timestamp_type == MYSQL_TIMESTAMP_DATETIME || 
+      timestamp_type == MYSQL_TIMESTAMP_DATE)
+    /*
+      Do not return yet, we may still want to throw a "trailing garbage"
+      warning.
+    */
+    value= FALSE;
+  else
+  {
+    value= TRUE;
+    error= 1;                                   /* force warning */
+  }
+
+  if (error > 0)
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 str->ptr(), str->length(),
+                                 warn_type, warn_name);
+
+  return value;
+}
+
 
 /**
   @brief Convert date provided in a string to the int representation.
@@ -642,51 +706,21 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     representation.  If the string contains wrong date or doesn't
     contain it at all then a warning is issued.  The warn_type and
     the warn_name arguments are used as the name and the type of the
-    field when issuing the warning.  If any input was discarded
-    (trailing or non-timestampy characters), was_cut will be non-zero.
-    was_type will return the type str_to_datetime() could correctly
-    extract.
+    field when issuing the warning.
 
   @return
     converted value. 0 on error and on zero-dates -- check 'failure'
 */
-
-static ulonglong
-get_date_from_str(THD *thd, String *str, timestamp_type warn_type,
-                  char *warn_name, bool *error_arg)
+static ulonglong get_date_from_str(THD *thd, String *str, 
+                                   timestamp_type warn_type, 
+                                   const char *warn_name, bool *error_arg)
 {
-  ulonglong value= 0;
-  int error;
   MYSQL_TIME l_time;
-  enum_mysql_timestamp_type ret;
+  *error_arg= get_mysql_time_from_str(thd, str, warn_type, warn_name, &l_time);
 
-  ret= str_to_datetime(str->ptr(), str->length(), &l_time,
-                       (TIME_FUZZY_DATE | MODE_INVALID_DATES |
-                        (thd->variables.sql_mode &
-                         (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
-                       &error);
-
-  if (ret == MYSQL_TIMESTAMP_DATETIME || ret == MYSQL_TIMESTAMP_DATE)
-  {
-    /*
-      Do not return yet, we may still want to throw a "trailing garbage"
-      warning.
-    */
-    *error_arg= FALSE;
-    value= TIME_to_ulonglong_datetime(&l_time);
-  }
-  else
-  {
-    *error_arg= TRUE;
-    error= 1;                                   /* force warning */
-  }
-
-  if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 str->ptr(), str->length(),
-                                 warn_type, warn_name);
-
-  return value;
+  if (*error_arg)
+    return 0;
+  return TIME_to_ulonglong_datetime(&l_time);
 }
 
 
@@ -1550,61 +1584,73 @@ longlong Item_in_optimizer::val_int()
   
   if (cache->null_value)
   {
+    /*
+      We're evaluating 
+      "<outer_value_list> [NOT] IN (SELECT <inner_value_list>...)" 
+      where one or more of the outer values is NULL. 
+    */
     if (((Item_in_subselect*)args[1])->is_top_level_item())
     {
       /*
-        We're evaluating "NULL IN (SELECT ...)". The result can be NULL or
-        FALSE, and we can return one instead of another. Just return NULL.
+        We're evaluating a top level item, e.g. 
+	"<outer_value_list> IN (SELECT <inner_value_list>...)",
+	and in this case a NULL value in the outer_value_list means
+        that the result shall be NULL/FALSE (makes no difference for
+        top level items). The cached value is NULL, so just return
+        NULL.
       */
       null_value= 1;
     }
     else
     {
-      if (!((Item_in_subselect*)args[1])->is_correlated &&
-          result_for_null_param != UNKNOWN)
+      /*
+	We're evaluating an item where a NULL value in either the
+        outer or inner value list does not automatically mean that we
+        can return NULL/FALSE. An example of such a query is
+        "<outer_value_list> NOT IN (SELECT <inner_value_list>...)" 
+        The result when there is at least one NULL value is: NULL if the
+        SELECT evaluated over the non-NULL values produces at least
+        one row, FALSE otherwise
+      */
+      Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
+      bool all_left_cols_null= true;
+      const uint ncols= cache->cols();
+
+      /*
+        Turn off the predicates that are based on column compares for
+        which the left part is currently NULL
+      */
+      for (uint i= 0; i < ncols; i++)
       {
-        /* Use cached value from previous execution */
-        null_value= result_for_null_param;
+        if (cache->element_index(i)->null_value)
+          item_subs->set_cond_guard_var(i, FALSE);
+        else 
+          all_left_cols_null= false;
       }
-      else
+
+      if (!((Item_in_subselect*)args[1])->is_correlated && 
+          all_left_cols_null && result_for_null_param != UNKNOWN)
       {
-        /*
-          We're evaluating "NULL IN (SELECT ...)". The result is:
-             FALSE if SELECT produces an empty set, or
-             NULL  otherwise.
-          We disable the predicates we've pushed down into subselect, run the
-          subselect and see if it has produced any rows.
+        /* 
+           This is a non-correlated subquery, all values in the outer
+           value list are NULL, and we have already evaluated the
+           subquery for all NULL values: Return the same result we
+           did last time without evaluating the subquery.
         */
-        Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
-        if (cache->cols() == 1)
-        {
-          item_subs->set_cond_guard_var(0, FALSE);
-          (void) args[1]->val_bool_result();
-          result_for_null_param= null_value= !item_subs->engine->no_rows();
-          item_subs->set_cond_guard_var(0, TRUE);
-        }
-        else
-        {
-          uint i;
-          uint ncols= cache->cols();
-          /*
-            Turn off the predicates that are based on column compares for
-            which the left part is currently NULL
-          */
-          for (i= 0; i < ncols; i++)
-          {
-            if (cache->element_index(i)->null_value)
-              item_subs->set_cond_guard_var(i, FALSE);
-          }
-          
-          (void) args[1]->val_bool_result();
-          result_for_null_param= null_value= !item_subs->engine->no_rows();
-          
-          /* Turn all predicates back on */
-          for (i= 0; i < ncols; i++)
-            item_subs->set_cond_guard_var(i, TRUE);
-        }
+        null_value= result_for_null_param;
+      } 
+      else 
+      {
+        /* The subquery has to be evaluated */
+        (void) args[1]->val_bool_result();
+        null_value= !item_subs->engine->no_rows();
+        if (all_left_cols_null)
+          result_for_null_param= null_value;
       }
+
+      /* Turn all predicates back on */
+      for (uint i= 0; i < ncols; i++)
+        item_subs->set_cond_guard_var(i, TRUE);
     }
     return 0;
   }
@@ -3524,7 +3570,7 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  if (!(found_types= collect_cmp_types(args, arg_count)))
+  if (!(found_types= collect_cmp_types(args, arg_count, true)))
     return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
@@ -3702,9 +3748,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	array->set(j,args[i]);
 	if (!args[i]->null_value)			// Skip NULL values
+        {
+          array->set(j,args[i]);
 	  j++;
+        }
 	else
 	  have_null= 1;
       }

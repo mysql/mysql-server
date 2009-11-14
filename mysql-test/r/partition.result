@@ -1,4 +1,70 @@
 drop table if exists t1, t2;
+CREATE TABLE t1 (
+a int NOT NULL,
+b int NOT NULL);
+CREATE TABLE t2 (
+a int NOT NULL,
+b int NOT NULL,
+INDEX(b)
+)
+PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 VALUES (399, 22);
+INSERT INTO t2 VALUES (1, 22), (1, 42);
+INSERT INTO t2 SELECT 1, 399 FROM t2, t1
+WHERE t1.b = t2.b;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+b varchar(10),
+PRIMARY KEY (a)
+)
+PARTITION BY RANGE (to_days(a)) (
+PARTITION p1 VALUES LESS THAN (733407),
+PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t1 VALUES ('2007-07-30 17:35:48', 'p1');
+INSERT INTO t1 VALUES ('2009-07-14 17:35:55', 'pmax');
+INSERT INTO t1 VALUES ('2009-09-21 17:31:42', 'pmax');
+SELECT * FROM t1;
+a	b
+2007-07-30 17:35:48	p1
+2009-07-14 17:35:55	pmax
+2009-09-21 17:31:42	pmax
+ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
+PARTITION p3 VALUES LESS THAN (733969),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+SELECT * FROM t1;
+a	b
+2007-07-30 17:35:48	p1
+2009-07-14 17:35:55	pmax
+2009-09-21 17:31:42	pmax
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `b` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (to_days(a))
+(PARTITION p1 VALUES LESS THAN (733407) ENGINE = MyISAM,
+ PARTITION p3 VALUES LESS THAN (733969) ENGINE = MyISAM,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+DROP TABLE t1;
+create table t1 (a int, b int, key(a))
+partition by list (a)
+( partition p0 values in (1),
+partition p1 values in (2));
+insert into t1 values (1,1),(2,1),(2,2),(2,3);
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE	
+drop table t1;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 ENGINE=MyISAM
 PARTITION BY HASH (a);

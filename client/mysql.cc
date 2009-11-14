@@ -86,7 +86,7 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#if defined( __WIN__)
+#if defined(__WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>
@@ -106,7 +106,7 @@ extern "C" {
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#if !defined( __WIN__) && !defined(__NETWARE__) && !defined(THREAD)
+#if !defined(__WIN__) && !defined(__NETWARE__) && !defined(THREAD)
 #define USE_POPEN
 #endif
 
@@ -1281,21 +1281,35 @@ sig_handler handle_sigint(int sig)
   MYSQL *kill_mysql= NULL;
 
   /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || interrupted_query)
+  /* terminate if no query being executed, or we already tried interrupting */
+  if (!executing_query || (interrupted_query == 2))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
     goto err;
+  }
 
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
+  }
+
+  interrupted_query++;
+
+  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
+  if ((interrupted_query == 1) && (mysql_get_server_version(&mysql) < 50000))
+    interrupted_query= 2;
 
   /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  sprintf(kill_buffer, "KILL %s%lu",
+          (interrupted_query == 1) ? "QUERY " : "",
+          mysql_thread_id(&mysql));
+  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
-
-  interrupted_query= 1;
+  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
 
   return;
 
@@ -1870,7 +1884,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
 #if defined(__NETWARE__)
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
@@ -1881,7 +1895,7 @@ static int read_and_execute(bool interactive)
         if (p != NULL)
           *p = '\0';
       }
-#else defined(__WIN__)
+#else
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
@@ -1907,7 +1921,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined( __WIN__) || defined(__NETWARE__) */
+#endif /* defined(__WIN__) || defined(__NETWARE__) */
 
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
@@ -1955,10 +1969,10 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
   buffer.free();
 #endif
-#if defined( __WIN__)
+#if defined(__WIN__)
   tmpbuf.free();
 #endif
 
@@ -2873,7 +2887,7 @@ com_help(String *buffer __attribute__((unused)),
            "For developer information, including the MySQL Reference Manual, "
            "visit:\n"
            "   http://dev.mysql.com/\n"
-           "To buy MySQL Network Support, training, or other products, visit:\n"
+           "To buy MySQL Enterprise support, training, or other products, visit:\n"
            "   https://shop.mysql.com/\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
@@ -3835,6 +3849,7 @@ com_edit(String *buffer,char *line __attribute__((unused)))
     char errmsg[100];
     sprintf(errmsg, "Command '%.40s' failed", buff);
     put_info(errmsg, INFO_ERROR, 0, NullS);
+    goto err;
   }
 
   if (!my_stat(filename,&stat_arg,MYF(MY_WME)))
@@ -4635,7 +4650,7 @@ void tee_putc(int c, FILE *file)
     putc(c, OUTFILE);
 }
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -4647,7 +4662,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
  return clock();
 #else
   struct tms tms_tmp;

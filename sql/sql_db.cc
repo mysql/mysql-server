@@ -658,10 +658,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     }
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
-    if (!silent)
-      my_ok(thd);
     error= 0;
-    goto exit;
+    goto not_silent;
   }
   else
   {
@@ -698,13 +696,14 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       happened.  (This is a very unlikely senario)
     */
   }
-  
+
+not_silent:
   if (!silent)
   {
     char *query;
     uint query_length;
 
-    if (!thd->query)				// Only in replication
+    if (!thd->query())                          // Only in replication
     {
       query= 	     tmp_query;
       query_length= (uint) (strxmov(tmp_query,"create database `",
@@ -712,8 +711,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     }
     else
     {
-      query= 	    thd->query;
-      query_length= thd->query_length;
+      query=        thd->query();
+      query_length= thd->query_length();
     }
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
@@ -806,13 +805,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   }
 
   ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       db, "");
 
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
+    Query_log_event qinfo(thd, thd->query(), thd->query_length(), 0,
 			  /* suppress_use */ TRUE, errcode);
 
     /*
@@ -908,6 +907,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
+    Drop_table_error_handler err_handler(thd->get_internal_handler());
+    thd->push_internal_handler(&err_handler);
+
     error= -1;
     /*
       We temporarily disable the binary log while dropping the objects
@@ -940,12 +942,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error = 0;
       reenable_binlog(thd);
     }
+    thd->pop_internal_handler();
   }
   if (!silent && deleted>=0)
   {
     const char *query;
     ulong query_length;
-    if (!thd->query)
+    if (!thd->query())
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
@@ -954,8 +957,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      query =thd->query;
-      query_length= thd->query_length;
+      query= thd->query();
+      query_length= thd->query_length();
     }
     if (mysql_bin_log.is_open())
     {
@@ -1445,7 +1448,7 @@ static inline bool
 cmp_db_names(const char *db1_name,
              const char *db2_name)
 {
-  return ((!db1_name && !db2_name) || /* db1 is NULL and db2 is NULL */
+  return ((!db1_name && !db2_name) ||
           (db1_name && db2_name &&
            my_strcasecmp(system_charset_info, db1_name, db2_name) == 0));
 }
@@ -1957,7 +1960,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
+    Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                           0, TRUE, errcode);
     thd->clear_error();
     mysql_bin_log.write(&qinfo);

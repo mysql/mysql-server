@@ -58,6 +58,8 @@ class store_key;
 typedef struct st_table_ref
 {
   bool		key_err;
+  /** True if something was read into buffer in join_read_key.  */
+  bool          has_record;
   uint          key_parts;                ///< num of ...
   uint          key_length;               ///< length of key_buff
   int           key;                      ///< key no
@@ -85,6 +87,11 @@ typedef struct st_table_ref
   table_map	depend_map;		  ///< Table depends on these tables.
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
   uchar          *null_ref_key;
+  /*
+    The number of times the record associated with this key was used
+    in the join.
+  */
+  ha_rows       use_count;
 } TABLE_REF;
 
 
@@ -278,7 +285,14 @@ public:
   TABLE    **table,**all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
-  bool	   sort_and_group,first_record,full_join,group, no_field_update;
+  /**
+    Indicates that grouping will be performed on the result set during
+    query execution. This field belongs to query execution.
+
+    @see make_group_fields, alloc_group_fields, JOIN::exec
+  */
+  bool     sort_and_group; 
+  bool     first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
   /**
     TRUE when we want to resume nested loop iterations when
@@ -365,6 +379,8 @@ public:
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
     to other tables than the first non-constant table in the JOIN.
     It's also set if ORDER/GROUP BY is empty.
+    Used for deciding for or against using a temporary table to compute 
+    GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
   /**
@@ -435,6 +451,7 @@ public:
     const_tables= 0;
     eliminated_tables= 0;
     join_list= 0;
+    implicit_grouping= FALSE;
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
@@ -511,6 +528,7 @@ public:
   }
 
   bool rollup_init();
+  bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
@@ -544,6 +562,11 @@ public:
     return (table_map(1) << tables) - 1;
   }
 private:
+  /**
+    TRUE if the query contains an aggregate function but has no GROUP
+    BY clause. 
+  */
+  bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
 };
 

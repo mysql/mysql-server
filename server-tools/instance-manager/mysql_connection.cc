@@ -69,6 +69,18 @@ void my_net_local_init(NET *net)
 
 C_MODE_END
 
+/*
+  Unused stub hook required for linking the client API.
+*/
+
+C_MODE_START
+
+void slave_io_thread_detach_vio()
+{
+}
+
+C_MODE_END
+
 
 /*
   Every resource, which we can fail to acquire, is allocated in init().

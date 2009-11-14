@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -472,6 +472,13 @@ public:
   /* maximum possible display length */
   virtual uint32 max_display_length()= 0;
 
+  /**
+    Whether a field being created is compatible with a existing one.
+
+    Used by the ALTER TABLE code to evaluate whether the new definition
+    of a table is compatible with the old definition so that it can
+    determine if data needs to be copied over (table data change).
+  */
   virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
@@ -603,6 +610,12 @@ protected:
     handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
     return from + sizeof(int64);
   }
+
+  bool field_flags_are_binary()
+  {
+    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
+  }
+
 };
 
 
@@ -658,7 +671,6 @@ public:
   friend class Create_field;
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
-  bool compare_str_field_flags(Create_field *new_field, uint32 flags);
   uint is_equal(Create_field *new_field);
 };
 
@@ -1268,12 +1280,12 @@ public:
   Field_date(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     CHARSET_INFO *cs)
-    :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
+    :Field_str(ptr_arg, MAX_DATE_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
   Field_date(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
-    :Field_str((uchar*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
+    :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
@@ -1383,12 +1395,12 @@ public:
   Field_datetime(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		 enum utype unireg_check_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
-    :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
+    :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
-    :Field_str((uchar*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
+    :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
@@ -1853,7 +1865,6 @@ public:
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
 private:
   int do_save_field_metadata(uchar *first_byte);
-  bool compare_enum_values(TYPELIB *values);
   uint is_equal(Create_field *new_field);
 };
 
@@ -2061,6 +2072,11 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
             uint uint_geom_type);
+
+  bool field_flags_are_binary()
+  {
+    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
+  }
 };
 
 
