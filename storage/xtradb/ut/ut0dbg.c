@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*********************************************************************
+/*****************************************************************//**
+@file ut/ut0dbg.c
 Debug utilities for Innobase.
 
 Created 1/30/1994 Heikki Tuuri
@@ -27,40 +28,45 @@ Created 1/30/1994 Heikki Tuuri
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
-/* This is used to eliminate compiler warnings */
+/** This is used to eliminate compiler warnings */
 UNIV_INTERN ulint	ut_dbg_zero	= 0;
 #endif
 
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/* If this is set to TRUE all threads will stop into the next assertion
-and assert */
+/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
+will stop at the next ut_a() or ut_ad(). */
 UNIV_INTERN ibool	ut_dbg_stop_threads	= FALSE;
 #endif
 #ifdef __NETWARE__
-/* This is set to TRUE when on NetWare there happens an InnoDB
-assertion failure or other fatal error condition that requires an
-immediate shutdown. */
+/** Flag for ignoring further assertion failures.  This is set to TRUE
+when on NetWare there happens an InnoDB assertion failure or other
+fatal error condition that requires an immediate shutdown. */
 UNIV_INTERN ibool panic_shutdown = FALSE;
 #elif !defined(UT_DBG_USE_ABORT)
-/* Null pointer used to generate memory trap */
+/** A null pointer that will be dereferenced to trigger a memory trap */
 UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
 #endif
 
-/*****************************************************************
+/*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
 void
 ut_dbg_assertion_failed(
 /*====================*/
-	const char* expr,	/* in: the failed assertion (optional) */
-	const char* file,	/* in: source file containing the assertion */
-	ulint line)		/* in: line number of the assertion */
+	const char* expr,	/*!< in: the failed assertion (optional) */
+	const char* file,	/*!< in: source file containing the assertion */
+	ulint line)		/*!< in: line number of the assertion */
 {
 	ut_print_timestamp(stderr);
+#ifdef UNIV_HOTBACKUP
+	fprintf(stderr, "  InnoDB: Assertion failure in file %s line %lu\n",
+		file, line);
+#else /* UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"  InnoDB: Assertion failure in thread %lu"
 		" in file %s line %lu\n",
 		os_thread_pf(os_thread_get_curr_id()), file, line);
+#endif /* UNIV_HOTBACKUP */
 	if (expr) {
 		fprintf(stderr,
 			"InnoDB: Failing assertion: %s\n", expr);
@@ -73,8 +79,7 @@ ut_dbg_assertion_failed(
 	      " or crashes, even\n"
 	      "InnoDB: immediately after the mysqld startup, there may be\n"
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
-	      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-	      "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 	ut_dbg_stop_threads = TRUE;
@@ -82,7 +87,7 @@ ut_dbg_assertion_failed(
 }
 
 #ifdef __NETWARE__
-/*****************************************************************
+/*************************************************************//**
 Shut down MySQL/InnoDB after assertion failure. */
 UNIV_INTERN
 void
@@ -97,7 +102,7 @@ ut_dbg_panic(void)
 }
 #else /* __NETWARE__ */
 # if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/*****************************************************************
+/*************************************************************//**
 Stop a thread after assertion failure. */
 UNIV_INTERN
 void
@@ -106,9 +111,11 @@ ut_dbg_stop_thread(
 	const char*	file,
 	ulint		line)
 {
+#ifndef UNIV_HOTBACKUP
 	fprintf(stderr, "InnoDB: Thread %lu stopped in file %s line %lu\n",
 		os_thread_pf(os_thread_get_curr_id()), file, line);
 	os_thread_sleep(1000000000);
+#endif /* !UNIV_HOTBACKUP */
 }
 # endif
 #endif /* __NETWARE__ */
@@ -133,27 +140,27 @@ ut_dbg_stop_thread(
 	} while (0)
 #endif /* timersub */
 
-/***********************************************************************
+/*******************************************************************//**
 Resets a speedo (records the current time in it). */
 UNIV_INTERN
 void
 speedo_reset(
 /*=========*/
-	speedo_t*	speedo)	/* out: speedo */
+	speedo_t*	speedo)	/*!< out: speedo */
 {
 	gettimeofday(&speedo->tv, NULL);
 
 	getrusage(RUSAGE_SELF, &speedo->ru);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
 UNIV_INTERN
 void
 speedo_show(
 /*========*/
-	const speedo_t*	speedo)	/* in: speedo */
+	const speedo_t*	speedo)	/*!< in: speedo */
 {
 	struct rusage	ru_now;
 	struct timeval	tv_now;

@@ -1,41 +1,47 @@
--- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
-
-let $format=`select @@innodb_file_format`;
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
+set @old_innodb_file_format=@@innodb_file_format;
 select @@innodb_file_format;
+@@innodb_file_format
+Antelope
 select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
 set global innodb_file_format=antelope;
 set global innodb_file_format=barracuda;
---error ER_WRONG_ARGUMENTS
 set global innodb_file_format=cheetah;
+ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format;
+@@innodb_file_format
+Barracuda
 set global innodb_file_format=default;
 select @@innodb_file_format;
---error ER_WRONG_ARGUMENTS
+@@innodb_file_format
+Antelope
 set global innodb_file_format=on;
---error ER_WRONG_ARGUMENTS
+ERROR HY000: Incorrect arguments to SET
 set global innodb_file_format=off;
+ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format;
+@@innodb_file_format
+Antelope
 set global innodb_file_format_check=antelope;
 set global innodb_file_format_check=barracuda;
---error ER_WRONG_ARGUMENTS
 set global innodb_file_format_check=cheetah;
+ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
 set global innodb_file_format_check=default;
+Warnings:
+Warning	1210	Ignoring SET innodb_file_format=on
 select @@innodb_file_format_check;
---error ER_WRONG_ARGUMENTS
+@@innodb_file_format_check
+Barracuda
 set global innodb_file_format=on;
---error ER_WRONG_ARGUMENTS
+ERROR HY000: Incorrect arguments to SET
 set global innodb_file_format=off;
+ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format_check;
-
-#
-# restore environment to the state it was before this test execution
-#
-
--- disable_query_log
-eval set global innodb_file_format=$format;
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;
--- enable_query_log
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format=@old_innodb_file_format;
+set global innodb_file_format_check=Antelope;

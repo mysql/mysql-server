@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file usr/usr0sess.c
 Sessions
 
 Created 6/25/1996 Heikki Tuuri
@@ -30,21 +31,21 @@ Created 6/25/1996 Heikki Tuuri
 
 #include "trx0trx.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
 static
 void
 sess_close(
 /*=======*/
-	sess_t*		sess);	/* in, own: session object */
+	sess_t*		sess);	/*!< in, own: session object */
 
-/*************************************************************************
-Opens a session. */
+/*********************************************************************//**
+Opens a session.
+@return	own: session object */
 UNIV_INTERN
 sess_t*
 sess_open(void)
 /*===========*/
-					/* out, own: session object */
 {
 	sess_t*	sess;
 
@@ -61,13 +62,13 @@ sess_open(void)
 	return(sess);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
 static
 void
 sess_close(
 /*=======*/
-	sess_t*	sess)	/* in, own: session object */
+	sess_t*	sess)	/*!< in, own: session object */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess->trx == NULL);
@@ -75,15 +76,15 @@ sess_close(
 	mem_free(sess);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it, if it is in a state
-where it should be closed. */
+where it should be closed.
+@return	TRUE if closed */
 UNIV_INTERN
 ibool
 sess_try_close(
 /*===========*/
-			/* out: TRUE if closed */
-	sess_t*	sess)	/* in, own: session object */
+	sess_t*	sess)	/*!< in, own: session object */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 

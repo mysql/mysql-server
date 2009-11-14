@@ -70,13 +70,13 @@ Created 12/14/1997 Heikki Tuuri
 static ulint	stringbuf_len_alloc = 0; /* Allocated length */
 static ulint	stringbuf_len = 0; /* Current length */
 static char*	stringbuf; /* Start of buffer */
-/* Appends a string to the buffer. */
+/** Appends a string to the buffer. */
 static
 void
 string_append(
 /*==========*/
-	const char*	str,	/* in: string to be appended */
-	ulint		len)	/* in: length of the string */
+	const char*	str,	/*!< in: string to be appended */
+	ulint		len)	/*!< in: length of the string */
 {
 	if (stringbuf == NULL) {
 		stringbuf = malloc(1);

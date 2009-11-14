@@ -390,8 +390,8 @@ int federatedx_db_init(void *p)
   DBUG_ENTER("federatedx_db_init");
   handlerton *federatedx_hton= (handlerton *)p;
   federatedx_hton->state= SHOW_OPTION_YES;
-  /* This is no longer needed for plugin storage engines */
-  federatedx_hton->db_type= DB_TYPE_DEFAULT;
+  /* Needed to work with old .frm files */
+  federatedx_hton->db_type= DB_TYPE_FEDERATED_DB;
   federatedx_hton->savepoint_offset= sizeof(ulong);
   federatedx_hton->close_connection= ha_federatedx::disconnect;
   federatedx_hton->savepoint_set= ha_federatedx::savepoint_set;
