@@ -55,7 +55,12 @@ ENDIF()
 
 ENDIF(UNIX)
 
-
+# some scripts use  @TARGET_LINUX@
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  SET(TARGET_LINUX 1)
+ELSE()
+  SET(TARGET_LINUX 0)
+ENDIF()
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
  ADD_EXECUTABLE(comp_sql comp_sql.c)
@@ -107,7 +112,7 @@ SET(LDFLAGS "${CMAKE_SHARED_LIBRARY_LINK_FLAGS}")
 IF(WIN32)
   SET(prefix "${CMAKE_INSTALL_PREFIX}/MySQL Server ${MYSQL_BASE_VERSION}")
 ELSE()
-  set(prefix "${CMAKE_INSTALL_PREFIX}/mysql")
+  set(prefix "${CMAKE_INSTALL_PREFIX}")
 ENDIF()
 
 SET(sysconfdir ${prefix})
