@@ -739,6 +739,8 @@ ErrorBundle ErrorCodes[] = {
     "Character operand was right truncated" },
   { QRY_NUM_OPERAND_RANGE, DMEC, AE, 
     "Numeric operand out of range" },
+  { QRY_MULTIPLE_PARENTS, DMEC, AE, 
+    "Multiple 'parents' specified in linkedValues for this operation" },
   { QRY_UNKONWN_PARENT, DMEC, AE, 
     "Unknown 'parent' specified in linkedValue" },
   { QRY_UNKNOWN_COLUMN, DMEC, AE, 

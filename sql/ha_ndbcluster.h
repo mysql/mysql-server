@@ -538,9 +538,11 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  int join_push(struct st_join_table* join_tabs,
-                int count,
-                int idx);
+  ha_pushed_join* make_pushed_join(struct st_join_table* join_tabs,
+                            int count,
+                            int idx) const;
+
+  virtual int use_pushed_join(ha_pushed_join* pushed_join);
 
   uint8 table_cache_type();
 
@@ -780,6 +782,8 @@ private:
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
+  NdbQuery* m_active_query;
+
   const NdbDictionary::Table *m_table;
   /*
     Normal NdbRecord for accessing rows, with all fields including hidden
@@ -862,7 +866,7 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  class ha_pushed_join *m_pushed_join;
+  class ha_ndbcluster_pushed_join *m_pushed_join;
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;

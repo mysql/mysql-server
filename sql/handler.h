@@ -1120,6 +1120,17 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
+
+class ha_pushed_join
+{
+public:
+  ha_pushed_join() {}
+  virtual ~ha_pushed_join() {}
+
+  /* Reports #joins inclued in this pushed_join */
+  virtual uint cntPushed() const = 0;
+};
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1807,10 +1818,14 @@ public:
  /**
    Push join sequence down to the table handler.
   */
- virtual int join_push(struct st_join_table* join_tabs, 
-                       int count,
-                       int idx)
- { return 0; };
+  virtual ha_pushed_join* make_pushed_join(struct st_join_table* join_tabs, 
+                                         int count,
+                                         int idx) const
+  { return 0; }
+
+  virtual int use_pushed_join(ha_pushed_join* pushed_join)
+  { return (HA_ERR_WRONG_COMMAND); }
+
 
  /*
     Part of old fast alter table, to be depricated

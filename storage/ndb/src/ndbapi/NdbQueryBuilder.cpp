@@ -1184,8 +1184,9 @@ NdbLinkedOperandImpl::bindOperand(
   // TODO: Allow and autoconvert compatible datatypes
 
   // Register parent/child operation relations
-  this->m_parentOperation.addChild(&operation);
-  operation.addParent(&this->m_parentOperation);
+  const int error = operation.linkWithParent(&this->m_parentOperation);
+  if (unlikely(error))
+    return error;
 
   return NdbQueryOperandImpl::bindOperand(column,operation);
 }
@@ -1632,17 +1633,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
 
 
 void
-NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl* parentOp)
-{
-
-  for (Uint32 i=0; i<m_parents.size(); ++i)
-  { if (m_parents[i] == parentOp)
-      return;
-  }
-  m_parents.push_back(parentOp);
-}
-
-void
 NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
 {
   for (Uint32 i=0; i<m_children.size(); ++i)
@@ -1650,6 +1640,76 @@ NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
       return;
   }
   m_children.push_back(childOp);
+}
+
+void
+NdbQueryOperationDefImpl::removeChild(const NdbQueryOperationDefImpl* childOp)
+{
+  for (unsigned i=0; i<m_children.size(); ++i)
+  { if (m_children[i] == childOp)
+      m_children.erase(i);
+  }
+}
+
+bool
+NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) const
+{
+  for (Uint32 i=0; i<m_parents.size(); ++i)
+  { if (m_parents[i] == parentOp || m_parents[i]->isChildOf(parentOp))
+      return true;
+  }
+  return false;
+}
+
+int
+NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
+{
+  for (Uint32 i=0; i<m_parents.size(); ++i)
+  { if (m_parents[i] == parentOp)
+    { // Assert that parent already refer 'this' as a child.
+      for (Uint32 j=0; j<parentOp->getNoOfChildOperations(); j++)
+      { if (&parentOp->getChildOperation(j) == this)
+          return 0;
+      }
+      assert(false);
+      return 0;
+    }
+  }
+
+  assert (m_parents.size() <= 1);
+  if (unlikely(m_parents.size() == 1))
+  {
+    /**
+     * Parent merging current disabled 
+     *  - Will also need additional support in SPJ block
+     */
+    return QRY_MULTIPLE_PARENTS;
+
+    /**
+     * Multiple parents not allowed.
+     * Resolve this by finding the closest related (grand)parent among 
+     * the two parents. This is calculated as the parent having the 
+     * other parent as grand parent.
+     */
+    if (m_parents[0]->isChildOf(parentOp))
+    { // parentOp is grandparent of m_parent[0], don't interested in it
+      return 0; // Accept existing m_parent[0] as my parent.
+    }
+    else if (parentOp->isChildOf(m_parents[0]))
+    { // Remove existing grandparent linkage being replaced by .
+      parentOp->removeChild(this);
+      m_parents.erase(0);
+    }
+    else
+    { // This is a real multiparent error.
+      return QRY_MULTIPLE_PARENTS;
+    }
+  }
+  m_parents.push_back(parentOp);
+  assert (m_parents.size() <= 1);
+
+  parentOp->addChild(this);
+  return 0;
 }
 
 
