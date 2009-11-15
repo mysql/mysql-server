@@ -249,7 +249,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   const NdbQueryOperationDef* operationDefs[32];
   DBUG_ASSERT (count<= 32);
 
-  if (join_tabs[0].type == JT_EQ_REF)
+  if (join_tabs[0].type == JT_EQ_REF || join_tabs[0].type == JT_CONST)
   {
     const NdbQueryOperand* rootKey[10] = {NULL};
     for (uint i = 0; i < key_rec->noOfColumns; i++)
@@ -297,6 +297,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
           const NdbQueryOperationDef* parent = operationDefs[ref-join_tabs];
           key[keyPartNo] = 
             builder.linkedValue(parent, keyItem->field->field_name);
+          // TODO use field_index ??
           if (!key[keyPartNo])
             return 0;
           break;
@@ -1497,7 +1498,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
   Check if any set or get of blob value in current query.
 */
 
-bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap)
+bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const
 {
   uint *blob_index, *blob_index_end;
   if (table_share->blob_fields == 0)
@@ -2280,7 +2281,7 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
 }
 
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type,
-                                     const MY_BITMAP *column_bitmap)
+                                     const MY_BITMAP *column_bitmap) const
 {
   if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
@@ -2427,9 +2428,14 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
       DBUG_ASSERT(query->nextResult() == NdbQuery::NextResult_scanComplete);
       DBUG_RETURN(0);
     }
-    else if(result == NdbQuery::NextResult_scanComplete)
+    else if (result == NdbQuery::NextResult_scanComplete)
     {
-      table->status = 0;     
+      for (uint i = 0; i<query->getNoOfOperations(); i++)
+      {
+        TABLE* tab= m_pushed_join->m_tabs[i].table;
+        mark_as_null_row(tab);
+      }
+      table->status = STATUS_NOT_FOUND;
       DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
     }
     else
@@ -3121,7 +3127,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     query->getQueryOperation(i)
       ->setResultRowBuf(resultRec,
                         reinterpret_cast<char*>(tab->record[0]),
-                        NULL);
+                        (uchar *)(tab->read_set->bitmap));
   }
 
 #if 0
@@ -5581,6 +5587,32 @@ int ha_ndbcluster::info(uint flag)
     stats.rows_deleted= m_rows_deleted;
   }
 
+  if (flag & HA_BLOCK_CONST_TABLES)
+  {
+    DBUG_ASSERT(flag == HA_BLOCK_CONST_TABLES); // alone
+    /**
+     * We don't support join push down if...
+     *   - not LM_CommittedRead
+     *   - uses blobs
+     *
+     * But, lock-mode is upgraded to LM_Read is using blobs, so
+     *      it' sufficient to check that
+     *
+     * NOTE: For yet unknown reasons, if query doesnt use blob, but table has
+     *       blobs, mysqld does something differently...
+     */
+    THD *thd= current_thd;
+    if (unlikely(!(thd->variables.ndb_join_pushdown)))
+      DBUG_RETURN(0);
+
+    NdbOperation::LockMode lm=
+      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+    if (lm == NdbOperation::LM_CommittedRead &&
+        table_share->blob_fields == 0)
+      DBUG_RETURN(1);
+    DBUG_RETURN(0);
+  }
+
   if(result == -1)
     result= HA_ERR_NO_CONNECTION;
 
@@ -6291,6 +6323,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_thd_ndb= NULL;    
 
     DBUG_PRINT("info", ("active_query:%p", m_active_query));
+    if (m_pushed_join)
+      DBUG_PRINT("warning", ("m_pushed_join != NULL"));
+    m_pushed_join= NULL;
+
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
     m_active_query= NULL;

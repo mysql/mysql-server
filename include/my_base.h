@@ -380,6 +380,11 @@ enum ha_base_keytype {
 */
 #define HA_STATUS_WRITTEN_ROWS  128
 /*
+  Do engine want to block const-table optimization
+*/
+#define HA_BLOCK_CONST_TABLES   256
+
+/*
   Errorcodes given by handler functions
 
   opt_sum_query() assumes these codes are > 1

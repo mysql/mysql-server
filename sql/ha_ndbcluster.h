@@ -681,7 +681,7 @@ private:
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
   int get_ndb_lock_type(enum thr_lock_type type,
-                        const MY_BITMAP *column_bitmap);
+                        const MY_BITMAP *column_bitmap) const;
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
@@ -732,7 +732,7 @@ private:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  bool uses_blob_value(const MY_BITMAP *bitmap);
+  bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
   static inline bool isManualBinlogExec(THD *thd);
 
