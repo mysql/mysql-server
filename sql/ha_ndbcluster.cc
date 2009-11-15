@@ -234,6 +234,10 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
                          int count,
                          int idx) const
 {
+  THD *thd= current_thd;
+  if (unlikely(!(thd->variables.ndb_join_pushdown)))
+    return 0;
+
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
 
   const NdbRecord *key_rec;
