@@ -1,0 +1,126 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+--enable_warnings
+
+set @old_ecpd = @@session.ndb_join_pushdown;
+set ndb_join_pushdown = on;
+
+CREATE TABLE t1 (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=ndbcluster;
+
+insert into t1 values
+(1,1,1), (2,2,2), (3,3,3), (4,4,4),
+(1,2,5), (1,3,1), (1,4,2),
+(2,1,3), (2,3,4), (2,4,5),
+(3,1,1), (3,2,2), (3,4,3),
+(4,1,4), (4,2,5), (4,3,1);
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+explain
+select *
+from t1
+left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+--sorted_result
+select *
+from t1
+left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+
+explain
+select *
+from t1
+left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
+
+drop table t1;
+
+create table t1 (a int, b int, primary key(a)) engine = ndb;
+insert into t1 values (0x1f, 0x2f);
+insert into t1 values (0x2f, 0x3f);
+insert into t1 values (0x3f, 0x1f);
+
+create table t2 (c int, d int, primary key(c)) engine = ndb;
+insert into t2 values (0x1f, 0x2f);
+insert into t2 values (0x2f, 0x3f);
+insert into t2 values (0x3f, 0x1f);
+
+create table t3 (a3 int, b3 int, c3 int, d3 int, primary key(a3, b3)) engine = ndb;
+insert into t3 values (0x1f, 0x2f, 1, 0x1f);
+insert into t3 values (0x2f, 0x3f, 2, 0x2f);
+insert into t3 values (0x3f, 0x1f, 3, 0x3f);
+
+explain
+select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
+--sorted_result
+select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
+
+explain
+select *
+from t3 x, t3 y, t3 z, t3 z2, t1
+where y.a3=x.d3 and y.b3=x.b3 and
+      z.a3=y.d3 and z.b3=y.b3 and
+      z2.a3=z.d3 and z2.b3=z.b3 and
+      t1.a = z2.d3;
+--sorted_result
+select *
+from t3 x, t3 y, t3 z, t3 z2, t1
+where y.a3=x.d3 and y.b3=x.b3 and
+      z.a3=y.d3 and z.b3=y.b3 and
+      z2.a3=z.d3 and z2.b3=z.b3 and
+      t1.a = z2.d3;
+
+drop table t1,t2,t3;
+
+set ndb_join_pushdown = @old_ecpd;
+

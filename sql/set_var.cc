@@ -713,6 +713,8 @@ sys_ndb_use_copying_alter_table(&vars, "ndb_use_copying_alter_table", &SV::ndb_u
 static sys_var_thd_ulong
 sys_ndb_optimized_node_selection(&vars, "ndb_optimized_node_selection",
                                  &SV::ndb_optimized_node_selection);
+static sys_var_thd_bool
+sys_ndb_join_pushdown(&vars, "ndb_join_pushdown", &SV::ndb_join_pushdown);
 #endif //WITH_NDBCLUSTER_STORAGE_ENGINE
 
 /* Time/date/datetime formats */

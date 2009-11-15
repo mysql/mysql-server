@@ -32,6 +32,7 @@ ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_join_pushdown	#
 ndb_log_binlog_index	#
 ndb_log_update_as_write	#
 ndb_log_updated_only	#

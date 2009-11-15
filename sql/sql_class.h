@@ -381,6 +381,7 @@ struct system_variables
 
   my_bool ndb_table_no_logging;
   my_bool ndb_table_temporary;
+  my_bool ndb_join_pushdown;
 
   my_bool old_alter_table;
   my_bool old_passwords;
