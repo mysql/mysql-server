@@ -536,6 +536,8 @@ private:
                  DABuffer param, Uint32 paramBits);
 
   Uint32 zeroFill(Uint32 & ptrI, Uint32 cnt);
+  Uint32 createEmptySection(Uint32 & ptrI);
+
   /** Find root operation.*/
   const Ptr<TreeNode> getRoot(TreeNode_list::Head& head);
   
