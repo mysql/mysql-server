@@ -96,6 +96,10 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
 
+--disable_query_log
+call mtr.add_suppression("Unsafe statement binlogged in statement format");
+--enable_query_log
+
 --echo #### Setup tables ####
 
 CREATE TABLE t0 (a CHAR(100));
