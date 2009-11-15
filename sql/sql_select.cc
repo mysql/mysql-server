@@ -233,8 +233,6 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
 
-static int is_pushable(const JOIN_TAB *tab, int nTabs);
-
 
 /**
   This handles SELECT with and without UNION.
@@ -5805,7 +5803,6 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
-  join_tab->pushed_join= 0;
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
@@ -6434,100 +6431,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_RETURN(0);
 }
 
-/** Set to true to enable query push down prototype code.*/
-static my_bool enable_pushed_operations = TRUE;
-
-
-static int
-is_pushable(const JOIN_TAB *tab, int nTabs)
-{
-  DBUG_ENTER("is_pushable");
-  if (!enable_pushed_operations
-   || !tab[0].table->file->isNdb())
-  {
-    DBUG_RETURN(0);
-  }
-
-  if (tab[0].type != JT_EQ_REF &&  // Pushed lookups
-//    tab[0].type != JT_REF    &&  // Pushed index scan, TODO is incomplete
-      tab[0].type != JT_ALL    &&  // Pushed scan
-      tab[0].type != JT_CONST)     // First op is lookup
-  {
-    DBUG_RETURN(0);
-  }
-
-  for (int i = 1; i<nTabs; i++)
-  {
-    if ((tab[i].type != JT_EQ_REF) ||
-         !tab[i].table->file->isNdb())
-      DBUG_RETURN(i);
-
-#if 0
-    if (tab[i].cond_equal)
-    {
-      DBUG_PRINT("info", (" table %d has a COND_EQUAL", i));
-      List_iterator_fast<Item_equal> li(tab[i].cond_equal->current_level);
-      Item_equal *item= 0;
-//    String str("COND_EQUAL is: ",0);
-      while ((item= li++))
-      {
-        CHARSET_INFO *cs= system_charset_info;
-
-        char buff[512]; 
-        String str(buff, sizeof(buff),cs);
-        str.length(0);
-
-        item->print(&str, QT_ORDINARY);
-//      str.print();
-      }
-    }
-#endif
-
-    TABLE* parent= NULL;
-    DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", i, tab[i].ref.key_parts));
-
-    for (uint keyPartNo = 0; keyPartNo < tab[i].ref.key_parts; keyPartNo++)
-    {
-      /* All parts of the key must be fields in some of the preceeding 
-       * tables 
-       */
-      const Item* const keyItem = tab[i].ref.items[keyPartNo];
-      DBUG_PRINT("info", ("is_pushable?, keyfield:%d, type:%d\n", keyPartNo, keyItem->type()));
-      if (keyItem->type() != Item::FIELD_ITEM)
-      {
-        DBUG_PRINT("info", ("  Not a FIELD_ITEM -> 'pushable' upto %d tables\n",i));
-        DBUG_RETURN(i);
-      }
-
-      const Item_field* const keyItemField = static_cast<const Item_field*>(keyItem);
-      if (parent && parent!=keyItemField->field->table)
-      {
-        DBUG_PRINT("info", ("  Multiple parents, -> 'pushable' upto %d tables\n",i));
-        DBUG_RETURN(i);
-      }
-      bool found= false;
-      for (const JOIN_TAB* ref = &tab[i-1]; ref >= tab; ref--)
-      {
-        if (keyItemField->field->table == ref->table)
-        {
-          DBUG_PRINT("info",("found ref->table match %d levels above", (&tab[i] - ref)));
-          found= true;
-          parent= ref->table;
-          break;
-        }
-      }
-
-      if (!found)
-      {
-        DBUG_PRINT("info", ("  ref'ed table not found -> 'pushable' upto %d tables\n", i));
-        DBUG_RETURN(i);
-      }
-    }
-  }
-  DBUG_PRINT("info", ("  Pushable for all %d tables\n", nTabs));
-  DBUG_RETURN(nTabs);
-}
-
 
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
@@ -6724,28 +6627,18 @@ make_join_readinfo(JOIN *join, ulonglong options)
       abort();					/* purecov: deadcode */
     }
 
-    if (pushed <= 0)  // 'pushed > 0' -> Already included in a pushed sequence
-    {
-      pushed= is_pushable(tab, join->tables - i);
-      if (pushed < 2) // Need at least two tables in pushable join
-        pushed= 0;
-
-      if (pushed >= 2) 
-      {
-        DBUG_PRINT("info", ("make_join_readinfo, pushable from table:%d, for:%d joins\n", i, pushed));
-        tab->pushed_join = table->file->make_pushed_join(tab, pushed, table->s->primary_key);
-        if (unlikely(!tab->pushed_join))
-          pushed= 0;     // Ignore error, handle as non-pushable join.
-      }
-    }
-    else  // Is inside a previous sequence of pushed joins
+    if (pushed > 0)   // Is inside a previous sequence of pushed joins
     {
       // Replace 'read_key' access with it linked counterpart 
       // ... Which is effectively a NOOP as the row is read as part of the linked operation
       DBUG_ASSERT(tab->read_first_record == join_read_key);
       DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
       tab->read_first_record= join_read_linked_key;
-    } 
+    }
+    else              // Try to start a pushed join from current join_tab
+    {
+      pushed = table->file->make_pushed_join(tab, join->tables-i, table->s->primary_key);
+    }
     pushed--;
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
@@ -6794,8 +6687,6 @@ void JOIN_TAB::cleanup()
   select= 0;
   delete quick;
   quick= 0;
-  delete pushed_join;
-  pushed_join = 0;
   x_free(cache.buff);
   cache.buff= 0;
   limit= 0;
@@ -11232,6 +11123,8 @@ enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
+  DBUG_PRINT("info", ("join_tab:%p, table:%p, handler:%p, #pushed:%d", 
+                       join_tab, join_tab->table, join_tab->table->file, join_tab->table->file->has_pushed_joins()));
   join_tab->table->null_row=0;
   if (end_of_records)
   {
@@ -11272,11 +11165,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       join_tab->last_inner->first_unmatched= join_tab;
     }
     join->thd->row_count= 0;
-
-    if (join_tab->pushed_join)
-    {
-      join_tab->table->file->use_pushed_join(join_tab->pushed_join);
-    }
 
     error= (*join_tab->read_first_record)(join_tab);
     DBUG_PRINT("info", ("read_first_record returned: %d", error));
@@ -16435,12 +16323,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           extra.append(STRING_WITH_LEN("; Using "));
           tab->select->quick->add_info_string(&extra);
         }
-        if (tab->pushed_join)
+        uint pushed_joins = tab->table->file->has_pushed_joins();
+        if (pushed_joins>0)
         {
           char buf[32];
 	  int len= my_snprintf(buf, sizeof(buf)-1,
                                "; Pushed %d joins",
-                               tab->pushed_join->cntPushed());
+                               pushed_joins);
           extra.append(buf,len);
         }
 	if (tab->select)

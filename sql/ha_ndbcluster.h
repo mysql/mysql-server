@@ -538,11 +538,11 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  ha_pushed_join* make_pushed_join(struct st_join_table* join_tabs,
-                            int count,
-                            int idx) const;
+  uint make_pushed_join(struct st_join_table* join_tabs,
+                        int count,
+                        int idx);
 
-  virtual int use_pushed_join(ha_pushed_join* pushed_join);
+  uint has_pushed_joins() const;
 
   uint8 table_cache_type();
 
@@ -574,9 +574,6 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_ALTER_FLAGS *alter_flags);
 
   int alter_table_phase3(THD *thd, TABLE *table);
-
-  virtual bool isNdb() const
-  { return true; }
 
 private:
 #ifdef HAVE_NDB_BINLOG
@@ -866,7 +863,7 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  class ha_ndbcluster_pushed_join *m_pushed_join;
+  class ha_pushed_join *m_pushed_join;
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
