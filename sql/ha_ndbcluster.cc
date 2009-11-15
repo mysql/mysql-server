@@ -2968,7 +2968,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
   else if (m_active_query)
   {
     /* Initialize the null bitmap, setting unused null bits to 1. */
-    for (int i = 0; i < m_pushed_join->m_count; i++)
+    for (uint i = 0; i < m_pushed_join->m_count; i++)
     {
       TABLE* tab = m_pushed_join->m_tabs[i].table;
       bfill(tab->null_flags, tab->s->null_bytes, 0xff);
@@ -2980,7 +2980,7 @@ inline int ha_ndbcluster::next_result(uchar *buf)
       DBUG_PRINT("info", ("One more record found"));    
 
       /* Set status & nullability for all tables w/ rows being fetched. */
-      for (int i = 0; i < m_pushed_join->m_count; i++)
+      for (uint i = 0; i < m_pushed_join->m_count; i++)
       {
         TABLE* tab= m_pushed_join->m_tabs[i].table;
         if (m_active_query->getQueryOperation(i)->isRowNULL())
@@ -3089,7 +3089,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     key_rec= m_ndb_hidden_key_record;
 
   /* Initialize the null bitmap, setting unused null bits to 1. */
-  for (int i = 0; i < m_pushed_join->m_count; i++)
+  for (uint i = 0; i < m_pushed_join->m_count; i++)
   {
     TABLE* tab = m_pushed_join->m_tabs[i].table;
     bfill(tab->null_flags, tab->s->null_bytes, 0xff);
@@ -3119,7 +3119,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   if (!query)
     return NULL;
 
-  for (int i = 0; i<m_pushed_join->m_count; i++)
+  for (uint i = 0; i<m_pushed_join->m_count; i++)
   {
     TABLE* tab= m_pushed_join->m_tabs[i].table;
     const NdbRecord* const resultRec= 
@@ -3297,7 +3297,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (!query)
       ERR_RETURN(trans->getNdbError());
 
-    for (int i = 0; i<m_pushed_join->m_count; i++)
+    for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
       TABLE* tab= m_pushed_join->m_tabs[i].table;
       const NdbRecord* const resultRec= 
@@ -3484,7 +3484,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     if (!query)
       ERR_RETURN(trans->getNdbError());
 
-    for (int i = 0; i<m_pushed_join->m_count; i++)
+    for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
       TABLE* tab= m_pushed_join->m_tabs[i].table;
       const NdbRecord* const resultRec= 
