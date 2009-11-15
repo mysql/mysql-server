@@ -4259,12 +4259,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->primKeyLen = TitcKeyLen;
 
   /* Only node restart copy allowed to send no KeyInfo */
-  if (( keyLenWithLQHReq == 0 ) &&
-      (! (LqhKeyReq::getNrCopyFlag(Treqinfo))))
+  if (unlikely(keyLenWithLQHReq == 0))
   {
-    LQHKEY_error(signal, 3);
-    return;
-  }//if
+    if (! (LqhKeyReq::getNrCopyFlag(Treqinfo)) &&
+        refToMain(senderRef) != DBSPJ)
+    {
+      LQHKEY_error(signal, 3);
+      return;
+    }//if
+  }
 
   sig0 = lqhKeyReq->variableData[nextPos + 0];
   sig1 = lqhKeyReq->variableData[nextPos + 1];

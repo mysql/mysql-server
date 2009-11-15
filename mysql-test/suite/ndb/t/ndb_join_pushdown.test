@@ -207,6 +207,11 @@ where y.a3=x.d3 and y.b3=x.b3 and
       z2.a3=z.d3 and z2.b3=z.b3 and
       t1.a = z2.d3;
 
+# handle "null" key
+insert into t1 values (0x4f, null);
+--sorted_result
+select * from t1 left join t1 as t2 on t2.a = t1.b;
+
 drop table t1,t2,t3;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;

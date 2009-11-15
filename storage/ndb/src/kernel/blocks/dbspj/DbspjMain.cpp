@@ -675,6 +675,7 @@ Dbspj::build(Build_context& ctx,
   return 0;
 
 error:
+  jam();
   return err;
 }
 
@@ -1539,6 +1540,23 @@ Dbspj::lookup_start_child(Signal* signal,
       if (unlikely(err != 0))
         break;
 
+      if (ptrI == RNIL)
+      {
+        jam();
+        /**
+         * We constructed a null-key...construct a zero-length key (even if we don't support it *now*)
+         *
+         *   (we actually did prior to joining mysql where null was treated as any other
+         *   value in a key). But mysql treats null in unique key as *wildcard*
+         *   which we don't support so well...and do nasty tricks in handler
+         *
+         * NOTE: should be *after* check for error
+         */
+        err = createEmptySection(ptrI);
+        if (unlikely(err != 0))
+          break;
+      }
+
       treeNodePtr.p->m_send.m_keyInfoPtrI = ptrI;
     }
 
@@ -1685,10 +1703,12 @@ Dbspj::computeHash(Signal* signal,
   bool need_special_hash = desc->hasCharAttr | (desc->noOfDistrKeys > 0);
   if (need_special_hash)
   {
+    jam();
     return handle_special_hash(tableId, dst.hashInfo, tmp64, ptr.sz, desc);
   }
   else
   {
+    jam();
     md5_hash(dst.hashInfo, tmp64, ptr.sz);
     return 0;
   }
@@ -2567,14 +2587,18 @@ Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
   Uint32 tmp[16];
   while (len > SZ)
   {
+    jam();
     tree.getWords(tmp, SZ);
-    appendToSection(ptrI, tmp, SZ);
+    ndbrequire(appendToSection(ptrI, tmp, SZ));
     len -= SZ;
   }
 
   tree.getWords(tmp, len);
-  appendToSection(ptrI, tmp, len);
-  return 0;
+  return appendToSection(ptrI, tmp, len) ? 0 : /** todo error code */ 1;
+#if TODO
+err:
+  return 1;
+#endif
 }
 
 void
@@ -2740,6 +2764,23 @@ Dbspj::zeroFill(Uint32 & dst, Uint32 cnt)
   return 0;
 
 error:
+  jam();
+  return DbspjErr::OutOfSectionMemory;
+}
+
+Uint32
+Dbspj::createEmptySection(Uint32 & dst)
+{
+  Uint32 tmp;
+  SegmentedSectionPtr ptr;
+  if (likely(import(ptr, &tmp, 0)))
+  {
+    jam();
+    dst = ptr.i;
+    return 0;
+  }
+
+  jam();
   return DbspjErr::OutOfSectionMemory;
 }
 
@@ -2775,22 +2816,27 @@ Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
     pattern.next(it);
     switch(type){
     case QueryPattern::P_COL:
+      jam();
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_UNQ_PK:
+      jam();
       err = appendPkColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
+      jam();
       err = appendDataToSection(dst, pattern, it, val);
       break;
     // PARAM's converted to DATA by ::expand(pattern...)
     case QueryPattern::P_PARAM:
     default:
+      jam();
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
+      jam();
       DEBUG_CRASH();
       goto error;
     }
@@ -2799,6 +2845,7 @@ Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
   _dst = dst;
   return 0;
 error:
+  jam();
   return err;
 }
 
@@ -2827,15 +2874,18 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     Uint32 val = QueryPattern::getLength(info);
     switch(type){
     case QueryPattern::P_PARAM:
+      jam();
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
       if (likely(appendToSection(dst, ptr, val)))
       {
+        jam();
 	err = 0;
       }
       else
       {
+        jam();
         err = DbspjErr::InvalidPattern;
       }
       ptr += val;
@@ -2843,11 +2893,13 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     case QueryPattern::P_COL: // (linked) COL's not expected here
     case QueryPattern::P_UNQ_PK:
     default:
+      jam();
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
+      jam();
       DEBUG_CRASH();
       goto error;
     }
@@ -2859,6 +2911,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
   pattern.ptr = end;
 
 error:
+  jam();
   ptrI = dst;
   return err;
 }
@@ -2877,6 +2930,7 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
    */
   if (paramCnt == 0)
   {
+    jam();
     return appendToPattern(dst, pattern, len);
   }
 
@@ -2896,17 +2950,21 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
     switch(type){
     case QueryPattern::P_COL:
     case QueryPattern::P_UNQ_PK:
+      jam();
       err = appendToPattern(dst, pattern, 1);
       break;
     case QueryPattern::P_DATA:
+      jam();
       err = appendToPattern(dst, pattern, val+1);
       break;
     case QueryPattern::P_PARAM:
+      jam();
       // NOTE: Converted to P_DATA by appendColToPattern
       err = appendColToPattern(dst, row, val);
       pattern.ptr++;
       break;
    default:
+      jam();
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
@@ -2920,6 +2978,7 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
   return 0;
 
 error:
+  jam();
   return err;
 }
 

@@ -337,5 +337,12 @@ a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3	a	b
 31	47	1	31	31	47	1	31	31	47	1	31	31	47	1	31	31	47
 47	63	2	47	47	63	2	47	47	63	2	47	47	63	2	47	47	63
 63	31	3	63	63	31	3	63	63	31	3	63	63	31	3	63	63	31
+insert into t1 values (0x4f, null);
+select * from t1 left join t1 as t2 on t2.a = t1.b;
+a	b	a	b
+31	47	47	63
+47	63	63	31
+63	31	31	47
+79	NULL	NULL	NULL
 drop table t1,t2,t3;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
