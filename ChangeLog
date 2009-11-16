@@ -111,6 +111,12 @@
 	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
 	cc/CC 5.10
 
+2009-10-13	The InnoDB Team
+
+	* buf/buf0flu.c:
+	Call fsync() on datafiles after a batch of pages is written to disk
+	even when skip_innodb_doublewrite is set.
+
 2009-10-05	The InnoDB Team
 
 	* buf/buf0buf.c:
