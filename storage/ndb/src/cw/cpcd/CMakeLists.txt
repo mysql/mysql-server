@@ -39,3 +39,4 @@ ADD_EXECUTABLE(ndb_cpcd
         common.cpp
         main.cpp)
 
+INSTALL(TARGETS ndb_cpcd DESTINATION bin)

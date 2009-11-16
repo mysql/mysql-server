@@ -36,6 +36,7 @@ ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 
 INSTALL(TARGETS atrt DESTINATION bin)
 INSTALL(FILES
+               atrt-testBackup
                atrt-analyze-result.sh
                atrt-backtrace.sh
                atrt-gather-result.sh
