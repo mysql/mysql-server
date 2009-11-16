@@ -76,13 +76,12 @@ SET(FIX_PRIVILEGES_SQL
 )
 
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
-ADD_CUSTOM_COMMAND(
-   OUTPUT  ${FIX_PRIVILEGES_SQL}
-   COMMAND ${CMAKE_COMMAND} "-DIN=${FIX_PRIVS_IN}" "-DOUT=${FIX_PRIVILEGES_SQL}"
-     -P "${CMAKE_SOURCE_DIR}/cmake/cat.cmake"
-   VERBATIM
-   DEPENDS ${FIX_PRIVS_IN}
-)
+FILE(WRITE ${FIX_PRIVILEGES_SQL} "")
+FOREACH(FILENAME ${FIX_PRIVS_IN})
+  FILE(READ "${FILENAME}" CONTENTS)
+  FILE(APPEND ${FIX_PRIVILEGES_SQL} "${CONTENTS}")
+ENDFOREACH()
+
 
 # Build mysql_fix_privilege_tables.c
 ADD_CUSTOM_COMMAND(
@@ -91,7 +90,7 @@ ADD_CUSTOM_COMMAND(
   mysql_fix_privilege_tables
   mysql_fix_privilege_tables.sql
   mysql_fix_privilege_tables_sql.c
-  DEPENDS comp_sql ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
+  DEPENDS comp_sql
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

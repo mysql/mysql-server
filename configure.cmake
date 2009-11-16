@@ -209,7 +209,8 @@ IF(WIN32)
   ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
   IF (MSVC_VERSION GREATER 1400)
     # Speed up multiprocessor build
-     ADD_DEFINITIONS("/MP")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
   ENDIF()
 
   # default to x86 platform.  We'll check for X64 in a bit
