@@ -5108,6 +5108,8 @@ int toku_brt_destroy(void) {
     int r = 0;
     if (r==0) 
         r = toku_brt_lock_destroy();
+    if (r==0)
+	r = toku_checkpoint_destroy();
     //Portability must be cleaned up last
     if (r==0) 
         r = toku_portability_destroy();
