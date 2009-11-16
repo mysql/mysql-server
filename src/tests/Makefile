@@ -113,6 +113,7 @@ BDB_DONTRUN_TESTS = \
 	recover-compare-db \
 	recover-compare-db-descriptor \
 	recover-tablelock \
+	recover-fclose-in-checkpoint \
 	test_cursor_delete_2119 \
 	transactional_fileops \
 #\ ends prev line
