@@ -237,7 +237,7 @@ by one. */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
 that are only referenced from within InnoDB, not from MySQL */
-#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(UNIV_HOTBACKUP)
+#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__INTEL_COMPILER)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
 #else
 # define UNIV_INTERN
