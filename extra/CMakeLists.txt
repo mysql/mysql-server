@@ -59,3 +59,5 @@ TARGET_LINK_LIBRARIES(replace strings mysys debug dbug wsock32)
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
+
+INSTALL(TARGETS my_print_defaults DESTINATION bin)

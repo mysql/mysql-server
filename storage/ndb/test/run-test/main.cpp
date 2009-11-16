@@ -236,6 +236,7 @@ main(int argc, char ** argv)
   if(!connect_hosts(g_config))
     goto end;
 
+#ifndef _WIN32
   if (g_do_start && !g_test_case_filename)
   {
     g_logger.info("Starting server processes: %x", g_do_start);    
@@ -259,6 +260,7 @@ main(int argc, char ** argv)
     return_code = 0;
     goto end;
   }
+#endif
 
   return_code = 0;
   
@@ -947,7 +949,8 @@ bool
 start_processes(atrt_config& config, int types){
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = *config.m_processes[i];
-    if((types & proc.m_type) != 0 && proc.m_proc.m_path != ""){
+    if(IF_WIN(!(proc.m_type & atrt_process::AP_MYSQLD), 1)
+       && (types & proc.m_type) != 0 && proc.m_proc.m_path != ""){
       if(!start_process(proc)){
 	return false;
       }
@@ -1051,6 +1054,11 @@ is_running(atrt_config& config, int types){
       found++;
       if(proc.m_proc.m_status == "running")
 	running++;
+      else {
+        if(IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0))  {
+          running++;
+        }
+      }
     }
   }
   
@@ -1181,7 +1189,6 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
         cmd.appfmt("%s/bin/", g_prefix);
       }
       cmd.append(tc.m_command.c_str());
-      to_native(cmd);
 
       if (0) // valgrind
       {

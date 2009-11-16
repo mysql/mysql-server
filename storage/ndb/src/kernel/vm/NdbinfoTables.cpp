@@ -27,128 +27,131 @@ static const struct  {                   \
 
 
 DECLARE_NDBINFO_TABLE(TABLES,3) =
-{ "tables", 3, 0, "",
+{ "tables", 3, 0, "metadata for tables available through ndbinfo",
   {
     {"table_id",  Ndbinfo::Number, ""},
+
     {"table_name",Ndbinfo::String, ""},
     {"comment",   Ndbinfo::String, ""},
-  }};
+  }
+};
 
 DECLARE_NDBINFO_TABLE(COLUMNS,5) =
-{ "columns", 5, 0, "",
+{ "columns", 5, 0, "metadata for columns available through ndbinfo ",
   {
     {"table_id",    Ndbinfo::Number, ""},
     {"column_id",   Ndbinfo::Number, ""},
+
     {"column_name", Ndbinfo::String, ""},
     {"column_type", Ndbinfo::Number, ""},
     {"comment",     Ndbinfo::String, ""},
-  }};
-
-DECLARE_NDBINFO_TABLE(MEMUSAGE,7) =
-{ "memusage", 7, 0, "",
-  {
-    {"node_id",          Ndbinfo::Number, ""},
-    {"block_number",     Ndbinfo::Number, ""},
-    {"block_instance",   Ndbinfo::Number, ""},
-    {"resource_name",    Ndbinfo::String, ""},
-    {"page_size",        Ndbinfo::Number, ""},
-    {"pages_used",       Ndbinfo::Number, ""},
-    {"pages_total",      Ndbinfo::Number, ""},
-  }};
-
-DECLARE_NDBINFO_TABLE(LOGDESTINATION,5) =
-{ "logdestination", 5, 0, "",
-  {
-    {"node_id",          Ndbinfo::Number, ""},
-    {"type",             Ndbinfo::String, ""},
-    {"params",           Ndbinfo::String, ""},
-    {"current_size",     Ndbinfo::Number, ""},
-    {"max_size",         Ndbinfo::Number, ""},
-  }
-};
-
-DECLARE_NDBINFO_TABLE(BACKUP_RECORDS,11) =
-{ "backup_records", 11, 0, "",
-  {
-    {"node_id",          Ndbinfo::Number, ""},
-    {"backup_record",    Ndbinfo::Number, ""},
-    {"backup_id",        Ndbinfo::Number, ""},
-    {"master_ref",       Ndbinfo::Number, ""},
-    {"client_ref",       Ndbinfo::Number, ""},
-    {"state",            Ndbinfo::Number, ""},
-    {"bytes",            Ndbinfo::Number, ""},
-    {"records",          Ndbinfo::Number, ""},
-    {"log_bytes",        Ndbinfo::Number, ""},
-    {"log_records",      Ndbinfo::Number, ""},
-    {"error_code",       Ndbinfo::Number, ""},
-  }
-};
-
-DECLARE_NDBINFO_TABLE(BACKUP_PARAMETERS,14) =
-{ "backup_parameters", 14, 0, "",
-  {
-    {"node_id",                  Ndbinfo::Number, ""},
-    {"current_disk_write_speed", Ndbinfo::Number, ""},
-    {"bytes_written_this_period",Ndbinfo::Number, ""},
-    {"overflow_disk_write",      Ndbinfo::Number, ""},
-    {"reset_delay_used",         Ndbinfo::Number, ""},
-    {"reset_disk_speed_time",    Ndbinfo::Number, ""},
-    {"backup_pool_size",         Ndbinfo::Number, ""},
-    {"backup_file_pool_size",    Ndbinfo::Number, ""},
-    {"table_pool_size",          Ndbinfo::Number, ""},
-    {"trigger_pool_size",        Ndbinfo::Number, ""},
-    {"fragment_pool_size",       Ndbinfo::Number, ""},
-    {"page_pool_size",           Ndbinfo::Number, ""},
-    {"compressed_backup",        Ndbinfo::Number, ""},
-    {"compressed_lcp",           Ndbinfo::Number, ""},
-  }
-};
-
-DECLARE_NDBINFO_TABLE(POOLS,6) =
-{ "pools", 6, 0, "",
-  {
-    {"node_id",                  Ndbinfo::Number, ""},
-    {"block_number",             Ndbinfo::Number, ""},
-    {"block_instance",           Ndbinfo::Number, ""},
-    {"pool_name",                Ndbinfo::String, ""},
-    {"free",                     Ndbinfo::Number, ""},
-    {"size",                     Ndbinfo::Number, ""},
   }
 };
 
 DECLARE_NDBINFO_TABLE(TEST,5) =
-{ "test", 5, 0, "",
+{ "test", 5, 0, "for testing",
   {
-    {"node_id",                 Ndbinfo::Number, ""},
-    {"block_number",            Ndbinfo::Number, ""},
-    {"block_instance",          Ndbinfo::Number, ""},
-    {"counter",                 Ndbinfo::Number, ""},
-    {"counter2",                Ndbinfo::Number64, ""},
+    {"node_id",            Ndbinfo::Number, ""},
+    {"block_number",       Ndbinfo::Number, ""},
+    {"block_instance",     Ndbinfo::Number, ""},
+
+    {"counter",            Ndbinfo::Number, ""},
+    {"counter2",           Ndbinfo::Number64, ""},
   }
 };
 
-DECLARE_NDBINFO_TABLE(TRP_STATUS, 3) =
-{ "trp_status", 3, 0, "",
+DECLARE_NDBINFO_TABLE(POOLS,12) =
+{ "pools", 12, 0, "pool usage",
   {
-    {"node_id",                 Ndbinfo::Number, ""},
-    {"remote_node_id",          Ndbinfo::Number, ""},
-    {"status",                  Ndbinfo::Number, ""},
+    {"node_id",            Ndbinfo::Number, ""},
+    {"block_number",       Ndbinfo::Number, ""},
+    {"block_instance",     Ndbinfo::Number, ""},
+    {"pool_name",          Ndbinfo::String, ""},
+
+    {"used",               Ndbinfo::Number64, "currently in use"},
+    {"total",              Ndbinfo::Number64, "total allocated"},
+    {"high",               Ndbinfo::Number64, "in use high water mark"},
+    {"entry_size",         Ndbinfo::Number64, "size in bytes of each object"},
+    {"config_param1",      Ndbinfo::Number, "config param 1 affecting pool"},
+    {"config_param2",      Ndbinfo::Number, "config param 2 affecting pool"},
+    {"config_param3",      Ndbinfo::Number, "config param 3 affecting pool"},
+    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"},
   }
 };
 
-DECLARE_NDBINFO_TABLE(LOG_SPACE, 7) =
-{ "log_space", 7, 0, "",
+DECLARE_NDBINFO_TABLE(TRANSPORTERS, 3) =
+{ "transporters", 3, 0, "transporter status",
   {
-    {"log_id",   Ndbinfo::Number, ""},
-    {"log_type", Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
-    {"log_part", Ndbinfo::Number, ""},
-    {"node_id",  Ndbinfo::Number, ""},
-    {"total",    Ndbinfo::Number64, "total allocated, Mb"},
-    {"used",     Ndbinfo::Number64, "currently in use, Mb"},
-    {"used_hi",  Ndbinfo::Number64, "in use high water mark, Mb"},
+    {"node_id",            Ndbinfo::Number, ""},
+    {"remote_node_id",     Ndbinfo::Number, ""},
+
+    {"connection_status",  Ndbinfo::Number, ""},
   }
 };
 
+DECLARE_NDBINFO_TABLE(LOGSPACES, 7) =
+{ "logspaces", 7, 0, "logspace usage",
+  {
+    {"node_id",            Ndbinfo::Number, ""},
+    {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
+    {"log_id",             Ndbinfo::Number, ""},
+    {"log_part",           Ndbinfo::Number, ""},
+
+    {"total",              Ndbinfo::Number64, "total allocated"},
+    {"used",               Ndbinfo::Number64, "currently in use"},
+    {"high",               Ndbinfo::Number64, "in use high water mark"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
+{ "logbuffers", 7, 0, "logbuffer usage",
+  {
+    {"node_id",            Ndbinfo::Number, ""},
+    {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
+    {"log_id",             Ndbinfo::Number, ""},
+    {"log_part",           Ndbinfo::Number, ""},
+
+    {"total",              Ndbinfo::Number64, "total allocated"},
+    {"used",               Ndbinfo::Number64, "currently in use"},
+    {"high",               Ndbinfo::Number64, "in use high water mark"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(RESOURCES,6) =
+{ "resources", 6, 0, "resources usage (a.k.a superpool)",
+  {
+    {"node_id",            Ndbinfo::Number, ""},
+    {"resource_id",        Ndbinfo::Number, ""},
+
+    {"reserved",           Ndbinfo::Number, "reserved for this resource"},
+    {"used",               Ndbinfo::Number, "currently in use"},
+    {"max",                Ndbinfo::Number, "max available"},
+    {"high",               Ndbinfo::Number, "in use high water mark"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(COUNTERS,5) =
+{ "counters", 5, 0, "monotonic counters",
+  {
+    {"node_id",            Ndbinfo::Number, ""},
+    {"block_number",       Ndbinfo::Number, ""},
+    {"block_instance",     Ndbinfo::Number, ""},
+    {"counter_id",         Ndbinfo::Number, ""},
+
+    {"val",                Ndbinfo::Number64, "monotonically increasing since process start"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(NODES,4) =
+{ "nodes", 4, 0, "node status",
+  {
+    {"node_id",            Ndbinfo::Number, ""},
+
+    {"uptime",             Ndbinfo::Number64, "time in seconds that node has been running"},
+    {"status",             Ndbinfo::Number, "starting/started/stopped etc."},
+    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"},
+  }
+};
 
 #define DBINFOTBL(x) Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x
 
@@ -161,14 +164,14 @@ struct ndbinfo_table_list_entry {
   // as they are in "enum TableId"
   DBINFOTBL(TABLES),
   DBINFOTBL(COLUMNS),
-  DBINFOTBL(MEMUSAGE),
-  DBINFOTBL(LOGDESTINATION),
-  DBINFOTBL(BACKUP_RECORDS),
-  DBINFOTBL(BACKUP_PARAMETERS),
-  DBINFOTBL(POOLS),
   DBINFOTBL(TEST),
-  DBINFOTBL(TRP_STATUS),
-  DBINFOTBL(LOG_SPACE)
+  DBINFOTBL(POOLS),
+  DBINFOTBL(TRANSPORTERS),
+  DBINFOTBL(LOGSPACES),
+  DBINFOTBL(LOGBUFFERS),
+  DBINFOTBL(RESOURCES),
+  DBINFOTBL(COUNTERS),
+  DBINFOTBL(NODES),
 };
 
 static int no_ndbinfo_tables =

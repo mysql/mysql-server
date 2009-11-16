@@ -63,6 +63,35 @@ public:
     return size;
   }
 
+  inline Uint32 getUsed() const {
+    return size - noOfFree;
+  }
+
+  inline Uint32 getUsedHi() const {
+    return size - noOfFreeMin;
+  }
+
+  inline void updateFreeMin(void) {
+    if (noOfFree < noOfFreeMin)
+      noOfFreeMin = noOfFree;
+  }
+
+  inline void decNoFree(void) {
+    assert(noOfFree > 0);
+    noOfFree--;
+    updateFreeMin();
+  }
+
+  inline void decNoFree(Uint32 cnt) {
+    assert(noOfFree > cnt);
+    noOfFree -= cnt;
+    updateFreeMin();
+  }
+
+  inline Uint32 getEntrySize() const {
+    return sizeof(T);
+  }
+
   /**
    * Update p value for ptr according to i value 
    */
@@ -190,7 +219,7 @@ public:
   void releaseList(Uint32 n, Uint32 first, Uint32 last);
   //private:
 
-#ifdef DEBUG
+#if 0
   Uint32 getNoOfFree2() const {
     Uint32 c2 = size;
     for(Uint32 i = 0; i<((size + 31)>> 5); i++){
@@ -222,11 +251,12 @@ protected:
   Uint32 firstFree;
   Uint32 size;
   Uint32 noOfFree;
-  Uint32 bitmaskSz;
+  Uint32 noOfFreeMin;
   T * theArray;
   void * alloc_ptr;
-  Uint32 *theAllocatedBitmask;
 #ifdef ARRAY_GUARD
+  Uint32 bitmaskSz;
+  Uint32 *theAllocatedBitmask;
   bool chunk;
 #endif
 };
@@ -237,6 +267,7 @@ ArrayPool<T>::ArrayPool(){
   firstFree = RNIL;
   size = 0;
   noOfFree = 0;
+  noOfFreeMin = 0;
   theArray = 0;
   alloc_ptr = 0;
 #ifdef ARRAY_GUARD
@@ -312,6 +343,7 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
     }
     size = noOfElements;
     noOfFree = noOfElements;
+    noOfFreeMin = noOfElements;
 
     /**
      * Set next pointers
@@ -393,6 +425,7 @@ ArrayPool<T>::set(T* ptr, Uint32 cnt, bool align){
     
     size = cnt;
     noOfFree = 0;
+    noOfFreeMin = 0;
     return true;
   }
   ErrorReporter::handleAssert("ArrayPool<T>::set called twice", 
@@ -703,7 +736,7 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
     {
       if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
 	BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
-	noOfFree--;
+	decNoFree();
 	return true;
       } else {
 	/**
@@ -714,7 +747,7 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
       }
     }
 #endif
-    noOfFree--;
+    decNoFree();
     return true;
   }
   ptr.i = RNIL;
@@ -750,7 +783,7 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
     {
       if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
 	BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
-	noOfFree--;
+	decNoFree();
 	return true;
       } else {
 	/**
@@ -761,7 +794,7 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
       }
     }
 #endif
-    noOfFree--;
+    decNoFree();
     return true;
   }
   ptr.i = RNIL;
@@ -811,7 +844,7 @@ ArrayPool<T>::seizeN(Uint32 n){
     theArray[prev].nextPool = curr;
   }
   
-  noOfFree -= n;
+  decNoFree(n);
 #ifdef ARRAY_GUARD
   if (theAllocatedBitmask)
   {
@@ -1068,7 +1101,7 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
     } while (tmp > 0 && ff != RNIL);
     
     cnt = (save - tmp);
-    noOfFree -= (save - tmp);
+    decNoFree(save - tmp);
     firstFree = ff;
     theArray[prev].nextPool = RNIL;
     

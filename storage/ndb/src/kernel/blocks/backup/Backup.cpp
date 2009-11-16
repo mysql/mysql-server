@@ -670,85 +670,61 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
 
   Ndbinfo::Ratelimit rl;
 
-  if(req.tableId == Ndbinfo::BACKUP_RECORDS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-#if 0
-// TODO
-    BackupRecordPtr ptr LINT_SET_PTR;
-    ptr.i = cursor->data[0];
-    while(c_backups.get(ptr))
+    Ndbinfo::pool_entry pools[] =
     {
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(getOwnNodeId());
-      row.write_uint32(ptr.i);
-      row.write_uint32(ptr.p->backupId);
-      row.write_uint32(ptr.p->masterRef);
-      row.write_uint32(ptr.p->clientRef);
-      row.write_uint32(ptr.p->slaveState.getState());
-      row.write_uint32((Uint32)ptr.p->noOfBytes); // TODO
-      row.write_uint32((Uint32)ptr.p->noOfRecords); // TODO
-      row.write_uint32((Uint32)ptr.p->noOfLogBytes); // TODO
-      row.write_uint32((Uint32)ptr.p->noOfLogRecords); //TODO
-      row.write_uint32(ptr.p->errorCode);
-      ndbinfo_send_row(signal, req, row, rl);
-      c_backups.next(ptr);
-      if (rl.need_break(req))
-      {
-        jam();
-        ndbinfo_send_scan_break(signal, req, rl, pool);
-        return;
-      }
-    }
-#endif
-  }
-  else if(req.tableId == Ndbinfo::BACKUP_PARAMETERS_TABLEID)
-  {
-    Ndbinfo::Row row(signal, req);
-    row.write_uint32(getOwnNodeId());
-    row.write_uint32(m_curr_disk_write_speed);
-    row.write_uint32(4*m_words_written_this_period);
-    row.write_uint32(m_overflow_disk_write);
-    row.write_uint32(m_reset_delay_used);
-    row.write_uint32(0); // Uninteresting m_reset_disk_speed_time);
-    row.write_uint32(c_backupPool.getSize());
-    row.write_uint32(c_backupFilePool.getSize());
-    row.write_uint32(c_tablePool.getSize());
-    row.write_uint32(c_triggerPool.getSize());
-    row.write_uint32(c_fragmentPool.getSize());
-    row.write_uint32(c_pagePool.getSize());
-    row.write_uint32(c_defaults.m_compressed_backup);
-    row.write_uint32(c_defaults.m_compressed_lcp);
-    ndbinfo_send_row(signal, req, row, rl);
-  }
-  else if(req.tableId == Ndbinfo::POOLS_TABLEID)
-  {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Backup Record",
-           c_backupPool.getNoOfFree(),
-           c_backupPool.getSize() },
-          {"Backup File",
-           c_backupFilePool.getNoOfFree(),
-           c_backupFilePool.getSize() },
-          {"Table",
-           c_tablePool.getNoOfFree(),
-           c_tablePool.getSize() },
-          {"Trigger",
-           c_triggerPool.getNoOfFree(),
-           c_triggerPool.getSize() },
-          {"Fragment",
-           c_fragmentPool.getNoOfFree(),
-           c_fragmentPool.getSize() },
-          {"Page",
-           c_pagePool.getNoOfFree(),
-           c_pagePool.getSize() },
-          { NULL, 0, 0}
-        };
+      { "Backup Record",
+        c_backupPool.getUsed(),
+        c_backupPool.getSize(),
+        c_backupPool.getEntrySize(),
+        c_backupPool.getUsedHi(),
+        CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+      { "Backup File",
+        c_backupFilePool.getUsed(),
+        c_backupFilePool.getSize(),
+        c_backupFilePool.getEntrySize(),
+        c_backupFilePool.getUsedHi(),
+        CFG_DB_PARALLEL_BACKUPS,0,0,0 },
+      { "Table",
+        c_tablePool.getUsed(),
+        c_tablePool.getSize(),
+        c_tablePool.getEntrySize(),
+        c_tablePool.getUsedHi(),
+        CFG_DB_PARALLEL_BACKUPS,
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES },
+      { "Trigger",
+        c_triggerPool.getUsed(),
+        c_triggerPool.getSize(),
+        c_triggerPool.getEntrySize(),
+        c_triggerPool.getUsedHi(),
+        CFG_DB_PARALLEL_BACKUPS,
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES },
+      { "Fragment",
+        c_fragmentPool.getUsed(),
+        c_fragmentPool.getSize(),
+        c_fragmentPool.getEntrySize(),
+        c_fragmentPool.getUsedHi(),
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+      { "Page",
+        c_pagePool.getUsed(),
+        c_pagePool.getSize(),
+        c_pagePool.getEntrySize(),
+        c_pagePool.getUsedHi(),
+        CFG_DB_BACKUP_MEM,
+        CFG_DB_BACKUP_DATA_BUFFER_MEM,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0}
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -757,10 +733,15 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -770,6 +751,10 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

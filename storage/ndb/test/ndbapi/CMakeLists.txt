@@ -73,3 +73,5 @@ Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 
+INSTALL(TARGETS testBasic testBackup testNdbApi testDict testIndex testSRBank
+        DESTINATION bin)

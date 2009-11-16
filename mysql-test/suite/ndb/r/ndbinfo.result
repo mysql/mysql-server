@@ -21,35 +21,34 @@ ndb$tables	CREATE TABLE `ndb$tables` (
   `table_id` int(10) unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
   `comment` varchar(512) DEFAULT NULL
-) ENGINE=NDBINFO DEFAULT CHARSET=latin1
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
 
 SELECT * FROM ndb$tables;
 table_id	table_name	comment
-0	tables	
-1	columns	
-2	memusage	
-3	logdestination	
-4	backup_records	
-5	backup_parameters	
-6	pools	
-7	test	
-8	trp_status	
-9	log_space	
+0	tables	metadata for tables available through ndbinfo
+1	columns	metadata for columns available through ndbinfo 
+2	test	for testing
+3	pools	pool usage
+4	transporters	transporter status
+5	logspaces	logspace usage
+6	logbuffers	logbuffer usage
+7	resources	resources usage (a.k.a superpool)
+8	counters	monotonic counters
+9	nodes	node status
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
 10
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
-2	memusage	
+2	test	for testing
 SELECT * FROM ndb$tables WHERE table_id > 5;
 table_id	table_name	comment
-6	pools	
-7	test	
-8	trp_status	
-9	log_space	
+6	logbuffers	logbuffer usage
+7	resources	resources usage (a.k.a superpool)
+8	counters	monotonic counters
+9	nodes	node status
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
-3	logdestination	
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
 100
@@ -57,24 +56,24 @@ COUNT(*)
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
 table_id	table_name	comment
-3	logdestination	
-4	backup_records	
-5	backup_parameters	
+3	pools	pool usage
+4	transporters	transporter status
+5	logspaces	logspace usage
 SELECT table_id FROM ndb$tables  WHERE table_id = 2 ORDER BY table_name;
 table_id
 2
 SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
-5	backup_parameters
-4	backup_records
 1	columns
-3	logdestination
-9	log_space
-2	memusage
-6	pools
+8	counters
+6	logbuffers
+5	logspaces
+9	nodes
+3	pools
+7	resources
 0	tables
-7	test
-8	trp_status
+2	test
+4	transporters
 
 SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
 table_id	column_id	column_name
@@ -159,7 +158,7 @@ ERROR HY000: Variable 'ndbinfo_table_prefix' is a read only variable
 set @@ndbinfo_database="somethingelse";
 ERROR HY000: Variable 'ndbinfo_database' is a read only variable
 
-SELECT count(*) >= 20 FROM block;
+SELECT count(*) >= 20 FROM blocks;
 count(*) >= 20
 1
 

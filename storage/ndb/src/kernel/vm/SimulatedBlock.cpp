@@ -281,7 +281,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
-#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && signal->header.m_fragmentInfo != 0)) { handle_invalid_fragmentInfo(signal); } } while(0)
+#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && (signal->header.m_fragmentInfo != 0 && signal->header.m_fragmentInfo != 3))) { handle_invalid_fragmentInfo(signal); } } while(0)
 
 void
 SimulatedBlock::handle_invalid_sections_in_send_signal(Signal* signal) const
