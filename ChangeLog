@@ -1,7 +1,7 @@
 2009-11-12	The InnoDB Team
 
-	* handler/ha_innodb.cc, include/db0err.h,
-	row/row0merge.c, row/row0mysql.c:
+	* handler/ha_innodb.cc, include/db0err.h, row/row0merge.c,
+	row/row0mysql.c:
 	Allow CREATE INDEX to be interrupted.
 	Also, when CHECK TABLE is interrupted, report ER_QUERY_INTERRUPTED.
 
