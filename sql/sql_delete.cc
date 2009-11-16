@@ -1073,8 +1073,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
-    handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
+    handlerton *table_type= share->db_type();
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
 
@@ -1088,7 +1088,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((error= (int) !(open_temporary_table(thd, share->path.str,
                                              share->db.str,
 					     share->table_name.str, 1))))
-      (void) rm_temporary_table(table_type, path);
+      (void) rm_temporary_table(table_type, share->path.str);
     else
       thd->thread_specific_used= TRUE;
     
