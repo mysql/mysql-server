@@ -132,6 +132,7 @@ extern  void _db_flush_();
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
 #define DBUG_LEAVE
 #define DBUG_RETURN(a1)             do { return(a1); } while(0)
 #define DBUG_VOID_RETURN            do { return; } while(0)
