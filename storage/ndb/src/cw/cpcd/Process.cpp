@@ -471,6 +471,8 @@ CPCD::Process::do_exec() {
   CloseHandle(proc);
   if (!pid) {
     logger.critical("Couldn't get process ID");
+  } else {
+    logger.debug("new pid: %d\n", pid);
   }
 
   m_status = RUNNING;
@@ -642,38 +644,51 @@ static void get_processes(Pairs & pairs)
 */
 static int kill_tree(pid_t pid, Pairs & pairs)
 {
-  size_t i, j;
-  Vector<pid_t> parents;
+  size_t i, j, k, new_count;
+  Vector<pid_t> parents, new_parents;
 
   parents.push_back(pid);
-  for(i = 0; i < pairs.size(); i++)
+  do
   {
-    Vector<pid_t> new_parents;
-    for(j = 0; j < parents.size(); j++)
+    for(i = 0; i < pairs.size(); i++)
     {
-      if(pairs[i].parent == parents[j])
+      for(j = 0; j < parents.size(); j++)
       {
-        new_parents.push_back(pairs[i].child);
+        if(pairs[i].parent == parents[j])
+        {
+          bool already_a_parent = false;
+          for(size_t x = 0; x < parents.size(); x++)
+          {
+            if(parents[x] == pairs[i].child)
+            {
+              already_a_parent = true;
+              break;
+            }
+          }
+          if (!already_a_parent)
+          {
+            new_parents.push_back(pairs[i].child);
+          }
+        }
       }
     }
-    if(!new_parents.size())
+
+    new_count = new_parents.size();
+    for(k = 0; k < new_count; k++)
     {
-      break;
+      parents.push_back(new_parents[k]);
     }
-    for(j = 0; j < new_parents.size(); j++)
-    {
-      parents.push_back(new_parents[j]);
-    }
-  }
+    new_parents.clear();
+  } while(new_count);
 
   logger.debug("killing processes in order: ");
-  for(i = parents.size() - 1; i >= 0; i--)
+  for(long i = (long)parents.size() - 1; i >= 0; i--)
   {
     logger.debug(" %d", parents[i]);
   }
   logger.debug(".\n");
 
-  for(i = parents.size() - 1; i >= 0; i--)
+  for(long i = (long)parents.size() - 1; i >= 0; i--)
   {
     pid_t pid = parents[i];
     HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, pid);
