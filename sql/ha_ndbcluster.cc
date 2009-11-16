@@ -291,11 +291,18 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   if (max_joins < 2)
     DBUG_RETURN(0);
 
-  if (join_tabs[0].type != JT_EQ_REF &&  // Pushed lookups
-//    join_tabs[0].type != JT_REF    &&  // Pushed index scan, TODO is incomplete
-      join_tabs[0].type != JT_ALL    &&  // Pushed scan
-      join_tabs[0].type != JT_CONST)     // First op is lookup
-  {
+  switch(join_tabs[0].type) {
+  case JT_EQ_REF: // Pushed lookups
+  case JT_CONST:  // First op is lookup
+    break;
+  case JT_REF:
+  index_scan:
+    DBUG_RETURN(0); // Pushed index scan, TODO is incomplete
+  case JT_ALL:
+    if (join_tabs[0].select) // This is a index scan disguised as table-scan
+      goto index_scan;
+    break;
+  default:
     DBUG_RETURN(0);
   }
 

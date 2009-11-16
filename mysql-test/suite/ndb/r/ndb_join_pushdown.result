@@ -345,4 +345,53 @@ a	b	a	b
 63	31	31	47
 79	NULL	NULL	NULL
 drop table t1,t2,t3;
+create table t1 (a int primary key auto_increment, b int, c int, index(b,c)) engine = ndb;
+insert into t1 values (1,null, 2);
+insert into t1 values (2,1, null);
+insert into t1 values (3,2,2);
+insert into t1 (b,c) select b,c from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set ndb_join_pushdown=off;
+select *
+from t1
+join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
+join t1 as t3 on t3.a = t2.a
+join t1 as t4 on t4.a = t3.b
+;
+a	b	c	a	b	c	a	b	c	a	b	c
+1	NULL	2	2	1	NULL	2	1	NULL	1	NULL	2
+1	NULL	2	5	1	NULL	5	1	NULL	1	NULL	2
+2	1	NULL	2	1	NULL	2	1	NULL	1	NULL	2
+2	1	NULL	3	2	2	3	2	2	2	1	NULL
+2	1	NULL	5	1	NULL	5	1	NULL	1	NULL	2
+2	1	NULL	6	2	2	6	2	2	2	1	NULL
+3	2	2	3	2	2	3	2	2	2	1	NULL
+3	2	2	6	2	2	6	2	2	2	1	NULL
+5	1	NULL	2	1	NULL	2	1	NULL	1	NULL	2
+5	1	NULL	5	1	NULL	5	1	NULL	1	NULL	2
+6	2	2	3	2	2	3	2	2	2	1	NULL
+6	2	2	6	2	2	6	2	2	2	1	NULL
+set ndb_join_pushdown=on;
+select *
+from t1
+join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
+join t1 as t3 on t3.a = t2.a
+join t1 as t4 on t4.a = t3.b
+;
+a	b	c	a	b	c	a	b	c	a	b	c
+1	NULL	2	2	1	NULL	2	1	NULL	1	NULL	2
+1	NULL	2	5	1	NULL	5	1	NULL	1	NULL	2
+2	1	NULL	2	1	NULL	2	1	NULL	1	NULL	2
+2	1	NULL	3	2	2	3	2	2	2	1	NULL
+2	1	NULL	5	1	NULL	5	1	NULL	1	NULL	2
+2	1	NULL	6	2	2	6	2	2	2	1	NULL
+3	2	2	3	2	2	3	2	2	2	1	NULL
+3	2	2	6	2	2	6	2	2	2	1	NULL
+5	1	NULL	2	1	NULL	2	1	NULL	1	NULL	2
+5	1	NULL	5	1	NULL	5	1	NULL	1	NULL	2
+6	2	2	3	2	2	3	2	2	2	1	NULL
+6	2	2	6	2	2	6	2	2	2	1	NULL
+drop table t1;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
