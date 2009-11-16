@@ -12,6 +12,12 @@ do
   shift
 done
 
+# Cygwin doesn't like the rest of this program
+if [ `uname -o` = Cygwin ]
+then
+    exit 0
+fi
+
 #
 # clean tables...not to make results too large
 #

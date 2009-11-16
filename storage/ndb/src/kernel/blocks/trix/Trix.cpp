@@ -498,23 +498,28 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Attribute Order Buffer",
-           c_theAttrOrderBufferPool.getNoOfFree(),
-           c_theAttrOrderBufferPool.getSize() },
-          {"Subscription Record",
-           c_theSubscriptionRecPool.getNoOfFree(),
-           c_theSubscriptionRecPool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Attribute Order Buffer",
+        c_theAttrOrderBufferPool.getUsed(),
+        c_theAttrOrderBufferPool.getSize(),
+        c_theAttrOrderBufferPool.getEntrySize(),
+        c_theAttrOrderBufferPool.getUsedHi(),
+        0,0,0,0 },
+      { "Subscription Record",
+        c_theSubscriptionRecPool.getUsed(),
+        c_theSubscriptionRecPool.getSize(),
+        c_theSubscriptionRecPool.getEntrySize(),
+        c_theSubscriptionRecPool.getUsedHi(),
+        0,0,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0}
+    };
 
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -523,10 +528,14 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -536,6 +545,10 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

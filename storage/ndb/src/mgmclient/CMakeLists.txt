@@ -32,3 +32,5 @@ LINK_LIBRARIES(ndbmgmclient
 
 ADD_EXECUTABLE(ndb_mgm
                main.cpp)
+
+INSTALL(TARGETS ndb_mgm DESTINATION bin)

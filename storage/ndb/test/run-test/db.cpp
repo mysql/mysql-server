@@ -127,6 +127,7 @@ setup_db(atrt_config& config)
   /**
    * connect to all mysqld's
    */
+#ifndef _WIN32
   for (size_t i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process * proc = config.m_processes[i];
@@ -160,7 +161,8 @@ setup_db(atrt_config& config)
    */
   if (setup_repl(config) != true)
     return false;
-  
+ #endif
+
   return true;
 }
 

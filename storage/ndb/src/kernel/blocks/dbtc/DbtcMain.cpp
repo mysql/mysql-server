@@ -244,16 +244,17 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZTRANS_EVENT_REP:
     jam();
-    /* -------------------------------------------------------------------- */
-    // Report information about transaction activity once per second.
-    /* -------------------------------------------------------------------- */
-    if (c_counters.c_trans_status == TransCounters::Timer){
-      Uint32 len = c_counters.report(signal);
+    /* Send transaction counters report */
+    {
+      const Uint32 len = c_counters.build_event_rep(signal);
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
-      
-      c_counters.reset();
+    }
+
+    {
+      const Uint32 report_interval = 5000;
+      const Uint32 len = c_counters.build_continueB(signal);
       signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, report_interval, len);
     }
     return;
   case TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL:
@@ -683,14 +684,16 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     ndbsttorry010Lab(signal);
     return;
   case ZINTSPH3:
+  {
     jam();
     intstartphase3x010Lab(signal);      /* SEIZE CONNECT RECORD IN EACH LQH*/
-// Start transaction event reporting.
-    c_counters.c_trans_status = TransCounters::Timer;
-    c_counters.reset();
+
+    /* Start transaction counters event reporting. */
+    const Uint32 len = c_counters.build_continueB(signal);
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 1);
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, len);
     return;
+  }
   case ZINTSPH6:
     jam();
     csystemStart = SSS_TRUE;
@@ -2228,7 +2231,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
 {
   const TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
   UintR TfailureNr = cfailure_nr;
-  UintR TtransCount = c_counters.ctransCount;
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
@@ -2261,7 +2263,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   if(releaseIndexOperations)
     releaseAllSeizedIndexOperations(regApiPtr);
 
-  c_counters.ctransCount = TtransCount + 1;
+  c_counters.ctransCount++;
 
 #ifdef ERROR_INSERT
   regApiPtr->continueBCount = 0;
@@ -2290,7 +2292,6 @@ Dbtc::seizeTcRecord(Signal* signal)
   TcConnectRecord * const regTcPtr = 
                            &localTcConnectRecord[TfirstfreeTcConnect];
 
-  UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TlastTcConnect = regApiPtr->lastTcConnect;
   UintR TtcConnectptrIndex = tcConnectptr.i;
   TcConnectRecordPtr tmpTcConnectptr;
@@ -2298,7 +2299,8 @@ Dbtc::seizeTcRecord(Signal* signal)
   cfirstfreeTcConnect = regTcPtr->nextTcConnect;
   tcConnectptr.p = regTcPtr;
 
-  c_counters.cconcurrentOp = TconcurrentOp + 1;
+  c_counters.cconcurrentOp++;
+
   regTcPtr->prevTcConnect = TlastTcConnect;
   regTcPtr->nextTcConnect = RNIL;
   regTcPtr->accumulatingTriggerData.i = RNIL;  
@@ -2667,8 +2669,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TattrLen= TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
     titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
   }
-    
-  UintR TattrinfoCount = c_counters.cattrinfoCount;
 
   regCachePtr->keylen = TkeyLength;
   regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
@@ -2696,7 +2696,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
 
   regCachePtr->attrlength = TattrLen;
-  c_counters.cattrinfoCount = TattrinfoCount + TattrLen;
+  c_counters.cattrinfoCount += TattrLen;
 
   UintR TtabptrIndex = localTabptr.i;
   UintR TtableSchemaVersion = tcKeyReq->tableSchemaVersion;
@@ -2837,9 +2837,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
 
   if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
-    Uint32 TreadCount = c_counters.creadCount;
     jam();
-    c_counters.creadCount = TreadCount + 1;
+    c_counters.creadCount++;
   }
   else
   {
@@ -2877,7 +2876,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       regApiPtr->no_commit_ack_markers++;
     }
     
-    UintR TwriteCount = c_counters.cwriteCount;
     UintR Toperationsize = coperationsize;
     /* -------------------------------------------------------------------- 
      *   THIS IS A TEMPORARY TABLE, DON'T UPDATE coperationsize. 
@@ -2887,7 +2885,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (localTabptr.p->get_storedTable()) {
       coperationsize = ((Toperationsize + TattrLen) + TkeyLength) + 17;
     }
-    c_counters.cwriteCount = TwriteCount + 1;
+    c_counters.cwriteCount++;
     switch (TOperationType) {
     case ZUPDATE:
     case ZINSERT:
@@ -3666,7 +3664,6 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   Uint32 TclientData = regTcPtr->clientData;
   Uint32 Tnode = regTcPtr->tcNodedata[0];
   Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
-  Uint32 TsimpleReadCount = c_counters.csimpleReadCount;
   ConnectionState state = regApiPtr.p->apiConnectstate;
   
   regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
@@ -3680,7 +3677,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
    * No LQHKEYCONF in Simple/Dirty read
    * Therefore decrese no LQHKEYCONF(REF) we are waiting for
    */
-  c_counters.csimpleReadCount = TsimpleReadCount + 1;
+  c_counters.csimpleReadCount++;
   regApiPtr.p->lqhkeyreqrec = --Tlqhkeyreqrec;
   
   if(Tlqhkeyreqrec == 0)
@@ -3738,7 +3735,6 @@ void Dbtc::releaseTcCon()
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   UintR TfirstfreeTcConnect = cfirstfreeTcConnect;
-  UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TtcConnectptrIndex = tcConnectptr.i;
 
   ndbrequire(regTcPtr->commitAckMarker == RNIL);
@@ -3748,7 +3744,7 @@ void Dbtc::releaseTcCon()
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
   cfirstfreeTcConnect = TtcConnectptrIndex;
-  c_counters.cconcurrentOp = TconcurrentOp - 1;
+  c_counters.cconcurrentOp--;
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -5137,12 +5133,11 @@ Dbtc::sendApiCommit(Signal* signal)
 err8055:
   Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  UintR TcommitCount = c_counters.ccommitCount;
   copyPtr.i = regApiPtr.p->apiCopyRecord;
   UintR TapiFailState = regApiPtr.p->apiFailState;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
-  c_counters.ccommitCount = TcommitCount + 1;
+  c_counters.ccommitCount++;
   ptrCheckGuard(copyPtr, TapiConnectFilesize, localApiConnectRecord);
   copyApi(copyPtr, regApiPtr);
   if (TapiFailState != ZTRUE) {
@@ -12244,25 +12239,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if (dumpState->args[0] == DumpStateOrd::StartTcTimer){
-    c_counters.c_trans_status = TransCounters::Started;
-    c_counters.reset();
-  }
-
-  if (dumpState->args[0] == DumpStateOrd::StopTcTimer){
-    c_counters.c_trans_status = TransCounters::Off;
-    Uint32 len = c_counters.report(signal);
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
-    c_counters.reset();
-  }
-  
-  if (dumpState->args[0] == DumpStateOrd::StartPeriodicTcTimer){
-    c_counters.c_trans_status = TransCounters::Timer;
-    c_counters.reset();
-    signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
-  }
-
   if (dumpState->args[0] == DumpStateOrd::TcStartDumpIndexOpCount)
   {
     static int frequency = 1;
@@ -12406,35 +12382,61 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
 
   jamEntry();
 
-  if(req.tableId == Ndbinfo::POOLS_TABLEID)
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
   {
-    struct {
-      const char* poolname;
-      Uint32 free;
-      Uint32 size;
-    } pools[] =
-        {
-          {"Defined Trigger",
-           c_theDefinedTriggerPool.getNoOfFree(),
-           c_theDefinedTriggerPool.getSize() },
-          {"Fired Trigger",
-           c_theFiredTriggerPool.getNoOfFree(),
-           c_theFiredTriggerPool.getSize() },
-          {"Index",
-           c_theIndexPool.getNoOfFree(),
-           c_theIndexPool.getSize() },
-          {"Scan Fragment",
-           c_scan_frag_pool.getNoOfFree(),
-           c_scan_frag_pool.getSize() },
-          {"Commit ACK Marker",
-           m_commitAckMarkerPool.getNoOfFree(),
-           m_commitAckMarkerPool.getSize() },
-          {"Index Op",
-           c_theIndexOperationPool.getNoOfFree(),
-           c_theIndexOperationPool.getSize() },
-          { NULL, 0, 0}
-        };
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Defined Trigger",
+        c_theDefinedTriggerPool.getUsed(),
+        c_theDefinedTriggerPool.getSize(),
+        c_theDefinedTriggerPool.getEntrySize(),
+        c_theDefinedTriggerPool.getUsedHi(),
+        CFG_DB_NO_TRIGGERS,0,0,0 },
+      { "Fired Trigger",
+        c_theFiredTriggerPool.getUsed(),
+        c_theFiredTriggerPool.getSize(),
+        c_theFiredTriggerPool.getEntrySize(),
+        c_theFiredTriggerPool.getUsedHi(),
+        CFG_DB_NO_TRIGGER_OPS,0,0,0 },
+      { "Index",
+        c_theIndexPool.getUsed(),
+        c_theIndexPool.getSize(),
+        c_theIndexPool.getEntrySize(),
+        c_theIndexPool.getUsedHi(),
+        CFG_DB_NO_TABLES,
+        CFG_DB_NO_ORDERED_INDEXES,
+        CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+      { "Scan Fragment",
+        c_scan_frag_pool.getUsed(),
+        c_scan_frag_pool.getSize(),
+        c_scan_frag_pool.getEntrySize(),
+        c_scan_frag_pool.getUsedHi(),
+        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+      { "Commit ACK Marker",
+        m_commitAckMarkerPool.getUsed(),
+        m_commitAckMarkerPool.getSize(),
+        m_commitAckMarkerPool.getEntrySize(),
+        m_commitAckMarkerPool.getUsedHi(),
+        CFG_DB_NO_TRANSACTIONS,0,0,0 },
+      { "Index Op",
+        c_theIndexOperationPool.getUsed(),
+        c_theIndexOperationPool.getSize(),
+        c_theIndexOperationPool.getEntrySize(),
+        c_theIndexOperationPool.getUsedHi(),
+        CFG_DB_NO_INDEX_OPS,0,0,0 },
+      { "Operations",
+        c_counters.cconcurrentOp,
+        ctcConnectFilesize,
+        sizeof(TcConnectRecord),
+        0,
+        CFG_DB_NO_TRANSACTIONS,
+        CFG_DB_NO_OPS,0,0 },
+      { NULL, 0,0,0,0,0,0,0,0 }
+    };
 
+   const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
     Uint32 pool = cursor->data[0];
     BlockNumber bn = blockToMain(number());
     while(pools[pool].poolname)
@@ -12443,10 +12445,15 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(bn);           // block number
-      row.write_uint32(instance()); // block instance
+      row.write_uint32(instance());   // block instance
       row.write_string(pools[pool].poolname);
-      row.write_uint32(pools[pool].free);
-      row.write_uint32(pools[pool].size);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
@@ -12456,6 +12463,51 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::COUNTERS_TABLEID:
+  {
+    Ndbinfo::counter_entry counters[] = {
+      { Ndbinfo::ATTRINFO_COUNTER, c_counters.cattrinfoCount },
+      { Ndbinfo::TRANSACTIONS_COUNTER, c_counters.ctransCount },
+      { Ndbinfo::COMMITS_COUNTER, c_counters.ccommitCount },
+      { Ndbinfo::READS_COUNTER, c_counters.creadCount },
+      { Ndbinfo::SIMPLE_READS_COUNTER, c_counters.csimpleReadCount },
+      { Ndbinfo::WRITES_COUNTER, c_counters.cwriteCount },
+      { Ndbinfo::ABORTS_COUNTER, c_counters.cabortCount },
+      { Ndbinfo::TABLE_SCANS_COUNTER, c_counters.c_scan_count },
+      { Ndbinfo::RANGE_SCANS_COUNTER, c_counters.c_range_scan_count }
+    };
+    const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
+
+    Uint32 i = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(i < num_counters)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_uint32(counters[i].id);
+
+      row.write_uint64(counters[i].val);
+      ndbinfo_send_row(signal, req, row, rl);
+      i++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, i);
+        return;
+      }
+    }
+
+    break;
+  }
+
+  default:
+    break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);

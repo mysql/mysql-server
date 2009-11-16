@@ -52,7 +52,7 @@ atrt_LDFLAGS = -static @ndb_bin_am_ldflags@
 wrappersdir=$(prefix)/bin
 wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
 
-EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.hpp
+EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.hpp CMakeLists.txt
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -168,7 +168,7 @@ NDBT_Context::incProperty(const char * name){
 
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
-  const bool b = props.put(_name, _val);
+  const bool b = props.put(_name, _val, true);
   assert(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
