@@ -1,0 +1,42 @@
+SET @old_isolation_level= @@session.tx_isolation;
+SET @@session.tx_isolation= 'READ-COMMITTED';
+CREATE DATABASE b42829;
+use b42829;
+CREATE TABLE t1 (x int, y int) engine=InnoDB;
+CREATE TABLE t2 (x int, y int) engine=InnoDB;
+CREATE DATABASE b42829_filtered;
+use b42829_filtered;
+CREATE TABLE t1 (x int, y int) engine=InnoDB;
+CREATE TABLE t2 (x int, y int) engine=InnoDB;
+SET @@session.sql_log_bin= 0;
+INSERT INTO b42829_filtered.t1 VALUES (100,100);
+INSERT INTO b42829.t1 VALUES (100,100);
+SET @@session.sql_log_bin= 1;
+### assertion: the inserts will not raise log error because
+###            binlog-do-db is filtering used database
+INSERT INTO t2 VALUES (1,2), (1,3), (1,4);
+INSERT INTO t1 SELECT * FROM t2;
+### assertion: assert that despite updating a not filtered
+###            database this wont trigger an error as the
+###            used database is the filtered one.
+UPDATE b42829_filtered.t1 ft1, b42829.t1 nft1 SET ft1.x=1, nft1.x=2;
+use b42829;
+### assertion: the statements *will* raise log error because
+###            binlog-do-db is not filtering  used database 
+BEGIN;
+INSERT INTO t2 VALUES (1,2), (1,3), (1,4);
+ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-COMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
+UPDATE b42829_filtered.t1 ft1, b42829.t1 nft1 SET ft1.x=1, nft1.x=2;
+ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-COMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
+INSERT INTO t1 SELECT * FROM t2;
+ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-COMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
+COMMIT;
+### assertion: filtered events did not make into the binlog
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE b42829
+master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engine=InnoDB
+master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engine=InnoDB
+DROP DATABASE b42829;
+DROP DATABASE b42829_filtered;
+SET @@session.tx_isolation= @old_isolation_level;

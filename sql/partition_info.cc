@@ -2161,7 +2161,7 @@ bool partition_info::init_column_part()
   return FALSE;
 }
 
-bool partition_info::add_column_list_value(Item *item)
+bool partition_info::add_column_list_value(THD *thd, Item *item)
 {
   return FALSE;
 }
@@ -2169,4 +2169,9 @@ int partition_info::add_max_value()
 {
   return 0;
 }
+
+void partition_info::print_debug(const char *str, uint *value)
+{
+}
+
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
