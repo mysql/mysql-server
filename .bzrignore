@@ -1922,3 +1922,4 @@ libmysqld/examples/mysqltest.cc
 extra/libevent/event-config.h
 libmysqld/opt_table_elimination.cc
 libmysqld/ha_federatedx.cc
+libmysqld/debug_sync.cc

@@ -278,9 +278,9 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   int  strict_week_number_year= -1;
   int frac_part;
   bool usa_time= 0;
-  bool sunday_first_n_first_week_non_iso;
-  bool strict_week_number;
-  bool strict_week_number_year_type;
+  bool UNINIT_VAR(sunday_first_n_first_week_non_iso);
+  bool UNINIT_VAR(strict_week_number);
+  bool UNINIT_VAR(strict_week_number_year_type);
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
@@ -1350,14 +1350,10 @@ bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
-  longlong value;
-  const char *str;
-  size_t length;
+  longlong UNINIT_VAR(value);
+  const char *UNINIT_VAR(str);
+  size_t UNINIT_VAR(length);
   CHARSET_INFO *cs=str_value->charset();
-
-  LINT_INIT(value);
-  LINT_INIT(str);
-  LINT_INIT(length);
 
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)

@@ -112,17 +112,22 @@ while($i)
   # remove unecessary files
   -- remove_file $outfile.1
   -- remove_file $outfile.2
-
+  
+  #
+  # The two tests are canceled since we introduced the patch of bug#46998,  
+  # which will make mydsqlbinlog output the 'BEGIN', 'COMMIT' and 'ROLLBACK' 
+  # in regardless of database filtering
+  #
   # assertion: events for database test are filtered
-  if (`SELECT INSTR(@b42941_output.1, 'test')`)
-  {
-    -- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.1).
-  }
+  #if (`SELECT INSTR(@b42941_output.1, 'test')`)
+  #{
+    #-- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.1).
+  #}
 
-  if (`SELECT INSTR(@b42941_output.2, 'test')`)
-  {
-    -- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.2).
-  }
+  #if (`SELECT INSTR(@b42941_output.2, 'test')`)
+  #{
+    #-- echo **** ERROR **** Database name 'test' FOUND in mysqlbinlog output ($flags $outfile.2).
+  #}
 
   # assertion: events for database b42941 are not filtered
   if (!`SELECT INSTR(@b42941_output.1, 'b42941')`)

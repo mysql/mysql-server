@@ -1928,8 +1928,7 @@ end:
 bool ha_maria::check_and_repair(THD *thd)
 {
   int error, crashed;
-  char *old_query;
-  uint old_query_length;
+  LEX_STRING old_query;
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_maria::check_and_repair");
 
@@ -1957,11 +1956,9 @@ bool ha_maria::check_and_repair(THD *thd)
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
 
-  old_query= thd->query;
-  old_query_length= thd->query_length;
+  old_query= thd->query_string;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= table->s->table_name.str;
-  thd->query_length= table->s->table_name.length;
+  thd->query_string= table->s->table_name;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if (!(crashed= maria_is_crashed(file)))
@@ -1981,8 +1978,7 @@ bool ha_maria::check_and_repair(THD *thd)
       error= 1;
   }
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= old_query;
-  thd->query_length= old_query_length;
+  thd->query_string= old_query;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(error);
 }
@@ -2292,7 +2288,7 @@ int ha_maria::delete_all_rows()
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   if (file->s->now_transactional &&
       ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
        table->in_use->locked_tables))
@@ -2311,7 +2307,7 @@ int ha_maria::delete_table(const char *name)
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   return maria_delete_table(name);
 }
 
@@ -2392,7 +2388,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
                          TRN_STATE_TABLES_CAN_CHANGE);
         (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
-                                       (uchar*) thd->query, thd->query_length);
+                                       (uchar*) thd->query(),
+                                       thd->query_length());
       }
 #endif
     }
@@ -2488,7 +2485,8 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
     {
       trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED);
       (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
-                                     (uchar*) thd->query, thd->query_length);
+                                     (uchar*) thd->query(),
+                                     thd->query_length());
     }
 #endif
   }
@@ -2769,7 +2767,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
 
   /* TODO: Check that the following fn_format is really needed */
   error=
@@ -2789,7 +2787,7 @@ int ha_maria::rename_table(const char *from, const char *to)
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   return maria_rename(from, to);
 }
 

@@ -2534,6 +2534,15 @@ SELECT LOAD_FILE(a) FROM t1;
 LOAD_FILE(a)
 NULL
 DROP TABLE t1;
+CREATE TABLE t1 (f2 VARCHAR(20));
+CREATE TABLE t2 (f2 VARCHAR(20));
+INSERT INTO t1 VALUES ('MIN'),('MAX');
+INSERT INTO t2 VALUES ('LOAD');
+SELECT CONCAT_WS('_', (SELECT t2.f2 FROM t2), t1.f2) AS concat_name FROM t1;
+concat_name
+LOAD_MIN
+LOAD_MAX
+DROP TABLE t1, t2;
 End of 5.0 tests
 drop table if exists t1;
 create table t1(f1 tinyint default null)engine=myisam;

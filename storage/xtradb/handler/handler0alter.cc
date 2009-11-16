@@ -655,9 +655,13 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
-	/* Check that index keys are sensible */
-
-	error = innobase_check_index_keys(key_info, num_of_keys);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
+                error = ER_WRONG_NAME_FOR_INDEX;
+	} else {
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
+	}
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:

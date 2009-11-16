@@ -121,7 +121,6 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   LeaveCriticalSection(&cond->lock_waiting);
 
   LeaveCriticalSection(mutex);
-
   result= WaitForMultipleObjects(2, cond->events, FALSE, timeout);
   
   EnterCriticalSection(&cond->lock_waiting);

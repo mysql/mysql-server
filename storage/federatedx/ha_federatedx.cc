@@ -390,8 +390,8 @@ int federatedx_db_init(void *p)
   DBUG_ENTER("federatedx_db_init");
   handlerton *federatedx_hton= (handlerton *)p;
   federatedx_hton->state= SHOW_OPTION_YES;
-  /* This is no longer needed for plugin storage engines */
-  federatedx_hton->db_type= DB_TYPE_DEFAULT;
+  /* Needed to work with old .frm files */
+  federatedx_hton->db_type= DB_TYPE_FEDERATED_DB;
   federatedx_hton->savepoint_offset= sizeof(ulong);
   federatedx_hton->close_connection= ha_federatedx::disconnect;
   federatedx_hton->savepoint_set= ha_federatedx::savepoint_set;
@@ -1785,14 +1785,22 @@ int ha_federatedx::close(void)
   if (stored_result)
     retval= free_result();
 
-  /* Disconnect from mysql */
-  if ((txn= get_txn(thd, true)))
+  /* Disconnect from mysql. thd may be null during refresh */
+  txn= thd ? get_txn(thd, true) : new federatedx_txn();
+
+  if (txn)
+  {
     txn->release(&io);
+    
+    DBUG_ASSERT(io == NULL);
 
-  DBUG_ASSERT(io == NULL);
+    if ((error= free_share(txn, share)))
+      retval= error;
 
-  if ((error= free_share(txn, share)))
-    retval= error;
+    if (!thd)
+      delete txn;
+
+  }
   DBUG_RETURN(retval);
 }
 

@@ -9,6 +9,11 @@ if (`SELECT '$nmp' != 'ON'`){
   skip No named pipe support;
 }
 
+# Connect using named pipe for testing
+connect(pipe_con,localhost,root,,,,,PIPE);
+
 # Source select test case
 -- source include/common-tests.inc
 
+connection default;
+disconnect pipe_con;
