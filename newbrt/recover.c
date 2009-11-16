@@ -16,6 +16,8 @@ int tokudb_recovery_trace = 0;                    // turn on recovery tracing, d
 #define VERIFY_COUNTS(n) ((void)0)
 #endif
 
+#define TOKUDB_RECOVERY_PROGRESS_TIME 15
+
 struct scan_state {
     enum { SS_INIT, SS_BACKWARD_SAW_CKPT_END, SS_BACKWARD_SAW_CKPT, SS_FORWARD_SAW_CKPT } ss;
     LSN checkpoint_lsn;
@@ -855,6 +857,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
     // grab the last LSN so that it can be restored when the log is restarted
     LSN lastlsn = toku_logger_last_lsn(renv->logger);
+    LSN thislsn;
 
     // there must be at least one log entry
     r = toku_logcursor_create(&logcursor, log_dir);
@@ -882,9 +885,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
     // scan backwards
     tnow = time(NULL);
+    time_t tlast = tnow;
     fprintf(stderr, "%.24s Tokudb recovery scanning backward from %"PRIu64"\n", ctime(&tnow), lastlsn.lsn);
     scan_state_init(&renv->ss);
-    while (1) {
+    for (unsigned i=0; 1; i++) {
         le = NULL;
         r = toku_logcursor_prev(logcursor, &le);
         if (tokudb_recovery_trace) 
@@ -894,6 +898,14 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
                 rr = DB_RUNRECOVERY; goto errorexit;
             }
             break;
+        }
+        if ((i % 1000) == 0) {
+            tnow = time(NULL);
+            if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
+                thislsn = toku_log_entry_get_lsn(le);
+                fprintf(stderr, "%.24s Tokudb recovery scanning backward from %"PRIu64" at %"PRIu64"\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn);
+                tlast = tnow;
+            }
         }
         logtype_dispatch_assign(le, toku_recover_backward_, r, renv);
         if (tokudb_recovery_trace) 
@@ -917,10 +929,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan forwards
-    LSN thislsn = toku_log_entry_get_lsn(le);
+    thislsn = toku_log_entry_get_lsn(le);
     tnow = time(NULL);
     fprintf(stderr, "%.24s Tokudb recovery scanning forward from %"PRIu64"\n", ctime(&tnow), thislsn.lsn);
-    while (1) {
+    for (unsigned i=0; 1; i++) {
         le = NULL;
         r = toku_logcursor_next(logcursor, &le);
         if (tokudb_recovery_trace) 
@@ -930,6 +942,14 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
                 rr = DB_RUNRECOVERY; goto errorexit;
             }
             break;
+        }
+        if ((i % 1000) == 0) {
+            tnow = time(NULL);
+            if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
+                thislsn = toku_log_entry_get_lsn(le);
+                fprintf(stderr, "%.24s Tokudb recovery scanning forward to %"PRIu64" at %"PRIu64"\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn);
+                tlast = tnow;
+            }
         }
         logtype_dispatch_assign(le, toku_recover_, r, renv);
         if (tokudb_recovery_trace) 
@@ -951,7 +971,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     uint32_t n = recover_get_num_live_txns(renv);
     if (n > 0) {
         tnow = time(NULL);
-        fprintf(stderr, "%.24s Tokudb recovery aborting %"PRIu32" live transactions\n", ctime(&tnow), n);
+        fprintf(stderr, "%.24s Tokudb recovery aborting %"PRIu32" live transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
     }
 
     recover_abort_live_txns(renv);
@@ -960,7 +980,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     n = file_map_get_num_dictionaries(&renv->fmap);
     if (n > 0) {
         tnow = time(NULL);
-        fprintf(stderr, "%.24s Tokudb recovery closing %"PRIu32" dictionaries\n", ctime(&tnow), n);
+        fprintf(stderr, "%.24s Tokudb recovery closing %"PRIu32" dictionar%s\n", ctime(&tnow), n, n > 1 ? "ies" : "y");
     }
     file_map_close_dictionaries(&renv->fmap, TRUE);
 
