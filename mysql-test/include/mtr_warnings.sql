@@ -181,7 +181,7 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Using"),
  ("==[0-9]*== For more details"),
  /* This comes with innodb plugin tests */
- ("==[0-9]*== Warning: set address range perms: large range .* .defined."),
+ ("==[0-9]*== Warning: set address range perms: large range"),
 
  ("THE_LAST_SUPPRESSION")||
 
