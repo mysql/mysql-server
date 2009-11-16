@@ -638,14 +638,6 @@ int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *checksum, u_int32
     return 0;
 }
 
-static int toku_fread_int32_t (FILE *f, int32_t *v, struct x1764 *checksum, u_int32_t *len) {
-    u_int32_t uv;
-    int r = toku_fread_u_int32_t(f, &uv, checksum, len);
-    int32_t rv = uv;
-    if (r==0) *v=rv;
-    return r;
-}
-
 int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32_t *len) {
     u_int32_t v1,v2;
     int r;
@@ -687,40 +679,6 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_in
 	    bs->data=0;
 	    return r;
 	}
-    }
-    return 0;
-}
-
-int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, struct x1764 *checksum, u_int32_t *len) {
-    int r;
-    r = toku_fread_u_int32_t(f, &v->size,          checksum, len); if (r!=0) return r;
-    r = toku_fread_u_int32_t(f, &v->flags,         checksum, len); if (r!=0) return r;
-    r = toku_fread_u_int32_t(f, &v->nodesize,      checksum, len); if (r!=0) return r;
-    r = toku_fread_BLOCKNUM (f, &v->free_blocks,   checksum, len); if (r!=0) return r;
-    r = toku_fread_BLOCKNUM (f, &v->unused_blocks, checksum, len); if (r!=0) return r;
-    r = toku_fread_BLOCKNUM (f, &v->root,          checksum, len); if (r!=0) return r;
-    r = toku_fread_BLOCKNUM (f, &v->btt_size,      checksum, len); if (r!=0) return r;
-    r = toku_fread_DISKOFF  (f, &v->btt_diskoff,   checksum, len); if (r!=0) return r;
-    XMALLOC_N(v->btt_size.b, v->btt_pairs);
-    int64_t i;
-    for (i=0; i<v->btt_size.b; i++) {
-	r = toku_fread_DISKOFF(f, &v->btt_pairs[i].off, checksum, len);
-	if (r!=0) { toku_free(v->btt_pairs); return r; }
-	r = toku_fread_int32_t (f, &v->btt_pairs[i].size, checksum, len);
-	if (r!=0) { toku_free(v->btt_pairs); return r; }
-    }
-    return 0;
-}
-
-int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, struct x1764 *checksum, u_int32_t *len) {
-    int r;
-    u_int32_t i;
-    r = toku_fread_u_int32_t(f, &v->size, checksum, len); if (r!=0) return r;
-    MALLOC_N(v->size, v->array);
-    if (v->array==0) return errno;
-    for (i=0; i<v->size; i++) {
-	r = toku_fread_u_int32_t(f, &v->array[i].a, checksum, len); if (r!=0) return r;
-	r = toku_fread_u_int32_t(f, &v->array[i].b, checksum, len); if (r!=0) return r;
     }
     return 0;
 }
@@ -816,35 +774,6 @@ int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct
     return 0;
 }
 
-int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    LOGGEDBRTHEADER v;
-    int r = toku_fread_LOGGEDBRTHEADER(inf, &v, checksum, len);
-    if (r!=0) return r;
-    fprintf(outf, " %s={size=%u flags=%u nodesize=%u free_blocks=%" PRId64 " unused_memory=%" PRId64, fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b);
-    fprintf(outf, " btt_size=%"  PRId64 " btt_diskoff=%" PRId64 " btt_pairs={", v.btt_size.b, v.btt_diskoff) ;
-    int64_t i;
-    for (i=0; i<v.btt_size.b; i++) {
-	if (i>0) printf(" ");
-	fprintf(outf, "%" PRId64 ",%d", v.btt_pairs[i].off, v.btt_pairs[i].size);
-    }
-    fprintf(outf, "}");
-    return 0;
-
-}
-
-int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    INTPAIRARRAY v;
-    u_int32_t i;
-    int r = toku_fread_INTPAIRARRAY(inf, &v, checksum, len);
-    if (r!=0) return r;
-    fprintf(outf, " %s={size=%u array={", fieldname, v.size);
-    for (i=0; i<v.size; i++) {
-	if (i!=0) fprintf(outf, " ");
-	fprintf(outf, "{%u %u}", v.array[i].a, v.array[i].b);
-    }
-    toku_free(v.array);
-    return 0;
-}
 
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
     {

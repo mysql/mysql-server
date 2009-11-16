@@ -153,20 +153,6 @@ static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
     return 4+bs.len;
 }
 
-#if 0
-static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
-    int in_both = 4+4+4+8+8+4+8;
-    in_both += 8; // for the number of block headers
-    assert(bs.btt_size.b< 30000000); // otherwise we in trouble on the next line
-    in_both += 12*bs.btt_size.b;
-    return in_both+8;
-}
-
-static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
-    return 4+(4+4)*pa.size;
-}
-#endif
-
 static inline char *fixup_fname(BYTESTRING *f) {
     assert(f->len>0);
     char *fname = toku_xmalloc(f->len+1);

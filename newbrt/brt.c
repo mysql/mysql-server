@@ -2890,28 +2890,6 @@ brt_init_header_partial (BRT t) {
 
     t->h->root_put_counter = global_root_put_counter++; 
             
-#if 0 //TODO: logged header logic //TODO: #1605
-    {
-	u_int64_t n_blocks_translated = toku_block_get_translated_blocknum_limit(t->h->blocktable);
-	assert(n_blocks_translated==0);
-        LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
-                              .flags = t->flags,
-                              .nodesize = t->h->nodesize,
-                              .n_named_roots = t->h->n_named_roots,
-			      .btt_size = make_blocknum(n_blocks_translated),
-			      .btt_diskoff = 0, // No diskoffset yet allocated, since it's a new blocktable.
-			      .btt_pairs = 0};
-        if (t->h->n_named_roots>=0) {
-            lh.u.many.names = t->h->names;
-            lh.u.many.roots = t->h->roots;
-        } else {
-            lh.u.one.root = t->h->roots[0];
-        }
-#ifdef __ICL
-        lh = lh; //Satisfy icl (variable set but unused)
-#endif
-    }
-#endif
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
