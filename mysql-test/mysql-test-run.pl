@@ -3707,9 +3707,17 @@ sub extract_warning_lines ($$) {
      qr/Attempting backtrace/,
      qr/Assertion .* failed/,
     );
+  my $skip_valgrind= 0;
 
   foreach my $line ( @lines )
   {
+    if ($opt_valgrind_mysqld) {
+      # Skip valgrind summary from tests where server has been restarted
+      # Should this contain memory leaks, the final report will find it
+      $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
+      $skip_valgrind= 0 unless $line =~ /^==\d+==/;
+      next if $skip_valgrind;
+    }
     foreach my $pat ( @patterns )
     {
       if ( $line =~ /$pat/ )
