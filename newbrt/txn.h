@@ -26,4 +26,7 @@ BOOL toku_txnid_eq(TXNID a, TXNID b);
 // Returns TRUE if a is newer than b
 BOOL toku_txnid_newer(TXNID a, TXNID b);
 
+// Force fsync on commit
+void toku_txn_force_fsync_on_commit(TOKUTXN txn);
+
 #endif //TOKUTXN_H

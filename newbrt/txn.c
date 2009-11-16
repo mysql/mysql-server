@@ -60,7 +60,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->rollentry_filename = 0;
     result->rollentry_fd = -1;
     result->rollentry_filesize = 0;
-    result->force_fsync_on_commit = 0;
+    result->force_fsync_on_commit = FALSE;
     result->has_done_work = 0;
     *tokutxn = result;
     return 0;
@@ -129,4 +129,8 @@ BOOL toku_txnid_newer(TXNID a, TXNID b) {
 
 BOOL toku_txnid_eq(TXNID a, TXNID b) {
     return (BOOL)(a == b);
+}
+
+void toku_txn_force_fsync_on_commit(TOKUTXN txn) {
+    txn->force_fsync_on_commit = TRUE;
 }
