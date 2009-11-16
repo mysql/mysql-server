@@ -15,31 +15,13 @@ SET SESSION debug="d,crash_before_flush_keys";
 # Run the crashing query
 FLUSH TABLE t1;
 ERROR HY000: Lost connection to MySQL server during query
-# Run MYISAMCHK tool to check the table t1 and repair
-myisamchk: MyISAM file MYSQLD_DATADIR/test/t1
-myisamchk: warning: 1 client is using or hasn't closed the table properly
-myisamchk: error: Size of indexfile is: 1024            Should be: 3072
-MYISAMCHK: Unknown error 126
-myisamchk: error: Can't read indexpage from filepos: 1024
-MyISAM-table 'MYSQLD_DATADIR/test/t1' is corrupted
-Fix it using switch "-r" or "-o"
 # Write file to make mysql-test-run.pl start the server 
 # Turn on reconnect
 # Call script that will poll the server waiting for
 # it to be back online again
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`a`,`b`),
-  KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DELAY_KEY_WRITE=1
-SELECT * FROM t1 FORCE INDEX (PRIMARY);
-a	b
-1	2
-2	3
-3	4
-4	5
-5	6
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	1 client is using or hasn't closed the table properly
+test.t1	check	error	Size of indexfile is: 1024        Should be: 3072
+test.t1	check	error	Corrupt
 DROP TABLE t1;
