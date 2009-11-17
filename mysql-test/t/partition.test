@@ -62,6 +62,17 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
+# Bug#45904: Error when CHARSET=utf8 and subpartitioning
+#
+create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
+default charset=utf8
+partition by list (a)
+subpartition by key (b)
+(partition p0 values in (1),
+ partition p1 values in (2));
+drop table t1;
+
+#
 # Bug#44059: rec_per_key on empty partition gives weird optimiser results
 #
 create table t1 (a int, b int, key(a))
