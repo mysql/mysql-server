@@ -120,6 +120,14 @@ public:
   bool equal(const Config*, const unsigned* exclude = NULL) const;
 
   /*
+    Return the checksum of the config. The checksum can be used to compare
+    two configs without having the whole config available(for example on
+    a remote host). It can also be printed to log files for manual verification
+    that same config is used
+  */
+  Uint32 checksum(void) const;
+
+  /*
     Return bitmask of all defined nodes of a certain type
     returns all defined nodes by default.
    */

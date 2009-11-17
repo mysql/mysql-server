@@ -1323,6 +1323,22 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
 }
 
 
+static Uint32
+config_check_checksum(const Config* config)
+{
+  Config copy(config);
+
+  // Make constants of a few values in SYSTEM section that are
+  // not part of the  checksum used for "config check"
+  copy.setName("CHECKSUM");
+  copy.setPrimaryMgmNode(0);
+
+  Uint32 checksum = copy.checksum();
+
+  return checksum;
+}
+
+
 void
 ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
 {
@@ -1337,12 +1353,24 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
 
   Uint32 generation = m_config->getGeneration();
 
-  g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d. "   \
-                       "generation: %d, other_generation: %d, " \
-                       "our state: %d, other state: %d",
-                       nodeId, generation, other_generation,
-                       m_config_state, other_state);
+  // checksum
+  Uint32 checksum = config_check_checksum(m_config);
+  Uint32 other_checksum = req->checksum;
+  if (sig->header.theLength == ConfigCheckReq::SignalLengthBeforeChecksum)
+  {
+    // Other side uses old version without checksum, use our checksum to
+    // bypass the checks
+    g_eventLogger->debug("Other mgmd does not have checksum, using own");
+    other_checksum = checksum;
+  }
 
+  g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d. "
+                       "Our generation: %d, other generation: %d, "
+                       "our state: %d, other state: %d, "
+                       "our checksum: 0x%.8x, other checksum: 0x%.8x",
+                       nodeId, generation, other_generation,
+                       m_config_state, other_state,
+                       checksum, other_checksum);
 
   switch (m_config_state)
   {
@@ -1376,6 +1404,17 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
                          m_config_state, other_state);
       return;
     }
+
+    if (other_checksum != checksum)
+    {
+      g_eventLogger->warning("Refusing other node, it has different "
+                             "checksum: 0x%.8x, expected: 0x%.8x",
+                             other_checksum, checksum);
+      sendConfigCheckRef(ss, from, ConfigCheckRef::WrongChecksum,
+                         generation, other_generation,
+                         m_config_state, other_state);
+      return;
+    }
     break;
 
   case CS_CONFIRMED:
@@ -1393,7 +1432,18 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
 
     if (other_generation == generation)
     {
-      ;// OK
+      // Same generation, make sure it has same checksum
+      if (other_checksum != checksum)
+      {
+        g_eventLogger->warning("Refusing other node, it has different "
+                               "checksum: 0x%.8x, expected: 0x%.8x",
+                               other_checksum, checksum);
+        sendConfigCheckRef(ss, from, ConfigCheckRef::WrongChecksum,
+                           generation, other_generation,
+                           m_config_state, other_state);
+        return;
+      }
+      // OK!
     }
     else if (other_generation < generation)
     {
@@ -1429,17 +1479,15 @@ ConfigManager::sendConfigCheckReq(SignalSender& ss, NodeBitmask to)
     CAST_PTR(ConfigCheckReq, ssig.getDataPtrSend());
   req->state =        m_config_state;
   req->generation =   m_config->getGeneration();
+  req->checksum =     config_check_checksum(m_config);
 
-  BaseString buf("Sending CONFIG_CHECK_REQ to node(s) ");
-  unsigned i = 0;
-  while((i = to.find(i+1)) != NodeBitmask::NotFound)
-    buf.appfmt("%d ", i);
-  g_eventLogger->debug(buf);
+  g_eventLogger->debug("Sending CONFIG_CHECK_REQ to %s",
+                       BaseString::getPrettyText(to).c_str());
 
   require(m_waiting_for.isclear());
   m_waiting_for = ss.broadcastSignal(to, ssig, MGM_CONFIG_MAN,
-                                GSN_CONFIG_CHECK_REQ,
-                                ConfigCheckReq::SignalLength);
+                                     GSN_CONFIG_CHECK_REQ,
+                                     ConfigCheckReq::SignalLength);
 }
 
 static bool
@@ -1559,7 +1607,8 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
                       m_config_state);
 
   assert(ref->generation != ref->expected_generation ||
-         ref->state != ref->expected_state);
+         ref->state != ref->expected_state ||
+         ref->error == ConfigCheckRef::WrongChecksum);
   if((Uint32)m_config_state != ref->state)
   {
     // The config state changed while this check was in the air
@@ -1636,6 +1685,15 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
       return;
     }
     break;
+  }
+
+  if (ref->error == ConfigCheckRef::WrongChecksum &&
+      m_node_id < nodeId)
+  {
+    g_eventLogger->warning("Ignoring CONFIG_CHECK_REF for wrong checksum "
+                           "other node has higher node id and should "
+                           "shutdown");
+    return;
   }
 
   g_eventLogger->error("Terminating");
