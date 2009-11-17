@@ -1,3 +1,12 @@
+2009-11-17	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test, mysql-test/innodb_bug44369.result,
+	mysql-test/innodb_bug44369.test, mysql-test/patches/innodb-index.diff,
+	row/row0mysql.c:
+	Report duplicate table names to the client connection, not to the
+	error log.
+
 2009-11-12	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/db0err.h, row/row0merge.c,
