@@ -2014,7 +2014,8 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
-  load_defaults("my", load_default_groups, &argc, &argv);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    exit(1);
   defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
 
