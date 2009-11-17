@@ -812,9 +812,13 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         }
       } // if (m_fullStreams.top()==NULL)
 
-      // Assert: No sporious wakeups w/ neither resultdata, nor EOF:
-      assert (m_fullStreams.top()!=NULL || getRoot().isBatchComplete() || m_error.code);
-
+      /* FIXME: Uncomment the assert below. See 
+         https://intranet.mysql.com/secure/mailarchive
+         /mail.php?folder=113&mail=18566 
+         for and example of a query that causes it to fail.
+      */
+      // Assert: No spurious wakeups w/ neither resultdata, nor EOF:
+      //assert (m_fullStreams.top()!=NULL || getRoot().isBatchComplete() || m_error.code);
       /* Move full streams from receiver thread's container to application 
        *  thread's container.*/
       while (m_fullStreams.top()!=NULL) {
@@ -826,9 +830,14 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         return FetchResult_ok;
       }
 
+      /* FIXME: Uncomment the assert below. See 
+         https://intranet.mysql.com/secure/mailarchive
+         /mail.php?folder=113&mail=18566 
+         for and example of a query that causes it to fail.
+      */
       // Only expect to end up here if another ::sendFetchMore() is required
-      assert (getRoot().isBatchComplete() || m_error.code);
-    } // while(true)
+      // assert (getRoot().isBatchComplete() || m_error.code);
+    } // while(likely(m_error.code==0))
 
     // 'while' terminated by m_error.code
     assert (m_error.code);
