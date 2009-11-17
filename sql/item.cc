@@ -6940,7 +6940,7 @@ Item_cache* Item_cache::get_cache(const Item *item)
 {
   switch (item->result_type()) {
   case INT_RESULT:
-    return new Item_cache_int();
+    return new Item_cache_int(item->field_type());
   case REAL_RESULT:
     return new Item_cache_real();
   case DECIMAL_RESULT:
