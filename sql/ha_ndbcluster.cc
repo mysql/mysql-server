@@ -3409,9 +3409,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                           );
 
     const KEY *key_info = table->key_info + active_index;
-    int start_count = count_key_columns(key_info, start_key);
+    uint start_count = count_key_columns(key_info, start_key);
 
-    DBUG_PRINT("info", ("active_index:%d, key_parts:%d, start_count:%d",
+    DBUG_PRINT("info", ("active_index:%d, key_parts:%d, start_count:%u",
                           active_index, key_info->key_parts, start_count));
 
     const void* paramValues[20]= {NULL};
@@ -5875,6 +5875,11 @@ int ha_ndbcluster::reset()
   {
     m_cond->cond_clear();
   }
+  if (m_pushed_join)
+  {
+    delete m_pushed_join;
+    m_pushed_join= NULL;
+  }
 
   /*
     Regular partition pruning will set the bitmap appropriately.
@@ -6459,10 +6464,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       it can't have open cursors, ops or blobs pending.
     */
     m_thd_ndb= NULL;    
-
-    if (m_pushed_join)
-      DBUG_PRINT("warning", ("m_pushed_join != NULL"));
-    m_pushed_join= NULL;   // TODO: Will cause memleak as d'tor cant find it anymore
 
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
@@ -8745,6 +8746,7 @@ ha_ndbcluster::~ha_ndbcluster()
     delete m_cond;
     m_cond= NULL;
   }
+  DBUG_PRINT("info", ("Deleting pushed joins"));
   if (m_pushed_join)
   {
     delete m_pushed_join;
