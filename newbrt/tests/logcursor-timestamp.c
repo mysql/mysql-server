@@ -37,13 +37,13 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0);
 
     BYTESTRING bs0 = { .data = "hello", .len = 5 };
-    r = toku_log_timestamp(logger, &lsn, 0, now(), bs0);
+    r = toku_log_comment(logger, &lsn, 0, now(), bs0);
     assert(r == 0);
 
     sleep(10);
 
     BYTESTRING bs1 = { .data = "world", .len = 5 };
-    r = toku_log_timestamp(logger, &lsn, 0, now(), bs1);
+    r = toku_log_comment(logger, &lsn, 0, now(), bs1);
     assert(r == 0);
 
     r = toku_logger_close(&logger);
@@ -57,16 +57,16 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && lc != NULL);
 
     r = toku_logcursor_next(lc, &le);
-    assert(r == 0 && le->cmd == LT_timestamp);
-    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
-    u_int64_t t = le->u.timestamp.timestamp;
+    assert(r == 0 && le->cmd == LT_comment);
+    assert(le->u.comment.comment.len == 5 && memcmp(le->u.comment.comment.data, "hello", 5) == 0);
+    u_int64_t t = le->u.comment.timestamp;
     
     r = toku_logcursor_next(lc, &le);
-    assert(r == 0 && le->cmd == LT_timestamp);
-    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
+    assert(r == 0 && le->cmd == LT_comment);
+    assert(le->u.comment.comment.len == 5 && memcmp(le->u.comment.comment.data, "world", 5) == 0);
     if (verbose)
-        printf("%"PRIu64"\n", le->u.timestamp.timestamp - t);
-    assert(le->u.timestamp.timestamp - t >= 10*1000000);
+        printf("%"PRIu64"\n", le->u.comment.timestamp - t);
+    assert(le->u.comment.timestamp - t >= 10*1000000);
 
     r = toku_logcursor_next(lc, &le);
     assert(r != 0);
@@ -79,16 +79,16 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && lc != NULL);
 
     r = toku_logcursor_prev(lc, &le);
-    assert(r == 0 && le->cmd == LT_timestamp);
-    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
-    t = le->u.timestamp.timestamp;
+    assert(r == 0 && le->cmd == LT_comment);
+    assert(le->u.comment.comment.len == 5 && memcmp(le->u.comment.comment.data, "world", 5) == 0);
+    t = le->u.comment.timestamp;
     
     r = toku_logcursor_prev(lc, &le);
-    assert(r == 0 && le->cmd == LT_timestamp);
-    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
+    assert(r == 0 && le->cmd == LT_comment);
+    assert(le->u.comment.comment.len == 5 && memcmp(le->u.comment.comment.data, "hello", 5) == 0);
     if (verbose)
-        printf("%"PRIu64"\n", t - le->u.timestamp.timestamp);
-    assert(t - le->u.timestamp.timestamp >= 10*1000000);
+        printf("%"PRIu64"\n", t - le->u.comment.timestamp);
+    assert(t - le->u.comment.timestamp >= 10*1000000);
 
     r = toku_logcursor_prev(lc, &le);
     assert(r != 0);
