@@ -8244,7 +8244,11 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     }
     else if (cur_arg->const_item())
     {
-      DBUG_RETURN(TRUE);
+      /*
+        For predicates of the form "const OP expr" we also have to check 'expr'
+        to make a decision.
+      */
+      continue;
     }
     else
       DBUG_RETURN(FALSE);
