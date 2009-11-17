@@ -43,6 +43,12 @@
 %{?_with_cluster:%define CLUSTER_BUILD 1}
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
+# ----------------------------------------------------------------------
+# support optional "tcmalloc" stuff (experimental)
+# ----------------------------------------------------------------------
+%{?malloc_lib_target:%define WITH_TCMALLOC 1}
+%{!?malloc_lib_target:%define WITH_TCMALLOC 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -448,7 +454,7 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
-%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib/mysql, so it
 # doesn't conflict with possible shared lib by the same name in /usr/lib.  See
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
@@ -714,7 +720,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
 %endif
 
-%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
 
@@ -878,6 +884,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Fix some problems with the directives around "tcmalloc" (experimental).
+
 * Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
 
 - "mysqlmanager" got removed from version 5.4, all references deleted.
