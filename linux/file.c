@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #include <toku_portability.h>
 #include <toku_atomic.h>
 #include <unistd.h>
@@ -89,6 +90,7 @@ static uint64_t get_tnow(void) {
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
+// t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
@@ -99,14 +101,19 @@ toku_set_func_fsync(int (*fsync_function)(int)) {
     return 0;
 }
 
+// keep trying if fsync fails because of EINTR
 int
 toku_file_fsync(int fd) {
-    int r;
+    int r = -1;
     uint64_t tstart = get_tnow();
-    if (t_fsync)
-        r = t_fsync(fd);
-    else
-        r = fsync(fd);
+    while (r != 0) {
+	if (t_fsync)
+	    r = t_fsync(fd);
+	else 
+	    r = fsync(fd);
+	if (r) 
+	    assert(errno==EINTR);
+    }
     toku_sync_fetch_and_add_uint64(&toku_fsync_count, 1);
     toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
     return r;
