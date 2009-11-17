@@ -327,7 +327,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  BRT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
     BRT_NEXT_VERSION,           // the version after the current version
     BRT_LAYOUT_VERSION   = BRT_NEXT_VERSION-1, // A hack so I don't have to change this line.
-    BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION_10 // Minimum version supported for transparent upgrade.
+    BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION // Minimum version supported without transparent upgrade
 };
 
 void toku_brtheader_free (struct brt_header *h);
