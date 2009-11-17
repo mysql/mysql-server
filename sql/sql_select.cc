@@ -11123,8 +11123,6 @@ enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
-  DBUG_PRINT("info", ("join_tab:%p, table:%p, handler:%p, #pushed:%d", 
-                       join_tab, join_tab->table, join_tab->table->file, join_tab->table->file->has_pushed_joins()));
   join_tab->table->null_row=0;
   if (end_of_records)
   {
