@@ -56,6 +56,13 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (733969) ENGINE = MyISAM,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 DROP TABLE t1;
+create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
+default charset=utf8
+partition by list (a)
+subpartition by key (b)
+(partition p0 values in (1),
+partition p1 values in (2));
+drop table t1;
 create table t1 (a int, b int, key(a))
 partition by list (a)
 ( partition p0 values in (1),

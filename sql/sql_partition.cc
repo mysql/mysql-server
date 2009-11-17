@@ -1692,7 +1692,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   if (((part_info->part_type != HASH_PARTITION ||
       part_info->list_of_part_fields == FALSE) &&
       check_part_func_fields(part_info->part_field_array, TRUE)) ||
-      (part_info->list_of_part_fields == FALSE &&
+      (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
