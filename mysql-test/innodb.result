@@ -3088,7 +3088,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)

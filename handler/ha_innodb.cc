@@ -5731,17 +5731,8 @@ create_table_def(
 		/* First check whether the column to be added has a
 		system reserved name. */
 		if (dict_col_name_is_reserved(field->field_name)){
-			push_warning_printf(
-				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_CANT_CREATE_TABLE,
-				"Error creating table '%s' with "
-				"column name '%s'. '%s' is a "
-				"reserved name. Please try to "
-				"re-create the table with a "
-				"different column name.",
-				table->name, (char*) field->field_name,
-				(char*) field->field_name);
+			my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+				 field->field_name);
 
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
@@ -5762,6 +5753,14 @@ create_table_def(
 	}
 
 	error = row_create_table_for_mysql(table, trx);
+
+	if (error == DB_DUPLICATE_KEY) {
+		char buf[100];
+		innobase_convert_identifier(buf, sizeof buf,
+					    table_name, strlen(table_name),
+					    trx->mysql_thd, TRUE);
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
+	}
 
 error_ret:
 	error = convert_error_code_to_mysql(error, flags, NULL);
