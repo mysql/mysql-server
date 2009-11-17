@@ -98,8 +98,8 @@ struct view {
     "  WHEN 5 THEN \"FILE_BUFFERS\""
     "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
     "  ELSE \"<unknown>\" "
-    " END AS resource_id, "
-    "reserved, used, max, high "
+    " END AS resource_name, "
+    "reserved, used, max "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources"
    },
    { "counters",
@@ -142,15 +142,15 @@ struct view {
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
    },
   { "memoryusage",
-    "SELECT node_id, \"DATA_MEMORY\" "
-    "used, max, high "
+    "SELECT node_id, \"DATA_MEMORY\", "
+    "used, max "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources "
-    "WHERE resource_id = \"DATA_MEMORY|\" "
+    "WHERE resource_id = 3 "
     "UNION "
-    "SELECT node_id, \"INDEX_MEMORY\" "
-    "used, total, high "
+    "SELECT node_id, \"INDEX_MEMORY\", "
+    "used, total "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools "
-    "WHERE pool_name = \"Index memory|\" "
+    "WHERE block_number = 248 AND pool_name = \"Index memory\" "
   }
 };
 
