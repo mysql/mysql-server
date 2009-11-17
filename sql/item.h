@@ -2135,6 +2135,23 @@ public:
     save_in_field(result_field, no_conversions);
   }
   void cleanup();
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print() and error messages, where it is
+    applicable. To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string. This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+    Added here, to the parent class of both Item_func and Item_sum_func.
+
+    NOTE: for Items inherited from Item_sum, func_name() return part of
+    function name till first argument (including '(') to make difference in
+    names for functions with 'distinct' clause and without 'distinct' and
+    also to make printing of items inherited from Item_sum uniform.
+  */
+  virtual const char *func_name() const= 0;
 };
 
 

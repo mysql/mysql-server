@@ -30,6 +30,9 @@
 #include "sql_select.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
+static longlong
+get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
+               Item *warn_item, bool *is_null);
 
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
@@ -533,11 +536,12 @@ void Item_bool_func2::fix_length_and_dec()
 }
 
 
-int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
+int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
 {
   owner= item;
   func= comparator_matrix[type]
-                         [test(owner->functype() == Item_func::EQUAL_FUNC)];
+                         [is_owner_equal_func()];
+
   switch (type) {
   case ROW_RESULT:
   {
@@ -557,7 +561,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->element_index(i)->cols());
 	return 1;
       }
-      if (comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i)))
+      if (comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i),
+                                      set_null))
         return 1;
     }
     break;
@@ -571,7 +576,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     if (cmp_collation.set((*a)->collation, (*b)->collation) || 
 	cmp_collation.derivation == DERIVATION_NONE)
     {
-      my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
+      my_coll_agg_error((*a)->collation, (*b)->collation,
+                        owner->func_name());
       return 1;
     }
     if (cmp_collation.collation == &my_charset_bin)
@@ -849,7 +855,7 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
 }
 
 
-int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
+int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
@@ -857,11 +863,11 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
   ulonglong const_value= (ulonglong)-1;
   a= a1;
   b= a2;
+  owner= owner_arg;
+  thd= current_thd;
 
   if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
   {
-    thd= current_thd;
-    owner= owner_arg;
     a_type= (*a)->field_type();
     b_type= (*b)->field_type();
     a_cache= 0;
@@ -885,22 +891,22 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
         b= (Item **)&b_cache;
       }
     }
-    is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
+    is_nulls_eq= is_owner_equal_func();
     func= &Arg_comparator::compare_datetime;
-    get_value_func= &get_datetime_value;
+    get_value_a_func= &get_datetime_value;
+    get_value_b_func= &get_datetime_value;
     return 0;
   }
   else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
            (*b)->field_type() == MYSQL_TYPE_TIME)
   {
     /* Compare TIME values as integers. */
-    thd= current_thd;
-    owner= owner_arg;
     a_cache= 0;
     b_cache= 0;
-    is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
+    is_nulls_eq= is_owner_equal_func();
     func= &Arg_comparator::compare_datetime;
-    get_value_func= &get_time_value;
+    get_value_a_func= &get_time_value;
+    get_value_b_func= &get_time_value;
     return 0;
   }
   else if (type == STRING_RESULT &&
@@ -909,20 +915,39 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
   {
     DTCollation coll;
     coll.set((*a)->collation.collation);
-    if (agg_item_set_converter(coll, owner_arg->func_name(),
+    if (agg_item_set_converter(coll, owner->func_name(),
                                b, 1, MY_COLL_CMP_CONV, 1))
       return 1;
-  }
+  } else if (type != ROW_RESULT && ((*a)->field_type() == MYSQL_TYPE_YEAR ||
+             (*b)->field_type() == MYSQL_TYPE_YEAR))
+  {
+    is_nulls_eq= is_owner_equal_func();
+    if ((*a)->is_datetime())
+    {
+      year_as_datetime= TRUE;
+      get_value_a_func= &get_datetime_value;
+    } else if ((*a)->field_type() == MYSQL_TYPE_YEAR)
+      get_value_a_func= &get_year_value;
 
+    if ((*b)->is_datetime())
+    {
+      year_as_datetime= TRUE;
+      get_value_b_func= &get_datetime_value;
+    } else if ((*b)->field_type() == MYSQL_TYPE_YEAR)
+      get_value_b_func= &get_year_value;
+
+    func= &Arg_comparator::compare_year;
+    return 0;
+  }
   return set_compare_func(owner_arg, type);
 }
 
 
-void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
+void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
+                                           Item **a1, Item **b1)
 {
   thd= current_thd;
-  /* A caller will handle null values by itself. */
-  owner= NULL;
+  owner= owner_arg;
   a= a1;
   b= b1;
   a_type= (*a)->field_type();
@@ -931,7 +956,8 @@ void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
   b_cache= 0;
   is_nulls_eq= FALSE;
   func= &Arg_comparator::compare_datetime;
-  get_value_func= &get_datetime_value;
+  get_value_a_func= &get_datetime_value;
+  get_value_b_func= &get_datetime_value;
 }
 
 
@@ -1031,6 +1057,51 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   return value;
 }
 
+
+/*
+  Retrieves YEAR value of 19XX form from given item.
+
+  SYNOPSIS
+    get_year_value()
+    thd                 thread handle
+    item_arg   [in/out] item to retrieve YEAR value from
+    cache_arg  [in/out] pointer to place to store the caching item to
+    warn_item  [in]     item for issuing the conversion warning
+    is_null    [out]    TRUE <=> the item_arg is null
+
+  DESCRIPTION
+    Retrieves the YEAR value of 19XX form from given item for comparison by the
+    compare_year() function.
+
+  RETURN
+    obtained value
+*/
+
+static longlong
+get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
+               Item *warn_item, bool *is_null)
+{
+  longlong value= 0;
+  Item *item= **item_arg;
+
+  value= item->val_int();
+  *is_null= item->null_value;
+  if (*is_null)
+    return ~(ulonglong) 0;
+
+  /*
+    Coerce value to the 19XX form in order to correctly compare
+    YEAR(2) & YEAR(4) types.
+  */
+  if (value < 70)
+    value+= 100;
+  if (value <= 1900)
+    value+= 1900;
+
+  return value;
+}
+
+
 /*
   Compare items values as dates.
 
@@ -1063,25 +1134,25 @@ int Arg_comparator::compare_datetime()
   longlong a_value, b_value;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &a_is_null);
+  a_value= (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null);
   if (!is_nulls_eq && a_is_null)
   {
-    if (owner)
+    if (set_null)
       owner->null_value= 1;
     return -1;
   }
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &b_is_null);
+  b_value= (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null);
   if (a_is_null || b_is_null)
   {
-    if (owner)
+    if (set_null)
       owner->null_value= is_nulls_eq ? 0 : 1;
     return is_nulls_eq ? (a_is_null == b_is_null) : -1;
   }
 
   /* Here we have two not-NULL values. */
-  if (owner)
+  if (set_null)
     owner->null_value= 0;
 
   /* Compare values. */
@@ -1094,15 +1165,17 @@ int Arg_comparator::compare_datetime()
 int Arg_comparator::compare_string()
 {
   String *res1,*res2;
-  if ((res1= (*a)->val_str(&owner->tmp_value1)))
+  if ((res1= (*a)->val_str(&value1)))
   {
-    if ((res2= (*b)->val_str(&owner->tmp_value2)))
+    if ((res2= (*b)->val_str(&value2)))
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       return sortcmp(res1,res2,cmp_collation.collation);
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1121,18 +1194,20 @@ int Arg_comparator::compare_string()
 int Arg_comparator::compare_binary_string()
 {
   String *res1,*res2;
-  if ((res1= (*a)->val_str(&owner->tmp_value1)))
+  if ((res1= (*a)->val_str(&value1)))
   {
-    if ((res2= (*b)->val_str(&owner->tmp_value2)))
+    if ((res2= (*b)->val_str(&value2)))
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       uint res1_length= res1->length();
       uint res2_length= res2->length();
       int cmp= memcmp(res1->ptr(), res2->ptr(), min(res1_length,res2_length));
       return cmp ? cmp : (int) (res1_length - res2_length);
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1145,8 +1220,8 @@ int Arg_comparator::compare_binary_string()
 int Arg_comparator::compare_e_string()
 {
   String *res1,*res2;
-  res1= (*a)->val_str(&owner->tmp_value1);
-  res2= (*b)->val_str(&owner->tmp_value2);
+  res1= (*a)->val_str(&value1);
+  res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
     return test(res1 == res2);
   return test(sortcmp(res1, res2, cmp_collation.collation) == 0);
@@ -1156,8 +1231,8 @@ int Arg_comparator::compare_e_string()
 int Arg_comparator::compare_e_binary_string()
 {
   String *res1,*res2;
-  res1= (*a)->val_str(&owner->tmp_value1);
-  res2= (*b)->val_str(&owner->tmp_value2);
+  res1= (*a)->val_str(&value1);
+  res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
     return test(res1 == res2);
   return test(stringcmp(res1, res2) == 0);
@@ -1178,13 +1253,15 @@ int Arg_comparator::compare_real()
     val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (val1 < val2)	return -1;
       if (val1 == val2) return 0;
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1198,11 +1275,13 @@ int Arg_comparator::compare_decimal()
     my_decimal *val2= (*b)->val_decimal(&value2);
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       return my_decimal_cmp(val1, val2);
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1240,7 +1319,8 @@ int Arg_comparator::compare_real_fixed()
     val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (val1 == val2 || fabs(val1 - val2) < precision)
         return 0;
       if (val1 < val2)
@@ -1248,7 +1328,8 @@ int Arg_comparator::compare_real_fixed()
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1271,13 +1352,15 @@ int Arg_comparator::compare_int_signed()
     longlong val2= (*b)->val_int();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (val1 < val2)	return -1;
       if (val1 == val2)   return 0;
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1294,13 +1377,15 @@ int Arg_comparator::compare_int_unsigned()
     ulonglong val2= (*b)->val_int();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (val1 < val2)	return -1;
       if (val1 == val2)   return 0;
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1317,7 +1402,8 @@ int Arg_comparator::compare_int_signed_unsigned()
     ulonglong uval2= (ulonglong)(*b)->val_int();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (sval1 < 0 || (ulonglong)sval1 < uval2)
         return -1;
       if ((ulonglong)sval1 == uval2)
@@ -1325,7 +1411,8 @@ int Arg_comparator::compare_int_signed_unsigned()
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1342,7 +1429,8 @@ int Arg_comparator::compare_int_unsigned_signed()
     longlong sval2= (*b)->val_int();
     if (!(*b)->null_value)
     {
-      owner->null_value= 0;
+      if (set_null)
+        owner->null_value= 0;
       if (sval2 < 0)
         return 1;
       if (uval1 < (ulonglong)sval2)
@@ -1352,7 +1440,8 @@ int Arg_comparator::compare_int_unsigned_signed()
       return 1;
     }
   }
-  owner->null_value= 1;
+  if (set_null)
+    owner->null_value= 1;
   return -1;
 }
 
@@ -1388,10 +1477,11 @@ int Arg_comparator::compare_row()
   for (uint i= 0; i<n; i++)
   {
     res= comparators[i].compare();
-    if (owner->null_value)
+    /* Aggregate functions don't need special null handling. */
+    if (owner->null_value && owner->type() == Item::FUNC_ITEM)
     {
       // NULL was compared
-      switch (owner->functype()) {
+      switch (((Item_func*)owner)->functype()) {
       case Item_func::NE_FUNC:
         break; // NE never aborts on NULL even if abort_on_null is set
       case Item_func::LT_FUNC:
@@ -1400,7 +1490,7 @@ int Arg_comparator::compare_row()
       case Item_func::GE_FUNC:
         return -1; // <, <=, > and >= always fail on NULL
       default: // EQ_FUNC
-        if (owner->abort_on_null)
+        if (((Item_bool_func2*)owner)->abort_on_null)
           return -1; // We do not need correct NULL returning
       }
       was_null= 1;
@@ -1434,6 +1524,67 @@ int Arg_comparator::compare_e_row()
       return 0;
   }
   return 1;
+}
+
+
+/**
+  Compare values as YEAR.
+
+  @details
+    Compare items as YEAR for EQUAL_FUNC and for other comparison functions.
+    The YEAR values of form 19XX are obtained with help of the get_year_value()
+    function.
+    If one of arguments is of DATE/DATETIME type its value is obtained
+    with help of the get_datetime_value function. In this case YEAR values
+    prior to comparison are converted to the ulonglong YYYY-00-00 00:00:00
+    DATETIME form.
+    If an argument type neither YEAR nor DATE/DATEIME then val_int function
+    is used to obtain value for comparison.
+
+  RETURN
+    If is_nulls_eq is TRUE:
+       1    if items are equal or both are null
+       0    otherwise
+    If is_nulls_eq is FALSE:
+      -1   a < b
+       0   a == b or at least one of items is null
+       1   a > b
+    See the table:
+    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
+    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
+    result      | 1 | 0 | 0 |0/1| 0 | 0 | 0 |-1/0/1|
+*/
+
+int Arg_comparator::compare_year()
+{
+  bool a_is_null, b_is_null;
+  ulonglong val1= get_value_a_func ?
+                    (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null) :
+                    (*a)->val_int();
+  ulonglong val2= get_value_b_func ?
+                    (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null) :
+                    (*b)->val_int();
+  if (!(*a)->null_value)
+  {
+    if (!(*b)->null_value)
+    {
+      if (set_null)
+        owner->null_value= 0;
+      /* Convert year to DATETIME of form YYYY-00-00 00:00:00 when necessary. */
+      if((*a)->field_type() == MYSQL_TYPE_YEAR && year_as_datetime)
+        val1*= 10000000000LL;
+      if((*b)->field_type() == MYSQL_TYPE_YEAR && year_as_datetime)
+        val2*= 10000000000LL;
+
+      if (val1 < val2)	return is_nulls_eq ? 0 : -1;
+      if (val1 == val2)   return is_nulls_eq ? 1 : 0;
+      return is_nulls_eq ? 0 : 1;
+    }
+  }
+  if (set_null)
+    owner->null_value= is_nulls_eq ? 0 : 1;
+  return (is_nulls_eq && (*a)->null_value == (*b)->null_value) ? 1 : 0;
 }
 
 
@@ -1711,8 +1862,8 @@ longlong Item_func_lt::val_int()
 longlong Item_func_strcmp::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String *a=args[0]->val_str(&tmp_value1);
-  String *b=args[1]->val_str(&tmp_value2);
+  String *a=args[0]->val_str(&cmp.value1);
+  String *b=args[1]->val_str(&cmp.value2);
   if (!a || !b)
   {
     null_value=1;
@@ -1995,8 +2146,8 @@ void Item_func_between::fix_length_and_dec()
 
   if (compare_as_dates)
   {
-    ge_cmp.set_datetime_cmp_func(args, args + 1);
-    le_cmp.set_datetime_cmp_func(args, args + 2);
+    ge_cmp.set_datetime_cmp_func(this, args, args + 1);
+    le_cmp.set_datetime_cmp_func(this, args, args + 2);
   }
   else if (time_items_found == 3)
   {
@@ -4324,13 +4475,13 @@ void Item_func_isnotnull::print(String *str, enum_query_type query_type)
 longlong Item_func_like::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String* res = args[0]->val_str(&tmp_value1);
+  String* res = args[0]->val_str(&cmp.value1);
   if (args[0]->null_value)
   {
     null_value=1;
     return 0;
   }
-  String* res2 = args[1]->val_str(&tmp_value2);
+  String* res2 = args[1]->val_str(&cmp.value2);
   if (args[1]->null_value)
   {
     null_value=1;
@@ -4354,7 +4505,7 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 {
   if (args[1]->const_item())
   {
-    String* res2= args[1]->val_str((String *)&tmp_value2);
+    String* res2= args[1]->val_str((String *)&cmp.value2);
 
     if (!res2)
       return OPTIMIZE_NONE;
@@ -4385,7 +4536,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   if (escape_item->const_item())
   {
     /* If we are on execution stage */
-    String *escape_str= escape_item->val_str(&tmp_value1);
+    String *escape_str= escape_item->val_str(&cmp.value1);
     if (escape_str)
     {
       if (escape_used_in_parsing && (
@@ -4440,7 +4591,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
        !(specialflag & SPECIAL_NO_NEW_FUNC))
     {
-      String* res2 = args[1]->val_str(&tmp_value2);
+      String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
         return FALSE;				// Null argument
       
