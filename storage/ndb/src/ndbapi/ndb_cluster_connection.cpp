@@ -334,8 +334,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
       ("Could not initialize handle to management server: %s",
        m_config_retriever->getErrorString());
     printf("%s\n", get_latest_error_msg());
-    delete m_config_retriever;
-    m_config_retriever= 0;
   }
   if (!m_main_connection)
   {
@@ -348,6 +346,11 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_globalDictCache = 0;
     m_transporter_facade=
       new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
+
+    // The secondary connection can't use same nodeid, clear the nodeid
+    // in ConfigRetriver to avoid asking for the same nodeid again
+    m_config_retriever->setNodeId(0);
+
   }
 
   DBUG_VOID_RETURN;
