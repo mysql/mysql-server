@@ -809,7 +809,20 @@ load_dist_table(Ndb* pNdb, int records, int parts)
     CHECKNOTNULL(trans->insertTuple(distRecord, buf, 
                                     NULL, &opts, sizeof(opts)), trans);
 
-    CHECK(trans->execute(NdbTransaction::Commit), trans);
+    if (trans->execute(NdbTransaction::Commit) != 0)
+    {
+      NdbError err = trans->getNdbError();
+      if (err.status == NdbError::TemporaryError)
+      {
+        ndbout << err << endl;
+        NdbSleep_MilliSleep(50);
+        r--; // just retry
+      }
+      else
+      {
+        CHECK(-1, trans);
+      }
+    }
     trans->close();
   }
 
