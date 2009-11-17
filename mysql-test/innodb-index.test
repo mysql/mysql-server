@@ -400,6 +400,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
+eval set global innodb_file_format_check=$format;
 
 #
 # Test to check whether CREATE INDEX handles implicit foreign key
