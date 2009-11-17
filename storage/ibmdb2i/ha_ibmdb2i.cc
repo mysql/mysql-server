@@ -284,8 +284,8 @@ static int ibmdb2i_init_func(void *p)
   was_ILE_inited = false;
   ibmdb2i_hton= (handlerton *)p;
   VOID(pthread_mutex_init(&ibmdb2i_mutex,MY_MUTEX_INIT_FAST));
-  (void) hash_init(&ibmdb2i_open_tables,system_charset_info,32,0,0,
-                   (hash_get_key) ibmdb2i_get_key,0,0);
+  (void) my_hash_init(&ibmdb2i_open_tables,system_charset_info,32,0,0,
+                   (my_hash_get_key) ibmdb2i_get_key,0,0);
 
   ibmdb2i_hton->state=   SHOW_OPTION_YES;
   ibmdb2i_hton->create=  ibmdb2i_create_handler;
@@ -340,7 +340,7 @@ static int ibmdb2i_done_func(void *p)
   
   doneCharsetSupport();
 
-  hash_free(&ibmdb2i_open_tables);
+  my_hash_free(&ibmdb2i_open_tables);
   pthread_mutex_destroy(&ibmdb2i_mutex);
   
   DBUG_RETURN(0);
@@ -356,7 +356,7 @@ IBMDB2I_SHARE *ha_ibmdb2i::get_share(const char *table_name, TABLE *table)
   pthread_mutex_lock(&ibmdb2i_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(IBMDB2I_SHARE*) hash_search(&ibmdb2i_open_tables,
+  if (!(share=(IBMDB2I_SHARE*) my_hash_search(&ibmdb2i_open_tables,
                                            (uchar*)table_name,
                                            length)))
   {
@@ -387,7 +387,7 @@ IBMDB2I_SHARE *ha_ibmdb2i::get_share(const char *table_name, TABLE *table)
     if (rc)
     {
       delete share->db2Table;
-      hash_delete(&ibmdb2i_open_tables, (uchar*) share);
+      my_hash_delete(&ibmdb2i_open_tables, (uchar*) share);
       thr_lock_delete(&share->lock);
       my_errno = rc;
       goto error;
@@ -420,7 +420,7 @@ int ha_ibmdb2i::free_share(IBMDB2I_SHARE *share)
     delete share->db2Table;
     db2Table = NULL;
 
-    hash_delete(&ibmdb2i_open_tables, (uchar*) share);
+    my_hash_delete(&ibmdb2i_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free(share, MYF(0));
