@@ -241,7 +241,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
      * tables 
      */
     const Item* const keyItem = join_tabs[inx].ref.items[keyPartNo];
-    DBUG_PRINT("info", ("is_pushable?, keyfield:%d, type:%d\n", keyPartNo, keyItem->type()));
+    DBUG_PRINT("info", ("is_pushable?, keyfield:%d, type:%d", keyPartNo, keyItem->type()));
     if (keyItem->type() != Item::FIELD_ITEM)
     {
       DBUG_PRINT("info", ("  Not a FIELD_ITEM -> can't append table:%d\n",inx+1));
@@ -282,6 +282,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
                          int idx)
 {
   DBUG_ENTER("make_pushed_join");
+//DBUG_ASSERT (join_tabs[0].ref.key == idx);  // is 'idx' argument obsolete?
   THD *thd= current_thd;
 
   m_pushed_join= 0;
@@ -291,34 +292,55 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   if (max_joins < 2)
     DBUG_RETURN(0);
 
-  switch(join_tabs[0].type) {
-  case JT_EQ_REF: // Pushed lookups
-  case JT_CONST:  // First op is lookup
-    break;
-  case JT_REF:
-  index_scan:
-    DBUG_RETURN(0); // Pushed index scan, TODO is incomplete
-  case JT_ALL:
-    if (join_tabs[0].select) // This is a index scan disguised as table-scan
-      goto index_scan;
-    break;
-  default:
+  if (join_tabs[0].type != JT_EQ_REF &&  // Pushed lookups
+      join_tabs[0].type != JT_REF    &&  // Pushed EQ-bounded index scan
+      join_tabs[0].type != JT_ALL    &&  // Pushed scan
+      join_tabs[0].type != JT_CONST)     // First op is lookup
+  {
     DBUG_RETURN(0);
   }
 
+  /**************************/
+  // TODO: BEGIN: Further temporary limitations we expect to remove soon:
+  if (join_tabs[0].type == JT_REF && join_tabs[0].sorted)    // Ordered index scans not possible
+  {
+    DBUG_RETURN(0);
+  }
+
+  // TODO: Incomplete integration of range scan, will be liftet soon
+  if (join_tabs[0].type == JT_ALL    &&  // Pushed range scan
+      join_tabs[0].select  /*&& join_tabs[0].select->quick*/)
+  {
+    DBUG_RETURN(0);
+  }
+  // TODO, END 'temporary limitations'
+  /************************/
+
   if (!field_ref_is_join_pushable(join_tabs, 1))
     DBUG_RETURN(0);
+
+/******
+  DBUG_PRINT("info", ("Creating push w/ index id:%d, name:%s", idx, m_index[idx].index->getName()));
+  DBUG_PRINT("info", ("join_tabs[0].ref.key:%d", join_tabs[0].ref.key));
+  DBUG_PRINT("info", ("join_tabs[0].ref.key_parts:%d", join_tabs[0].ref.key_parts));
+  DBUG_PRINT("info", ("join_tabs[0].ref.key_length:%d", join_tabs[0].ref.key_length));
+
+  DBUG_PRINT("info", ("join_tabs[0].type:%d", join_tabs[0].type));
+  DBUG_PRINT("info", ("join_tabs[0].use_quick:%d", join_tabs[0].use_quick));
+  DBUG_PRINT("info", ("join_tabs[0].index:%d", join_tabs[0].index));
+  DBUG_PRINT("info", ("join_tabs[0].quick:%p", join_tabs[0].quick));
+  DBUG_PRINT("info", ("join_tabs[0].select:%p", join_tabs[0].select));
+  if (join_tabs[0].select)
+  {
+    DBUG_PRINT("info", ("join_tabs[0].select->quick:%p", 
+                         join_tabs[0].select->quick));
+  }
+*****/
 
   /**
    * Past this point we know we can push at least a 2 table join.
    * Start building query definition and include as much as possible.
    */
-  const NdbRecord *key_rec;
-  if (idx != MAX_KEY)
-    key_rec= m_index[idx].ndb_unique_record_key;
-  else
-    key_rec= m_ndb_hidden_key_record;
-
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
   const NdbQueryOperationDef* operationDefs[MAX_PUSHED_JOINS];
   if (unlikely(max_joins>MAX_PUSHED_JOINS))
@@ -326,6 +348,14 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
   if (join_tabs[0].type == JT_EQ_REF || join_tabs[0].type == JT_CONST)
   {
+    DBUG_PRINT("info", ("parent operation is 'equal-lookup'"));
+
+    const NdbRecord *key_rec;
+    if (idx != MAX_KEY)
+      key_rec= m_index[idx].ndb_unique_record_key;
+    else
+      key_rec= m_ndb_hidden_key_record;
+
     const NdbQueryOperand* rootKey[10] = {NULL};
     for (uint i = 0; i < key_rec->noOfColumns; i++)
     {
@@ -333,15 +363,41 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       if (!rootKey[i])
         DBUG_RETURN(0);
     }
+    rootKey[key_rec->noOfColumns] = NULL;
     operationDefs[0] = builder.readTuple(m_table, rootKey);
   }
   else if (join_tabs[0].type == JT_REF)  // || JT_REF_OR_NULL?
   {
-//  operationDefs[0] = builder.scanIndex(m_table);  // TODO SPJ
-    DBUG_RETURN(0);
+    DBUG_PRINT("info", ("parent operation is 'equal-range-lookup'"));
+    DBUG_PRINT("info", ("Creating scanIndex on index id:%d, name:%s", idx, m_index[idx].index->getName()));
+
+    TABLE_REF* ref = &join_tabs[0].ref;
+
+    // NOTE: paramValue() creation order must match binding order
+    //       when a query is later instantiated:
+    const NdbQueryOperand* key[10]  = {NULL};
+    for (uint i= 0; i < ref->key_parts; i++)
+    {
+      key[i] = builder.paramValue();
+      if (unlikely(!key[i]))
+        DBUG_RETURN(0);
+    }
+    key[ref->key_parts]= NULL;
+    const NdbQueryIndexBound  bound(key);  // Assume an equal bound so far
+
+    operationDefs[0] = builder.scanIndex(m_index[idx].index, m_table, &bound);
   }
   else
   {
+    DBUG_ASSERT (join_tabs[0].type == JT_ALL);
+    if (join_tabs[0].select && join_tabs[0].select->quick)
+    {
+      DBUG_PRINT("info", ("parent operation is 'upper/lower range-lookup'"));
+    }
+    else
+    {
+      DBUG_PRINT("info", ("parent operation is 'table scan'"));
+    }
     operationDefs[0] = builder.scanTable(m_table);
   }
   if (unlikely(!operationDefs[0]))
@@ -391,6 +447,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     const NdbDictionary::Table* const ndbTab = 
       static_cast<ha_ndbcluster*>(join_tab.table->file)->m_table;
     
+    DBUG_ASSERT (join_tab.ref.key == join_tab.table->s->primary_key);  // Link on primary key assumed
     operationDefs[join_cnt] = builder.readTuple(ndbTab, key);
     if (unlikely(!operationDefs[join_cnt]))
       DBUG_RETURN(0);
@@ -3215,12 +3272,6 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   }
 
 #if 0
-  op = 
-
-  op= m_thd_ndb->trans->readTuple(key_rec, (const char *)key, m_ndb_record,
-                                  (char *)buf, lm,
-                                  (uchar *)(table->read_set->bitmap), poptions,
-                                  sizeof(NdbOperation::OperationOptions));
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, buf, table->read_set) != 0)
@@ -3334,33 +3385,22 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  NdbScanOperation::ScanOptions options;
-  options.optionsPresent=NdbScanOperation::ScanOptions::SO_SCANFLAGS;
-  options.scan_flags=0;
-
-  NdbOperation::GetValueSpec gets[2];
-  if (table_share->primary_key == MAX_KEY)
-    get_hidden_fields_scan(&options, gets);
-
-  if (lm == NdbOperation::LM_Read)
-    options.scan_flags|= NdbScanOperation::SF_KeyInfo;
-  if (sorted)
-    options.scan_flags|= NdbScanOperation::SF_OrderByFull;
-  if (descending)
-    options.scan_flags|= NdbScanOperation::SF_Descending;
   const NdbRecord *key_rec= m_index[active_index].ndb_record_key;
   const NdbRecord *row_rec= m_ndb_record;
 
-  NdbIndexScanOperation::IndexBound bound;
-  NdbIndexScanOperation::IndexBound *pbound = NULL;
-  NdbInterpretedCode code(m_table);
-
-  DBUG_ASSERT (!m_pushed_join);  // FIXME SPJ, incomplete && untested
   if (m_pushed_join)
   {
+    // There are current limitations on pushed_joins:
     DBUG_ASSERT(!sorted);
     DBUG_ASSERT(!descending);
     DBUG_ASSERT(!(m_use_partition_pruning && m_user_defined_partitioning));
+
+    // Don't support all variants of upper/lower limits yet.
+    // JT_REF in only supported as pushed join, which:
+    //  - do HA_READ_KEY_EXACT
+    //  - don't specify an upper limit as KEY_EXACT implies EQ-bound
+    DBUG_ASSERT(start_key->flag == HA_READ_KEY_EXACT);
+    DBUG_ASSERT(!end_key);
 
     DBUG_PRINT("info", ("executing chain of a index scan + %d primary key joins."
                         " First table is %s.", 
@@ -3368,14 +3408,17 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                           m_pushed_join->m_tabs[0].table->s->table_name)
                           );
 
-    const NdbQueryOperand* low[]  = {NULL};
-    const NdbQueryOperand* high[] = {NULL};
-    const NdbQueryIndexBound bound(low, high);  // TODO SPJ
+    const KEY *key_info = table->key_info + active_index;
+    int start_count = count_key_columns(key_info, start_key);
 
-//  if (m_cond && m_cond->generate_scan_filter(&code, &options))
-//    ERR_RETURN(code.getNdbError());
+    DBUG_PRINT("info", ("active_index:%d, key_parts:%d, start_count:%d",
+                          active_index, key_info->key_parts, start_count));
 
-    const void* const* paramValues = NULL;
+    const void* paramValues[20]= {NULL};
+    for (uint i= 0; i < start_count; i++)
+      paramValues[i]= start_key->key+key_rec->columns[i].offset;
+    paramValues[start_count] = NULL;
+
     NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef, paramValues);
     if (!query)
       ERR_RETURN(trans->getNdbError());
@@ -3388,7 +3431,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       query->getQueryOperation(i)
         ->setResultRowBuf(resultRec,
                           reinterpret_cast<char*>(tab->record[0]),
-                          NULL);
+                          (uchar *)(tab->read_set->bitmap));
     }
 
     m_thd_ndb->m_scan_count++;
@@ -3398,51 +3441,70 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   }
   else
   {
-  if (start_key != NULL || end_key != NULL)
-  {
-    /* 
-       Compute bounds info, reversing range boundaries
-       if descending
-     */
-    compute_index_bounds(bound, 
-                         table->key_info + active_index,
-                         (descending?
-                          end_key : start_key),
-                         (descending?
-                          start_key : end_key));
-    bound.range_no = 0;
-    pbound = &bound;
-  }
+    NdbScanOperation::ScanOptions options;
+    options.optionsPresent=NdbScanOperation::ScanOptions::SO_SCANFLAGS;
+    options.scan_flags=0;
 
-  /* Partition pruning */
-  if (m_use_partition_pruning && 
-      m_user_defined_partitioning && part_spec != NULL &&
-      part_spec->start_part == part_spec->end_part)
-  {
-    /* Explicitly set partition id when pruning User-defined partitioned scan */
-    options.partitionId = part_spec->start_part;
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
-  }
+    NdbOperation::GetValueSpec gets[2];
+    if (table_share->primary_key == MAX_KEY)
+      get_hidden_fields_scan(&options, gets);
 
-  if (m_cond && m_cond->generate_scan_filter(&code, &options))
-    ERR_RETURN(code.getNdbError());
+    if (lm == NdbOperation::LM_Read)
+      options.scan_flags|= NdbScanOperation::SF_KeyInfo;
+    if (sorted)
+      options.scan_flags|= NdbScanOperation::SF_OrderByFull;
+    if (descending)
+      options.scan_flags|= NdbScanOperation::SF_Descending;
 
-  if (!(op= trans->scanIndex(key_rec, row_rec, lm,
-                             (uchar *)(table->read_set->bitmap),
-                             pbound,
-                             &options,
-                             sizeof(NdbScanOperation::ScanOptions))))
-    ERR_RETURN(trans->getNdbError());
+    NdbIndexScanOperation::IndexBound bound;
+    NdbIndexScanOperation::IndexBound *pbound = NULL;
+    NdbInterpretedCode code(m_table);
 
-  DBUG_PRINT("info", ("Is scan pruned to 1 partition? : %u", op->getPruned()));
-  m_thd_ndb->m_scan_count++;
-  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
+    if (start_key != NULL || end_key != NULL)
+    {
+      /* 
+         Compute bounds info, reversing range boundaries
+         if descending
+       */
+      compute_index_bounds(bound, 
+                           table->key_info + active_index,
+                           (descending?
+                            end_key : start_key),
+                           (descending?
+                            start_key : end_key));
+      bound.range_no = 0;
+      pbound = &bound;
+    }
 
-  if (uses_blob_value(table->read_set) &&
-      get_blob_values(op, NULL, table->read_set) != 0)
-    ERR_RETURN(op->getNdbError());
+    /* Partition pruning */
+    if (m_use_partition_pruning && 
+        m_user_defined_partitioning && part_spec != NULL &&
+        part_spec->start_part == part_spec->end_part)
+    {
+      /* Explicitly set partition id when pruning User-defined partitioned scan */
+      options.partitionId = part_spec->start_part;
+      options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
+    }
 
-  m_active_cursor= op;
+    if (m_cond && m_cond->generate_scan_filter(&code, &options))
+      ERR_RETURN(code.getNdbError());
+
+    if (!(op= trans->scanIndex(key_rec, row_rec, lm,
+                               (uchar *)(table->read_set->bitmap),
+                               pbound,
+                               &options,
+                               sizeof(NdbScanOperation::ScanOptions))))
+      ERR_RETURN(trans->getNdbError());
+
+    DBUG_PRINT("info", ("Is scan pruned to 1 partition? : %u", op->getPruned()));
+    m_thd_ndb->m_scan_count++;
+    m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
+
+    if (uses_blob_value(table->read_set) &&
+        get_blob_values(op, NULL, table->read_set) != 0)
+      ERR_RETURN(op->getNdbError());
+
+    m_active_cursor= op;
   }
 
   if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
@@ -3573,7 +3635,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       query->getQueryOperation(i)
         ->setResultRowBuf(resultRec,
                           reinterpret_cast<char*>(tab->record[0]),
-                          NULL);
+                          (uchar *)(tab->read_set->bitmap));
     }
 
     m_thd_ndb->m_scan_count++;
@@ -6400,7 +6462,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 
     if (m_pushed_join)
       DBUG_PRINT("warning", ("m_pushed_join != NULL"));
-    m_pushed_join= NULL;
+    m_pushed_join= NULL;   // TODO: Will cause memleak as d'tor cant find it anymore
 
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
@@ -11481,8 +11543,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
 
-  DBUG_ASSERT(!m_pushed_join);
-
   /**
    * blobs and unique hash index with NULL can't be batched currently
    */
@@ -11490,7 +11550,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       (cur_index_type ==  UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
        null_value_index_search(ranges, ranges+range_count, buffer))
-      || m_delete_cannot_batch || m_update_cannot_batch)
+      || m_delete_cannot_batch || m_update_cannot_batch || m_pushed_join)
   {
     DBUG_PRINT("info", ("read_multi_range not possible, falling back to default handler implementation"));
     m_disable_multi_read= TRUE;
