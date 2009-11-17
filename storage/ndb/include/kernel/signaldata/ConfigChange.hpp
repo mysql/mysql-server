@@ -204,11 +204,13 @@ class ConfigCheckReq  {
   friend class ConfigManager;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLengthBeforeChecksum = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
 private:
   Uint32 state;
   Uint32 generation;
+  Uint32 checksum;
 };
 
 
@@ -246,7 +248,8 @@ class ConfigCheckRef  {
 
   enum ErrorCode {
     WrongState                 = 1,
-    WrongGeneration            = 2
+    WrongGeneration            = 2,
+    WrongChecksum              = 3
   };
 
   static const char* errorMessage(Uint32 error) {
@@ -255,6 +258,8 @@ class ConfigCheckRef  {
       return "Wrong state";
     case WrongGeneration:
       return "Wrong generation";
+    case WrongChecksum:
+      return "Wrong checksum";
 
     default:
       return "ConfigCheckRef, unknown error";
