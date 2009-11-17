@@ -666,7 +666,7 @@ int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
 
   }
 
-  // Create new config.ini and restart the second mgmd from it config
+  // Create new config.ini
   g_err << "** Create config2.ini" << endl;
   CHECK(ConfigFactory::put(config, "ndb_mgmd", 1, "ArbitrationDelay", 100));
   CHECK(ConfigFactory::write_config_ini(config,
@@ -675,36 +675,112 @@ int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
                                              NULL).c_str()));
 
   g_err << "** Reload second mgmd from config2.ini" << endl;
-  Mgmd* mgmd2 = mgmds[1];
-  CHECK(mgmd2->stop());
-  // Start from config2.ini
-  CHECK(mgmd2->start_from_config_ini(wd.path(),
-                                     "-f config2.ini",
-                                     "--reload", NULL));
-  CHECK(mgmd2->connect(config));
-  CHECK(mgmd2->wait_confirmed_config());
+  {
+    Mgmd* mgmd2 = mgmds[1];
+    CHECK(mgmd2->stop());
+    // Start from config2.ini
+    CHECK(mgmd2->start_from_config_ini(wd.path(),
+                                       "-f config2.ini",
+                                       "--reload", NULL));
+    CHECK(mgmd2->connect(config));
+    CHECK(mgmd2->wait_confirmed_config());
 
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_1_config.bin.1",
+                           NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_2_config.bin.1",
+                           NULL).c_str()));
+
+    // Both ndb_mgmd(s) should have reloaded and new binary config exist
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_1_config.bin.2",
+                           NULL).c_str()));
+    CHECK(file_exists(path(wd.path(),
+                           "ndb_2_config.bin.2",
+                           NULL).c_str()));
+  }
+
+  // Stop the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->stop());
+
+  return NDBT_OK;
+}
+
+
+int runTestNowaitNodes2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int ret;
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  // Create config.ini
+  Properties config = ConfigFactory::create(2);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  g_err << "** Start mgmd1 from config.ini" << endl;
+  Mgmd* mgmd1 = new Mgmd(1);
+  CHECK(mgmd1->start_from_config_ini(wd.path(),
+                                     "--initial",
+                                     "--nowait-nodes=1-255",
+                                     NULL));
+  CHECK(mgmd1->connect(config));
+  CHECK(mgmd1->wait_confirmed_config());
+
+  // check config files exist
   CHECK(file_exists(path(wd.path(),
                          "ndb_1_config.bin.1",
                          NULL).c_str()));
+
+  g_err << "** Create config2.ini" << endl;
+  CHECK(ConfigFactory::put(config, "ndb_mgmd", 1, "ArbitrationDelay", 100));
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config2.ini",
+                                             NULL).c_str()));
+
+  g_err << "** Start mgmd2 from config2.ini" << endl;
+  Mgmd* mgmd2 = new Mgmd(2);
+  CHECK(mgmd2->start_from_config_ini(wd.path(),
+                                     "-f config2.ini",
+                                     "--initial",
+                                     "--nowait-nodes=1-255",
+                                     NULL));
+  CHECK(mgmd2->wait(ret));
+  CHECK(ret == 1);
+
+  CHECK(mgmd1->stop());
+
+  g_err << "** Start mgmd2 again from config2.ini" << endl;
+  CHECK(mgmd2->start_from_config_ini(wd.path(),
+                                     "-f config2.ini",
+                                     "--initial",
+                                     "--nowait-nodes=1-255",
+                                     NULL));
+
+
+  CHECK(mgmd2->connect(config));
+  CHECK(mgmd2->wait_confirmed_config());
+
+  // check config files exist
   CHECK(file_exists(path(wd.path(),
                          "ndb_2_config.bin.1",
                          NULL).c_str()));
 
-  // Both ndb_mgmd(s) should have reloaded and new binary config exist
-  CHECK(file_exists(path(wd.path(),
-                         "ndb_1_config.bin.2",
-                         NULL).c_str()));
-  CHECK(file_exists(path(wd.path(),
-                         "ndb_2_config.bin.2",
-                         NULL).c_str()));
+  g_err << "** Start mgmd1 from config.ini, mgmd2 should shutdown" << endl;
+  CHECK(mgmd1->start_from_config_ini(wd.path(),
+                                     "--initial",
+                                     "--nowait-nodes=1-255",
+                                     NULL));
+  CHECK(mgmd2->wait(ret));
+  CHECK(ret == 1);
 
-  // Stop the ndb_mgmd(s)
-  for (unsigned i = 0; i < mgmds.size(); i++)
-      CHECK(mgmds[i]->stop());
+  CHECK(mgmd1->stop());
 
   return NDBT_OK;
-
 }
 
 NDBT_TESTSUITE(testMgmd);
@@ -732,6 +808,13 @@ TESTCASE("NowaitNodes",
          "of --nowait-nodes, then start the second mgmd and it should join")
 {
   INITIALIZER(runTestNowaitNodes);
+}
+TESTCASE("NowaitNodes2",
+         "Test that one mgmd(of 2) can start alone with usage "
+         "of --nowait-nodes, then start the second mgmd from different "
+         "configuration and the one with lowest nodeid should shutdown")
+{
+  INITIALIZER(runTestNowaitNodes2);
 }
 
 NDBT_TESTSUITE_END(testMgmd);

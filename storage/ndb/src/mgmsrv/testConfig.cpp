@@ -260,6 +260,40 @@ print_restart_info(void)
   fprintf(stderr, "\n");
 }
 
+
+static void
+checksum_config(void)
+{
+  Config* c1=
+    create_config("[ndbd]", "NoOfReplicas=1",
+                  "[ndb_mgmd]", "HostName=localhost",
+                  "[mysqld]", NULL);
+  Config* c2=
+    create_config("[ndbd]", "NoOfReplicas=1",
+                  "[ndb_mgmd]", "HostName=localhost",
+                  "[mysqld]", "[mysqld]", NULL);
+
+  ndbout_c("== checksum tests ==");
+  Uint32 c1_check = c1->checksum();
+  Uint32 c2_check = c2->checksum();
+  ndbout_c("c1->checksum(): 0x%x", c1_check);
+  ndbout_c("c2->checksum(): 0x%x", c2_check);
+   // Different config should not have same checksum
+  CHECK(c1_check != c2_check);
+
+  // Same config should have same checksum
+  CHECK(c1_check == c1->checksum());
+
+  // Copied config should have same checksum
+  Config c1_copy(c1);
+  CHECK(c1_check == c1_copy.checksum());
+
+  ndbout_c("==================");
+
+  delete c1;
+  delete c2;
+}
+
 #include <NdbTap.hpp>
 
 TAPTEST(MgmConfig)
@@ -267,6 +301,7 @@ TAPTEST(MgmConfig)
   ndb_init();
   diff_config();
   CHECK(check_params());
+  checksum_config();
 #if 0
   print_restart_info();
 #endif
