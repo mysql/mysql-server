@@ -81,24 +81,28 @@ sub is_child {
 }
 
 
-# Find the safe process binary or script
 my @safe_process_cmd;
 my $safe_kill;
-if (IS_WIN32PERL or IS_CYGWIN){
-  # Use my_safe_process.exe
-  my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
-		       "my_safe_process");
-  push(@safe_process_cmd, $exe);
 
-  # Use my_safe_kill.exe
-  $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
-}
-else
-{
-  # Use my_safe_process
-  my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
-		       "my_safe_process");
-  push(@safe_process_cmd, $exe);
+# Find the safe process binary or script
+sub find_bin {
+  if (IS_WIN32PERL or IS_CYGWIN)
+  {
+    # Use my_safe_process.exe
+    my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
+			 "my_safe_process");
+    push(@safe_process_cmd, $exe);
+
+    # Use my_safe_kill.exe
+    $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
+  }
+  else
+  {
+    # Use my_safe_process
+    my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
+			 "my_safe_process");
+    push(@safe_process_cmd, $exe);
+  }
 }
 
 
