@@ -89,7 +89,6 @@ private:
   int (*m_connect_callback)(void);
 
   int m_optimized_node_selection;
-  char *m_name;
   int m_run_connect_thread;
   NdbMutex *m_event_add_drop_mutex;
   Uint64 m_latest_trans_gci;
