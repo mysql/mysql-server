@@ -52,9 +52,9 @@ joined DATE NOT NULL
 )
 PARTITION BY KEY(joined)
 PARTITIONS 6;
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+Got one of the listed errors
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+Got one of the listed errors
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 CREATE TABLE t1 (
@@ -71,7 +71,7 @@ PARTITION p2 VALUES LESS THAN (1980),
 PARTITION p3 VALUES LESS THAN (1990),
 PARTITION p4 VALUES LESS THAN MAXVALUE
 );
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+Got one of the listed errors
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 CREATE TABLE t1 (id INT, purchased DATE)
@@ -82,7 +82,7 @@ PARTITION p0 VALUES LESS THAN (1990),
 PARTITION p1 VALUES LESS THAN (2000),
 PARTITION p2 VALUES LESS THAN MAXVALUE
 );
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+Got one of the listed errors
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 create table t1 (a varchar(10) charset latin1 collate latin1_bin);
