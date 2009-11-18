@@ -619,7 +619,7 @@ NdbEventOperationImpl::execute_nolock()
     /* Pre-7.0 kernel nodes do not return the number of buckets
      * Assume it's == theNoOfDBnodes as was the case in 6.3
      */
-    if (buckets == ~0)
+    if (buckets == ~ (Uint32)0)
       buckets = m_ndb->theImpl->theNoOfDBnodes;
 
     m_ndb->theEventBuffer->set_total_buckets(buckets);
