@@ -426,7 +426,8 @@ cleanup:
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
-  if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
+  if (error < 0 || 
+      (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
   {
     /*
       If a TRUNCATE TABLE was issued, the number of rows should be reported as
