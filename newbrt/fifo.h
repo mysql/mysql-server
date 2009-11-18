@@ -23,7 +23,7 @@ int toku_fifo_n_entries(FIFO);
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd);
 int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, XIDS xids);
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, XIDS *xids);
-int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
+// int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
 int toku_fifo_deq(FIFO);
 
 unsigned long toku_fifo_memory_size(FIFO); // return how much memory the fifo uses.

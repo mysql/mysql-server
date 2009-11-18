@@ -123,6 +123,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
     return 0;
 }
 
+#if 0
 // fill in the BRT_MSG, using the two DBTs for the DBT part.
 int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_MSG cmd, DBT*key, DBT*data) {
     u_int32_t type;
@@ -137,6 +138,7 @@ int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_MSG cmd, DBT*key, DBT*data) {
     cmd->u.id.val=data;
     return 0;
 }
+#endif
 
 int toku_fifo_deq(FIFO fifo) {
     if (fifo->n_items_in_fifo==0) return -1;
