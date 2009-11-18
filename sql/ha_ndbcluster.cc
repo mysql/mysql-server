@@ -12597,6 +12597,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     DBUG_PRINT("info", ("Failed to start schema transaction"));
     ERR_PRINT(dict->getNdbError());
     error= ndb_to_mysql_error(&dict->getNdbError());
+    table->file->print_error(error, MYF(0));
     goto err;
   }
 
