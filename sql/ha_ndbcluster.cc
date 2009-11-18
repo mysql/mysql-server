@@ -309,7 +309,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
   // TODO: Incomplete integration of range scan, will be liftet soon
   if (join_tabs[0].type == JT_ALL    &&  // Pushed range scan
-      join_tabs[0].select  /*&& join_tabs[0].select->quick*/)
+      join_tabs[0].use_quick == 2)
   {
     DBUG_RETURN(0);
   }
