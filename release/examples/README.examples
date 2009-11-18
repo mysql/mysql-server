@@ -47,14 +47,14 @@ total 322M
 
 When scanning the table, one can run out of locks with BDB.  There are ways around it (increase the lock table size).
 
-$ ./db-scan-bdb
+$ ./db-scan-bdb --nox
 Lock table is out of available object entries
 db-scan-bdb: db-scan.c:177: scanscan_hwc: Assertion `r==(-30988)' failed.
 Aborted
 
 TokuDB is fine on a big table scan.
 
-$ ./db-scan
+$ ./db-scan --nox
 Scan    33162304 bytes (2072644 rows) in  7.924463s at  4.184801MB/s
 Scan    33162304 bytes (2072644 rows) in  3.062239s at 10.829431MB/s
 0:3 1:53 2:56 
