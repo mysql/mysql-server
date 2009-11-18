@@ -407,8 +407,8 @@ class NdbQueryDefImpl
   friend class NdbQueryDef;
 
 public:
-  explicit NdbQueryDefImpl(const NdbQueryBuilderImpl& builder, 
-                           const Vector<NdbQueryOperationDefImpl*>& operations,
+  explicit NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
+                           const Vector<NdbQueryOperandImpl*>& operands,
                            int& error);
   ~NdbQueryDefImpl();
 

@@ -910,7 +910,7 @@ const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
   int error;
-  NdbQueryDefImpl* def = new NdbQueryDefImpl(*this, m_operations, error);
+  NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
   m_operations.clear();
   m_operands.clear();
   m_paramCnt = 0;
@@ -929,13 +929,12 @@ NdbQueryBuilderImpl::prepare()
 // The (hidden) Impl of NdbQueryDef
 ///////////////////////////////////
 NdbQueryDefImpl::
-NdbQueryDefImpl(const NdbQueryBuilderImpl& builder,
-                const Vector<NdbQueryOperationDefImpl*>& operations,
-                //const Vector<NdbQueryOperandImpl*> operands;  FIXME
+NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
+                const Vector<NdbQueryOperandImpl*>& operands,
                 int& error)
  : m_interface(*this), 
    m_operations(operations),
-   m_operands()
+   m_operands(operands)
 {
   Uint32 nodeId = 0;
 
