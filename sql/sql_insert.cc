@@ -500,6 +500,22 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
+  if (thd->locked_tables && thd->global_read_lock)
+  {
+    /*
+      If this connection has the global read lock, the handler thread
+      will not be able to lock the table. It will wait for the global
+      read lock to go away, but this will never happen since the
+      connection thread will be stuck waiting for the handler thread
+      to open and lock the table.
+      If we are not in locked tables mode, INSERT will seek protection
+      against the global read lock (and fail), thus we will only get
+      to this point in locked tables mode.
+    */
+    my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   if (delayed_get_table(thd, table_list))
     DBUG_RETURN(TRUE);
 
