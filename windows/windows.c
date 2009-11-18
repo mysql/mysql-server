@@ -44,6 +44,8 @@ toku_portability_init(void) {
         r = toku_malloc_init();
     if (r==0)
         r = toku_pthread_win32_init();
+    if (r==0)
+        _fmode = _O_BINARY; //Default open file is BINARY
     return r;
 }
 

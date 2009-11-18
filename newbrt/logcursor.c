@@ -50,7 +50,7 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
     assert( !lc->is_open );
     if( index == -1 || index >= lc->n_logfiles) return DB_NOTFOUND;
-    lc->cur_fp = fopen(lc->logfiles[index], "r");
+    lc->cur_fp = fopen(lc->logfiles[index], "rb");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
     // position fp past header
