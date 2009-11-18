@@ -22,4 +22,4 @@ check: $(TARGETS)
 	./db-insert && ./db-scan --lwc --prelock --prelockflag
 
 clean:
-	rm -rf $(TARGETS) bench
+	rm -rf $(TARGETS) bench.*
