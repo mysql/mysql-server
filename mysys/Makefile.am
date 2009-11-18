@@ -30,7 +30,8 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_new.cc \
-			my_vle.c my_atomic.c \
+			my_vle.c my_atomic.c lf_hash.c \
+			lf_dynarray.c lf_alloc-pin.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
