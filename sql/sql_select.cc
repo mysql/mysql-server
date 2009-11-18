@@ -11833,9 +11833,10 @@ join_read_prev_same(READ_RECORD *info)
 static int
 join_init_quick_read_record(JOIN_TAB *tab)
 {
+  DBUG_ENTER("join_init_quick_read_record");
   if (test_if_quick_select(tab) == -1)
-    return -1;					/* No possible records */
-  return join_init_read_record(tab);
+    DBUG_RETURN(-1);					/* No possible records */
+  DBUG_RETURN(join_init_read_record(tab));
 }
 
 
@@ -11861,11 +11862,12 @@ test_if_quick_select(JOIN_TAB *tab)
 static int
 join_init_read_record(JOIN_TAB *tab)
 {
+  DBUG_ENTER("join_init_read_record");
   if (tab->select && tab->select->quick && tab->select->quick->reset())
-    return 1;
+    DBUG_RETURN(1);
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
 		   tab->select,1,1, FALSE);
-  return (*tab->read_record.read_record)(&tab->read_record);
+  DBUG_RETURN((*tab->read_record.read_record)(&tab->read_record));
 }
 
 
@@ -16314,13 +16316,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
-            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-        {
-          extra.append(STRING_WITH_LEN("; Using "));
-          tab->select->quick->add_info_string(&extra);
-        }
         uint pushed_joins = tab->table->file->has_pushed_joins();
         if (pushed_joins>0)
         {
@@ -16329,6 +16324,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
                                "; Pushed %d joins",
                                pushed_joins);
           extra.append(buf,len);
+        }
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        {
+          extra.append(STRING_WITH_LEN("; Using "));
+          tab->select->quick->add_info_string(&extra);
         }
 	if (tab->select)
 	{

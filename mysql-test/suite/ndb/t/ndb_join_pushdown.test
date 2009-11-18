@@ -228,6 +228,22 @@ left join t1 as t2 on t2.a = t1.c
 left join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 
+
+# Test a combination of pushed table scan (x+y)
+#  & pushed EQ-bound (indexScan) (z+t1)
+# This used to give incorrect results with random result for last table (t1)
+set ndb_join_pushdown=on;
+explain 
+  select * from t1 x, t1 y, t1 z, t1 where 
+    y.a=x.d and y.b=x.b and 
+    z.a=y.d and 
+    t1.a = z.d and t1.b=z.b;
+--sorted_result
+  select * from t1 x, t1 y, t1 z, t1 where 
+    y.a=x.d and y.b=x.b and 
+    z.a=y.d and 
+    t1.a = z.d and t1.b=z.b;
+
 set ndb_join_pushdown=on;
 
 drop table t1;
