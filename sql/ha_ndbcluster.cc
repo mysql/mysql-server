@@ -285,7 +285,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 //DBUG_ASSERT (join_tabs[0].ref.key == idx);  // is 'idx' argument obsolete?
   THD *thd= current_thd;
 
-  m_pushed_join= 0;
+  DBUG_ASSERT (m_pushed_join == NULL);
   if (unlikely(!(thd->variables.ndb_join_pushdown)))
     DBUG_RETURN(0);
 
@@ -348,7 +348,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
   if (join_tabs[0].type == JT_EQ_REF || join_tabs[0].type == JT_CONST)
   {
-    DBUG_PRINT("info", ("parent operation is 'equal-lookup'"));
+    DBUG_PRINT("info", ("Root operation is 'equal-lookup'"));
 
     const NdbRecord *key_rec;
     if (idx != MAX_KEY)
@@ -368,7 +368,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   }
   else if (join_tabs[0].type == JT_REF)  // || JT_REF_OR_NULL?
   {
-    DBUG_PRINT("info", ("parent operation is 'equal-range-lookup'"));
+    DBUG_PRINT("info", ("Root operation is 'equal-range-lookup'"));
     DBUG_PRINT("info", ("Creating scanIndex on index id:%d, name:%s", idx, m_index[idx].index->getName()));
 
     TABLE_REF* ref = &join_tabs[0].ref;
@@ -390,15 +390,21 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   else
   {
     DBUG_ASSERT (join_tabs[0].type == JT_ALL);
-    if (join_tabs[0].select && join_tabs[0].select->quick)
+    if (join_tabs[0].use_quick == 2)  // Incomplete, and actually disabled further above
     {
-      DBUG_PRINT("info", ("parent operation is 'upper/lower range-lookup'"));
+      DBUG_PRINT("info", ("Root operation 'use_quick' 'upper/lower range-lookup'"));
+
+      const NdbQueryOperand* low[10]  = {NULL};
+      const NdbQueryOperand* high[10]  = {NULL};
+      const NdbQueryIndexBound  bound(low,high);
+
+      operationDefs[0] = builder.scanIndex(m_index[idx].index, m_table, &bound);
     }
     else
     {
-      DBUG_PRINT("info", ("parent operation is 'table scan'"));
+      DBUG_PRINT("info", ("Root operation is 'table scan'"));
+      operationDefs[0] = builder.scanTable(m_table);
     }
-    operationDefs[0] = builder.scanTable(m_table);
   }
   if (unlikely(!operationDefs[0]))
     DBUG_RETURN(0);
@@ -447,7 +453,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     const NdbDictionary::Table* const ndbTab = 
       static_cast<ha_ndbcluster*>(join_tab.table->file)->m_table;
     
-    DBUG_ASSERT (join_tab.ref.key == join_tab.table->s->primary_key);  // Link on primary key assumed
+    // Link on primary key assumed
+    DBUG_ASSERT ((int)join_tab.ref.key == (int)join_tab.table->s->primary_key);
     operationDefs[join_cnt] = builder.readTuple(ndbTab, key);
     if (unlikely(!operationDefs[join_cnt]))
       DBUG_RETURN(0);
@@ -461,7 +468,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
   ha_pushed_join *pushed_join =
       new ha_pushed_join(join_tabs, join_cnt, queryDef);
-  m_pushed_join = pushed_join;
+  m_pushed_join= pushed_join;
   DBUG_RETURN(join_cnt);
 }
 
@@ -5446,7 +5453,6 @@ int ha_ndbcluster::close_scan()
   {
     m_active_query->close(m_thd_ndb->m_force_send);
     m_active_query= NULL;
-    m_pushed_join= NULL;
   }
 
   NdbScanOperation *cursor= m_active_cursor;
