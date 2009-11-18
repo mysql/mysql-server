@@ -1,3 +1,9 @@
+2009-11-18	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix Bug#48782 On lock wait timeout, CREATE INDEX (creating primary key)
+	attempts DROP TABLE
+
 2009-11-17	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb.result,
