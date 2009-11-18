@@ -36,7 +36,7 @@ class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
-class GenericSectionPtr;
+struct GenericSectionPtr;
 
 /**
  * @class NdbOperation
