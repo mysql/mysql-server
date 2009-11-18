@@ -576,6 +576,8 @@ static int toku_recover_begin_checkpoint (struct logtype_begin_checkpoint *UU(l)
     case SS_FORWARD_SAW_CKPT:
         assert(l->lsn.lsn > ss->checkpoint_lsn.lsn);
 	return 0; // ignore it
+    case SS_INIT:
+        return 0; // ignore it (log only has a begin checkpoint)
     default:
         break;
     }
@@ -932,7 +934,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     }
 
     // scan forwards
-    thislsn = toku_log_entry_get_lsn(le);
+    if (le)
+        thislsn = toku_log_entry_get_lsn(le);
+    else
+        thislsn = ZERO_LSN;
     tnow = time(NULL);
     fprintf(stderr, "%.24s Tokudb recovery (%s) scanning forward to %"PRIu64" from %"PRIu64" left %"PRIu64"\n", ctime(&tnow), recover_state(renv), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn);
     for (unsigned i=0; 1; i++) {
@@ -1021,6 +1026,9 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 }
 
 static int recover_lock(const char *lock_dir, int *lockfd) {
+    if (!lock_dir)
+        return ENOENT;
+
     const char fname[] = "/__tokudb_recoverylock_dont_delete_me";
     int namelen=strlen(lock_dir);
     char lockfname[namelen+sizeof(fname)];
