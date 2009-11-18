@@ -268,7 +268,7 @@ NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname,
 {
 }
 
-#include <storage/ndb/src/ndbapi/NdbImpl.hpp>
+#include <../../src/ndbapi/NdbImpl.hpp>
 
 int
 NDBT_Step::setUp(Ndb_cluster_connection& con){
