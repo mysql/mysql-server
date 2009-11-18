@@ -16,6 +16,8 @@
 AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
 AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
 
+noinst_HEADERS = thr_template.c
+
 LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/mysys/libmysys.a \
 		  $(top_builddir)/dbug/libdbug.a \
