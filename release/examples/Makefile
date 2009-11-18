@@ -19,7 +19,7 @@ setup:
 	cp ../../toku_include/toku_list.h include/toku_list.h
 
 check: $(TARGETS)
-	./db-insert && ./db-scan --lwc --prelock --prelockflag
+	./db-insert && ./db-scan --nox --lwc --prelock --prelockflag
 
 clean:
 	rm -rf $(TARGETS) bench.*
