@@ -715,10 +715,6 @@ fi
 %attr(755, root, root) %{_bindir}/resolveip
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
-%if %{WITHOUT_INNODB_PLUGIN}
-%else
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
-%endif
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -850,11 +846,6 @@ fi
 %{_libdir}/mysql/libz.la
 %{_libdir}/mysql/plugin/ha_example.a
 %{_libdir}/mysql/plugin/ha_example.la
-%if %{WITHOUT_INNODB_PLUGIN}
-%else
-%{_libdir}/mysql/plugin/ha_innodb_plugin.a
-%{_libdir}/mysql/plugin/ha_innodb_plugin.la
-%endif
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -886,7 +877,8 @@ fi
 %changelog
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental).
+- Fix some problems with the directives around "tcmalloc" (experimental),
+  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
 
