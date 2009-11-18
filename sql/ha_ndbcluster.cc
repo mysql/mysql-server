@@ -1379,7 +1379,7 @@ void ha_ndbcluster::release_blobs_buffer()
   DBUG_ENTER("releaseBlobsBuffer");
   if (m_blobs_buffer_size > 0)
   {
-    DBUG_PRINT("info", ("Deleting blobs buffer, size %u", m_blobs_buffer_size));
+    DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blobs_buffer_size));
     my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     m_blobs_buffer= 0;
     m_blobs_row_total_size= 0;
