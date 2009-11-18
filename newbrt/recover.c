@@ -16,6 +16,7 @@ int tokudb_recovery_trace = 0;                    // turn on recovery tracing, d
 #define VERIFY_COUNTS(n) ((void)0)
 #endif
 
+// time in seconds between recovery progress reports
 #define TOKUDB_RECOVERY_PROGRESS_TIME 15
 
 struct scan_state {
