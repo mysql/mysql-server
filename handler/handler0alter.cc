@@ -882,7 +882,9 @@ error:
 		/* fall through */
 	default:
 		if (new_primary) {
-			row_merge_drop_table(trx, indexed_table);
+			if (indexed_table != innodb_table) {
+				row_merge_drop_table(trx, indexed_table);
+			}
 		} else {
 			if (!dict_locked) {
 				row_mysql_lock_data_dictionary(trx);
