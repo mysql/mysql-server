@@ -380,6 +380,8 @@ public:
   void setLogging(bool val);
   bool getLogging() const;
 
+  bool getForceShort() const;
+
   int createTables(Ndb_cluster_connection&) const;
   int dropTables(Ndb_cluster_connection&) const;
 
@@ -417,6 +419,7 @@ private:
   bool m_logging;
   NDBT_DriverType m_driverType;
   bool m_noddl;
+  bool m_forceShort;
 };
 
 

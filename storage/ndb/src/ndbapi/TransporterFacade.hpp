@@ -95,6 +95,7 @@ public:
   bool   getIsNodeSendable(NodeId nodeId) const;
   Uint32 getNodeGrp(NodeId nodeId) const;
   Uint32 getNodeSequence(NodeId nodeId) const;
+  Uint32 getNodeNdbVersion(NodeId nodeId) const;
 
   // Is there space in sendBuffer to send messages
   bool   check_send_size(Uint32 node_id, Uint32 send_size);
@@ -439,6 +440,13 @@ TransporterFacade::getNodeSequence(NodeId n) const {
 
 inline
 Uint32
+TransporterFacade::getNodeNdbVersion(NodeId n) const
+{
+  return theClusterMgr->getNodeInfo(n).m_info.m_version;
+}
+
+inline
+Uint32
 TransporterFacade::get_scan_batch_size() {
   return m_scan_batch_size;
 }
@@ -533,5 +541,58 @@ public :
 
   Uint32* getNextWords(Uint32& sz);
 };
+
+/*
+ * GenericSectionIteratorReader
+ * Helper class to simplify reading data from 
+ * GenericSectionIterator implementations
+ */
+
+class GSIReader
+{
+private :
+  GenericSectionIterator* gsi;
+  const Uint32* chunkPtr;
+  Uint32 chunkRemain;
+public :
+  GSIReader(GenericSectionIterator* _gsi)
+  {
+    gsi = _gsi;
+    chunkPtr = NULL;
+    chunkRemain = 0;
+  }
+
+  void copyNWords(Uint32* dest, Uint32 n)
+  {
+    while (n)
+    {
+      if (chunkRemain == 0)
+      {
+        /* Get next contiguous stretch of words from
+         * the iterator
+         */
+        chunkPtr = gsi->getNextWords(chunkRemain);
+        if (!chunkRemain)
+          abort(); // Must have the words the caller asks for
+      }
+      else
+      {
+        /* Have some words from the iterator, copy some/
+         * all of them
+         */
+        Uint32 wordsToCopy = MIN(chunkRemain, n);
+        memcpy(dest, chunkPtr, wordsToCopy << 2);
+        chunkPtr += wordsToCopy;
+        chunkRemain -= wordsToCopy;
+
+        dest += wordsToCopy;
+        n -= wordsToCopy;
+      }
+    }
+  }
+};
+
+  
+
 
 #endif // TransporterFacade_H

@@ -36,6 +36,7 @@ class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
+class GenericSectionPtr;
 
 /**
  * @class NdbOperation
@@ -1208,8 +1209,8 @@ protected:
  * was sent, then the connection object is told about this situation.
  *****************************************************************************/
 
+  int    doSendKeyReq(int processorId, GenericSectionPtr* secs, Uint32 numSecs);
   int    doSend(int ProcessorId, Uint32 lastFlag);
-  int    doSendNdbRecord(int aNodeId);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);

@@ -268,6 +268,7 @@ NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname,
 {
 }
 
+#include <storage/ndb/src/ndbapi/NdbImpl.hpp>
 
 int
 NDBT_Step::setUp(Ndb_cluster_connection& con){
@@ -281,6 +282,9 @@ NDBT_Step::setUp(Ndb_cluster_connection& con){
   {
     m_ndb = new Ndb(&con, "TEST_DB" );
     m_ndb->init(1024);
+
+    NdbImpl::setForceShortRequests(m_ndb, 
+                                   m_ctx->suite->getForceShort());
 
     int result = m_ndb->waitUntilReady(300); // 5 minutes
     if (result != 0){
@@ -792,6 +796,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
    temporaryTables = false;
    runonce = false;
    m_noddl = false;
+   m_forceShort = false;
 }
 
 
@@ -831,6 +836,10 @@ void NDBT_TestSuite::setLogging(bool val){
 
 bool NDBT_TestSuite::getLogging() const {
   return m_logging;
+}
+
+bool NDBT_TestSuite::getForceShort() const {
+  return m_forceShort;
 }
 
 bool NDBT_TestSuite::timerIsOn(){
@@ -926,6 +935,8 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
 
     Ndb ndb(&con, "TEST_DB");
     ndb.init(1024);
+
+    NdbImpl::setForceShortRequests(&ndb, m_forceShort);
 
     int result = ndb.waitUntilReady(300); // 5 minutes
     if (result != 0){
@@ -1276,6 +1287,7 @@ static int opt_seed = 0;
 static int opt_nologging = 0;
 static int opt_temporary = 0;
 static int opt_noddl = 0;
+static int opt_forceShort = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -1315,6 +1327,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "noddl", 0, "Don't create/drop tables as part of running tests",
     (uchar**) &opt_noddl, (uchar**) &opt_noddl, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "forceshortreqs", 0, "Use short signals for NdbApi requests",
+    (uchar**) &opt_forceShort, (uchar**) &opt_forceShort, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1386,6 +1401,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     setLogging(false);
   temporaryTables = opt_temporary;
   m_noddl = opt_noddl;
+  m_forceShort = opt_forceShort;
 
   if (opt_seed == 0)
   {

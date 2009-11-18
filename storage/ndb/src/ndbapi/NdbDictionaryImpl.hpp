@@ -689,6 +689,8 @@ public:
   int endSchemaTrans(Uint32 flags);
   Tx & m_tx; // shared with NdbDictionaryImpl
 
+  bool checkAllNodeVersionsMin(Uint32 minNdbVersion) const;
+
   const NdbError &getNdbError() const;  
   NdbError & m_error;
 private:
