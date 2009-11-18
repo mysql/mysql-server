@@ -1472,3 +1472,19 @@ max-time: 300
 cmd: testNdbApi
 args: -n FragmentedApiFailure T1
 
+# Series of short (signal train) request generation/handling tests
+# Start
+max-time: 500
+cmd: testBasic
+args: --forceshortreqs -n PkUpdate
+
+max-time: 300
+cmd: testIndex
+args: --forceshortreqs -n InsertDelete T2
+
+max-time: 2500
+cmd: testPartitioning
+args: --forceshortreqs
+
+# End of short (signal train) handling tests
+

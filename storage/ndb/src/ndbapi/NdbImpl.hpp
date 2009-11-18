@@ -110,6 +110,14 @@ public:
     return;
   }
 
+  bool forceShortRequests;
+
+  static inline void setForceShortRequests(Ndb* ndb, bool val)
+  {
+    ndb->theImpl->forceShortRequests = val;
+  }
+
+
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 
   /**
