@@ -1649,9 +1649,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
 
-  /* Parsing of partitioning information from .frm needs thd->lex set up. */
-  DBUG_ASSERT(thd->lex->is_lex_started);
-
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
   outparam->in_use= thd;
@@ -1833,6 +1830,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       thd->restore_active_arena(&part_func_arena, &backup_arena);
       goto partititon_err;
     }
+    /* fix_partition_func needs thd->lex set up. TODO: fix! */
+    DBUG_ASSERT(thd->lex->is_lex_started);
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     /* we should perform the fix_partition_func in either local or

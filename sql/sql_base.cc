@@ -2532,9 +2532,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
-  /* Parsing of partitioning information from .frm needs thd->lex set up. */
-  DBUG_ASSERT(thd->lex->is_lex_started);
-
   /* find a unused table in the open table cache */
   if (refresh)
     *refresh=0;
