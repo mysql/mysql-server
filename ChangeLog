@@ -1,5 +1,17 @@
 2009-11-19	The InnoDB Team
 
+	* btr/btr0btr.c:
+	Fix Bug#48469 when innodb tablespace is configured too small, crash
+	and corruption!
+
+2009-11-19	The InnoDB Team
+
+	* data/data0type.c:
+	Fix Bug#48526 Data type for float and double is incorrectly reported
+	in InnoDB table monitor
+
+2009-11-19	The InnoDB Team
+
 	* CMakeLists.txt:
 	Fix Bug#48317 cannot build innodb as static library
 

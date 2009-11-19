@@ -790,8 +790,16 @@ btr_create(
 	} else {
 		/* It is a non-ibuf tree: create a file segment for leaf
 		pages */
-		fseg_create(space, page_no,
-			    PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr);
+		if (!fseg_create(space, page_no,
+				 PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr)) {
+			/* Not enough space for new segment, free root
+			segment before return. */
+			fseg_free(space, page_no,
+				    PAGE_HEADER + PAGE_BTR_SEG_TOP);
+
+			return(FIL_NULL);
+		}
+
 		/* The fseg create acquires a second latch on the page,
 		therefore we must declare it: */
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
