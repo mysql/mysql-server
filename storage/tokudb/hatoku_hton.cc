@@ -112,9 +112,11 @@ my_bool tokudb_prelock_empty;
 #endif
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
+#if defined(_WIN32)
 extern "C" {
 #include "ydb.h"
 }
+#endif
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
