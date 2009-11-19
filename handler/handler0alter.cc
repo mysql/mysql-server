@@ -765,10 +765,11 @@ err_exit:
 	ut_ad(error == DB_SUCCESS);
 
 	/* Commit the data dictionary transaction in order to release
-	the table locks on the system tables.  Unfortunately, this
-	means that if MySQL crashes while creating a new primary key
-	inside row_merge_build_indexes(), indexed_table will not be
-	dropped on crash recovery.  Thus, it will become orphaned. */
+	the table locks on the system tables.  This means that if
+	MySQL crashes while creating a new primary key inside
+	row_merge_build_indexes(), indexed_table will not be dropped
+	by trx_rollback_active().  It will have to be recovered or
+	dropped by the database administrator. */
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
