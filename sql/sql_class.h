@@ -1982,9 +1982,15 @@ public:
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
+  /** Return FALSE if connection to client is broken. */
+  bool is_connected()
+  {
+    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+  }
 #else
   void clear_error();
-  inline bool vio_ok() const { return true; }
+  inline bool vio_ok() const { return TRUE; }
+  inline bool is_connected() { return TRUE; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -1993,6 +1999,7 @@ public:
   */
   inline void fatal_error()
   {
+    DBUG_ASSERT(main_da.is_error());
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2158,7 +2165,10 @@ public:
     else
     {
       x_free(db);
-      db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
+      if (new_db)
+        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+      else
+        db= NULL;
     }
     db_length= db ? new_db_len : 0;
     return new_db && !db;
