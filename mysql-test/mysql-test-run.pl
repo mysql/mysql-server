@@ -266,6 +266,9 @@ sub main {
 
   command_line_setup();
 
+  # --help will not reach here, so now it's safe to assume we have binaries
+  My::SafeProcess::find_bin();
+
   if ( $opt_gcov ) {
     gcov_prepare($basedir);
   }
@@ -2519,6 +2522,7 @@ sub create_config_file_for_extern {
 # binlog reads from [client] and [mysqlbinlog]
 [mysqlbinlog]
 character-sets-dir= $path_charsetsdir
+local-load= $opt_tmpdir
 
 # mysql_fix_privilege_tables.sh don't read from [client]
 [mysql_fix_privilege_tables]
@@ -3503,6 +3507,14 @@ sub run_testcase ($) {
 	  run_on_all($tinfo, "analyze-$analyze");
 	}
 
+	# Wait a bit and see if a server died, if so report that instead
+	mtr_milli_sleep(100);
+	my $srvproc= My::SafeProcess::check_any();
+	if ($srvproc && grep($srvproc eq $_, started(all_servers()))) {
+	  $proc= $srvproc;
+	  goto SRVDIED;
+	}
+
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
       }
@@ -3528,6 +3540,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if it was an expected crash
     # ----------------------------------------------------
+    SRVDIED:
     my $check_crash = check_expected_crash_and_restart($proc);
     if ($check_crash)
     {
@@ -5094,9 +5107,9 @@ sub debugger_arguments {
   {
     # vc[express] /debugexe exe arg1 .. argn
 
-    # Add /debugexe and name of the exe before args
-    unshift(@$$args, "/debugexe");
+    # Add name of the exe and /debugexe before args
     unshift(@$$args, "$$exe");
+    unshift(@$$args, "/debugexe");
 
     # Set exe to debuggername
     $$exe= $debugger;
