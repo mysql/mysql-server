@@ -96,6 +96,7 @@ REGRESSION_TESTS_RAW = \
 	recovery-begin-end-checkpoint \
 	recovery-begin-end-checkpoint-hello \
 	recovery-empty \
+	recovery-fopen-missing-file \
 	recovery-hello \
 	recovery-no-datadir \
 	recovery-no-log \
