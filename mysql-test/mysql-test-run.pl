@@ -266,6 +266,9 @@ sub main {
 
   command_line_setup();
 
+  # --help will not reach here, so now it's safe to assume we have binaries
+  My::SafeProcess::find_bin();
+
   if ( $opt_gcov ) {
     gcov_prepare($basedir);
   }
