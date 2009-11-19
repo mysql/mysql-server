@@ -713,8 +713,7 @@ btr_create(
 				 PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr)) {
 			/* Not enough space for new segment, free root
 			segment before return. */
-			fseg_free(space, page_no,
-				  PAGE_HEADER + PAGE_BTR_SEG_TOP);
+			btr_free_root(space, page_no, mtr);
 
 			return(FIL_NULL);
 		}
