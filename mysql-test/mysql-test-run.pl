@@ -2511,6 +2511,7 @@ sub create_config_file_for_extern {
 # binlog reads from [client] and [mysqlbinlog]
 [mysqlbinlog]
 character-sets-dir= $path_charsetsdir
+local-load= $opt_tmpdir
 
 # mysql_fix_privilege_tables.sh don't read from [client]
 [mysql_fix_privilege_tables]
