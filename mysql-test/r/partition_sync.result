@@ -1,0 +1,25 @@
+#
+# Bug #43867 ALTER TABLE on a partitioned table 
+#            causes unnecessary deadlocks
+#
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2));
+INSERT INTO t1 VALUES (0),(1);
+# Connection 2
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+# Connection 1
+ALTER TABLE t1 DROP PARTITION p3;
+ERROR HY000: Error in list of partitions to DROP
+# Connection 2
+# This failed with deadlock and should not do so.
+SELECT * FROM t1;
+a
+0
+1
+# Connection 1
+DROP TABLE t1;
