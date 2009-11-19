@@ -1,3 +1,8 @@
+2009-11-19	The InnoDB Team
+
+	* CMakeLists.txt:
+	Fix Bug#48317 cannot build innodb as static library
+
 2009-11-18	The InnoDB Team
 
 	* handler/handler0alter.cc:
