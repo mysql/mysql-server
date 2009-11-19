@@ -3632,49 +3632,58 @@ void do_perl(struct st_command *command)
                      sizeof(perl_args)/sizeof(struct command_arg),
                      ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
-
-  init_dynamic_string(&ds_script, "", 1024, 1024);
-  read_until_delimiter(&ds_script, &ds_delimiter);
-
-  DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
-
-  /* Create temporary file name */
-  if ((fd= create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
-                            "tmp", O_CREAT | O_SHARE | O_RDWR,
-                            MYF(MY_WME))) < 0)
-    die("Failed to create temporary file for perl command");
-  my_close(fd, MYF(0));
-
-  str_to_file(temp_file_path, ds_script.str, ds_script.length);
-
-  /* Format the "perl <filename>" command */
-  my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
-
-  if (!(res_file= popen(buf, "r")) && command->abort_on_error)
-    die("popen(\"%s\", \"r\") failed", buf);
-
-  while (fgets(buf, sizeof(buf), res_file))
+  ds_script= command->content;
+  /* If it hasn't been done already by a loop iteration, fill it in */
+  if (! ds_script.str)
   {
-    if (disable_result_log)
-    {
-      buf[strlen(buf)-1]=0;
-      DBUG_PRINT("exec_result",("%s", buf));
-    }
-    else
-    {
-      replace_dynstr_append(&ds_res, buf);
-    }
+    /* If no delimiter was provided, use EOF */
+    if (ds_delimiter.length == 0)
+      dynstr_set(&ds_delimiter, "EOF");
+
+    init_dynamic_string(&ds_script, "", 1024, 1024);
+    read_until_delimiter(&ds_script, &ds_delimiter);
+    command->content= ds_script;
   }
-  error= pclose(res_file);
 
-  /* Remove the temporary file */
-  my_delete(temp_file_path, MYF(0));
+  /* This function could be called even if "false", so check before doing */
+  if (cur_block->ok)
+  {
+    DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
 
-  handle_command_error(command, WEXITSTATUS(error));
-  dynstr_free(&ds_script);
+    /* Create temporary file name */
+    if ((fd= create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
+                              "tmp", O_CREAT | O_SHARE | O_RDWR,
+                              MYF(MY_WME))) < 0)
+      die("Failed to create temporary file for perl command");
+    my_close(fd, MYF(0));
+
+    str_to_file(temp_file_path, ds_script.str, ds_script.length);
+
+    /* Format the "perl <filename>" command */
+    my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
+
+    if (!(res_file= popen(buf, "r")) && command->abort_on_error)
+     die("popen(\"%s\", \"r\") failed", buf);
+
+    while (fgets(buf, sizeof(buf), res_file))
+    {
+      if (disable_result_log)
+      {
+	buf[strlen(buf)-1]=0;
+	DBUG_PRINT("exec_result",("%s", buf));
+      }
+      else
+      {
+	replace_dynstr_append(&ds_res, buf);
+      }
+    }
+    error= pclose(res_file);
+
+    /* Remove the temporary file */
+    my_delete(temp_file_path, MYF(0));
+
+    handle_command_error(command, WEXITSTATUS(error));
+  }
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
 }
