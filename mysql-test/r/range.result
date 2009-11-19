@@ -1603,4 +1603,21 @@ SELECT str_to_date('', '%Y-%m-%d');
 str_to_date('', '%Y-%m-%d')
 0000-00-00
 DROP TABLE t1, t2;
+#
+# Bug #48665: sql-bench's insert test fails due to wrong result
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (0,0), (1,1);
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+@	@	@	range	@	@	@	@	@	@
+# Should return 2 rows
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+a	b
+0	0
+1	1
+DROP TABLE t1;
 End of 5.1 tests
