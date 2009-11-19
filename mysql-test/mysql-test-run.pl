@@ -3495,6 +3495,14 @@ sub run_testcase ($) {
 	  run_on_all($tinfo, "analyze-$analyze");
 	}
 
+	# Wait a bit and see if a server died, if so report that instead
+	mtr_milli_sleep(100);
+	my $srvproc= My::SafeProcess::check_any();
+	if ($srvproc && grep($srvproc eq $_, started(all_servers()))) {
+	  $proc= $srvproc;
+	  goto SRVDIED;
+	}
+
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
       }
@@ -3520,6 +3528,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if it was an expected crash
     # ----------------------------------------------------
+    SRVDIED:
     my $check_crash = check_expected_crash_and_restart($proc);
     if ($check_crash)
     {
