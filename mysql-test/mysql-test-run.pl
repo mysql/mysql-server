@@ -5099,9 +5099,9 @@ sub debugger_arguments {
   {
     # vc[express] /debugexe exe arg1 .. argn
 
-    # Add /debugexe and name of the exe before args
-    unshift(@$$args, "/debugexe");
+    # Add name of the exe and /debugexe before args
     unshift(@$$args, "$$exe");
+    unshift(@$$args, "/debugexe");
 
     # Set exe to debuggername
     $$exe= $debugger;
