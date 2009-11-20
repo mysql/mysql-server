@@ -384,7 +384,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       DBUG_PRINT("info", ("Root operation is an indexScan w/ upper/lower bounds"));
 
       QUICK_SELECT_I *quick = join_tabs[0].select->quick;
-      quick->dbug_dump(0, true);
+      DBUG_EXECUTE("info", quick->dbug_dump(0, true););
       DBUG_ASSERT (!quick->sorted);
 
       // Bounds will be generated and supplied during execute
