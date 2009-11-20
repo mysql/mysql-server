@@ -6056,8 +6056,7 @@ ha_innobase::rename_table(
 	the dup key error here is due to an existing table whose name
 	is the one we are trying to rename to) and return the generic
 	error code. */
-	if (error == (int) DB_DUPLICATE_KEY)
-	{
+	if (error == (int) DB_DUPLICATE_KEY) {
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
 
 		error = DB_ERROR;
