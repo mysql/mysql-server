@@ -86,9 +86,9 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 typedef ulonglong nested_join_map;
 
 /* query_id */
-typedef uint64 query_id_t;
+typedef int64 query_id_t;
 extern query_id_t global_query_id;
-extern uint32 thread_running;
+extern int32 thread_running;
 extern my_atomic_rwlock_t global_query_id_lock;
 
 /* increment query_id and return it.  */
