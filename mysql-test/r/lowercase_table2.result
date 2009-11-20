@@ -174,3 +174,74 @@ TABLE_SCHEMA	TABLE_NAME
 mysqltest_LC2	myUC
 use test;
 drop database mysqltest_LC2;
+# End of 5.1 tests
+#
+# Test for bug #44738 "fill_schema_table_from_frm() opens tables without
+# lowercasing table name". Due to not properly normalizing table names
+# in lower_case_table_names modes in this function queries to I_S which
+# were executed through it left entries with incorrect key in table
+# definition cache. As result further queries to I_S that used this
+# function produced stale results in cases when table definition was
+# changed by a DDL statement. Also combination of this issue and a
+# similar problem in CREATE TABLE (it also has peeked into table
+# definition cache using non-normalized key) led to spurious
+# ER_TABLE_EXISTS_ERROR errors when one tried to create table with the
+# same name as a previously existing but dropped table.
+#
+drop database if exists mysqltest_UPPERCASE;
+drop table if exists t_bug44738_UPPERCASE;
+create database mysqltest_UPPERCASE;
+use mysqltest_UPPERCASE;
+create table t_bug44738_UPPERCASE (i int) comment='Old comment';
+create table t_bug44738_lowercase (i int) comment='Old comment';
+select table_schema, table_name, table_comment from information_schema.tables
+where table_schema like 'mysqltest_%' and table_name like 't_bug44738_%'
+  order by table_name;
+table_schema	table_name	table_comment
+mysqltest_UPPERCASE	t_bug44738_lowercase	Old comment
+mysqltest_UPPERCASE	t_bug44738_UPPERCASE	Old comment
+alter table t_bug44738_UPPERCASE comment='New comment';
+alter table t_bug44738_lowercase comment='New comment';
+# There should be no stale entries in TDC for our tables after the
+# above ALTER TABLE statements so new version of comments should be
+# returned by the below query to I_S.
+select table_schema, table_name, table_comment from information_schema.tables
+where table_schema like 'mysqltest_%' and table_name like 't_bug44738_%'
+  order by table_name;
+table_schema	table_name	table_comment
+mysqltest_UPPERCASE	t_bug44738_lowercase	New comment
+mysqltest_UPPERCASE	t_bug44738_UPPERCASE	New comment
+drop database mysqltest_UPPERCASE;
+use test;
+# Let us check that the original test case which led to discovery
+# of this problem also works.
+create table t_bug44738_UPPERCASE (i int);
+select table_schema, table_name, table_comment from information_schema.tables
+where table_schema = 'test' and table_name like 't_bug44738_%';
+table_schema	table_name	table_comment
+test	t_bug44738_UPPERCASE	
+drop table t_bug44738_UPPERCASE;
+# After the above DROP TABLE there are no entries in TDC which correspond
+# to our table and therefore the below statement should succeed.
+create table t_bug44738_UPPERCASE (i int);
+drop table t_bug44738_UPPERCASE;
+# Finally, let us check that another issue which was exposed by
+# the original test case is solved. I.e. that fuse in CREATE TABLE
+# which ensures that table is not created if there is an entry for
+# it in TDC even though it was removed from disk uses normalized
+# version of the table name.
+create table t_bug44738_UPPERCASE (i int) engine = myisam;
+# Load table definition in TDC.
+select table_schema, table_name, table_comment from information_schema.tables
+where table_schema = 'test' and table_name like 't_bug44738_%';
+table_schema	table_name	table_comment
+test	t_bug44738_UPPERCASE	
+# Simulate manual removal of the table.
+# After manual removal of table still there should be an entry for table
+# in TDC so attempt to create table with the same name should fail.
+create table t_bug44738_UPPERCASE (i int);
+ERROR 42S01: Table 't_bug44738_uppercase' already exists
+# And should succeed after FLUSH TABLES.
+flush tables;
+create table t_bug44738_UPPERCASE (i int);
+drop table t_bug44738_UPPERCASE;

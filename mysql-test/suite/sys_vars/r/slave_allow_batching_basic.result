@@ -8,5 +8,8 @@ ERROR HY000: Unknown system variable 'slave_allow_batching'
 '#-------------------FN_DYNVARS_145_05----------------------------#'
 '#----------------------FN_DYNVARS_145_06------------------------#'
 '#----------------------FN_DYNVARS_145_07------------------------#'
+SELECT IF(@@global.slave_allow_batching, "ON", "OFF") = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
+IF(@@global.slave_allow_batching, "ON", "OFF") = VARIABLE_VALUE
+1
 '#---------------------FN_DYNVARS_145_08-------------------------#'
 '#---------------------FN_DYNVARS_145_09----------------------#'

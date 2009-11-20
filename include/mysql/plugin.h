@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,6 @@
 
 #ifndef _my_plugin_h
 #define _my_plugin_h
-
-/* size_t */
-#include <stdlib.h>
-
-typedef struct st_mysql MYSQL;
-
 
 /*
   On Windows, exports from DLL need to be declared
@@ -39,15 +33,7 @@ class Item;
 #define MYSQL_THD void*
 #endif
 
-#ifndef _m_string_h
-/* This definition must match the one given in m_string.h */
-struct st_mysql_lex_string
-{
-  char *str;
-  unsigned int length;
-};
-#endif /* _m_string_h */
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+#include <mysql/services.h>
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -70,7 +56,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0100
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
 
 /*
   The allowable types of plugins
@@ -126,7 +112,8 @@ enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
   SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_always_last
 };
 
 struct st_mysql_show_var {
@@ -750,54 +737,6 @@ int thd_killed(const MYSQL_THD thd);
 */
 unsigned long thd_get_thread_id(const MYSQL_THD thd);
 
-
-/**
-  Allocate memory in the connection's local memory pool
-
-  @details
-  When properly used in place of @c my_malloc(), this can significantly
-  improve concurrency. Don't use this or related functions to allocate
-  large chunks of memory. Use for temporary storage only. The memory
-  will be freed automatically at the end of the statement; no explicit
-  code is required to prevent memory leaks.
-
-  @see alloc_root()
-*/
-void *thd_alloc(MYSQL_THD thd, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-void *thd_calloc(MYSQL_THD thd, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-char *thd_strdup(MYSQL_THD thd, const char *str);
-/**
-  @see thd_alloc()
-*/
-char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
-
-/**
-  Create a LEX_STRING in this connection's local memory pool
-
-  @param thd      user thread connection handle
-  @param lex_str  pointer to LEX_STRING object to be initialized
-  @param str      initializer to be copied into lex_str
-  @param size     length of str, in bytes
-  @param allocate_lex_string  flag: if TRUE, allocate new LEX_STRING object,
-                              instead of using lex_str value
-  @return  NULL on failure, or pointer to the LEX_STRING object
-
-  @see thd_alloc()
-*/
-MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
-                                      int allocate_lex_string);
-
 /**
   Get the XID for this connection's transaction
 
@@ -818,64 +757,6 @@ void mysql_query_cache_invalidate4(MYSQL_THD thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
 
-/**
-   Get the value of user variable as an integer.
-
-   This function will return the value of variable @a name as an
-   integer. If the original value of the variable is not an integer,
-   the value will be converted into an integer.
-
-   @param name     user variable name
-   @param value    pointer to return the value
-   @param null_value if not NULL, the function will set it to true if
-   the value of variable is null, set to false if not
-
-   @retval 0 Success
-   @retval 1 Variable not found
-*/
-int get_user_var_int(const char *name,
-                     long long int *value, int *null_value);
-
-/**
-   Get the value of user variable as a double precision float number.
-
-   This function will return the value of variable @a name as real
-   number. If the original value of the variable is not a real number,
-   the value will be converted into a real number.
-
-   @param name     user variable name
-   @param value    pointer to return the value
-   @param null_value if not NULL, the function will set it to true if
-   the value of variable is null, set to false if not
-
-   @retval 0 Success
-   @retval 1 Variable not found
-*/
-int get_user_var_real(const char *name,
-                      double *value, int *null_value);
-
-/**
-   Get the value of user variable as a string.
-
-   This function will return the value of variable @a name as
-   string. If the original value of the variable is not a string,
-   the value will be converted into a string.
-
-   @param name     user variable name
-   @param value    pointer to the value buffer
-   @param len      length of the value buffer
-   @param precision precision of the value if it is a float number
-   @param null_value if not NULL, the function will set it to true if
-   the value of variable is null, set to false if not
-
-   @retval 0 Success
-   @retval 1 Variable not found
-*/
-int get_user_var_str(const char *name,
-                     char *value, unsigned long len,
-                     unsigned int precision, int *null_value);
-
-  
 #ifdef __cplusplus
 }
 #endif

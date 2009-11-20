@@ -121,11 +121,11 @@ SELECT @@read_only;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
-SELECT @@global.read_only = VARIABLE_VALUE 
+SELECT IF(@@global.read_only, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='read_only';
 
-SELECT @@read_only = VARIABLE_VALUE 
+SELECT IF(@@read_only, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='read_only';
 

@@ -649,8 +649,6 @@ C_MODE_END
 #  endif
 #endif
 
-#include <my_dbug.h>
-
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
 #define NEAR_F			/* No near function handling */
@@ -1176,6 +1174,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define reg15 register
 #define reg16 register
 #endif
+
+#include <my_dbug.h>
 
 /*
   Sometimes we want to make sure that the variable is not put into

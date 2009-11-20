@@ -451,8 +451,45 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+  {
+    uint8 dec= decimals;
+    uint8 intg= decimal_precision() - dec;
+    uint32 len= max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+      */
+
+      const int required_length=
+        my_decimal_precision_to_length(intg + dec, dec,
+                                                     unsigned_flag);
+
+      overflow= required_length - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        /* Corrected value fits. */
+        len= required_length;
+    }
+
+    field= new Field_new_decimal(len, maybe_null, name, dec, unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be chosen
@@ -3283,7 +3320,7 @@ public:
   {
     if (key)
     {
-      hash_delete(&hash_user_locks,(uchar*) this);
+      my_hash_delete(&hash_user_locks,(uchar*) this);
       my_free(key, MYF(0));
     }
     pthread_cond_destroy(&cond);
@@ -3307,8 +3344,8 @@ static bool item_user_lock_inited= 0;
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
-  hash_init(&hash_user_locks,system_charset_info,
-	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  my_hash_init(&hash_user_locks,system_charset_info,
+	    16,0,0,(my_hash_get_key) ull_get_key,NULL,0);
   item_user_lock_inited= 1;
 }
 
@@ -3317,7 +3354,7 @@ void item_user_lock_free(void)
   if (item_user_lock_inited)
   {
     item_user_lock_inited= 0;
-    hash_free(&hash_user_locks);
+    my_hash_free(&hash_user_locks);
     pthread_mutex_destroy(&LOCK_user_locks);
   }
 }
@@ -3384,9 +3421,9 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     this case, we will not be waiting, but rather, just waste CPU and
     memory on the whole deal
   */
-  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
-                                             (uchar*) lock_name,
-                                             lock_name_len))))
+  if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
+                                                (uchar*) lock_name,
+                                                lock_name_len))))
   {
     pthread_mutex_unlock(&LOCK_user_locks);
     return;
@@ -3487,9 +3524,9 @@ longlong Item_func_get_lock::val_int()
     thd->ull=0;
   }
 
-  if (!(ull= ((User_level_lock *) hash_search(&hash_user_locks,
-                                              (uchar*) res->ptr(),
-                                              (size_t) res->length()))))
+  if (!(ull= ((User_level_lock *) my_hash_search(&hash_user_locks,
+                                                 (uchar*) res->ptr(),
+                                                 (size_t) res->length()))))
   {
     ull= new User_level_lock((uchar*) res->ptr(), (size_t) res->length(),
                              thd->thread_id);
@@ -3591,9 +3628,9 @@ longlong Item_func_release_lock::val_int()
 
   result=0;
   pthread_mutex_lock(&LOCK_user_locks);
-  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
-                                             (const uchar*) res->ptr(),
-                                             (size_t) res->length()))))
+  if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
+                                                (const uchar*) res->ptr(),
+                                                (size_t) res->length()))))
   {
     null_value=1;
   }
@@ -3773,12 +3810,12 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 {
   user_var_entry *entry;
 
-  if (!(entry = (user_var_entry*) hash_search(hash, (uchar*) name.str,
-					      name.length)) &&
+  if (!(entry = (user_var_entry*) my_hash_search(hash, (uchar*) name.str,
+                                                 name.length)) &&
       create_if_not_exists)
   {
     uint size=ALIGN_SIZE(sizeof(user_var_entry))+name.length+1+extra_size;
-    if (!hash_inited(hash))
+    if (!my_hash_inited(hash))
       return 0;
     if (!(entry = (user_var_entry*) my_malloc(size,MYF(MY_WME))))
       return 0;
@@ -4739,19 +4776,6 @@ void Item_func_get_user_var::fix_length_and_dec()
 }
 
 
-uint Item_func_get_user_var::decimal_precision() const
-{
-  uint precision= max_length;
-  Item_result restype= result_type();
-
-  /* Default to maximum as the precision is unknown a priori. */
-  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= DECIMAL_MAX_PRECISION;
-
-  return precision;
-}
-
-
 bool Item_func_get_user_var::const_item() const
 {
   return (!var_entry || current_thd->query_id != var_entry->update_query_id);
@@ -5707,8 +5731,8 @@ longlong Item_func_is_free_lock::val_int()
   }
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) hash_search(&hash_user_locks, (uchar*) res->ptr(),
-                                       (size_t) res->length());
+  ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
+                                          (size_t) res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 1;
@@ -5726,8 +5750,8 @@ longlong Item_func_is_used_lock::val_int()
     return 0;
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) hash_search(&hash_user_locks, (uchar*) res->ptr(),
-                                       (size_t) res->length());
+  ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
+                                          (size_t) res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 0;

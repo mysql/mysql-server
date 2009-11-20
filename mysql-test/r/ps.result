@@ -1194,13 +1194,13 @@ SET @aux= "SELECT COUNT(*)
 prepare my_stmt from @aux;
 execute my_stmt;
 COUNT(*)
-39
+40
 execute my_stmt;
 COUNT(*)
-39
+40
 execute my_stmt;
 COUNT(*)
-39
+40
 deallocate prepare my_stmt;
 drop procedure if exists p1|
 drop table if exists t1|
@@ -2926,4 +2926,165 @@ execute stmt;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 drop table t1;
 deallocate prepare stmt;
+
 End of 5.1 tests.
+
+#
+# WL#4435: Support OUT-parameters in prepared statements.
+#
+
+DROP PROCEDURE IF EXISTS p_string;
+DROP PROCEDURE IF EXISTS p_double;
+DROP PROCEDURE IF EXISTS p_int;
+DROP PROCEDURE IF EXISTS p_decimal;
+
+CREATE PROCEDURE p_string(
+IN v0 INT,
+OUT v1 CHAR(32),
+IN v2 CHAR(32),
+INOUT v3 CHAR(32))
+BEGIN
+SET v0 = -1;
+SET v1 = 'test_v1';
+SET v2 = 'n/a';
+SET v3 = 'test_v3';
+END|
+
+CREATE PROCEDURE p_double(
+IN v0 INT,
+OUT v1 DOUBLE(4, 2),
+IN v2 DOUBLE(4, 2),
+INOUT v3 DOUBLE(4, 2))
+BEGIN
+SET v0 = -1;
+SET v1 = 12.34;
+SET v2 = 98.67;
+SET v3 = 56.78;
+END|
+
+CREATE PROCEDURE p_int(
+IN v0 CHAR(10),
+OUT v1 INT,
+IN v2 INT,
+INOUT v3 INT)
+BEGIN
+SET v0 = 'n/a';
+SET v1 = 1234;
+SET v2 = 9876;
+SET v3 = 5678;
+END|
+
+CREATE PROCEDURE p_decimal(
+IN v0 INT,
+OUT v1 DECIMAL(4, 2),
+IN v2 DECIMAL(4, 2),
+INOUT v3 DECIMAL(4, 2))
+BEGIN
+SET v0 = -1;
+SET v1 = 12.34;
+SET v2 = 98.67;
+SET v3 = 56.78;
+END|
+
+PREPARE stmt_str FROM 'CALL p_string(?, ?, ?, ?)';
+PREPARE stmt_dbl FROM 'CALL p_double(?, ?, ?, ?)';
+PREPARE stmt_int FROM 'CALL p_int(?, ?, ?, ?)';
+PREPARE stmt_dec FROM 'CALL p_decimal(?, ?, ?, ?)';
+
+SET @x_str_1 = NULL;
+SET @x_str_2 = NULL;
+SET @x_str_3 = NULL;
+SET @x_dbl_1 = NULL;
+SET @x_dbl_2 = NULL;
+SET @x_dbl_3 = NULL;
+SET @x_int_1 = NULL;
+SET @x_int_2 = NULL;
+SET @x_int_3 = NULL;
+SET @x_dec_1 = NULL;
+SET @x_dec_2 = NULL;
+SET @x_dec_3 = NULL;
+
+-- Testing strings...
+
+EXECUTE stmt_str USING @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+SELECT @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+@x_int_1	@x_str_1	@x_str_2	@x_str_3
+NULL	test_v1	NULL	test_v3
+
+EXECUTE stmt_str USING @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+SELECT @x_int_1, @x_str_1, @x_str_2, @x_str_3;
+@x_int_1	@x_str_1	@x_str_2	@x_str_3
+NULL	test_v1	NULL	test_v3
+
+-- Testing doubles...
+
+EXECUTE stmt_dbl USING @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+SELECT @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+@x_int_1	@x_dbl_1	@x_dbl_2	@x_dbl_3
+NULL	12.34	NULL	56.78
+
+EXECUTE stmt_dbl USING @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+SELECT @x_int_1, @x_dbl_1, @x_dbl_2, @x_dbl_3;
+@x_int_1	@x_dbl_1	@x_dbl_2	@x_dbl_3
+NULL	12.34	NULL	56.78
+
+-- Testing ints...
+
+EXECUTE stmt_int USING @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+SELECT @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+@x_str_1	@x_int_1	@x_int_2	@x_int_3
+test_v1	1234	NULL	5678
+
+EXECUTE stmt_int USING @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+SELECT @x_str_1, @x_int_1, @x_int_2, @x_int_3;
+@x_str_1	@x_int_1	@x_int_2	@x_int_3
+test_v1	1234	NULL	5678
+
+-- Testing decs...
+
+EXECUTE stmt_dec USING @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+SELECT @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+@x_int_1	@x_dec_1	@x_dec_2	@x_dec_3
+1234	12.34	NULL	56.78
+
+EXECUTE stmt_dec USING @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+SELECT @x_int_1, @x_dec_1, @x_dec_2, @x_dec_3;
+@x_int_1	@x_dec_1	@x_dec_2	@x_dec_3
+1234	12.34	NULL	56.78
+
+DEALLOCATE PREPARE stmt_str;
+DEALLOCATE PREPARE stmt_dbl;
+DEALLOCATE PREPARE stmt_int;
+DEALLOCATE PREPARE stmt_dec;
+
+DROP PROCEDURE p_string;
+DROP PROCEDURE p_double;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_decimal;
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+
+CREATE PROCEDURE p1(OUT v1 CHAR(10))
+SET v1 = 'test1';
+
+CREATE PROCEDURE p2(OUT v2 CHAR(10))
+BEGIN
+SET @query = 'CALL p1(?)';
+PREPARE stmt1 FROM @query;
+EXECUTE stmt1 USING @u1;
+DEALLOCATE PREPARE stmt1;
+SET v2 = @u1;
+END|
+
+CALL p2(@a);
+SELECT @a;
+@a
+test1
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+# End of WL#4435.
+
+End of 6.0 tests.
