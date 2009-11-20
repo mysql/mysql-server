@@ -6671,6 +6671,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
     else if ((cmp=tmp->cmp_max_to_min(key2)) < 0)
     {						// Found tmp.max < key2.min
       SEL_ARG *next=tmp->next;
+      /* key1 on the left of key2 non-overlapping */
       if (cmp == -2 && eq_tree(tmp->next_key_part,key2->next_key_part))
       {
 	// Join near ranges like tmp.max < 0 and key2.min >= 0
@@ -6699,6 +6700,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       int tmp_cmp;
       if ((tmp_cmp=tmp->cmp_min_to_max(key2)) > 0) // if tmp.min > key2.max
       {
+        /* tmp is on the right of key2 non-overlapping */
 	if (tmp_cmp == 2 && eq_tree(tmp->next_key_part,key2->next_key_part))
 	{					// ranges are connected
 	  tmp->copy_min_to_min(key2);
@@ -6733,25 +6735,52 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       }
     }
 
-    // tmp.max >= key2.min && tmp.min <= key.max  (overlapping ranges)
+    /* 
+      tmp.min >= key2.min && tmp.min <= key.max  (overlapping ranges)
+      key2.min <= tmp.min <= key2.max 
+    */  
     if (eq_tree(tmp->next_key_part,key2->next_key_part))
     {
       if (tmp->is_same(key2))
       {
+        /* 
+          Found exact match of key2 inside key1. 
+          Use the relevant range in key1.
+        */
 	tmp->merge_flags(key2);			// Copy maybe flags
 	key2->increment_use_count(-1);		// Free not used tree
       }
       else
       {
 	SEL_ARG *last=tmp;
+        SEL_ARG *first=tmp;
+        /* 
+          Find the last range in tmp that overlaps key2 and has the same 
+          condition on the rest of the keyparts.
+        */
 	while (last->next && last->next->cmp_min_to_max(key2) <= 0 &&
 	       eq_tree(last->next->next_key_part,key2->next_key_part))
 	{
+          /*
+            We've found the last overlapping key1 range in last.
+            This means that the ranges between (and including) the 
+            first overlapping range (tmp) and the last overlapping range
+            (last) are fully nested into the current range of key2 
+            and can safely be discarded. We just need the minimum endpoint
+            of the first overlapping range (tmp) so we can compare it with
+            the minimum endpoint of the enclosing key2 range.
+          */
 	  SEL_ARG *save=last;
 	  last=last->next;
 	  key1=key1->tree_delete(save);
 	}
-        last->copy_min(tmp);
+        /*
+          The tmp range (the first overlapping range) could have been discarded
+          by the previous loop. We should re-direct tmp to the new united range 
+          that's taking its place.
+        */
+        tmp= last;
+        last->copy_min(first);
         bool full_range= last->copy_min(key2);
         if (!full_range)
         {
