@@ -288,7 +288,7 @@ void TestThread::doLinkedAPITest(){
       trans = m_ndb.startTransaction();
     }
     // Execute query.
-    NdbQuery* const query = trans->createQuery(queryDef, NULL);
+    NdbQuery* const query = trans->createQuery(queryDef);
     for(int i = 0; i<m_params->m_depth+1; i++){
       query->getQueryOperation(i)
         ->setResultRowRef(m_resultRec,
