@@ -4061,34 +4061,41 @@ drop procedure bug11529|
 # BUG#6063: Stored procedure labels are subject to restrictions (partial)
 # BUG#7088: Stored procedures: labels won't work if character set is utf8
 #
+
+set character set utf8|
+
 --disable_warnings
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
---disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
-  lâbel: begin end|
-call bug6063()|
-# QQ Known bug: this will not show the label correctly.
-show create procedure bug6063|
+begin
+  lâbel: begin end;
+  label: begin end;
+  label1: begin end;
+end|
 
-set character set utf8|
 create procedure bug7088_1()
   label1: begin end label1|
+
 create procedure bug7088_2()
   läbel1: begin end|
+
+call bug6063()|
 call bug7088_1()|
 call bug7088_2()|
+
 set character set default|
+
+show create procedure bug6063|
 show create procedure bug7088_1|
 show create procedure bug7088_2|
 
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
---enable_parsing
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
