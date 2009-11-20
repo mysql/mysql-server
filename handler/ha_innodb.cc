@@ -662,6 +662,12 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_DUPLICATE_KEY) {
 
+		/* Be cautious with returning this error, since
+		mysql could re-enter the storage layer to get
+		duplicated key info, the operation requires a
+		valid table handle and/or transaction information,
+		which might not always be available in the error
+		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
@@ -6037,6 +6043,25 @@ ha_innobase::rename_table(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
+
+	/* Add a special case to handle the Duplicated Key error
+	and return DB_ERROR instead.
+	This is to avoid a possible SIGSEGV error from mysql error
+	handling code. Currently, mysql handles the Duplicated Key
+	error by re-entering the storage layer and getting dup key
+	info by calling get_dup_key(). This operation requires a valid
+	table handle ('row_prebuilt_t' structure) which could no
+	longer be available in the error handling stage. The suggested
+	solution is to report a 'table exists' error message (since
+	the dup key error here is due to an existing table whose name
+	is the one we are trying to rename to) and return the generic
+	error code. */
+	if (error == (int) DB_DUPLICATE_KEY)
+	{
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
+
+		error = DB_ERROR;
+	}
 
 	error = convert_error_code_to_mysql(error, NULL);
 
