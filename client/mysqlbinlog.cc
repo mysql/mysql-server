@@ -439,6 +439,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   {
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
+    my_free(fname, MYF(0));
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -446,9 +447,15 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   rec.fname= fname;
   rec.event= ce;
 
+  /*
+     fname is freed in process_event()
+     after Execute_load_query_log_event or Execute_load_log_event
+     will have been processed, otherwise in Load_log_processor::destroy()
+  */
   if (set_dynamic(&file_names, (uchar*)&rec, file_id))
   {
     error("Out of memory.");
+    my_free(fname, MYF(0));
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -828,7 +835,17 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
-      ev->temp_buf= 0; // as the event ref is zeroed
+      if (!remote_opt)
+      {
+        ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
+      }
+      else
+      {
+        /*
+          disassociate but not free dump_remote_log_entries time memory
+        */
+        ev->temp_buf= 0;
+      }
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
