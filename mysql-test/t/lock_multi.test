@@ -76,6 +76,7 @@ update t1,t2 set c=a where b=d;
 connection reader;
 select c from t2;
 connection locker;
+unlock tables;
 drop table t1;
 drop table t2;
 
