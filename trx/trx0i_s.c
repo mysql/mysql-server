@@ -60,7 +60,7 @@ Created July 17, 2007 Vasil Dimov
 /** @brief The maximum number of chunks to allocate for a table cache.
 
 The rows of a table cache are stored in a set of chunks. When a new
-row is added a new chunk is allocated if necessary.  Assuming that the
+row is added a new chunk is allocated if necessary. Assuming that the
 first one is 1024 rows (TABLE_CACHE_INITIAL_ROWSNUM) and each
 subsequent is N/2 where N is the number of rows we have allocated till
 now, then 39th chunk would accommodate 1677416425 rows and all chunks
