@@ -2933,7 +2933,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
                         table->s->db.str, table->s->table_name.str,
                         (long) table));
-    VOID(my_hash_insert(&open_cache,(uchar*) table));
+    if (my_hash_insert(&open_cache,(uchar*) table))
+    {
+      my_free(table, MYF(0));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_RETURN(NULL);
+    }
   }
 
   check_unused();				// Debugging call
