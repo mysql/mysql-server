@@ -1028,6 +1028,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
   uint  key_length;
+  bool  found_locked_table= FALSE;
   HASH_SEARCH_STATE state;
   DBUG_ENTER("lock_table_name");
   DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->table_name));
@@ -1043,6 +1044,13 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
          table = (TABLE*) my_hash_next(&open_cache,(uchar*) key,
                                        key_length, &state))
     {
+      if (table->reginfo.lock_type < TL_WRITE)
+      {
+        if (table->in_use == thd)
+          found_locked_table= TRUE;
+        continue;
+      }
+
       if (table->in_use == thd)
       {
         DBUG_PRINT("info", ("Table is in use"));
@@ -1051,6 +1059,17 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
         DBUG_RETURN(0);
       }
     }
+  }
+
+  if (thd->locked_tables && thd->locked_tables->table_count &&
+      ! find_temporary_table(thd, table_list->db, table_list->table_name))
+  {
+    if (found_locked_table)
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_list->alias);
+    else
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_list->alias);
+
+    DBUG_RETURN(-1);
   }
 
   if (!(table= table_cache_insert_placeholder(thd, key, key_length)))
