@@ -138,6 +138,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
+  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
