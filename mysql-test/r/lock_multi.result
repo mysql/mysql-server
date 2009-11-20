@@ -210,3 +210,12 @@ select @tlwa < @tlwb;
 @tlwa < @tlwb
 1
 End of 5.1 tests
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+flush tables;
+drop table t1;
