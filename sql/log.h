@@ -611,5 +611,6 @@ enum enum_binlog_format {
 extern TYPELIB binlog_format_typelib;
 
 int query_error_code(THD *thd, bool not_killed);
+uint purge_log_get_error_code(int res);
 
 #endif /* LOG_H */
