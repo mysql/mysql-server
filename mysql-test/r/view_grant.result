@@ -799,12 +799,12 @@ CREATE USER u29908_1@localhost;
 CREATE DEFINER = u29908_1@localhost VIEW v1 AS SELECT f1 FROM t1;
 CREATE DEFINER = u29908_1@localhost SQL SECURITY INVOKER VIEW v2 AS
 SELECT f1 FROM t1;
-GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v1 TO u29908_1@localhost;
-GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_1@localhost;
+GRANT SELECT, DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v1 TO u29908_1@localhost;
+GRANT SELECT, DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_1@localhost;
 GRANT SELECT ON mysqltest_29908.t1 TO u29908_1@localhost;
 CREATE USER u29908_2@localhost;
-GRANT DROP, CREATE VIEW ON mysqltest_29908.v1 TO u29908_2@localhost;
-GRANT DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_2@localhost;
+GRANT SELECT, DROP, CREATE VIEW ON mysqltest_29908.v1 TO u29908_2@localhost;
+GRANT SELECT, DROP, CREATE VIEW, SHOW VIEW ON mysqltest_29908.v2 TO u29908_2@localhost;
 GRANT SELECT ON mysqltest_29908.t1 TO u29908_2@localhost;
 ALTER VIEW v1 AS SELECT f2 FROM t1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
@@ -1218,3 +1218,22 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug #46019: ERROR 1356 When selecting from within another 
+#  view that has Group By
+#
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 (a INT);
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT a FROM t1 GROUP BY a;
+CREATE SQL SECURITY INVOKER VIEW v2 AS SELECT a FROM v1;
+CREATE USER mysqluser1;
+GRANT SELECT ON TABLE t1 TO mysqluser1;
+GRANT SELECT, SHOW VIEW ON TABLE v1 TO mysqluser1;
+GRANT SELECT, SHOW VIEW ON TABLE v2 TO mysqluser1;
+SELECT a FROM v1;
+a
+SELECT a FROM v2;
+a
+DROP USER mysqluser1;
+DROP DATABASE mysqltest1;

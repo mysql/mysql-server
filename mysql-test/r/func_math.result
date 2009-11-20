@@ -382,6 +382,9 @@ y
 SELECT b DIV 900 y FROM t1 GROUP BY y;
 y
 0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'str1'
+Warning	1292	Truncated incorrect INTEGER value: 'str2'
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 y
 0

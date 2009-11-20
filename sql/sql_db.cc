@@ -105,8 +105,8 @@ static my_bool lock_db_insert(const char *dbname, uint length)
   
   safe_mutex_assert_owner(&LOCK_lock_db);
 
-  if (!(opt= (my_dblock_t*) hash_search(&lock_db_cache,
-                                        (uchar*) dbname, length)))
+  if (!(opt= (my_dblock_t*) my_hash_search(&lock_db_cache,
+                                           (uchar*) dbname, length)))
   { 
     /* Db is not in the hash, insert it */
     char *tmp_name;
@@ -139,9 +139,9 @@ void lock_db_delete(const char *name, uint length)
 {
   my_dblock_t *opt;
   safe_mutex_assert_owner(&LOCK_lock_db);
-  if ((opt= (my_dblock_t *)hash_search(&lock_db_cache,
-                                       (const uchar*) name, length)))
-    hash_delete(&lock_db_cache, (uchar*) opt);
+  if ((opt= (my_dblock_t *)my_hash_search(&lock_db_cache,
+                                          (const uchar*) name, length)))
+    my_hash_delete(&lock_db_cache, (uchar*) opt);
 }
 
 
@@ -221,14 +221,14 @@ bool my_database_names_init(void)
   if (!dboptions_init)
   {
     dboptions_init= 1;
-    error= hash_init(&dboptions, lower_case_table_names ? 
-                     &my_charset_bin : system_charset_info,
-                     32, 0, 0, (hash_get_key) dboptions_get_key,
-                     free_dbopt,0) ||
-           hash_init(&lock_db_cache, lower_case_table_names ? 
-                     &my_charset_bin : system_charset_info,
-                     32, 0, 0, (hash_get_key) lock_db_get_key,
-                     lock_db_free_element,0);
+    error= my_hash_init(&dboptions, lower_case_table_names ?
+                        &my_charset_bin : system_charset_info,
+                        32, 0, 0, (my_hash_get_key) dboptions_get_key,
+                        free_dbopt,0) ||
+           my_hash_init(&lock_db_cache, lower_case_table_names ?
+                        &my_charset_bin : system_charset_info,
+                        32, 0, 0, (my_hash_get_key) lock_db_get_key,
+                        lock_db_free_element,0);
 
   }
   return error;
@@ -245,9 +245,9 @@ void my_database_names_free(void)
   if (dboptions_init)
   {
     dboptions_init= 0;
-    hash_free(&dboptions);
+    my_hash_free(&dboptions);
     (void) rwlock_destroy(&LOCK_dboptions);
-    hash_free(&lock_db_cache);
+    my_hash_free(&lock_db_cache);
   }
 }
 
@@ -259,11 +259,11 @@ void my_database_names_free(void)
 void my_dbopt_cleanup(void)
 {
   rw_wrlock(&LOCK_dboptions);
-  hash_free(&dboptions);
-  hash_init(&dboptions, lower_case_table_names ? 
-            &my_charset_bin : system_charset_info,
-            32, 0, 0, (hash_get_key) dboptions_get_key,
-            free_dbopt,0);
+  my_hash_free(&dboptions);
+  my_hash_init(&dboptions, lower_case_table_names ? 
+               &my_charset_bin : system_charset_info,
+               32, 0, 0, (my_hash_get_key) dboptions_get_key,
+               free_dbopt,0);
   rw_unlock(&LOCK_dboptions);
 }
 
@@ -289,7 +289,7 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_rdlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
+  if ((opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname, length)))
   {
     create->default_table_charset= opt->charset;
     error= 0;
@@ -321,7 +321,8 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_wrlock(&LOCK_dboptions);
-  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
+  if (!(opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname,
+                                          length)))
   { 
     /* Options are not in the hash, insert them */
     char *tmp_name;
@@ -361,9 +362,9 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const uchar*) path,
-                                      strlen(path))))
-    hash_delete(&dboptions, (uchar*) opt);
+  if ((opt= (my_dbopt_t *)my_hash_search(&dboptions, (const uchar*) path,
+                                         strlen(path))))
+    my_hash_delete(&dboptions, (uchar*) opt);
   rw_unlock(&LOCK_dboptions);
 }
 
@@ -703,7 +704,7 @@ not_silent:
     char *query;
     uint query_length;
 
-    if (!thd->query)				// Only in replication
+    if (!thd->query())                          // Only in replication
     {
       query= 	     tmp_query;
       query_length= (uint) (strxmov(tmp_query,"create database `",
@@ -711,8 +712,8 @@ not_silent:
     }
     else
     {
-      query= 	    thd->query;
-      query_length= thd->query_length;
+      query=        thd->query();
+      query_length= thd->query_length();
     }
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
@@ -805,13 +806,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   }
 
   ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       db, "");
 
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
+    Query_log_event qinfo(thd, thd->query(), thd->query_length(), 0,
 			  /* suppress_use */ TRUE, errcode);
 
     /*
@@ -948,7 +949,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     const char *query;
     ulong query_length;
-    if (!thd->query)
+    if (!thd->query())
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
@@ -957,8 +958,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      query =thd->query;
-      query_length= thd->query_length;
+      query= thd->query();
+      query_length= thd->query_length();
     }
     if (mysql_bin_log.is_open())
     {
@@ -1719,8 +1720,8 @@ lock_databases(THD *thd, const char *db1, uint length1,
 {
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         (hash_search(&lock_db_cache,(uchar*) db1, length1) ||
-          hash_search(&lock_db_cache,(uchar*) db2, length2)))
+         (my_hash_search(&lock_db_cache,(uchar*) db1, length1) ||
+          my_hash_search(&lock_db_cache,(uchar*) db2, length2)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);
@@ -1964,7 +1965,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
+    Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                           0, TRUE, errcode);
     thd->clear_error();
     mysql_bin_log.write(&qinfo);

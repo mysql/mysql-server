@@ -26,7 +26,7 @@
 #define PROC_NO_SORT 1				/**< Bits in flags */
 #define PROC_GROUP   2				/**< proc must have group */
 
-/* Procedure items used by procedures to store values for send_fields */
+/* Procedure items used by procedures to store values for send_result_set_metadata */
 
 class Item_proc :public Item
 {

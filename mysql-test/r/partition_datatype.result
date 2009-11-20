@@ -273,7 +273,7 @@ select * from t1 where a = 'y';
 a
 y
 drop table t1;
-create table t1 (a varchar(65531)) partition by key (a);
+create table t1 (a varchar(3068)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -286,7 +286,7 @@ select * from t1 where a = 'bbbb';
 a
 bbbb
 drop table t1;
-create table t1 (a varchar(65532)) partition by key (a);
+create table t1 (a varchar(3069)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -299,7 +299,7 @@ select * from t1 where a = 'bbbb';
 a
 bbbb
 drop table t1;
-create table t1 (a varchar(65533) not null) partition by key (a);
+create table t1 (a varchar(3070) not null) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -312,6 +312,8 @@ select * from t1 where a = 'bbbb';
 a
 bbbb
 drop table t1;
+create table t1 (a varchar(3070)) partition by key (a);
+ERROR HY000: The total length of the partitioning fields is too large
 create table t1 (a varchar(65533)) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
 create table t1 (a varchar(65534) not null) partition by key (a);

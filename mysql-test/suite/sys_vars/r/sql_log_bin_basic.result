@@ -69,10 +69,10 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_156_07------------------------#'
-SELECT @@session.sql_log_bin = VARIABLE_VALUE 
+SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_log_bin';
-@@session.sql_log_bin = VARIABLE_VALUE
+IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_log_bin;
 @@session.sql_log_bin
