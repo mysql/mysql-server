@@ -74,7 +74,7 @@ ssize_t
 toku_os_write (int fd, const void *buf, size_t len) {
     ssize_t r;
 again:
-    if (t_pwrite) {
+    if (t_write) {
 	r = t_write(fd, buf, len);
     } else {
 	r = write(fd, buf, len);
