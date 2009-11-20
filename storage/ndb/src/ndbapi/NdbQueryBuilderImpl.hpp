@@ -345,6 +345,7 @@ public:
   virtual int setBound(Uint32Buffer& keyInfo,
                        const NdbIndexScanOperation::IndexBound& bound) const {
     assert(false);
+    return 0; // silence warning
   }
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
