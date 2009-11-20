@@ -636,6 +636,41 @@ select @tlwa < @tlwb;
 
 --echo End of 5.1 tests
 
+#
+# Test that DROP TABLES does not wait for a impending FLUSH TABLES
+# WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+flush tables;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+drop table t1;
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+connection flush;
+--reap
+connection default;
+disconnect flush;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

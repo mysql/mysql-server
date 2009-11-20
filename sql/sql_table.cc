@@ -1766,7 +1766,8 @@ void write_bin_log(THD *thd, bool clear_error,
     If a table is in use, we will wait for all users to free the table
     before dropping it
 
-    Wait if global_read_lock (FLUSH TABLES WITH READ LOCK) is set.
+    Wait if global_read_lock (FLUSH TABLES WITH READ LOCK) is set, but
+    not if under LOCK TABLES.
 
   RETURN
     FALSE OK.  In this case ok packet is sent to user
@@ -1777,7 +1778,7 @@ void write_bin_log(THD *thd, bool clear_error,
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
-  bool error= FALSE, need_start_waiters= FALSE;
+  bool error= FALSE, need_start_waiting= FALSE;
   Drop_table_error_handler err_handler(thd->get_internal_handler());
   DBUG_ENTER("mysql_rm_table");
 
@@ -1785,13 +1786,9 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (!drop_temporary)
   {
-    if ((error= wait_if_global_read_lock(thd, 0, 1)))
-    {
-      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->table_name);
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       DBUG_RETURN(TRUE);
-    }
-    else
-      need_start_waiters= TRUE;
   }
 
   /*
@@ -1804,7 +1801,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   thd->pop_internal_handler();
 
 
-  if (need_start_waiters)
+  if (need_start_waiting)
     start_waiting_global_read_lock(thd);
 
   if (error)
