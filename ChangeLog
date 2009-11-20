@@ -1,3 +1,10 @@
+2009-11-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Add a workaround to prevent a crash due to Bug#45961 DDL on
+	partitioned innodb tables leaves data dictionary in an inconsistent
+	state
+
 2009-11-19	The InnoDB Team
 
 	* btr/btr0btr.c:
