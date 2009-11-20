@@ -1506,7 +1506,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
     rn->key.length= key->length;
     rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
     memcpy(rn->key.str, key->str, key->length + 1);
-    my_hash_insert(&lex->sroutines, (uchar *)rn);
+    if (my_hash_insert(&lex->sroutines, (uchar *)rn))
+      return FALSE;
     lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
     return TRUE;
@@ -1584,16 +1585,24 @@ void sp_remove_not_own_routines(LEX *lex)
     dependant on time of life of elements from source hash. It also
     won't touch lists linking elements in source and destination
     hashes.
+
+  @returns
+    @return TRUE Failure
+    @return FALSE Success
 */
 
-void sp_update_sp_used_routines(HASH *dst, HASH *src)
+bool sp_update_sp_used_routines(HASH *dst, HASH *src)
 {
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
     if (!hash_search(dst, (uchar *)rt->key.str, rt->key.length))
-      my_hash_insert(dst, (uchar *)rt);
+    {
+      if (my_hash_insert(dst, (uchar *)rt))
+        return TRUE;
+    }
   }
+  return FALSE;
 }
 
 
