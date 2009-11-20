@@ -1,7 +1,7 @@
 TARGETS = db-insert db-insert-bdb db-scan db-scan-bdb
 CFLAGS = -g
-CPPFLAGS = -I./include
-LDFLAGS = -L.. -lfractaltreeindex -Wl,-rpath,..
+CPPFLAGS = -I../include
+LDFLAGS = -L../lib -lfractaltreeindex -Wl,-rpath,../lib
 
 default: $(TARGETS)
 
@@ -14,9 +14,9 @@ db-scan-bdb: db-scan.c
 default: db-insert
 
 setup:
-	cp ../../include/db.h include/tokudb.h
-	cp ../../include/tdb-internal.h include/tdb-internal.h
-	cp ../../toku_include/toku_list.h include/toku_list.h
+	cp ../../include/db.h ../include/tokudb.h
+	cp ../../include/tdb-internal.h ../include/tdb-internal.h
+	cp ../../toku_include/toku_list.h ../include/toku_list.h
 
 check: $(TARGETS)
 	./db-insert && ./db-scan --nox --lwc --prelock --prelockflag
