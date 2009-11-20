@@ -304,14 +304,13 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 			 ulong *nr1, ulong *nr2)
 {
   register uchar *sort_order=cs->sort_order;
-  const uchar *end= key + len;
+  const uchar *end;
   
   /*
     Remove end space. We have to do this to be able to compare
     'A ' and 'A' as identical
   */
-  while (end > key && end[-1] == ' ')
-    end--;
+  end= skip_trailing_space(key, len);
   
   for (; key < (uchar*) end ; key++)
   {
@@ -1165,9 +1164,8 @@ size_t my_well_formed_len_8bit(CHARSET_INFO *cs __attribute__((unused)),
 size_t my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
                         const char *ptr, size_t length)
 {
-  const char *end= ptr+length;
-  while (end > ptr && end[-1] == ' ')
-    end--;
+  const char *end;
+  end= (const char *) skip_trailing_space((const uchar *)ptr, length);
   return (size_t) (end-ptr);
 }
 
