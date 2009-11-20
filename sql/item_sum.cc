@@ -517,8 +517,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                name, table->s, collation.collation);
     break;
   case DECIMAL_RESULT:
-    field= new Field_new_decimal(max_length, maybe_null, name,
-                                 decimals, unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
   default:
@@ -1270,8 +1269,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
                             0, name, &my_charset_bin);
   }
   else if (hybrid_type == DECIMAL_RESULT)
-    field= new Field_new_decimal(max_length, maybe_null, name,
-                                 decimals, unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
   else
     field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
   if (field)
