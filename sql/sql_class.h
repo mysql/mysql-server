@@ -1696,7 +1696,7 @@ public:
   bool       slave_thread, one_shot_set;
   /* tells if current statement should binlog row-based(1) or stmt-based(0) */
   bool       current_stmt_binlog_row_based;
-  bool	     locked, some_tables_deleted;
+  bool	     some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
   /**

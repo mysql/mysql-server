@@ -1707,8 +1707,6 @@ template class I_List<thread_info>;
 
 static const char *thread_state_info(THD *tmp)
 {
-  if (tmp->locked)
-    return "Locked";
 #ifndef EMBEDDED_LIBRARY
   if (tmp->net.reading_or_writing)
   {
