@@ -24,7 +24,7 @@
 #include "NdbDictionary.hpp"
 
 class Ndb;
-class NdbError;
+struct NdbError;
 class NdbOperation;
 class NdbParamOperand;
 class NdbQueryDef;
