@@ -1260,4 +1260,25 @@ SELECT str_to_date('', '%Y-%m-%d');
 
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Bug #48665: sql-bench's insert test fails due to wrong result
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+
+INSERT INTO t1 VALUES (0,0), (1,1);
+
+--replace_column 1 @ 2 @ 3 @ 5 @ 6 @ 7 @ 8 @ 9 @ 10 @
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+ WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+
+--echo # Should return 2 rows
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+ WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests
