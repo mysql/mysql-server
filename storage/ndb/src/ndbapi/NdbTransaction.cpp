@@ -2901,12 +2901,36 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 			    NdbOperation::LockMode lock_mode)
 {
   NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());
-  if (query == NULL) {
+  if (unlikely(query == NULL)) {
     return NULL; // Error code for transaction is already set.
   }
 
   const int error = query->assignParameters(paramValues);
-  if (unlikely(error != 0)) {
+  if (unlikely(error)) {
+    setErrorCode(error);
+    query->release();
+    return NULL;
+  }
+
+  query->setNext(m_firstQuery);
+  m_firstQuery = query;
+
+  return &query->getInterface();
+}
+
+
+NdbQuery*
+NdbTransaction::createQuery(const NdbQueryDef* def,
+                            const NdbIndexScanOperation::IndexBound *bound,
+			    NdbOperation::LockMode lock_mode)
+{
+  NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());
+  if (unlikely(query == NULL)) {
+    return NULL; // Error code for transaction is already set.
+  }
+
+  const int error = query->setBound(bound);
+  if (unlikely(error)) {
     setErrorCode(error);
     query->release();
     return NULL;

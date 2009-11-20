@@ -306,6 +306,9 @@ public:
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const;
 
+  virtual int setBound(Uint32Buffer& keyInfo,
+                       const NdbIndexScanOperation::IndexBound& bound) const;
+
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                             bool&   isPruned,
                             Uint32& hashValue) const;
@@ -1540,6 +1543,170 @@ NdbQueryIndexScanOperationDefImpl::prepareKeyInfo(
   return 0;
 
 } // NdbQueryIndexScanOperationDefImpl::prepareKeyInfo
+
+
+static int
+insert_bound(Uint32Buffer& keyInfo, const NdbRecord *key_record,
+                                              Uint32 column_index,
+                                              const char *row,
+                                              Uint32 bound_type)
+{
+  char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
+  const NdbRecord::Attr *column= &key_record->columns[column_index];
+
+  bool is_null= column->is_null(row);
+  Uint32 len= 0;
+  const void *aValue= row+column->offset;
+
+  if (!is_null)
+  {
+    bool len_ok;
+    /* Support for special mysqld varchar format in keys. */
+    if (column->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      len_ok= column->shrink_varchar(row, len, buf);
+      aValue= buf;
+    }
+    else
+    {
+      len_ok= column->get_var_length(row, len);
+    }
+    if (!len_ok) {
+      return 4209;
+    }
+  }
+
+  AttributeHeader ah(column->index_attrId, len);
+
+  keyInfo.append(bound_type);
+  keyInfo.append(ah.m_value);
+  keyInfo.append(aValue,len);
+
+  return 0;
+}
+
+
+int
+NdbQueryIndexScanOperationDefImpl::setBound(
+                              Uint32Buffer& keyInfo,
+                              const NdbIndexScanOperation::IndexBound& bound) const
+{ 
+  assert(getQueryOperationIx()==0); // Should only be called for root operation.
+  int startPos = keyInfo.getSize();
+  assert (startPos == 0);  // Assumed by ::checkPrunable
+
+  // We don't handle both bounds defined in ::scanIndex() and a later ::setBound()
+  assert (m_bound.lowKeys==0 && m_bound.highKeys==0);
+
+  /* Has the user supplied an open range (no bounds)? */
+  const bool openRange= ((bound.low_key == NULL || bound.low_key_count == 0) && 
+                         (bound.high_key == NULL || bound.high_key_count == 0));
+
+  Uint32 key_count, common_key_count;
+
+  key_count= bound.low_key_count;
+  common_key_count= key_count;
+  if (key_count < bound.high_key_count)
+    key_count= bound.high_key_count;
+  else
+    common_key_count= bound.high_key_count;
+
+  const NdbRecord* key_record = m_index.getDefaultRecord();
+
+  assert (!openRange);
+  if (likely(!openRange))
+  {
+    /* If low and high key pointers are the same and key counts are
+     * the same, we send as an Eq bound to save bandwidth.
+     * This will not send an EQ bound if :
+     *   - Different numbers of high and low keys are EQ
+     *   - High and low keys are EQ, but use different ptrs
+     */
+    const bool isEqRange= 
+      (bound.low_key == bound.high_key) &&
+      (bound.low_key_count == bound.high_key_count) &&
+      (bound.low_inclusive && bound.high_inclusive); // Does this matter?
+
+    if (isEqRange)
+    {
+      /* Using BoundEQ will result in bound being sent only once */
+      for (unsigned j= 0; j<key_count; j++)
+      {
+        const int error=
+          insert_bound(keyInfo, key_record, key_record->key_indexes[j],
+                                bound.low_key, NdbIndexScanOperation::BoundEQ);
+        if (unlikely(error))
+          return error;
+      }
+    }
+    else
+    {
+      /* Distinct upper and lower bounds, must specify them independently */
+      /* Note :  Protocol allows individual columns to be specified as EQ
+       * or some prefix of columns.  This is not currently supported from
+       * NDBAPI.
+       */
+      for (unsigned j= 0; j<key_count; j++)
+      {
+        Uint32 bound_type;
+        /* If key is part of lower bound */
+        if (bound.low_key && j<bound.low_key_count)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
+            NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
+          const int error=
+            insert_bound(keyInfo, key_record, key_record->key_indexes[j],
+                                  bound.low_key, bound_type);
+          if (unlikely(error))
+            return error;
+        }
+        /* If key is part of upper bound */
+        if (bound.high_key && j<bound.high_key_count)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
+            NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
+          const int error=
+            insert_bound(keyInfo, key_record, key_record->key_indexes[j],
+                                  bound.high_key, bound_type);
+          if (unlikely(error))
+            return error;
+        }
+      }
+    }
+  }
+  else
+  {
+    /* Open range - all rows must be returned.
+     * To encode this, we'll request all rows where the first
+     * key column value is >= NULL
+     */
+//  insert_open_bound(key_record, firstRangeWord);
+  }
+
+  size_t length = keyInfo.getSize()-startPos;
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  } else if (unlikely(length > 0xFFFF)) {
+    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+  } else if (likely(length > 0)) {
+    keyInfo.put(startPos, keyInfo.get(startPos) | (length << 16));
+  }
+
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized KEYINFO w/ bounds for scan root : ";
+  for (Uint32 i = startPos; i < keyInfo.getSize(); i++) {
+    char buf[12];
+    sprintf(buf, "%.8x", keyInfo.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+
+  return 0;
+
+} // NdbQueryIndexScanOperationDefImpl::setBound
 
 
 int

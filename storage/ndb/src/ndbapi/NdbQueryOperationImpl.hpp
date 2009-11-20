@@ -21,6 +21,7 @@
 
 #include "NdbQueryOperation.hpp"
 #include "NdbQueryBuilderImpl.hpp"
+#include "NdbIndexScanOperation.hpp"
 #include "NdbError.hpp"
 #include "ndb_limits.h"
 #include "Vector.hpp"
@@ -116,6 +117,9 @@ public:
    *  to be valid after this assignment.
    */
   int assignParameters(const constVoidPtr paramValues[]);
+
+  int setBound(const NdbIndexScanOperation::IndexBound *bound);
+
 
   /** Prepare for execution. 
    *  @return possible error code.

@@ -244,6 +244,26 @@ explain
     z.a=y.d and 
     t1.a = z.d and t1.b=z.b;
 
+# Pushed scanIndex() with (multi-)range:
+explain 
+  select * from t1 x, t1 y where
+    x.a <= 2 and
+    y.a=x.d and y.b=x.b;
+--sorted_result
+  select * from t1 x, t1 y where
+    x.a <= 2 and
+    y.a=x.d and y.b=x.b;
+
+explain 
+  select * from t1 x, t1 y where
+    (x.a <= 2 or x.a > 3) and
+    y.a=x.d and y.b=x.b;
+--sorted_result
+  select * from t1 x, t1 y where
+    (x.a <= 2 or x.a > 3) and
+    y.a=x.d and y.b=x.b;
+
+
 set ndb_join_pushdown=on;
 
 drop table t1;
