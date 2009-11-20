@@ -2471,7 +2471,8 @@ and this may fail.\n\n");
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
   fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
-  fprintf(stderr, "threads_connected=%u\n", thread_count);
+  fprintf(stderr, "thread_count=%u\n", thread_count);
+  fprintf(stderr, "connection_count=%u\n", connection_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
@@ -7624,7 +7625,7 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_NOFLUSH},
-  {"Threads_connected",        (char*) &thread_count,           SHOW_INT},
+  {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
