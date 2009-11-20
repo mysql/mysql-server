@@ -4899,9 +4899,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= new Field_new_decimal((uchar*) 0, max_length, null_ptr, 0,
-                                 Field::NONE, name, decimals, 0,
-                                 unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case MYSQL_TYPE_TINY:
     field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
