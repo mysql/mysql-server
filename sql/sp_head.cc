@@ -2090,8 +2090,18 @@ sp_head::reset_lex(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
-/// Restore lex during parsing, after we have parsed a sub statement.
-void
+
+/**
+  Restore lex during parsing, after we have parsed a sub statement.
+
+  @param thd Thread handle
+
+  @return
+    @retval TRUE failure
+    @retval FALSE success
+*/
+
+bool
 sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
@@ -2102,7 +2112,7 @@ sp_head::restore_lex(THD *thd)
 
   oldlex= (LEX *)m_lex.pop();
   if (! oldlex)
-    return;			// Nothing to restore
+    DBUG_RETURN(FALSE);			// Nothing to restore
 
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
@@ -2118,7 +2128,8 @@ sp_head::restore_lex(THD *thd)
     Add routines which are used by statement to respective set for
     this routine.
   */
-  sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines);
+  if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
+    DBUG_RETURN(TRUE);
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
@@ -2130,7 +2141,7 @@ sp_head::restore_lex(THD *thd)
     delete sublex;
   }
   thd->lex= oldlex;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 /**
@@ -3868,7 +3879,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
-	my_hash_insert(&m_sptabs, (uchar *)tab);
+	if (my_hash_insert(&m_sptabs, (uchar *)tab))
+          return FALSE;
       }
     }
   return TRUE;

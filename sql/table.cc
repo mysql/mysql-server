@@ -1315,8 +1315,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       share->timestamp_field_offset= i;
 
     if (use_hash)
-      (void) my_hash_insert(&share->name_hash,
-                            (uchar*) field_ptr); // never fail
+      if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
+      {
+        /*
+          Set return code 8 here to indicate that an error has
+          occurred but that the error message already has been
+          sent (OOM).
+        */
+        error= 8; 
+        goto err;
+      }
   }
   *field_ptr=0;					// End marker
 

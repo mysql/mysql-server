@@ -2330,8 +2330,8 @@ sp_decl:
             }
 
             pctx->declare_var_boundary(0);
-            lex->sphead->restore_lex(YYTHD);
-
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
           }
@@ -2441,7 +2441,8 @@ sp_cursor_stmt:
             }
             lex->sp_lex_in_use= TRUE;
             $$= lex;
-            lex->sphead->restore_lex(YYTHD);
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2660,7 +2661,8 @@ sp_proc_stmt_statement:
                     sp->add_instr(i))
                 MYSQL_YYABORT;
             }
-            sp->restore_lex(thd);
+            if (sp->restore_lex(thd))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2688,7 +2690,8 @@ sp_proc_stmt_return:
                 MYSQL_YYABORT;
               sp->m_flags|= sp_head::HAS_RETURN;
             }
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2928,7 +2931,8 @@ sp_if:
                 sp->add_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           sp_proc_stmts1
           {
@@ -2974,7 +2978,9 @@ simple_case_stmt:
             if (case_stmt_action_expr(lex, $3))
               MYSQL_YYABORT;
 
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           simple_when_clause_list
           else_clause_opt
@@ -3024,7 +3030,9 @@ simple_when_clause:
             LEX *lex= Lex;
             if (case_stmt_action_when(lex, $3, true))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           THEN_SYM
           sp_proc_stmts1
@@ -3045,7 +3053,9 @@ searched_when_clause:
             LEX *lex= Lex;
             if (case_stmt_action_when(lex, $3, false))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           THEN_SYM
           sp_proc_stmts1
@@ -3222,7 +3232,8 @@ sp_unlabeled_control:
                 sp->new_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           sp_proc_stmts1 END WHILE_SYM
           {
@@ -3248,7 +3259,8 @@ sp_unlabeled_control:
             if (i == NULL ||
                 lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD);
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
             /* We can shortcut the cont_backpatch here */
             i->m_cont_dest= ip+1;
           }
@@ -11777,7 +11789,8 @@ option_type_value:
                 if (sp->add_instr(i))
                   MYSQL_YYABORT;
               }
-              lex->sphead->restore_lex(thd);
+              if (lex->sphead->restore_lex(thd))
+                MYSQL_YYABORT;
             }
           }
         ;
