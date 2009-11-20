@@ -2308,12 +2308,6 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
     goto err;
   }
 
-  /*
-    Open table requires an initialized lex in case the table is
-    partitioned. The .frm file contains a partial SQL string which is
-    parsed using a lex, that depends on initialized thd->lex.
-  */
-  lex_start(thd);
   thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
   /*
     Statement-based replication of INSERT DELAYED has problems with RAND()
