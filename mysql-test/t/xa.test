@@ -149,6 +149,68 @@ xa end 'a';
 xa prepare 'a';
 xa commit 'a';
 
+#
+# BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1),(2);
+connect(con1,localhost,root,,);
+
+# Part 1: Prepare to test XA START after regular transaction deadlock
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+BEGIN;
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+let $conn_id= `SELECT CONNECTION_ID()`;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+ROLLBACK;
+
+# Part 2: Prepare to test XA START after XA transaction deadlock
+connection con1;
+REAP;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+XA START 'xid1';
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+--error ER_XA_RBDEADLOCK
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+XA START 'xid1';
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+disconnect con1;
+DROP TABLE t1;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

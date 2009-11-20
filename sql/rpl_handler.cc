@@ -44,7 +44,7 @@ int get_user_var_int(const char *name,
 {
   my_bool null_val;
   user_var_entry *entry= 
-    (user_var_entry*) hash_search(&current_thd->user_vars,
+    (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
     return 1;
@@ -59,7 +59,7 @@ int get_user_var_real(const char *name,
 {
   my_bool null_val;
   user_var_entry *entry= 
-    (user_var_entry*) hash_search(&current_thd->user_vars,
+    (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
     return 1;
@@ -75,7 +75,7 @@ int get_user_var_str(const char *name, char *value,
   String str;
   my_bool null_val;
   user_var_entry *entry= 
-    (user_var_entry*) hash_search(&current_thd->user_vars,
+    (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
     return 1;

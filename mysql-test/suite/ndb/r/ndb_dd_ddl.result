@@ -236,3 +236,79 @@ engine ndb;
 ERROR HY000: Failed to drop TABLESPACE
 drop logfile group lg1
 engine ndb;
+
+# -----------------------------------------------------------------
+# End 5.1 test
+# -----------------------------------------------------------------
+
+# --
+# -- WL#4300: Define privileges for tablespaces.
+# --
+GRANT CREATE TABLESPACE ON *.* TO mysqltest_u1@localhost;
+
+DROP DATABASE IF EXISTS mysqltest2;
+CREATE DATABASE mysqltest2;
+GRANT ALL PRIVILEGES ON mysqltest2.* TO mysqltest_u2@localhost;
+
+# -- Connection: mysqltest_u1@localhost
+
+# -- Grants for mysqltest_u1@localhost:
+SHOW GRANTS;
+Grants for mysqltest_u1@localhost
+GRANT CREATE TABLESPACE ON *.* TO 'mysqltest_u1'@'localhost'
+
+# -- Check CREATE LOGFILE GROUP...
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE = NDB;
+
+# -- Check ALTER LOGFILE GROUP...
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 1M
+ENGINE = NDB;
+
+# -- Check CREATE TABLESPACE...
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE = NDB;
+
+# -- Check ALTER TABLESPACE...
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+INITIAL_SIZE 1M
+ENGINE = NDB;
+
+# -- Connection: mysqltest_u2@localhost
+
+# -- Grants for mysqltest_u2@localhost:
+SHOW GRANTS;
+Grants for mysqltest_u2@localhost
+GRANT USAGE ON *.* TO 'mysqltest_u2'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest2`.* TO 'mysqltest_u2'@'localhost'
+CREATE TABLE t1(c INT) TABLESPACE ts1;
+DROP TABLE t1;
+
+# -- Connection: mysqltest_u1@localhost
+
+
+# -- Check DROP TABLESPACE...
+DROP TABLESPACE ts1 
+ENGINE = NDB;
+
+# -- Check DROP LOGFILE GROUP...
+DROP LOGFILE GROUP lg1 
+ENGINE = NDB;
+
+# -- Connection: root@localhost
+
+DROP USER mysqltest_u1@localhost;
+DROP USER mysqltest_u2@localhost;
+
+# -----------------------------------------------------------------
+# End 6.0 test
+# -----------------------------------------------------------------

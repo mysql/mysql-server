@@ -1,4 +1,4 @@
---source include/have_community_features.inc
+--source include/have_profiling.inc
 
 # Verify that the protocol isn't violated if we ask for profiling info
 # before profiling has recorded anything.

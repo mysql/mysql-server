@@ -1010,7 +1010,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
   }
 
@@ -1080,7 +1080,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
   }
 
@@ -1505,11 +1505,11 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
                              const LEX_STRING *key,
                              TABLE_LIST *belong_to_view)
 {
-  hash_init_opt(&lex->sroutines, system_charset_info,
-                Query_tables_list::START_SROUTINES_HASH_SIZE,
-                0, 0, sp_sroutine_key, 0, 0);
+  my_hash_init_opt(&lex->sroutines, system_charset_info,
+                   Query_tables_list::START_SROUTINES_HASH_SIZE,
+                   0, 0, sp_sroutine_key, 0, 0);
 
-  if (!hash_search(&lex->sroutines, (uchar *)key->str, key->length))
+  if (!my_hash_search(&lex->sroutines, (uchar *)key->str, key->length))
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
@@ -1574,7 +1574,7 @@ void sp_remove_not_own_routines(LEX *lex)
       but we want to be more future-proof.
     */
     next_rt= not_own_rt->next;
-    hash_delete(&lex->sroutines, (uchar *)not_own_rt);
+    my_hash_delete(&lex->sroutines, (uchar *)not_own_rt);
   }
 
   *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
@@ -1603,8 +1603,8 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
 {
   for (uint i=0 ; i < src->records ; i++)
   {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
-    if (!hash_search(dst, (uchar *)rt->key.str, rt->key.length))
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
+    if (!my_hash_search(dst, (uchar *)rt->key.str, rt->key.length))
       my_hash_insert(dst, (uchar *)rt);
   }
 }
@@ -1630,7 +1630,7 @@ sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
 {
   for (uint i=0 ; i < src->records ; i++)
   {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
     (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
   }
 }

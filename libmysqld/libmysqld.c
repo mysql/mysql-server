@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
+#include <sql_common.h>
 #include "client_settings.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
@@ -77,17 +78,6 @@ static my_bool is_NT(void)
 }
 #endif
 
-/**************************************************************************
-** Shut down connection
-**************************************************************************/
-
-static void end_server(MYSQL *mysql)
-{
-  DBUG_ENTER("end_server");
-  free_old_query(mysql);
-  DBUG_VOID_RETURN;
-}
-
 
 int mysql_init_character_set(MYSQL *mysql);
 
@@ -103,6 +93,13 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+  /* Test whether we're already connected */
+  if (mysql->server_version)
+  {
+    set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
 
   if (!host || !host[0])
     host= mysql->options.host;
@@ -216,7 +213,7 @@ error:
   {
     /* Free alloced memory */
     my_bool free_me=mysql->free_me;
-    end_server(mysql);
+    free_old_query(mysql); 
     mysql->free_me=0;
     mysql_close(mysql);
     mysql->free_me=free_me;

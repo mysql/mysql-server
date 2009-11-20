@@ -146,6 +146,7 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
+#define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -169,6 +170,7 @@ enum enum_server_command
                            CLIENT_SECURE_CONNECTION | \
                            CLIENT_MULTI_STATEMENTS | \
                            CLIENT_MULTI_RESULTS | \
+                           CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS)
 
@@ -206,6 +208,11 @@ enum enum_server_command
 */
 #define SERVER_STATUS_METADATA_CHANGED 1024
 #define SERVER_QUERY_WAS_SLOW          2048
+
+/**
+  To mark ResultSet containing output parameter values.
+*/
+#define SERVER_PS_OUT_PARAMS            4096
 
 /**
   Server status flags that must be cleared when starting
@@ -257,24 +264,23 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused0; /* Please remove with the next incompatible ABI change. */
-  my_bool unused; /* Please remove with the next incompatible ABI change */
-  my_bool compress;
   my_bool unused1; /* Please remove with the next incompatible ABI change. */
+  my_bool unused2; /* Please remove with the next incompatible ABI change */
+  my_bool compress;
+  my_bool unused3; /* Please remove with the next incompatible ABI change. */
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
 #endif
   /*
-    'query_cache_query' should be accessed only via query cache
-    functions and methods to maintain proper locking.
+    Unused, please remove with the next incompatible ABI change.
   */
-  unsigned char *query_cache_query;
+  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error; 
-  my_bool unused2; /* Please remove with the next incompatible ABI change. */
-  my_bool return_errno;
+  my_bool unused4; /* Please remove with the next incompatible ABI change. */
+  my_bool unused5; /* Please remove with the next incompatible ABI change. */
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
@@ -412,10 +418,6 @@ void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
 
-/*
-  The following function is not meant for normal usage
-  Currently it's used internally by manager.c
-*/
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);

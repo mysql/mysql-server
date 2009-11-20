@@ -1,11 +1,38 @@
+#include <mysql/services.h>
+#include <mysql/service_my_snprintf.h>
+#include <stdarg.h>
 #include <stdlib.h>
-typedef struct st_mysql MYSQL;
+extern struct my_snprintf_service_st {
+  size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
+  size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
+} *my_snprintf_service;
+size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
+size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
+#include <mysql/service_thd_alloc.h>
+#include <stdlib.h>
 struct st_mysql_lex_string
 {
   char *str;
-  unsigned int length;
+  size_t length;
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+extern struct thd_alloc_service_st {
+  void *(*thd_alloc_func)(void*, unsigned int);
+  void *(*thd_calloc_func)(void*, unsigned int);
+  char *(*thd_strdup_func)(void*, const char *);
+  char *(*thd_strmake_func)(void*, const char *, unsigned int);
+  void *(*thd_memdup_func)(void*, const void*, unsigned int);
+  MYSQL_LEX_STRING *(*thd_make_lex_string_func)(void*, MYSQL_LEX_STRING *,
+                                        const char *, unsigned int, int);
+} *thd_alloc_service;
+void *thd_alloc(void* thd, unsigned int size);
+void *thd_calloc(void* thd, unsigned int size);
+char *thd_strdup(void* thd, const char *str);
+char *thd_strmake(void* thd, const char *str, unsigned int size);
+void *thd_memdup(void* thd, const void* str, unsigned int size);
+MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
+                                      const char *str, unsigned int size,
+                                      int allocate_lex_string);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -17,7 +44,8 @@ enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
   SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_always_last
 };
 struct st_mysql_show_var {
   const char *name;
@@ -107,9 +135,9 @@ struct st_mysql_information_schema
 {
   int interface_version;
 };
-struct Mysql_replication {
-  int interface_version;
-};
+ struct Mysql_replication {
+   int interface_version;
+ };
 struct st_mysql_value
 {
   int (*value_type)(struct st_mysql_value *);
@@ -130,22 +158,7 @@ void thd_inc_row_count(void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);
-void *thd_alloc(void* thd, unsigned int size);
-void *thd_calloc(void* thd, unsigned int size);
-char *thd_strdup(void* thd, const char *str);
-char *thd_strmake(void* thd, const char *str, unsigned int size);
-void *thd_memdup(void* thd, const void* str, unsigned int size);
-MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
-                                      int allocate_lex_string);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
-int get_user_var_int(const char *name,
-                     long long int *value, int *null_value);
-int get_user_var_real(const char *name,
-                      double *value, int *null_value);
-int get_user_var_str(const char *name,
-                     char *value, unsigned long len,
-                     unsigned int precision, int *null_value);

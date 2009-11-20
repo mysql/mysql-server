@@ -408,7 +408,6 @@ struct xid_t {
   my_xid get_my_xid()
   {
     return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           !memcmp(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id)) &&
            !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
            quick_get_my_xid() : 0;
   }
@@ -515,9 +514,8 @@ class st_alter_tablespace : public Sql_alloc
 
 /* The handler for a table type.  Will be included in the TABLE structure */
 
-struct st_table;
-typedef struct st_table TABLE;
-typedef struct st_table_share TABLE_SHARE;
+struct TABLE;
+struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
@@ -592,6 +590,7 @@ struct handler_iterator {
   void *buffer;
 };
 
+class handler;
 /*
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -1095,8 +1094,8 @@ class handler :public Sql_alloc
 public:
   typedef ulonglong Table_flags;
 protected:
-  struct st_table_share *table_share;   /* The table definition */
-  struct st_table *table;               /* The current open table */
+  TABLE_SHARE *table_share;   /* The table definition */
+  TABLE *table;               /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
@@ -1172,7 +1171,7 @@ public:
   virtual ~handler(void)
   {
     DBUG_ASSERT(locked == FALSE);
-    /* TODO: DBUG_ASSERT(inited == NONE); */
+    DBUG_ASSERT(inited == NONE);
   }
   virtual handler *clone(MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */

@@ -172,8 +172,8 @@ int archive_db_init(void *p)
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&archive_open_tables, table_alias_charset, 32, 0, 0,
-                (hash_get_key) archive_get_key, 0, 0))
+  if (my_hash_init(&archive_open_tables, table_alias_charset, 32, 0, 0,
+                (my_hash_get_key) archive_get_key, 0, 0))
   {
     VOID(pthread_mutex_destroy(&archive_mutex));
   }
@@ -198,7 +198,7 @@ error:
 
 int archive_db_done(void *p)
 {
-  hash_free(&archive_open_tables);
+  my_hash_free(&archive_open_tables);
   VOID(pthread_mutex_destroy(&archive_mutex));
 
   return 0;
@@ -316,9 +316,9 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
   pthread_mutex_lock(&archive_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(ARCHIVE_SHARE*) hash_search(&archive_open_tables,
-                                           (uchar*) table_name,
-                                           length)))
+  if (!(share=(ARCHIVE_SHARE*) my_hash_search(&archive_open_tables,
+                                              (uchar*) table_name,
+                                              length)))
   {
     char *tmp_name;
     azio_stream archive_tmp;
@@ -394,7 +394,7 @@ int ha_archive::free_share()
   pthread_mutex_lock(&archive_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&archive_open_tables, (uchar*) share);
+    my_hash_delete(&archive_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     /* 
