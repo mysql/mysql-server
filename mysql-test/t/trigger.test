@@ -2425,3 +2425,67 @@ DELETE FROM t1;
 
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
+
+#
+# Bug#36649: Condition area is not properly cleaned up after stored routine invocation
+#
+
+--disable_warnings
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+
+delimiter |;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE a CHAR;
+  SELECT 'ab' INTO a;
+  SELECT 'ab' INTO a;
+  SELECT 'a' INTO a;
+END|
+delimiter ;|
+
+INSERT INTO t1 VALUES (1);
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+#
+# Successive trigger actuations
+#
+
+--disable_warnings
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+
+delimiter |;
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE trg1 CHAR;
+  SELECT 'ab' INTO trg1;
+END|
+
+CREATE TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE trg2 CHAR;
+  SELECT 'ab' INTO trg2;
+END|
+
+delimiter ;|
+
+INSERT INTO t1 VALUES (0);
+SELECT * FROM t1;
+SHOW WARNINGS;
+INSERT INTO t1 VALUES (1),(2);
+
+DROP TRIGGER trg1;
+DROP TRIGGER trg2;
+DROP TABLE t1;
+
