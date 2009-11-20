@@ -344,6 +344,7 @@ my @mysql_upgrade_rules=
 sub post_check_client_group {
   my ($self, $config, $client_group_name, $mysqld_group_name)= @_;
 
+
   #  Settings needed for client, copied from its "mysqld"
   my %client_needs=
     (
@@ -353,7 +354,6 @@ sub post_check_client_group {
      user       => '#user',
      password   => '#password',
     );
-
   my $group_to_copy_from= $config->group($mysqld_group_name);
   while (my ($name_to, $name_from)= each( %client_needs )) {
     my $option= $group_to_copy_from->option($name_from);
