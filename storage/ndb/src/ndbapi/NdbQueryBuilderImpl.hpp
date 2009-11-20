@@ -44,6 +44,7 @@
 #ifdef __cplusplus
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
+#include "NdbIndexScanOperation.hpp"
 
 // Forward declared
 class NdbTableImpl;
@@ -336,6 +337,15 @@ public:
    */
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const = 0;
+
+  /**
+   * Allow setting of upper/lower bounds in 'plain old' NdbIndexScanOperation
+   * style.
+   */
+  virtual int setBound(Uint32Buffer& keyInfo,
+                       const NdbIndexScanOperation::IndexBound& bound) const {
+    assert(false);
+  }
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                              bool&   isPruned,

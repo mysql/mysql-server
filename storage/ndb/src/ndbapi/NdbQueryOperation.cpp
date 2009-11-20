@@ -557,9 +557,9 @@ int
 NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
 {
   /**
-   * Immediately build the serialize parameter representation in order 
+   * Immediately build the serialized parameter representation in order 
    * to avoid storing param values elsewhere until query is executed.
-   * Also calculate prunable property, and possibly its hashValue.
+   * Also calculates prunable property, and possibly its hashValue.
    */
   // Build explicit key/filter/bounds for root operation, possibly refering paramValues
   const int error = getRoot().getQueryOperationDef().prepareKeyInfo(m_keyInfo, paramValues);
@@ -581,6 +581,23 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
   m_state = Defined;
   return 0;
 }
+
+
+int
+NdbQueryImpl::setBound(const NdbIndexScanOperation::IndexBound *bound)
+{
+  if (unlikely(bound==NULL))
+    return QRY_REQ_ARG_IS_NULL;
+
+  const int error = getRoot().getQueryOperationDef().setBound(m_keyInfo, *bound);
+  if (unlikely(error != 0))
+    return error;
+
+  assert(m_state<=Defined);
+  m_state = Defined;
+  return 0;
+}
+
 
 Uint32
 NdbQueryImpl::getNoOfOperations() const
