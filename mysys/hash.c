@@ -334,6 +334,7 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
   size_t idx,halfbuff,hash_nr,first_index;
   uchar *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
   HASH_LINK *data,*empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
+  DBUG_EXECUTE("fail_hash_insert",return(TRUE););
 
   if (HASH_UNIQUE & info->flags)
   {

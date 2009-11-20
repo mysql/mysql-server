@@ -13862,7 +13862,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, org_key_pos);
+    {
+      if (my_hash_insert(&hash, org_key_pos))
+        goto err;
+    }
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
