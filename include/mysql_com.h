@@ -524,4 +524,5 @@ uchar *net_store_length(uchar *pkg, ulonglong length);
 #define MYSQL_STMT_HEADER       4
 #define MYSQL_LONG_DATA_HEADER  6
 
+#define NOT_FIXED_DEC           31
 #endif

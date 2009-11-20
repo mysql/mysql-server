@@ -30,10 +30,6 @@
 
 #define DECIMAL_MAX_LENGTH ((8 * 9) - 8)
 
-#ifndef NOT_FIXED_DEC
-#define NOT_FIXED_DEC                   31
-#endif
-
 C_MODE_START
 extern int decimal_bin_size(int, int);
 C_MODE_END
