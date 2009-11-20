@@ -63,6 +63,35 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 
 /**
+   purge logs, master and slave sides both, related error code
+   convertor.
+   Called from @c purge_error_message(), @c MYSQL_BIN_LOG::reset_logs()
+
+   @param  res  an internal to purging routines error code 
+
+   @return the user level error code ER_*
+*/
+uint purge_log_get_error_code(int res)
+{
+  uint errcode= 0;
+
+  switch (res)  {
+  case 0: break;
+  case LOG_INFO_EOF:	errcode= ER_UNKNOWN_TARGET_BINLOG; break;
+  case LOG_INFO_IO:	errcode= ER_IO_ERR_LOG_INDEX_READ; break;
+  case LOG_INFO_INVALID:errcode= ER_BINLOG_PURGE_PROHIBITED; break;
+  case LOG_INFO_SEEK:	errcode= ER_FSEEK_FAIL; break;
+  case LOG_INFO_MEM:	errcode= ER_OUT_OF_RESOURCES; break;
+  case LOG_INFO_FATAL:	errcode= ER_BINLOG_PURGE_FATAL_ERR; break;
+  case LOG_INFO_IN_USE: errcode= ER_LOG_IN_USE; break;
+  case LOG_INFO_EMFILE: errcode= ER_BINLOG_PURGE_EMFILE; break;
+  default:		errcode= ER_LOG_PURGE_UNKNOWN_ERR; break;
+  }
+
+  return errcode;
+}
+
+/**
   Silence all errors and warnings reported when performing a write
   to a log table.
   Errors and warnings are not reported to the client or SQL exception
@@ -2778,8 +2807,10 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   {
     uint length;
     my_off_t offset= my_b_tell(&index_file);
-    /* If we get 0 or 1 characters, this is the end of the file */
 
+    DBUG_EXECUTE_IF("simulate_find_log_pos_error",
+                    error=  LOG_INFO_EOF; break;);
+    /* If we get 0 or 1 characters, this is the end of the file */
     if ((length= my_b_gets(&index_file, fname, FN_REFLEN)) <= 1)
     {
       /* Did not find the given entry; Return not found or error */
@@ -2881,6 +2912,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 {
   LOG_INFO linfo;
   bool error=0;
+  int err;
   const char* save_name;
   DBUG_ENTER("reset_logs");
 
@@ -2907,9 +2939,12 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   /* First delete all old log files */
 
-  if (find_log_pos(&linfo, NullS, 0))
+  if ((err= find_log_pos(&linfo, NullS, 0)) != 0)
   {
-    error=1;
+    uint errcode= purge_log_get_error_code(err);
+    sql_print_error("Failed to locate old binlog or relay log files");
+    my_message(errcode, ER(errcode), MYF(0));
+    error= 1;
     goto err;
   }
 
@@ -2978,6 +3013,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   my_free((uchar*) save_name, MYF(0));
 
 err:
+  if (error == 1)
+    name= const_cast<char*>(save_name);
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
