@@ -1740,8 +1740,6 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
   :subselect_engine(item_arg, result_arg)
 {
   unit= u;
-  if (!result_arg)				//out of memory
-    current_thd->fatal_error();
   unit->item= item_arg;
 }
 
@@ -1753,10 +1751,7 @@ int subselect_single_select_engine::prepare()
   join= new JOIN(thd, select_lex->item_list,
 		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
-  {
-    thd->fatal_error();				//out of memory
-    return 1;
-  }
+    return 1; /* Fatal error is set already. */
   prepared= 1;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;

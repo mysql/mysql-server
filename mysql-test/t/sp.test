@@ -8295,6 +8295,119 @@ SELECT * FROM t1 WHERE a = f1();
 DROP FUNCTION f1;
 DROP TABLE t1;
 
+#
+# Bug#36649: Condition area is not properly cleaned up after stored routine invocation
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a INT, b CHAR)
+BEGIN
+  IF a > 0 THEN
+    CALL p1(a-1, 'ab');
+  ELSE
+    SELECT 1;
+  END IF;
+END|
+delimiter ;|
+
+SET @save_max_sp_recursion= @@max_sp_recursion_depth;
+SET @@max_sp_recursion_depth= 5;
+CALL p1(4, 'a');
+SET @@max_sp_recursion_depth= @save_max_sp_recursion;
+
+DROP PROCEDURE p1;
+
+#
+# Ensure that rules for message list clean up are being respected.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a CHAR)
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 1;
+END|
+delimiter ;|
+
+CALL p1('data truncated parameter');
+
+DROP PROCEDURE p1;
+
+#
+# Cascading stored procedure/function calls.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+  CALL p2()|
+CREATE PROCEDURE p2()
+  CALL p3()|
+CREATE PROCEDURE p3()
+  CALL p4()|
+CREATE PROCEDURE p4()
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 2;
+END|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a CHAR(2));
+
+INSERT INTO t1 VALUES ('aa');
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS CHAR
+  RETURN (SELECT f2())|
+CREATE FUNCTION f2() RETURNS CHAR
+  RETURN (SELECT f3())|
+CREATE FUNCTION f3() RETURNS CHAR
+  RETURN (SELECT f4())|
+CREATE FUNCTION f4() RETURNS CHAR
+BEGIN
+  RETURN (SELECT a FROM t1);
+END|
+delimiter ;|
+
+SELECT f1();
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
 --echo #            strict SQL mode
