@@ -265,8 +265,8 @@ DELETE FROM t1, alias USING t1, t2 alias WHERE t1.a = alias.a;
 DELETE FROM t1, t2 USING t1, t2 alias WHERE t1.a = alias.a;
 --error ER_PARSE_ERROR
 DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
---error ER_UNKNOWN_TABLE
 DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
+--error ER_UNKNOWN_TABLE
 DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 DELETE FROM t1 USING t1 WHERE a = 1;
 SELECT * FROM t1;
@@ -292,6 +292,159 @@ DROP TABLE t1;
 DROP FUNCTION f1;
 
 --echo End of 5.0 tests
+
+#
+# Bug#27525: table not found when using multi-table-deletes with aliases over
+#            several databas
+# Bug#21148: MULTI-DELETE fails to resolve a table by alias if it's from a
+#            different database
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+DROP DATABASE IF EXISTS db3;
+DROP DATABASE IF EXISTS db4;
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS count;
+--enable_warnings
+USE test;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+CREATE TABLE db1.t1 (a INT, b INT);
+INSERT INTO db1.t1 VALUES (1,1),(2,2),(3,3);
+CREATE TABLE db1.t2 AS SELECT * FROM db1.t1;
+CREATE TABLE db2.t1 AS SELECT * FROM db1.t2;
+CREATE TABLE db2.t2 AS SELECT * FROM db2.t1;
+CREATE TABLE t1 AS SELECT * FROM db2.t2;
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+delimiter |;
+CREATE PROCEDURE count_rows()
+BEGIN
+  SELECT COUNT(*) AS "COUNT(db1.t1)" FROM db1.t1;
+  SELECT COUNT(*) AS "COUNT(db1.t2)" FROM db1.t2;
+  SELECT COUNT(*) AS "COUNT(db2.t1)" FROM db2.t1;
+  SELECT COUNT(*) AS "COUNT(db2.t2)" FROM db2.t2;
+  SELECT COUNT(*) AS "COUNT(test.t1)" FROM test.t1;
+  SELECT COUNT(*) AS "COUNT(test.t2)" FROM test.t2;
+END|
+delimiter ;|
+
+#
+# Testing without a selected database
+#
+
+CREATE DATABASE db3;
+USE db3;
+DROP DATABASE db3;
+--error ER_NO_DB_ERROR
+SELECT * FROM t1;
+
+# Detect missing table references
+
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db1.t1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db1.t1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+--error ER_NO_DB_ERROR
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+--error ER_NO_DB_ERROR
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+
+# Ambiguous table references
+
+--error ER_NO_DB_ERROR
+DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
+--error ER_NO_DB_ERROR
+DELETE a1 FROM db1.a1, db2.t2 AS a1;
+--error ER_NO_DB_ERROR
+DELETE a1 FROM a1, db1.t1 AS a1;
+--error ER_NO_DB_ERROR
+DELETE t1 FROM db1.t1, db2.t1 AS a1;
+--error ER_NO_DB_ERROR
+DELETE t1 FROM db1.t1 AS a1, db2.t1 AS a2;
+--error ER_NO_DB_ERROR
+DELETE t1 FROM db1.t1, db2.t1;
+
+# Test all again, now with a selected database
+
+USE test;
+
+# Detect missing table references
+
+--error ER_UNKNOWN_TABLE
+DELETE a1,a2 FROM db1.t1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE a1,a2 FROM db1.t1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
+--error ER_NO_SUCH_TABLE
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+--error ER_NO_SUCH_TABLE
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+
+--error ER_UNKNOWN_TABLE
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
+--error ER_UNKNOWN_TABLE
+DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
+--error ER_NO_SUCH_TABLE
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+--error ER_NO_SUCH_TABLE
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+
+# Ambiguous table references
+
+--error ER_NONUNIQ_TABLE
+DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
+--error ER_NO_SUCH_TABLE
+DELETE a1 FROM db1.a1, db2.t2 AS a1;
+--error ER_NONUNIQ_TABLE
+DELETE a1 FROM a1, db1.t1 AS a1;
+--error ER_UNKNOWN_TABLE
+DELETE t1 FROM db1.t1, db2.t1 AS a1;
+--error ER_UNKNOWN_TABLE
+DELETE t1 FROM db1.t1 AS a1, db2.t1 AS a2;
+--error ER_UNKNOWN_TABLE
+DELETE t1 FROM db1.t1, db2.t1;
+
+# Test multiple-table cross database deletes
+
+DELETE t1 FROM db1.t2 AS t1, db2.t2 AS t2 WHERE t2.a = 1 AND t1.a = t2.a;
+SELECT ROW_COUNT();
+CALL count_rows();
+DELETE a1, a2 FROM db2.t1 AS a1, t2 AS a2 WHERE a1.a = 2 AND a2.a = 2;
+SELECT ROW_COUNT();
+CALL count_rows();
+
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP PROCEDURE count_rows;
+DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug#46958: Assertion in Diagnostics_area::set_ok_status, trigger, 
