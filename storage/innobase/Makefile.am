@@ -31,7 +31,6 @@ DEFS=			@DEFS@
 
 noinst_HEADERS=		\
 			handler/ha_innodb.h	\
-			handler/handler0vars.h	\
 			handler/i_s.h		\
 			include/btr0btr.h	\
 			include/btr0btr.ic	\

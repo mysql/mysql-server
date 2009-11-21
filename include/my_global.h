@@ -410,6 +410,7 @@ C_MODE_END
 #ifndef stdin
 #include <stdio.h>
 #endif
+#include <stdarg.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -558,12 +559,6 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
-#define PURIFY_OR_LINT_INIT(var) var=0
-#else
-#define PURIFY_OR_LINT_INIT(var)
-#endif
-
 /* 
    Suppress uninitialized variable warning without generating code.
 
@@ -653,8 +648,6 @@ C_MODE_END
 #    undef DBUG_ON
 #  endif
 #endif
-
-#include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
@@ -1181,6 +1174,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define reg15 register
 #define reg16 register
 #endif
+
+#include <my_dbug.h>
 
 /*
   Sometimes we want to make sure that the variable is not put into

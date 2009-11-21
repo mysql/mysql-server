@@ -740,7 +740,9 @@ static void get_options(register int *argc,register char ***argv)
 {
   int ho_error;
 
-  load_defaults("my", load_default_groups, argc, argv);
+  if (load_defaults("my", load_default_groups, argc, argv))
+    exit(1);
+
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
@@ -837,7 +839,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       mi_check_print_error(param,"'%s' is marked as crashed after last repair",filename);
       break;
     case HA_ERR_OLD_FILE:
-      mi_check_print_error(param,"'%s' is a old type of MyISAM-table", filename);
+      mi_check_print_error(param,"'%s' is an old type of MyISAM-table", filename);
       break;
     case HA_ERR_END_OF_FILE:
       mi_check_print_error(param,"Couldn't read complete header from '%s'", filename);

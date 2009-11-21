@@ -60,7 +60,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
+#define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -181,6 +181,16 @@ extern char *my_strndup(const char *from, size_t length,
 #define TRASH(A,B) /* nothing */
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
+#define DEBUG_SYNC_C(_sync_point_name_) do {                            \
+    if (debug_sync_C_callback_ptr != NULL)                              \
+      (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
+  while(0)
+#else
+#define DEBUG_SYNC_C(_sync_point_name_)
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(size_t size, myf my_flags);
@@ -231,8 +241,9 @@ extern uint    my_large_page_size;
 #endif
 
 /* charsets */
+#define MY_ALL_CHARSETS_SIZE 2048
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
@@ -658,6 +669,7 @@ extern void     my_osmaperr(unsigned long last_error);
 extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
+extern const char** get_global_errmsgs();
 extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
@@ -671,7 +683,10 @@ extern void my_error _VARARGS((int nr,myf MyFlags, ...));
 extern void my_printf_error _VARARGS((uint my_err, const char *format,
                                      myf MyFlags, ...))
                                      ATTRIBUTE_FORMAT(printf, 2, 4);
-extern int my_error_register(const char **errmsgs, int first, int last);
+extern void my_printv_error(uint error, const char *format, myf MyFlags,
+                            va_list ap);
+extern int my_error_register(const char** (*get_errmsgs) (),
+                             int first, int last);
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_no_curses(uint my_err, const char *str,myf MyFlags);
@@ -731,7 +746,6 @@ extern int wild_compare(const char *str,const char *wildstr,
 extern WF_PACK *wf_comp(char * str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
-extern size_t strip_sp(char * str);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
@@ -865,6 +879,7 @@ extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
+extern const char *args_separator;
 extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,

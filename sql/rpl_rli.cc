@@ -28,15 +28,16 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
 
-
-Relay_log_info::Relay_log_info()
+Relay_log_info::Relay_log_info(bool is_slave_recovery)
   :Slave_reporting_capability("SQL"),
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
-   info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+   info_fd(-1), cur_log_fd(-1), relay_log(&sync_relaylog_period),
+   sync_counter(0), is_relay_log_recovery(is_slave_recovery),
+   save_temporary_tables(0), cur_log_old_open_count(0), group_relay_log_pos(0), 
+   event_relay_log_pos(0),
 #if HAVE_purify
    is_fake(FALSE),
 #endif
-   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0),
@@ -258,6 +259,9 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
     rli->group_master_log_pos= master_log_pos;
 
+    if (rli->is_relay_log_recovery && init_recovery(rli->mi, &msg))
+      goto err;
+
     if (init_relay_log_pos(rli,
                            rli->group_relay_log_name,
                            rli->group_relay_log_pos,
@@ -289,7 +293,10 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
   if ((error= flush_relay_log_info(rli)))
-    sql_print_error("Failed to flush relay log info file");
+  {
+    msg= "Failed to flush relay log info file";
+    goto err;
+  }
   if (count_relay_log_space(rli))
   {
     msg="Error counting relay log space";
@@ -300,7 +307,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   DBUG_RETURN(error);
 
 err:
-  sql_print_error(msg);
+  sql_print_error("%s", msg);
   end_io_cache(&rli->info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));
@@ -1188,7 +1195,6 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
   thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-  last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }
 

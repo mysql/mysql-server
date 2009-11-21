@@ -118,10 +118,9 @@ UNIV_INLINE
 ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
-	byte*		str,	/*!< in: string */
+	const void*	str,	/*!< in: string */
 	ulint		len,	/*!< in: string length */
-	ib_uint64_t*	start_lsn,/*!< out: start lsn of the log record */
-	ibool*		success);/*!< out: TRUE if success */
+	ib_uint64_t*	start_lsn);/*!< out: start lsn of the log record */
 /***********************************************************************//**
 Releases the log mutex. */
 UNIV_INLINE
@@ -283,7 +282,7 @@ log_make_checkpoint_at(
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
 	ibool		write_always);	/*!< in: the function normally checks if
-					the the new checkpoint would have a
+					the new checkpoint would have a
 					greater lsn than the previous one: if
 					not, then no physical write is done;
 					by setting this parameter TRUE, a

@@ -1659,6 +1659,18 @@ begin
 declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
+drop procedure if exists p1;
+set @old_recursion_depth = @@max_sp_recursion_depth;
+set @@max_sp_recursion_depth = 255;
+create procedure p1(a int)
+begin
+declare continue handler for 1436 -- ER_STACK_OVERRUN_NEED_MORE
+select 'exception';
+call p1(a+1);
+end|
+call p1(1);
+set @@max_sp_recursion_depth = @old_recursion_depth;
+drop procedure p1;
 LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -1670,3 +1682,19 @@ NULL
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 ERROR 42000: FUNCTION test.non_existent does not exist
 DROP TABLE t1;
+#
+# Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 
+#   SP + MERGE + ALTER
+#
+CREATE TABLE t1 (pk INT, b INT, KEY (b));
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1 (a int) UPDATE IGNORE v1 SET b = a;
+CALL p1(5);
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+CALL p1(7);
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+End of 5.1 tests

@@ -98,7 +98,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     thd= (THD *) mysql->thd;
   }
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
 
@@ -119,7 +119,6 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
-  lex_start(thd);
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
      for new query. In the case of embedded server we collect field data
@@ -138,17 +137,20 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
+  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->mysys_var= 0;
+
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
   return result;
 }
 
-static void emb_flush_use_result(MYSQL *mysql)
+static void emb_flush_use_result(MYSQL *mysql, my_bool)
 {
   THD *thd= (THD*) mysql->thd;
   if (thd->cur_data)
@@ -634,6 +636,7 @@ void *create_embedded_thd(int client_flag)
 
   thread_count++;
   threads.append(thd);
+  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);
@@ -653,7 +656,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
   result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
-  net_end_statement(thd);
+  thd->protocol->end_statement();
   emb_read_query_result(mysql);
   return result;
 }
@@ -879,7 +882,7 @@ void Protocol_text::remove_last_row()
 }
 
 
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -888,7 +891,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
   CHARSET_INFO             *cs= system_charset_info;
   MYSQL_DATA               *data;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("send_result_set_metadata");
 
   if (!thd->mysql)            // bootstrap file handling
     DBUG_RETURN(0);
@@ -982,7 +985,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     write_eof_packet(thd, thd->server_status,
                      thd->warning_info->statement_warn_count());
 
-  DBUG_RETURN(prepare_for_send(list));
+  DBUG_RETURN(prepare_for_send(list->elements));
  err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
@@ -1087,6 +1090,9 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char *sqlstate)
 {
+  uint error;
+  uchar converted_err[MYSQL_ERRMSG_SIZE];
+  uint32 converted_err_len;
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
 
@@ -1101,7 +1107,12 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
-  strmake(ei->info, err, sizeof(ei->info)-1);
+  converted_err_len= convert_error_message((char*)converted_err,
+                                           sizeof(converted_err),
+                                           thd->variables.character_set_results,
+                                           err, strlen(err),
+                                           system_charset_info, &error);
+  strmake(ei->info, (const char*) converted_err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;

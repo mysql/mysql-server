@@ -1,0 +1,14 @@
+SHOW GLOBAL VARIABLES LIKE 'query_cache_type';
+Variable_name	Value
+query_cache_type	OFF
+SET GLOBAL query_cache_type=ON;
+ERROR HY000: Query cache is disabled; restart the server with query_cache_type=1 to enable it
+SET GLOBAL query_cache_type=DEMAND;
+ERROR HY000: Query cache is disabled; restart the server with query_cache_type=1 to enable it
+SET GLOBAL query_cache_type=OFF;
+ERROR HY000: Query cache is disabled; restart the server with query_cache_type=1 to enable it
+SET GLOBAL query_cache_size=1024*1024;
+SHOW GLOBAL VARIABLES LIKE 'query_cache_size';
+Variable_name	Value
+query_cache_size	1048576
+SET GLOBAL query_cache_size=0;

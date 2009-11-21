@@ -65,6 +65,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 create table t1 (ts timestamp);
 set one_shot time_zone='met';
 insert into t1 values('2005-08-12 00:00:00');

@@ -801,20 +801,27 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
     int2store(buff+8,field->pack_flag);
-    int2store(buff+10,field->unireg_check);
+    DBUG_ASSERT(field->unireg_check < 256);
+    buff[10]= (uchar) field->unireg_check;
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
     if (field->sql_type == MYSQL_TYPE_GEOMETRY)
     {
+      buff[11]= 0;
       buff[14]= (uchar) field->geom_type;
 #ifndef HAVE_SPATIAL
       DBUG_ASSERT(0);                           // Should newer happen
 #endif
     }
     else if (field->charset) 
+    {
+      buff[11]= (uchar) (field->charset->number >> 8);
       buff[14]= (uchar) field->charset->number;
+    }
     else
-      buff[14]= 0;				// Numerical
+    {
+      buff[11]= buff[14]= 0;			// Numerical
+    }
     int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);

@@ -261,19 +261,13 @@ int vio_close(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_close");
-#ifdef __WIN__
-  if (vio->type == VIO_TYPE_NAMEDPIPE)
-  {
-#if defined(MYSQL_SERVER)
-    CancelIo(vio->hPipe);
-    DisconnectNamedPipe(vio->hPipe);
-#endif
-    r=CloseHandle(vio->hPipe);
-  }
-  else
-#endif /* __WIN__ */
+
  if (vio->type != VIO_CLOSED)
   {
+    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
+      vio->type == VIO_TYPE_SOCKET ||
+      vio->type == VIO_TYPE_SSL);
+
     DBUG_ASSERT(vio->sd >= 0);
     if (shutdown(vio->sd, SHUT_RDWR))
       r= -1;
@@ -356,25 +350,160 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 }
 
 
-/* Return 0 if there is data to be read */
+/**
+  Indicate whether there is data to read on a given socket.
 
-my_bool vio_poll_read(Vio *vio,uint timeout)
+  @note An exceptional condition event and/or errors are
+        interpreted as if there is data to read.
+
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to poll.
+
+  @retval FALSE   There is data to read.
+  @retval TRUE    There is no data to read.
+*/
+
+static my_bool socket_poll_read(my_socket sd, uint timeout)
 {
-#ifndef HAVE_POLL
-  return 0;
-#else
+#ifdef __WIN__
+  int res;
+  my_socket fd= sd;
+  fd_set readfds, errorfds;
+  struct timeval tm;
+  DBUG_ENTER("socket_poll_read");
+  tm.tv_sec= timeout;
+  tm.tv_usec= 0;
+  FD_ZERO(&readfds);
+  FD_ZERO(&errorfds);
+  FD_SET(fd, &readfds);
+  FD_SET(fd, &errorfds);
+  if ((res= select(fd, &readfds, NULL, &errorfds, &tm) <= 0))
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);
+  }
+  res= FD_ISSET(fd, &readfds) || FD_ISSET(fd, &errorfds);
+  DBUG_RETURN(!res);
+#elif defined(HAVE_POLL)
   struct pollfd fds;
   int res;
-  DBUG_ENTER("vio_poll");
-  fds.fd=vio->sd;
+  DBUG_ENTER("socket_poll_read");
+  fds.fd=sd;
   fds.events=POLLIN;
   fds.revents=0;
   if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
   {
     DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
   }
-  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+  DBUG_RETURN(fds.revents & (POLLIN | POLLERR | POLLHUP) ? 0 : 1);
+#else
+  return 0;
 #endif
+}
+
+
+/**
+  Retrieve the amount of data that can be read from a socket.
+
+  @param vio          A VIO object.
+  @param bytes[out]   The amount of bytes available.
+
+  @retval FALSE   Success.
+  @retval TRUE    Failure.
+*/
+
+static my_bool socket_peek_read(Vio *vio, uint *bytes)
+{
+#ifdef __WIN__
+  int len;
+  if (ioctlsocket(vio->sd, FIONREAD, &len))
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#elif FIONREAD_IN_SYS_IOCTL
+  int len;
+  if (ioctl(vio->sd, FIONREAD, &len) < 0)
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#else
+  char buf[1024];
+  ssize_t res= recv(vio->sd, &buf, sizeof(buf), MSG_PEEK);
+  if (res < 0)
+    return TRUE;
+  *bytes= res;
+  return FALSE;
+#endif
+}
+
+
+/**
+  Indicate whether there is data to read on a given socket.
+
+  @remark Errors are interpreted as if there is data to read.
+
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to wait.
+
+  @retval FALSE   There is data (or EOF) to read. Also FALSE if error.
+  @retval TRUE    There is _NO_ data to read or timed out.
+*/
+
+my_bool vio_poll_read(Vio *vio, uint timeout)
+{
+  my_socket sd= vio->sd;
+  DBUG_ENTER("vio_poll_read");
+#ifdef HAVE_OPENSSL
+  if (vio->type == VIO_TYPE_SSL)
+    sd= SSL_get_fd((SSL*) vio->ssl_arg);
+#endif
+  DBUG_RETURN(socket_poll_read(sd, timeout));
+}
+
+
+/**
+  Determine if the endpoint of a connection is still available.
+
+  @remark The socket is assumed to be disconnected if an EOF
+          condition is encountered.
+
+  @param vio      The VIO object.
+
+  @retval TRUE    EOF condition not found.
+  @retval FALSE   EOF condition is signaled.
+*/
+
+my_bool vio_is_connected(Vio *vio)
+{
+  uint bytes= 0;
+  DBUG_ENTER("vio_is_connected");
+
+  /* In the presence of errors the socket is assumed to be connected. */
+
+  /*
+    The first step of detecting a EOF condition is veryfing
+    whether there is data to read. Data in this case would
+    be the EOF.
+  */
+  if (vio_poll_read(vio, 0))
+    DBUG_RETURN(TRUE);
+
+  /*
+    The second step is read() or recv() from the socket returning
+    0 (EOF). Unfortunelly, it's not possible to call read directly
+    as we could inadvertently read meaningful connection data.
+    Simulate a read by retrieving the number of bytes available to
+    read -- 0 meaning EOF.
+  */
+  if (socket_peek_read(vio, &bytes))
+    DBUG_RETURN(TRUE);
+
+#ifdef HAVE_OPENSSL
+  /* There might be buffered data at the SSL layer. */
+  if (!bytes && vio->type == VIO_TYPE_SSL)
+    bytes= SSL_pending((SSL*) vio->ssl_arg);
+#endif
+
+  DBUG_RETURN(bytes ? TRUE : FALSE);
 }
 
 
@@ -417,44 +546,107 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 
 
 #ifdef __WIN__
-size_t vio_read_pipe(Vio * vio, uchar* buf, size_t size)
+
+/*
+  Finish pending IO on pipe. Honor wait timeout
+*/
+static int pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_millis)
 {
   DWORD length;
+  DWORD ret;
+
+  DBUG_ENTER("pipe_complete_io");
+
+  ret= WaitForSingleObject(vio->pipe_overlapped.hEvent, timeout_millis);
+  /*
+    WaitForSingleObjects will normally return WAIT_OBJECT_O (success, IO completed)
+    or WAIT_TIMEOUT.
+  */
+  if(ret != WAIT_OBJECT_0)
+  {
+    CancelIo(vio->hPipe);
+    DBUG_PRINT("error",("WaitForSingleObject() returned  %d", ret));
+    DBUG_RETURN(-1);
+  }
+
+  if (!GetOverlappedResult(vio->hPipe,&(vio->pipe_overlapped),&length, FALSE))
+  {
+    DBUG_PRINT("error",("GetOverlappedResult() returned last error  %d", 
+      GetLastError()));
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(length);
+}
+
+
+size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
+{
+  DWORD bytes_read;
   DBUG_ENTER("vio_read_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!ReadFile(vio->hPipe, buf, size, &length, NULL))
-    DBUG_RETURN(-1);
+  if (!ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
+      &(vio->pipe_overlapped)))
+  {
+    if (GetLastError() != ERROR_IO_PENDING)
+    {
+      DBUG_PRINT("error",("ReadFile() returned last error %d",
+        GetLastError()));
+      DBUG_RETURN((size_t)-1);
+    }
+    bytes_read= pipe_complete_io(vio, buf, size,vio->read_timeout_millis);
+  }
 
-  DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN((size_t) length);
+  DBUG_PRINT("exit", ("%d", bytes_read));
+  DBUG_RETURN(bytes_read);
 }
 
 
 size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
-  DWORD length;
+  DWORD bytes_written;
   DBUG_ENTER("vio_write_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!WriteFile(vio->hPipe, (char*) buf, size, &length, NULL))
-    DBUG_RETURN(-1);
+  if (!WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written,
+      &(vio->pipe_overlapped)))
+  {
+    if (GetLastError() != ERROR_IO_PENDING)
+    {
+      DBUG_PRINT("vio_error",("WriteFile() returned last error %d",
+        GetLastError()));
+      DBUG_RETURN((size_t)-1);
+    }
+    bytes_written = pipe_complete_io(vio, (char *)buf, size, 
+        vio->write_timeout_millis);
+  }
 
-  DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN((size_t) length);
+  DBUG_PRINT("exit", ("%d", bytes_written));
+  DBUG_RETURN(bytes_written);
 }
+
+
+my_bool vio_is_connected_pipe(Vio *vio)
+{
+  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
+    return TRUE;
+  else
+    return (GetLastError() != ERROR_BROKEN_PIPE);
+}
+
 
 int vio_close_pipe(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close_pipe");
-#if defined(MYSQL_SERVER)
+
   CancelIo(vio->hPipe);
+  CloseHandle(vio->pipe_overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
-#endif
-  r=CloseHandle(vio->hPipe);
+  r= CloseHandle(vio->hPipe);
   if (r)
   {
     DBUG_PRINT("vio_error", ("close() failed, error: %d",GetLastError()));
@@ -466,10 +658,23 @@ int vio_close_pipe(Vio * vio)
 }
 
 
-void vio_ignore_timeout(Vio *vio __attribute__((unused)),
-			uint which __attribute__((unused)),
-			uint timeout __attribute__((unused)))
+void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
 {
+    DWORD timeout_millis;
+    /*
+      Windows is measuring timeouts in milliseconds. Check for possible int 
+      overflow.
+    */
+    if (timeout_sec > UINT_MAX/1000)
+      timeout_millis= INFINITE;
+    else
+      timeout_millis= timeout_sec * 1000;
+
+    /* which == 1 means "write", which == 0 means "read".*/
+    if(which)
+      vio->write_timeout_millis= timeout_millis;
+    else
+      vio->read_timeout_millis= timeout_millis;
 }
 
 
@@ -504,7 +709,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
          WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
       */
       if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                                 vio->net->read_timeout*1000) != WAIT_OBJECT_0)
+                                 vio->read_timeout_millis) != WAIT_OBJECT_0)
       {
         DBUG_RETURN(-1);
       };
@@ -561,7 +766,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   while (remain != 0)
   {
     if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                               vio->net->write_timeout*1000) != WAIT_OBJECT_0)
+                               vio->write_timeout_millis) != WAIT_OBJECT_0)
     {
       DBUG_RETURN((size_t) -1);
     }
@@ -581,6 +786,12 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 
   DBUG_PRINT("exit", ("%lu", (ulong) length));
   DBUG_RETURN(length);
+}
+
+
+my_bool vio_is_connected_shared_memory(Vio *vio)
+{
+  return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
 }
 
 

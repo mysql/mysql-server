@@ -1,0 +1,149 @@
+-- source include/have_debug.inc
+-- source include/master-slave.inc
+-- source include/have_innodb.inc
+
+# Proving that stopping in the middle of applying a group of events
+# does not have immediate effect if a non-transaction table has been changed.
+# The slave sql thread has to try to finish applying first.
+# The tests rely on simulation of the killed status.
+# The matter of testing correlates to some of `rpl_start_stop_slave' that does
+# not require `have_debug'.
+
+connection master;
+
+create table tm (a int auto_increment primary key) engine=myisam;
+create table ti (a int auto_increment primary key) engine=innodb;
+
+sync_slave_with_master;
+set @@global.debug="+d,stop_slave_middle_group";
+
+connection master;
+
+begin;
+insert into ti set a=null;
+insert into tm set a=null; # to simulate killed status on the slave 
+commit;
+
+connection slave;
+
+# slave will catch the killed status but won't shut down immediately
+# only after the whole group has done (commit)
+
+source include/wait_for_slave_sql_to_stop.inc;
+
+# checking: no error and the group is finished
+
+let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
+let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
+--disable_query_log
+eval SELECT $read = $exec into @check;
+--enable_query_log
+eval SELECT "NO$error" AS Last_SQL_Error, @check as `true`;
+select count(*) as one from tm;
+select count(*) as one from ti;
+
+set @@global.debug="-d";
+
+#
+# bug#45940 issues around rli->last_event_start_time
+# Testing of slave stopped after it had waited (in vain) for
+# the group be finished.
+# It could not be finished because of simulation of failure to
+# receive the terminal part
+# The test relay on simulation of the incomplete group in the relay log
+
+# Two cases are verified: a mixed transacton and a mixed multi-table update.
+#
+# The mixed transacton.
+#
+source include/start_slave.inc;
+
+connection master;
+
+truncate table tm; # cleanup of former tests
+truncate table ti;
+
+#connection slave;
+sync_slave_with_master;
+
+set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,incomplete_group_in_relay_log";
+
+connection master;
+
+begin;
+insert into ti set a=null;
+insert into tm set a=null;
+commit;
+
+connection slave;
+
+# slave will catch the killed status, won't shut down immediately
+# but does it eventually having the whole group unfinished (not committed)
+
+source include/wait_for_slave_sql_to_stop.inc;
+
+# checking: the error and group unfinished
+
+let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
+let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
+--disable_query_log
+eval SELECT $read - $exec > 0 into @check;
+--enable_query_log
+eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
+select count(*) as one  from tm;
+select count(*) as zero from ti;
+
+set @@global.debug="-d";
+
+#
+# The mixed multi-table update
+#
+stop slave;
+truncate table tm;
+source include/start_slave.inc;
+
+connection master;
+
+#connection slave;
+sync_slave_with_master;
+set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug="+d,incomplete_group_in_relay_log";
+
+connection master;
+update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
+
+connection slave;
+
+# slave will catch the killed status, won't shut down immediately
+# but does it eventually having the whole group unfinished (not committed)
+# 
+
+source include/wait_for_slave_sql_to_stop.inc;
+
+# checking: the error and group unfinished 
+
+let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
+let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
+--disable_query_log
+eval SELECT $read - $exec > 0 into @check;
+--enable_query_log
+eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
+select max(a) as two from tm;
+select max(a) as one from ti;
+
+set @@global.debug="-d";
+
+#
+# clean-up
+#
+
+connection master;
+drop table tm, ti;
+
+connection slave; # slave SQL thread is stopped
+source include/stop_slave.inc;
+drop table tm, ti;

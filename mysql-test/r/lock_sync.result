@@ -1,0 +1,66 @@
+#
+# Test for bug #45143 "All connections hang on concurrent ALTER TABLE".
+#
+# Concurrent execution of statements which required weak write lock
+# (TL_WRITE_ALLOW_WRITE) on several instances of the same table and
+# statements which tried to acquire stronger write lock (TL_WRITE,
+# TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
+drop table if exists t1;
+# Create auxiliary connections used through the test.
+# Reset DEBUG_SYNC facility before using it.
+set debug_sync= 'RESET';
+# Turn off logging so calls to locking subsystem performed
+# for general_log table won't interfere with our test.
+set @old_general_log = @@global.general_log;
+set @@global.general_log= OFF;
+create table t1 (i int) engine=InnoDB;
+insert into t1 values (1);
+# Prepare user lock which will be used for resuming execution of
+# the first statement after it acquires TL_WRITE_ALLOW_WRITE lock.
+select get_lock("lock_bug45143_wait", 0);
+get_lock("lock_bug45143_wait", 0)
+1
+# Switch to connection 'con_bug45143_1'.
+# Sending:
+insert into t1 values (get_lock("lock_bug45143_wait", 100));;
+# Switch to connection 'con_bug45143_2'.
+# Wait until the above INSERT takes TL_WRITE_ALLOW_WRITE lock on 't1'
+# and then gets blocked on user lock 'lock_bug45143_wait'.
+# Ensure that upcoming SELECT waits after acquiring TL_WRITE_ALLOW_WRITE
+# lock for the first instance of 't1'.
+set debug_sync='thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+# Sending:
+select count(*) > 0 from t1 as a, t1 as b for update;;
+# Switch to connection 'con_bug45143_3'.
+# Wait until the above SELECT ... FOR UPDATE is blocked after
+# acquiring lock for the the first instance of 't1'.
+set debug_sync= 'now WAIT_FOR parked';
+# Send LOCK TABLE statement which will try to get TL_WRITE lock on 't1':
+lock table t1 write;;
+# Switch to connection 'default'.
+# Wait until this LOCK TABLES statement starts waiting for table lock.
+# Allow SELECT ... FOR UPDATE to resume.
+# Since it already has TL_WRITE_ALLOW_WRITE lock on the first instance
+# of 't1' it should be able to get lock on the second instance without
+# waiting, even although there is another thread which has such lock
+# on this table and also there is a thread waiting for a TL_WRITE on it.
+set debug_sync= 'now SIGNAL go';
+# Switch to connection 'con_bug45143_2'.
+# Reap SELECT ... FOR UPDATE
+count(*) > 0
+1
+# Switch to connection 'default'.
+# Resume execution of the INSERT statement.
+select release_lock("lock_bug45143_wait");
+release_lock("lock_bug45143_wait")
+1
+# Switch to connection 'con_bug45143_1'.
+# Reap INSERT statement.
+# Switch to connection 'con_bug45143_3'.
+# Reap LOCK TABLES statement.
+unlock tables;
+# Switch to connection 'default'.
+# Do clean-up.
+set debug_sync= 'RESET';
+set @@global.general_log= @old_general_log;
+drop table t1;

@@ -53,11 +53,11 @@ ERROR HY000: Variable 'automatic_sp_privileges' is a GLOBAL variable and should 
 SELECT @@session.automatic_sp_privileges;
 ERROR HY000: Variable 'automatic_sp_privileges' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_06------------------------#'
-SELECT @@global.automatic_sp_privileges = VARIABLE_VALUE 
+SELECT IF(@@global.automatic_sp_privileges, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='automatic_sp_privileges';
-@@global.automatic_sp_privileges = VARIABLE_VALUE
-0
+IF(@@global.automatic_sp_privileges, "ON", "OFF") = VARIABLE_VALUE
+1
 'Bug# 34839: Values in variable and information_schema donot match'
 '#---------------------FN_DYNVARS_004_07----------------------#'
 SET @@global.automatic_sp_privileges = OFF;

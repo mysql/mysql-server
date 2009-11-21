@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 
 #ifndef _my_plugin_h
 #define _my_plugin_h
-
 
 /*
   On Windows, exports from DLL need to be declared
@@ -34,15 +33,7 @@ class Item;
 #define MYSQL_THD void*
 #endif
 
-#ifndef _m_string_h
-/* This definition must match the one given in m_string.h */
-struct st_mysql_lex_string
-{
-  char *str;
-  unsigned int length;
-};
-#endif /* _m_string_h */
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+#include <mysql/services.h>
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -65,7 +56,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0100
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
 
 /*
   The allowable types of plugins
@@ -75,7 +66,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_DAEMON_PLUGIN          3  /* The daemon/raw plugin type */
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    5  /* The number of plugin types   */
+#define MYSQL_REPLICATION_PLUGIN     5	/* The replication plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    6  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -120,7 +112,8 @@ enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
   SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_always_last
 };
 
 struct st_mysql_show_var {
@@ -650,6 +643,17 @@ struct st_mysql_information_schema
   int interface_version;
 };
 
+/*
+  API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
+*/
+ #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0100
+ 
+ /**
+    Replication plugin descriptor
+ */
+ struct Mysql_replication {
+   int interface_version;
+ };
 
 /*
   st_mysql_value struct for reading values from mysqld.
@@ -732,54 +736,6 @@ int thd_killed(const MYSQL_THD thd);
   @return  thread id
 */
 unsigned long thd_get_thread_id(const MYSQL_THD thd);
-
-
-/**
-  Allocate memory in the connection's local memory pool
-
-  @details
-  When properly used in place of @c my_malloc(), this can significantly
-  improve concurrency. Don't use this or related functions to allocate
-  large chunks of memory. Use for temporary storage only. The memory
-  will be freed automatically at the end of the statement; no explicit
-  code is required to prevent memory leaks.
-
-  @see alloc_root()
-*/
-void *thd_alloc(MYSQL_THD thd, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-void *thd_calloc(MYSQL_THD thd, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-char *thd_strdup(MYSQL_THD thd, const char *str);
-/**
-  @see thd_alloc()
-*/
-char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size);
-/**
-  @see thd_alloc()
-*/
-void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
-
-/**
-  Create a LEX_STRING in this connection's local memory pool
-
-  @param thd      user thread connection handle
-  @param lex_str  pointer to LEX_STRING object to be initialized
-  @param str      initializer to be copied into lex_str
-  @param size     length of str, in bytes
-  @param allocate_lex_string  flag: if TRUE, allocate new LEX_STRING object,
-                              instead of using lex_str value
-  @return  NULL on failure, or pointer to the LEX_STRING object
-
-  @see thd_alloc()
-*/
-MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
-                                      int allocate_lex_string);
 
 /**
   Get the XID for this connection's transaction

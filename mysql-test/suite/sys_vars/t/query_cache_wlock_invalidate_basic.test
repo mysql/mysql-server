@@ -165,7 +165,7 @@ SELECT @@session.query_cache_wlock_invalidate AS res_is_1;
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@global.query_cache_wlock_invalidate = VARIABLE_VALUE 
+SELECT IF(@@global.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 SELECT @@global.query_cache_wlock_invalidate;
@@ -178,7 +178,7 @@ WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 #     Check if the value in SESSION Table matches value in variable     #
 #########################################################################
 
-SELECT @@session.query_cache_wlock_invalidate = VARIABLE_VALUE 
+SELECT IF(@@session.query_cache_wlock_invalidate, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_wlock_invalidate';
 SELECT @@session.query_cache_wlock_invalidate;

@@ -4620,7 +4620,7 @@ ER_USER_LIMIT_REACHED 42000
         swe "Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)"
 ER_SPECIFIC_ACCESS_DENIED_ERROR 42000 
         nla "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie"
-        eng "Access denied; you need the %-.128s privilege for this operation"
+        eng "Access denied; you need (at least one of) the %-.128s privilege(s) for this operation"
         ger "Kein Zugriff. Hierfür wird die Berechtigung %-.128s benötigt"
         ita "Accesso non consentito. Serve il privilegio %-.128s per questa operazione"
         por "Acesso negado. Você precisa o privilégio %-.128s para essa operação"
@@ -4702,7 +4702,7 @@ ER_NOT_SUPPORTED_YET 42000
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
         nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d: '%-.128s' from master when reading data from binary log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.128s'"
         ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
         ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
         por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
@@ -4880,6 +4880,7 @@ ER_ZLIB_Z_DATA_ERROR
         spa "ZLIB: Dato de entrada fué corrompido para zlib"
 ER_CUT_VALUE_GROUP_CONCAT  
         eng "Row %u was cut by GROUP_CONCAT()"
+        por "Linha %u foi cortada por GROUP_CONCAT()"
 ER_WARN_TOO_FEW_RECORDS 01000 
         eng "Row %ld doesn't contain data for all columns"
         ger "Zeile %ld enthält nicht für alle Felder Daten"
@@ -6201,6 +6202,13 @@ ER_TOO_MANY_CONCURRENT_TRXS
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
 
+ER_DEBUG_SYNC_TIMEOUT
+  eng "debug sync point wait timed out"
+  ger "Debug Sync Point Wartezeit überschritten"
+ER_DEBUG_SYNC_HIT_LIMIT
+  eng "debug sync point hit limit reached"
+  ger "Debug Sync Point Hit Limit erreicht"
+
 ER_DUP_SIGNAL_SET 42000
         eng "Duplicate condition information item '%s'"
 
@@ -6228,3 +6236,27 @@ WARN_COND_ITEM_TRUNCATED
 ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
+ER_UNKNOWN_LOCALE                                                                                                                                                                    
+        eng "Unknown locale: '%-.64s'"
+
+ER_SLAVE_IGNORE_SERVER_IDS
+  eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
+
+ER_SAME_NAME_PARTITION_FIELD
+  eng "Duplicate partition field name '%-.192s'"
+ER_PARTITION_COLUMN_LIST_ERROR
+  eng "Inconsistency in usage of column lists for partitioning"
+ER_WRONG_TYPE_COLUMN_VALUE_ERROR
+  eng "Partition column values of incorrect type"
+ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
+  eng "Too many fields in '%-.192s'"
+ER_MAXVALUE_IN_VALUES_IN
+  eng "Cannot use MAXVALUE as value in VALUES IN"
+ER_TOO_MANY_VALUES_ERROR
+  eng "Cannot have more than one value for this type of %-.64s partitioning"
+ER_ROW_SINGLE_PARTITION_FIELD_ERROR
+  eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
+ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+  eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
+ER_PARTITION_FIELDS_TOO_LONG
+  eng "The total length of the partitioning fields is too large"

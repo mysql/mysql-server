@@ -28,5 +28,37 @@ SELECT 1;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #47106: Crash / segfault on adding EXPLAIN to a non-crashing 
+--echo # query
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY (a),
+  KEY b (b)
+);
+INSERT INTO t1 VALUES (1, 1), (2, 1);
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * FROM t1;
+
+--echo # Should not crash.
+--echo # Should have 1 impossible where and 2 dependent subqs.
+EXPLAIN
+SELECT
+  (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
+FROM t3 WHERE 1 = 0 GROUP BY 1;
+
+--echo # should return 0 rows
+SELECT
+  (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
+FROM t3 WHERE 1 = 0 GROUP BY 1;
+
+DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.

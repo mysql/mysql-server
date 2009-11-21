@@ -125,8 +125,10 @@ static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
+#endif
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
@@ -302,9 +304,6 @@ static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_div
 static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
 						     offsetof(KEY_CACHE,
 							      param_age_threshold));
-static sys_var_const    sys_language(&vars, "language",
-                                     OPT_GLOBAL, SHOW_CHAR,
-                                     (uchar*) language);
 static sys_var_const    sys_large_files_support(&vars, "large_files_support",
                                                 OPT_GLOBAL, SHOW_BOOL,
                                                 (uchar*) &opt_large_files);
@@ -314,6 +313,9 @@ static sys_var_const    sys_large_page_size(&vars, "large_page_size",
 static sys_var_const    sys_large_pages(&vars, "large_pages",
                                         OPT_GLOBAL, SHOW_MY_BOOL,
                                         (uchar*) &opt_large_pages);
+static sys_var_const    sys_language(&vars, "lc_messages_dir",
+                                     OPT_GLOBAL, SHOW_CHAR,
+                                     (uchar*) lc_messages_dir);
 static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 					 &opt_local_infile);
 #ifdef HAVE_MLOCKALL
@@ -493,9 +495,6 @@ static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
                                               &SV::div_precincrement);
 static sys_var_long_ptr	sys_rpl_recovery_rank(&vars, "rpl_recovery_rank",
 					      &rpl_recovery_rank);
-static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
-					     &query_cache_size,
-					     fix_query_cache_size);
 
 static sys_var_thd_ulong	sys_range_alloc_block_size(&vars, "range_alloc_block_size",
 						   &SV::range_alloc_block_size);
@@ -529,11 +528,11 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
-#ifdef HAVE_SYS_UN_H
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
-#endif
+
 #ifdef HAVE_THR_SETCONCURRENCY
 /* purecov: begin tested */
 static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
@@ -557,14 +556,20 @@ sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
                                             NULL);
 
 #ifdef HAVE_QUERY_CACHE
+static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
+                                             &query_cache_size,
+                                             fix_query_cache_size);
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
-					      &query_cache.query_cache_limit);
-static sys_var_long_ptr        sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
-						     &query_cache_min_res_unit,
-						     fix_query_cache_min_res_unit);
+                                              &query_cache.query_cache_limit);
+static sys_var_long_ptr
+  sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
+                               &query_cache_min_res_unit,
+                               fix_query_cache_min_res_unit);
+static int check_query_cache_type(THD *thd, set_var *var);
 static sys_var_thd_enum	sys_query_cache_type(&vars, "query_cache_type",
 					     &SV::query_cache_type,
-					     &query_cache_type_typelib);
+					     &query_cache_type_typelib, NULL,
+                                             check_query_cache_type);
 static sys_var_thd_bool
 sys_query_cache_wlock_invalidate(&vars, "query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
@@ -625,6 +630,12 @@ static sys_var_long_ptr	sys_table_cache_size(&vars, "table_open_cache",
 					     &table_cache_size);
 static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
+
+#if defined(ENABLED_DEBUG_SYNC)
+/* Debug Sync Facility. Implemented in debug_sync.cc. */
+static sys_var_debug_sync sys_debug_sync(&vars, "debug_sync");
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
@@ -762,7 +773,7 @@ static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
                                           1,
                                           sys_var::SESSION_VARIABLE_IN_BINLOG);
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
 static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
                                       set_option_bit,
                                       ulonglong(OPTION_PROFILING));
@@ -785,6 +796,9 @@ sys_last_insert_id(&vars, "last_insert_id",
 */
 static sys_var_last_insert_id
 sys_identity(&vars, "identity", sys_var::SESSION_VARIABLE_IN_BINLOG);
+
+static sys_var_thd_lc_messages
+sys_lc_messages(&vars, "lc_messages", sys_var::NOT_IN_BINLOG);
 
 static sys_var_thd_lc_time_names
 sys_lc_time_names(&vars, "lc_time_names", sys_var::SESSION_VARIABLE_IN_BINLOG);
@@ -864,9 +878,9 @@ static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRIN
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
 static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_profiling(&vars, "have_profiling", &have_profiling);
 static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
                                            &have_query_cache);
-static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
 /* Global read-only variable describing server license */
@@ -907,8 +921,10 @@ bool sys_var_str::check(THD *thd, set_var *var)
     return 0;
 
   if ((res=(*check_func)(thd, var)) < 0)
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-             name, var->value->str_value.ptr());
+  {
+    ErrConvString err(&var->value->str_value);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+  }
   return res;
 }
 
@@ -1120,10 +1136,9 @@ static void fix_net_retry_count(THD *thd __attribute__((unused)),
 {}
 #endif /* HAVE_REPLICATION */
 
-
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_size(THD *thd, enum_var_type type)
 {
-#ifdef HAVE_QUERY_CACHE
   ulong new_cache_size= query_cache.resize(query_cache_size);
 
   /*
@@ -1137,11 +1152,35 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
 			query_cache_size, new_cache_size);
   
   query_cache_size= new_cache_size;
-#endif
 }
 
 
-#ifdef HAVE_QUERY_CACHE
+/**
+  Trigger before query_cache_type variable is updated.
+  @param thd Thread handler
+  @param var Pointer to the new variable status
+
+  @return Status code
+   @retval 1 Failure
+   @retval 0 Success
+*/
+
+static int check_query_cache_type(THD *thd, set_var *var)
+{
+  /*
+    Don't allow changes of the query_cache_type if the query cache
+    is disabled.
+  */
+  if (query_cache.is_disabled())
+  {
+    my_error(ER_QUERY_CACHE_DISABLED,MYF(0));
+    return 1;
+  }
+
+  return 0;
+}
+
+
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 {
   query_cache_min_res_unit= 
@@ -1535,6 +1574,23 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
 }
 
 
+bool sys_var_uint_ptr::check(THD *thd, set_var *var)
+{
+  var->save_result.ulong_value= (ulong) var->value->val_uint();
+  return 0;
+}
+
+bool sys_var_uint_ptr::update(THD *thd, set_var *var)
+{
+  *value= (uint) var->save_result.ulong_value;
+  return 0;
+}
+
+void sys_var_uint_ptr::set_default(THD *thd, enum_var_type type)
+{
+  *value= (uint) option_limits->def_value;
+}
+
 sys_var_long_ptr::
 sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
                  sys_after_update_func after_update_arg)
@@ -1798,7 +1854,13 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 		 (ulong) find_type(enum_names, res->ptr(),
 				   res->length(), FALSE) - 1)) < 0)
     {
-      value= res ? res->c_ptr() : "NULL";
+      if (res)
+      {
+        ErrConvString err(res);
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+        return 1;
+      }
+      value= "NULL";
       goto err;
     }
   }
@@ -1851,8 +1913,9 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 					    &not_used));
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff) - 1, error_len));
-      goto err;
+      ErrConvString err(error, error_len, res->charset());
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+      return 1;
     }
   }
   else
@@ -2000,7 +2063,8 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
   if (!(format= date_time_format_make(date_time_type,
 				      res->ptr(), res->length())))
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
+    ErrConvString err(res);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
     return 1;
   }
   
@@ -2104,7 +2168,8 @@ bool sys_var_collation::check(THD *thd, set_var *var)
     }
     if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
     {
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
+      ErrConvString err(res);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
       return 1;
     }
   }
@@ -2144,7 +2209,8 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
     else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
              !(tmp=get_old_charset_by_name(res->c_ptr())))
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+      ErrConvString err(res);
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
       return 1;
     }
   }
@@ -2535,9 +2601,20 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 {
   MYSQL_QUERY_LOG *file_log;
   char buff[FN_REFLEN];
-  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  char *res= 0, *old_value= 0;
   bool result= 0;
-  uint str_length= (var ? var->value->str_value.length() : 0);
+  uint str_length= 0;
+
+  if (var) 
+  {
+    String str(buff, sizeof(buff), system_charset_info), *newval;
+
+    newval= var->value->val_str(&str);
+    old_value= newval->c_ptr_safe();
+    str_length= strlen(old_value);
+  } 
+  
+
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -2906,7 +2983,7 @@ bool sys_var_thd_ulong_session_readonly::check(THD *thd, set_var *var)
 }
 
 
-bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
+static MY_LOCALE *check_locale(THD *thd, const char *name, set_var *var)
 {
   MY_LOCALE *locale_match;
 
@@ -2916,29 +2993,38 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
     {
       char buf[20];
       int10_to_str((int) var->value->val_int(), buf, -10);
-      my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), buf);
-      return 1;
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE), MYF(0), buf);
+      return 0;
     }
   }
   else // STRING_RESULT
   {
     char buff[6]; 
-    String str(buff, sizeof(buff), &my_charset_latin1), *res;
+    String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
-      return 1;
+      return 0;
     }
     const char *locale_str= res->c_ptr();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Unknown locale: '%s'", MYF(0), locale_str);
-      return 1;
+      my_printf_error(ER_UNKNOWN_LOCALE, ER(ER_UNKNOWN_LOCALE),
+                      MYF(0), locale_str);
+      return 0;
     }
   }
 
-  var->save_result.locale_value= locale_match;
+  return var->save_result.locale_value= locale_match;
+}
+
+
+bool sys_var_thd_lc::check(THD *thd, set_var *var)
+{
+  MY_LOCALE *locale_match;
+
+  if (!(locale_match= check_locale(thd, name, var)))
+    return 1;
   return 0;
 }
 
@@ -2969,6 +3055,56 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
+
+
+bool sys_var_thd_lc_messages::update(THD *thd, set_var *var)
+{
+  MY_LOCALE *locale= var->save_result.locale_value;
+
+  if (!locale->errmsgs->errmsgs)
+  {
+    pthread_mutex_lock(&LOCK_error_messages);
+    if (!locale->errmsgs->errmsgs &&
+        read_texts(ERRMSG_FILE, locale->errmsgs->language,
+                   &locale->errmsgs->errmsgs,
+                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_UNKNOWN_ERROR,
+                          "Can't process error message file for locale '%s'",
+                          locale->name);
+      pthread_mutex_unlock(&LOCK_error_messages);
+      return 0;
+    }
+    pthread_mutex_unlock(&LOCK_error_messages);
+  }
+
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.lc_messages= locale;
+  else
+    thd->variables.lc_messages= locale;
+
+  return 0;
+}
+
+
+uchar *sys_var_thd_lc_messages::value_ptr(THD *thd, enum_var_type type,
+					  LEX_STRING *base)
+{
+  return type == OPT_GLOBAL ?
+                 (uchar *) global_system_variables.lc_messages->name :
+                 (uchar *) thd->variables.lc_messages->name;
+}
+
+
+void sys_var_thd_lc_messages::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.lc_messages= my_default_lc_messages;
+  else
+    thd->variables.lc_messages= global_system_variables.lc_messages;
+}
+
 
 /*
   Handling of microseoncds given as seconds.part_seconds
@@ -3055,6 +3191,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 
   ulonglong org_options= thd->options;
 
+  /*
+    If we are setting AUTOCOMMIT=1 and it was not already 1, then we
+    need to commit any outstanding transactions.
+   */
+  if (var->save_result.ulong_value != 0 &&
+      (thd->options & OPTION_NOT_AUTOCOMMIT) &&
+      ha_commit(thd))
+    return 1;
+
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
   else
@@ -3068,8 +3213,6 @@ static bool set_option_autocommit(THD *thd, set_var *var)
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-      if (ha_commit(thd))
-	return 1;
     }
     else
     {
@@ -3249,7 +3392,7 @@ int mysql_add_sys_var_chain(sys_var *first, struct my_option *long_options)
 
 error:
   for (; first != var; first= first->next)
-    hash_delete(&system_variable_hash, (uchar*) first);
+    my_hash_delete(&system_variable_hash, (uchar*) first);
   return 1;
 }
  
@@ -3273,7 +3416,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
    
   for (sys_var *var= first; var; var= var->next)
-    result|= hash_delete(&system_variable_hash, (uchar*) var);
+    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
 
   return result;
 }
@@ -3310,7 +3453,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     for (i= 0; i < count; i++)
     {
-      sys_var *var= (sys_var*) hash_element(&system_variable_hash, i);
+      sys_var *var= (sys_var*) my_hash_element(&system_variable_hash, i);
       show->name= var->name;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -3345,10 +3488,10 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++);
+  for (sys_var *var=vars.first; var; var= var->next, count++) ;
 
-  if (hash_init(&system_variable_hash, system_charset_info, count, 0,
-                0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+  if (my_hash_init(&system_variable_hash, system_charset_info, count, 0,
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
     goto error;
 
   vars.last->next= NULL;
@@ -3373,7 +3516,7 @@ error:
 
 void set_var_free()
 {
-  hash_free(&system_variable_hash);
+  my_hash_free(&system_variable_hash);
 }
 
 
@@ -3399,7 +3542,7 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) hash_search(&system_variable_hash,
+  var= (sys_var*) my_hash_search(&system_variable_hash,
 			      (uchar*) str, length ? length : strlen(str));
   if (!(var || no_error))
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
@@ -3485,6 +3628,16 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
+
+/**
+  Verify that the supplied value is correct.
+
+  @param thd Thread handler
+
+  @return status code
+    @retval -1 Failure
+    @retval 0 Success
+*/
 
 int set_var::check(THD *thd)
 {
@@ -3913,7 +4066,8 @@ ulong fix_sql_mode(ulong sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER);
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER | 
+                MODE_NO_ENGINE_SUBSTITUTION);
   return sql_mode;
 }
 
@@ -3991,8 +4145,9 @@ bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
                                &error, &error_len, &not_used);
   if (error_len)
   {
-    strmake(buff, error, min(sizeof(buff) - 1, error_len));
-    goto err;
+    ErrConvString err(error, error_len, res->charset());
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, err.ptr());
+    return TRUE;    
   }
   return FALSE;
 err:
@@ -4180,10 +4335,10 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
     goto end_with_read_lock;
 
-  if (result= make_global_read_lock_block_commit(thd))
+  if ((result= make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -4196,6 +4351,7 @@ end_with_read_lock:
 }
 
 
+#ifndef DBUG_OFF
 /* even session variable here requires SUPER, because of -#o,file */
 bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 {
@@ -4222,6 +4378,8 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
     DBUG_EXPLAIN(buf, sizeof(buf));
   return (uchar*) thd->strdup(buf);
 }
+#endif /* DBUG_OFF */
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)

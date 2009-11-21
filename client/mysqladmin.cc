@@ -30,7 +30,7 @@
 #define MAX_TRUNC_LENGTH 3
 
 char *host= NULL, *user= 0, *opt_password= 0,
-     *default_charset= NULL;
+     *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
@@ -304,7 +304,8 @@ int main(int argc,char *argv[])
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+   exit(1); 
   save_argv = argv;				/* Save for free_defaults */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
@@ -348,8 +349,7 @@ int main(int argc,char *argv[])
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (default_charset)
-    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   error_flags= (myf)(opt_nobeep ? 0 : ME_BELL);
 
   if (sql_connect(&mysql, option_wait))
@@ -901,23 +901,38 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       char buff[128],crypted_pw[64];
       time_t start_time;
+      char *typed_password= NULL, *verified= NULL;
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
       randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
 
-      if (argc < 2)
+      if (argc < 1)
       {
 	my_printf_error(0, "Too few arguments to change password", error_flags);
 	return 1;
       }
-      if (argv[1][0])
+      else if (argc == 1)
       {
-        char *pw= argv[1];
+        /* prompt for password */
+        typed_password= get_tty_password("New password: ");
+        verified= get_tty_password("Confirm new password: ");
+        if (strcmp(typed_password, verified) != 0)
+        {
+          my_printf_error(0,"Passwords don't match",MYF(ME_BELL));
+          return -1;
+        }
+      }
+      else
+        typed_password= argv[1];
+
+      if (typed_password[0])
+      {
         bool old= (find_type(argv[0], &command_typelib, 2) ==
                    ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
-        uint pw_len= (uint) strlen(pw);
-        if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
+        size_t pw_len= strlen(typed_password);
+        if (pw_len > 1 && typed_password[0] == '\'' &&
+            typed_password[pw_len-1] == '\'')
           printf("Warning: single quotes were not trimmed from the password by"
                  " your command\nline client, as you might have expected.\n");
 #endif
@@ -955,9 +970,9 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           }
         }
         if (old)
-          make_scrambled_password_323(crypted_pw, pw);
+          make_scrambled_password_323(crypted_pw, typed_password);
         else
-          make_scrambled_password(crypted_pw, pw);
+          make_scrambled_password(crypted_pw, typed_password);
       }
       else
 	crypted_pw[0]=0;			/* No password */
@@ -991,6 +1006,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 			  " instead", error_flags);
 	  return -1;
 	}
+      }
+      /* free up memory from prompted password */
+      if (typed_password != argv[1]) 
+      {
+        my_free(typed_password,MYF(MY_ALLOW_ZERO_PTR));
+        my_free(verified,MYF(MY_ALLOW_ZERO_PTR));
       }
       argc--; argv++;
       break;
@@ -1083,8 +1104,8 @@ static void usage(void)
   kill id,id,...	Kill mysql threads");
 #if MYSQL_VERSION_ID >= 32200
   puts("\
-  password new-password Change old password to new-password, MySQL 4.1 hashing.\n\
-  old-password new-password Change old password to new-password in old format.\n");
+  password [new-password] Change old password to new-password in current format\n\
+  old-password [new-password] Change old password to new-password in old format");
 #endif
   puts("\
   ping			Check if mysqld is alive\n\

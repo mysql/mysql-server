@@ -4,10 +4,29 @@
 drop table if exists t1;
 --enable_warnings
 
+--echo In the following tests we change the order of letter "b"
+--echo making it equal to letter "a", and check that it works
+--echo with all Unicode character sets
 set names utf8;
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show variables like 'character_sets_dir%';
+
+show collation like 'utf8_phone_ci';
+CREATE TABLE t1 (
+ name VARCHAR(64),
+ phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
+);
+INSERT INTO t1 VALUES ('Svoj','+7 912 800 80 02');
+INSERT INTO t1 VALUES ('Hf','+7 (912) 800 80 04');
+INSERT INTO t1 VALUES ('Bar','+7-912-800-80-01');
+INSERT INTO t1 VALUES ('Ramil','(7912) 800 80 03');
+INSERT INTO t1 VALUES ('Sanja','+380 (912) 8008005');
+SELECT * FROM t1 ORDER BY phone;
+SELECT * FROM t1 WHERE phone='+7(912)800-80-01';
+SELECT * FROM t1 WHERE phone='79128008001';
+SELECT * FROM t1 WHERE phone='7 9 1 2 8 0 0 8 0 0 1';
+DROP TABLE t1;
 
 show collation like 'utf8_test_ci';
 create table t1 (c1 char(1) character set utf8 collate utf8_test_ci);
@@ -38,6 +57,14 @@ SELECT * FROM t1 WHERE col1=col2 ORDER BY col1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#45645 Mysql server close all connection and restart using lower function
+--echo #
+CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
+INSERT INTO t1 (a) VALUES ('hello!');
+SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#43827 Server closes connections and restarts
 --echo #
 # Crash happened with a user-defined utf8 collation,
@@ -49,6 +76,7 @@ DROP TABLE t1;
 #
 #  Vietnamese experimental collation
 #
+--echo  Vietnamese experimental collation
 
 show collation like 'ucs2_vn_ci';
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
@@ -86,3 +114,33 @@ select hex(c1) as h, c1 from t1 order by c1, h;
 select group_concat(hex(c1) order by hex(c1)) from t1 group by c1;
 select group_concat(c1 order by hex(c1) SEPARATOR '') from t1 group by c1;
 drop table t1;
+
+--echo Bug#46448 trailing spaces are not ignored when user collation maps space != 0x20
+set names latin1;
+show collation like 'latin1_test';
+select "foo" = "foo " collate latin1_test;
+
+-- echo The following tests check that two-byte collation IDs work
+# The file ../std-data/Index.xml has a number of collations with high IDs.
+
+# Test that the "ID" column in I_S and SHOW queries can handle two bytes
+select * from information_schema.collations where id>256 order by id;
+show collation like '%test%';
+
+# Test that two-byte collation ID is correctly transfered to the client side.
+show collation like 'ucs2_vn_ci';
+create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
+insert into t1 values (0x0061);
+--enable_metadata
+set @@character_set_results=NULL;
+select * from t1;
+--disable_metadata
+drop table t1;
+
+#
+# Check maximum collation ID (2047 as of MySQL-6.0.9)
+#
+CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
+DROP TABLE t1;

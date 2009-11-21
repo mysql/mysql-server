@@ -29,6 +29,18 @@
 #include "sql_select.h"
 
 /**
+  Calculate the affordable RAM limit for structures like TREE or Unique
+  used in Item_sum_*
+*/
+
+ulonglong Item_sum::ram_limitation(THD *thd)
+{
+  return min(thd->variables.tmp_table_size,
+      thd->variables.max_heap_table_size);
+}
+
+
+/**
   Prepare an aggregate function item for checking context conditions.
 
     The function initializes the members of the Item_sum object created
@@ -522,7 +534,8 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                name, table->s, collation.collation);
     break;
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= new Field_new_decimal(max_length, maybe_null, name,
+                                 decimals, unsigned_flag);
     break;
   case ROW_RESULT:
   default:
@@ -564,6 +577,11 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
+  if (aggr)
+  {
+    DBUG_ASSERT(aggregator == aggr->Aggrtype());
+    return FALSE;
+  }
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
@@ -736,12 +754,12 @@ bool Aggregator_distinct::setup(THD *thd)
       if (list.push_back(item))
         return TRUE;                              // End of memory
       if (item->const_item() && item->is_null())
-        always_null=1;
+        always_null= true;
     }
     if (always_null)
       return FALSE;
-    count_field_types(select_lex,tmp_table_param,list,0);
-    tmp_table_param->force_copy_fields= item_sum->force_copy_fields;
+    count_field_types(select_lex, tmp_table_param, list, 0);
+    tmp_table_param->force_copy_fields= item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == 0);
     /*
       Make create_tmp_table() convert BIT columns to BIGINT.
@@ -827,7 +845,7 @@ bool Aggregator_distinct::setup(THD *thd)
       }
       DBUG_ASSERT(tree == 0);
       tree= new Unique(compare_key, cmp_arg, tree_key_length,
-                       thd->variables.max_heap_table_size);
+                       item_sum->ram_limitation(thd));
       /*
         The only time tree_key_length could be 0 is if someone does
         count(distinct) on a char(0) field - stupid thing to do,
@@ -844,10 +862,10 @@ bool Aggregator_distinct::setup(THD *thd)
     List<Create_field> field_list;
     Create_field field_def;                              /* field definition */
     Item *arg;
-    DBUG_ENTER("Item_sum_distinct::setup");
+    DBUG_ENTER("Aggregator_distinct::setup");
     /* It's legal to call setup() more than once when in a subquery */
     if (tree)
-      return FALSE;
+      DBUG_RETURN(FALSE);
 
     /*
       Virtual table and the tree are created anew on each re-execution of
@@ -855,23 +873,23 @@ bool Aggregator_distinct::setup(THD *thd)
       mem_root.
     */
     if (field_list.push_back(&field_def))
-      return TRUE;
+      DBUG_RETURN(TRUE);
 
     item_sum->null_value= item_sum->maybe_null= 1;
     item_sum->quick_group= 0;
 
     DBUG_ASSERT(item_sum->get_arg(0)->fixed);
 
-    arg = item_sum->get_arg(0);
+    arg= item_sum->get_arg(0);
     if (arg->const_item())
     {
       (void) arg->val_int();
       if (arg->null_value)
-        always_null=1;
+        always_null= true;
     }
 
     if (always_null)
-      return FALSE;
+      DBUG_RETURN(FALSE);
 
     enum enum_field_types field_type;
 
@@ -884,7 +902,7 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->unsigned_flag);
 
     if (! (table= create_virtual_tmp_table(thd, field_list)))
-      return TRUE;
+      DBUG_RETURN(TRUE);
 
     /* XXX: check that the case of CHAR(0) works OK */
     tree_key_length= table->s->reclength - table->s->null_bytes;
@@ -896,7 +914,7 @@ bool Aggregator_distinct::setup(THD *thd)
       are converted to binary representation as well.
     */
     tree= new Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
-                       thd->variables.max_heap_table_size);
+                     item_sum->ram_limitation(thd));
 
     DBUG_RETURN(tree == 0);
   }
@@ -3508,7 +3526,7 @@ bool Item_func_group_concat::setup(THD *thd)
     unique_filter= new Unique(group_concat_key_cmp_with_distinct,
                               (void*)this,
                               tree_key_length,
-                              thd->variables.max_heap_table_size);
+                              ram_limitation(thd));
   
   DBUG_RETURN(FALSE);
 }
