@@ -3599,6 +3599,7 @@ static inline int write_create_table_bin_log(THD *thd,
        (thd->current_stmt_binlog_row_based &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     return write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+  return 0;
 }
 
 
