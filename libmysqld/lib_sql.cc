@@ -119,7 +119,6 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
-  lex_start(thd);
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
      for new query. In the case of embedded server we collect field data
@@ -138,6 +137,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
+  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;

@@ -1982,9 +1982,15 @@ public:
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
+  /** Return FALSE if connection to client is broken. */
+  bool is_connected()
+  {
+    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+  }
 #else
   void clear_error();
-  inline bool vio_ok() const { return true; }
+  inline bool vio_ok() const { return TRUE; }
+  inline bool is_connected() { return TRUE; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -1993,6 +1999,7 @@ public:
   */
   inline void fatal_error()
   {
+    DBUG_ASSERT(main_da.is_error());
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2158,7 +2165,10 @@ public:
     else
     {
       x_free(db);
-      db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
+      if (new_db)
+        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+      else
+        db= NULL;
     }
     db_length= db ? new_db_len : 0;
     return new_db && !db;
@@ -2400,7 +2410,6 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2437,12 +2446,6 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
-  /**
-     The nest level, if supported. 
-     @return
-     -1 if nest level is undefined, otherwise a positive integer.
-   */
-  int get_nest_level() { return nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -2537,14 +2540,6 @@ class select_export :public select_to_file {
   CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO OUTFILE <filename> with a
-     defined level of subquery nesting.
-   */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2554,15 +2549,6 @@ public:
 class select_dump :public select_to_file {
 public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO DUMPFILE <filename> with a
-     defined level of subquery nesting.
-   */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
-    select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -3033,16 +3019,6 @@ class select_dumpvar :public select_result_interceptor {
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
-  /**
-     Creates a select_dumpvar to represent INTO <variable> with a defined 
-     level of subquery nesting.
-   */
-  select_dumpvar(uint nest_level_arg)
-  {
-    var_list.empty();
-    row_count= 0;
-    nest_level= nest_level_arg;
-  }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
