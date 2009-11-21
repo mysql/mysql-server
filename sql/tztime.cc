@@ -1578,7 +1578,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     DBUG_RETURN(1);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
 
   /* Init all memory structures that require explicit destruction */
   if (my_hash_init(&tz_names, &my_charset_latin1, 20,
@@ -1594,7 +1593,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     my_hash_free(&tz_names);
     goto end;
   }
-  init_alloc_root(&tz_storage, 32 * 1024, 0);
+  init_sql_alloc(&tz_storage, 32 * 1024, 0);
   VOID(pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST));
   tz_inited= 1;
 
