@@ -423,7 +423,7 @@ void free_table_share(TABLE_SHARE *share)
     pthread_mutex_destroy(&share->mutex);
     pthread_cond_destroy(&share->cond);
   }
-  hash_free(&share->name_hash);
+  my_hash_free(&share->name_hash);
   
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
@@ -725,7 +725,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     share->avg_row_length= uint4korr(head+34);
     share->row_type= (row_type) head[40];
-    share->table_charset= get_charset((uint) head[38],MYF(0));
+    share->table_charset= get_charset((((uint) head[41]) << 8) + 
+                                        (uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
   if (!share->table_charset)
@@ -1147,10 +1148,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
-    use_hash= !hash_init(&share->name_hash,
-			 system_charset_info,
-			 share->fields,0,0,
-			 (hash_get_key) get_field_name,0,0);
+    use_hash= !my_hash_init(&share->name_hash,
+                            system_charset_info,
+                            share->fields,0,0,
+                            (my_hash_get_key) get_field_name,0,0);
 
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
@@ -1184,12 +1185,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
       {
-        if (!strpos[14])
+        uint csid= strpos[14] + (((uint) strpos[11]) << 8);
+        if (!csid)
           charset= &my_charset_bin;
-        else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+        else if (!(charset= get_charset(csid, MYF(0))))
         {
           error= 5; // Unknown or unavailable charset
-          errarg= (int) strpos[14];
+          errarg= (int) csid;
           goto err;
         }
       }
@@ -1589,7 +1591,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
 #ifndef DBUG_OFF
   if (use_hash)
-    (void) hash_check(&share->name_hash);
+    (void) my_hash_check(&share->name_hash);
 #endif
   DBUG_RETURN (0);
 
@@ -1600,7 +1602,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   x_free((uchar*) disk_buff);
   delete crypted;
   delete handler_file;
-  hash_free(&share->name_hash);
+  my_hash_free(&share->name_hash);
+  if (share->ha_data_destroy)
+    share->ha_data_destroy(share->ha_data);
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1644,9 +1648,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
-
-  /* Parsing of partitioning information from .frm needs thd->lex set up. */
-  DBUG_ASSERT(thd->lex->is_lex_started);
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2457,8 +2458,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length;
-    uint tmp;
+    uint key_length, tmp_key_length, tmp, csid;
     bzero((char*) fileinfo,64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2498,8 +2498,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
-    fileinfo[38]= (create_info->default_table_charset ?
-		   create_info->default_table_charset->number : 0);
+    csid= (create_info->default_table_charset ?
+           create_info->default_table_charset->number : 0);
+    fileinfo[38]= (uchar) csid;
     /*
       In future versions, we will store in fileinfo[39] the values of the
       TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
@@ -2507,7 +2508,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
-    fileinfo[41]= 0;
+    fileinfo[41]= (uchar) (csid >> 8);
     fileinfo[42]= 0;
     fileinfo[43]= 0;
     fileinfo[44]= 0;
@@ -2931,7 +2932,7 @@ table_check_intact(TABLE *table, const uint table_f_count,
   Create Item_field for each column in the table.
 
   SYNPOSIS
-    st_table::fill_item_list()
+    TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
 
   DESCRIPTION
@@ -2944,7 +2945,7 @@ table_check_intact(TABLE *table, const uint table_f_count,
     1                    out of memory
 */
 
-bool st_table::fill_item_list(List<Item> *item_list) const
+bool TABLE::fill_item_list(List<Item> *item_list) const
 {
   /*
     All Item_field's created using a direct pointer to a field
@@ -2964,7 +2965,7 @@ bool st_table::fill_item_list(List<Item> *item_list) const
   Fields of this table.
 
   SYNPOSIS
-    st_table::fill_item_list()
+    TABLE::fill_item_list()
       item_list          a non-empty list with Item_fields
 
   DESCRIPTION
@@ -2974,7 +2975,7 @@ bool st_table::fill_item_list(List<Item> *item_list) const
     is the same as the number of columns in the table.
 */
 
-void st_table::reset_item_list(List<Item> *item_list) const
+void TABLE::reset_item_list(List<Item> *item_list) const
 {
   List_iterator_fast<Item> it(*item_list);
   for (Field **ptr= field; *ptr; ptr++)
@@ -3339,7 +3340,12 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 
 /**
-  Hide errors which show view underlying table information
+  Hide errors which show view underlying table information. 
+  There are currently two mechanisms at work that handle errors for views,
+  this one and a more general mechanism based on an Internal_error_handler,
+  see Show_create_error_handler. The latter handles errors encountered during
+  execution of SHOW CREATE VIEW, while the machanism using this method is
+  handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler
 
@@ -3348,6 +3354,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
+  if (thd->get_internal_handler())
+    return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
@@ -3909,14 +3917,14 @@ const char *Natural_join_column::db_name()
     return table_ref->view_db.str;
 
   /*
-    Test that TABLE_LIST::db is the same as st_table_share::db to
+    Test that TABLE_LIST::db is the same as TABLE_SHARE::db to
     ensure consistency. An exception are I_S schema tables, which
     are inconsistent in this respect.
   */
   DBUG_ASSERT(!strcmp(table_ref->db,
                       table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               table_ref->table->s->db.str[0] == 0));
+               is_schema_db(table_ref->table->s->db.str)));
   return table_ref->db;
 }
 
@@ -4128,13 +4136,13 @@ const char *Field_iterator_table_ref::get_db_name()
     return natural_join_it.column_ref()->db_name();
 
   /*
-    Test that TABLE_LIST::db is the same as st_table_share::db to
+    Test that TABLE_LIST::db is the same as TABLE_SHARE::db to
     ensure consistency. An exception are I_S schema tables, which
     are inconsistent in this respect.
   */
   DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               table_ref->table->s->db.str[0] == 0));
+               is_schema_db(table_ref->table->s->db.str)));
 
   return table_ref->db;
 }
@@ -4304,7 +4312,7 @@ Field_iterator_table_ref::get_natural_column_ref()
 
 /* Reset all columns bitmaps */
 
-void st_table::clear_column_bitmaps()
+void TABLE::clear_column_bitmaps()
 {
   /*
     Reset column read/write usage. It's identical to:
@@ -4325,9 +4333,9 @@ void st_table::clear_column_bitmaps()
   key fields.
 */
 
-void st_table::prepare_for_position()
+void TABLE::prepare_for_position()
 {
-  DBUG_ENTER("st_table::prepare_for_position");
+  DBUG_ENTER("TABLE::prepare_for_position");
 
   if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
       s->primary_key < MAX_KEY)
@@ -4346,14 +4354,14 @@ void st_table::prepare_for_position()
   NOTE:
     This changes the bitmap to use the tmp bitmap
     After this, you can't access any other columns in the table until
-    bitmaps are reset, for example with st_table::clear_column_bitmaps()
-    or st_table::restore_column_maps_after_mark_index()
+    bitmaps are reset, for example with TABLE::clear_column_bitmaps()
+    or TABLE::restore_column_maps_after_mark_index()
 */
 
-void st_table::mark_columns_used_by_index(uint index)
+void TABLE::mark_columns_used_by_index(uint index)
 {
   MY_BITMAP *bitmap= &tmp_set;
-  DBUG_ENTER("st_table::mark_columns_used_by_index");
+  DBUG_ENTER("TABLE::mark_columns_used_by_index");
 
   (void) file->extra(HA_EXTRA_KEYREAD);
   bitmap_clear_all(bitmap);
@@ -4374,9 +4382,9 @@ void st_table::mark_columns_used_by_index(uint index)
     when calling mark_columns_used_by_index
 */
 
-void st_table::restore_column_maps_after_mark_index()
+void TABLE::restore_column_maps_after_mark_index()
 {
-  DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
+  DBUG_ENTER("TABLE::restore_column_maps_after_mark_index");
 
   key_read= 0;
   (void) file->extra(HA_EXTRA_NO_KEYREAD);
@@ -4390,7 +4398,7 @@ void st_table::restore_column_maps_after_mark_index()
   mark columns used by key, but don't reset other fields
 */
 
-void st_table::mark_columns_used_by_index_no_reset(uint index,
+void TABLE::mark_columns_used_by_index_no_reset(uint index,
                                                    MY_BITMAP *bitmap)
 {
   KEY_PART_INFO *key_part= key_info[index].key_part;
@@ -4409,7 +4417,7 @@ void st_table::mark_columns_used_by_index_no_reset(uint index,
     always set and sometimes read.
 */
 
-void st_table::mark_auto_increment_column()
+void TABLE::mark_auto_increment_column()
 {
   DBUG_ASSERT(found_next_number_field);
   /*
@@ -4442,7 +4450,7 @@ void st_table::mark_auto_increment_column()
     retrieve the row again.
 */
 
-void st_table::mark_columns_needed_for_delete()
+void TABLE::mark_columns_needed_for_delete()
 {
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_DELETE);
@@ -4492,7 +4500,7 @@ void st_table::mark_columns_needed_for_delete()
     retrieve the row again.
 */
 
-void st_table::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update()
 {
   DBUG_ENTER("mark_columns_needed_for_update");
   if (triggers)
@@ -4535,7 +4543,7 @@ void st_table::mark_columns_needed_for_update()
   as changed.
 */
 
-void st_table::mark_columns_needed_for_insert()
+void TABLE::mark_columns_needed_for_insert()
 {
   if (triggers)
   {
@@ -4565,7 +4573,7 @@ void st_table::mark_columns_needed_for_insert()
     TABLEs. Each of these TABLEs is called a part of a MERGE table.
 */
 
-bool st_table::is_children_attached(void)
+bool TABLE::is_children_attached(void)
 {
   return((child_l && children_attached) ||
          (parent && parent->children_attached));
@@ -4629,9 +4637,10 @@ Item_subselect *TABLE_LIST::containing_subselect()
   DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
     (TABLE_LIST::index_hints). Using the information in this tagged list
-    this function sets the members st_table::keys_in_use_for_query, 
+    this function sets the members st_table::keys_in_use_for_query,
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
-    st_table::force_index and st_table::covering_keys.
+    st_table::force_index, st_table::force_index_order,
+    st_table::force_index_group and st_table::covering_keys.
 
     Current implementation of the runtime does not allow mixing FORCE INDEX
     and USE INDEX, so this is checked here. Then the FORCE INDEX list 
@@ -4759,14 +4768,28 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
+    if (!index_order[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_order= TRUE;
+      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
+    }
+
+    if (!index_group[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_group= TRUE;
+      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
+    }
+
+    /*
+      TODO: get rid of tbl->force_index (on if any FORCE INDEX is specified) and
+      create tbl->force_index_join instead.
+      Then use the correct force_index_XX instead of the global one.
+    */
     if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_order[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_group[INDEX_HINT_FORCE].is_clear_all())
+        tbl->force_index_group || tbl->force_index_order)
     {
       tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
-      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
-      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
     }
 
     /* apply USE INDEX */

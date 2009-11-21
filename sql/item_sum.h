@@ -1,3 +1,6 @@
+#ifndef ITEM_SUM_INCLUDED
+#define ITEM_SUM_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -299,13 +302,14 @@ class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
-public:
+protected:
   /**
     Aggregator class instance. Not set initially. Allocated only after
     it is determined if the incoming data are already distinct.
   */
   Aggregator *aggr;
 
+private:
   /**
     Used in making ROLLUP. Set for the ROLLUP copies of the original
     Item_sum and passed to create_tmp_field() to cause it to work
@@ -320,6 +324,11 @@ public:
     0 if it was AGGREGATE()
   */
   bool with_distinct;
+
+public:
+
+  bool has_force_copy_fields() const { return force_copy_fields; }
+  bool has_with_distinct()     const { return with_distinct; }
 
   enum Sumfunctype
   { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
@@ -355,6 +364,7 @@ protected:
   Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
+  static ulonglong ram_limitation(THD *thd);
 
 public:  
 
@@ -444,12 +454,12 @@ public:
     may be initialized to 0 by clear() and to NULL by
     no_rows_in_result().
   */
-  void no_rows_in_result()
+  virtual void no_rows_in_result()
   {
     if (!aggr)
-     set_aggregator(with_distinct ?
-                    Aggregator::DISTINCT_AGGREGATOR :
-                    Aggregator::SIMPLE_AGGREGATOR);
+      set_aggregator(with_distinct ?
+                     Aggregator::DISTINCT_AGGREGATOR :
+                     Aggregator::SIMPLE_AGGREGATOR);
     reset();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -508,11 +518,12 @@ public:
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);
+
   virtual void clear()= 0;
   virtual bool add()= 0;
-  virtual bool setup(THD *thd) {return 0;}
+  virtual bool setup(THD *thd) { return false; }
 
-  void cleanup ();
+  virtual void cleanup();
 };
 
 
@@ -530,9 +541,6 @@ class Unique;
 class Aggregator_distinct : public Aggregator
 {
   friend class Item_sum_sum;
-  friend class Item_sum_count;
-  friend class Item_sum_avg;
-protected:
 
   /* 
     flag to prevent consecutive runs of endup(). Normally in endup there are 
@@ -564,7 +572,7 @@ protected:
   uint32 *field_lengths;
 
   /*
-    used in conjunction with 'table' to support the access to Field classes 
+    Used in conjunction with 'table' to support the access to Field classes 
     for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
   */
   TMP_TABLE_PARAM *tmp_table_param;
@@ -634,7 +642,6 @@ public:
 
 class Item_sum_num :public Item_sum
 {
-  friend class Aggregator_distinct;
 protected:
   /*
    val_xxx() functions may be called several times during the execution of a 
@@ -689,14 +696,14 @@ protected:
   void fix_length_and_dec();
 
 public:
-  Item_sum_sum(Item *item_par, bool distinct= FALSE) :Item_sum_num(item_par) 
+  Item_sum_sum(Item *item_par, bool distinct) :Item_sum_num(item_par) 
   {
     set_distinct(distinct);
   }
   Item_sum_sum(THD *thd, Item_sum_sum *item);
   enum Sumfunctype sum_func () const 
   { 
-    return with_distinct ? SUM_DISTINCT_FUNC : SUM_FUNC; 
+    return has_with_distinct() ? SUM_DISTINCT_FUNC : SUM_FUNC; 
   }
   void clear();
   bool add();
@@ -710,7 +717,7 @@ public:
   void no_rows_in_result() {}
   const char *func_name() const 
   { 
-    return with_distinct ? "sum(distinct " : "sum("; 
+    return has_with_distinct() ? "sum(distinct " : "sum("; 
   }
   Item *copy_or_same(THD* thd);
 };
@@ -749,7 +756,7 @@ class Item_sum_count :public Item_sum_int
   {}
   enum Sumfunctype sum_func () const 
   { 
-    return with_distinct ? COUNT_DISTINCT_FUNC : COUNT_FUNC; 
+    return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC; 
   }
   void no_rows_in_result() { count=0; }
   void make_const(longlong count_arg) 
@@ -762,7 +769,7 @@ class Item_sum_count :public Item_sum_int
   void update_field();
   const char *func_name() const 
   { 
-    return with_distinct ? "count(distinct " : "count(";
+    return has_with_distinct() ? "count(distinct " : "count(";
   }
   Item *copy_or_same(THD* thd);
 };
@@ -803,7 +810,7 @@ public:
   uint prec_increment;
   uint f_precision, f_scale, dec_bin_size;
 
-  Item_sum_avg(Item *item_par, bool distinct= FALSE) 
+  Item_sum_avg(Item *item_par, bool distinct) 
     :Item_sum_sum(item_par, distinct), count(0) 
   {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
@@ -813,7 +820,7 @@ public:
   void fix_length_and_dec();
   enum Sumfunctype sum_func () const 
   {
-    return with_distinct ? AVG_DISTINCT_FUNC : AVG_FUNC;
+    return has_with_distinct() ? AVG_DISTINCT_FUNC : AVG_FUNC;
   }
   void clear();
   bool add();
@@ -829,7 +836,7 @@ public:
   void no_rows_in_result() {}
   const char *func_name() const 
   { 
-    return with_distinct ? "avg(distinct " : "avg("; 
+    return has_with_distinct() ? "avg(distinct " : "avg("; 
   }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
@@ -1413,3 +1420,5 @@ public:
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 };
+
+#endif /* ITEM_SUM_INCLUDED */

@@ -226,7 +226,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
       row_start= row_end;
     }
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
     if (!ev->cache_stmt)
@@ -267,34 +267,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
-  }
-
-  /*
-    This code would ideally be placed in do_update_pos() instead, but
-    since we have no access to table there, we do the setting of
-    last_event_start_time here instead.
-  */
-  if (table && (table->s->primary_key == MAX_KEY) &&
-      !ev->cache_stmt && 
-      ev->get_flags(Old_rows_log_event::STMT_END_F) == Old_rows_log_event::RLE_NO_FLAGS)
-  {
-    /*
-      ------------ Temporary fix until WL#2975 is implemented ---------
-
-      This event is not the last one (no STMT_END_F). If we stop now
-      (in case of terminate_slave_thread()), how will we restart? We
-      have to restart from Table_map_log_event, but as this table is
-      not transactional, the rows already inserted will still be
-      present, and idempotency is not guaranteed (no PK) so we risk
-      that repeating leads to double insert. So we desperately try to
-      continue, hope we'll eventually leave this buggy situation (by
-      executing the final Old_rows_log_event). If we are in a hopeless
-      wait (reached end of last relay log and nothing gets appended
-      there), we timeout after one minute, and notify DBA about the
-      problem.  When WL#2975 is implemented, just remove the member
-      st_relay_log_info::last_event_start_time and all its occurences.
-    */
-    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(0);
@@ -1245,8 +1217,8 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -1409,7 +1381,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
@@ -1541,7 +1513,15 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: For this new scheme there should be no pending event:
         need to add code to assert that is the case.
        */
-      thd->binlog_flush_pending_rows_event(false);
+      error= thd->binlog_flush_pending_rows_event(false);
+      if (error)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER(ER_SLAVE_FATAL_ERROR),
+                    "call to binlog_flush_pending_rows_event() failed");
+        thd->is_slave_error= 1;
+        DBUG_RETURN(error);
+      }
       TABLE_LIST *tables= rli->tables_to_lock;
       close_tables_for_reopen(thd, &tables);
 
@@ -1744,7 +1724,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
  
     } // row processing loop
 
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
     if (!cache_stmt)
@@ -1814,7 +1794,57 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
-  DBUG_RETURN(0);
+  if (get_flags(STMT_END_F))
+  {
+    /*
+      This is the end of a statement or transaction, so close (and
+      unlock) the tables we opened when processing the
+      Table_map_log_event starting the statement.
+
+      OBSERVER.  This will clear *all* mappings, not only those that
+      are open for the table. There is not good handle for on-close
+      actions for tables.
+
+      NOTE. Even if we have no table ('table' == 0) we still need to be
+      here, so that we increase the group relay log position. If we didn't, we
+      could have a group relay log position which lags behind "forever"
+      (assume the last master's transaction is ignored by the slave because of
+      replicate-ignore rules).
+    */
+    int binlog_error= thd->binlog_flush_pending_rows_event(true);
+
+    /*
+      If this event is not in a transaction, the call below will, if some
+      transactional storage engines are involved, commit the statement into
+      them and flush the pending event to binlog.
+      If this event is in a transaction, the call will do nothing, but a
+      Xid_log_event will come next which will, if some transactional engines
+      are involved, commit the transaction and flush the pending event to the
+      binlog.
+    */
+    if ((error= ha_autocommit_or_rollback(thd, binlog_error)))
+      rli->report(ERROR_LEVEL, error,
+                  "Error in %s event: commit of row events failed, "
+                  "table `%s`.`%s`",
+                  get_type_str(), m_table->s->db.str,
+                  m_table->s->table_name.str);
+    error|= binlog_error;
+
+    /*
+      Now what if this is not a transactional engine? we still need to
+      flush the pending event to the binlog; we did it with
+      thd->binlog_flush_pending_rows_event(). Note that we imitate
+      what is done for real queries: a call to
+      ha_autocommit_or_rollback() (sometimes only if involves a
+      transactional engine), and a call to be sure to have the pending
+      event flushed.
+    */
+
+    thd->reset_current_stmt_binlog_row_based();
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
+
+  DBUG_RETURN(error);
 }
 
 
@@ -1844,71 +1874,18 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
   if (get_flags(STMT_END_F))
   {
     /*
-      This is the end of a statement or transaction, so close (and
-      unlock) the tables we opened when processing the
-      Table_map_log_event starting the statement.
-
-      OBSERVER.  This will clear *all* mappings, not only those that
-      are open for the table. There is not good handle for on-close
-      actions for tables.
-
-      NOTE. Even if we have no table ('table' == 0) we still need to be
-      here, so that we increase the group relay log position. If we didn't, we
-      could have a group relay log position which lags behind "forever"
-      (assume the last master's transaction is ignored by the slave because of
-      replicate-ignore rules).
-    */
-    thd->binlog_flush_pending_rows_event(true);
-
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+     */
+    rli->stmt_done(log_pos, when);
     /*
-      If this event is not in a transaction, the call below will, if some
-      transactional storage engines are involved, commit the statement into
-      them and flush the pending event to binlog.
-      If this event is in a transaction, the call will do nothing, but a
-      Xid_log_event will come next which will, if some transactional engines
-      are involved, commit the transaction and flush the pending event to the
-      binlog.
+      Clear any errors in thd->net.last_err*. It is not known if this is
+      needed or not. It is believed that any errors that may exist in
+      thd->net.last_err* are allowed. Examples of errors are "key not
+      found", which is produced in the test case rpl_row_conflicts.test
     */
-    error= ha_autocommit_or_rollback(thd, 0);
-
-    /*
-      Now what if this is not a transactional engine? we still need to
-      flush the pending event to the binlog; we did it with
-      thd->binlog_flush_pending_rows_event(). Note that we imitate
-      what is done for real queries: a call to
-      ha_autocommit_or_rollback() (sometimes only if involves a
-      transactional engine), and a call to be sure to have the pending
-      event flushed.
-    */
-
-    thd->reset_current_stmt_binlog_row_based();
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-       */
-      rli->stmt_done(log_pos, when);
-
-      /*
-        Clear any errors pushed in thd->net.client_last_err* if for
-        example "no key found" (as this is allowed). This is a safety
-        measure; apparently those errors (e.g. when executing a
-        Delete_rows_log_event_old of a non-existing row, like in
-        rpl_row_mystery22.test, thd->net.last_error = "Can't
-        find record in 't1'" and last_errno=1032) do not become
-        visible. We still prefer to wipe them out.
-      */
-      thd->clear_error();
-    }
-    else
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
+    thd->clear_error();
   }
   else
   {

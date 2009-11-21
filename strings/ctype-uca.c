@@ -6712,6 +6712,34 @@ static const char hungarian[]=
     "&O < \\u00F6 <<< \\u00D6 << \\u0151 <<< \\u0150"
     "&U < \\u00FC <<< \\u00DC << \\u0171 <<< \\u0170";
 
+/*
+  SCCII Part 1 : Collation Sequence (SLS1134)
+  2006/11/24
+  Harshula Jayasuriya <harshula at gmail dot com>
+  Language Technology Research Lab, University of Colombo / ICTA
+*/
+#if 0
+static const char sinhala[]=
+    "& \\u0D96 < \\u0D82 < \\u0D83"
+    "& \\u0DA5 < \\u0DA4"
+    "& \\u0DD8 < \\u0DF2 < \\u0DDF < \\u0DF3"
+    "& \\u0DDE < \\u0DCA";
+#else
+static const char sinhala[]=
+    "& \\u0D96 < \\u0D82 < \\u0D83 < \\u0D9A < \\u0D9B < \\u0D9C < \\u0D9D"
+              "< \\u0D9E < \\u0D9F < \\u0DA0 < \\u0DA1 < \\u0DA2 < \\u0DA3"
+              "< \\u0DA5 < \\u0DA4 < \\u0DA6"
+              "< \\u0DA7 < \\u0DA8 < \\u0DA9 < \\u0DAA < \\u0DAB < \\u0DAC"
+              "< \\u0DAD < \\u0DAE < \\u0DAF < \\u0DB0 < \\u0DB1"
+              "< \\u0DB3 < \\u0DB4 < \\u0DB5 < \\u0DB6 < \\u0DB7 < \\u0DB8"
+              "< \\u0DB9 < \\u0DBA < \\u0DBB < \\u0DBD < \\u0DC0 < \\u0DC1"
+              "< \\u0DC2 < \\u0DC3 < \\u0DC4 < \\u0DC5 < \\u0DC6"
+              "< \\u0DCF"
+              "< \\u0DD0 < \\u0DD1 < \\u0DD2 < \\u0DD3 < \\u0DD4 < \\u0DD6"
+              "< \\u0DD8 < \\u0DF2 < \\u0DDF < \\u0DF3 < \\u0DD9 < \\u0DDA"
+              "< \\u0DDB < \\u0DDC < \\u0DDD < \\u0DDE < \\u0DCA";
+#endif
+
 
 /*
   Unicode Collation Algorithm:
@@ -7633,6 +7661,13 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
       goto ex;
     }
     
+    if (beg[0] == '=')
+    {
+      beg++;
+      rc= MY_COLL_LEXEM_DIFF;
+      goto ex;
+    }
+    
     if (beg[0] == '<')
     {
       for (beg++, lexem->diff= 1;
@@ -7793,6 +7828,10 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
           item.diff[1]= 0;
           item.diff[2]= 0;
         }
+        else if (lexem.diff == 0)
+        {
+          item.diff[0]= item.diff[1]= item.diff[2]= 0;
+        }
         if (nitems >= mitems)
         {
           my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Too many rules");
@@ -7857,6 +7896,9 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     */
     return 1;
   }
+  
+  if (!cs->caseinfo)
+    cs->caseinfo= my_unicase_default;
   
   if (!(newweights= (uint16**) (*alloc)(256*sizeof(uint16*))))
     return 1;
@@ -8698,6 +8740,39 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
 };
 
 
+CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
+{
+    147,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",              /* csname    */
+    "ucs2_sinhala_ci",   /* name         */
+    "",                  /* comment      */
+    sinhala,             /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -9351,6 +9426,38 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
+{
+    211,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",              /* cs name      */
+    "utf8_sinhala_ci",   /* name         */
+    "",                  /* comment      */
+    sinhala,             /* tailoring    */
+    ctype_utf8,          /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    3,                   /* mbminlen     */
+    3,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler
 };

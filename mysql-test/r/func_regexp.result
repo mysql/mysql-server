@@ -52,7 +52,7 @@ explain extended select * from t1 where xxx regexp('is a test of some long text 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select 'this is a test of some long text to see what happens' AS `xxx` from `test`.`t1` where ('this is a test of some long text to see what happens' regexp 'is a test of some long text to')
+Note	1003	select 'this is a test of some long text to see what happens' AS `xxx` from dual where ('this is a test of some long text to see what happens' regexp 'is a test of some long text to')
 select * from t1 where xxx regexp('is a test of some long text to ');
 xxx
 this is a test of some long text to see what happens

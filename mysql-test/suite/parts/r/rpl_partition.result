@@ -177,6 +177,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SELECT count(*) "Slave norm" FROM t1;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM t2;

@@ -42,6 +42,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "debug_sync.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -90,7 +91,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         !my_strcasecmp(system_charset_info, field_name.str,
+                        other.field_name.str);
 }
 
 /**
@@ -257,11 +260,31 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
                            (info != NULL) ? info : "(null)"));
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
+}
+
+extern "C"
+const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
+                           pthread_mutex_t *mutex, const char *msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  return thd->enter_cond(cond, mutex, msg);
+}
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+{
+  if (!thd)
+    thd= current_thd;
+
+  thd->exit_cond(old_msg);
+  return;
 }
 
 extern "C"
@@ -362,14 +385,14 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  if (thd->query)
+  if (thd->query())
   {
     if (max_query_len < 1)
-      len= thd->query_length;
+      len= thd->query_length();
     else
-      len= min(thd->query_length, max_query_len);
+      len= min(thd->query_length(), max_query_len);
     str.append('\n');
-    str.append(thd->query, len);
+    str.append(thd->query(), len);
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -388,7 +411,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 
 
 /**
-  Implementation of Drop_table_error_handler::handle_error().
+  Implementation of Drop_table_error_handler::handle_condition().
   The reason in having this implementation is to silence technical low-level
   warnings during DROP TABLE operation. Currently we don't want to expose
   the following warnings during DROP TABLE:
@@ -442,6 +465,9 @@ THD::THD()
    derived_tables_processing(FALSE),
    spcont(NULL),
    m_parser_state(NULL),
+#if defined(ENABLED_DEBUG_SYNC)
+   debug_sync_control(0),
+#endif /* defined(ENABLED_DEBUG_SYNC) */
    main_warning_info(0)
 {
   ulong tmp;
@@ -463,7 +489,7 @@ THD::THD()
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
-  hash_clear(&handler_tables_hash);
+  my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
   cuted_fields= 0L;
@@ -471,9 +497,6 @@ THD::THD()
   limit_found_rows= 0;
   row_count_func= -1;
   statement_id_counter= 0UL;
-#ifdef ERROR_INJECT_SUPPORT
-  error_inject_value= 0UL;
-#endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
@@ -499,9 +522,6 @@ THD::THD()
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-#ifdef HAVE_QUERY_CACHE
-  query_cache_init_query(&net);                 // If error on boot
-#endif
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= no_warnings_for_error= 0;
@@ -522,13 +542,13 @@ THD::THD()
   *scramble= '\0';
 
   init();
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
   user_connect=(USER_CONN *)0;
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -794,7 +814,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition_no_handler");
 
-  query_cache_abort(& net);
+  query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
   if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
@@ -895,6 +915,11 @@ void THD::init(void)
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_init_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 }
 
 
@@ -943,9 +968,9 @@ void THD::change_user(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var, 0);
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_var_key,
+               (my_hash_free_key) free_user_var, 0);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 }
@@ -974,9 +999,15 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
-  hash_free(&user_vars);
+  my_hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
@@ -1494,8 +1525,8 @@ int THD::send_explain_fields(select_result *result)
   }
   item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
-  return (result->send_fields(field_list,
-                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+  return (result->send_result_set_metadata(field_list,
+                                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -1578,7 +1609,6 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
-  nest_level= -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -1602,13 +1632,17 @@ bool select_result::check_simple_select() const
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
+static String default_xml_row_term("<row>", default_charset_info);
 
-sql_exchange::sql_exchange(char *name,bool flag)
+sql_exchange::sql_exchange(char *name, bool flag,
+                           enum enum_filetype filetype_arg)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
 {
+  filetype= filetype_arg;
   field_term= &default_field_term;
   enclosed=   line_start= &my_empty_string;
-  line_term=  &default_line_term;
+  line_term=  filetype == FILETYPE_CSV ?
+              &default_line_term : &default_xml_row_term;
   escaped=    &default_escaped;
   cs= NULL;
 }
@@ -1619,10 +1653,10 @@ bool sql_exchange::escaped_given(void)
 }
 
 
-bool select_send::send_fields(List<Item> &list, uint flags)
+bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
-  if (!(res= thd->protocol->send_fields(&list, flags)))
+  if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
     is_result_set_started= 1;
   return res;
 }
@@ -1663,10 +1697,13 @@ void select_send::cleanup()
 
 bool select_send::send_data(List<Item> &items)
 {
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("select_send::send_data");
+
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    return 0;
+    DBUG_RETURN(FALSE);
   }
 
   /*
@@ -1676,36 +1713,18 @@ bool select_send::send_data(List<Item> &items)
   */
   ha_release_temporary_latches(thd);
 
-  List_iterator_fast<Item> li(items);
-  Protocol *protocol= thd->protocol;
-  char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), &my_charset_bin);
-  DBUG_ENTER("select_send::send_data");
-
   protocol->prepare_for_resend();
-  Item *item;
-  while ((item=li++))
-  {
-    if (item->send(protocol, &buffer))
-    {
-      protocol->free();				// Free used buffer
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      break;
-    }
-    /*
-      Reset buffer to its original state, as it may have been altered in
-      Item::send().
-    */
-    buffer.set(buff, sizeof(buff), &my_charset_bin);
-  }
-  thd->sent_row_count++;
-  if (thd->is_error())
+  if (protocol->send_result_set_row(&items))
   {
     protocol->remove_last_row();
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
+
+  thd->sent_row_count++;
+
   if (thd->vio_ok())
     DBUG_RETURN(protocol->write());
+
   DBUG_RETURN(0);
 }
 
@@ -2479,12 +2498,12 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  query(0),
-  query_length(0),
   cursor(0),
   db(NULL),
   db_length(0)
 {
+  query_string.length= 0;
+  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2500,8 +2519,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  query=          stmt->query;
-  query_length=   stmt->query_length;
+  query_string=   stmt->query_string;
   cursor=         stmt->cursor;
 }
 
@@ -2522,6 +2540,15 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
+{
+  query_string.str= query_arg;
+  query_string.length= query_length_arg;
 }
 
 
@@ -2603,12 +2630,12 @@ Statement_map::Statement_map() :
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
-            get_statement_id_as_hash_key,
-            delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
-            (hash_get_key) get_stmt_name_hash_key,
-            NULL,MYF(0));
+  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
+               get_statement_id_as_hash_key,
+               delete_statement_as_hash_key, MYF(0));
+  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
+               (my_hash_get_key) get_stmt_name_hash_key,
+               NULL,MYF(0));
 }
 
 
@@ -2673,9 +2700,9 @@ int Statement_map::insert(THD *thd, Statement *statement)
 
 err_max:
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar*) statement);
+    my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
-  hash_delete(&st_hash, (uchar*) statement);
+  my_hash_delete(&st_hash, (uchar*) statement);
 err_st_hash:
   return 1;
 }
@@ -2696,9 +2723,9 @@ void Statement_map::erase(Statement *statement)
   if (statement == last_found_statement)
     last_found_statement= 0;
   if (statement->name.str)
-    hash_delete(&names_hash, (uchar *) statement);
+    my_hash_delete(&names_hash, (uchar *) statement);
 
-  hash_delete(&st_hash, (uchar *) statement);
+  my_hash_delete(&st_hash, (uchar *) statement);
   pthread_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -2728,8 +2755,8 @@ Statement_map::~Statement_map()
   prepared_stmt_count-= st_hash.records;
   pthread_mutex_unlock(&LOCK_prepared_stmt_count);
 
-  hash_free(&names_hash);
-  hash_free(&st_hash);
+  my_hash_free(&names_hash);
+  my_hash_free(&st_hash);
 }
 
 bool select_dumpvar::send_data(List<Item> &items)
@@ -2760,9 +2787,11 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      suv->fix_fields(thd, 0);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN (1);
       suv->save_item_result(item);
-      suv->update();
+      if (suv->update())
+        DBUG_RETURN (1);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -3038,9 +3067,24 @@ extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
   return(thd->charset());
 }
 
+/**
+  OBSOLETE : there's no way to ensure the string is null terminated.
+  Use thd_query_string instead()
+*/
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query);
+  return(&thd->query_string.str);
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param The MySQL internal thread pointer
+  @return query string and length. May be non-null-terminated.
+*/
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
+{
+  return(&thd->query_string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3064,6 +3108,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
+}
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
 }
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
@@ -3219,8 +3268,7 @@ void THD::set_statement(Statement *stmt)
 void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
   pthread_mutex_lock(&LOCK_thd_data);
-  query= query_arg;
-  query_length= query_length_arg;
+  set_query_inner(query_arg, query_length_arg);
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -3238,6 +3286,16 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
+    /*
+      Aborted transactions can not be IGNOREd.
+      Switch off the IGNORE flag for the current
+      SELECT_LEX. This should allow my_error()
+      to report the error and abort the execution
+      flow, even in presence
+      of IGNORE clause.
+    */
+    if (thd->lex->current_select)
+      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************
@@ -3266,15 +3324,15 @@ void xid_free_hash(void *ptr)
 bool xid_cache_init()
 {
   pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  return hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-                   xid_get_hash_key, xid_free_hash, 0) != 0;
+  return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+                      xid_get_hash_key, xid_free_hash, 0) != 0;
 }
 
 void xid_cache_free()
 {
-  if (hash_inited(&xid_cache))
+  if (my_hash_inited(&xid_cache))
   {
-    hash_free(&xid_cache);
+    my_hash_free(&xid_cache);
     pthread_mutex_destroy(&LOCK_xid_cache);
   }
 }
@@ -3282,7 +3340,8 @@ void xid_cache_free()
 XID_STATE *xid_cache_search(XID *xid)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, xid->key(), xid->key_length());
+  XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
+                                             xid->key_length());
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
@@ -3293,7 +3352,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   XID_STATE *xs;
   my_bool res;
   pthread_mutex_lock(&LOCK_xid_cache);
-  if (hash_search(&xid_cache, xid->key(), xid->key_length()))
+  if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
     res=1;
@@ -3312,8 +3371,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
-                          xid_state->xid.key_length())==0);
+  DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
+                             xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
@@ -3323,7 +3382,7 @@ bool xid_cache_insert(XID_STATE *xid_state)
 void xid_cache_delete(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  hash_delete(&xid_cache, (uchar *)xid_state);
+  my_hash_delete(&xid_cache, (uchar *)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
 }
 

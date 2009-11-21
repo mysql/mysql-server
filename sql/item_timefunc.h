@@ -1,3 +1,6 @@
+#ifndef ITEM_TIMEFUNC_INCLUDED
+#define ITEM_TIMEFUNC_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -70,6 +73,24 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+};
+
+
+class Item_func_to_seconds :public Item_int_func
+{
+public:
+  Item_func_to_seconds(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "to_seconds"; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null=1; 
+  }
+  enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -871,6 +892,7 @@ public:
   { 
     decimals=0;
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null= 1;
   }
   longlong val_int();
 };
@@ -1025,4 +1047,11 @@ public:
   Item_func_last_day(Item *a) :Item_date(a) {}
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  void fix_length_and_dec()
+  { 
+    Item_date::fix_length_and_dec();
+    maybe_null= 1;
+  }
 };
+
+#endif /* ITEM_TIMEFUNC_INCLUDED */

@@ -1,0 +1,148 @@
+########################################################################################
+# This test verifies the options --sync-relay-log-info and --relay-log-recovery by 
+# crashing the slave in two different situations:
+#  (case-1) - Corrupt the relay log with changes which were not processed by
+#  the SQL Thread and crashes it.
+#  (case-2) - Corrupt the master.info with wrong coordinates and crashes it.
+#
+#  Case 1:
+#    1 - Stops the SQL Thread
+#    2 - Inserts new records into the master.
+#    3 - Corrupts the relay-log.bin* which most likely has such changes.
+#    4 - Crashes the slave
+#    5 - Verifies if the slave is sync with the master which means that the information
+#    loss was circumvented by the recovery process.
+#
+#  Case 2:
+#    1 - Stops the SQL/IO Threads
+#    2 - Inserts new records into the master.
+#    3 - Corrupts the master.info with wrong coordinates.
+#    4 - Crashes the slave
+#    5 - Verifies if the slave is sync with the master which means that the information
+#    loss was circumvented by the recovery process.
+########################################################################################
+
+########################################################################################
+#                                Configuring the environment
+########################################################################################
+--echo =====Configuring the enviroment=======;
+--source include/master-slave.inc
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+call mtr.add_suppression('Attempting backtrace');
+call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+CREATE TABLE t1(a INT, PRIMARY KEY(a)) engine=innodb;
+
+insert into t1(a) values(1);
+insert into t1(a) values(2);
+insert into t1(a) values(3);
+
+########################################################################################
+#                             Case 1: Corrupt a relay-log.bin*
+########################################################################################
+--echo =====Inserting data on the master but without the SQL Thread being running=======;
+sync_slave_with_master;
+
+connection slave;
+let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
+--copy_file $MYSQLD_SLAVE_DATADIR/master.info $MYSQLD_SLAVE_DATADIR/master.backup
+stop slave SQL_THREAD;
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection master;
+insert into t1(a) values(4);
+insert into t1(a) values(5);
+insert into t1(a) values(6);
+
+--echo =====Removing relay log files and crashing/recoverying the slave=======;
+connection slave;
+stop slave IO_THREAD;
+source include/wait_for_slave_io_to_stop.inc;
+
+let $file= query_get_value("SHOW SLAVE STATUS", Relay_Log_File, 1);
+--replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
+--exec echo "failure" > $MYSQLD_SLAVE_DATADIR/$file
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+SET SESSION debug="d,crash_before_rotate_relaylog";
+--error 2013
+FLUSH LOGS;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo =====Dumping and comparing tables=======;
+start slave;
+source include/wait_for_slave_to_start.inc;
+
+connection master;
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+########################################################################################
+#                             Case 2: Corrupt a master.info
+########################################################################################
+--echo =====Corrupting the master.info=======;
+connection slave;
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+
+connection master;
+FLUSH LOGS;
+
+insert into t1(a) values(7);
+insert into t1(a) values(8);
+insert into t1(a) values(9);
+
+connection slave;
+--replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
+--exec cat $MYSQLD_SLAVE_DATADIR/master.backup > $MYSQLD_SLAVE_DATADIR/master.info
+
+let MYSQLD_SLAVE_DATADIR=`select @@datadir`;
+
+--perl
+use strict;
+use warnings;
+my $src= "$ENV{'MYSQLD_SLAVE_DATADIR'}/master.backup";
+my $dst= "$ENV{'MYSQLD_SLAVE_DATADIR'}/master.info";
+open(FILE, "<", $src) or die;
+my @content= <FILE>;
+close FILE;
+open(FILE, ">", $dst) or die;
+binmode FILE;
+print FILE @content;
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+SET SESSION debug="d,crash_before_rotate_relaylog";
+--error 2013
+FLUSH LOGS;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo =====Dumping and comparing tables=======;
+start slave;
+source include/wait_for_slave_to_start.inc;
+
+connection master;
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+########################################################################################
+#                                      Clean up
+########################################################################################
+--echo =====Clean up=======;
+connection master;
+drop table t1;

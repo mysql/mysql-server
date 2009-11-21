@@ -41,6 +41,29 @@
 #include <winbase.h>
 #endif
 
+/**
+   arguments separator
+
+   load_defaults() loads arguments from config file and put them
+   before the arguments from command line, this separator is used to
+   separate the arguments loaded from config file and arguments user
+   provided on command line.
+
+   Options with value loaded from config file are always in the form
+   '--option=value', while for command line options, the value can be
+   given as the next argument. Thus we used a separator so that
+   handle_options() can distinguish them.
+
+   Note: any other places that does not need to distinguish them
+   should skip the separator.
+
+   The content of arguments separator does not matter, one should only
+   check the pointer, use "----args-separator----" here to ease debug
+   if someone misused it.
+
+   See BUG#25192
+*/
+const char *args_separator= "----args-separator----";
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 char *my_defaults_extra_file=0;
@@ -454,10 +477,11 @@ int my_load_defaults(const char *conf_file, const char **groups,
       goto err;
     res= (char**) (ptr+sizeof(alloc));
     res[0]= **argv;				/* Copy program name */
+    /* set arguments separator */
+    res[1]= (char *)args_separator;
     for (i=2 ; i < (uint) *argc ; i++)
-      res[i-1]=argv[0][i];
-    res[i-1]=0;					/* End pointer */
-    (*argc)--;
+      res[i]=argv[0][i];
+    res[i]=0;					/* End pointer */
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
     if (default_directories)
@@ -479,15 +503,19 @@ int my_load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
-  error= my_search_option_files(conf_file, argc, argv, &args_used,
-                                handle_default_option, (void *) &ctx,
-                                dirs);
+  if ((error= my_search_option_files(conf_file, argc, argv, &args_used,
+                                     handle_default_option, (void *) &ctx,
+                                     dirs)))
+  {
+    free_root(&alloc,MYF(0));
+    DBUG_RETURN(error);
+  }
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
   */
   if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
-			       (args.elements + *argc +1) *sizeof(char*))))
+			       (args.elements + *argc + 1 + 1) *sizeof(char*))))
     goto err;
   res= (char**) (ptr+sizeof(alloc));
 
@@ -508,12 +536,16 @@ int my_load_defaults(const char *conf_file, const char **groups,
     --*argc; ++*argv;				/* skip argument */
   }
 
-  if (*argc)
-    memcpy((uchar*) (res+1+args.elements), (char*) ((*argv)+1),
-	   (*argc-1)*sizeof(char*));
-  res[args.elements+ *argc]=0;			/* last null */
+  /* set arguments separator for arguments from config file and
+     command line */
+  res[args.elements+1]= (char *)args_separator;
 
-  (*argc)+=args.elements;
+  if (*argc)
+    memcpy((uchar*) (res+1+args.elements+1), (char*) ((*argv)+1),
+	   (*argc-1)*sizeof(char*));
+  res[args.elements+ *argc+1]=0;                /* last null */
+
+  (*argc)+=args.elements+1;
   *argv= (char**) res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
   delete_dynamic(&args);
@@ -523,15 +555,16 @@ int my_load_defaults(const char *conf_file, const char **groups,
     printf("%s would have been started with the following arguments:\n",
 	   **argv);
     for (i=1 ; i < *argc ; i++)
-      printf("%s ", (*argv)[i]);
+      if ((*argv)[i] != args_separator) /* skip arguments separator */
+        printf("%s ", (*argv)[i]);
     puts("");
     exit(0);
   }
 
-  if (error == 0 && default_directories)
+  if (default_directories)
     *default_directories= dirs;
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
  err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");

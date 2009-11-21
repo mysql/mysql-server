@@ -3905,3 +3905,29 @@ DROP TABLE t1;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+
+#
+# Bug#9801 (Views: imperfect error message)
+#
+
+--disable_warnings
+drop table if exists t_9801;
+drop view if exists v_9801;
+--enable_warnings
+
+create table t_9801 (s1 int);
+
+--error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 with check option;
+
+--error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 group by s1 with check option;
+
+ --error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 group by s1 with rollup with check option;
+
+drop table t_9801;
+

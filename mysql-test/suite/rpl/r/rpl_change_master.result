@@ -50,6 +50,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 change master to master_user='root';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -90,9 +92,28 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 start slave;
 select * from t1;
 n
 1
 2
+drop table t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int);
+insert into t1 values (1);
+flush logs;
+insert into t1 values (2);
+include/stop_slave.inc
+delete from t1 where a=2;
+CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
+start slave sql_thread;
+start slave io_thread;
+set global relay_log_purge=1;
 drop table t1;

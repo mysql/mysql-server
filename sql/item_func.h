@@ -1,3 +1,6 @@
+#ifndef ITEM_FUNC_INCLUDED
+#define ITEM_FUNC_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -1393,7 +1396,6 @@ public:
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
-  uint decimal_precision() const;
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
@@ -1718,3 +1720,4 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
+#endif /* ITEM_FUNC_INCLUDED */

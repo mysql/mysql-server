@@ -144,9 +144,9 @@ typedef long long longlong;
 #pragma comment(lib, "ws2_32")
 #endif
 
-static pthread_mutex_t LOCK_hostname;
-
 #ifdef HAVE_DLOPEN
+
+static pthread_mutex_t LOCK_hostname;
 
 /* These must be right or mysqld will not find the symbol! */
 

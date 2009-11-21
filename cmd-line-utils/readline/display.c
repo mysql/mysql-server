@@ -465,10 +465,10 @@ rl_redisplay ()
   int newlines, lpos, temp, modmark;
   const char *prompt_this_line;
 #if defined (HANDLE_MULTIBYTE)
-  int num, n0;
+  int num, n0= 0;
   wchar_t wc;
   size_t wc_bytes;
-  int wc_width;
+  int wc_width= 0;
   mbstate_t ps;
   int _rl_wrapped_multicolumn = 0;
 #endif
@@ -828,7 +828,7 @@ rl_redisplay ()
 		  cpos_buffer_position = out;
 		  lb_linenum = newlines;
 		}
-	      for (i = in; i < in+wc_bytes; i++)
+	      for (i = in; i < in+(int)wc_bytes; i++)
 		line[out++] = rl_line_buffer[i];
 	      for (i = 0; i < wc_width; i++)
 		CHECK_LPOS();

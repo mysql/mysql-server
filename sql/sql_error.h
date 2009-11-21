@@ -516,11 +516,45 @@ private:
   friend class Resignal_statement;
 };
 
+extern char *err_conv(char *buff, uint to_length, const char *from,
+                      uint from_length, CHARSET_INFO *from_cs);
+
+class ErrConvString
+{
+  char err_buffer[MYSQL_ERRMSG_SIZE];
+public:
+
+  ErrConvString(String *str)
+  {
+    (void) err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
+                    str->length(), str->charset());
+  }
+
+  ErrConvString(const char *str, CHARSET_INFO* cs)
+  {
+    (void) err_conv(err_buffer, sizeof(err_buffer),
+                    str, strlen(str), cs);
+  }
+
+  ErrConvString(const char *str, uint length, CHARSET_INFO* cs)
+  {
+    (void) err_conv(err_buffer, sizeof(err_buffer),
+                    str, length, cs);
+  }
+
+  ~ErrConvString() { };
+  char *ptr() { return err_buffer; }
+};
+
+
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
                   uint code, const char *msg);
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
+uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+                             const char *from, uint32 from_length,
+                             CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];
 

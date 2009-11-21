@@ -1,4 +1,3 @@
-#
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
@@ -623,5 +622,103 @@
    fun:pthread_exit
    fun:nptl_pthread_exit_hack_handler
    fun:start_thread
+}
+
+# suppressions for glibc 2.6.1 64 bit
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 6
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 7
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 8
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 8
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+}
+
+#
+# Pthread doesn't free all thread specific memory before program exists
+#
+{
+   pthread allocate_tls memory loss in 2.6.1.
+   Memcheck:Leak 
+   fun:calloc
+   obj:*/ld-*.so
+   fun:_dl_allocate_tls
+   fun:pthread_create*
 }
 

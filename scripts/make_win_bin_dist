@@ -336,6 +336,7 @@ fi
 
 mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
+cp mysql-test/mysql-stress-test.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
 cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
 

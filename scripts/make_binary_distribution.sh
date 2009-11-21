@@ -64,6 +64,7 @@ cflags="@CFLAGS@"
 
 STRIP=1				# Option ignored
 SILENT=0
+MALLOC_LIB=
 PLATFORM=""
 TMP=/tmp
 NEW_NAME=""			# Final top directory and TAR package name
@@ -76,6 +77,7 @@ for arg do
     --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
     --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
     --short-product-tag=*) SHORT_PRODUCT_TAG=`echo "$arg" | sed -e "s;--short-product-tag=;;"` ;;
+    --inject-malloc-lib=*) MALLOC_LIB=`echo "$arg" | sed -e 's;^[^=]*=;;'` ;;
     --no-strip) STRIP=0 ;;
     --machine=*) machine=`echo "$arg" | sed -e "s;--machine=;;"` ;;
     --platform=*) PLATFORM=`echo "$arg" | sed -e "s;--platform=;;"` ;;
@@ -291,6 +293,12 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     else
       echo "Warning: Compiler result '$gcclib' not found / no file!"
     fi
+  fi
+
+  # If requested, add a malloc library .so into pkglibdir for use
+  # by mysqld_safe
+  if [ -n "$MALLOC_LIB" ]; then
+    cp "$MALLOC_LIB" "$DEST/lib/"
   fi
 
   # FIXME let this script be in "bin/", where it is in the RPMs?

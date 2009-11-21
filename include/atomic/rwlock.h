@@ -1,3 +1,6 @@
+#ifndef ATOMIC_RWLOCK_INCLUDED
+#define ATOMIC_RWLOCK_INCLUDED
+
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -46,3 +49,4 @@ typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
 #define make_atomic_load_body(S)    ret= *a;
 #define make_atomic_store_body(S)   *a= v;
 
+#endif /* ATOMIC_RWLOCK_INCLUDED */

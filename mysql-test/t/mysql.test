@@ -367,6 +367,14 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --enable_query_log
 
 #
+# Bug#26780: patch to add auto vertical output option to the cli.
+#
+# Make this wide enough that it will wrap almost everywhere.
+--exec $MYSQL test --auto-vertical-output --table -e "SELECT 1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0;"
+# Too short to wrap.
+--exec $MYSQL test --auto-vertical-output --table -e "SELECT 1;"
+
+#
 # Bug #25146: Some warnings/errors not shown when using --show-warnings
 #
 
@@ -381,6 +389,11 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent2"
 
 drop tables t1, t2;
+
+#
+# mysql client with 'init-command' option
+#
+--exec $MYSQL --init-command="SET lc_messages=ru_RU" -e "SHOW VARIABLES LIKE 'lc_messages';"
 
 #
 # Bug #27884: mysql --html does not quote HTML special characters in output

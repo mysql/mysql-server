@@ -18,16 +18,16 @@ SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	test	t1	f1	1	NULL	YES	char	1	2	NULL	NULL	ucs2	ucs2_general_ci	char(1)			select,insert,update,references	
-NULL	test	t1	f10	9	NULL	YES	mediumtext	8388607	16777215	NULL	NULL	ucs2	ucs2_general_ci	mediumtext			select,insert,update,references	
-NULL	test	t1	f11	10	NULL	YES	longtext	2147483647	4294967295	NULL	NULL	ucs2	ucs2_general_ci	longtext			select,insert,update,references	
-NULL	test	t1	f2	2	NULL	YES	char	0	0	NULL	NULL	ucs2	ucs2_general_ci	char(0)			select,insert,update,references	
-NULL	test	t1	f3	3	NULL	YES	char	10	20	NULL	NULL	ucs2	ucs2_general_ci	char(10)			select,insert,update,references	
-NULL	test	t1	f5	4	NULL	YES	varchar	0	0	NULL	NULL	ucs2	ucs2_general_ci	varchar(0)			select,insert,update,references	
-NULL	test	t1	f6	5	NULL	YES	varchar	255	510	NULL	NULL	ucs2	ucs2_general_ci	varchar(255)			select,insert,update,references	
-NULL	test	t1	f7	6	NULL	YES	varchar	260	520	NULL	NULL	ucs2	ucs2_general_ci	varchar(260)			select,insert,update,references	
-NULL	test	t1	f8	7	NULL	YES	text	32767	65535	NULL	NULL	ucs2	ucs2_general_ci	text			select,insert,update,references	
-NULL	test	t1	f9	8	NULL	YES	tinytext	127	255	NULL	NULL	ucs2	ucs2_general_ci	tinytext			select,insert,update,references	
+def	test	t1	f1	1	NULL	YES	char	1	2	NULL	NULL	ucs2	ucs2_general_ci	char(1)			select,insert,update,references	
+def	test	t1	f10	9	NULL	YES	mediumtext	8388607	16777215	NULL	NULL	ucs2	ucs2_general_ci	mediumtext			select,insert,update,references	
+def	test	t1	f11	10	NULL	YES	longtext	2147483647	4294967295	NULL	NULL	ucs2	ucs2_general_ci	longtext			select,insert,update,references	
+def	test	t1	f2	2	NULL	YES	char	0	0	NULL	NULL	ucs2	ucs2_general_ci	char(0)			select,insert,update,references	
+def	test	t1	f3	3	NULL	YES	char	10	20	NULL	NULL	ucs2	ucs2_general_ci	char(10)			select,insert,update,references	
+def	test	t1	f5	4	NULL	YES	varchar	0	0	NULL	NULL	ucs2	ucs2_general_ci	varchar(0)			select,insert,update,references	
+def	test	t1	f6	5	NULL	YES	varchar	255	510	NULL	NULL	ucs2	ucs2_general_ci	varchar(255)			select,insert,update,references	
+def	test	t1	f7	6	NULL	YES	varchar	260	520	NULL	NULL	ucs2	ucs2_general_ci	varchar(260)			select,insert,update,references	
+def	test	t1	f8	7	NULL	YES	text	32767	65535	NULL	NULL	ucs2	ucs2_general_ci	text			select,insert,update,references	
+def	test	t1	f9	8	NULL	YES	tinytext	127	255	NULL	NULL	ucs2	ucs2_general_ci	tinytext			select,insert,update,references	
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################

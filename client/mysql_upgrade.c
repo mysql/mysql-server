@@ -34,7 +34,8 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag;
+static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
+               opt_systables_only;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
@@ -53,6 +54,8 @@ static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
 static char **defaults_argv;
 
 static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
+
+static my_bool opt_write_binlog;
 
 #include <help_start.h>
 
@@ -119,11 +122,20 @@ static struct my_option my_long_options[]=
 #include <sslopt-longopts.h>
   {"tmpdir", 't', "Directory for temporary files",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"upgrade-system-tables", 's', "Only upgrade the system tables "
+   "do not try to upgrade the data.",
+   (uchar**)&opt_systables_only, (uchar**)&opt_systables_only, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
    (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"write-binlog", OPT_WRITE_BINLOG,
+   "All commands including mysqlcheck are binlogged. Enabled by default;"
+   "use --skip-write-binlog when commands should not be sent to replication slaves.",
+   (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -448,12 +460,30 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
   int ret;
   File fd;
   char query_file_path[FN_REFLEN];
+  const uchar sql_log_bin[]= "SET SQL_LOG_BIN=0;";
+
   DBUG_ENTER("run_query");
   DBUG_PRINT("enter", ("query: %s", query));
   if ((fd= create_temp_file(query_file_path, opt_tmpdir,
                             "sql", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");
+
+  /*
+    Master and slave should be upgraded separately. All statements executed
+    by mysql_upgrade will not be binlogged.
+    'SET SQL_LOG_BIN=0' is executed before any other statements.
+   */
+  if (!opt_write_binlog)
+  {
+    if (my_write(fd, sql_log_bin, sizeof(sql_log_bin)-1,
+                 MYF(MY_FNABP | MY_WME)))
+    {
+      my_close(fd, MYF(0));
+      my_delete(query_file_path, MYF(0));
+      die("Failed to write to '%s'", query_file_path);
+    }
+  }
 
   if (my_write(fd, (uchar*) query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
@@ -648,6 +678,7 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 
@@ -662,6 +693,7 @@ static int run_mysqlcheck_fixnames(void)
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 
@@ -787,7 +819,8 @@ int main(int argc, char **argv)
       init_dynamic_string(&conn_args, "", 512, 256))
     die("Out of memory");
 
-  load_defaults("my", load_default_groups, &argc, &argv);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    die(NULL);
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))
@@ -811,8 +844,15 @@ int main(int argc, char **argv)
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
 
-  /* Find mysqlcheck */
-  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+  if (!opt_systables_only)
+  {
+    /* Find mysqlcheck */
+    find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+  }
+  else
+  {
+    printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
+  }
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
@@ -829,8 +869,8 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if (run_mysqlcheck_fixnames() ||
-      run_mysqlcheck_upgrade() ||
+  if ((!opt_systables_only &&
+       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
       run_sql_fix_privilege_tables())
   {
     /*

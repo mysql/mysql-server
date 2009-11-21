@@ -177,7 +177,9 @@ row_update_prebuilt_trx(
 					in MySQL handle */
 	trx_t*		trx);		/*!< in: transaction handle */
 /*********************************************************************//**
-Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
 UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
@@ -754,8 +756,6 @@ struct row_prebuilt_struct {
 					store it here so that we can return
 					it to MySQL */
 	/*----------------------*/
-	UT_LIST_NODE_T(row_prebuilt_t)	prebuilts;
-					/*!< list node of table->prebuilts */
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 };
