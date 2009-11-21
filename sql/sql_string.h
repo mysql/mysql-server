@@ -1,3 +1,6 @@
+#ifndef SQL_STRING_INCLUDED
+#define SQL_STRING_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -17,10 +20,6 @@
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
-#endif
-
-#ifndef NOT_FIXED_DEC
-#define NOT_FIXED_DEC			31
 #endif
 
 class String;
@@ -119,6 +118,11 @@ public:
     else
       (void) realloc(str_length);
     return Ptr;
+  }
+  LEX_STRING lex_string() const
+  {
+    LEX_STRING lex_string = { (char*) ptr(), length() };
+    return lex_string;
   }
 
   void set(String &str,uint32 offset,uint32 arg_length)
@@ -389,3 +393,5 @@ static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str,
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
+
+#endif /* SQL_STRING_INCLUDED */

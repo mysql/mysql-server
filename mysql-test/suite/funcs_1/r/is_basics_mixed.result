@@ -73,13 +73,13 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 CREATE TABLE triggers                              ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT * FROM information_schema.tables;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW v1 AS SELECT 'garbage';
-ERROR 42S02: Unknown table 'v1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 USE test;
 CREATE TABLE information_schema. schemata                              ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -114,14 +114,14 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 CREATE TABLE information_schema. triggers                              ( c1 INT );
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema.t1 (f1 INT, f2 INT, f3 INT);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS
 SELECT * FROM information_schema.tables;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.v1 AS SELECT 'garbage';
-ERROR 42S02: Unknown table 'v1' in information_schema
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON *.* TO testuser1@localhost;
@@ -163,13 +163,13 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'informa
 CREATE TABLE triggers                              ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE t1 (f1 INT, f2 INT, f3 INT);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW tables AS SELECT * FROM information_schema.tables;
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW v1 AS SELECT 'garbage';
-ERROR 42S02: Unknown table 'v1' in information_schema
+ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 USE test;
 CREATE TABLE information_schema. schemata                              ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
@@ -204,14 +204,14 @@ ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'informa
 CREATE TABLE information_schema. triggers                              ( c1 INT );
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE TABLE information_schema.t1 (f1 INT, f2 INT, f3 INT);
-ERROR 42S02: Unknown table 't1' in information_schema
+ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS SELECT 'garbage';
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.tables AS
 SELECT * FROM information_schema.tables;
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 CREATE VIEW information_schema.v1 AS SELECT 'garbage';
-ERROR 42S02: Unknown table 'v1' in information_schema
+ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'information_schema'
 # Switch to connection default (user=root) and close connection testuser1
 DROP   USER 'testuser1'@'localhost';
 ###############################################################################
@@ -584,9 +584,7 @@ DROP PROCEDURE IF EXISTS test.p1;
 CREATE PROCEDURE test.p1()
 INSERT INTO information_schema.tables
 SELECT * FROM information_schema.tables LIMIT 1;
-CALL test.p1();
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-DROP PROCEDURE test.p1;
 CREATE PROCEDURE test.p1()
 UPDATE information_schema.columns SET table_schema = 'garbage';
 CALL test.p1();
@@ -594,9 +592,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 DROP PROCEDURE test.p1;
 CREATE PROCEDURE test.p1()
 DELETE FROM information_schema.schemata;
-CALL test.p1();
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-DROP PROCEDURE test.p1;
 #########################################################################
 # Testcase 3.2.17.1+3.2.17.2: To be implemented outside of this script
 #########################################################################

@@ -1,3 +1,6 @@
+#ifndef HA_NDBCLUSTER_COND_INCLUDED
+#define HA_NDBCLUSTER_COND_INCLUDED
+
 /* Copyright (C) 2000-2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -486,3 +489,5 @@ private:
 
   Ndb_cond_stack *m_cond_stack;
 };
+
+#endif /* HA_NDBCLUSTER_COND_INCLUDED */

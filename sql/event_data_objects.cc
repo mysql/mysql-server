@@ -196,7 +196,7 @@ Event_basic::Event_basic()
 {
   DBUG_ENTER("Event_basic::Event_basic");
   /* init memory root */
-  init_alloc_root(&mem_root, 256, 512);
+  init_sql_alloc(&mem_root, 256, 512);
   dbname.str= name.str= NULL;
   dbname.length= name.length= 0;
   time_zone= NULL;
@@ -1435,7 +1435,7 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
-    Parser_state parser_state(thd, thd->query, thd->query_length);
+    Parser_state parser_state(thd, thd->query(), thd->query_length());
     lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))

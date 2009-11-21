@@ -141,8 +141,9 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       default_charset_used= 0, opt_secure_auth= 0,
+	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
+               auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
                ignore_spaces= 0;
 static my_bool debug_info_flag, debug_check_flag;
@@ -155,7 +156,8 @@ static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
-            *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+            *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
+            *opt_init_command= 0;
 static char *histfile;
 static char *histfile_tmp;
 static String glob_buffer,old_buffer;
@@ -184,6 +186,7 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
+unsigned short terminal_width= 80;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -237,6 +240,8 @@ static const char* construct_prompt();
 static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
+static int get_result_width(MYSQL_RES *res);
+static int get_field_disp_length(MYSQL_FIELD * field);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -1064,6 +1069,10 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
 extern "C" sig_handler handle_sigint(int sig);
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+static sig_handler window_resize(int sig);
+#endif
+
 
 int main(int argc,char *argv[])
 {
@@ -1113,7 +1122,11 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+  {
+    my_end(0);
+    exit(1);
+  }
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
@@ -1143,8 +1156,8 @@ int main(int argc,char *argv[])
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
-    quick=1;					// Avoid history
-    status.exit_status=1;
+    quick= 1;					// Avoid history
+    status.exit_status= 1;
     mysql_end(-1);
   }
   if (!status.batch)
@@ -1155,6 +1168,13 @@ int main(int argc,char *argv[])
   else
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+  /* Readline will call this if it installs a handler */
+  signal(SIGWINCH, window_resize);
+  /* call the SIGWINCH handler to get the default term width */
+  window_resize(0);
+#endif
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
@@ -1280,21 +1300,35 @@ sig_handler handle_sigint(int sig)
   MYSQL *kill_mysql= NULL;
 
   /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || interrupted_query)
+  /* terminate if no query being executed, or we already tried interrupting */
+  if (!executing_query || (interrupted_query == 2))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
     goto err;
+  }
 
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
+  }
+
+  interrupted_query++;
+
+  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
+  if ((interrupted_query == 1) && (mysql_get_server_version(&mysql) < 50000))
+    interrupted_query= 2;
 
   /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  sprintf(kill_buffer, "KILL %s%lu",
+          (interrupted_query == 1) ? "QUERY " : "",
+          mysql_thread_id(&mysql));
+  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
-
-  interrupted_query= 1;
+  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
 
   return;
 
@@ -1314,6 +1348,16 @@ err:
 }
 
 
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+sig_handler window_resize(int sig)
+{
+  struct winsize window_size;
+
+  if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
+    terminal_width= window_size.ws_col;
+}
+#endif
+
 static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -1331,6 +1375,9 @@ static struct my_option my_long_options[] =
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
+    "Automatically switch to vertical output mode if the result is wider than the terminal width.",
+    (uchar**) &auto_vertical_output, (uchar**) &auto_vertical_output, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -1384,6 +1431,10 @@ static struct my_option my_long_options[] =
   {"ignore-spaces", 'i', "Ignore space after function names.",
    (uchar**) &ignore_spaces, (uchar**) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+  {"init-command", OPT_INIT_COMMAND,
+   "SQL Command to execute when connecting to MySQL server. Will automatically be re-executed when reconnecting.",
+   (uchar**) &opt_init_command, (uchar**) &opt_init_command, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
    (uchar**) &opt_local_infile,
    (uchar**) &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1575,9 +1626,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_CHARSETS_DIR:
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
     charsets_dir = mysql_charsets_dir;
-    break;
-  case  OPT_DEFAULT_CHARSET:
-    default_charset_used= 1;
     break;
   case OPT_DELIMITER:
     if (argument == disabled_my_option) 
@@ -1783,10 +1831,6 @@ static int get_options(int argc, char **argv)
     connect_flag= 0; /* Not in interactive mode */
   }
   
-  if (strcmp(default_charset, charset_info->csname) &&
-      !(charset_info= get_charset_by_csname(default_charset, 
-					    MY_CS_PRIMARY, MYF(MY_WME))))
-    exit(1);
   if (argc > 1)
   {
     usage(0);
@@ -2863,7 +2907,7 @@ com_help(String *buffer __attribute__((unused)),
            "For developer information, including the MySQL Reference Manual, "
            "visit:\n"
            "   http://dev.mysql.com/\n"
-           "To buy MySQL Network Support, training, or other products, visit:\n"
+           "To buy MySQL Enterprise support, training, or other products, visit:\n"
            "   https://shop.mysql.com/\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
@@ -2914,7 +2958,6 @@ com_charset(String *buffer __attribute__((unused)), char *line)
     charset_info= new_cs;
     mysql_set_character_set(&mysql, charset_info->csname);
     default_charset= (char *)charset_info->csname;
-    default_charset_used= 1;
     put_info("Charset changed", INFO_INFO);
   }
   else put_info("Charset is not found", INFO_INFO);
@@ -3041,7 +3084,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_table_data_html(result);
 	else if (opt_xml)
 	  print_table_data_xml(result);
-	else if (vertical)
+  else if (vertical || (auto_vertical_output && (terminal_width < get_result_width(result))))
 	  print_table_data_vertically(result);
 	else if (opt_silent && verbose <= 2 && !output_tables)
 	  print_tab_data(result);
@@ -3372,6 +3415,65 @@ print_table_data(MYSQL_RES *result)
   my_afree((uchar*) num_flag);
 }
 
+/**
+  Return the length of a field after it would be rendered into text.
+
+  This doesn't know or care about multibyte characters.  Assume we're
+  using such a charset.  We can't know that all of the upcoming rows 
+  for this column will have bytes that each render into some fraction
+  of a character.  It's at least possible that a row has bytes that 
+  all render into one character each, and so the maximum length is 
+  still the number of bytes.  (Assumption 1:  This can't be better 
+  because we can never know the number of characters that the DB is 
+  going to send -- only the number of bytes.  2: Chars <= Bytes.)
+
+  @param  field  Pointer to a field to be inspected
+
+  @returns  number of character positions to be used, at most
+*/
+static int get_field_disp_length(MYSQL_FIELD *field)
+{
+  uint length= column_names ? field->name_length : 0;
+
+  if (quick)
+    length= max(length, field->length);
+  else
+    length= max(length, field->max_length);
+
+  if (length < 4 && !IS_NOT_NULL(field->flags))
+    length= 4;				/* Room for "NULL" */
+
+  return length;
+}
+
+/**
+  For a new result, return the max number of characters that any
+  upcoming row may return.
+
+  @param  result  Pointer to the result to judge
+
+  @returns  The max number of characters in any row of this result
+*/
+static int get_result_width(MYSQL_RES *result)
+{
+  unsigned int len= 0;
+  MYSQL_FIELD *field;
+  MYSQL_FIELD_OFFSET offset;
+  
+#ifndef DBUG_OFF
+  offset= mysql_field_tell(result);
+  DBUG_ASSERT(offset == 0);
+#else
+  offset= 0;
+#endif
+
+  while ((field= mysql_fetch_field(result)) != NULL)
+    len+= get_field_disp_length(field) + 3; /* plus bar, space, & final space */
+
+  (void) mysql_field_seek(result, offset);	
+
+  return len + 1; /* plus final bar. */
+}
 
 static void
 tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
@@ -3561,7 +3663,7 @@ static void print_warnings()
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
   */
-  if (!cur || num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10))
+  if (!cur || (num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10)))
     goto end;
 
   /* Print the warnings */
@@ -4203,6 +4305,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_close(&mysql);
   }
   mysql_init(&mysql);
+  if (opt_init_command)
+    mysql_options(&mysql, MYSQL_INIT_COMMAND, opt_init_command);
   if (opt_connect_timeout)
   {
     uint timeout=opt_connect_timeout;
@@ -4236,8 +4340,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
-  if (default_charset_used)
-    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_STATEMENTS))
@@ -4252,6 +4357,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
     return -1;					// Retryable
   }
+  
+  charset_info= mysql.charset;
+  
   connected=1;
 #ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens

@@ -1,3 +1,4 @@
+--source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
@@ -20,6 +21,12 @@ CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+# a couple of tests for variables
+set global example_ulong_var=500;
+set global example_enum_var= e1;
+show status like 'example%';
+show variables like 'example%';
 
 UNINSTALL PLUGIN example;
 --error 1305

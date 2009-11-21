@@ -85,6 +85,7 @@ const char *client_errors[]=
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
   "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
+  "This handle is already connected. Use a separate handle for each connection."
   ""
 };
 
@@ -151,6 +152,7 @@ const char *client_errors[]=
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
   "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
+  "This handle is already connected. Use a separate handle for each connection."
   ""
 };
 
@@ -215,10 +217,15 @@ const char *client_errors[]=
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
   "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
+  "This handle is already connected. Use a separate handle for each connection."
   ""
 };
 #endif
 
+const char** get_client_errmsgs()
+{
+  return client_errors;
+}
 
 /*
   Register client error messages for use with my_error().
@@ -232,7 +239,7 @@ const char *client_errors[]=
 
 void init_client_errs(void)
 {
-  (void) my_error_register(client_errors, CR_ERROR_FIRST, CR_ERROR_LAST);
+  (void) my_error_register(get_client_errmsgs, CR_ERROR_FIRST, CR_ERROR_LAST);
 }
 
 

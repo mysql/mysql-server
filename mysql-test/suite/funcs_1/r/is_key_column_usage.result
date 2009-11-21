@@ -28,10 +28,10 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_CATALOG	varchar(512)	NO			
 CONSTRAINT_SCHEMA	varchar(64)	NO			
 CONSTRAINT_NAME	varchar(64)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -43,10 +43,10 @@ REFERENCED_COLUMN_NAME	varchar(64)	YES		NULL
 SHOW CREATE TABLE information_schema.KEY_COLUMN_USAGE;
 Table	Create Table
 KEY_COLUMN_USAGE	CREATE TEMPORARY TABLE `KEY_COLUMN_USAGE` (
-  `CONSTRAINT_CATALOG` varchar(512) DEFAULT NULL,
+  `CONSTRAINT_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `CONSTRAINT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `CONSTRAINT_NAME` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
   `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
@@ -58,10 +58,10 @@ KEY_COLUMN_USAGE	CREATE TEMPORARY TABLE `KEY_COLUMN_USAGE` (
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
-CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_CATALOG	varchar(512)	NO			
 CONSTRAINT_SCHEMA	varchar(64)	NO			
 CONSTRAINT_NAME	varchar(64)	NO			
-TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
@@ -75,6 +75,51 @@ table_schema, table_name, column_name
 FROM information_schema.key_column_usage
 WHERE constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL;
 constraint_catalog	constraint_schema	constraint_name	table_catalog	table_schema	table_name	column_name
+def	mysql	PRIMARY	def	mysql	columns_priv	Host
+def	mysql	PRIMARY	def	mysql	columns_priv	Db
+def	mysql	PRIMARY	def	mysql	columns_priv	User
+def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
+def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
+def	mysql	PRIMARY	def	mysql	db	Host
+def	mysql	PRIMARY	def	mysql	db	Db
+def	mysql	PRIMARY	def	mysql	db	User
+def	mysql	PRIMARY	def	mysql	event	db
+def	mysql	PRIMARY	def	mysql	event	name
+def	mysql	PRIMARY	def	mysql	func	name
+def	mysql	PRIMARY	def	mysql	help_category	help_category_id
+def	mysql	name	def	mysql	help_category	name
+def	mysql	PRIMARY	def	mysql	help_keyword	help_keyword_id
+def	mysql	name	def	mysql	help_keyword	name
+def	mysql	PRIMARY	def	mysql	help_relation	help_keyword_id
+def	mysql	PRIMARY	def	mysql	help_relation	help_topic_id
+def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
+def	mysql	name	def	mysql	help_topic	name
+def	mysql	PRIMARY	def	mysql	host	Host
+def	mysql	PRIMARY	def	mysql	host	Db
+def	mysql	PRIMARY	def	mysql	ndb_binlog_index	epoch
+def	mysql	PRIMARY	def	mysql	plugin	name
+def	mysql	PRIMARY	def	mysql	proc	db
+def	mysql	PRIMARY	def	mysql	proc	name
+def	mysql	PRIMARY	def	mysql	proc	type
+def	mysql	PRIMARY	def	mysql	procs_priv	Host
+def	mysql	PRIMARY	def	mysql	procs_priv	Db
+def	mysql	PRIMARY	def	mysql	procs_priv	User
+def	mysql	PRIMARY	def	mysql	procs_priv	Routine_name
+def	mysql	PRIMARY	def	mysql	procs_priv	Routine_type
+def	mysql	PRIMARY	def	mysql	servers	Server_name
+def	mysql	PRIMARY	def	mysql	tables_priv	Host
+def	mysql	PRIMARY	def	mysql	tables_priv	Db
+def	mysql	PRIMARY	def	mysql	tables_priv	User
+def	mysql	PRIMARY	def	mysql	tables_priv	Table_name
+def	mysql	PRIMARY	def	mysql	time_zone	Time_zone_id
+def	mysql	PRIMARY	def	mysql	time_zone_leap_second	Transition_time
+def	mysql	PRIMARY	def	mysql	time_zone_name	Name
+def	mysql	PRIMARY	def	mysql	time_zone_transition	Time_zone_id
+def	mysql	PRIMARY	def	mysql	time_zone_transition	Transition_time
+def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Time_zone_id
+def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Transition_type_id
+def	mysql	PRIMARY	def	mysql	user	Host
+def	mysql	PRIMARY	def	mysql	user	User
 ########################################################################################
 # Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.KEY_COLUMN_USAGE accessible information
 ########################################################################################
@@ -100,22 +145,22 @@ WHERE table_name LIKE 't1_%'
 ORDER BY constraint_catalog, constraint_schema, constraint_name,
 table_catalog, table_schema, table_name, ordinal_position;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	db_datadict	PRIMARY	NULL	db_datadict	t1_1	f1	1	NULL	NULL	NULL	NULL
-NULL	db_datadict	PRIMARY	NULL	db_datadict	t1_2	f1	1	NULL	NULL	NULL	NULL
+def	db_datadict	PRIMARY	def	db_datadict	t1_1	f1	1	NULL	NULL	NULL	NULL
+def	db_datadict	PRIMARY	def	db_datadict	t1_2	f1	1	NULL	NULL	NULL	NULL
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.key_column_usage
 WHERE table_name LIKE 't1_%'
 ORDER BY constraint_catalog, constraint_schema, constraint_name,
 table_catalog, table_schema, table_name, ordinal_position;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	db_datadict	PRIMARY	NULL	db_datadict	t1_1	f1	1	NULL	NULL	NULL	NULL
+def	db_datadict	PRIMARY	def	db_datadict	t1_1	f1	1	NULL	NULL	NULL	NULL
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.key_column_usage
 WHERE table_name LIKE 't1_%'
 ORDER BY constraint_catalog, constraint_schema, constraint_name,
 table_catalog, table_schema, table_name, ordinal_position;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	db_datadict	PRIMARY	NULL	db_datadict	t1_2	f1	1	NULL	NULL	NULL	NULL
+def	db_datadict	PRIMARY	def	db_datadict	t1_2	f1	1	NULL	NULL	NULL	NULL
 # Switch to connection default and close connections testuser1, testuser2
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';
@@ -137,10 +182,10 @@ DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 ENGINE = <engine_type>;
 SELECT * FROM information_schema.key_column_usage
 WHERE table_name = 't1_my_table';
-CONSTRAINT_CATALOG	NULL
+CONSTRAINT_CATALOG	def
 CONSTRAINT_SCHEMA	test
 CONSTRAINT_NAME	PRIMARY
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_table
 COLUMN_NAME	f1
@@ -149,10 +194,10 @@ POSITION_IN_UNIQUE_CONSTRAINT	NULL
 REFERENCED_TABLE_SCHEMA	NULL
 REFERENCED_TABLE_NAME	NULL
 REFERENCED_COLUMN_NAME	NULL
-CONSTRAINT_CATALOG	NULL
+CONSTRAINT_CATALOG	def
 CONSTRAINT_SCHEMA	test
 CONSTRAINT_NAME	PRIMARY
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	t1_my_table
 COLUMN_NAME	f2

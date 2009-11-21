@@ -128,7 +128,7 @@ static struct my_option my_long_options[] =
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
-   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Enabled by default; use --skip-write-binlog when commands should not be sent to replication slaves.",
+   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Use --skip-write-binlog when commands should not be sent to replication slaves.",
    (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
@@ -344,9 +344,8 @@ static int get_options(int *argc, char ***argv)
     exit(0);
   }
 
-  load_defaults("my", load_default_groups, argc, argv);
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
+      (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   if (!what_to_do)
@@ -369,12 +368,15 @@ static int get_options(int *argc, char ***argv)
     If there's no --default-character-set option given with
     --fix-table-name or --fix-db-name set the default character set to "utf8".
   */
-  if (!default_charset && (opt_fix_db_names || opt_fix_table_names))
+  if (!default_charset)
   {
-    default_charset= (char*) "utf8";
+    if (opt_fix_db_names || opt_fix_table_names)
+      default_charset= (char*) "utf8";
+    else
+      default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
   }
-  if (default_charset && !get_charset_by_csname(default_charset, MY_CS_PRIMARY,
-                                                MYF(MY_WME)))
+  if (strcmp(default_charset, MYSQL_AUTODETECT_CHARSET_NAME) &&
+      !get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME)))
   {
     printf("Unsupported character set: %s\n", default_charset);
     return 1;
@@ -652,6 +654,17 @@ static int use_db(char *database)
   return 0;
 } /* use_db */
 
+static int disable_binlog()
+{
+  const char *stmt= "SET SQL_LOG_BIN=0";
+  if (mysql_query(sock, stmt))
+  {
+    fprintf(stderr, "Failed to %s\n", stmt);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    return 1;
+  }
+  return 0;
+}
 
 static int handle_request_for_tables(char *tables, uint length)
 {
@@ -787,8 +800,7 @@ static int dbConnect(char *host, char *user, char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (default_charset)
-    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
@@ -843,6 +855,14 @@ int main(int argc, char **argv)
   }
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
+
+  if (!opt_write_binlog)
+  {
+    if (disable_binlog()) {
+      first_error= 1;
+      goto end;
+    }
+  }
 
   if (opt_auto_repair &&
       my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))

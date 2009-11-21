@@ -27,4 +27,35 @@ SELECT 1;
 1
 1
 DROP TABLE t1,t2,t3;
+#
+# Bug #47106: Crash / segfault on adding EXPLAIN to a non-crashing 
+# query
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY (a),
+KEY b (b)
+);
+INSERT INTO t1 VALUES (1, 1), (2, 1);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * FROM t1;
+# Should not crash.
+# Should have 1 impossible where and 2 dependent subqs.
+EXPLAIN
+SELECT
+(SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
+FROM t3 WHERE 1 = 0 GROUP BY 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+2	DEPENDENT SUBQUERY	t2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer
+# should return 0 rows
+SELECT
+(SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
+FROM t3 WHERE 1 = 0 GROUP BY 1;
+(SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
+DROP TABLE t1,t2,t3;
 End of 5.0 tests.

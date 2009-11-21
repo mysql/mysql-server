@@ -362,7 +362,7 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data, void *param)
 
 
 static inline my_bool
-have_old_read_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner)
+has_old_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner)
 {
   for ( ; data ; data=data->next)
   {
@@ -397,6 +397,28 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   my_bool can_deadlock= test(data->owner->info->n_cursors);
   DBUG_ENTER("wait_for_lock");
+
+  /*
+    One can use this to signal when a thread is going to wait for a lock.
+    See debug_sync.cc.
+
+    Beware of waiting for a signal here. The lock has aquired its mutex.
+    While waiting on a signal here, the locking thread could not aquire
+    the mutex to release the lock. One could lock up the table
+    completely.
+
+    In detail it works so: When thr_lock() tries to acquire a table
+    lock, it locks the lock->mutex, checks if it can have the lock, and
+    if not, it calls wait_for_lock(). Here it unlocks the table lock
+    while waiting on a condition. The sync point is located before this
+    wait for condition. If we have a waiting action here, we hold the
+    the table locks mutex all the time. Any attempt to look at the table
+    lock by another thread blocks it immediately on lock->mutex. This
+    can easily become an unexpected and unobvious blockage. So be
+    warned: Do not request a WAIT_FOR action for the 'wait_for_lock'
+    sync point unless you really know what you do.
+  */
+  DEBUG_SYNC_C("wait_for_lock");
 
   if (!in_wait_list)
   {
@@ -550,7 +572,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     else if (!lock->write_wait.data ||
 	     lock->write_wait.data->type <= TL_WRITE_LOW_PRIORITY ||
 	     lock_type == TL_READ_HIGH_PRIORITY ||
-	     have_old_read_lock(lock->read.data, data->owner))
+	     has_old_lock(lock->read.data, data->owner)) /* Has old read lock */
     {						/* No important write-locks */
       (*lock->read.last)=data;			/* Add to running FIFO */
       data->prev=lock->read.last;
@@ -620,14 +642,36 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
       }
 
       /*
-	The following test will not work if the old lock was a
-	TL_WRITE_ALLOW_WRITE, TL_WRITE_ALLOW_READ or TL_WRITE_DELAYED in
-	the same thread, but this will never happen within MySQL.
+        The idea is to allow us to get a lock at once if we already have
+        a write lock or if there is no pending write locks and if all
+        write locks are of TL_WRITE_ALLOW_WRITE type.
+
+        Note that, since lock requests for the same table are sorted in
+        such way that requests with higher thr_lock_type value come first,
+        lock being requested usually has equal or "weaker" type than one
+        which thread might have already acquired.
+        The exceptions are situations when:
+          - old lock type is TL_WRITE_ALLOW_READ and new lock type is
+            TL_WRITE_ALLOW_WRITE
+          - when old lock type is TL_WRITE_DELAYED
+        But these should never happen within MySQL.
+        Therefore it is OK to allow acquiring write lock on the table if
+        this thread already holds some write lock on it.
+
+        (INSERT INTO t1 VALUES (f1()), where f1() is stored function which
+        tries to update t1, is an example of statement which requests two
+        different types of write lock on the same table).
       */
-      if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
-	  (lock_type == TL_WRITE_ALLOW_WRITE &&
-	   !lock->write_wait.data &&
-	   lock->write.data->type == TL_WRITE_ALLOW_WRITE))
+      DBUG_ASSERT(! has_old_lock(lock->write.data, data->owner) ||
+                  (lock_type <= lock->write.data->type &&
+                   ! ((lock_type < TL_WRITE_ALLOW_READ &&
+                       lock->write.data->type == TL_WRITE_ALLOW_READ) ||
+                     lock->write.data->type == TL_WRITE_DELAYED)));
+
+      if ((lock_type == TL_WRITE_ALLOW_WRITE &&
+           ! lock->write_wait.data &&
+           lock->write.data->type == TL_WRITE_ALLOW_WRITE) ||
+          has_old_lock(lock->write.data, data->owner))
       {
 	/*
           We have already got a write lock or all locks are
@@ -976,6 +1020,7 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
       thr_multi_unlock(data,(uint) (pos-data));
       DBUG_RETURN(result);
     }
+    DEBUG_SYNC_C("thr_multi_lock_after_thr_lock");
 #ifdef MAIN
     printf("Thread: %s  Got lock: 0x%lx  type: %d\n",my_thread_name(),
 	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
