@@ -82,7 +82,14 @@ MACRO (FIND_CURSES)
  INCLUDE (FindCurses)
  MARK_AS_ADVANCED(CURSES_CURSES_H_PATH CURSES_FORM_LIBRARY CURSES_HAVE_CURSES_H)
  IF(NOT CURSES_FOUND)
-   MESSAGE(FATAL_ERROR "curses library not found")
+   SET(ERRORMSG "Curses library not found. Please install appropriate package,
+    remove CMakeCache.txt and rerun cmake.")
+   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    SET(ERRORMSG ${ERRORMSG} 
+    "On Debian/Ubuntu, package name is libncurses5-dev, on Redhat and derivates " 
+    "it is ncurses-devel.")
+   ENDIF()
+   MESSAGE(FATAL_ERROR ${ERRORMSG})
  ENDIF()
 
  IF(CURSES_HAVE_CURSES_H)

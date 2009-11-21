@@ -37,13 +37,13 @@ MACRO (RUN_BISON input_yy output_cc output_h)
   IF(BISON_TOO_OLD)
     IF(EXISTS ${output_cc} AND EXISTS ${output_h})
       SET(BISON_USABLE FALSE)
-  ENDIF()
+    ENDIF()
   ENDIF()
   IF(BISON_USABLE)
     ADD_CUSTOM_COMMAND(
       OUTPUT ${output_cc}
              ${output_h}
-      COMMAND bison  -y -p MYSQL 
+      COMMAND ${BISON_EXECUTABLE}  -y -p MYSQL 
        --output=${output_cc}
        --defines=${output_h}
         ${input_yy}
@@ -58,7 +58,17 @@ MACRO (RUN_BISON input_yy output_cc output_h)
       ENDIF()
     ELSE()
       # Output files are missing, bail out.
-      MESSAGE(FATAL_ERROR "Please install bison.")
+      SET(ERRMSG 
+         "Bison (GNU parser generator) is required to build MySQL." 
+         "Please install bison."
+      )
+      IF(WIN32)
+       SET(ERRMSG ${ERRMSG} 
+       "You can download bison from http://gnuwin32.sourceforge.net/packages/bison.htm "
+       "Choose 'Complete package, except sources' installation. We recommend to "
+       "install bison into a directory without spaces, e.g C:\\GnuWin32.")
+      ENDIF()
+      MESSAGE(FATAL_ERROR ${ERRMSG})
     ENDIF()
   ENDIF()
 ENDMACRO()
