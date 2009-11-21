@@ -1922,20 +1922,17 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     if (! (di= find_handler(thd, table_list)))
     {
       if (!(di= new Delayed_insert()))
-      {
-        thd->fatal_error();
         goto end_create;
-      }
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
-      di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
+      di->thd.set_query(my_strdup(table_list->table_name,
+                                  MYF(MY_WME | ME_FATALERROR)), 0);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
-        thd->fatal_error();
         goto end_create;
       }
       di->table_list= *table_list;			// Needed to open table
@@ -1953,8 +1950,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 	pthread_mutex_unlock(&di->mutex);
 	di->unlock();
 	delete di;
-	my_error(ER_CANT_CREATE_THREAD, MYF(0), error);
-        thd->fatal_error();
+	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
         goto end_create;
       }
 
@@ -2308,12 +2304,6 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
     goto err;
   }
 
-  /*
-    Open table requires an initialized lex in case the table is
-    partitioned. The .frm file contains a partial SQL string which is
-    parsed using a lex, that depends on initialized thd->lex.
-  */
-  lex_start(thd);
   thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
   /*
     Statement-based replication of INSERT DELAYED has problems with RAND()
@@ -2331,8 +2321,8 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
   }
   if (!(di->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
   {
-    thd->fatal_error();
-    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), di->table_list.table_name);
+    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
+             di->table_list.table_name);
     goto err;
   }
   if (di->table->triggers)

@@ -259,8 +259,8 @@ ERROR 42S02: Unknown table 't2' in MULTI DELETE
 DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
 DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-ERROR 42S02: Unknown table 'alias' in MULTI DELETE
 DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
+ERROR 42S02: Unknown table 'alias' in MULTI DELETE
 DELETE FROM t1 USING t1 WHERE a = 1;
 SELECT * FROM t1;
 a
@@ -279,6 +279,147 @@ ERROR 42000: Incorrect number of arguments for FUNCTION test.f1; expected 0, got
 DROP TABLE t1;
 DROP FUNCTION f1;
 End of 5.0 tests
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+DROP DATABASE IF EXISTS db3;
+DROP DATABASE IF EXISTS db4;
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS count;
+USE test;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 (a INT, b INT);
+INSERT INTO db1.t1 VALUES (1,1),(2,2),(3,3);
+CREATE TABLE db1.t2 AS SELECT * FROM db1.t1;
+CREATE TABLE db2.t1 AS SELECT * FROM db1.t2;
+CREATE TABLE db2.t2 AS SELECT * FROM db2.t1;
+CREATE TABLE t1 AS SELECT * FROM db2.t2;
+CREATE TABLE t2 AS SELECT * FROM t1;
+CREATE PROCEDURE count_rows()
+BEGIN
+SELECT COUNT(*) AS "COUNT(db1.t1)" FROM db1.t1;
+SELECT COUNT(*) AS "COUNT(db1.t2)" FROM db1.t2;
+SELECT COUNT(*) AS "COUNT(db2.t1)" FROM db2.t1;
+SELECT COUNT(*) AS "COUNT(db2.t2)" FROM db2.t2;
+SELECT COUNT(*) AS "COUNT(test.t1)" FROM test.t1;
+SELECT COUNT(*) AS "COUNT(test.t2)" FROM test.t2;
+END|
+CREATE DATABASE db3;
+USE db3;
+DROP DATABASE db3;
+SELECT * FROM t1;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db1.t1, db2.t2;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db1.t1, db2.t2;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+ERROR 3D000: No database selected
+DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
+ERROR 3D000: No database selected
+DELETE a1 FROM db1.a1, db2.t2 AS a1;
+ERROR 3D000: No database selected
+DELETE a1 FROM a1, db1.t1 AS a1;
+ERROR 3D000: No database selected
+DELETE t1 FROM db1.t1, db2.t1 AS a1;
+ERROR 3D000: No database selected
+DELETE t1 FROM db1.t1 AS a1, db2.t1 AS a2;
+ERROR 3D000: No database selected
+DELETE t1 FROM db1.t1, db2.t1;
+ERROR 3D000: No database selected
+USE test;
+DELETE a1,a2 FROM db1.t1, db2.t2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE a1,a2 FROM db1.t1, db2.t2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
+ERROR 42S02: Unknown table 'a2' in MULTI DELETE
+DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+ERROR 42S02: Table 'db3.t1' doesn't exist
+DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
+ERROR 42S02: Table 'db3.t1' doesn't exist
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE FROM a1,a2 USING db1.t1, db2.t2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
+ERROR 42S02: Unknown table 'a2' in MULTI DELETE
+DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
+ERROR 42S02: Unknown table 'a1' in MULTI DELETE
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+ERROR 42S02: Table 'db3.t1' doesn't exist
+DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
+ERROR 42S02: Table 'db3.t1' doesn't exist
+DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
+ERROR 42000: Not unique table/alias: 'a1'
+DELETE a1 FROM db1.a1, db2.t2 AS a1;
+ERROR 42S02: Table 'db1.a1' doesn't exist
+DELETE a1 FROM a1, db1.t1 AS a1;
+ERROR 42000: Not unique table/alias: 'a1'
+DELETE t1 FROM db1.t1, db2.t1 AS a1;
+ERROR 42S02: Unknown table 't1' in MULTI DELETE
+DELETE t1 FROM db1.t1 AS a1, db2.t1 AS a2;
+ERROR 42S02: Unknown table 't1' in MULTI DELETE
+DELETE t1 FROM db1.t1, db2.t1;
+ERROR 42S02: Unknown table 't1' in MULTI DELETE
+DELETE t1 FROM db1.t2 AS t1, db2.t2 AS t2 WHERE t2.a = 1 AND t1.a = t2.a;
+SELECT ROW_COUNT();
+ROW_COUNT()
+1
+CALL count_rows();
+COUNT(db1.t1)
+3
+COUNT(db1.t2)
+2
+COUNT(db2.t1)
+3
+COUNT(db2.t2)
+3
+COUNT(test.t1)
+3
+COUNT(test.t2)
+3
+DELETE a1, a2 FROM db2.t1 AS a1, t2 AS a2 WHERE a1.a = 2 AND a2.a = 2;
+SELECT ROW_COUNT();
+ROW_COUNT()
+2
+CALL count_rows();
+COUNT(db1.t1)
+3
+COUNT(db1.t2)
+2
+COUNT(db2.t1)
+2
+COUNT(db2.t2)
+3
+COUNT(test.t1)
+3
+COUNT(test.t2)
+2
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP PROCEDURE count_rows;
+DROP TABLE t1, t2;
 #
 # Bug#46958: Assertion in Diagnostics_area::set_ok_status, trigger, 
 # merge table

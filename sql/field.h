@@ -25,7 +25,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define NOT_FIXED_DEC			31
 #define DATETIME_DEC                     6
 const uint32 max_field_size= (uint32) 4294967295U;
 
@@ -410,32 +409,11 @@ public:
     DBUG_RETURN(result);
   }
 
-  virtual uchar *pack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-					uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual const uchar *unpack_key(uchar* to, const uchar *from,
-                                  uint max_length, bool low_byte_first)
-  {
-    return unpack(to, from, max_length, low_byte_first);
-  }
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
   virtual uint max_packed_col_length(uint max_length)
   { return max_length;}
 
-  virtual int pack_cmp(const uchar *a,const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(a,b); }
-  virtual int pack_cmp(const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(ptr,b); }
   uint offset(uchar *record)
   {
     return (uint) (ptr - record);
@@ -1503,9 +1481,6 @@ public:
   int compatible_field_size(uint field_metadata,
                             const Relay_log_info *rli);
   uint row_pack_length() { return (field_length + 1); }
-  int pack_cmp(const uchar *a,const uchar *b,uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -1579,16 +1554,8 @@ public:
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from, uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
@@ -1764,17 +1731,8 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from,
-                  uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
