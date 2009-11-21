@@ -31,9 +31,8 @@
 #include "sp_head.h"
 #include "sp.h"
 
-time_t mysql_db_table_last_check= 0L;
-
-TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
+static const
+TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
     { C_STRING_WITH_LEN("Host") },            
     { C_STRING_WITH_LEN("char(60)") },
@@ -146,6 +145,8 @@ TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+const TABLE_FIELD_DEF
+  mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
