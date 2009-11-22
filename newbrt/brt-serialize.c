@@ -1662,28 +1662,6 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
     }
 }
 
-static int
-read_int (int fd, toku_off_t *at, u_int32_t *result) {
-    int v;
-    ssize_t r = pread(fd, &v, 4, *at);
-    if (r<0) return errno;
-    assert(r==4);
-    *result = toku_dtoh32(v);
-    (*at) += 4;
-    return 0;
-}
-
-static int read_u_int64_t UU((int fd, toku_off_t *at, u_int64_t *result));
-static int
-read_u_int64_t (int fd, toku_off_t *at, u_int64_t *result) {
-    u_int32_t v1=0,v2=0;
-    int r;
-    if ((r = read_int(fd, at, &v1))) return r;
-    if ((r = read_int(fd, at, &v2))) return r;
-    *result = (((u_int64_t)v1)<<32) + v2;
-    return 0;
-}
-
 int toku_db_badformat(void) {
     return DB_BADFORMAT;
 }
