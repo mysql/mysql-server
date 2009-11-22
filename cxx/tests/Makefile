@@ -57,6 +57,18 @@ $(DBCXX):
 
 clean:
 	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db dir.test.db.assoc3 test_reverse_compare_fun.cpp.dir *.tdb.clean *.tdb.dirty
+	rm -rf \
+		cdd_tdb_0_b.tokudb                                                 \
+		check_db_create_DSM_tdb_main_0_b.tokudb                            \
+		tokudb.environment                                                 \
+		test_error_stream_cpp_tdb_0_b.tokudb                               \
+		test_reverse_compare_fun_cpp_dir_reverse_compare_db_main_0_b.tokudb\
+		permissions_tdb_0_b.tokudb                                         \
+		test_cursor_count_cpp_tdb_0_b.tokudb                               \
+		check_db_create_tdb_main_0_b.tokudb                                \
+		tokudb.directory                                                   \
+#this line left blank
+
 
 check_test1: test1
 	$(VGRIND) ./$< $(SUMMARIZE_CMD)
