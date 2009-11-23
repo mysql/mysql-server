@@ -124,42 +124,23 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
 	memset(wbuf, 0, N);
 	toku_off_t start_write = alignup(file_size, 4096);
 	assert(start_write >= file_size);
-	ssize_t r = toku_os_pwrite(fd, wbuf, N, start_write);
-	if (r==-1) {
-	    int e=errno; // must save errno before calling toku_free.
-	    toku_free(wbuf);
-	    return e;
-	}
+	toku_os_full_pwrite(fd, wbuf, N, start_write);
 	toku_free(wbuf);
-	assert(r==N);  // We don't handle short writes properly, which is the case where 0<= r < N.
     }
     return 0;
 }
 
-static int
-toku_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offset, ssize_t *num_wrote)
+static void
+toku_full_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offset)
 // requires that the pwrite has been locked
-// Returns 0 on success (and fills in *num_wrote for how many bytes are written)
-// Returns nonzero error number problems.
+// On failure, this does not return (an assertion fails or something).
 {
     assert(pwrite_is_locked);
     {
 	int r = maybe_preallocate_in_file(fd, offset+count);
-	if (r!=0) {
-	    *num_wrote = 0;
-	    return r;
-	}
+	assert(r==0);
     }
-    {
-	*num_wrote = toku_os_pwrite(fd, buf, count, offset);
-	if (*num_wrote < 0) {
-	    int r = errno;
-	    *num_wrote = 0;
-	    return r;
-	} else {
-	    return 0;
-	}
-    }
+    toku_os_full_pwrite(fd, buf, count, offset);
 }
 
 // Don't include the compression header
@@ -532,7 +513,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     }
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
-    int r;
     {
 	// If the node has never been written, then write the whole buffer, including the zeros
 	assert(blocknum.b>=0);
@@ -546,14 +526,8 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
         //h will be dirtied
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
                                       h, for_checkpoint);
-	ssize_t n_wrote;
 	lock_for_pwrite();
-	r=toku_pwrite_extend(fd, compressed_buf, n_to_write, offset, &n_wrote);
-	if (r) {
-	    // fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
-	} else {
-	    r=0;
-	}
+	toku_full_pwrite_extend(fd, compressed_buf, n_to_write, offset);
 	unlock_for_pwrite();
     }
 
@@ -562,7 +536,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     toku_free(buf);
     toku_free(compressed_buf);
     node->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
-    return r;
+    return 0;
 }
 
 #define DO_DECOMPRESS_WORKER 1
@@ -1223,44 +1197,20 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	assert(w_main.ndone==size_main);
     }
     toku_brtheader_unlock(h);
-    char *writing_what;
     lock_for_pwrite();
     {
         //Actual Write translation table
-	ssize_t nwrote;
-	rr = toku_pwrite_extend(fd, w_translation.buf,
-                                size_translation, address_translation, &nwrote);
-	if (rr) {
-            writing_what = "translation";
-            goto panic;
-	}
-	assert(nwrote==size_translation);
+	toku_full_pwrite_extend(fd, w_translation.buf,
+				size_translation, address_translation);
     }
     {
-        //Actual Write main header
-	ssize_t nwrote;
         //Alternate writing header to two locations:
         //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
         toku_off_t main_offset;
         //TODO: #1623 uncomment next line when ready for 2 headers
         main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
-	rr = toku_pwrite_extend(fd, w_main.buf, w_main.ndone, main_offset, &nwrote);
-	if (rr) {
-            writing_what = "header";
-            panic:
-	    if (h->panic==0) {
-		char *e = strerror(rr);
-		int l = 200 + strlen(e);
-		char s[l];
-		h->panic=rr;
-		snprintf(s, l-1, "%s:%d: Error writing %s to data file.  errno=%d (%s)\n", __FILE__, __LINE__, writing_what, rr, e);
-		h->panic_string = toku_strdup(s);
-	    }
-	    goto finish;
-	}
-	assert((u_int64_t)nwrote==size_main);
+	toku_full_pwrite_extend(fd, w_main.buf, w_main.ndone, main_offset);
     }
- finish:
     toku_free(w_main.buf);
     toku_free(w_translation.buf);
     unlock_for_pwrite();
@@ -1288,7 +1238,7 @@ serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc) 
 //Descriptors are NOT written during the header checkpoint process.
 int
 toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOFF offset) {
-    int r;
+    int r = 0;
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
     struct wbuf w;
@@ -1303,10 +1253,8 @@ toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOF
     {
         lock_for_pwrite();
         //Actual Write translation table
-	ssize_t nwrote;
-	r = toku_pwrite_extend(fd, w.buf, size, offset, &nwrote);
+	toku_full_pwrite_extend(fd, w.buf, size, offset);
         unlock_for_pwrite();
-        if (r==0) assert(nwrote==size);
     }
     toku_free(w.buf);
     return r;

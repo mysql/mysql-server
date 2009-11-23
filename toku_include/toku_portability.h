@@ -119,8 +119,9 @@ void *realloc(void*, size_t)            __attribute__((__deprecated__));
 void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
-ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off);
-ssize_t toku_os_write (int fd, const void *buf, size_t len);
+// full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
+void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off);
+void toku_os_full_write (int fd, const void *buf, size_t len);
 
 // wrapper around fsync
 int toku_file_fsync(int fd);

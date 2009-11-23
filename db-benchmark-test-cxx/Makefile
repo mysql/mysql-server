@@ -50,10 +50,10 @@ build: $(TARGETS)
 check: check-default
 
 check-default: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB) -x  $(QUIET) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) -x  $(QUIET) $(SUMMARIZE_CMD)
 
 clean:
 	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
