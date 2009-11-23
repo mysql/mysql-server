@@ -126,13 +126,9 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "binlog,federated,main,maria,rpl,innodb,parts";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,innodb,maria,parts";
+my $opt_suites;
 
-our $opt_usage;
-our $opt_list_options;
-our $opt_suites;
-our $opt_suites_default= "main,backup,backup_engines,binlog,rpl,parts"; # Default suites to run
-our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
 our $exe_mysqladmin;
@@ -205,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=     15; # 15 minutes
-my $opt_suite_timeout   =    360; # 6 hours
-my $opt_shutdown_timeout=     10; # 10 seconds
-my $opt_start_timeout   =    180; # 180 seconds
+my $opt_testcase_timeout=    15; # minutes
+my $opt_suite_timeout   =   300; # minutes
+my $opt_shutdown_timeout=    10; # seconds
+my $opt_start_timeout   =   180; # seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -227,7 +223,7 @@ my $opt_strace_client;
 our $opt_user = "root";
 
 my $opt_valgrind= 0;
-our $opt_valgrind_mysqld= 0;
+my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
@@ -293,11 +289,6 @@ sub main {
        "mysql-5.1-telco-6.2-merge"      => "ndb_team",
        "mysql-5.1-telco-6.3"            => "ndb_team",
        "mysql-6.0-ndb"                  => "ndb_team",
-       "mysql-6.0-falcon"               => "falcon_team",
-       "mysql-6.0-falcon-team"          => "falcon_team",
-       "mysql-6.0-falcon-wlad"          => "falcon_team",
-       "mysql-6.0-falcon-chris"         => "falcon_team",
-       "mysql-6.0-falcon-kevin"         => "falcon_team",
       );
 
     foreach my $dir ( reverse splitdir($basedir) ) {
@@ -1327,8 +1318,6 @@ sub command_line_setup {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
-    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
-    $opt_suite_timeout= $opt_testcase_timeout;
     $opt_retry= 1;
     $opt_retry_failure= 1;
 
@@ -2161,6 +2150,7 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
+
 }
 
 
@@ -2917,8 +2907,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mariadb",
-			      "share/mysql", "share", "scripts"],
+			     ["mysql", "sql/share", "share/mysql",
+			      "share/mariadb", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
@@ -3870,7 +3860,66 @@ sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
-  # belonging to current test into @lines
+  # belonging to current tets into @lines
+  my $Ferr = IO::File->new($error_log)
+    or mtr_error("Could not open file '$error_log' for reading: $!");
+
+  my @lines;
+  my $found_test= 0;		# Set once we've found the log of this test
+  while ( my $line = <$Ferr> )
+  {
+    if ($found_test)
+    {
+      # If test wasn't last after all, discard what we found, test again.
+      if ( $line =~ /^CURRENT_TEST:/)
+      {
+	@lines= ();
+	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+      }
+      else
+      {
+	push(@lines, $line);
+      }
+    }
+    else
+    {
+      # Search for beginning of test, until found
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+    }
+  }
+  $Ferr = undef; # Close error log file
+
+  return @lines;
+}
+
+# Get log from server identified from its $proc object, from named test
+# Return as a single string
+#
+
+sub get_log_from_proc ($$) {
+  my ($proc, $name)= @_;
+  my $srv_log= "";
+
+  foreach my $mysqld (mysqlds()) {
+    if ($mysqld->{proc} eq $proc) {
+      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      last;
+    }
+  }
+  return $srv_log;
+}
+
+#
+# Perform a rough examination of the servers
+# error log and write all lines that look
+# suspicious into $error_log.warnings
+#
+sub extract_warning_lines ($) {
+  my ($error_log) = @_;
+
+  # Open the servers .err log file and read all lines
+  # belonging to current tets into @lines
   my $Ferr = IO::File->new($error_log)
     or return [];
   my $last_pos= $last_warning_position->{$error_log}{seek_pos};
@@ -3901,37 +3950,8 @@ sub extract_server_log ($$) {
       }
     }
   }
-  return @lines;
-}
 
-# Get log from server identified from its $proc object, from named test
-# Return as a single string
-#
-
-sub get_log_from_proc ($$) {
-  my ($proc, $name)= @_;
-  my $srv_log= "";
-
-  foreach my $mysqld (mysqlds()) {
-    if ($mysqld->{proc} eq $proc) {
-      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
-      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
-      last;
-    }
-  }
-  return $srv_log;
-}
-
-# Perform a rough examination of the servers
-# error log and write all lines that look
-# suspicious into $error_log.warnings
-#
-sub extract_warning_lines ($$) {
-  my ($error_log, $tname) = @_;
-
-  my @lines= extract_server_log($error_log, $tname);
-
-# Write all suspicious lines to $error_log.warnings file
+  # Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
   my $Fwarn = IO::File->new($warning_log, "w")
     or die("Could not open file '$warning_log' for writing: $!");
@@ -4008,7 +4028,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error, $tinfo->{name});
+  extract_warning_lines($log_error);
 
   my $args;
   mtr_init_args(\$args);
@@ -4167,7 +4187,7 @@ sub check_warnings_post_shutdown {
   my $testname_hash= { };
   foreach my $mysqld ( mysqlds())
   {
-    my $testlist= extract_warning_lines($mysqld->value('#log-error'), "");
+    my $testlist= extract_warning_lines($mysqld->value('#log-error'));
     $testname_hash->{$_}= 1 for @$testlist;
   }
   my @warning_tests= keys(%$testname_hash);

@@ -210,14 +210,12 @@ test-bt-fast:
 
 test-bt-fast2:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol --report-features
+	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --force --comment=ps --ps-protocol --report-features
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features
-
-test-bt-debug-fast:
 
 test-bt-debug-fast:
 
