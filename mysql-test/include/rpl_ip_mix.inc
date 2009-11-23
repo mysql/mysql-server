@@ -1,0 +1,22 @@
+--echo connect (master,$IPv6,root,,test,MASTER_MYPORT,MASTER_MYSOCK);
+connect (master,$IPv6,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+--echo connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT,SLAVE_MYSOCK);
+connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
+--echo connection master;
+connection master;
+reset master;
+source include/show_master_status.inc;
+save_master_pos;
+--echo connection slave;
+connection slave;
+reset slave;
+source include/show_slave_status2.inc;
+eval change master to master_host='$IPv6';
+source include/show_slave_status2.inc;
+--echo disconnect slave;
+disconnect slave;
+--echo disconnect master;
+disconnect master;
+--echo connection default;
+connection default;
+
