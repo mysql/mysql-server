@@ -6637,7 +6637,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     }
     else              // Try to start a pushed join from current join_tab
     {
-      pushed = table->file->make_pushed_join(tab, join->tables-i, table->s->primary_key);
+      pushed = table->file->make_pushed_join(tab, join->tables-i);
     }
     pushed--;
   }

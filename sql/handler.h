@@ -1810,8 +1810,7 @@ public:
    Returns #tables included in generated pushed join.
   */
   virtual uint make_pushed_join(struct st_join_table* join_tabs, 
-                                int count,
-                                int idx)
+                                int count)
   { return 0; }
 
   /**

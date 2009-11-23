@@ -539,8 +539,7 @@ static void set_tabname(const char *pathname, char *tabname);
   void cond_pop();
 
   uint make_pushed_join(struct st_join_table* join_tabs,
-                        int count,
-                        int idx);
+                        int count);
 
   uint has_pushed_joins() const;
 
@@ -720,11 +719,12 @@ private:
 					    const uchar *key, 
 					    NdbOperation::LockMode lm,
 					    Uint32 *ppartition_id);
+  int fetch_next_from_pushed_join(NdbQuery* query);
+
   int read_multi_range_fetch_next();
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
   void print_results();
-
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
