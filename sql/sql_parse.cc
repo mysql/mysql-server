@@ -495,9 +495,7 @@ static void handle_bootstrap_impl(THD *thd)
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
     */
-    my_atomic_rwlock_wrlock(&global_query_id_lock);
     thd->query_id=next_query_id();
-    my_atomic_rwlock_wrunlock(&global_query_id_lock);
     thd->set_time();
     mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
@@ -991,7 +989,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  my_atomic_rwlock_wrlock(&global_query_id_lock);
   {
     query_id_t query_id;
     switch( command ) {
@@ -1014,7 +1011,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->query_id= query_id;
   }
   inc_thread_running();
-  my_atomic_rwlock_wrunlock(&global_query_id_lock);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1284,9 +1280,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
-      my_atomic_rwlock_wrlock(&global_query_id_lock);
       thd->query_id= next_query_id();
-      my_atomic_rwlock_wrunlock(&global_query_id_lock);
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
@@ -1604,9 +1598,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  my_atomic_rwlock_wrlock(&global_query_id_lock);
   dec_thread_running();
-  my_atomic_rwlock_wrunlock(&global_query_id_lock);
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
