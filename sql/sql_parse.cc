@@ -511,9 +511,7 @@ static void handle_bootstrap_impl(THD *thd)
       break;
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-#ifdef USING_TRANSACTIONS
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
-#endif
   }
 
   DBUG_VOID_RETURN;

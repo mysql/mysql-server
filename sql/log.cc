@@ -4089,7 +4089,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     }
 #endif /* HAVE_REPLICATION */
 
-#if defined(USING_TRANSACTIONS) 
     /*
       Should we write to the binlog cache or to the binlog on disk?
       Write to the binlog cache if:
@@ -4124,7 +4123,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         LOCK_log.
       */
     }
-#endif /* USING_TRANSACTIONS */
+
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
