@@ -229,7 +229,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 {
   DBUG_ENTER("field_ref_is_join_pushable");
 
-  if (join_tabs[inx].type != JT_EQ_REF & join_tabs[inx].type != JT_CONST)
+  if (join_tabs[inx].type != JT_EQ_REF && join_tabs[inx].type != JT_CONST)
     DBUG_RETURN(false);
 
   TABLE* parent= NULL;
@@ -394,7 +394,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
       QUICK_SELECT_I *quick = join_root.select->quick;
       DBUG_EXECUTE("info", quick->dbug_dump(0, true););
-      DBUG_ASSERT (!quick->sorted);
+//    DBUG_ASSERT (!quick->sorted);  -- TODO: Don't handle ordered scans yet, let it through anyway
 
       // Bounds will be generated and supplied during execute
       operationDefs[0]= builder.scanIndex(m_index[quick->index].index, m_table);
