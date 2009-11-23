@@ -2046,13 +2046,6 @@ innobase_init(
 
 	ut_a(default_path);
 
-	if (specialflag & SPECIAL_NO_PRIOR) {
-		srv_set_thread_priorities = FALSE;
-	} else {
-		srv_set_thread_priorities = TRUE;
-		srv_query_thread_priority = QUERY_PRIOR;
-	}
-
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
