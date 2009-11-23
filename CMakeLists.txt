@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2006 MySQL AB, 2009 Sun Microsystems, Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -284,10 +284,16 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 SET (ENGINE_BUILD_TYPE "STATIC")
 FOREACH(DIR ${STATIC_ENGINE_DIRECTORIES})
   ADD_SUBDIRECTORY(${DIR})
+  IF(EXISTS ${DIR}/unittest)
+        ADD_SUBDIRECTORY(${DIR}/unittest)
+  ENDIF(EXISTS ${DIR}/unittest)
 ENDFOREACH(DIR ${STATIC_ENGINE_DIRECTORIES})
 
 SET (ENGINE_BUILD_TYPE "DYNAMIC")
 FOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
+  IF(EXISTS ${DIR}/unittest)
+        ADD_SUBDIRECTORY(${DIR}/unittest)
+  ENDIF(EXISTS ${DIR}/unittest)
   ADD_SUBDIRECTORY(${DIR})
 ENDFOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
 
@@ -313,6 +319,9 @@ ADD_SUBDIRECTORY(sql)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libservices)
 ADD_SUBDIRECTORY(tests)
+ADD_SUBDIRECTORY(unittest/mytap)
+ADD_SUBDIRECTORY(unittest/examples)
+ADD_SUBDIRECTORY(unittest/mysys)
 IF(WITH_EMBEDDED_SERVER) 
   ADD_SUBDIRECTORY(libmysqld)
   ADD_SUBDIRECTORY(libmysqld/examples)
