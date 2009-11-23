@@ -152,6 +152,7 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
+#define pthread_yield() SwitchToThread()
 
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
 
@@ -383,6 +384,17 @@ void my_pthread_attr_getstacksize(pthread_attr_t *attrib, size_t *size);
 #undef pthread_mutex_trylock
 #define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
+#endif
+
+#if !defined(HAVE_PTHREAD_YIELD_ONE_ARG) && !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
+/* no pthread_yield() available */
+#ifdef HAVE_SCHED_YIELD
+#define pthread_yield() sched_yield()
+#elif defined(HAVE_PTHREAD_YIELD_NP) /* can be Mac OS X */
+#define pthread_yield() pthread_yield_np()
+#elif defined(HAVE_THR_YIELD)
+#define pthread_yield() thr_yield()
+#endif
 #endif
 
 /*
@@ -663,6 +675,7 @@ struct st_my_thread_var
   my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
+  void  *stack_ends_here;
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];
