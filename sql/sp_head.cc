@@ -2736,9 +2736,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   */
   thd->lex= m_lex;
 
-  my_atomic_rwlock_wrlock(&global_query_id_lock);
   thd->query_id= next_query_id();
-  my_atomic_rwlock_wrunlock(&global_query_id_lock);
 
   if (thd->prelocked_mode == NON_PRELOCKED)
   {

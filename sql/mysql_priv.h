@@ -90,19 +90,24 @@ typedef int64 query_id_t;
 extern query_id_t global_query_id;
 extern int32 thread_running;
 extern my_atomic_rwlock_t global_query_id_lock;
+extern my_atomic_rwlock_t thread_running_lock;
 
 /* increment query_id and return it.  */
 inline query_id_t next_query_id()
 {
   query_id_t id;
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
   id= my_atomic_add64(&global_query_id, 1);
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
   return (id+1);
 }
 
 inline query_id_t get_query_id()
 {
   query_id_t id;
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
   id= my_atomic_load64(&global_query_id);
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
   return id;
 }
 
@@ -110,7 +115,9 @@ inline int32
 inc_thread_running()
 {
   int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
   num_thread_running= my_atomic_add32(&thread_running, 1);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
   return (num_thread_running+1);
 }
 
@@ -118,7 +125,9 @@ inline int32
 dec_thread_running()
 {
   int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
   num_thread_running= my_atomic_add32(&thread_running, -1);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
   return (num_thread_running-1);
 }
 
@@ -126,7 +135,9 @@ inline int32
 get_thread_running()
 {
   int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
   num_thread_running= my_atomic_load32(&thread_running);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
   return num_thread_running;
 }
 
