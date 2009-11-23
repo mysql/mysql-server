@@ -516,6 +516,9 @@ test-recover1.tdbrun: VGRIND=
 test-recover2.tdbrun: VGRIND=
 test-recover3.tdbrun: VGRIND=
 
+# filesize is too slow with vgrind.
+filesize.tdbrun: VGRIND=
+
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
