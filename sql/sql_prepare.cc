@@ -2615,13 +2615,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   thd->stmt_arena= stmt;
   thd->set_n_backup_statement(stmt, &stmt_backup);
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), QUERY_PRIOR);
-
   cursor->fetch(num_rows);
-
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   if (!cursor->is_open())
   {
@@ -3386,13 +3380,7 @@ reexecute:
     thd->m_reprepare_observer = &reprepare_observer;
   }
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
-
   error= execute(expanded_query, open_cursor) || thd->is_error();
-
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   thd->m_reprepare_observer= NULL;
 

@@ -1228,9 +1228,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
 
-    if (!(specialflag & SPECIAL_NO_PRIOR))
-      my_pthread_setprio(pthread_self(),QUERY_PRIOR);
-
     mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
@@ -1283,8 +1280,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
-    if (!(specialflag & SPECIAL_NO_PRIOR))
-      my_pthread_setprio(pthread_self(),WAIT_PRIOR);
     DBUG_PRINT("info",("query ready"));
     break;
   }
