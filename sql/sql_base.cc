@@ -1680,20 +1680,42 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (;;)
   {
-    if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
-         (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
-        ((!res->table || res->table != table->table) &&
-         (!check_alias || !(lower_case_table_names ?
-          my_strcasecmp(files_charset_info, t_alias, res->alias) :
-          strcmp(t_alias, res->alias))) &&
-         res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
-         !res->prelocking_placeholder))
+    /*
+      Table is unique if it is present only once in the global list
+      of tables and once in the list of table locks.
+    */
+    if (! (res= find_table_in_global_list(table_list, d_name, t_name)) &&
+        ! (res= mysql_lock_have_duplicate(thd, table, table_list)))
       break;
+
+    /* Skip if same underlying table. */
+    if (res->table && (res->table == table->table))
+      goto next;
+
+    /* Skip if table alias does not match. */
+    if (check_alias)
+    {
+      if (lower_case_table_names ?
+          my_strcasecmp(files_charset_info, t_alias, res->alias) :
+          strcmp(t_alias, res->alias))
+        goto next;
+    }
+
+    /*
+      Skip if marked to be excluded (could be a derived table) or if
+      entry is a prelocking placeholder.
+    */
+    if (res->select_lex &&
+        !res->select_lex->exclude_from_table_unique_test &&
+        !res->prelocking_placeholder)
+      break;
+
     /*
       If we found entry of this table or table of SELECT which already
       processed in derived table or top select of multi-update/multi-delete
       (exclude_from_table_unique_test) or prelocking placeholder.
     */
+next:
     table_list= res->next_global;
     DBUG_PRINT("info",
                ("found same copy of table or table which we should skip"));
