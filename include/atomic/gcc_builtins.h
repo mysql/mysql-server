@@ -18,7 +18,7 @@
 
 #define make_atomic_add_body(S)                     \
   v= __sync_fetch_and_add(a, v);
-#define make_atomic_swap_body(S)                    \
+#define make_atomic_fas_body(S)                     \
   v= __sync_lock_test_and_set(a, v);
 #define make_atomic_cas_body(S)                     \
   int ## S sav;                                     \
@@ -28,7 +28,10 @@
 #ifdef MY_ATOMIC_MODE_DUMMY
 #define make_atomic_load_body(S)   ret= *a
 #define make_atomic_store_body(S)  *a= v
+#define MY_ATOMIC_MODE "gcc-builtins-up"
+
 #else
+#define MY_ATOMIC_MODE "gcc-builtins-smp"
 #define make_atomic_load_body(S)                    \
   ret= __sync_fetch_and_or(a, 0);
 #define make_atomic_store_body(S)                   \
