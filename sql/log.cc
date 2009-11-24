@@ -5650,9 +5650,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
                                       sizeof(xev->xid));
-      if (! x)
+      if (!x || my_hash_insert(&xids, x))
         goto err2;
-      my_hash_insert(&xids, x);
     }
     delete ev;
   }

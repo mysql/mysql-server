@@ -31,9 +31,8 @@
 #include "sp_head.h"
 #include "sp.h"
 
-time_t mysql_db_table_last_check= 0L;
-
-TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
+static const
+TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
     { C_STRING_WITH_LEN("Host") },            
     { C_STRING_WITH_LEN("char(60)") },
@@ -146,6 +145,8 @@ TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+const TABLE_FIELD_DEF
+  mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -2404,7 +2405,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         privs = cols = 0;			/* purecov: deadcode */
         return;				/* purecov: deadcode */
       }
-      my_hash_insert(&hash_columns, (uchar *) mem_check);
+      if (my_hash_insert(&hash_columns, (uchar *) mem_check))
+      {
+        /* Invalidate this entry */
+        privs= cols= 0;
+        return;
+      }
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
@@ -2609,7 +2615,11 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	goto end;				/* purecov: inspected */
       }
       grant_column= new GRANT_COLUMN(column->column,privileges);
-      my_hash_insert(&g_t->hash_columns,(uchar*) grant_column);
+      if (my_hash_insert(&g_t->hash_columns,(uchar*) grant_column))
+      {
+        result= -1;
+        goto end;
+      }
     }
   }
 
@@ -3134,12 +3144,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 				     Str->user.str, table_name,
 				     rights,
 				     column_priv);
-      if (!grant_table)				// end of memory
+      if (!grant_table ||
+        my_hash_insert(&column_priv_hash,(uchar*) grant_table))
       {
 	result= TRUE;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      my_hash_insert(&column_priv_hash,(uchar*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -3343,12 +3353,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       grant_name= new GRANT_NAME(Str->host.str, db_name,
 				 Str->user.str, table_name,
 				 rights, TRUE);
-      if (!grant_name)
+      if (!grant_name ||
+        my_hash_insert(is_proc ?
+                       &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
       {
         result= TRUE;
 	continue;
       }
-      my_hash_insert(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*) grant_name);
     }
 
     if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
