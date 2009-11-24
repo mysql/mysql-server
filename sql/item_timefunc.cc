@@ -865,6 +865,8 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
 {
   const char *end=str+length;
   uint i;
+  long msec_length= 0;
+
   while (str != end && !my_isdigit(cs,*str))
     str++;
 
@@ -874,12 +876,7 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
       value= value*LL(10) + (longlong) (*str - '0');
-    if (transform_msec && i == count - 1) // microseconds always last
-    {
-      long msec_length= 6 - (uint) (str - start);
-      if (msec_length > 0)
-	value*= (long) log_10_int[msec_length];
-    }
+    msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
       str++;
@@ -893,6 +890,10 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
       break;
     }
   }
+
+  if (transform_msec && msec_length > 0)
+    values[count - 1] *= (long) log_10_int[msec_length];
+
   return (str != end);
 }
 
@@ -1854,7 +1855,7 @@ longlong Item_func_sec_to_time::val_int()
   sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
 
   return (ltime.neg ? -1 : 1) *
-    ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 
@@ -2666,7 +2667,8 @@ longlong Item_time_typecast::val_int()
     null_value= 1;
     return 0;
   }
-  return ltime.hour * 10000L + ltime.minute * 100 + ltime.second;
+  return (ltime.neg ? -1 : 1) *
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 String *Item_time_typecast::val_str(String *str)

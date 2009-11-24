@@ -1369,54 +1369,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->stmt_da->disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
-
-#ifdef REMOVED
-  case COM_CREATE_DB:				// QQ: To be removed
-    {
-      LEX_STRING db, alias;
-      HA_CREATE_INFO create_info;
-
-      status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
-          thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
-          check_db_name(&db))
-      {
-	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
-	break;
-      }
-      if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
-                       is_schema_db(db.str)))
-	break;
-      general_log_print(thd, command, "%.*s", db.length, db.str);
-      bzero(&create_info, sizeof(create_info));
-      mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
-                      &create_info, 0);
-      break;
-    }
-  case COM_DROP_DB:				// QQ: To be removed
-    {
-      status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
-      LEX_STRING db;
-
-      if (thd->make_lex_string(&db, packet, packet_length, FALSE) ||
-          check_db_name(&db))
-      {
-	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
-	break;
-      }
-      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0, is_schema_db(db.str)))
-	break;
-      if (thd->locked_tables || thd->active_transaction())
-      {
-	my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                   ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-	break;
-      }
-      general_log_write(thd, command, "%.*s", db.length, db.str);
-      mysql_rm_db(thd, db.str, 0, 0);
-      break;
-    }
-#endif
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
@@ -2073,7 +2025,6 @@ mysql_execute_command(THD *thd)
     A better approach would be to reset this for any commands
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
-    Don't reset warnings when executing a stored routine.
   */
   if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
     thd->warning_info->set_read_only(TRUE);
@@ -2276,7 +2227,7 @@ mysql_execute_command(THD *thd)
                               privileges_requested,
                               all_tables, FALSE, UINT_MAX, FALSE);
     else
-      res= check_access(thd, privileges_requested, any_db, 0, 0, 0, UINT_MAX);
+      res= check_access(thd, privileges_requested, any_db, 0, 0, 0, 0);
 
     if (res)
       break;
@@ -3092,7 +3043,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3124,7 +3075,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3147,7 +3098,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3288,7 +3239,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        mysql_bin_log.write(&ev);
+        (void) mysql_bin_log.write(&ev);        /* error is ignored */
         mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
@@ -4129,7 +4080,8 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+          break;
       }
       my_ok(thd);
     } 
@@ -4701,12 +4653,12 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
-	  res= FALSE;
-	  my_ok(thd);
+          if (!res)
+            my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -5830,7 +5782,6 @@ bool check_stack_overrun(THD *thd, long margin,
     my_snprintf(ebuff, sizeof(ebuff), ER(ER_STACK_OVERRUN_NEED_MORE),
                 stack_used, my_thread_stack_size, margin);
     my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
-    thd->fatal_error();
     return 1;
   }
 #ifndef DBUG_OFF
@@ -6494,13 +6445,17 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     DBUG_RETURN(0);				/* purecov: inspected */
   if (table->db.str)
   {
+    ptr->is_fqtn= TRUE;
     ptr->db= table->db.str;
     ptr->db_length= table->db.length;
   }
   else if (lex->copy_db_to(&ptr->db, &ptr->db_length))
     DBUG_RETURN(0);
+  else
+    ptr->is_fqtn= FALSE;
 
   ptr->alias= alias_str;
+  ptr->is_alias= alias ? TRUE : FALSE;
   if (lower_case_table_names && table->table.length)
     table->table.length= my_casedn_str(files_charset_info, table->table.str);
   ptr->table_name=table->table.str;
@@ -7546,6 +7501,63 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/*
+  Given a table in the source list, find a correspondent table in the
+  table references list.
+
+  @param lex Pointer to LEX representing multi-delete.
+  @param src Source table to match.
+  @param ref Table references list.
+
+  @remark The source table list (tables listed before the FROM clause
+  or tables listed in the FROM clause before the USING clause) may
+  contain table names or aliases that must match unambiguously one,
+  and only one, table in the target table list (table references list,
+  after FROM/USING clause).
+
+  @return Matching table, NULL otherwise.
+*/
+
+static TABLE_LIST *multi_delete_table_match(LEX *lex, TABLE_LIST *tbl,
+                                            TABLE_LIST *tables)
+{
+  TABLE_LIST *match= NULL;
+  DBUG_ENTER("multi_delete_table_match");
+
+  for (TABLE_LIST *elem= tables; elem; elem= elem->next_local)
+  {
+    int cmp;
+
+    if (tbl->is_fqtn && elem->is_alias)
+      continue; /* no match */
+    if (tbl->is_fqtn && elem->is_fqtn)
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+    else if (elem->is_alias)
+      cmp= my_strcasecmp(table_alias_charset, tbl->alias, elem->alias);
+    else
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+
+    if (cmp)
+      continue;
+
+    if (match)
+    {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
+      DBUG_RETURN(NULL);
+    }
+
+    match= elem;
+  }
+
+  if (!match)
+    my_error(ER_UNKNOWN_TABLE, MYF(0), tbl->table_name, "MULTI DELETE");
+
+  DBUG_RETURN(match);
+}
+
+
 /**
   Link tables in auxilary table list of multi-delete with corresponding
   elements in main table list, and set proper locks for them.
@@ -7571,20 +7583,9 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
   {
     lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
-    TABLE_LIST *walk;
-    for (walk= tables; walk; walk= walk->next_local)
-    {
-      if (!my_strcasecmp(table_alias_charset,
-			 target_tbl->alias, walk->alias) &&
-	  !strcmp(walk->db, target_tbl->db))
-	break;
-    }
+    TABLE_LIST *walk= multi_delete_table_match(lex, target_tbl, tables);
     if (!walk)
-    {
-      my_error(ER_UNKNOWN_TABLE, MYF(0),
-               target_tbl->table_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
-    }
     if (!walk->derived)
     {
       target_tbl->table_name= walk->table_name;

@@ -9760,7 +9760,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     Item_sum *item_sum=(Item_sum*) item;
     result= item_sum->create_tmp_field(group, table, convert_blob_length);
     if (!result)
-      thd->fatal_error();
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
     return result;
   }
   case Item::FIELD_ITEM:
@@ -10904,8 +10904,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
       We don't want this error to be converted to a warning, e.g. in case of
       INSERT IGNORE ... SELECT.
     */
-    thd->fatal_error();
-    table->file->print_error(error,MYF(0));
+    table->file->print_error(error, MYF(ME_FATALERROR));
     DBUG_RETURN(1);
   }
 
@@ -15111,8 +15110,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
       default:
         /* This case should never be choosen */
         DBUG_ASSERT(0);
-        my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        join->thd->fatal_error();
+        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       }
     }
     parts++;

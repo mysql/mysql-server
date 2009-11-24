@@ -949,9 +949,10 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       /* restore sql_mode when binloging */
       thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        log_query.c_ptr(), log_query.length(),
-                        FALSE, FALSE, 0);
+      if (thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                            log_query.c_ptr(), log_query.length(),
+                            FALSE, FALSE, 0))
+        ret= SP_INTERNAL_ERROR;
       thd->variables.sql_mode= 0;
     }
 
@@ -1010,7 +1011,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+      ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
   }
 
@@ -1080,7 +1082,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   if (ret == SP_OK)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+      ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
   }
 
@@ -1716,6 +1719,9 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
         ret= SP_OK;
         break;
       default:
+        /* Query might have been killed, don't set error. */
+        if (thd->killed)
+          break;
         /*
           Any error when loading an existing routine is either some problem
           with the mysql.proc table, or a parse error because the contents
