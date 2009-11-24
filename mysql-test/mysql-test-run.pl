@@ -3983,6 +3983,13 @@ sub extract_warning_lines ($) {
      qr/error .*connecting to master/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
      qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
+     qr/Slave: Unknown table 't1' Error_code: 1051/,
+     qr/Slave SQL:.*(Error_code: [[:digit:]]+|Query:.*)/,
+     qr/slave SQL thread aborted/,
+     qr/unknown option '--loose-/,
+     qr/unknown variable 'loose-/,
+     qr/Now setting lower_case_table_names to [02]/,
+     qr/deprecated/,
     );
 
   my $match_count= 0;
