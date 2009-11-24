@@ -115,7 +115,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    VOID(my_munmap((char*) info->s->file_map,
+    (void) (my_munmap((char*) info->s->file_map,
                    (size_t) info->s->mmaped_length));
     mi_dynmap_file(info, size);
   }
@@ -1515,7 +1515,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err:
-  VOID(_mi_writeinfo(info,0));
+  (void) _mi_writeinfo(info,0);
   DBUG_RETURN(-1);
 }
 
@@ -1831,7 +1831,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
             block_info.filepos + block_info.data_len &&
             flush_io_cache(&info->rec_cache))
           goto err;
-	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
+	/* my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0)); */
 	if (my_read(info->dfile,(uchar*) to,block_info.data_len,MYF(MY_NABP)))
 	{
 	  if (my_errno == -1)
@@ -1865,7 +1865,7 @@ panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;		/* Something is fatal wrong */
 err:
   save_errno=my_errno;
-  VOID(_mi_writeinfo(info,0));
+  (void) _mi_writeinfo(info,0);
   DBUG_RETURN(my_errno=save_errno);
 }
 
@@ -1884,7 +1884,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
       pointer set to the end of the header after this function.
       my_pread() may leave the file pointer untouched.
     */
-    VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
+    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
     if (my_read(file, header, sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
       goto err;

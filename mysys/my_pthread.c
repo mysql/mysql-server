@@ -30,6 +30,7 @@
 #endif
 
 uint thd_lib_detected= 0;
+
 /* To allow use of pthread_getspecific with two arguments */
 
 #ifdef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
@@ -267,7 +268,7 @@ void sigwait_handle_sig(int sig)
 {
   pthread_mutex_lock(&LOCK_sigwait);
   sigaddset(&pending_set, sig);
-  VOID(pthread_cond_signal(&COND_sigwait)); /* inform sigwait() about signal */
+  pthread_cond_signal(&COND_sigwait); /* inform sigwait() about signal */
   pthread_mutex_unlock(&LOCK_sigwait);
 }
 
@@ -350,7 +351,7 @@ int sigwait(sigset_t *setp, int *sigp)
 	return 0;
       }
     }
-    VOID(pthread_cond_wait(&COND_sigwait,&LOCK_sigwait));
+    pthread_cond_wait(&COND_sigwait,&LOCK_sigwait);
   }
   return 0;
 }

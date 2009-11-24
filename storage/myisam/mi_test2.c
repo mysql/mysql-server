@@ -862,7 +862,7 @@ reads:      %10lu\n",
 err:
   printf("got error: %d when using MyISAM-database\n",my_errno);
   if (file)
-    VOID(mi_close(file));
+    (void) mi_close(file);
   return(1);
 } /* main */
 
