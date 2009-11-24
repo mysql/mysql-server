@@ -3966,6 +3966,27 @@ server.");
 
   if (opt_bin_log)
   {
+    /* Reports an error and aborts, if the --log-bin's path 
+       is a directory.*/
+    if (opt_bin_logname && 
+        opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin option", opt_bin_logname);
+      unireg_abort(1);
+    }
+
+    /* Reports an error and aborts, if the --log-bin-index's path 
+       is a directory.*/
+    if (opt_binlog_index_name && 
+        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1] 
+        == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin-index option", opt_binlog_index_name);
+      unireg_abort(1);
+    }
+
     char buf[FN_REFLEN];
     const char *ln;
     ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
@@ -8736,20 +8757,20 @@ static int fix_paths(void)
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
   }
-  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
-  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
-    --mysql_unpacked_real_data_home_len;
-
-
   convert_dirname(language,language,NullS);
+  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
                                       get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
+
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= 
+    (int) strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
