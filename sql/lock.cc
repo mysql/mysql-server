@@ -325,7 +325,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
       if (sql_lock->table_count)
-        VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
+        (void) unlock_external(thd, sql_lock->table, sql_lock->table_count);
       reset_lock_data_and_free(&sql_lock);
       my_error(rc, MYF(0));
       break;
@@ -357,7 +357,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
         thr_multi_unlock(sql_lock->locks, sql_lock->lock_count);
 
     if (sql_lock->table_count)
-      VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
+      (void) unlock_external(thd, sql_lock->table, sql_lock->table_count);
 
     /*
       If thr_multi_lock fails it resets lock type for tables, which
@@ -433,7 +433,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
   if (sql_lock->lock_count)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
-    VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
+    (void) unlock_external(thd,sql_lock->table,sql_lock->table_count);
   my_free((uchar*) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -497,7 +497,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   /* Unlock all read locked tables */
   if (i != found)
   {
-    VOID(unlock_external(thd,table,i-found));
+    (void) unlock_external(thd,table,i-found);
     sql_lock->table_count=found;
   }
   /* Fix the lock positions in TABLE */
@@ -978,7 +978,7 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
 
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(1);
-  VOID(pthread_mutex_lock(&LOCK_open));
+  pthread_mutex_lock(&LOCK_open);
   if ((lock_retcode = lock_table_name(thd, table_list, TRUE)) < 0)
     goto end;
   if (lock_retcode && wait_for_locked_table_names(thd, table_list))
@@ -1622,8 +1622,8 @@ bool make_global_read_lock_block_commit(THD *thd)
 
 void broadcast_refresh(void)
 {
-  VOID(pthread_cond_broadcast(&COND_refresh));
-  VOID(pthread_cond_broadcast(&COND_global_read_lock));
+  pthread_cond_broadcast(&COND_refresh);
+  pthread_cond_broadcast(&COND_global_read_lock);
 }
 
 /**

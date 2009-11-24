@@ -13,9 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Workaround for Bug#32082: VOID redefinition on Win results in compile errors*/
-#define DONT_DEFINE_VOID 1
-
 #include <my_global.h>
 #include <my_stacktrace.h>
 

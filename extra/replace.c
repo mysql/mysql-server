@@ -311,7 +311,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
   pa->typelib.type_names[pa->typelib.count++]= (char*) (pa->str+pa->length);
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  VOID(strmov((char*) pa->str + pa->length, name));
+  (void) strmov((char*) pa->str + pa->length, name);
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */
@@ -433,7 +433,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
     free_sets(&sets);
     DBUG_RETURN(0);
   }
-  VOID(make_new_set(&sets));			/* Set starting set */
+  (void) make_new_set(&sets);			/* Set starting set */
   make_sets_invisible(&sets);			/* Hide previus sets */
   used_sets=-1;
   word_states=make_new_set(&sets);		/* Start of new word */
