@@ -590,7 +590,7 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 		 * So there could be a deadlock if I don't flush the log!
 		 */
 		if ((self = xt_get_self())) {
-			if (!xt_xlog_flush_log(self))
+			if (!xt_xlog_flush_log(tci_table->tab_db, self))
 				goto failed;
 		}
 

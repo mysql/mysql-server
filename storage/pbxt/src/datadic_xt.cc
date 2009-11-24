@@ -35,7 +35,7 @@
 
 #ifdef DEBUG
 #ifdef DRIZZLED
-#include <drizzled/common_includes.h>
+//#include <drizzled/common_includes.h>
 #else
 #include "mysql_priv.h"
 #endif
@@ -436,11 +436,6 @@ class XTTokenizer {
 	XTToken *nextToken(XTThreadPtr self);
 	XTToken *nextToken(XTThreadPtr self, c_char *keyword, XTToken *tk);
 };
-
-void ri_free_token(XTThreadPtr XT_UNUSED(self), XTToken *tk)
-{
-	delete tk;
-}
 
 XTToken *XTTokenizer::newToken(XTThreadPtr self, u_int type, char *start, char *end)
 {

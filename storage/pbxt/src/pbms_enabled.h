@@ -35,13 +35,6 @@
 
 #include "pbms.h"
 
-#ifdef DRIZZLED
-#include <drizzled/server_includes.h>
-#define TABLE Table
-#else
-#include <mysql_priv.h>
-#endif
-
 /*
  * pbms_initialize() should be called from the engines plugIn's 'init()' function.
  * The engine_name is the name of your engine, "PBXT" or "InnoDB" for example.

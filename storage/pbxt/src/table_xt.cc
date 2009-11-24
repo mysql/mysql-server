@@ -35,7 +35,6 @@
 #include <drizzled/common.h>
 #include <mysys/thr_lock.h>
 #include <drizzled/dtcollation.h>
-#include <drizzled/plugin/storage_engine.h>
 #else
 #include "mysql_priv.h"
 #endif
@@ -48,7 +47,6 @@
 #include "cache_xt.h"
 #include "trace_xt.h"
 #include "index_xt.h"
-#include "restart_xt.h"
 #include "systab_xt.h"
 
 #ifdef DEBUG
@@ -2347,7 +2345,7 @@ xtPublic void xt_flush_table(XTThreadPtr self, XTOpenTablePtr ot)
 
 }
 
-xtPublic XTOpenTablePtr tab_open_table(XTTableHPtr tab)
+static XTOpenTablePtr tab_open_table(XTTableHPtr tab)
 {
 	volatile XTOpenTablePtr	ot;
 	XTThreadPtr				self;
@@ -2588,7 +2586,7 @@ xtPublic xtBool xt_tab_put_log_op_rec_data(XTOpenTablePtr ot, u_int status, xtRe
 			return FAILED;
 	}
 
-	return xt_xlog_modify_table(ot, status, op_seq, free_rec_id, rec_id, size, buffer);
+	return xt_xlog_modify_table(tab->tab_id, status, op_seq, free_rec_id, rec_id, size, buffer, ot->ot_thread);
 }
 
 xtPublic xtBool xt_tab_put_log_rec_data(XTOpenTablePtr ot, u_int status, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *buffer, xtOpSeqNo *op_seq)
@@ -2606,7 +2604,7 @@ xtPublic xtBool xt_tab_put_log_rec_data(XTOpenTablePtr ot, u_int status, xtRecor
 			return FAILED;
 	}
 
-	return xt_xlog_modify_table(ot, status, *op_seq, free_rec_id, rec_id, size, buffer);
+	return xt_xlog_modify_table(tab->tab_id, status, *op_seq, free_rec_id, rec_id, size, buffer, ot->ot_thread);
 }
 
 xtPublic xtBool xt_tab_get_rec_data(XTOpenTablePtr ot, xtRecordID rec_id, size_t size, xtWord1 *buffer)
@@ -3541,7 +3539,7 @@ xtPublic xtBool xt_tab_free_row(XTOpenTablePtr ot, XTTableHPtr tab, xtRowID row_
 	tab->tab_row_fnum++;
 	xt_unlock_mutex_ns(&tab->tab_row_lock);
 
-	if (!xt_xlog_modify_table(ot, XT_LOG_ENT_ROW_FREED, op_seq, 0, row_id, sizeof(XTTabRowRefDRec), (xtWord1 *) &free_row))
+	if (!xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_ROW_FREED, op_seq, 0, row_id, sizeof(XTTabRowRefDRec), (xtWord1 *) &free_row, ot->ot_thread))
 		return FAILED;
 
 	return OK;
@@ -3791,7 +3789,7 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 	xt_unlock_mutex_ns(&tab->tab_rec_lock);
 
 	free_rec->rf_rec_type_1 = old_rec_type;
-	return xt_xlog_modify_table(ot, XT_LOG_ENT_REC_REMOVED_BI, op_seq, (xtRecordID) new_rec_type, rec_id, rec_size, ot->ot_row_rbuffer);
+	return xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_REC_REMOVED_BI, op_seq, (xtRecordID) new_rec_type, rec_id, rec_size, ot->ot_row_rbuffer, ot->ot_thread);
 }
 
 static xtRowID tab_new_row(XTOpenTablePtr ot, XTTableHPtr tab)
@@ -3837,7 +3835,7 @@ static xtRowID tab_new_row(XTOpenTablePtr ot, XTTableHPtr tab)
 	op_seq = tab->tab_seq.ts_get_op_seq();
 	xt_unlock_mutex_ns(&tab->tab_row_lock);
 
-	if (!xt_xlog_modify_table(ot, status, op_seq, next_row_id, row_id, 0, NULL))
+	if (!xt_xlog_modify_table(tab->tab_id, status, op_seq, next_row_id, row_id, 0, NULL, ot->ot_thread))
 		return 0;
 
 	XT_DISABLED_TRACE(("new row tx=%d row=%d\n", (int) ot->ot_thread->st_xact_data->xd_start_xn_id, (int) row_id));
@@ -3868,7 +3866,7 @@ xtPublic xtBool xt_tab_set_row(XTOpenTablePtr ot, u_int status, xtRowID row_id, 
 	if (!tab->tab_rows.xt_tc_write(ot->ot_row_file, row_id, 0, sizeof(XTTabRowRefDRec), (xtWord1 *) &row_buf, &op_seq, TRUE, ot->ot_thread))
 		return FAILED;
 
-	return xt_xlog_modify_table(ot, status, op_seq, 0, row_id, sizeof(XTTabRowRefDRec), (xtWord1 *) &row_buf);
+	return xt_xlog_modify_table(tab->tab_id, status, op_seq, 0, row_id, sizeof(XTTabRowRefDRec), (xtWord1 *) &row_buf, ot->ot_thread);
 }
 
 xtPublic xtBool xt_tab_free_record(XTOpenTablePtr ot, u_int status, xtRecordID rec_id, xtBool clean_delete)
@@ -3937,7 +3935,7 @@ xtPublic xtBool xt_tab_free_record(XTOpenTablePtr ot, u_int status, xtRecordID r
 		tab->tab_rec_fnum++;
 		xt_unlock_mutex_ns(&tab->tab_rec_lock);
 
-		if (!xt_xlog_modify_table(ot, status, op_seq, rec_id, rec_id, sizeof(XTactFreeRecEntryDRec) - offsetof(XTactFreeRecEntryDRec, fr_stat_id_1), &free_rec.fr_stat_id_1))
+		if (!xt_xlog_modify_table(tab->tab_id, status, op_seq, rec_id, rec_id, sizeof(XTactFreeRecEntryDRec) - offsetof(XTactFreeRecEntryDRec, fr_stat_id_1), &free_rec.fr_stat_id_1, ot->ot_thread))
 			return FAILED;
 	}
 	return OK;
@@ -4016,7 +4014,7 @@ static xtBool tab_add_record(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, u_int 
 	}
 	xt_unlock_mutex_ns(&tab->tab_rec_lock);
 
-	if (!xt_xlog_modify_table(ot, status, op_seq, next_rec_id, rec_id,  rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf))
+	if (!xt_xlog_modify_table(tab->tab_id, status, op_seq, next_rec_id, rec_id,  rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf, ot->ot_thread))
 		return FAILED;
 
 	if (rec_info->ri_ext_rec) {
@@ -4932,6 +4930,12 @@ xtPublic void xt_tab_seq_exit(XTOpenTablePtr ot)
 #endif
 #endif
 
+xtPublic void xt_tab_seq_repeat(XTOpenTablePtr ot)
+{
+	ot->ot_seq_rec_id--;
+	ot->ot_seq_offset -= ot->ot_table->tab_dic.dic_rec_size;
+}
+
 xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 {
 	register XTTableHPtr	tab = ot->ot_table;
@@ -5094,7 +5098,7 @@ static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_n
 			return FALSE;
 	}
 	else {
-		if (!xt_open_file_ns(&of, file_path, XT_FS_DEFAULT))
+		if (!xt_open_file_ns(&of, file_path, XT_FS_DEFAULT | XT_FS_MISSING_OK))
 			return FALSE;
 	}
 	if (!of)
@@ -5190,15 +5194,41 @@ static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_n
 	return FALSE;
 }
 
-xtPublic void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
+static void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
 {
 	char	name_buf[XT_IDENTIFIER_NAME_SIZE*3+3];
+	char	*nptr;
 
-	xt_2nd_last_name_of_path(sizeof(name_buf), name_buf, tab->tab_name->ps_path);
-	myxt_static_convert_file_name(name_buf, table_name, size);
-	xt_strcat(size, table_name, ".");
-	myxt_static_convert_file_name(xt_last_name_of_path(tab->tab_name->ps_path), name_buf, sizeof(name_buf));
-	xt_strcat(size, table_name, name_buf);
+	nptr = xt_last_name_of_path(tab->tab_name->ps_path);
+	if (xt_starts_with(nptr, "#sql")) {
+		/* {INVALID-OLD-TABLE-FIX}
+		 * Temporary files can have strange paths, for example
+		 * ..../var/tmp/mysqld.1/#sqldaec_1_6
+		 * This occurs, for example, occurs when the temp_table.test is
+		 * run using the PBXT suite in MariaDB:
+		 * ./mtr --suite=pbxt --do-test=temp_table
+		 *
+		 * Calling myxt_static_convert_file_name, with a '.', in the name
+		 * causes the error:
+		 * [ERROR] Invalid (old?) table or database name 'mysqld.1'
+		 * To prevent this, we do not convert the temporary
+		 * table names using the mysql functions.
+		 *
+		 * Note, this bug was found by Monty, and fixed by modifying
+		 * xt_2nd_last_name_of_path(), see {INVALID-OLD-TABLE-FIX}.
+		 *
+		 */
+		xt_2nd_last_name_of_path(size, table_name, tab->tab_name->ps_path);
+		xt_strcat(size, table_name, ".");
+		xt_strcat(size, table_name, nptr);
+	}
+	else {
+		xt_2nd_last_name_of_path(sizeof(name_buf), name_buf, tab->tab_name->ps_path);
+		myxt_static_convert_file_name(name_buf, table_name, size);
+		xt_strcat(size, table_name, ".");
+		myxt_static_convert_file_name(nptr, name_buf, sizeof(name_buf));
+		xt_strcat(size, table_name, name_buf);
+	}
 }
 
 xtPublic xtBool xt_tab_is_table_repair_pending(XTTableHPtr tab)
