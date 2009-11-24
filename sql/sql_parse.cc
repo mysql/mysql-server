@@ -983,7 +983,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  pthread_mutex_lock(&LOCK_thread_count);
   thd->query_id= global_query_id;
 
   switch( command ) {
@@ -1005,7 +1005,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thread_running++;
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  pthread_mutex_unlock(&LOCK_thread_count);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1268,7 +1268,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
       thd->set_query(beginning_of_next_stmt, length);
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
+      pthread_mutex_lock(&LOCK_thread_count);
       /*
         Count each statement from the client.
       */
@@ -1276,7 +1276,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      VOID(pthread_mutex_unlock(&LOCK_thread_count));
+      pthread_mutex_unlock(&LOCK_thread_count);
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
@@ -1494,8 +1494,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
 #ifndef EMBEDDED_LIBRARY
-    VOID(my_net_write(net, (uchar*) buff, length));
-    VOID(net_flush(net));
+    (void) my_net_write(net, (uchar*) buff, length);
+    (void) net_flush(net);
     thd->stmt_da->disable_status();
 #endif
     break;
@@ -1590,9 +1590,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
+  pthread_mutex_lock(&LOCK_thread_count); // For process list
   thread_running--;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  pthread_mutex_unlock(&LOCK_thread_count);
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -7181,7 +7181,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
@@ -7193,7 +7193,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       break;
     }
   }
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  pthread_mutex_unlock(&LOCK_thread_count);
   if (tmp)
   {
 

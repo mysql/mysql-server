@@ -1039,14 +1039,14 @@ static void close_server_sock()
   {
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    (void) shutdown(tmp_sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
-    VOID(closesocket(tmp_sock));
+    (void) closesocket(tmp_sock);
 #endif
   }
   tmp_sock=unix_sock;
@@ -1054,16 +1054,16 @@ static void close_server_sock()
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    (void) shutdown(tmp_sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
-    VOID(closesocket(tmp_sock));
+    (void) closesocket(tmp_sock);
 #endif
-    VOID(unlink(mysqld_unix_port));
+    (void) unlink(mysqld_unix_port);
   }
   DBUG_VOID_RETURN;
 #endif
@@ -5175,7 +5175,7 @@ void handle_connections_sockets()
     if (!(thd= new THD))
     {
       (void) shutdown(new_sock, SHUT_RDWR);
-      VOID(closesocket(new_sock));
+      (void) closesocket(new_sock);
       continue;
     }
     if (!(vio_tmp=vio_new(new_sock,

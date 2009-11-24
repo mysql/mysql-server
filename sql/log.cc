@@ -2909,7 +2909,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     thread. If the transaction involved MyISAM tables, it should go
     into binlog even on rollback.
   */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  pthread_mutex_lock(&LOCK_thread_count);
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -2989,7 +2989,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   my_free((uchar*) save_name, MYF(0));
 
 err:
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  pthread_mutex_unlock(&LOCK_thread_count);
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -4084,7 +4084,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
-      VOID(pthread_mutex_unlock(&LOCK_log));
+      pthread_mutex_unlock(&LOCK_log);
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -4546,7 +4546,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
                           bool incident)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
-  VOID(pthread_mutex_lock(&LOCK_log));
+  pthread_mutex_lock(&LOCK_log);
 
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
@@ -4635,7 +4635,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
     else
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
-  VOID(pthread_mutex_unlock(&LOCK_log));
+  pthread_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(0);
 
@@ -4645,7 +4645,7 @@ err:
     write_error= 1;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
   }
-  VOID(pthread_mutex_unlock(&LOCK_log));
+  pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
 }
 
@@ -4865,7 +4865,7 @@ bool flush_error_log()
     char err_renamed[FN_REFLEN], *end;
     end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
     strmov(end, "-old");
-    VOID(pthread_mutex_lock(&LOCK_error_log));
+    pthread_mutex_lock(&LOCK_error_log);
 #ifdef __WIN__
     char err_temp[FN_REFLEN+4];
     /*
@@ -4912,7 +4912,7 @@ bool flush_error_log()
    else
      result= 1;
 #endif
-    VOID(pthread_mutex_unlock(&LOCK_error_log));
+    pthread_mutex_unlock(&LOCK_error_log);
   }
    return result;
 }
@@ -4987,7 +4987,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   DBUG_ENTER("print_buffer_to_file");
   DBUG_PRINT("enter",("buffer: %s", buffer));
 
-  VOID(pthread_mutex_lock(&LOCK_error_log));
+  pthread_mutex_lock(&LOCK_error_log);
 
   skr= my_time(0);
   localtime_r(&skr, &tm_tmp);
@@ -5006,7 +5006,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
 
   fflush(stderr);
 
-  VOID(pthread_mutex_unlock(&LOCK_error_log));
+  pthread_mutex_unlock(&LOCK_error_log);
   DBUG_VOID_RETURN;
 }
 
