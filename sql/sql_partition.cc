@@ -2440,8 +2440,7 @@ char *generate_partition_syntax(partition_info *part_info,
     default:
       DBUG_ASSERT(0);
       /* We really shouldn't get here, no use in continuing from here */
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      current_thd->fatal_error();
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(NULL);
   }
   if (part_info->part_expr)
@@ -4361,8 +4360,9 @@ static int fast_end_partition(THD *thd, ulonglong copied,
   }
 
   if ((!is_empty) && (!written_bin_log) &&
-      (!thd->lex->no_write_to_binlog))
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      (!thd->lex->no_write_to_binlog) &&
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+    DBUG_RETURN(TRUE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),
@@ -5503,10 +5503,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
                                          &lpt->deleted, lpt->pack_frm_data,
                                          lpt->pack_frm_len)))
   {
-    if (error != ER_OUTOFMEMORY)
-      file->print_error(error, MYF(0));
-    else
-      lpt->thd->fatal_error();
+    file->print_error(error, MYF(error != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);

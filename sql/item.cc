@@ -5025,7 +5025,7 @@ Field *Item::make_string_field(TABLE *table)
   DBUG_ASSERT(collation.collation);
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, name,
-                          collation.collation);
+                          collation.collation, TRUE);
   /* Item_type_holder holds the exact type, do not change it */
   else if (max_length > 0 &&
       (type() != Item::TYPE_HOLDER || field_type() != MYSQL_TYPE_STRING))
