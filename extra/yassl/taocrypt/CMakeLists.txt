@@ -18,9 +18,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 ADD_DEFINITIONS(${SSL_DEFINES})
-IF(PREVENT_CPP_RUNTIME)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PREVENT_CPP_RUNTIME}")
-ENDIF()
 SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp src/asn.cpp src/coding.cpp 
 				src/des.cpp src/dh.cpp src/dsa.cpp src/file.cpp src/hash.cpp src/integer.cpp src/md2.cpp 
 				src/md4.cpp src/md5.cpp src/misc.cpp src/random.cpp src/ripemd.cpp src/rsa.cpp src/sha.cpp
@@ -29,6 +26,5 @@ SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp
 				include/error.hpp include/file.hpp include/hash.hpp include/hmac.hpp include/integer.hpp 
 				include/md2.hpp include/md5.hpp include/misc.hpp include/modarith.hpp include/modes.hpp
 				include/random.hpp include/ripemd.hpp include/rsa.hpp include/sha.hpp)
-USE_ABSOLUTE_FILENAMES(TAOCRYPT_SOURCES)
-ADD_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
+ADD_CONVENIENCE_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
 
