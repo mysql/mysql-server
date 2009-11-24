@@ -3273,6 +3273,26 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
+/** Assign a new value to thd->query and thd->query_id.  */
+
+void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
+                           query_id_t new_query_id)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  set_query_inner(query_arg, query_length_arg);
+  query_id= new_query_id;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+/** Assign a new value to thd->query_id.  */
+
+void THD::set_query_id(query_id_t new_query_id)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  query_id= new_query_id;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
 
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.

@@ -3055,8 +3055,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->set_query((char*)query_arg, q_len_arg);
-    thd->query_id = next_query_id();
+    thd->set_query_and_id((char*)query_arg, q_len_arg, next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     DBUG_PRINT("query",("%s", thd->query()));
 
@@ -8068,7 +8067,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->sql_thd == thd);
 
   /* Step the query id to mark what columns that are actually used. */
-  thd->query_id= next_query_id();
+  thd->set_query_id(next_query_id());
 
   if (!(memory= my_multi_malloc(MYF(MY_WME),
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),

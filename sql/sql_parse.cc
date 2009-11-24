@@ -484,7 +484,7 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
-    thd->set_query(query, length);
+    thd->set_query_and_id(query, length, next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -495,7 +495,6 @@ static void handle_bootstrap_impl(THD *thd)
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
     */
-    thd->query_id=next_query_id();
     thd->set_time();
     mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
@@ -1008,7 +1007,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       statistic_increment(thd->status_var.questions, &LOCK_status);
       query_id= next_query_id() - 1;
     }
-    thd->query_id= query_id;
+    thd->set_query_id(query_id);
   }
   inc_thread_running();
 
@@ -1275,12 +1274,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         thd->security_ctx->priv_user,
                         (char *) thd->security_ctx->host_or_ip);
 
-      thd->set_query(beginning_of_next_stmt, length);
+      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
       /*
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
-      thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
