@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include <my_pthread.h>
+#include <my_sys.h>
 
 #ifndef HAVE_INLINE
 /* the following will cause all inline functions to be instantiated */
@@ -42,4 +42,33 @@ int my_atomic_initialize()
   return MY_ATOMIC_OK;
 #endif
 }
+
+#ifdef SAFE_MUTEX
+#undef pthread_mutex_init
+#undef pthread_mutex_destroy
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
+
+void plain_pthread_mutex_init(safe_mutex_t *m)
+{
+  pthread_mutex_init(& m->mutex, NULL);
+}
+
+void plain_pthread_mutex_destroy(safe_mutex_t *m)
+{
+  pthread_mutex_destroy(& m->mutex);
+}
+
+void plain_pthread_mutex_lock(safe_mutex_t *m)
+{
+  pthread_mutex_lock(& m->mutex);
+}
+
+void plain_pthread_mutex_unlock(safe_mutex_t *m)
+{
+  pthread_mutex_unlock(& m->mutex);
+}
+
+#endif
+
 
