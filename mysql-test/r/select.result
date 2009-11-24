@@ -4427,6 +4427,20 @@ ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
 INTO @var0;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
+#
+# Bug #48458: simple query tries to allocate enormous amount of
+#   memory
+#
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+CREATE TABLE t2(c INT);
+# Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+1
+DROP TABLE t1,t2;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
