@@ -1304,7 +1304,7 @@ JOIN::optimize()
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
-             rollup.state != ROLLUP::STATE_NONE && select_distinct);
+             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   // No cache for MATCH
   make_join_readinfo(this,
@@ -2134,17 +2134,13 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
-	else					// This should never happen
+	else
 	{
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond,
 				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	  /*
-	    Item_cond_and do not need fix_fields for execution, its parameters
-	    are fixed or do not need fix_fields, too
-	  */
-	  curr_table->select->cond->quick_fix_field();
+	  curr_table->select->cond->fix_fields(thd, 0);
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -14014,7 +14010,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, org_key_pos);
+    {
+      if (my_hash_insert(&hash, org_key_pos))
+        goto err;
+    }
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
