@@ -1086,7 +1086,6 @@ sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
-
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
 
@@ -1807,6 +1806,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
+        err_status= TRUE;
       }
       reset_dynamic(&thd->user_var_events);
       /* Forget those values, in case more function calls are binlogged: */
@@ -4017,10 +4017,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   TABLE_LIST *table;
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
-  {
-    thd->fatal_error();
     return NULL;
-  }
   table->db_length= strlen(db);
   table->db= thd->strmake(db, table->db_length);
   table->table_name_length= strlen(name);

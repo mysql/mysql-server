@@ -1,0 +1,41 @@
+--source include/have_partition.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #43867 ALTER TABLE on a partitioned table 
+--echo #            causes unnecessary deadlocks
+--echo #
+
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (1),
+ PARTITION p1 VALUES LESS THAN (2));
+
+INSERT INTO t1 VALUES (0),(1);
+
+connect(con1,localhost,root);
+
+--echo # Connection 2
+connection con1;
+BEGIN;
+SELECT * FROM t1;
+
+--echo # Connection 1
+connection default;
+--error ER_DROP_PARTITION_NON_EXISTENT
+ALTER TABLE t1 DROP PARTITION p3;
+
+--echo # Connection 2
+connection con1;
+--echo # This failed with deadlock and should not do so.
+SELECT * FROM t1;
+
+--echo # Connection 1
+connection default;
+disconnect con1;
+DROP TABLE t1;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

@@ -1922,20 +1922,17 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     if (! (di= find_handler(thd, table_list)))
     {
       if (!(di= new Delayed_insert()))
-      {
-        thd->fatal_error();
         goto end_create;
-      }
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
-      di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
+      di->thd.set_query(my_strdup(table_list->table_name,
+                                  MYF(MY_WME | ME_FATALERROR)), 0);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
-        thd->fatal_error();
         goto end_create;
       }
       di->table_list= *table_list;			// Needed to open table
@@ -1953,8 +1950,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 	pthread_mutex_unlock(&di->mutex);
 	di->unlock();
 	delete di;
-	my_error(ER_CANT_CREATE_THREAD, MYF(0), error);
-        thd->fatal_error();
+	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
         goto end_create;
       }
 
@@ -2325,8 +2321,8 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
   }
   if (!(di->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
   {
-    thd->fatal_error();
-    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), di->table_list.table_name);
+    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
+             di->table_list.table_name);
     goto err;
   }
   if (di->table->triggers)
@@ -2728,10 +2724,11 @@ bool Delayed_insert::handle_inserts(void)
         will be binlogged together as one single Table_map event and one
         single Rows event.
       */
-      thd.binlog_query(THD::ROW_QUERY_TYPE,
-                       row->query.str, row->query.length,
-                       FALSE, FALSE, errcode);
-
+      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
+                           row->query.str, row->query.length,
+                           FALSE, FALSE, errcode))
+        goto err;
+      
       thd.time_zone_used = backup_time_zone_used;
       thd.variables.time_zone = backup_time_zone;
     }
@@ -2805,8 +2802,9 @@ bool Delayed_insert::handle_inserts(void)
 
     TODO: Move the logging to last in the sequence of rows.
    */
-  if (thd.current_stmt_binlog_row_based)
-    thd.binlog_flush_pending_rows_event(TRUE);
+  if (thd.current_stmt_binlog_row_based &&
+      thd.binlog_flush_pending_rows_event(TRUE))
+    goto err;
 
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
@@ -3259,16 +3257,21 @@ bool select_insert::send_eof()
     events are in the transaction cache and will be written when
     ha_autocommit_or_rollback() is issued below.
   */
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open() &&
+      (!error || thd->transaction.stmt.modified_non_trans_table))
   {
     int errcode= 0;
     if (!error)
       thd->clear_error();
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-    thd->binlog_query(THD::ROW_QUERY_TYPE,
+    if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query(), thd->query_length(),
-                      trans_table, FALSE, errcode);
+                      trans_table, FALSE, errcode))
+    {
+      table->file->ha_release_auto_increment();
+      DBUG_RETURN(1);
+    }
   }
   table->file->ha_release_auto_increment();
 
@@ -3339,9 +3342,10 @@ void select_insert::abort() {
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
-                            thd->query_length(),
-                            transactional_table, FALSE, errcode);
+          /* error of writing binary log is ignored */
+          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
+                                   thd->query_length(),
+                                   transactional_table, FALSE, errcode);
         }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
@@ -3596,7 +3600,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
-        ptr->binlog_show_create_table(tables, count);
+        if (int error= ptr->binlog_show_create_table(tables, count))
+          return error;
       }
       return 0;
     }
@@ -3703,7 +3708,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_RETURN(0);
 }
 
-void
+int
 select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
@@ -3742,12 +3747,13 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      query.ptr(), query.length(),
-                      /* is_trans */ TRUE,
-                      /* suppress_use */ FALSE,
-                      errcode);
+    result= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query.ptr(), query.length(),
+                              /* is_trans */ TRUE,
+                              /* suppress_use */ FALSE,
+                              errcode);
   }
+  return result;
 }
 
 void select_create::store_values(List<Item> &values)
@@ -3845,7 +3851,8 @@ void select_create::abort()
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
-  thd->binlog_flush_pending_rows_event(TRUE);
+  /* possible error of writing binary log is ignored deliberately */
+  (void)thd->binlog_flush_pending_rows_event(TRUE);
 
   if (m_plock)
   {
