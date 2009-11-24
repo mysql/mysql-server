@@ -1,4 +1,4 @@
-/* Verify that toku_os_pwrite does the right thing when writing beyond 4GB.  */
+/* Verify that toku_os_full_pwrite does the right thing when writing beyond 4GB.  */
 #include <fcntl.h>
 #include <test.h>
 #include <assert.h>
@@ -20,8 +20,7 @@ int test_main(int argc, char *argv[]) {
     assert(fd>=0);
     char buf[] = "hello";
     int64_t offset = (1LL<<32) + 100;
-    r = toku_os_pwrite(fd, buf, sizeof buf, offset);
-    assert(r==sizeof buf);
+    toku_os_full_pwrite(fd, buf, sizeof buf, offset);
     char newbuf[sizeof buf];
     r = pread(fd, newbuf, sizeof newbuf, 100);
     assert(r==sizeof newbuf);
