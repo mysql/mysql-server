@@ -2324,10 +2324,13 @@ public:
   virtual void set_statement(Statement *stmt);
 
   /**
-    Assign a new value to thd->query.
+    Assign a new value to thd->query and thd->query_id.
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+  void set_query_and_id(char *query_arg, uint32 query_length_arg,
+                        query_id_t new_query_id);
+  void set_query_id(query_id_t new_query_id);
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
