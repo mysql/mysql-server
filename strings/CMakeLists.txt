@@ -24,6 +24,4 @@ SET(STRINGS_SOURCES bchange.c bcmp.c bfill.c bmove512.c bmove_upp.c ctype-big5.c
                 strtod.c strtol.c strtoll.c strtoul.c strtoull.c strxmov.c strxnmov.c xml.c
 		my_strchr.c strcont.c strinstr.c strnlen.c strappend.c)
 
-USE_ABSOLUTE_FILENAMES(STRINGS_SOURCES)
-ADD_LIBRARY(strings ${STRINGS_SOURCES})
-
+ADD_CONVENIENCE_LIBRARY(strings STATIC ${STRINGS_SOURCES})

@@ -29,6 +29,6 @@ ENDIF()
 SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp src/handshake.cpp src/lock.cpp 
 				src/log.cpp src/socket_wrapper.cpp src/ssl.cpp src/timer.cpp src/yassl_error.cpp 
 				src/yassl_imp.cpp src/yassl_int.cpp)
-USE_ABSOLUTE_FILENAMES(YASSL_SOURCES)
-ADD_LIBRARY(yassl ${YASSL_SOURCES})
+ADD_CONVENIENCE_LIBRARY(yassl ${YASSL_SOURCES})
+
 
