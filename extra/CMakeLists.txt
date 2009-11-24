@@ -27,7 +27,7 @@ ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
 
 IF(NOT CMAKE_CROSSCOMPILING)
  ADD_EXECUTABLE(comp_err comp_err.c)
- TARGET_LINK_LIBRARIES(comp_err ${ZLIB_LIBRARY} mysys)
+ TARGET_LINK_LIBRARIES(comp_err mysys)
 ENDIF()
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 

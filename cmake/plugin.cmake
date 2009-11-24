@@ -72,19 +72,26 @@ MACRO(MYSQL_PLUGIN plugin)
   ENDIF()
   
 
-  USE_ABSOLUTE_FILENAMES(${plugin}_SOURCES)
-  
   IF (WITH_${plugin} AND ${plugin}_PLUGIN_STATIC)
     ADD_DEFINITIONS(-DMYSQL_SERVER)
     #Create static library.
     ADD_LIBRARY(${target} ${${plugin}_SOURCES})
     DTRACE_INSTRUMENT(${target})   
     ADD_DEPENDENCIES(${target} GenError)
+    IF(WITH_EMBEDDED_SERVER AND NOT ${plugin}_PLUGIN_DYNAMIC)
+      # Recompile couple of plugins for embedded
+      ADD_LIBRARY(${target}_embedded ${${plugin}_SOURCES})
+      DTRACE_INSTRUMENT(${target}_embedded)   
+      SET_TARGET_PROPERTIES(${target}_embedded 
+         PROPERTIES COMPILE_DEFINITIONS "EMBEDDED_LIBRARY")
+      ADD_DEPENDENCIES(${target}_embedded GenError)
+    ENDIF()
     IF(${plugin}_LIBS)
       TARGET_LINK_LIBRARIES(${target} ${${plugin}_LIBS})
-	ENDIF()
+    ENDIF()
+    
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
-	  OUTPUT_NAME "${${plugin}_PLUGIN_STATIC}")
+      OUTPUT_NAME "${${plugin}_PLUGIN_STATIC}")
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
 	  ${target} PARENT_SCOPE)
@@ -92,6 +99,7 @@ MACRO(MYSQL_PLUGIN plugin)
 	  PARENT_SCOPE)
     SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
 	  FORCE)
+    
   ELSEIF(NOT WITHOUT_${plugin} AND ${plugin}_PLUGIN_DYNAMIC 
     AND NOT WITHOUT_DYNAMIC_PLUGINS)
 	
@@ -105,22 +113,21 @@ MACRO(MYSQL_PLUGIN plugin)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX "")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
 	
-	# Plugin uses symbols defined in mysqld executable.
+    # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
-	# unresolved symbols. Others are less strict and allow unresolved symbols
+    # unresolved symbols. Others are less strict and allow unresolved symbols
     # in shared libraries. On Linux for example, CMake does not even add 
     # executable to the linker command line (it would result into link error). 
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
-	IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
       TARGET_LINK_LIBRARIES (${target} mysqld)
-	ENDIF()
-	
+    ENDIF()
     ADD_DEPENDENCIES(${target} GenError)
 	
     IF(${plugin}_PLUGIN_DYNAMIC)
       SET_TARGET_PROPERTIES(${target} PROPERTIES 
-	    OUTPUT_NAME "${${plugin}_PLUGIN_DYNAMIC}")
+        OUTPUT_NAME "${${plugin}_PLUGIN_DYNAMIC}")
     ENDIF()
 	
     # Update cache "WITH" variable for plugins that support static linking

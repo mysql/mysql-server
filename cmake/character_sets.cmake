@@ -33,13 +33,9 @@ latin1 latin2 latin5 latin7 macce macroman
 sjis swe7 tis620 ucs2 ujis utf8 utf8mb3 utf16 utf32)
 
 
-IF(WIN32)
- SET (EXTRA_CHARSETS "all")
-ELSE()
- SET (EXTRA_CHARSETS "none")
-ENDIF()
+SET (EXTRA_CHARSETS "all")
 SET(WITH_EXTRA_CHARSETS ${EXTRA_CHARSETS} CACHE 
-  STRING "Options are: none, complex,all")
+  STRING "Options are: none, complex, all")
 
 
 IF(WITH_EXTRA_CHARSETS MATCHES "complex")

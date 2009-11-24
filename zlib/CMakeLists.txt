@@ -18,10 +18,8 @@ INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include
 ${CMAKE_SOURCE_DIR}/zlib
 )
-
 SET(ZLIB_SOURCES  adler32.c compress.c crc32.c crc32.h deflate.c deflate.h gzio.c infback.c inffast.c inffast.h
 			inffixed.h inflate.c inflate.h inftrees.c inftrees.h trees.c trees.h uncompr.c zconf.h zlib.h
 			zutil.c zutil.h)
-USE_ABSOLUTE_FILENAMES(ZLIB_SOURCES)
-ADD_LIBRARY(zlib ${ZLIB_SOURCES})
+ADD_CONVENIENCE_LIBRARY(zlib ${ZLIB_SOURCES})
 

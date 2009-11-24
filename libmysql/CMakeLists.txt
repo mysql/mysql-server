@@ -24,13 +24,115 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR})
 ADD_DEFINITIONS(${SSL_DEFINES})
 
+SET(CLIENT_API_FUNCTIONS
+load_defaults
+mysql_thread_end
+mysql_thread_init
+myodbc_remove_escape
+mysql_affected_rows
+mysql_autocommit
+mysql_stmt_bind_param
+mysql_stmt_bind_result
+mysql_change_user
+mysql_character_set_name
+mysql_close
+mysql_commit
+mysql_data_seek
+mysql_debug
+mysql_dump_debug_info
+mysql_eof
+mysql_errno
+mysql_error
+mysql_escape_string
+mysql_hex_string
+mysql_stmt_execute
+mysql_stmt_fetch
+mysql_stmt_fetch_column
+mysql_fetch_field
+mysql_fetch_field_direct
+mysql_fetch_fields
+mysql_fetch_lengths
+mysql_fetch_row
+mysql_field_count
+mysql_field_seek
+mysql_field_tell
+mysql_free_result
+mysql_get_client_info
+mysql_get_host_info
+mysql_get_proto_info
+mysql_get_server_info
+mysql_get_client_version
+mysql_get_ssl_cipher
+mysql_info
+mysql_init
+mysql_insert_id
+mysql_kill
+mysql_set_server_option
+mysql_list_dbs
+mysql_list_fields
+mysql_list_processes
+mysql_list_tables
+mysql_more_results
+mysql_next_result
+mysql_num_fields
+mysql_num_rows
+mysql_odbc_escape_string
+mysql_options
+mysql_stmt_param_count
+mysql_stmt_param_metadata
+mysql_ping
+mysql_stmt_result_metadata
+mysql_query
+mysql_read_query_result
+mysql_real_connect
+mysql_real_escape_string
+mysql_real_query
+mysql_refresh
+mysql_rollback
+mysql_row_seek
+mysql_row_tell
+mysql_select_db
+mysql_stmt_send_long_data
+mysql_send_query
+mysql_shutdown
+mysql_ssl_set
+mysql_stat
+mysql_stmt_affected_rows
+mysql_stmt_close
+mysql_stmt_reset
+mysql_stmt_data_seek
+mysql_stmt_errno
+mysql_stmt_error
+mysql_stmt_free_result
+mysql_stmt_num_rows
+mysql_stmt_row_seek
+mysql_stmt_row_tell
+mysql_stmt_store_result
+mysql_store_result
+mysql_thread_id
+mysql_thread_safe
+mysql_use_result
+mysql_warning_count
+mysql_stmt_sqlstate
+mysql_sqlstate
+mysql_get_server_version
+mysql_stmt_prepare
+mysql_stmt_init
+mysql_stmt_insert_id
+mysql_stmt_attr_get
+mysql_stmt_attr_set
+mysql_stmt_field_count
+mysql_set_local_infile_default
+mysql_set_local_infile_handler
+mysql_embedded
+mysql_server_init
+mysql_server_end
+mysql_set_character_set
+mysql_get_character_set_info
 
-#Remove -fno-implicit-templates 
-#(yassl sources cannot  be compiled with  it)
-STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-ADD_DEFINITIONS(-DDISABLE_DTRACE)
+CACHE INTERNAL "Functions exported by client API"
 
-
+)
 
 SET(CLIENT_SOURCES
   get_password.c 
@@ -42,71 +144,22 @@ SET(CLIENT_SOURCES
   ../sql-common/pack.c 
   ../sql/password.c
 )
-
-ADD_LIBRARY(clientlib STATIC ${CLIENT_SOURCES})
+ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
+DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
-# Merge several static libraries into one big mysqlclient.
-SET(LIBS dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
-MERGE_STATIC_LIBS(mysqlclient mysqlclient "${LIBS};clientlib")
+SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 
-ADD_DEPENDENCIES(mysqlclient GenError)
-SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-
-
-# Make shared client library
-IF(WIN32)
-  SET(SHARED_OUTPUT_NAME libmysql)
-ELSE()
-  SET(SHARED_OUTPUT_NAME mysqlclient)
-ENDIF()
-
-# On Windows, we can make a shared library out of static.
-# On Unix, we need to recompile all sources, unless we compiled with -fPIC, in
-# which case we can link static libraries to shared.
-IF(MSVC)
-  STATIC_TO_SHARED(mysqlclient libmysql libmysql.def)
-ELSE()
-  SET(LIBMYSQL_SOURCES  ${CLIENT_SOURCES})
-  
-  IF(NOT WITH_PIC)
-    # Add all sources that come into common static libs.
-    FOREACH(LIB ${LIBS})
-      GET_TARGET_PROPERTY(SRC ${LIB} SOURCES)
-      IF (NOT SRC)
-        # This must be system shared lib (zlib or openssl)
-	    # Users of libmysql must link with it too.
-	    LIST(APPEND OS_LIBS ${LIB})
-      ELSE()
-	    LIST(APPEND LIBMYSQL_SOURCES ${SRC})
-	  ENDIF()
-    ENDFOREACH()
-	
-    # Some extra flags as in mysys	
-    IF(CMAKE_COMPILER_IS_GNUCC AND  NOT HAVE_CXX_NEW)
-      SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/mysys/my_new.cc
-      PROPERTIES COMPILE_FLAGS "-DUSE_MYSYS_NEW")
-    ENDIF()
-  ENDIF()
-
-  
-  ADD_LIBRARY(libmysql SHARED ${LIBMYSQL_SOURCES})
-  ADD_DEPENDENCIES(libmysql GenError)
-  SET_TARGET_PROPERTIES(libmysql PROPERTIES OUTPUT_NAME ${SHARED_OUTPUT_NAME}
-    SOVERSION "${SHARED_LIB_MAJOR_VERSION}.0") 
-  SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-  
-  IF(WITH_PIC)
-   TARGET_LINK_LIBRARIES(libmysql ${LIBS})
-  ENDIF()
-  
-  IF(OS_LIBS)
-    TARGET_LINK_LIBRARIES(libmysql ${OS_LIBS})
-  ENDIF()
-ENDIF()
-
-
+# Merge several convenience libraries into one big mysqlclient
+# and link them together into shared library.
+MERGE_LIBRARIES(mysqlclient STATIC ${LIBS})
+MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
 IF(UNIX)
+ # Name of shared library is mysqlclient on Unix
+ SET_TARGET_PROPERTIES(libmysql PROPERTIES OUTPUT_NAME mysqlclient)
+ # clean direct output needs to be set several targets have the same name
+ #(mysqlclient in this case)
+ SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
  # Install links to shared and static libraries
  # (append _r to base name)
  INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql lib)
@@ -114,4 +167,4 @@ IF(UNIX)
 ENDIF()
 
 INSTALL(TARGETS mysqlclient libmysql DESTINATION lib)
-INSTALL_DEBUG_SYMBOLS( "mysqlclient;libmysql")
+INSTALL_DEBUG_SYMBOLS("mysqlclient;libmysql")

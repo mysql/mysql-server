@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DDISABLE_DTRACE 
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY
  ${SSL_DEFINES})
 
 INCLUDE_DIRECTORIES(
@@ -29,7 +29,7 @@ ${SSL_INTERNAL_INCLUDE_DIRS}
 ${NDB_CLUSTER_INCLUDES}
 ${CMAKE_SOURCE_DIR}/sql/backup
 )
-					
+
 SET(GEN_SOURCES
 ${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
 ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
@@ -37,23 +37,8 @@ ${CMAKE_BINARY_DIR}/sql/lex_hash.h
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
-SET(LIBS dbug strings regex mysys vio ${ZLIB_LIBRARY} ${SSL_LIBRARIES}
-${MYSQLD_STATIC_PLUGIN_LIBS} ${NDB_CLIENT_LIBS})
 
-# Quirk: recompile selected storage engines with -DEMBEDDED_LIBRARY
-# They depend on internal structures like THD that is different in embedded.
-SET(RECOMPILE_ENGINES myisam myisammrg heap ndbcluster)
-FOREACH(ENGINE ${RECOMPILE_ENGINES})
-  LIST(REMOVE_ITEM LIBS ${ENGINE})
-  GET_TARGET_PROPERTY(SRC  ${ENGINE} SOURCES)
-  IF(SRC)
-    LIST(APPEND ENGINE_SOURCES ${SRC})
-  ENDIF()
-ENDFOREACH()
-
-
-                            
-SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
+SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
@@ -96,13 +81,13 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ${GEN_SOURCES}
-           ${ENGINE_SOURCES}
            ${MYSYS_LIBWRAP_SOURCE}
 )
 
 
-ADD_LIBRARY(mysqlserver_int STATIC ${LIBMYSQLD_SOURCES})
-ADD_DEPENDENCIES(mysqlserver_int GenError GenServerSource)
+ADD_LIBRARY(sql_embedded STATIC ${SQL_EMBEDDED_SOURCES})
+DTRACE_INSTRUMENT(sql_embedded)
+ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
@@ -112,17 +97,31 @@ ELSE()
   SET(MYSQLSERVER_OUTPUT_NAME mysqld)
 ENDIF()
 
-# Merge slim mysqlserver_int with other libraries like mysys to create a big 
-# static library that contains everything.
-MERGE_STATIC_LIBS(mysqlserver ${MYSQLSERVER_OUTPUT_NAME}
-  "mysqlserver_int;${LIBS}")
 
-IF(LIBWRAP_LIBRARY)
-  TARGET_LINK_LIBRARIES(mysqlserver ${LIBWRAP_LIBRARY})
-ENDIF()
+SET(LIBS 
+  dbug strings regex mysys vio 
+  ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBWRAP_LIBRARY}
+  ${MYSQLD_STATIC_PLUGIN_LIBS} ${NDB_CLIENT_LIBS}
+  sql_embedded
+)
+
+# Some storage engine were compiled for embedded specifically
+# (with corresponding target ${engine}_embedded)
+SET(EMBEDDED_LIBS)
+FOREACH(LIB ${LIBS})
+  GET_TARGET_PROPERTY(EMBEDDED_LOCATION ${LIB}_embedded LOCATION)
+  IF(EMBEDDED_LOCATION)
+    LIST(APPEND EMBEDDED_LIBS ${LIB}_embedded)
+  ELSE()
+    LIST(APPEND EMBEDDED_LIBS ${LIB})
+  ENDIF()
+ENDFOREACH()
+
+MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME})
 INSTALL(TARGETS mysqlserver DESTINATION lib)
 
 IF(MSVC)
-  STATIC_TO_SHARED(mysqlserver libmysqld libmysqld.def)
+  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
   INSTALL(TARGETS libmysqld DESTINATION lib)
 ENDIF()

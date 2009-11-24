@@ -1,5 +1,6 @@
 EXTRA_DIST = \
 	cat.cmake \
+	ConfigurableFileContent.in \
 	check_minimal_version.cmake \
 	create_initial_db.cmake.in \
 	make_dist.cmake.in \
@@ -8,7 +9,7 @@ EXTRA_DIST = \
 	bison.cmake \
 	configure.pl \
 	character_sets.cmake \
-	misc.cmake \
+	libutils.cmake \
 	readline.cmake \
 	mysql_version.cmake   \
 	install_macros.cmake  \
