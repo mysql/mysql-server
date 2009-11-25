@@ -153,18 +153,22 @@ SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS})
-MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+INSTALL(TARGETS mysqlclient DESTINATION lib)
 IF(UNIX)
- # Name of shared library is mysqlclient on Unix
- SET_TARGET_PROPERTIES(libmysql PROPERTIES OUTPUT_NAME mysqlclient)
- # clean direct output needs to be set several targets have the same name
- #(mysqlclient in this case)
- SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
- # Install links to shared and static libraries
- # (append _r to base name)
- INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql lib)
- INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient lib)
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient lib)
 ENDIF()
+INSTALL_DEBUG_SYMBOLS(mysqlclient)
 
-INSTALL(TARGETS mysqlclient libmysql DESTINATION lib)
-INSTALL_DEBUG_SYMBOLS("mysqlclient;libmysql")
+IF(NOT DISABLE_SHARED)
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+  IF(UNIX)
+    # Name of shared library is mysqlclient on Unix
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES OUTPUT_NAME mysqlclient)
+    # clean direct output needs to be set several targets have the same name
+    #(mysqlclient in this case)
+    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql lib)
+  ENDIF()
+  INSTALL_DEBUG_SYMBOLS(libmysql)
+ENDIF()

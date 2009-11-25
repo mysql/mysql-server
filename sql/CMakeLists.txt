@@ -178,7 +178,7 @@ ADD_CUSTOM_TARGET(
 #Need this only for embedded
 SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-IF(WIN32 OR HAVE_DLOPEN)
+IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.c)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 

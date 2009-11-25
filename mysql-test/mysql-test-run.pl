@@ -4275,6 +4275,11 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
     }
+    elsif ($arg eq "")
+    {
+      # We can get an empty argument when  we set environment variables to ""
+      # (e.g plugin not found). Just skip it.
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
