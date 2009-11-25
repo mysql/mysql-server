@@ -5241,9 +5241,26 @@ static void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
 
 		if (part_ptr) {
 			/* Add the partition extension (which is relevant to the engine). */
+			char	*sub_part_ptr;
+
+			part_ptr += 3;
+			if ((sub_part_ptr = strstr(part_ptr, "#SP#")))
+				xt_strncpy(sizeof(name_buf), name_buf, part_ptr, sub_part_ptr - part_ptr);
+			else
+				xt_strcpy(sizeof(name_buf), name_buf, part_ptr);
+			
 			xt_strcat(size, table_name, " (");
 			len = strlen(table_name);
-			myxt_static_convert_file_name(part_ptr+3, table_name + len, size - len);
+			myxt_static_convert_file_name(name_buf, table_name + len, size - len);
+			
+			if (sub_part_ptr) {
+			
+				sub_part_ptr += 4;
+				xt_strcat(size, table_name, " - ");
+				len = strlen(table_name);
+				myxt_static_convert_file_name(sub_part_ptr, table_name + len, size - len);
+			}
+
 			xt_strcat(size, table_name, ")");
 		}
 	}
