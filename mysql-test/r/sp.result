@@ -3321,9 +3321,43 @@ call bug11529()|
 call bug11529()|
 delete from t1|
 drop procedure bug11529|
+set character set utf8|
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
+create procedure bug6063()
+begin
+l√¢bel: begin end;
+label: begin end;
+label1: begin end;
+end|
+create procedure bug7088_1()
+label1: begin end label1|
+create procedure bug7088_2()
+l√§bel1: begin end|
+call bug6063()|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug6063|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug6063		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug6063`()
+begin
+l‚bel: begin end;
+label: begin end;
+label1: begin end;
+end	utf8	latin1_swedish_ci	latin1_swedish_ci
+show create procedure bug7088_1|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug7088_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_1`()
+label1: begin end label1	utf8	latin1_swedish_ci	latin1_swedish_ci
+show create procedure bug7088_2|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug7088_2		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_2`()
+l‰bel1: begin end	utf8	latin1_swedish_ci	latin1_swedish_ci
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
 drop procedure if exists bug9565_sub|
 drop procedure if exists bug9565|
 create procedure bug9565_sub()

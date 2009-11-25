@@ -902,7 +902,7 @@ innobase_mysql_prepare_print_arbitrary_thd(void)
 /*============================================*/
 {
 	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
+	pthread_mutex_lock(&LOCK_thread_count);
 }
 
 /*************************************************************//**
@@ -916,7 +916,7 @@ innobase_mysql_end_print_arbitrary_thd(void)
 /*========================================*/
 {
 	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+	pthread_mutex_unlock(&LOCK_thread_count);
 }
 
 /*************************************************************//**
@@ -2045,13 +2045,6 @@ innobase_init(
 	}
 
 	ut_a(default_path);
-
-	if (specialflag & SPECIAL_NO_PRIOR) {
-		srv_set_thread_priorities = FALSE;
-	} else {
-		srv_set_thread_priorities = TRUE;
-		srv_query_thread_priority = QUERY_PRIOR;
-	}
 
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */

@@ -2420,6 +2420,43 @@ end$$
 delimiter ;$$
 
 #
+# Bug#36510 (Stored Procedures: mysql_error_code 0 should be illegal)
+#
+
+--disable_warnings
+drop procedure if exists proc_36510;
+--enable_warnings
+
+delimiter $$;
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_36510()
+begin
+  declare should_be_illegal condition for sqlstate '00123';
+  declare continue handler for should_be_illegal set @x=0;
+end$$
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_36510()
+begin
+  declare continue handler for sqlstate '00123' set @x=0;
+end$$
+
+--error ER_WRONG_VALUE
+create procedure proc_36510()
+begin
+  declare should_be_illegal condition for 0;
+  declare continue handler for should_be_illegal set @x=0;
+end$$
+
+--error ER_WRONG_VALUE
+create procedure proc_36510()
+begin
+  declare continue handler for 0 set @x=0;
+end$$
+delimiter ;$$
+
+#
 # Bug#15192: "fatal errors" are caught by handlers in stored procedures
 #
 

@@ -86,6 +86,7 @@ my_bool	vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 void	vio_in_addr(Vio *vio, struct in_addr *in);
 my_bool vio_poll_read(Vio *vio, uint timeout);
 my_bool vio_is_connected(Vio *vio);
+ssize_t vio_pending(Vio *vio);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>

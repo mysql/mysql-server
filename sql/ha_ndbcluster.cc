@@ -6904,7 +6904,7 @@ int ndbcluster_drop_database_impl(const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    VOID(pthread_mutex_lock(&LOCK_open));
+    pthread_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -6914,7 +6914,7 @@ int ndbcluster_drop_database_impl(const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    pthread_mutex_unlock(&LOCK_open);
   }
   DBUG_RETURN(ret);      
 }

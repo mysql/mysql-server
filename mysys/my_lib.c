@@ -159,8 +159,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
         goto error;
       
       bzero(finfo.mystat, sizeof(MY_STAT));
-      VOID(strmov(tmp_file,dp->d_name));
-      VOID(my_stat(tmp_path, finfo.mystat, MyFlags));
+      (void) strmov(tmp_file,dp->d_name);
+      (void) my_stat(tmp_path, finfo.mystat, MyFlags);
       if (!(finfo.mystat->st_mode & MY_S_IREAD))
         continue;
     }
@@ -266,7 +266,7 @@ char * directory_file_name (char * dst, const char *src)
 	/* what about when we have logical_name:???? */
       if (src[slen] == FN_DEVCHAR)
       {				/* Xlate logical name and see what we get */
-	VOID(strmov(dst,src));
+	(void) strmov(dst,src);
 	dst[slen] = 0;				/* remove colon */
 	if (!(src = getenv (dst)))
 	  return dst;				/* Can't translate */
@@ -282,13 +282,13 @@ char * directory_file_name (char * dst, const char *src)
 	slen = strlen (src) - 1;
 	if (src[slen] != FN_C_AFTER_DIR && src[slen] != FN_C_AFTER_DIR_2)
 	{					/* no recursion here! */
-	  VOID(strmov(dst, src));
+	  (void) strmov(dst, src);
 	  return(dst);
 	}
       }
       else
       {						/* not a directory spec */
-	VOID(strmov(dst, src));
+	(void) strmov(dst, src);
 	return(dst);
       }
     }
@@ -296,13 +296,13 @@ char * directory_file_name (char * dst, const char *src)
     bracket = src[slen];			/* End char */
     if (!(ptr = strchr (src, bracket - 2)))
     {						/* no opening bracket */
-      VOID(strmov (dst, src));
+      (void) strmov (dst, src);
       return dst;
     }
     if (!(rptr = strrchr (src, '.')))
       rptr = ptr;
     slen = rptr - src;
-    VOID(strmake (dst, src, slen));
+    (void) strmake (dst, src, slen);
 
     if (*rptr == '.')
     {						/* Put bracket and add */
@@ -323,7 +323,7 @@ char * directory_file_name (char * dst, const char *src)
 	    && (ptr[rlen] == FN_C_AFTER_DIR || ptr[rlen] == FN_C_AFTER_DIR_2)
 	    && ptr[rlen - 1] == '.')
 	{
-	  VOID(strmov(esa,ptr));
+	  (void) strmov(esa,ptr);
 	  esa[rlen - 1] = FN_C_AFTER_DIR;
 	  esa[rlen] = '\0';
 	  return (directory_file_name (dst, esa));
@@ -331,13 +331,13 @@ char * directory_file_name (char * dst, const char *src)
 	else
 	  dst[slen - 1] = ':';
       }
-      VOID(strmov(dst+slen,"[000000]"));
+      (void) strmov(dst+slen,"[000000]");
       slen += 8;
     }
-    VOID(strmov(strmov(dst+slen,rptr+1)-1,".DIR.1"));
+    (void) strmov(strmov(dst+slen,rptr+1)-1,".DIR.1");
     return dst;
   }
-  VOID(strmov(dst, src));
+  (void) strmov(dst, src);
   if (dst[slen] == '/' && slen > 1)
     dst[slen] = 0;
   return dst;
