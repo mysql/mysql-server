@@ -953,7 +953,11 @@ int ha_archive::index_read_idx(uchar *buf, uint index, const uchar *key,
   }
 
   if (found)
+  {
+    /* notify handler that a record has been found */
+    table->status= 0;
     DBUG_RETURN(0);
+  }
 
 error:
   DBUG_RETURN(rc ? rc : HA_ERR_END_OF_FILE);
