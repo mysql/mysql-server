@@ -124,7 +124,7 @@ let $i=9;
 --disable_query_log
 while ($i)
 {
- INSERT INTO t1 SELECT  ROUND(a * RAND() * 10) from t1;
+ INSERT INTO t1 SELECT a from t1;
  dec $i;
 }
 --enable_query_log
@@ -136,11 +136,12 @@ let $i=9;
 --disable_query_log
 while ($i)
 {
- INSERT INTO t2 SELECT  ROUND(a * RAND() * 10) from t2;
+ INSERT INTO t2 SELECT a from t2;
  dec $i;
 }
 --enable_query_log
 
+FLUSH TABLE t1,t2;
 --exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
 
 --echo #If the myisampack --join operation is successful, we have table t3(.frm)
@@ -153,6 +154,7 @@ SELECT COUNT(a) FROM t3;
 # It should finish the join operation successfully
 #############################################################################
 --echo # ===== myisampack.2 =====
+FLUSH TABLE t3;
 --remove_file $MYSQLD_DATADIR/test/t3.MYI
 --remove_file $MYSQLD_DATADIR/test/t3.MYD
 --exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1

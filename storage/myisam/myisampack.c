@@ -781,7 +781,6 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 static int create_dest_frm(char *source_table, char *dest_table)
 {
   char source_name[FN_REFLEN], dest_name[FN_REFLEN];
-  int error;
   
   DBUG_ENTER("create_dest_frm");
   
