@@ -67,11 +67,16 @@ INCLUDE(cmake/plugin.cmake)
 INCLUDE(cmake/install_macros.cmake)
 
 # Handle options
+OPTION(DISABLE_SHARED 
+ "Don't build shared libraries, compile code as position-dependent" OFF)
+IF(DISABLE_SHARED)
+  SET(WITHOUT_DYNAMIC_PLUGINS 1)
+ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(CYBOZU "" OFF)
 OPTION(BACKUP_TEST "" OFF)
 OPTION(WITHOUT_SERVER OFF)
-MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER)
+MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
  
 OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
