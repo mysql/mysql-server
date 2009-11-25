@@ -28,6 +28,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->write_log_files = TRUE;
     result->trim_log_files = TRUE;
     result->directory=0;
+    result->remove_finalize_callback = NULL;
     // fd is uninitialized on purpose
     // ct is uninitialized on purpose
     result->lg_max = 100<<20; // 100MB default
@@ -1002,7 +1003,9 @@ toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(int, v
 
 // called when a transaction that deleted a file is committed, or
 // when a transaction that created a file is aborted.
+// During recovery, there is no ydb layer, so no callback exists.
 void
 toku_logger_call_remove_finalize_callback(TOKULOGGER logger, int fd) {
-    logger->remove_finalize_callback(fd, logger->remove_finalize_callback_extra);
+    if (logger->remove_finalize_callback)
+        logger->remove_finalize_callback(fd, logger->remove_finalize_callback_extra);
 }
