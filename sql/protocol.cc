@@ -411,8 +411,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                                            thd->variables.character_set_results,
                                            err, strlen(err),
                                            system_charset_info, &error);
-  length= (uint) (strmake((char*) pos, (char*)converted_err, MYSQL_ERRMSG_SIZE) -
-                  (char*) buff);
+  length= (uint) (strmake((char*) pos, (char*)converted_err,
+                          MYSQL_ERRMSG_SIZE - 1) - (char*) buff);
   err= (char*) buff;
   DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
                                 length));
