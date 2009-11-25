@@ -5406,8 +5406,11 @@ int ha_pbxt::create(const char *table_path, TABLE *table_arg, HA_CREATE_INFO *cr
 
 	if (!(self = ha_set_current_thread(thd, &err)))
 		return xt_ha_pbxt_to_mysql_error(err);
-
+#ifdef DRIZZLED
+	XT_PRINT2(self, "create (%s) %s\n", table_path, (create_info.options & HA_LEX_CREATE_TMP_TABLE) ? "temporary" : "");
+#else
 	XT_PRINT2(self, "create (%s) %s\n", table_path, (create_info->options & HA_LEX_CREATE_TMP_TABLE) ? "temporary" : "");
+#endif
 
 	STAT_TRACE(self, *thd_query(thd));
 
