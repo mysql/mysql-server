@@ -185,5 +185,6 @@ select * from t1;
 connection default;
 disconnect update;
 disconnect select;
+unlock tables;
 drop table t1;
 set low_priority_updates=default;

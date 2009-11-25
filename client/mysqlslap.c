@@ -352,10 +352,10 @@ int main(int argc, char **argv)
     }
   }
 
-  VOID(pthread_mutex_init(&counter_mutex, NULL));
-  VOID(pthread_cond_init(&count_threshhold, NULL));
-  VOID(pthread_mutex_init(&sleeper_mutex, NULL));
-  VOID(pthread_cond_init(&sleep_threshhold, NULL));
+  pthread_mutex_init(&counter_mutex, NULL);
+  pthread_cond_init(&count_threshhold, NULL);
+  pthread_mutex_init(&sleeper_mutex, NULL);
+  pthread_cond_init(&sleep_threshhold, NULL);
 
   /* Main iterations loop */
   eptr= engine_options;
@@ -386,10 +386,10 @@ int main(int argc, char **argv)
 
   } while (eptr ? (eptr= eptr->next) : 0);
 
-  VOID(pthread_mutex_destroy(&counter_mutex));
-  VOID(pthread_cond_destroy(&count_threshhold));
-  VOID(pthread_mutex_destroy(&sleeper_mutex));
-  VOID(pthread_cond_destroy(&sleep_threshhold));
+  pthread_mutex_destroy(&counter_mutex);
+  pthread_cond_destroy(&count_threshhold);
+  pthread_mutex_destroy(&sleeper_mutex);
+  pthread_cond_destroy(&sleep_threshhold);
 
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */

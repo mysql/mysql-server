@@ -694,12 +694,12 @@ pthread_handler_t send_one_query(void *arg)
   struct st_connection *cn= (struct st_connection*)arg;
 
   mysql_thread_init();
-  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+  (void) mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len);
 
   mysql_thread_end();
   pthread_mutex_lock(&cn->mutex);
   cn->query_done= 1;
-  VOID(pthread_cond_signal(&cn->cond));
+  pthread_cond_signal(&cn->cond);
   pthread_mutex_unlock(&cn->mutex);
   pthread_exit(0);
   return 0;
@@ -9059,7 +9059,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     free_sets(&sets);
     DBUG_RETURN(0);
   }
-  VOID(make_new_set(&sets));			/* Set starting set */
+  (void) make_new_set(&sets);			/* Set starting set */
   make_sets_invisible(&sets);			/* Hide previus sets */
   used_sets=-1;
   word_states=make_new_set(&sets);		/* Start of new word */
@@ -9530,7 +9530,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
   pa->typelib.type_names[pa->typelib.count++]= (char*) pa->str+pa->length;
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  VOID(strmov((char*) pa->str+pa->length,name));
+  (void) strmov((char*) pa->str+pa->length,name);
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */

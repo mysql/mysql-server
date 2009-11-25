@@ -178,7 +178,7 @@ int mi_update(register MI_INFO *info, const uchar *oldrec, uchar *newrec)
     mi_update() must always pass !0 value as operation, since even if
     there is no index change there could be data change.
   */
-  VOID(_mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
@@ -229,7 +229,7 @@ err:
 
  err_end:
   myisam_log_record(MI_LOG_UPDATE,info,newrec,info->lastpos,my_errno);
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
