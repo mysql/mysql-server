@@ -70,6 +70,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->mode = 'r';
   s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
   s->minor_version= (unsigned char) az_magic[2]; /* minor version */
+  s->dirty= AZ_STATE_CLEAN;
 
   /*
     We do our own version of append by nature. 

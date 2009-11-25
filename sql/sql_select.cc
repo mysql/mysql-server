@@ -2131,17 +2131,13 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
-	else					// This should never happen
+	else
 	{
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond,
 				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	  /*
-	    Item_cond_and do not need fix_fields for execution, its parameters
-	    are fixed or do not need fix_fields, too
-	  */
-	  curr_table->select->cond->quick_fix_field();
+	  curr_table->select->cond->fix_fields(thd, 0);
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -9470,47 +9466,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-  {
-    uint8 dec= item->decimals;
-    uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
-    uint32 len= item->max_length;
-
-    /*
-      Trying to put too many digits overall in a DECIMAL(prec,dec)
-      will always throw a warning. We must limit dec to
-      DECIMAL_MAX_SCALE however to prevent an assert() later.
-    */
-
-    if (dec > 0)
-    {
-      signed int overflow;
-
-      dec= min(dec, DECIMAL_MAX_SCALE);
-
-      /*
-        If the value still overflows the field with the corrected dec,
-        we'll throw out decimals rather than integers. This is still
-        bad and of course throws a truncation warning.
-        +1: for decimal point
-      */
-
-      const int required_length=
-        my_decimal_precision_to_length(intg + dec, dec,
-                                                     item->unsigned_flag);
-
-      overflow= required_length - len;
-
-      if (overflow > 0)
-        dec= max(0, dec - overflow);            // too long, discard fract
-      else
-        /* Corrected value fits. */
-        len= required_length;
-    }
-
-    new_field= new Field_new_decimal(len, maybe_null, item->name,
-                                     dec, item->unsigned_flag);
+    new_field= Field_new_decimal::create_from_item(item);
     break;
-  }
   case ROW_RESULT:
   default:
     // This case should never be choosen
@@ -14011,7 +13968,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, org_key_pos);
+    {
+      if (my_hash_insert(&hash, org_key_pos))
+        goto err;
+    }
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));

@@ -62,10 +62,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 
     vio->timeout=vio_win32_timeout;
     /* Set default timeout */
-    vio->read_timeout_millis = INFINITE;
-    vio->write_timeout_millis = INFINITE;
-
-    memset(&(vio->pipe_overlapped), 0, sizeof(OVERLAPPED));
+    vio->read_timeout_ms= INFINITE;
+    vio->write_timeout_ms= INFINITE;
     vio->pipe_overlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
     DBUG_VOID_RETURN;
   }
@@ -90,8 +88,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     /* Currently, shared memory is on Windows only, hence the below is ok*/
     vio->timeout= vio_win32_timeout; 
     /* Set default timeout */
-    vio->read_timeout_millis= INFINITE;
-    vio->write_timeout_millis= INFINITE;
+    vio->read_timeout_ms= INFINITE;
+    vio->write_timeout_ms= INFINITE;
     DBUG_VOID_RETURN;
   }
 #endif   
@@ -115,22 +113,20 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
-  {
-    vio->viodelete	=vio_delete;
-    vio->vioerrno	=vio_errno;
-    vio->read= (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
-    vio->write		=vio_write;
-    vio->fastsend	=vio_fastsend;
-    vio->viokeepalive	=vio_keepalive;
-    vio->should_retry	=vio_should_retry;
-    vio->was_interrupted=vio_was_interrupted;
-    vio->vioclose	=vio_close;
-    vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
-    vio->vioblocking	=vio_blocking;
-    vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_timeout;
-  }
+  vio->viodelete	=vio_delete;
+  vio->vioerrno	=vio_errno;
+  vio->read= (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
+  vio->write		=vio_write;
+  vio->fastsend	=vio_fastsend;
+  vio->viokeepalive	=vio_keepalive;
+  vio->should_retry	=vio_should_retry;
+  vio->was_interrupted=vio_was_interrupted;
+  vio->vioclose	=vio_close;
+  vio->peer_addr	=vio_peer_addr;
+  vio->in_addr	=vio_in_addr;
+  vio->vioblocking	=vio_blocking;
+  vio->is_blocking	=vio_is_blocking;
+  vio->timeout	=vio_timeout;
   DBUG_VOID_RETURN;
 }
 

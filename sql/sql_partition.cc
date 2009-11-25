@@ -196,26 +196,27 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 {
   DBUG_ENTER("partition_default_handling");
 
-  if (part_info->use_default_no_partitions)
+  if (!is_create_table_ind)
   {
-    if (!is_create_table_ind &&
-        table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (part_info->use_default_no_partitions)
     {
-      DBUG_RETURN(TRUE);
+      if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
     }
-  }
-  else if (part_info->is_sub_partitioned() &&
-           part_info->use_default_no_subpartitions)
-  {
-    uint no_parts;
-    if (!is_create_table_ind &&
-        (table->file->get_no_parts(normalized_path, &no_parts)))
+    else if (part_info->is_sub_partitioned() &&
+             part_info->use_default_no_subpartitions)
     {
-      DBUG_RETURN(TRUE);
+      uint no_parts;
+      if (table->file->get_no_parts(normalized_path, &no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      DBUG_ASSERT(part_info->no_parts > 0);
+      DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
+      part_info->no_subparts= no_parts / part_info->no_parts;
     }
-    DBUG_ASSERT(part_info->no_parts > 0);
-    part_info->no_subparts= no_parts / part_info->no_parts;
-    DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
@@ -905,6 +906,8 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   char* db_name;
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
+  uint8 saved_full_group_by_flag;
+  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -974,8 +977,18 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
+  saved_allow_sum_func= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
   
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
+
+  /*
+    Restore full_group_by_flag and allow_sum_func,
+    fix_fields should not affect mysql_select later, see Bug#46923.
+  */
+  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
+  thd->lex->allow_sum_func= saved_allow_sum_func;
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 
@@ -1679,7 +1692,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   if (((part_info->part_type != HASH_PARTITION ||
       part_info->list_of_part_fields == FALSE) &&
       check_part_func_fields(part_info->part_field_array, TRUE)) ||
-      (part_info->list_of_part_fields == FALSE &&
+      (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
