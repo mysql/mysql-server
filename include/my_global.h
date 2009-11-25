@@ -588,17 +588,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define DONT_REMEMBER_SIGNAL
 #endif
 
-/* Define void to stop lint from generating "null effekt" comments */
-#ifndef DONT_DEFINE_VOID
-#ifdef _lint
-int	__void__;
-#define VOID(X)		(__void__ = (int) (X))
-#else
-#undef VOID
-#define VOID(X)		(X)
-#endif
-#endif /* DONT_DEFINE_VOID */
-
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
 #define LINT_INIT(var)	var=0			/* No uninitialize-warning */
 #else

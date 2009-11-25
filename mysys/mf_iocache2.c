@@ -135,7 +135,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
      b) see if there is a better way to make it work
   */
   if (info->type == SEQ_READ_APPEND)
-    VOID(flush_io_cache(info));
+    (void) flush_io_cache(info);
 
   offset=(pos - info->pos_in_file);
 
@@ -163,7 +163,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
       info->write_pos = info->write_buffer + offset;
       DBUG_VOID_RETURN;
     }
-    VOID(flush_io_cache(info));
+    (void) flush_io_cache(info);
     /* Correct buffer end so that we write in increments of IO_SIZE */
     info->write_end=(info->write_buffer+info->buffer_length-
 		     (pos & (IO_SIZE-1)));

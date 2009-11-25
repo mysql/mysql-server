@@ -68,6 +68,40 @@ INSERT INTO t1 SELECT b FROM t1;
 DROP TABLE t1;
 # End of 5.0 tests
 
+flush status;
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int unique);
+create table t2 (a int);
+drop function if exists f1;
+drop function if exists f2;
+
+delimiter |;
+
+create function f1() returns int
+begin
+  insert into t1 (a) values (1);
+  insert into t1 (a) values (1);
+  return 1;
+end|
+create function f2() returns int
+begin
+  insert into t2 (a) values (1);
+  return 2;
+end|
+delimiter ;|
+
+flush status;
+--error 1062
+select f1(), f2();
+show status like 'Com_insert';
+select * from t1;
+select * from t2;
+drop table t1;
+drop table t2;
+drop function f1;
+drop function f2;
 #
 # testing the value encoding in the error messages of set_var
 #

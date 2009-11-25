@@ -465,18 +465,18 @@ String *Item_func_des_encrypt::val_str(String *str)
   if (arg_count == 1)
   {
     /* Protect against someone doing FLUSH DES_KEY_FILE */
-    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    pthread_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number=des_default_key];
-    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+    pthread_mutex_unlock(&LOCK_des_key_file);
   }
   else if (args[1]->result_type() == INT_RESULT)
   {
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
-    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    pthread_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number];
-    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+    pthread_mutex_unlock(&LOCK_des_key_file);
   }
   else
   {
@@ -566,9 +566,9 @@ String *Item_func_des_decrypt::val_str(String *str)
         key_number > 9)
       goto error;
 
-    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    pthread_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number];
-    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+    pthread_mutex_unlock(&LOCK_des_key_file);
   }
   else
   {

@@ -103,7 +103,7 @@ int mi_panic(enum ha_panic_function flag)
   }
   if (flag == HA_PANIC_CLOSE)
   {
-    VOID(mi_log(0));				/* Close log if neaded */
+    (void) mi_log(0);				/* Close log if neaded */
     ft_free_stopwords();
   }
   pthread_mutex_unlock(&THR_LOCK_myisam);
