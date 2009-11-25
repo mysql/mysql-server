@@ -1039,11 +1039,11 @@ static char *parse_text_line(char *pos)
       switch (*++pos) {
       case '\\':
       case '"':
-	VOID(strmov(pos - 1, pos));
+	(void) strmov(pos - 1, pos);
 	break;
       case 'n':
 	pos[-1]= '\n';
-	VOID(strmov(pos, pos + 1));
+	(void) strmov(pos, pos + 1);
 	break;
       default:
 	if (*pos >= '0' && *pos < '8')
@@ -1053,10 +1053,10 @@ static char *parse_text_line(char *pos)
 	    nr= nr * 8 + (*(pos++) - '0');
 	  pos -= i;
 	  pos[-1]= nr;
-	  VOID(strmov(pos, pos + i));
+	  (void) strmov(pos, pos + i);
 	}
 	else if (*pos)
-	  VOID(strmov(pos - 1, pos));		/* Remove '\' */
+	  (void) strmov(pos - 1, pos);		/* Remove '\' */
       }
     }
     else

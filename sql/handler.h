@@ -31,8 +31,6 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#define USING_TRANSACTIONS
-
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1

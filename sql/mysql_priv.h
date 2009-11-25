@@ -428,17 +428,7 @@ protected:
 #if defined(__WIN__)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/**< Flush every half hour */
-
-#define INTERRUPT_PRIOR -2
-#define CONNECT_PRIOR	-1
-#define WAIT_PRIOR	0
-#define QUERY_PRIOR	2
-#else
-#define INTERRUPT_PRIOR 10
-#define CONNECT_PRIOR	9
-#define WAIT_PRIOR	8
-#define QUERY_PRIOR	6
-#endif /* __WIN92__ */
+#endif /* __WIN__ */
 
 	/* Bits from testflag */
 #define TEST_PRINT_CACHED_TABLES 1

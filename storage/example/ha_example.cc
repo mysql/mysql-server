@@ -132,7 +132,7 @@ static int example_init_func(void *p)
   DBUG_ENTER("example_init_func");
 
   example_hton= (handlerton *)p;
-  VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
+  pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&example_open_tables,system_charset_info,32,0,0,
                       (my_hash_get_key) example_get_key,0,0);
 

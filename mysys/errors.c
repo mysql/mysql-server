@@ -104,7 +104,7 @@ void wait_for_free_space(const char *filename, int errors)
                     MYF(ME_BELL | ME_NOREFRESH),
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
-  VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+  (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 
 const char **get_global_errmsgs()
