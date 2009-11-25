@@ -4542,17 +4542,17 @@ row_search_autoinc_read_column(
 		ut_a(len <= sizeof value);
 		value = mach_read_int_type(data, len, unsigned_type);
 		break;
- 
+
 	case DATA_FLOAT:
 		ut_a(len == sizeof(float));
 		value = mach_float_read(data);
 		break;
- 
+
 	case DATA_DOUBLE:
 		ut_a(len == sizeof(double));
 		value = mach_double_read(data);
 		break;
- 
+
 	default:
 		ut_error;
 	}
