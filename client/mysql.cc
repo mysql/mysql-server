@@ -83,7 +83,7 @@ extern "C" {
 #include <term.h>
 #endif
 #endif
-#endif
+#endif /* defined(HAVE_CURSES_H) && defined(HAVE_TERM_H) */
 
 #undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
@@ -92,7 +92,6 @@ extern "C" {
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
 
 #if !defined(HAVE_VIDATTR)
@@ -1024,7 +1023,7 @@ static const char *load_default_groups[]= { "mysql","client",0 };
 static int         embedded_server_arg_count= 0;
 static char       *embedded_server_args[MAX_SERVER_ARGS];
 static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
+{ "server", "embedded", "mysql_SERVER", "mariadb_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 /*
