@@ -2,21 +2,18 @@
 
 [mysqld.1]
 log-slave-updates
-innodb
 new=1
-binlog-row-image='full'
+innodb
 
 [mysqld.2]
 log-slave-updates
-innodb
 new=1
-binlog-row-image='full'
+innodb
 
 [mysqld.3]
 log-slave-updates
-innodb
 new=1
-binlog-row-image='full'
+innodb
 
 [ENV]
 MASTER_MYPORT=          @mysqld.1.port
