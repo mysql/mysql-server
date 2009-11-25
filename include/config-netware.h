@@ -73,7 +73,6 @@ extern "C" {
 #undef HAVE_FINITE
 #undef HAVE_GETPWNAM
 #undef HAVE_GETPWUID
-#undef HAVE_PTHREAD_SETSCHEDPARAM
 #undef HAVE_READLINK
 #undef HAVE_STPCPY
 /* changes  end  */

@@ -112,19 +112,19 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       struct utimbuf timep;
       timep.actime  = stat_buff.st_atime;
       timep.modtime = stat_buff.st_mtime;
-      VOID(utime((char*) to, &timep)); /* last accessed and modified times */
+      (void) utime((char*) to, &timep); /* last accessed and modified times */
     }
 #endif
     DBUG_RETURN(0);
   }
 
 err:
-  if (from_file >= 0) VOID(my_close(from_file,MyFlags));
+  if (from_file >= 0) (void) my_close(from_file,MyFlags);
   if (to_file >= 0)
   {
-    VOID(my_close(to_file, MyFlags));
+    (void) my_close(to_file, MyFlags);
     /* attempt to delete the to-file we've partially written */
-    VOID(my_delete(to, MyFlags));
+    (void) my_delete(to, MyFlags);
   }
   DBUG_RETURN(-1);
 } /* my_copy */

@@ -1659,6 +1659,29 @@ begin
 declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
+drop procedure if exists proc_36510;
+create procedure proc_36510()
+begin
+declare should_be_illegal condition for sqlstate '00123';
+declare continue handler for should_be_illegal set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00123'
+create procedure proc_36510()
+begin
+declare continue handler for sqlstate '00123' set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00123'
+create procedure proc_36510()
+begin
+declare should_be_illegal condition for 0;
+declare continue handler for should_be_illegal set @x=0;
+end$$
+ERROR HY000: Incorrect CONDITION value: '0'
+create procedure proc_36510()
+begin
+declare continue handler for 0 set @x=0;
+end$$
+ERROR HY000: Incorrect CONDITION value: '0'
 drop procedure if exists p1;
 set @old_recursion_depth = @@max_sp_recursion_depth;
 set @@max_sp_recursion_depth = 255;

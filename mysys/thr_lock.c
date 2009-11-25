@@ -316,7 +316,7 @@ void thr_lock_init(THR_LOCK *lock)
 {
   DBUG_ENTER("thr_lock_init");
   bzero((char*) lock,sizeof(*lock));
-  VOID(pthread_mutex_init(&lock->mutex,MY_MUTEX_INIT_FAST));
+  pthread_mutex_init(&lock->mutex,MY_MUTEX_INIT_FAST);
   lock->read.last= &lock->read.data;
   lock->read_wait.last= &lock->read_wait.data;
   lock->write_wait.last= &lock->write_wait.data;
@@ -522,7 +522,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   data->cond=0;					/* safety */
   data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
-  VOID(pthread_mutex_lock(&lock->mutex));
+  pthread_mutex_lock(&lock->mutex);
   DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",
                      (long) data, data->owner->info->thread_id,
                      (long) lock, (int) lock_type));
@@ -794,7 +794,7 @@ static inline void free_all_read_locks(THR_LOCK *lock,
 		       data->owner->info->thread_id));
     /* purecov: end */
     data->cond=0;				/* Mark thread free */
-    VOID(pthread_cond_signal(cond));
+    pthread_cond_signal(cond);
   } while ((data=data->next));
   *lock->read_wait.last=0;
   if (!lock->read_wait.data)
@@ -904,7 +904,7 @@ static void wake_up_waiters(THR_LOCK *lock)
 	  {
 	    pthread_cond_t *cond=data->cond;
 	    data->cond=0;				/* Mark thread free */
-	    VOID(pthread_cond_signal(cond));	/* Start waiting thread */
+	    pthread_cond_signal(cond);	/* Start waiting thread */
 	  }
 	  if (data->type != TL_WRITE_ALLOW_WRITE ||
 	      !lock->write_wait.data ||
@@ -955,7 +955,7 @@ static void wake_up_waiters(THR_LOCK *lock)
 	lock->write.last= &data->next;
 	data->next=0;				/* Only one write lock */
 	data->cond=0;				/* Mark thread free */
-	VOID(pthread_cond_signal(cond));	/* Start waiting thread */
+	pthread_cond_signal(cond);	/* Start waiting thread */
       } while (lock_type == TL_WRITE_ALLOW_WRITE &&
 	       (data=lock->write_wait.data) &&
 	       data->type == TL_WRITE_ALLOW_WRITE);
@@ -1526,7 +1526,7 @@ void thr_print_locks(void)
        list= list_rest(list))
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
-    VOID(pthread_mutex_lock(&lock->mutex));
+    pthread_mutex_lock(&lock->mutex);
     printf("lock: 0x%lx:",(ulong) lock);
     if ((lock->write_wait.data || lock->read_wait.data) &&
 	(! lock->read.data && ! lock->write.data))
@@ -1544,7 +1544,7 @@ void thr_print_locks(void)
     thr_print_lock("write_wait",&lock->write_wait);
     thr_print_lock("read",&lock->read);
     thr_print_lock("read_wait",&lock->read_wait);
-    VOID(pthread_mutex_unlock(&lock->mutex));
+    pthread_mutex_unlock(&lock->mutex);
     puts("");
   }
   fflush(stdout);
@@ -1684,7 +1684,7 @@ static void *test_thread(void *arg)
   thr_print_locks();
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+  pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
   free((uchar*) arg);
   return 0;
@@ -1745,7 +1745,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   }
 #endif
 #ifdef HAVE_THR_SETCONCURRENCY
-  VOID(thr_setconcurrency(2));
+  (void) thr_setconcurrency(2);
 #endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {

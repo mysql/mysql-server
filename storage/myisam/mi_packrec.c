@@ -1373,7 +1373,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
       We can't use my_pread() here because mi_read_rnd_pack_record assumes
       position is ok
     */
-    VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
+    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
     if (my_read(file, header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
     DBUG_DUMP("header",(uchar*) header,ref_length);
@@ -1516,8 +1516,8 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(my_munmap((char*) info->s->file_map, 
-                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+  (void) my_munmap((char*) info->s->file_map, 
+                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN);
 }
 
 
