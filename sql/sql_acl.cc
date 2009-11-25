@@ -1785,24 +1785,83 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 	  (ip && !wild_compare(ip, host->hostname, 0)));
 }
 
+/**
+  Check if the given host name needs to be resolved or not.
+  Host name has to be resolved if it actually contains *name*.
+
+  For example:
+    192.168.1.1               --> FALSE
+    192.168.1.0/255.255.255.0 --> FALSE
+    %                         --> FALSE
+    192.168.1.%               --> FALSE
+    AB%                       --> FALSE
+
+    AAAAFFFF                  --> TRUE (Hostname)
+    AAAA:FFFF:1234:5678       --> FALSE
+    ::1                       --> FALSE
+
+  This function does not check if the given string is a valid host name or
+  not. It assumes that the argument is a valid host name.
+
+  @param hostname   the string to check.
+
+  @return a flag telling if the argument needs to be resolved or not.
+  @retval TRUE the argument is a host name and needs to be resolved.
+  @retval FALSE the argument is either an IP address, or a patter and
+          should not be resolved.
+*/
+
 bool hostname_requires_resolving(const char *hostname)
 {
-  char cur;
   if (!hostname)
     return FALSE;
-  size_t namelen= strlen(hostname);
-  size_t lhlen= strlen(my_localhost);
-  if ((namelen == lhlen) &&
-      !my_strnncoll(system_charset_info, (const uchar *)hostname,  namelen,
-		    (const uchar *)my_localhost, strlen(my_localhost)))
-    return FALSE;
-  for (; (cur=*hostname); hostname++)
+
+  /* Check if hostname is the localhost. */
+
+  size_t hostname_len= strlen(hostname);
+  size_t localhost_len= strlen(my_localhost);
+
+  if (hostname == my_localhost ||
+      (hostname_len == localhost_len &&
+       !my_strnncoll(system_charset_info,
+                     (const uchar *) hostname,  hostname_len,
+                     (const uchar *) my_localhost, strlen(my_localhost))))
   {
-    if ((cur != '%') && (cur != '_') && (cur != '.') && (cur != '/') &&
-	((cur < '0') || (cur > '9')))
-      return TRUE;
+    return FALSE;
   }
-  return FALSE;
+
+  /*
+    If the string contains any of {':', '%', '_', '/'}, it is definitely
+    not a host name:
+      - ':' means that the string is an IPv6 address;
+      - '%' or '_' means that the string is a pattern;
+      - '/' means that the string is an IPv4 network address;
+  */
+
+  for (const char *p= hostname; *p; ++p)
+  {
+    switch (*p) {
+      case ':':
+      case '%':
+      case '_':
+      case '/':
+        return FALSE;
+    }
+  }
+
+  /*
+    Now we have to tell a host name (ab.cd, 12.ab) from an IPv4 address
+    (12.34.56.78). The assumption is that if the string contains only
+    digits and dots, it is an IPv4 address. Otherwise -- a host name.
+  */
+
+  for (const char *p= hostname; *p; ++p)
+  {
+    if (*p != '.' && !my_isdigit(&my_charset_latin1, *p))
+      return TRUE; /* a "letter" has been found. */
+  }
+
+  return FALSE; /* all characters are either dots or digits. */
 }
 
 

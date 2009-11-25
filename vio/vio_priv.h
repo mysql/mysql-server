@@ -25,6 +25,11 @@
 #include <m_string.h>
 #include <violite.h>
 
+#ifndef _WIN_
+#include <sys/socket.h>
+#include <netdb.h>
+#endif
+
 #ifdef _WIN32
 void	vio_win32_timeout(Vio *vio, uint which, uint timeout);
 #endif
