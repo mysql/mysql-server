@@ -465,7 +465,7 @@ int federated_db_init(void *p)
     DBUG_RETURN(FALSE);
   }
 
-  VOID(pthread_mutex_destroy(&federated_mutex));
+  pthread_mutex_destroy(&federated_mutex);
 error:
   DBUG_RETURN(TRUE);
 }
@@ -484,7 +484,7 @@ error:
 int federated_done(void *p)
 {
   my_hash_free(&federated_open_tables);
-  VOID(pthread_mutex_destroy(&federated_mutex));
+  pthread_mutex_destroy(&federated_mutex);
 
   return 0;
 }
@@ -1562,7 +1562,7 @@ static int free_share(FEDERATED_SHARE *share)
   {
     my_hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
-    VOID(pthread_mutex_destroy(&share->mutex));
+    pthread_mutex_destroy(&share->mutex);
     free_root(&mem_root, MYF(0));
   }
   pthread_mutex_unlock(&federated_mutex);
