@@ -5196,7 +5196,6 @@ static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_n
 
 static void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
 {
-	char	name_buf[XT_IDENTIFIER_NAME_SIZE*3+3];
 	char	*nptr;
 
 	nptr = xt_last_name_of_path(tab->tab_name->ps_path);
@@ -5223,11 +5222,30 @@ static void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
 		xt_strcat(size, table_name, nptr);
 	}
 	else {
+		char	name_buf[XT_TABLE_NAME_SIZE*3+3];
+		char	*part_ptr;
+		size_t	len;
+
 		xt_2nd_last_name_of_path(sizeof(name_buf), name_buf, tab->tab_name->ps_path);
 		myxt_static_convert_file_name(name_buf, table_name, size);
 		xt_strcat(size, table_name, ".");
-		myxt_static_convert_file_name(nptr, name_buf, sizeof(name_buf));
-		xt_strcat(size, table_name, name_buf);
+		
+		/* Handle partition extensions to table names: */
+		if ((part_ptr = strstr(nptr, "#P#")))
+			xt_strncpy(sizeof(name_buf), name_buf, nptr, part_ptr - nptr);
+		else
+			xt_strcpy(sizeof(name_buf), name_buf, nptr);
+
+		len = strlen(table_name);
+		myxt_static_convert_file_name(name_buf, table_name + len, size - len);
+
+		if (part_ptr) {
+			/* Add the partition extension (which is relevant to the engine). */
+			xt_strcat(size, table_name, " (");
+			len = strlen(table_name);
+			myxt_static_convert_file_name(part_ptr+3, table_name + len, size - len);
+			xt_strcat(size, table_name, ")");
+		}
 	}
 }
 
