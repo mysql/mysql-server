@@ -4514,7 +4514,7 @@ row_search_autoinc_read_column(
 	dict_index_t*	index,		/* in: index to read from */
 	const rec_t*	rec,		/* in: current rec */
 	ulint		col_no,		/* in: column number */
- 	ulint		mtype,		/*!< in: column main type */
+	ulint		mtype,		/*!< in: column main type */
 	ibool		unsigned_type)	/* in: signed or unsigned flag */
 {
 	ulint		len;
@@ -4538,21 +4538,21 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
- 	switch (mtype) {
- 	case DATA_INT:
- 		value = mach_read_int_type(data, len, unsigned_type);
- 		break;
+	switch (mtype) {
+	case DATA_INT:
+		value = mach_read_int_type(data, len, unsigned_type);
+		break;
  
- 	case DATA_FLOAT:
- 		value = mach_float_read(data);
- 		break;
+	case DATA_FLOAT:
+		value = mach_float_read(data);
+		break;
  
- 	case DATA_DOUBLE:
- 		value = mach_double_read(data);
- 		break;
+	case DATA_DOUBLE:
+		value = mach_double_read(data);
+		break;
  
 	default:
- 		ut_error;
+		ut_error;
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
