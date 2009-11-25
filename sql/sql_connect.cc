@@ -410,7 +410,7 @@ check_user(THD *thd, enum enum_server_command command,
         pthread_mutex_lock(&LOCK_connection_count);
         bool count_ok= connection_count <= max_connections ||
                        (thd->main_security_ctx.master_access & SUPER_ACL);
-        VOID(pthread_mutex_unlock(&LOCK_connection_count));
+        pthread_mutex_unlock(&LOCK_connection_count);
 
         if (!count_ok)
         {                                         // too many connections

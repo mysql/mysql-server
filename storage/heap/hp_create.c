@@ -194,7 +194,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
+    pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST);
 #endif
     if (!create_info->internal_table)
     {
@@ -298,7 +298,7 @@ void hp_free(HP_SHARE *share)
   hp_clear(share);			/* Remove blocks from memory */
 #ifdef THREAD
   thr_lock_delete(&share->lock);
-  VOID(pthread_mutex_destroy(&share->intern_lock));
+  pthread_mutex_destroy(&share->intern_lock);
 #endif
   my_free((uchar*) share->name, MYF(0));
   my_free((uchar*) share, MYF(0));
