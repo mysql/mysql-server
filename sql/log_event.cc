@@ -4509,6 +4509,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     as the present method does not call mysql_parse().
   */
   lex_start(thd);
+  thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
 
   if (!use_rli_only_for_errors)
