@@ -1,6 +1,6 @@
 EXTRA_DIST = \
 	cat.cmake \
-	ConfigurableFileContent.in \
+	configurable_file_content.in \
 	check_minimal_version.cmake \
 	create_initial_db.cmake.in \
 	make_dist.cmake.in \
