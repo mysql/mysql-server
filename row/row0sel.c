@@ -4536,18 +4536,20 @@ row_search_autoinc_read_column(
 	data = rec_get_nth_field((rec_t*)rec, offsets, col_no, &len);
 
 	ut_a(len != UNIV_SQL_NULL);
-	ut_a(len <= sizeof value);
 
 	switch (mtype) {
 	case DATA_INT:
+		ut_a(len <= sizeof value);
 		value = mach_read_int_type(data, len, unsigned_type);
 		break;
  
 	case DATA_FLOAT:
+		ut_a(len == sizeof(float));
 		value = mach_float_read(data);
 		break;
  
 	case DATA_DOUBLE:
+		ut_a(len == sizeof(double));
 		value = mach_double_read(data);
 		break;
  
@@ -4642,7 +4644,7 @@ row_search_max_autoinc(
 
 				*value = row_search_autoinc_read_column(
 					index, rec, i,
-				       	dfield->col->mtype, unsigned_type);
+					dfield->col->mtype, unsigned_type);
 			}
 		}
 
