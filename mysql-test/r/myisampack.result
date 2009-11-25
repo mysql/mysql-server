@@ -91,12 +91,14 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(20);
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(40);
+FLUSH TABLE t1,t2;
 #If the myisampack --join operation is successful, we have table t3(.frm)
 #so we should be able to query about the table from server.
 SELECT COUNT(a) FROM t3;
 COUNT(a)
 1024
 # ===== myisampack.2 =====
+FLUSH TABLE t3;
 #Tests the myisampack join operation with an existing destination .frm file, 
 #the command should return correct exit status(0) and
 #we should be able to query the table.
