@@ -13,7 +13,7 @@ change master to master_host='::1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -67,7 +67,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -109,7 +109,7 @@ change master to master_host='::1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -163,7 +163,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -205,7 +205,7 @@ change master to master_host='0000:0000:0000:0000:0000:0000:0000:0001';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0000:0000:0000:0000:0000:0000:0000:0001
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -259,7 +259,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0000:0000:0000:0000:0000:0000:0000:0001
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -301,7 +301,7 @@ change master to master_host='0:0:0:0:0:0:0:1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0:0:0:0:0:0:1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -355,7 +355,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0:0:0:0:0:0:1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -397,7 +397,7 @@ change master to master_host='127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -451,7 +451,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -493,7 +493,7 @@ change master to master_host='0:0:0:0:0:FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0:0:0:0:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -547,7 +547,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0:0:0:0:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -589,7 +589,7 @@ change master to master_host='0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0000:0000:0000:0000:0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -643,7 +643,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0000:0000:0000:0000:0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -685,7 +685,7 @@ change master to master_host='0:0000:0000:0:0000:FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0000:0000:0:0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -739,7 +739,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0000:0000:0:0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -781,7 +781,7 @@ change master to master_host='0::0000:FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0::0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -835,7 +835,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0::0000:FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -877,7 +877,7 @@ change master to master_host='::FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -931,7 +931,7 @@ reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -973,7 +973,7 @@ change master to master_host='::1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -1015,7 +1015,7 @@ change master to master_host='::FFFF:127.0.0.1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	::FFFF:127.0.0.1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
@@ -1057,7 +1057,7 @@ change master to master_host='0:0:0:0:0:0:0:1';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	0:0:0:0:0:0:0:1
-Master_User	
+Master_User	test
 Master_Port	3306
 Connect_Retry	60
 Master_Log_File	
