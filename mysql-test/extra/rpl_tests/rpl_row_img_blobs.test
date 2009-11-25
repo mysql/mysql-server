@@ -4,9 +4,10 @@
 #  ===========
 #
 #  This test case covers Requirements for replication using different
-#  combinations of indexes and blob fields.  This covers requirements
-#  R1, R2 in ** Blobs ** Section (WL#5096). R3 and R4 are covered in
-#  another test.
+#  combinations of indexes and blob fields. 
+#
+#  It acts as a complement for rpl_row_img_sanity tests as it checks
+#  that in a chained replication scenario, replication does not break.
 #
 #  Usage
 #  =====
@@ -34,6 +35,7 @@ DROP TABLE IF EXISTS t;
 
 -- connection mysqld_a
 
+-- let $diff_table=test.t
 let $i= 7;
 while($i)
 {
@@ -46,12 +48,17 @@ while($i)
   -- connection mysqld_c
   SET SQL_LOG_BIN=0;
 
-  if (`SELECT $i=1`) {
-    -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when blob is
-    -- echo ####                 part of PKE and --binlog-row-image='noblob'    
-    -- echo ####                 Case #1: blob is part of PK
+  # 
+  # The comments below (on create table) must be read with the SQL
+  # instructions issued later in mind. Declaring a table obviously is 
+  # not enough to assert anything.
+  #
+  # Also, the tests in this file make more sense when performed with
+  # binlog_row_image configured as NOBLOB.
+  #
 
+  if (`SELECT $i=1`) {
+    -- echo ### R1: replicate blobs always because they are part of PK
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -61,11 +68,7 @@ while($i)
   }
   if (`SELECT $i=2`)
   { 
-    -- echo #### WL#5096
-    -- echo #### Requirement R1: Replication must not break when blob is
-    -- echo ####                 part of PKE and --binlog-row-image='noblob'
-    -- echo ####                 Case #2: blob is part of non-nullable UK
-
+    -- echo ### Asserts that R1 does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -75,11 +78,7 @@ while($i)
   }
   if (`SELECT $i=3`)
   {
-    -- echo #### WL#5096
-    -- echo #### Requirement R2: Replication must not break when blob is
-    -- echo ####                 not part of BI
-    -- echo ####                 Case #1: K defined on blob column
-
+    -- echo ### Asserts that declaring a blob in a key does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -89,11 +88,7 @@ while($i)
 
   }
   if (`SELECT $i=4`) {
-    -- echo #### WL#5096
-    -- echo #### Requirement R2: Replication must not break when blob is
-    -- echo ####                 not part of BI
-    -- echo ####                 Case #2: PK defined on non blob column
-
+    -- echo ### This asserts that R2 does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -104,11 +99,7 @@ while($i)
   }
   if (`SELECT $i=5`)
   { 
-    -- echo #### WL#5096
-    -- echo #### Requirement R2: Replication must not break when blob is
-    -- echo ####                 no included in BI.
-    -- echo ####                 Case #3: non-nullable UK defined on non blob column
-
+    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -119,11 +110,7 @@ while($i)
   }
   if (`SELECT $i=6`)
   { 
-    -- echo #### WL#5096
-    -- echo #### Requirement R2: Replication must not break when blob is
-    -- echo ####                 is not inlcuded in BI
-    -- echo ####                 Case #4: UK defined on non blob column
-
+    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -134,11 +121,7 @@ while($i)
   }
   if (`SELECT $i=7`)
   { 
-    -- echo #### WL#5096
-    -- echo #### Requirement R2: Replication must not break when blob is
-    -- echo ####                 is not inlcuded in BI
-    -- echo ####                 Case #5: no keys on table
-
+    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -176,8 +159,13 @@ while($i)
 
   -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
 
-  -- let $diff_table=test.t
-  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+  -- let $diff_table_1=mysqld_a:$diff_table
+  -- let $diff_table_2=mysqld_b:$diff_table
+  -- source include/diff_tables2.inc
+
+  -- let $diff_table_1=mysqld_b:$diff_table
+  -- let $diff_table_2=mysqld_c:$diff_table
+  -- source include/diff_tables2.inc
 
   -- connection mysqld_a
   -- eval DELETE FROM t WHERE c2=$blob1
@@ -186,8 +174,13 @@ while($i)
 
   -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
 
-  -- let $diff_table=test.t
-  -- source suite/rpl/include/rpl_chained_3_hosts_diff_tables.inc
+  -- let $diff_table_1=mysqld_a:$diff_table
+  -- let $diff_table_2=mysqld_b:$diff_table
+  -- source include/diff_tables2.inc
+
+  -- let $diff_table_1=mysqld_b:$diff_table
+  -- let $diff_table_2=mysqld_c:$diff_table
+  -- source include/diff_tables2.inc
 
   -- connection mysqld_a
 
