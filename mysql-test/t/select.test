@@ -3931,4 +3931,37 @@ SELECT table1 .`time_key` field2  FROM B table1  LEFT JOIN  BB JOIN A table5 ON 
 
 drop table A,AA,B,BB;
 --echo #end of test for bug#45266
+
+--echo # 
+--echo # BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+--echo # 
+
+# Needed in 6.0 codebase
+#--echo # Disable Index condition pushdown
+#--replace_column 1 #
+#SELECT @old_icp:=@@engine_condition_pushdown;
+#SET SESSION engine_condition_pushdown = 'OFF';
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  i int(11) DEFAULT NULL,
+  v varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+
+# Needed in 6.0 codebase
+#--echo # Restore old value for Index condition pushdown
+#SET SESSION engine_condition_pushdown=@old_icp;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
