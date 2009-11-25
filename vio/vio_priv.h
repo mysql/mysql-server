@@ -25,7 +25,7 @@
 #include <m_string.h>
 #include <violite.h>
 
-#ifndef _WIN_
+#ifndef __WIN__
 #include <sys/socket.h>
 #include <netdb.h>
 #endif
