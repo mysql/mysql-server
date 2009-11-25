@@ -1009,7 +1009,10 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
+  MYRG_TABLE *tmp;
   DBUG_ASSERT(this->file->children_attached);
+  for (tmp= file->open_tables; tmp != file->end_table; tmp++)
+    tmp->table->in_use.data= thd;
   return myrg_lock_database(file,lock_type);
 }
 
