@@ -679,3 +679,5 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include "mi_extrafunc.h"
