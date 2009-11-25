@@ -75,7 +75,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
