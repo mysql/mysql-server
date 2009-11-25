@@ -841,12 +841,6 @@ public:
               const void* const paramValue[]= 0,
               NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
-  NdbQuery*
-  createQuery(const NdbQueryDef* query,
-              const NdbIndexScanOperation::IndexBound *bound,
-              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
-
-
 
 private:						
   /**

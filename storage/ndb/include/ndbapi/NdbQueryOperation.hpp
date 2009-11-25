@@ -22,6 +22,8 @@
 /* There is no way to forward declare nested class NdbDictionary::Column,
  * so this header file must be included.*/
 #include "NdbDictionary.hpp"
+#include "NdbIndexScanOperation.hpp"
+
 
 class Ndb;
 struct NdbError;
@@ -76,6 +78,7 @@ public:
   const NdbParamOperand* getParameter(const char* name) const;
   const NdbParamOperand* getParameter(Uint32 num) const;
 
+  int setBound(const class NdbIndexScanOperation::IndexBound *bound);
 
   /**
    * Get the next tuple(s) from the global cursor on the query.
