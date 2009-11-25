@@ -753,7 +753,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   /* Read keyinformation */
   key_info_length= (uint) uint2korr(head+28);
-  VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
+  my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0));
   if (read_string(file,(uchar**) &disk_buff,key_info_length))
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
@@ -1030,7 +1030,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                record_offset, MYF(MY_NABP)))
     goto err;                                   /* purecov: inspected */
 
-  VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
+  my_seek(file,pos,MY_SEEK_SET,MYF(0));
   if (my_read(file, head,288,MYF(MY_NABP)))
     goto err;
 #ifdef HAVE_CRYPTED_FRM
@@ -2056,7 +2056,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   if (names)
   {
     length=uint2korr(head+4);
-    VOID(my_seek(file,64L,MY_SEEK_SET,MYF(0)));
+    my_seek(file,64L,MY_SEEK_SET,MYF(0));
     if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
 				  MYF(MY_WME))) ||
 	my_read(file, buf+a_length, (size_t) (length+names*4),
@@ -2135,17 +2135,17 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
     while (endpos > maxlength)
     {
-      VOID(my_seek(file,(ulong) (endpos-bufflength),MY_SEEK_SET,MYF(0)));
+      my_seek(file,(ulong) (endpos-bufflength),MY_SEEK_SET,MYF(0));
       if (my_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
-      VOID(my_seek(file,(ulong) (endpos-bufflength+IO_SIZE),MY_SEEK_SET,
-		   MYF(0)));
+      my_seek(file,(ulong) (endpos-bufflength+IO_SIZE),MY_SEEK_SET,
+		   MYF(0));
       if ((my_write(file, buff,bufflength,MYF(MY_NABP+MY_WME))))
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
     bzero(buff,IO_SIZE);			/* Null new block */
-    VOID(my_seek(file,(ulong) maxlength,MY_SEEK_SET,MYF(0)));
+    my_seek(file,(ulong) maxlength,MY_SEEK_SET,MYF(0));
     if (my_write(file,buff,bufflength,MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
     maxlength+=IO_SIZE;				/* Fix old ref */
@@ -2161,11 +2161,11 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   if (n_length == 1 )
   {						/* First name */
     length++;
-    VOID(strxmov((char*) buff,"/",newname,"/",NullS));
+    (void) strxmov((char*) buff,"/",newname,"/",NullS);
   }
   else
-    VOID(strxmov((char*) buff,newname,"/",NullS)); /* purecov: inspected */
-  VOID(my_seek(file,63L+(ulong) n_length,MY_SEEK_SET,MYF(0)));
+    (void) strxmov((char*) buff,newname,"/",NullS); /* purecov: inspected */
+  my_seek(file,63L+(ulong) n_length,MY_SEEK_SET,MYF(0));
   if (my_write(file, buff, (size_t) length+1,MYF(MY_NABP+MY_WME)) ||
       (names && my_write(file,(uchar*) (*formnames->type_names+n_length-1),
 			 names*4, MYF(MY_NABP+MY_WME))) ||
@@ -2174,7 +2174,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
   int2store(fileinfo+8,names+1);
   int2store(fileinfo+4,n_length+length);
-  VOID(my_chsize(file, newpos, 0, MYF(MY_WME)));/* Append file with '\0' */
+  (void) my_chsize(file, newpos, 0, MYF(MY_WME));/* Append file with '\0' */
   DBUG_RETURN(newpos);
 } /* make_new_entry */
 
@@ -2528,8 +2528,8 @@ File create_frm(THD *thd, const char *name, const char *db,
     {
       if (my_write(file,fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
       {
-	VOID(my_close(file,MYF(0)));
-	VOID(my_delete(name,MYF(0)));
+	(void) my_close(file,MYF(0));
+	(void) my_delete(name,MYF(0));
 	return(-1);
       }
     }
@@ -2566,8 +2566,8 @@ int
 rename_file_ext(const char * from,const char * to,const char * ext)
 {
   char from_b[FN_REFLEN],to_b[FN_REFLEN];
-  VOID(strxmov(from_b,from,ext,NullS));
-  VOID(strxmov(to_b,to,ext,NullS));
+  (void) strxmov(from_b,from,ext,NullS);
+  (void) strxmov(to_b,to,ext,NullS);
   return (my_rename(from_b,to_b,MYF(MY_WME)));
 }
 

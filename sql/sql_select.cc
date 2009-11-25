@@ -3954,7 +3954,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       save_pos++;
     }
     i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    VOID(set_dynamic(keyuse,(uchar*) &key_end,i));
+    (void) set_dynamic(keyuse,(uchar*) &key_end,i);
     keyuse->elements=i;
   }
   return FALSE;
@@ -9197,7 +9197,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	li.remove();
       else if (item != new_item)
       {
-	VOID(li.replace(new_item));
+	(void) li.replace(new_item);
 	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)
@@ -11107,7 +11107,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 
   if (table)
   {
-    VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
+    (void) table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
@@ -12453,7 +12453,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      VOID(test_if_group_changed(join->group_fields));
+      (void) test_if_group_changed(join->group_fields);
     }
     if (idx < (int) join->send_group_parts)
     {
@@ -12716,7 +12716,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      VOID(test_if_group_changed(join->group_fields));
+      (void) test_if_group_changed(join->group_fields);
     }
     if (idx < (int) join->send_group_parts)
     {

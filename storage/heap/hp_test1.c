@@ -91,7 +91,7 @@ int main(int argc, char **argv)
   printf("- Removing records\n");
   for (i=1 ; i<=10 ; i++)
   {
-    if (i == remove_ant) { VOID(heap_close(file)) ; return (0) ; }
+    if (i == remove_ant) { (void) heap_close(file); return (0) ; }
     sprintf((char*) key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
     if ((error = heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT)))
     {

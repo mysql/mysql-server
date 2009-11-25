@@ -77,7 +77,7 @@ end:
   mysql_close(mysql);
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+  pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_exit(0);
   return 0;

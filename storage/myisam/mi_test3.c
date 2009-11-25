@@ -109,7 +109,7 @@ int main(int argc,char **argv)
       sleep(1);
       return 0;
     }
-    VOID(rnd(1));
+    (void) rnd(1);
   }
 
   for (i=0 ; i < forks ; i++)

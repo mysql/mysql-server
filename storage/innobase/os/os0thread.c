@@ -133,15 +133,6 @@ os_thread_create(
 			      0,	/* thread runs immediately */
 			      &win_thread_id);
 
-	if (srv_set_thread_priorities) {
-
-		/* Set created thread priority the same as a normal query
-		in MYSQL: we try to prevent starvation of threads by
-		assigning same priority QUERY_PRIOR to all */
-
-		ut_a(SetThreadPriority(thread, srv_query_thread_priority));
-	}
-
 	if (thread_id) {
 		*thread_id = win_thread_id;
 	}
@@ -200,11 +191,6 @@ os_thread_create(
 #ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
-	if (srv_set_thread_priorities) {
-
-		my_pthread_setprio(pthread, srv_query_thread_priority);
-	}
-
 	if (thread_id) {
 		*thread_id = pthread;
 	}

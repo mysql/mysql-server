@@ -88,8 +88,8 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
 
   pthread_mutex_lock(&THR_LOCK_myisam);
   error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
-  VOID(my_write(myisam_log_file,buff,sizeof(buff),MYF(0)));
-  VOID(my_write(myisam_log_file,buffert,length,MYF(0)));
+  (void) my_write(myisam_log_file,buff,sizeof(buff),MYF(0));
+  (void) my_write(myisam_log_file,buffert,length,MYF(0));
   if (!error)
     error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   pthread_mutex_unlock(&THR_LOCK_myisam);
@@ -111,9 +111,9 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
   mi_int2store(buff+7,result);
   pthread_mutex_lock(&THR_LOCK_myisam);
   error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
-  VOID(my_write(myisam_log_file,buff,sizeof(buff),MYF(0)));
+  (void) my_write(myisam_log_file,buff,sizeof(buff),MYF(0));
   if (buffert)
-    VOID(my_write(myisam_log_file,buffert,length,MYF(0)));
+    (void) my_write(myisam_log_file,buffert,length,MYF(0));
   if (!error)
     error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   pthread_mutex_unlock(&THR_LOCK_myisam);
@@ -142,8 +142,8 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   mi_int4store(buff+17,length);
   pthread_mutex_lock(&THR_LOCK_myisam);
   error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
-  VOID(my_write(myisam_log_file, buff,sizeof(buff),MYF(0)));
-  VOID(my_write(myisam_log_file, record,info->s->base.reclength,MYF(0)));
+  (void) my_write(myisam_log_file, buff,sizeof(buff),MYF(0));
+  (void) my_write(myisam_log_file, record,info->s->base.reclength,MYF(0));
   if (info->s->base.blobs)
   {
     MI_BLOB *blob,*end;
@@ -154,7 +154,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
     {
       memcpy_fixed((uchar*) &pos, record+blob->offset+blob->pack_length,
                    sizeof(char*));
-      VOID(my_write(myisam_log_file,pos,blob->length,MYF(0)));
+      (void) my_write(myisam_log_file,pos,blob->length,MYF(0));
     }
   }
   if (!error)
