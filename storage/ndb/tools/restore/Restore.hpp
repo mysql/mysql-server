@@ -142,7 +142,9 @@ class TableS {
   Uint32 m_auto_val_id;
   Uint64 m_max_auto_val;
 
-  bool isSysTable;
+  bool m_isSysTable;
+  bool m_isSYSTAB_0;
+
   TableS *m_main_table;
   Uint32 m_main_column_id;
   Uint32 m_local_id;
@@ -238,6 +240,9 @@ public:
     if(v > m_max_auto_val)
       m_max_auto_val= v;
   };
+
+  bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
+
   /**
    * Get attribute descriptor
    */
@@ -246,14 +251,19 @@ public:
   }
 
   bool getSysTable() const {
-    return isSysTable;
+    return m_isSysTable;
   }
 
   const TableS *getMainTable() const {
     return m_main_table;
   }
 
-  TableS& operator=(TableS& org) ; 
+  TableS& operator=(TableS& org) ;
+
+  inline
+  const bool isSYSTAB_0() const {
+    return m_isSYSTAB_0;
+  } 
 }; // TableS;
 
 class RestoreLogIterator;
@@ -435,6 +445,8 @@ NdbOut& operator<<(NdbOut& ndbout, const TableS&);
 NdbOut& operator<<(NdbOut& ndbout, const TupleS&);
 NdbOut& operator<<(NdbOut& ndbout, const LogEntry&);
 NdbOut& operator<<(NdbOut& ndbout, const RestoreMetaData&);
+
+bool readSYSTAB_0(const TupleS & tup, Uint32 * syskey, Uint64 * nextid);
 
 #endif
 

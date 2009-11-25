@@ -36,7 +36,7 @@ extern FilteredNdbOut debug;
 static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
-static bool ga_dont_ignore_systab_0 = false;
+bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
@@ -162,7 +162,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_backupPath, (uchar**) &ga_backupPath, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "dont_ignore_systab_0", 'f',
-    "Experimental. Do not ignore system table during restore.", 
+    "Do not ignore system table during --print-data.", 
     (uchar**) &ga_dont_ignore_systab_0, (uchar**) &ga_dont_ignore_systab_0, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "ndb-nodegroup-map", OPT_NDB_NODEGROUP_MAP,
@@ -564,7 +564,7 @@ clearConsumers()
 static inline bool
 checkSysTable(const TableS* table)
 {
-  return ga_dont_ignore_systab_0 || ! table->getSysTable();
+  return ! table->getSysTable();
 }
 
 static inline bool
@@ -585,6 +585,12 @@ isIndex(const TableS* table)
 {
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table->m_dictTable);
   return (int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined;
+}
+
+static inline bool
+isSYSTAB_0(const TableS* table)
+{
+  return table->isSYSTAB_0();
 }
 
 static inline bool
@@ -824,6 +830,10 @@ main(int argc, char** argv)
     table_output.push_back(NULL);
     if (!checkDbAndTableName(table))
       continue;
+    if (isSYSTAB_0(table))
+    {
+      table_output[i]= ndbout.m_out;
+    }
     if (checkSysTable(table))
     {
       if (!tab_path || isBlobTable(table) || isIndex(table))
