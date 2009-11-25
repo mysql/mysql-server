@@ -330,6 +330,14 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   {
     DBUG_RETURN(0);
   }
+
+  // 'index_merge' access plan is net implemented
+  if (join_root.select && join_root.select->quick &&
+      join_root.select->quick->index >= MAX_KEY)
+  {
+    DBUG_RETURN(0);
+  }
+
   /****** TODO, END 'temporary limitations' *****************/
 
   if (!field_ref_is_join_pushable(join_tabs, 1))
