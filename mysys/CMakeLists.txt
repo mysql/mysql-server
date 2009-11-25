@@ -54,9 +54,6 @@ ENDIF()
 IF(UNIX)
  # some workarounds
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_port.c)
- # Some stuff not ported to windows 
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_atomic.c)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_getncpus.c)
 ENDIF()
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY})
