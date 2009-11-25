@@ -63,21 +63,21 @@ sp_pcontext::sp_pcontext()
   m_context_handlers(0), m_parent(NULL), m_pboundary(0),
   m_label_scope(LABEL_DEFAULT_SCOPE)
 {
-  VOID(my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
   m_children.empty();
 
@@ -91,21 +91,21 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, label_scope_type label_scope)
   m_context_handlers(0), m_parent(prev), m_pboundary(0),
   m_label_scope(label_scope)
 {
-  VOID(my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
-  VOID(my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC));
+                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
   m_children.empty();
 

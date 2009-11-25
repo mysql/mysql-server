@@ -155,7 +155,7 @@ int mi_write(MI_INFO *info, uchar *record)
   info->state->records++;
   info->lastpos=filepos;
   myisam_log_record(MI_LOG_WRITE,info,record,filepos,0);
-  VOID(_mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
@@ -232,7 +232,7 @@ err:
 err2:
   save_errno=my_errno;
   myisam_log_record(MI_LOG_WRITE,info,record,filepos,my_errno);
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);
 } /* mi_write */

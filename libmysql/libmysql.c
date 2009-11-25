@@ -556,7 +556,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   if ((*options->local_infile_init)(&li_ptr, net_filename,
     options->local_infile_userdata))
   {
-    VOID(my_net_write(net,(const uchar*) "",0)); /* Server needs one packet */
+    (void) my_net_write(net,(const uchar*) "",0); /* Server needs one packet */
     net_flush(net);
     strmov(net->sqlstate, unknown_sqlstate);
     net->last_errno=

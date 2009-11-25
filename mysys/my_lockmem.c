@@ -59,7 +59,7 @@ uchar *my_malloc_lock(uint size,myf MyFlags)
     /* Add block in a list for munlock */
     if (!(element=(struct st_mem_list*) my_malloc(sizeof(*element),MyFlags)))
     {
-      VOID(munlock((uchar*) ptr,size));
+      (void) munlock((uchar*) ptr,size);
       free(ptr);
       DBUG_RETURN(0);
     }
@@ -85,7 +85,7 @@ void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
     element=(struct st_mem_list*) list->data;
     if (ptr == element->page)
     {						/* Found locked mem */
-      VOID(munlock((uchar*) ptr,element->size));
+      (void) munlock((uchar*) ptr,element->size);
       mem_list=list_delete(mem_list,list);
       break;
     }

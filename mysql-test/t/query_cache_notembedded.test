@@ -99,6 +99,7 @@ connection root2;
 SELECT * FROM t1;
 connection root;
 SELECT * FROM t1;
+UNLOCK TABLES;
 drop table t1;
 connection default;
 disconnect root;

@@ -199,7 +199,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   key_buff_length= uint4korr(fileinfo+47);
   keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
-  VOID(get_form_pos(file,fileinfo,&formnames));
+  (void) get_form_pos(file,fileinfo,&formnames);
   if (!(filepos=make_new_entry(file,fileinfo,&formnames,"")))
     goto err;
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
@@ -262,9 +262,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       my_pwrite(file, keybuff, key_info_length,
 		(ulong) uint2korr(fileinfo+6),MYF_RW))
     goto err;
-  VOID(my_seek(file,
+  my_seek(file,
 	       (ulong) uint2korr(fileinfo+6)+ (ulong) key_buff_length,
-	       MY_SEEK_SET,MYF(0)));
+	       MY_SEEK_SET,MYF(0));
   if (make_empty_rec(thd,file,ha_legacy_type(create_info->db_type),
                      create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
@@ -310,7 +310,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     }
   }
 
-  VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
+  my_seek(file,filepos,MY_SEEK_SET,MYF(0));
   if (my_write(file, forminfo, 288, MYF_RW) ||
       my_write(file, screen_buff, info_length, MYF_RW) ||
       pack_fields(file, create_fields, data_offset))
@@ -324,7 +324,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (!crypted || my_pwrite(file,&tmp,1,26,MYF_RW))	// Mark crypted
       goto err;
     uint read_length=uint2korr(forminfo)-256;
-    VOID(my_seek(file,filepos+256,MY_SEEK_SET,MYF(0)));
+    my_seek(file,filepos+256,MY_SEEK_SET,MYF(0));
     if (read_string(file,(uchar**) &disk_buff,read_length))
       goto err;
     crypted->encode(disk_buff,read_length);
@@ -371,7 +371,7 @@ err:
   my_free(screen_buff, MYF(0));
   my_free(keybuff, MYF(0));
 err2:
-  VOID(my_close(file,MYF(MY_WME)));
+  (void) my_close(file,MYF(MY_WME));
 err3:
   my_delete(file_name,MYF(0));
   DBUG_RETURN(1);
@@ -425,7 +425,7 @@ int rea_create_table(THD *thd, const char *path,
   DBUG_RETURN(0);
 
 err_handler:
-  VOID(file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info));
+  (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
   my_delete(frm_name, MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */

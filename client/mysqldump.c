@@ -2001,7 +2001,7 @@ static uint dump_events_for_db(char *db)
   mysql_free_result(event_list_res);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -2204,7 +2204,7 @@ static uint dump_routines_for_db(char *db)
     DBUG_RETURN(1);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -4086,7 +4086,7 @@ static int dump_all_tables_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   if (flush_privileges && using_mysql_db == 0)
   {
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
@@ -4160,7 +4160,7 @@ static my_bool dump_all_views_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -4332,7 +4332,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 } /* dump_selected_tables */
 
