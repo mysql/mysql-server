@@ -2191,7 +2191,7 @@ uint Item_func_ifnull::decimal_precision() const
   int arg1_int_part= args[1]->decimal_int_part();
   int max_int_part= max(arg0_int_part, arg1_int_part);
   int precision= max_int_part + decimals;
-  return precision;
+  return min(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2375,7 +2375,7 @@ uint Item_func_if::decimal_precision() const
   int arg1_prec= args[1]->decimal_int_part();
   int arg2_prec= args[2]->decimal_int_part();
   int precision=max(arg1_prec,arg2_prec) + decimals;
-  return precision;
+  return min(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2783,7 +2783,7 @@ uint Item_func_case::decimal_precision() const
 
   if (else_expr_num != -1) 
     set_if_bigger(max_int_part, args[else_expr_num]->decimal_int_part());
-  return max_int_part + decimals;
+  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
 }
 
 
