@@ -1104,6 +1104,9 @@ select * from t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 drop view v1;
 drop table t1, t2;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+drop table t1, t2;
 create table t1 (a int);
 create view v1 as select * from t1 where a < 2 with check option;
 insert into v1 values(1);

@@ -87,7 +87,7 @@ static void add_hostname(struct in_addr *in,const char *name)
 {
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
-    VOID(pthread_mutex_lock(&hostname_cache->lock));
+    pthread_mutex_lock(&hostname_cache->lock);
     host_entry *entry;
     if (!(entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     {
@@ -106,7 +106,7 @@ static void add_hostname(struct in_addr *in,const char *name)
 	(void) hostname_cache->add(entry);
       }
     }
-    VOID(pthread_mutex_unlock(&hostname_cache->lock));
+    pthread_mutex_unlock(&hostname_cache->lock);
   }
 }
 
@@ -118,20 +118,20 @@ inline void add_wrong_ip(struct in_addr *in)
 
 void inc_host_errors(struct in_addr *in)
 {
-  VOID(pthread_mutex_lock(&hostname_cache->lock));
+  pthread_mutex_lock(&hostname_cache->lock);
   host_entry *entry;
   if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     entry->errors++;
-  VOID(pthread_mutex_unlock(&hostname_cache->lock));
+  pthread_mutex_unlock(&hostname_cache->lock);
 }
 
 void reset_host_errors(struct in_addr *in)
 {
-  VOID(pthread_mutex_lock(&hostname_cache->lock));
+  pthread_mutex_lock(&hostname_cache->lock);
   host_entry *entry;
   if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     entry->errors=0;
-  VOID(pthread_mutex_unlock(&hostname_cache->lock));
+  pthread_mutex_unlock(&hostname_cache->lock);
 }
 
 /* Deal with systems that don't defined INADDR_LOOPBACK */
@@ -153,7 +153,7 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
   /* Check first if we have name in cache */
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
-    VOID(pthread_mutex_lock(&hostname_cache->lock));
+    pthread_mutex_lock(&hostname_cache->lock);
     if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
     {
       char *name;
@@ -162,10 +162,10 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
       else
 	name=my_strdup(entry->hostname,MYF(0));
       *errors= entry->errors;
-      VOID(pthread_mutex_unlock(&hostname_cache->lock));
+      pthread_mutex_unlock(&hostname_cache->lock);
       DBUG_RETURN(name);
     }
-    VOID(pthread_mutex_unlock(&hostname_cache->lock));
+    pthread_mutex_unlock(&hostname_cache->lock);
   }
 
   struct hostent *hp, *check;
@@ -214,10 +214,10 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
   }
   my_gethostbyname_r_free();
 #else
-  VOID(pthread_mutex_lock(&LOCK_hostname));
+  pthread_mutex_lock(&LOCK_hostname);
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))
   {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    pthread_mutex_unlock(&LOCK_hostname);
     DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
 
     if (errno == HOST_NOT_FOUND || errno == NO_DATA)
@@ -227,17 +227,17 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
   }
   if (!hp->h_name[0])				// Don't allow empty hostnames
   {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    pthread_mutex_unlock(&LOCK_hostname);
     DBUG_PRINT("error",("Got an empty hostname"));
     goto add_wrong_ip_and_return;
   }
   if (!(name=my_strdup(hp->h_name,MYF(0))))
   {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    pthread_mutex_unlock(&LOCK_hostname);
     DBUG_RETURN(0);				// out of memory
   }
   check=gethostbyname(name);
-  VOID(pthread_mutex_unlock(&LOCK_hostname));
+  pthread_mutex_unlock(&LOCK_hostname);
   if (!check)
   {
     DBUG_PRINT("error",("gethostbyname returned %d",errno));

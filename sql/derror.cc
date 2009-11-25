@@ -143,7 +143,7 @@ Error message file '%s' had only %d error messages,\n\
 but it should contain at least %d error messages.\n\
 Check that the above file is the right version for this program!",
 		    name,count,error_messages);
-    VOID(my_close(file,MYF(MY_WME)));
+    (void) my_close(file,MYF(MY_WME));
     DBUG_RETURN(1);
   }
 
@@ -170,7 +170,7 @@ Check that the above file is the right version for this program!",
   {
     point[i]= *point +uint2korr(head+10+i+i);
   }
-  VOID(my_close(file,MYF(0)));
+  (void) my_close(file,MYF(0));
   DBUG_RETURN(0);
 
 err:
@@ -187,7 +187,7 @@ err:
   }
   sql_print_error(errmsg, name);
   if (file != FERR)
-    VOID(my_close(file,MYF(MY_WME)));
+    (void) my_close(file,MYF(MY_WME));
   DBUG_RETURN(1);
 } /* read_texts */
 

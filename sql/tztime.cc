@@ -1594,7 +1594,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     goto end;
   }
   init_sql_alloc(&tz_storage, 32 * 1024, 0);
-  VOID(pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST));
+  pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
@@ -1772,7 +1772,7 @@ void my_tz_free()
   if (tz_inited)
   {
     tz_inited= 0;
-    VOID(pthread_mutex_destroy(&tz_LOCK));
+    pthread_mutex_destroy(&tz_LOCK);
     my_hash_free(&offset_tzs);
     my_hash_free(&tz_names);
     free_root(&tz_storage, MYF(0));
@@ -2261,7 +2261,7 @@ my_tz_find(THD *thd, const String *name)
   if (!name)
     DBUG_RETURN(0);
 
-  VOID(pthread_mutex_lock(&tz_LOCK));
+  pthread_mutex_lock(&tz_LOCK);
 
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
@@ -2304,7 +2304,7 @@ my_tz_find(THD *thd, const String *name)
     }
   }
 
-  VOID(pthread_mutex_unlock(&tz_LOCK));
+  pthread_mutex_unlock(&tz_LOCK);
 
   DBUG_RETURN(result_tz);
 }

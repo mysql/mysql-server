@@ -611,8 +611,8 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
-    VOID(pthread_mutex_init(&counter_mutex, NULL));
-    VOID(pthread_cond_init(&count_threshhold, NULL));
+    pthread_mutex_init(&counter_mutex, NULL);
+    pthread_cond_init(&count_threshhold, NULL);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
@@ -651,8 +651,8 @@ int main(int argc, char **argv)
       pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
     }
     pthread_mutex_unlock(&counter_mutex);
-    VOID(pthread_mutex_destroy(&counter_mutex));
-    VOID(pthread_cond_destroy(&count_threshhold));
+    pthread_mutex_destroy(&counter_mutex);
+    pthread_cond_destroy(&count_threshhold);
     pthread_attr_destroy(&attr);
   }
   else

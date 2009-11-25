@@ -483,7 +483,7 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  locked=some_tables_deleted=no_errors=password= 0;
+  some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
@@ -936,11 +936,9 @@ void THD::init_for_queries()
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
-#ifdef USING_TRANSACTIONS
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
-#endif
   transaction.xid_state.xid.null();
   transaction.xid_state.in_thd=1;
 }
@@ -1059,9 +1057,7 @@ THD::~THD()
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   safeFree(db);
-#ifdef USING_TRANSACTIONS
   free_root(&transaction.mem_root,MYF(0));
-#endif
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
