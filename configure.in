@@ -864,6 +864,42 @@ AC_CHECK_DECLS(MHA_MAPSIZE_VA,
 fi
 
 #--------------------------------------------------------------------
+# Check for IPv6 support
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(netinet/in6.h)
+
+AC_CHECK_TYPES([struct sockaddr_in6, struct in6_addr],
+                [have_in6_types=yes],
+                [have_in6_types=no], 
+  [[
+    #ifdef WIN32
+      #include <winsock2.h>
+    #else
+      #include <sys/types.h>
+      #include <netinet/in.h>
+      #include <sys/socket.h>
+    #endif
+
+    #ifdef HAVE_NETINET_IN6_H
+      #include <netinet/in6.h>
+    #endif
+  ]])
+
+AC_MSG_CHECKING([for IPv6 support])
+
+AC_ARG_ENABLE(ipv6,
+  AS_HELP_STRING([--disable-ipv6], [Disable support for IPv6 networking]),
+  [disable_ipv6=yes], [disable_ipv6=no])
+
+if test x"$disable_ipv6" = xyes -o x"$have_in6_types" = xno; then
+  AC_MSG_RESULT([no])
+else
+  AC_DEFINE([HAVE_IPV6], [1], [Define if IPv6 networking support is present])
+  AC_MSG_RESULT([yes])
+fi
+
+#--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
 
@@ -960,12 +996,6 @@ NON_THREADED_LIBS="$LIBS"
 AC_CHECK_TYPES([int8, uint8, int16, uint16, int32, uint32, int64, uint64,
                 uchar, uint, ulong],[],[], [
 #include <sys/types.h>
-])
-AC_CHECK_TYPES([in_addr_t], [], [], [
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 ])
 AC_CHECK_TYPES([fp_except], [], [], [
 #include <sys/types.h>

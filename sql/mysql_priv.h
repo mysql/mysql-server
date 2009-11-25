@@ -53,6 +53,9 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 class Parser_state;
 
@@ -2235,10 +2238,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

@@ -15,7 +15,7 @@ DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
 # Bug#13407 Remote connecting crashes server
 # Server crashed when one used USER() function in connection for which
 # was impossible to obtain peer hostname.
-connect (con1, 127.0.0.1, root, , test, $MASTER_MYPORT, );
+connect (con1, localhost, root, , test, $MASTER_MYPORT, );
 --replace_column 1 #
 SELECT USER();
 # We are only interested in the fact that statement below doesn't
