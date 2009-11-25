@@ -226,6 +226,24 @@ handlerton innobase_hton = {
   innobase_close_cursor_view,
   HTON_NO_FLAGS
 };
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if index name matches a
+					reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name);	/* in: table name */
+
+/* "GEN_CLUST_INDEX" is the name reserved for Innodb default
+system primary index. */
+static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
@@ -4496,7 +4514,10 @@ create_index(
 
     	n_fields = key->key_parts;
 
-    	ind_type = 0;
+	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
+	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
+
+	ind_type = 0;
 
     	if (key_num == form->s->primary_key) {
 		ind_type = ind_type | DICT_CLUSTERED;
@@ -4606,9 +4627,8 @@ create_clustered_index_when_no_primary(
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
-
-	index = dict_mem_index_create((char*) table_name,
-				      (char*) "GEN_CLUST_INDEX",
+	index = dict_mem_index_create(table_name,
+				      innobase_index_reserve_name,
 				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
 
@@ -4706,16 +4726,6 @@ ha_innobase::create(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Create the table definition in InnoDB */
-
-	error = create_table_def(trx, form, norm_name,
-		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		form->s->row_type != ROW_TYPE_REDUNDANT);
-
-  	if (error) {
-		goto cleanup;
- 	}
-
 	/* Look for a primary key */
 
 	primary_key_no= (table->s->primary_key != MAX_KEY ?
@@ -4726,6 +4736,23 @@ ha_innobase::create(
 	the primary key is always number 0, if it exists */
 
 	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(trx, form, norm_name)) {
+		error = -1;
+		goto cleanup;
+	}
+
+	/* Create the table definition in InnoDB */
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		form->s->row_type != ROW_TYPE_REDUNDANT);
+
+	if (error) {
+		goto cleanup;
+	}
+
 
 	/* Create the keys */
 
@@ -7431,4 +7458,43 @@ innobase_set_cursor_view(
 						(cursor_view_t*) curview);
 }
 
+/***********************************************************************
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
+this function pushes an error message to the client, and returns true. */
+static
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if an index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const TABLE*	form,		/* in: information on table
+					columns and indexes */
+	const char*	norm_name)	/* in: table name */
+{
+	KEY*		key;
+	uint		key_num;	/* index number */
+
+	for (key_num = 0; key_num < form->s->keys; key_num++) {
+		key = form->key_info + key_num;
+
+		if (innobase_strcasecmp(key->name,
+					innobase_index_reserve_name) == 0) {
+			/* Push warning to mysql */
+			push_warning_printf((THD*) trx->mysql_thd,
+					    MYSQL_ERROR::WARN_LEVEL_WARN,
+					    ER_CANT_CREATE_TABLE,
+					    "Cannot Create Index with name "
+					    "'%s'. The name is reserved "
+					    "for the system default primary "
+					    "index.",
+					    innobase_index_reserve_name);
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
 #endif /* HAVE_INNOBASE_DB */
