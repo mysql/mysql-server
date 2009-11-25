@@ -293,7 +293,29 @@
 # define HAVE_CHAR 1
 #endif
 
-#cmakedefine SIZEOF_CHARP @SIZEOF_CHARP@
+#ifdef __APPLE__
+  /*
+    Special handling required for OSX to support universal binaries that 
+    mix 32 and 64 bit architectures.
+  */
+  #if(__LP64__)
+    #define SIZEOF_LONG 8
+  #else
+    #define SIZEOF_LONG 4
+  #endif
+  #define SIZEOF_CHARP   SIZEOF_LONG
+  #define SIZEOF_SIZE_T  SIZEOF_LONG
+#else
+  #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
+  #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
+  #cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
+#endif
+
+#if SIZEOF_LONG
+# define HAVE_LONG 1
+#endif
+
+
 #if SIZEOF_CHARP
 #define HAVE_CHARP 1
 #define SIZEOF_VOIDP SIZEOF_CHARP 
@@ -309,10 +331,6 @@
 # define HAVE_INT 1
 #endif
 
-#cmakedefine SIZEOF_LONG @SIZEOF_LONG@
-#if SIZEOF_LONG
-# define HAVE_LONG 1
-#endif
 
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #if SIZEOF_LONG_LONG
@@ -329,7 +347,6 @@
 #define HAVE_SIGSET_T 1
 #endif
 
-#cmakedefine SIZEOF_SIZE_T @SIZEOF_SIZE_T@
 #if SIZEOF_SIZE_T
 #define HAVE_SIZE_T 1
 #endif
