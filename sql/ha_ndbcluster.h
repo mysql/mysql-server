@@ -672,6 +672,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
+  int fetch_next(NdbQuery* query);
   int set_auto_inc(THD *thd, Field *field);
   int next_result(uchar *buf); 
   int close_scan();
@@ -719,7 +720,6 @@ private:
 					    const uchar *key, 
 					    NdbOperation::LockMode lm,
 					    Uint32 *ppartition_id);
-  int fetch_next_from_pushed_join(NdbQuery* query);
 
   int read_multi_range_fetch_next();
   

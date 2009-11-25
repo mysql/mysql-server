@@ -44,7 +44,6 @@
 #ifdef __cplusplus
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
-#include "NdbIndexScanOperation.hpp"
 
 // Forward declared
 class NdbTableImpl;
@@ -322,7 +321,7 @@ public:
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
    */
-  const Vector<const NdbColumnImpl*>& getSPJProjection() const{
+  const Vector<const NdbColumnImpl*>& getSPJProjection() const {
     return m_spjProjection;
   }
 
@@ -337,16 +336,6 @@ public:
    */
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const = 0;
-
-  /**
-   * Allow setting of upper/lower bounds in 'plain old' NdbIndexScanOperation
-   * style.
-   */
-  virtual int setBound(Uint32Buffer& keyInfo,
-                       const NdbIndexScanOperation::IndexBound& bound) const {
-    assert(false);
-    return 0; // silence warning
-  }
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                              bool&   isPruned,

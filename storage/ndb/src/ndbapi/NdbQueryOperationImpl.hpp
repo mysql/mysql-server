@@ -120,7 +120,6 @@ public:
 
   int setBound(const NdbIndexScanOperation::IndexBound *bound);
 
-
   /** Prepare for execution. 
    *  @return possible error code.
    */
@@ -280,6 +279,11 @@ private:
    *  application thread and receiving thread. Access should be mutex protected.
    */
   StreamStack m_fullStreams;
+
+  /* Number of IndexBounds set by API (index scans only) */
+  Uint32 m_num_bounds;
+  /* Most recently added IndexBound's range number */
+  Uint32 m_previous_range_num;
 
   /**
    * Signal building section:
