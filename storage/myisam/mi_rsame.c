@@ -50,9 +50,9 @@ int mi_rsame(MI_INFO *info, uchar *record, int inx)
 				      info->lastpos);
     if (info->s->concurrent_insert)
       rw_rdlock(&info->s->key_root_lock[inx]);
-    VOID(_mi_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
+    (void) _mi_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
 		    SEARCH_SAME,
-		    info->s->state.key_root[inx]));
+		    info->s->state.key_root[inx]);
     if (info->s->concurrent_insert)
       rw_unlock(&info->s->key_root_lock[inx]);
   }

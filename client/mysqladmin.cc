@@ -325,8 +325,8 @@ int main(int argc,char *argv[])
   if (tty_password)
     opt_password = get_tty_password(NullS);
 
-  VOID(signal(SIGINT,endprog));			/* Here if abort */
-  VOID(signal(SIGTERM,endprog));		/* Here if abort */
+  (void) signal(SIGINT,endprog);			/* Here if abort */
+  (void) signal(SIGTERM,endprog);		/* Here if abort */
 
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);

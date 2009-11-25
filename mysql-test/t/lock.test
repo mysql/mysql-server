@@ -58,6 +58,9 @@ insert into t1 select index1,nr from t1;
 unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;
+--error ER_TABLE_NOT_LOCKED
+drop table t1,t2;
+unlock tables;
 drop table t1,t2;
 
 #
@@ -90,7 +93,10 @@ delete t1 from t1,t2 where t1.a=t2.a;
 delete from t2 using t1,t2 where t1.a=t2.a;
 --error 1099
 delete t2 from t1,t2 where t1.a=t2.a;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 drop table t1,t2;
+unlock tables;
+drop table t2,t1;
 
 --echo End of 4.1 tests.
 

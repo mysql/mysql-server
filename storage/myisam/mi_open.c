@@ -181,7 +181,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     end_pos=disk_cache+info_length;
     errpos=2;
 
-    VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
+    my_seek(kfile,0L,MY_SEEK_SET,MYF(0));
     if (!(open_flags & HA_OPEN_TMP_TABLE))
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
@@ -482,7 +482,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     if (! lock_error)
     {
-      VOID(my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE)));
+      (void) my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
       lock_error=1;			/* Database unlocked */
     }
 
@@ -522,10 +522,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
+    pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
-      VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
-    VOID(my_rwlock_init(&share->mmap_lock, NULL));
+      (void) my_rwlock_init(&share->key_root_lock[i], NULL);
+    (void) my_rwlock_init(&share->mmap_lock, NULL);
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
@@ -670,7 +670,7 @@ err:
     my_free((uchar*) m_info,MYF(0));
     /* fall through */
   case 5:
-    VOID(my_close(info.dfile,MYF(0)));
+    (void) my_close(info.dfile,MYF(0));
     if (old_info)
       break;					/* Don't remove open table */
     /* fall through */
@@ -679,13 +679,13 @@ err:
     /* fall through */
   case 3:
     if (! lock_error)
-      VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
+      (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
     my_afree(disk_cache);
     /* fall through */
   case 1:
-    VOID(my_close(kfile,MYF(0)));
+    (void) my_close(kfile,MYF(0));
     /* fall through */
   case 0:
   default:
