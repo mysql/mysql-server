@@ -158,4 +158,65 @@ LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
 
 DROP TABLE IF EXISTS t1;
 
+# BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
+# replication aborts
+-- source include/master-slave-reset.inc
+
+-- let $db1= b48297_db1
+-- let $db2= b42897_db2
+
+-- connection master
+
+-- disable_warnings
+-- eval drop database if exists $db1
+-- eval drop database if exists $db2
+-- enable_warnings
+
+-- eval create database $db1
+-- eval create database $db2
+
+-- eval use $db1
+-- eval CREATE TABLE t1 (c1 VARCHAR(256)) engine=$engine_type;
+
+-- eval use $db2
+
+-- echo ### assertion: works with cross-referenced database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+-- eval use $db1
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- echo ### assertion: works with fully qualified name on current database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+-- echo ### assertion: works without fully qualified name on current database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1
+
+-- echo ### create connection without default database
+-- echo ### connect (conn2,localhost,root,,*NO-ONE*);
+connect (conn2,localhost,root,,*NO-ONE*);
+-- connection conn2
+-- echo ### assertion: works without stating the default database
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+-- echo ### disconnect and switch back to master connection
+-- disconnect conn2
+-- connection master
+
+-- sync_slave_with_master
+-- eval use $db1
+
+let $diff_table_1=master:$db1.t1;
+let $diff_table_2=slave:$db1.t1;
+source include/diff_tables.inc;
+
+-- connection master
+
+-- eval DROP DATABASE $db1
+-- eval DROP DATABASE $db2
+
+-- sync_slave_with_master
+
 # End of 4.1 tests
