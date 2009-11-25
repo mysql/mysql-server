@@ -66,7 +66,7 @@ err:
   save_errno=my_errno ? my_errno : -1;
   switch (errpos) {
   case 1:
-    VOID(my_close(file,MYF(0)));
+    (void) my_close(file,MYF(0));
   }
   DBUG_RETURN(my_errno=save_errno);
 } /* myrg_create */

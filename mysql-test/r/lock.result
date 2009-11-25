@@ -48,6 +48,9 @@ unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;
 drop table t1,t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+drop table t1,t2;
 create table t1 (c1 int);
 create table t2 (c1 int);
 create table t3 (c1 int);
@@ -69,6 +72,9 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 delete t2 from t1,t2 where t1.a=t2.a;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 drop table t1,t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+unlock tables;
+drop table t2,t1;
 End of 4.1 tests.
 drop table if exists t1;
 create table t1 (a int);

@@ -35,7 +35,7 @@ void Transparent_file::init_buff(File filedes_arg)
   filedes= filedes_arg;
   /* read the beginning of the file */
   lower_bound= 0;
-  VOID(my_seek(filedes, 0, MY_SEEK_SET, MYF(0)));
+  my_seek(filedes, 0, MY_SEEK_SET, MYF(0));
   if (filedes && buff)
     upper_bound= my_read(filedes, buff, buff_size, MYF(0));
 }
@@ -85,7 +85,7 @@ char Transparent_file::get_value(my_off_t offset)
   if ((lower_bound <= offset) && (((my_off_t) offset) < upper_bound))
     return buff[offset - lower_bound];
 
-  VOID(my_seek(filedes, offset, MY_SEEK_SET, MYF(0)));
+  my_seek(filedes, offset, MY_SEEK_SET, MYF(0));
   /* read appropriate portion of the file */
   if ((bytes_read= my_read(filedes, buff, buff_size,
                            MYF(0))) == MY_FILE_ERROR)

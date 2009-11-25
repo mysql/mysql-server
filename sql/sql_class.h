@@ -1434,19 +1434,13 @@ public:
       */
       if (!xid_state.rm_error)
         xid_state.xid.null();
-#ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
-#endif
     }
     st_transactions()
     {
-#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-#else
-      xid_state.xa_state= XA_NOTR;
-#endif
     }
   } transaction;
   Field      *dup_field;
@@ -1696,7 +1690,7 @@ public:
   bool       slave_thread, one_shot_set;
   /* tells if current statement should binlog row-based(1) or stmt-based(0) */
   bool       current_stmt_binlog_row_based;
-  bool	     locked, some_tables_deleted;
+  bool	     some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
   /**
@@ -1932,11 +1926,7 @@ public:
   }
   inline bool active_transaction()
   {
-#ifdef USING_TRANSACTIONS
     return server_status & SERVER_STATUS_IN_TRANS;
-#else
-    return 0;
-#endif
   }
   inline bool fill_derived_tables()
   {
