@@ -209,6 +209,7 @@ public:
     if iterating over columns.
   */
   Vector<NdbColumnImpl *> m_columns;
+  Uint32 m_noOfAutoIncColumns;
   void computeAggregates();
   int buildColumnHash(); 
 

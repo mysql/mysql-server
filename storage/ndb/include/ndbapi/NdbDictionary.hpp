@@ -734,6 +734,11 @@ public:
     int getNoOfColumns() const;
     
     /**
+     * Get number of auto_increment columns in the table
+     */
+    int getNoOfAutoIncrementColumns() const;
+    
+    /**
      * Get number of primary keys in the table
      */
     int getNoOfPrimaryKeys() const;
