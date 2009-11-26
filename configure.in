@@ -923,6 +923,7 @@ AC_ARG_WITH(alarm,
 AC_MSG_CHECKING(whether to use alarms to implement socket timeout)
 if test "$use_alarm" = no ; then
   AC_DEFINE([NO_ALARM], [1], [No need to use alarm for socket timeout])
+  AC_DEFINE([SIGNAL_WITH_VIO_CLOSE], [1], [Need to use vio close for kill connection])
 fi
 AC_MSG_RESULT($use_alarm)
 

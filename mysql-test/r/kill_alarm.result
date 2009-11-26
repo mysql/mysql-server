@@ -1,0 +1,10 @@
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+2	root	localhost	test	Sleep	0		NULL
+3	root	localhost	test	Sleep	0		NULL
+4	root	localhost	test	Query	0	NULL	show processlist
+kill connection 3;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+2	root	localhost	test	Sleep	4		NULL
+4	root	localhost	test	Query	0	NULL	show processlist
