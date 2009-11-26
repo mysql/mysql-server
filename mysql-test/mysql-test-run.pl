@@ -1080,6 +1080,11 @@ sub command_line_setup {
     }
   }
 
+  if (IS_WINDOWS and defined $opt_mem) {
+    mtr_report("--mem not supported on Windows, ignored");
+    $opt_mem= undef;
+  }
+
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
@@ -3896,7 +3901,7 @@ sub check_expected_crash_and_restart {
 
   foreach my $mysqld ( mysqlds() )
   {
-    next unless ( $mysqld->{proc} eq $proc );
+    next unless ( $mysqld->{proc} and $mysqld->{proc} eq $proc );
 
     # Check if crash expected by looking at the .expect file
     # in var/tmp
