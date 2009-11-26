@@ -132,6 +132,7 @@ public:
     @return the SELECT_LEX structure associated with this Item
   */
   st_select_lex* get_select_lex();
+  const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
