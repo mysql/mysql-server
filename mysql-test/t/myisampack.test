@@ -214,7 +214,7 @@ SELECT COUNT(a) FROM t3;
 #
 --replace_regex /.*myisampack(\.exe)?: Can't create\/write to file .*\(/myisampack: Can't create\/write to file (/ /Aborted: .*is/Aborted: file is/
 --error 2
---exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/master-data/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
+--exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
 
 DROP TABLE t1,t2,t3;
 
