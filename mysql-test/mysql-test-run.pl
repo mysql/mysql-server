@@ -1080,6 +1080,11 @@ sub command_line_setup {
     }
   }
 
+  if (IS_WINDOWS and defined $opt_mem) {
+    mtr_report("--mem not supported on Windows, ignored");
+    $opt_mem= undef;
+  }
+
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
