@@ -354,6 +354,7 @@ Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
 
 #ifdef VM_TRACE
   debugOut << "PGMAN: " << ptr << ": after" << endl;
+  verify_page_entry(ptr);
   debugOut << "PGMAN: <set_page_state" << endl;
 #endif
 }
@@ -1977,6 +1978,8 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
 void
 Pgman::verify_page_entry(Ptr<Page_entry> ptr)
 {
+  Page_stack& pl_stack = m_page_stack;
+
   Uint32 ptrI = ptr.i;
   Page_state state = ptr.p->m_state;
 
@@ -1998,6 +2001,10 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
   bool is_hot = state & Page_entry::HOT;
   // hot entry must be on stack
   ndbrequire(! is_hot || on_stack || dump_page_lists(ptrI));
+
+  // stack bottom is hot
+  bool at_bottom = on_stack && ! pl_stack.hasPrev(ptr);
+  ndbrequire(! at_bottom || is_hot || dump_page_lists(ptrI));
 
   bool on_queue = state & Page_entry::ONQUEUE;
   // hot entry is not on queue
