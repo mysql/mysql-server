@@ -280,10 +280,6 @@ Pgman::Page_entry::Page_entry(Uint32 file_no, Uint32 page_no) :
 Uint32
 Pgman::get_sublist_no(Page_state state)
 {
-  if (state == 0)
-  {
-    return ZNIL;
-  }
   if (state & Page_entry::REQUEST)
   {
     if (! (state & Page_entry::BOUND))
@@ -315,7 +311,11 @@ Pgman::get_sublist_no(Page_state state)
   if (state == Page_entry::ONSTACK) {
     return Page_entry::SL_IDLE;
   }
-  return Page_entry::SL_OTHER;
+  if (state != 0)
+  {
+    return Page_entry::SL_OTHER;
+  }
+  return ZNIL;
 }
 
 void
@@ -1948,9 +1948,6 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
   Page_state state = ptr.p->m_state;
   if (! (state & (Page_entry::PAGEIN | Page_entry::PAGEOUT)))
   {
-    ndbrequire(state & Page_entry::BOUND);
-    ndbrequire(state & Page_entry::MAPPED);
-
     if (state & Page_entry::ONSTACK)
     {
       jam();
@@ -1960,8 +1957,12 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
       if (at_bottom)
       {
         jam();
-        ndbassert(state & Page_entry::HOT);
         lirs_stack_prune();
+      }
+      if (state & Page_entry::HOT)
+      {
+        jam();
+        state &= ~ Page_entry::HOT;
       }
     }
 
@@ -1972,12 +1973,37 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
       state &= ~ Page_entry::ONQUEUE;
     }
 
-    ndbassert(ptr.p->m_real_page_i != RNIL);
-    if (ptr.p->m_real_page_i != RNIL)
+    if (state & Page_entry::BUSY)
     {
       jam();
+      state &= ~ Page_entry::BUSY;
+    }
+
+    if (state & Page_entry::DIRTY)
+    {
+      jam();
+      state &= ~ Page_entry::DIRTY;
+    }
+
+    if (state & Page_entry::EMPTY)
+    {
+      jam();
+      state &= ~ Page_entry::EMPTY;
+    }
+
+    if (state & Page_entry::MAPPED)
+    {
+      jam();
+      state &= ~ Page_entry::MAPPED;
+    }
+
+    if (state & Page_entry::BOUND)
+    {
+      jam();
+      ndbrequire(ptr.p->m_real_page_i != RNIL);
       release_cache_page(ptr.p->m_real_page_i);
       ptr.p->m_real_page_i = RNIL;
+      state &= ~ Page_entry::BOUND;
     }
 
     set_page_state(ptr, state);
@@ -2035,9 +2061,12 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
   // entries waiting to enter queue
   bool to_queue = ! is_locked && ! is_hot && ! is_bound && has_req;
 
-  // page is either LOCKED or under LIRS
+  // page is about to be released
+  bool to_release = (state == 0);
+
+  // page is either LOCKED or under LIRS or about to be released
   bool is_lirs = on_stack || to_queue || on_queue;
-  ndbrequire(is_locked == ! is_lirs || dump_page_lists(ptrI));
+  ndbrequire(to_release || is_locked == ! is_lirs || dump_page_lists(ptrI));
 
   bool pagein = state & Page_entry::PAGEIN;
   bool pageout = state & Page_entry::PAGEOUT;
@@ -2068,6 +2097,9 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
   case Page_entry::SL_IDLE:
     break;
   case Page_entry::SL_OTHER:
+    break;
+  case ZNIL:
+    ndbrequire(to_release || dump_page_lists(ptrI));
     break;
   default:
     ndbrequire(false || dump_page_lists(ptrI));
