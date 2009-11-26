@@ -4474,9 +4474,7 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-    {
-      server_version= strdup(mysql_get_server_info(con));
-    }
+      server_version= my_strdup(mysql_get_server_info(con), MYF(MY_WME));
   }
 
   return server_version ? server_version : "";
