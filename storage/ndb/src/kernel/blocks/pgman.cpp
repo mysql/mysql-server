@@ -1657,7 +1657,7 @@ Pgman::execFSWRITEREF(Signal* signal)
 // client methods
 
 int
-Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
+Pgman::get_page_no_lirs(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 {
   jamEntry();
 #ifdef VM_TRACE
@@ -1696,16 +1696,6 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   else if ((req_flags & Page_request::OP_MASK) != ZREAD)
   {
     jam();
-  }
-
-  // update LIRS
-  if (! (state & Page_entry::LOCKED) &&
-      ! (req_flags & Page_request::CORR_REQ))
-  {
-    jam();
-    set_page_state(ptr, state);
-    lirs_reference(ptr);
-    state = ptr.p->m_state;
   }
 
   const Page_state LOCKED = Page_entry::LOCKED | Page_entry::MAPPED;
@@ -1794,14 +1784,43 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   ptr.p->m_busy_count += busy_count;
   ptr.p->m_dirty_count += !!(req_flags & DIRTY_FLAGS);
   set_page_state(ptr, state);
-  
-  do_busy_loop(signal, true);
 
 #ifdef VM_TRACE
   debugOut << "PGMAN: " << req_ptr << endl;
   debugOut << "PGMAN: <get_page: queued" << endl;
 #endif
   return 0;
+}
+
+int
+Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
+{
+  int i = get_page_no_lirs(signal, ptr, page_req);
+  if (unlikely(i == -1))
+  {
+    jam();
+    return -1;
+  }
+
+  Uint32 req_flags = page_req.m_flags;
+  Page_state state = ptr.p->m_state;
+
+  // update LIRS
+  if (! (state & Page_entry::LOCKED) &&
+      ! (req_flags & Page_request::CORR_REQ))
+  {
+    jam();
+    lirs_reference(ptr);
+  }
+
+  // start processing if request was queued
+  if (i == 0)
+  {
+    jam();
+    do_busy_loop(signal, true);
+  }
+
+  return i;
 }
 
 void
