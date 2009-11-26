@@ -1166,6 +1166,19 @@ bool THD::store_globals()
 }
 
 
+/**
+   Untie THD from current thread
+
+   Used when using --thread-handling=pool-of-threads
+*/
+
+void THD::reset_globals()
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  mysys_var= 0;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
 /*
   Cleanup after query.
 
