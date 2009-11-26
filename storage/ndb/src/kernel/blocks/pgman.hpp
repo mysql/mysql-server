@@ -418,9 +418,10 @@ private:
   struct Stats {
     Stats();
     Uint32 m_num_pages;         // current number of cache pages
-    Uint32 m_page_hits;
-    Uint32 m_page_faults;
+    Uint32 m_num_hot_pages;
     Uint32 m_current_io_waits;
+    Uint64 m_page_hits;
+    Uint64 m_page_faults;
   } m_stats;
 
 protected:
@@ -494,6 +495,7 @@ private:
 #ifdef VM_TRACE
   NdbOut debugOut;
   bool debugFlag;
+  bool debugSummaryFlag; // loop summary to signal log even if ! debugFlag
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();
