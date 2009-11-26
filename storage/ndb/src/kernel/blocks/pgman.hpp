@@ -54,7 +54,7 @@
  * Updating a resident cache page makes it "dirty".  A background
  * clean-up process makes dirty pages "clean" via "pageout" to disk.
  * Write ahead logging (WAL) of the page is done first i.e. UNDO log is
- * flushed up to the page log sequence number (LSN) by calling a TSMAN
+ * flushed up to the page log sequence number (LSN) by calling a LGMAN
  * method.  The reason for this is obvious but not relevant to PGMAN.
  *
  * A local check point (LCP) periodically performs a complete pageout of
@@ -418,9 +418,10 @@ private:
   struct Stats {
     Stats();
     Uint32 m_num_pages;         // current number of cache pages
-    Uint32 m_page_hits;
-    Uint32 m_page_faults;
+    Uint32 m_num_hot_pages;
     Uint32 m_current_io_waits;
+    Uint64 m_page_hits;
+    Uint64 m_page_faults;
   } m_stats;
 
 protected:
@@ -482,6 +483,7 @@ private:
   void fswritereq(Signal*, Ptr<Page_entry>);
   void fswriteconf(Signal*, Ptr<Page_entry>);
 
+  int get_page_no_lirs(Signal*, Ptr<Page_entry>, Page_request page_req);
   int get_page(Signal*, Ptr<Page_entry>, Page_request page_req);
   void update_lsn(Ptr<Page_entry>, Uint32 block, Uint64 lsn);
   Uint32 create_data_file();
@@ -493,6 +495,7 @@ private:
 #ifdef VM_TRACE
   NdbOut debugOut;
   bool debugFlag;
+  bool debugSummaryFlag; // loop summary to signal log even if ! debugFlag
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();
