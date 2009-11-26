@@ -1119,7 +1119,7 @@ void close_files()
     if (cur_file->file && cur_file->file != stdin)
     {
       DBUG_PRINT("info", ("closing file: %s", cur_file->file_name));
-      my_fclose(cur_file->file, MYF(0));
+      fclose(cur_file->file);
     }
     my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
     cur_file->file_name= 0;
@@ -2441,7 +2441,7 @@ int open_file(const char *name)
   if (cur_file == file_stack_end)
     die("Source directives are nesting too deep");
   cur_file++;
-  if (!(cur_file->file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
+  if (!(cur_file->file = fopen(buff, "rb")))
   {
     cur_file--;
     die("Could not open '%s' for reading, errno: %d", buff, errno);
@@ -5286,7 +5286,7 @@ int read_line(char *buf, int size)
   found_eof:
       if (cur_file->file != stdin)
       {
-	my_fclose(cur_file->file, MYF(0));
+	fclose(cur_file->file);
         cur_file->file= 0;
       }
       my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
@@ -5865,7 +5865,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
     DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
     if (!(cur_file->file=
-          my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
+          fopen(buff, "rb")))
       die("Could not open '%s' for reading, errno: %d", buff, errno);
     cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
     cur_file->lineno= 1;
