@@ -482,6 +482,7 @@ private:
   void fswritereq(Signal*, Ptr<Page_entry>);
   void fswriteconf(Signal*, Ptr<Page_entry>);
 
+  int get_page_no_lirs(Signal*, Ptr<Page_entry>, Page_request page_req);
   int get_page(Signal*, Ptr<Page_entry>, Page_request page_req);
   void update_lsn(Ptr<Page_entry>, Uint32 block, Uint64 lsn);
   Uint32 create_data_file();
