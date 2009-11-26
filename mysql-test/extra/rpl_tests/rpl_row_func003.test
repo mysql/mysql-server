@@ -44,9 +44,10 @@ END|
 delimiter ;|
 
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
+let $wait_time= 6;
+--source include/wait_for_ndb_to_binlog.inc
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
+--source include/wait_for_ndb_to_binlog.inc
 
 #Select in this test are used for debugging
 #select * from test.t1;
