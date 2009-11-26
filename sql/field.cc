@@ -2486,6 +2486,50 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 }
 
 
+Field *Field_new_decimal::create_from_item (Item *item)
+{
+  uint8 dec= item->decimals;
+  uint8 intg= item->decimal_precision() - dec;
+  uint32 len= item->max_length;
+
+  DBUG_ASSERT (item->result_type() == DECIMAL_RESULT);
+
+  /*
+    Trying to put too many digits overall in a DECIMAL(prec,dec)
+    will always throw a warning. We must limit dec to
+    DECIMAL_MAX_SCALE however to prevent an assert() later.
+  */
+
+  if (dec > 0)
+  {
+    signed int overflow;
+
+    dec= min(dec, DECIMAL_MAX_SCALE);
+
+    /*
+      If the value still overflows the field with the corrected dec,
+      we'll throw out decimals rather than integers. This is still
+      bad and of course throws a truncation warning.
+      +1: for decimal point
+      */
+
+    const int required_length=
+      my_decimal_precision_to_length(intg + dec, dec,
+                                     item->unsigned_flag);
+
+    overflow= required_length - len;
+
+    if (overflow > 0)
+      dec= max(0, dec - overflow);            // too long, discard fract
+    else
+      /* Corrected value fits. */
+      len= required_length;
+  }
+  return new Field_new_decimal(len, item->maybe_null, item->name,
+                               dec, item->unsigned_flag);
+}
+
+
 int Field_new_decimal::reset(void)
 {
   store_value(&decimal_zero);
