@@ -7,6 +7,8 @@
 #
 --source include/check_ipv6.inc
 
+# Can't be tested with windows due to the mixed format like 0:0:0:0:0:FFFF:127.0.0.1
+--source include/not_windows.inc
 # Can't be tested with embedded server
 --source include/not_embedded.inc
 

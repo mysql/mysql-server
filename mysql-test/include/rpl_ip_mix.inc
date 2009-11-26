@@ -10,9 +10,11 @@ save_master_pos;
 --echo connection slave;
 connection slave;
 reset slave;
-source include/show_slave_status2.inc;
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master-Host: $master_host
 eval change master to master_host='$IPv6';
-source include/show_slave_status2.inc;
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+--echo Master-Host: $master_host
 --echo disconnect slave;
 disconnect slave;
 --echo disconnect master;

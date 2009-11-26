@@ -176,4 +176,4 @@ DROP USER testuser1@'::FFFF:127.0.0.1';
 =============Test of '::FFFF:127.0.0.1/96' ========================
 =============Test of '::1' ========================
 connect (con1, ::1, root, , test, MASTER_MYPORT,);
-ERROR HY000: Can't connect to MySQL server on '::1' (111)
+Got one of the listed errors
