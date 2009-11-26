@@ -54,7 +54,7 @@
  * Updating a resident cache page makes it "dirty".  A background
  * clean-up process makes dirty pages "clean" via "pageout" to disk.
  * Write ahead logging (WAL) of the page is done first i.e. UNDO log is
- * flushed up to the page log sequence number (LSN) by calling a TSMAN
+ * flushed up to the page log sequence number (LSN) by calling a LGMAN
  * method.  The reason for this is obvious but not relevant to PGMAN.
  *
  * A local check point (LCP) periodically performs a complete pageout of
