@@ -715,6 +715,8 @@ fi
 %attr(755, root, root) %{_bindir}/resolveip
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -835,6 +837,7 @@ fi
 %{_libdir}/mysql/libmysqlclient.la
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlclient_r.la
+%{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
 %if %{CLUSTER_BUILD}
@@ -846,6 +849,10 @@ fi
 %{_libdir}/mysql/libz.la
 %{_libdir}/mysql/plugin/ha_example.a
 %{_libdir}/mysql/plugin/ha_example.la
+%{_libdir}/mysql/plugin/libsemisync_master.a
+%{_libdir}/mysql/plugin/libsemisync_master.la
+%{_libdir}/mysql/plugin/libsemisync_slave.a
+%{_libdir}/mysql/plugin/libsemisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
