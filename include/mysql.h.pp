@@ -518,16 +518,6 @@ unsigned long mysql_real_escape_string(MYSQL *mysql,
             char *to,const char *from,
             unsigned long length);
 void mysql_debug(const char *debug);
-char * mysql_odbc_escape_string(MYSQL *mysql,
-       char *to,
-       unsigned long to_length,
-       const char *from,
-       unsigned long from_length,
-       void *param,
-       char *
-       (*extend_buffer)
-       (void *, char *to,
-        unsigned long *length));
 void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
