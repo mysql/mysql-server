@@ -1047,11 +1047,11 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
   debugOut << "PGMAN: " << ptr << " : process_callback" << endl;
 #endif
   int max_count = 1;
-  Page_state state = ptr.p->m_state;
 
   while (! ptr.p->m_requests.isEmpty() && --max_count >= 0)
   {
     jam();
+    Page_state state = ptr.p->m_state;
     SimulatedBlock* b;
     Callback callback;
     {
@@ -1093,19 +1093,18 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
     }
     ndbrequire(state & Page_entry::BOUND);
     ndbrequire(state & Page_entry::MAPPED);
+
+    // make REQUEST state consistent before set_page_state()
+    if (ptr.p->m_requests.isEmpty())
+    {
+      jam();
+      state &= ~ Page_entry::REQUEST;
+    }
     
     // callback may re-enter PGMAN and change page state
     set_page_state(ptr, state);
     b->execute(signal, callback, ptr.p->m_real_page_i);
-    state = ptr.p->m_state;
   }
-  
-  if (ptr.p->m_requests.isEmpty())
-  {
-    jam();
-    state &= ~ Page_entry::REQUEST;
-  }
-  set_page_state(ptr, state);
   return true;
 }
 
