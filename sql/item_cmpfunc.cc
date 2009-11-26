@@ -960,12 +960,23 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
              (*b)->field_type() == MYSQL_TYPE_YEAR))
   {
     is_nulls_eq= is_owner_equal_func();
+    year_as_datetime= FALSE;
+
     if ((*a)->is_datetime())
     {
       year_as_datetime= TRUE;
       get_value_a_func= &get_datetime_value;
     } else if ((*a)->field_type() == MYSQL_TYPE_YEAR)
       get_value_a_func= &get_year_value;
+    else
+    {
+      /*
+        Because convert_constant_item is called only for EXECUTE in PS mode
+        the value of get_value_x_func set in PREPARE might be not
+        valid for EXECUTE.
+      */
+      get_value_a_func= NULL;
+    }
 
     if ((*b)->is_datetime())
     {
@@ -973,6 +984,8 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       get_value_b_func= &get_datetime_value;
     } else if ((*b)->field_type() == MYSQL_TYPE_YEAR)
       get_value_b_func= &get_year_value;
+    else
+      get_value_b_func= NULL;
 
     func= &Arg_comparator::compare_year;
     return 0;
