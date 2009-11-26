@@ -3992,7 +3992,8 @@ sub extract_warning_lines ($) {
      qr/Setting lower_case_table_names=2/,
      qr/deprecated/,
      qr/Slave SQL thread retried transaction/,
-     qw/Slave \(additional info\)/,
+     qr/Slave \(additional info\)/,
+     qr/Incorrect information in file/,
     );
 
   my $match_count= 0;
