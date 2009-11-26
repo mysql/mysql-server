@@ -122,6 +122,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     m_param.m_max_pages = page_buffer;
     m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_buffer);
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
+    ndbrequire(m_param.m_max_hot_pages >= 1);
   }
 
   Pool_context pc;
@@ -644,8 +645,10 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   Page_state state = ptr.p->m_state;
   ndbrequire(! (state & Page_entry::LOCKED));
 
-  // even non-LIRS cache pages are counted on l.h.s.
-  if (m_stats.m_num_pages >= m_param.m_max_hot_pages)
+  ndbrequire(m_stats.m_num_hot_pages <= m_param.m_max_hot_pages);
+
+  // LIRS kicks in when we have max hot pages
+  if (m_stats.m_num_hot_pages == m_param.m_max_hot_pages)
   {
     if (state & Page_entry::HOT)
     {
@@ -687,6 +690,12 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
       jam();
       pl_stack.add(ptr);
       state |= Page_entry::ONSTACK;
+      /*
+       * bug#48910.  Using hot page count (not total page count)
+       * guarantees that stack is not empty here.  Therefore the new
+       * entry (added to top) is not at bottom and need not be hot.
+       */
+      ndbrequire(pl_stack.hasPrev(ptr));
       if (state & Page_entry::ONQUEUE)
       {
         jam();
@@ -710,8 +719,8 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   else
   {
 #ifdef VM_TRACE
-    debugOut << "PGMAN: filling up initial hot pages: "
-             << m_stats.m_num_pages << " of "
+    debugOut << "PGMAN: filling up hot pages: "
+             << m_stats.m_num_hot_pages << "/"
              << m_param.m_max_hot_pages << endl;
 #endif
     jam();
