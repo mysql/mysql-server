@@ -34,14 +34,6 @@
                      Page_request::DIRTY_REQ | \
                      Page_request::ALLOC_REQ)
 
-// todo use this
-#ifdef VM_TRACE
-#define dbg(x) \
-  do { if (! debugFlag) break; debugOut << "PGMAN: " << x << endl; } while (0)
-#else
-#define dbg(x)
-#endif
-
 static bool g_dbg_lcp = false;
 #if 1
 #define DBG_LCP(x)
@@ -58,6 +50,7 @@ Pgman::Pgman(Block_context& ctx) :
 #ifdef VM_TRACE
   ,debugOut(* new NullOutputStream())
   ,debugFlag(false)
+  ,debugSummaryFlag(false)
 #endif
 {
   BLOCK_CONSTRUCTOR(Pgman);
@@ -156,9 +149,10 @@ Pgman::Param::Param() :
 
 Pgman::Stats::Stats() :
   m_num_pages(0),
+  m_num_hot_pages(0),
+  m_current_io_waits(0),
   m_page_hits(0),
-  m_page_faults(0),
-  m_current_io_waits(0)
+  m_page_faults(0)
 {
 }
 
@@ -350,6 +344,20 @@ Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
       }
     }
     ptr.p->m_state = new_state;
+
+    bool old_hot = (old_state & Page_entry::HOT);
+    bool new_hot = (new_state & Page_entry::HOT);
+    if (! old_hot && new_hot)
+    {
+      jam();
+      m_stats.m_num_hot_pages++;
+    }
+    if (old_hot && ! new_hot)
+    {
+      jam();
+      ndbrequire(m_stats.m_num_hot_pages != 0);
+      m_stats.m_num_hot_pages--;
+    }
   }
 
 #ifdef VM_TRACE
@@ -2110,122 +2118,125 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
 void
 Pgman::verify_page_lists()
 {
+  const Stats& stats = m_stats;
+  const Param& param = m_param;
   Page_hashlist& pl_hash = m_page_hashlist;
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
   Ptr<Page_entry> ptr;
 
-  Uint32 stack_count = 0;
-  Uint32 queue_count = 0;
-  Uint32 queuewait_count = 0;
-  Uint32 locked_bound_count = 0;
+  Uint32 is_locked = 0;
+  Uint32 is_bound = 0;
+  Uint32 is_mapped = 0;
+  Uint32 is_hot = 0;
+  Uint32 on_stack = 0;
+  Uint32 on_queue = 0;
+  Uint32 to_queue = 0;
 
   Page_hashlist::Iterator iter;
   pl_hash.next(0, iter);
   while (iter.curr.i != RNIL)
   {
-    verify_page_entry(iter.curr);
+    ptr = iter.curr;
+    Page_state state = ptr.p->m_state;
+    // (state == 0) occurs only within a time-slice
+    ndbrequire(state != 0);
+    verify_page_entry(ptr);
 
-    Page_state state = iter.curr.p->m_state;
+    if (state & Page_entry::LOCKED)
+      is_locked++;
+    if (state & Page_entry::BOUND)
+      is_bound++;
+    if (state & Page_entry::MAPPED)
+      is_mapped++;
+    if (state & Page_entry::HOT)
+      is_hot++;
     if (state & Page_entry::ONSTACK)
-      stack_count++;
+      on_stack++;
     if (state & Page_entry::ONQUEUE)
-      queue_count++;
+      on_queue++;
     if (! (state & Page_entry::LOCKED) &&
         ! (state & Page_entry::HOT) &&
         (state & Page_entry::REQUEST) &&
         ! (state & Page_entry::BOUND))
-      queuewait_count++;
-    if (state & Page_entry::LOCKED &&
-        state & Page_entry::BOUND)
-      locked_bound_count++;
+      to_queue++;
     pl_hash.next(iter);
   }
 
-  ndbrequire(stack_count == pl_stack.count() || dump_page_lists());
-  ndbrequire(queue_count == pl_queue.count() || dump_page_lists());
-
-  Uint32 hot_count = 0;
-  Uint32 hot_bound_count = 0;
-  Uint32 cold_bound_count = 0;
-  Uint32 stack_request_count = 0;
-  Uint32 queue_request_count = 0;
-
-  Uint32 i1 = RNIL;
   for (pl_stack.first(ptr); ptr.i != RNIL; pl_stack.next(ptr))
   {
-    ndbrequire(i1 != ptr.i);
-    i1 = ptr.i;
     Page_state state = ptr.p->m_state;
-    ndbrequire(state & Page_entry::ONSTACK || dump_page_lists());
+    ndbrequire(state & Page_entry::ONSTACK || dump_page_lists(ptr.i));
     if (! pl_stack.hasPrev(ptr))
-      ndbrequire(state & Page_entry::HOT || dump_page_lists());
-    if (state & Page_entry::HOT) {
-      hot_count++;
-      if (state & Page_entry::BOUND)
-        hot_bound_count++;
-    }
-    if (state & Page_entry::REQUEST)
-      stack_request_count++;
+      ndbrequire(state & Page_entry::HOT || dump_page_lists(ptr.i));
   }
 
-  Uint32 i2 = RNIL;
   for (pl_queue.first(ptr); ptr.i != RNIL; pl_queue.next(ptr))
   {
-    ndbrequire(i2 != ptr.i);
-    i2 = ptr.i;
     Page_state state = ptr.p->m_state;
-    ndbrequire(state & Page_entry::ONQUEUE || dump_page_lists());
-    ndbrequire(state & Page_entry::BOUND || dump_page_lists());
-    cold_bound_count++;
-    if (state & Page_entry::REQUEST)
-      queue_request_count++;
+    ndbrequire(state & Page_entry::ONQUEUE || dump_page_lists(ptr.i));
+    ndbrequire(state & Page_entry::BOUND || dump_page_lists(ptr.i));
+    ndbrequire(! (state & Page_entry::HOT) || dump_page_lists(ptr.i));
   }
 
-  Uint32 tot_bound_count =
-    locked_bound_count + hot_bound_count + cold_bound_count;
-  ndbrequire(m_stats.m_num_pages == tot_bound_count || dump_page_lists());
+  ndbrequire(is_bound == stats.m_num_pages || dump_page_lists());
+  ndbrequire(is_hot == stats.m_num_hot_pages || dump_page_lists());
+  ndbrequire(on_stack == pl_stack.count() || dump_page_lists());
+  ndbrequire(on_queue == pl_queue.count() || dump_page_lists());
 
   Uint32 k;
   Uint32 entry_count = 0;
-
+  char sublist_info[200] = "";
   for (k = 0; k < Page_entry::SUBLIST_COUNT; k++)
   {
     const Page_sublist& pl = *m_page_sublist[k];
     for (pl.first(ptr); ptr.i != RNIL; pl.next(ptr))
-    {
-      ndbrequire(get_sublist_no(ptr.p->m_state) == k || dump_page_lists());
-      entry_count++;
-    }
+      ndbrequire(get_sublist_no(ptr.p->m_state) == k || dump_page_lists(ptr.i));
+    entry_count += pl.count();
+    sprintf(sublist_info + strlen(sublist_info),
+            " %s:%u", get_sublist_name(k), pl.count());
   }
-
   ndbrequire(entry_count == pl_hash.count() || dump_page_lists());
 
-  debugOut << "PGMAN: loop"
-           << " stats=" << m_stats_loop_on
-           << " busy=" << m_busy_loop_on
-           << " cleanup=" << m_cleanup_loop_on
-           << " lcp=" << m_lcp_loop_on << endl;
+  Uint32 hit_pct = 0;
+  char hit_pct_str[20];
+  if (stats.m_page_hits + stats.m_page_faults != 0)
+    hit_pct = 10000 * stats.m_page_hits /
+              (stats.m_page_hits + stats.m_page_faults);
+  sprintf(hit_pct_str, "%u.%02u", hit_pct / 100, hit_pct % 100);
 
-  debugOut << "PGMAN:"
-           << " entry:" << pl_hash.count()
-           << " cache:" << m_stats.m_num_pages
-           << "(" << locked_bound_count << "L)"
-           << " stack:" << pl_stack.count()
-           << " hot:" << hot_count
-           << " hot_bound:" << hot_bound_count
-           << " stack_request:" << stack_request_count
-           << " queue:" << pl_queue.count()
-           << " queue_request:" << queue_request_count
-           << " queuewait:" << queuewait_count << endl;
+  if (! debugFlag && debugSummaryFlag)
+    open_debug_file(1);
 
-  debugOut << "PGMAN:";
-  for (k = 0; k < Page_entry::SUBLIST_COUNT; k++)
-  {
-    const Page_sublist& pl = *m_page_sublist[k];
-    debugOut << " " << get_sublist_name(k) << ":" << pl.count();
-  }
-  debugOut << endl;
+  debugOut
+    << "PGMAN: loop"
+    << " stats:" << m_stats_loop_on
+    << " busy:" << m_busy_loop_on
+    << " cleanup:" << m_cleanup_loop_on
+    << " lcp:" << m_lcp_loop_on << endl;
+
+  debugOut
+    << "PGMAN:"
+    << " entries:" << pl_hash.count()
+    << " pages:" << stats.m_num_pages << "/" << param.m_max_pages
+    << " mapped:" << is_mapped
+    << " hot:" << is_hot
+    << " io:" << stats.m_current_io_waits << "/" << param.m_max_io_waits
+    << " hit pct:" << hit_pct_str << endl;
+
+  debugOut
+    << "PGMAN:"
+    << " locked:" << is_locked
+    << " stack:" << pl_stack.count()
+    << " queue:" << pl_queue.count()
+    << " to queue:" << to_queue << endl;
+
+  debugOut
+    << "PGMAN:"
+    << sublist_info << endl;
+
+  if (! debugFlag && debugSummaryFlag)
+    open_debug_file(0);
 }
 
 void
@@ -2248,56 +2259,37 @@ Pgman::dump_page_lists(Uint32 ptrI)
   if (! debugFlag)
     open_debug_file(1);
 
-  debugOut << "PGMAN: page list dump" << endl;
+  debugOut << "PGMAN: page list dump" << "\n";
   if (ptrI != RNIL)
-    debugOut << "PGMAN: error on PE [" << ptrI << "]" << endl;
+    debugOut << "PGMAN: error on PE [" << ptrI << "]" << "\n";
 
   Page_hashlist& pl_hash = m_page_hashlist;
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
   Ptr<Page_entry> ptr;
   Uint32 n;
-  char buf[40];
 
-  debugOut << "hash:" << endl;
-  Page_hashlist::Iterator iter;
-  pl_hash.next(0, iter);
-  n = 0;
-  while (iter.curr.i != RNIL)
-  {
-    sprintf(buf, "%03d", n++);
-    debugOut << buf << " " << iter.curr << endl;
-    pl_hash.next(iter);
-  }
-
-  debugOut << "stack:" << endl;
+  debugOut << "stack:" << "\n";
   n = 0;
   for (pl_stack.first(ptr); ptr.i != RNIL; pl_stack.next(ptr))
-  {
-    sprintf(buf, "%03d", n++);
-    debugOut << buf << " " << ptr << endl;
-  }
+    debugOut << n++ << " " << ptr << "\n";
 
-  debugOut << "queue:" << endl;
+  debugOut << "queue:" << "\n";
   n = 0;
   for (pl_queue.first(ptr); ptr.i != RNIL; pl_queue.next(ptr))
-  {
-    sprintf(buf, "%03d", n++);
-    debugOut << buf << " " << ptr << endl;
-  }
+    debugOut << n++ << " " << ptr << "\n";
 
   Uint32 k;
   for (k = 0; k < Page_entry::SUBLIST_COUNT; k++)
   {
-    debugOut << get_sublist_name(k) << ":" << endl;
+    debugOut << get_sublist_name(k) << ":" << "\n";
     const Page_sublist& pl = *m_page_sublist[k];
+    n = 0;
     for (pl.first(ptr); ptr.i != RNIL; pl.next(ptr))
-    {
-      sprintf(buf, "%03d", n++);
-    debugOut << buf << " " << ptr << endl;
-    }
+      debugOut << n++ << " " << ptr << "\n";
   }
 
+  debugOut.flushline();
   if (! debugFlag)
     open_debug_file(0);
 
@@ -2317,9 +2309,9 @@ Pgman::get_sublist_name(Uint32 list_no)
   case Page_entry::SL_MAP_IO:
     return "map_io";
   case Page_entry::SL_CALLBACK:
-    return "callback";
+    return "cb";
   case Page_entry::SL_CALLBACK_IO:
-    return "callback_io";
+    return "cb_io";
   case Page_entry::SL_BUSY:
     return "busy";
   case Page_entry::SL_LOCKED:
@@ -2464,8 +2456,9 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11000 && signal->getLength() == 2)
   {
     Uint32 flag = signal->theData[1];
-    open_debug_file(flag);
-    debugFlag = flag;
+    debugFlag = flag & 1;
+    debugSummaryFlag = flag & 2;
+    open_debug_file(debugFlag);
   }
 #endif
 
