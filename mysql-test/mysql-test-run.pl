@@ -3893,7 +3893,7 @@ sub check_expected_crash_and_restart {
 
   foreach my $mysqld ( mysqlds() )
   {
-    next unless ( $mysqld->{proc} eq $proc );
+    next unless ( $mysqld->{proc} and $mysqld->{proc} eq $proc );
 
     # Check if crash expected by looking at the .expect file
     # in var/tmp
