@@ -8,6 +8,7 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
+Master-Host: No such row
 change master to master_host='::1';
 Master-Host: ::1
 disconnect slave;
