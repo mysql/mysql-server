@@ -1145,6 +1145,7 @@ static int pbxt_init(void *p)
 		pbxt_hton->panic = pbxt_panic; /* Panic call */
 		pbxt_hton->show_status = pbxt_show_status;
 		pbxt_hton->flags = HTON_NO_FLAGS; /* HTON_CAN_RECREATE - Without this flags TRUNCATE uses delete_all_rows() */
+		pbxt_hton->slot = (uint)-1; /* assign invald value, so we know when it's inited later */
 #if defined(MYSQL_SUPPORTS_BACKUP) && defined(XT_ENABLE_ONLINE_BACKUP)
 		pbxt_hton->get_backup_engine = pbxt_backup_engine;
 #endif
@@ -1227,7 +1228,9 @@ static int pbxt_init(void *p)
 				 * Only real problem, 2 threads try to load the same
 				 * plugin at the same time.
 				 */
+#if MYSQL_VERSION_ID < 60014
 				myxt_mutex_unlock(&LOCK_plugin);
+#endif
 #endif
 
 				/* Can't do this here yet, because I need a THD! */
@@ -1262,7 +1265,9 @@ static int pbxt_init(void *p)
 				if (thd)
 					myxt_destroy_thread(thd, FALSE);
 #ifndef DRIZZLED
+#if MYSQL_VERSION_ID < 60014
 				myxt_mutex_lock(&LOCK_plugin);
+#endif
 #endif
 			}
 #endif
@@ -5817,17 +5822,19 @@ static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
 	NULL, NULL, 0, 0, 20000, 1);
 #endif
 
+#ifndef DEBUG
 static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
 	PLUGIN_VAR_OPCMDARG,
-#ifdef DEBUG
+	"Enable PBXT support for the XA two-phase commit, default is enabled",
+	NULL, NULL, TRUE);
+#else
+static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
+	PLUGIN_VAR_OPCMDARG,
 	"Enable PBXT support for the XA two-phase commit, default is disabled (due to assertion failure in MySQL)",
 	/* The problem is, in MySQL an assertion fails in debug mode: 
 	 * Assertion failed: (total_ha_2pc == (ulong) opt_bin_log+1), function ha_recover, file handler.cc, line 1557.
      */
 	NULL, NULL, FALSE);
-#else
-	"Enable PBXT support for the XA two-phase commit, default is enabled",
-	NULL, NULL, TRUE);
 #endif
 
 static struct st_mysql_sys_var* pbxt_system_variables[] = {

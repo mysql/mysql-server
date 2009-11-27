@@ -1150,6 +1150,8 @@ static void *tabc_fr_run_thread(XTThreadPtr self)
 	int		count;
 	void	*mysql_thread;
 
+	myxt_wait_pbxt_plugin_slot_assigned(self);
+
 	mysql_thread = myxt_create_thread();
 
 	while (!self->t_quit) {

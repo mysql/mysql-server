@@ -3251,15 +3251,7 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 	if (!(mysql_thread = (THD *) myxt_create_thread()))
 		xt_throw(self);
 
-#ifdef DRIZZLED
-	static LEX_STRING plugin_name = { C_STRING_WITH_LEN("PBXT") };
-
-	while (!xres_recovery_thread->t_quit && !Registry::singleton().find(&plugin_name))
-		xt_sleep_milli_second(1);
-#else
-	while (!xres_recovery_thread->t_quit && !ha_resolve_by_legacy_type(mysql_thread, DB_TYPE_PBXT))
-		xt_sleep_milli_second(1);
-#endif
+	myxt_wait_pbxt_plugin_slot_assigned(self);
 
 	if (!xres_recovery_thread->t_quit) {
 		try_(a) {

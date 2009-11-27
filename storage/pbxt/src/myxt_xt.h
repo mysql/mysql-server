@@ -95,4 +95,6 @@ public:
 	static XTDDColumn *createFromMySQLField(XTThread *self, STRUCT_TABLE *, Field *);
 };
 
+void myxt_wait_pbxt_plugin_slot_assigned(XTThread *self);
+
 #endif

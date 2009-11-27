@@ -3364,3 +3364,29 @@ XTDDColumn *XTDDColumnFactory::createFromMySQLField(XTThread *self, TABLE *my_ta
 	return col;
 }
 
+/*
+ * -----------------------------------------------------------------------
+ * utilities
+ */
+
+/*
+ * MySQL (not sure about Drizzle) first calls hton->init and then assigns the plugin a thread slot
+ * which is used by xt_get_self(). This is a problem as pbxt_init() starts a number of daemon threads
+ * which could try to use the slot before it is assigned. This code waits till slot is inited.
+ * We cannot directly check hton->slot as in some versions of MySQL it can be 0 before init which is a 
+ * valid value.
+ */
+extern ulong total_ha;
+
+xtPublic void myxt_wait_pbxt_plugin_slot_assigned(XTThread *self)
+{
+#ifdef DRIZZLED
+	static LEX_STRING plugin_name = { C_STRING_WITH_LEN("PBXT") };
+
+	while (!self->t_quit && !Registry::singleton().find(&plugin_name))
+		xt_sleep_milli_second(1);
+#else
+	while(!self->t_quit && (pbxt_hton->slot >= total_ha))
+		xt_sleep_milli_second(1);
+#endif
+}
