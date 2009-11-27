@@ -1380,5 +1380,5 @@ args: -n DDInsertFailUpdateBatch D1 D2
 
 max-time: 300
 cmd: testBlobs
-args: -skip hp -bug 48973
+args: -skip hp -bug 28116
 
