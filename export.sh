@@ -23,6 +23,8 @@ if test -z $EDITOR; then
 fi
 set -u
 
+BRANCH=$(basename $(svn info .|grep ^URL: |cut -f 2 -d ' '))
+
 rm -rf to-mysql
 mkdir to-mysql{,/storage,/patches,/mysql-test{,/t,/r,/include}}
 svn log -v -r "$START_REV:BASE" > to-mysql/log
@@ -40,15 +42,15 @@ cd to-mysql/storage/innobase
 mv mysql-test/*.test mysql-test/*.opt ../../mysql-test/t
 mv mysql-test/*.result ../../mysql-test/r
 mv mysql-test/*.inc ../../mysql-test/include
-rmdir mysql-test
+rmdir mysql-test || :
 
-rm setup.sh export.sh revert_gen.sh compile-innodb-debug compile-innodb
+rm setup.sh export.sh revert_gen.sh compile-innodb-debug compile-innodb || :
 
 cd ../..
 $EDITOR log
 cd ..
 
-fname="innodb-5.1-ss$2.tar.gz"
+fname="innodb-$BRANCH-ss$2.tar.gz"
 
 rm -f $fname
 tar czf $fname to-mysql
