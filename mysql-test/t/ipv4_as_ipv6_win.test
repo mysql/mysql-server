@@ -22,7 +22,7 @@ echo =============Test of '::1' ========================;
 let $IPv6= ::1;
 --echo connect (con1, $IPv6, root, , test, MASTER_MYPORT,);
 --disable_query_log
-#--error 2003,2006
+--error 2003,2006
 connect (con1, $IPv6, root, , test, $MASTER_MYPORT);
 --enable_query_log
 connection default;
