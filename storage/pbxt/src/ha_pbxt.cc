@@ -1076,7 +1076,7 @@ static bool pbxt_show_status(handlerton *XT_UNUSED(hton), THD* thd,
 	cont_(a);
 
 	if (!not_ok) {
-		if (stat_print(thd, "PBXT", 4, "", 0, strbuf.sb_cstring, strbuf.sb_len))
+		if (stat_print(thd, "PBXT", 4, "", 0, strbuf.sb_cstring, (uint) strbuf.sb_len))
 			not_ok = TRUE;
 	}
 	xt_sb_set_size(self, &strbuf, 0);
@@ -3854,7 +3854,7 @@ int ha_pbxt::info(uint flag)
 			stats.index_file_length = xt_ind_node_to_offset(ot->ot_table, ot->ot_table->tab_ind_eof);
 			stats.delete_length = ot->ot_table->tab_rec_fnum * ot->ot_rec_size;
 			//check_time = info.check_time;
-			stats.mean_rec_length = ot->ot_rec_size;
+			stats.mean_rec_length = (ulong) ot->ot_rec_size;
 		}
 
 		if (flag & HA_STATUS_CONST) {
@@ -5547,7 +5547,7 @@ bool ha_pbxt::get_error_message(int XT_UNUSED(error), String *buf)
 	if (!self->t_exception.e_xt_err)
 		return FALSE;
 
-	buf->copy(self->t_exception.e_err_msg, strlen(self->t_exception.e_err_msg), system_charset_info);
+	buf->copy(self->t_exception.e_err_msg, (uint32) strlen(self->t_exception.e_err_msg), system_charset_info);
 	return TRUE;
 }
 
