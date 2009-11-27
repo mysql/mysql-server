@@ -3997,6 +3997,31 @@ bugtest_27370()
   return 0;
 }
 
+static int
+bugtest_48973()
+{
+  DBG("bug test 48973 - Assertion failed at NdbOperationSearch.cpp line 509");
+
+  /* Attempt to insert tuple with Blob column, without setting the key at all */
+  calcTups(true);
+  
+  Tup& tup = g_tups[0];
+  CHK((g_con = g_ndb->startTransaction()) != 0);
+  CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+  CHK(g_opr->insertTuple() ==0);
+  CHK(getBlobHandles(g_opr) != 0);
+
+  /* 4264 == Invalid usage of Blob attribute */
+  CHK(g_con->getNdbError().code == 4264);
+  CHK(g_opr->getNdbError().code == 4264);
+
+  g_ndb->closeTransaction(g_con);
+
+  g_opr = 0;
+  g_con = 0;
+  return 0;
+}
+
 static struct {
   int m_bug;
   int (*m_test)();
@@ -4006,7 +4031,8 @@ static struct {
   { 27370, bugtest_27370 },
   { 36756, bugtest_36756 },
   { 45768, bugtest_45768 },
-  { 48040, bugtest_48040 }
+  { 48040, bugtest_48040 },
+  { 48973, bugtest_48973 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
