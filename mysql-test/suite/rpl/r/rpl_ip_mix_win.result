@@ -1,6 +1,6 @@
 #################### IP: ::1 ###########################
-connect (master,::1,root,,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT,SLAVE_MYSOCK);
+connect (master,::1,root,,test,MASTER_MYPORT);
+connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT);
 connection master;
 reset master;
 show master status;
@@ -9,13 +9,13 @@ master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
 change master to master_host='::1';
-Master_Host: ::1
+Master-Host: ::1
 disconnect slave;
 disconnect master;
 connection default;
 #################### IP: 0000:0000:0000:0000:0000:0000:0000:0001 ###########################
-connect (master,0000:0000:0000:0000:0000:0000:0000:0001,root,,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT,SLAVE_MYSOCK);
+connect (master,0000:0000:0000:0000:0000:0000:0000:0001,root,,test,MASTER_MYPORT);
+connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT);
 connection master;
 reset master;
 show master status;
@@ -23,15 +23,15 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
-Master_Host: ::1
+Master-Host: ::1
 change master to master_host='0000:0000:0000:0000:0000:0000:0000:0001';
-Master_Host: 0000:0000:0000:0000:0000:0000:0000:0001
+Master-Host: 0000:0000:0000:0000:0000:0000:0000:0001
 disconnect slave;
 disconnect master;
 connection default;
 #################### IP: 0:0:0:0:0:0:0:1 ###########################
-connect (master,0:0:0:0:0:0:0:1,root,,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT,SLAVE_MYSOCK);
+connect (master,0:0:0:0:0:0:0:1,root,,test,MASTER_MYPORT);
+connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT);
 connection master;
 reset master;
 show master status;
@@ -39,15 +39,15 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
-Master_Host: 0000:0000:0000:0000:0000:0000:0000:0001
+Master-Host: 0000:0000:0000:0000:0000:0000:0000:0001
 change master to master_host='0:0:0:0:0:0:0:1';
-Master_Host: 0:0:0:0:0:0:0:1
+Master-Host: 0:0:0:0:0:0:0:1
 disconnect slave;
 disconnect master;
 connection default;
 #################### IP: 127.0.0.1 ###########################
-connect (master,127.0.0.1,root,,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT,SLAVE_MYSOCK);
+connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
+connect (slave,127.0.0.1,root,,test,SLAVE_MYPORT);
 connection master;
 reset master;
 show master status;
@@ -55,9 +55,9 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
-Master_Host: 0:0:0:0:0:0:0:1
+Master-Host: 0:0:0:0:0:0:0:1
 change master to master_host='127.0.0.1';
-Master_Host: 127.0.0.1
+Master-Host: 127.0.0.1
 disconnect slave;
 disconnect master;
 connection default;
@@ -71,13 +71,13 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 connection slave;
 reset slave;
-Master_Host: 127.0.0.1
+Master-Host: 127.0.0.1
 change master to master_host='::1';
-Master_Host: ::1
+Master-Host: ::1
 change master to master_host='127.0.0.1';
-Master_Host: 127.0.0.1
+Master-Host: 127.0.0.1
 change master to master_host='0:0:0:0:0:0:0:1';
-Master_Host: 0:0:0:0:0:0:0:1
+Master-Host: 0:0:0:0:0:0:0:1
 disconnect slave;
 disconnect master;
 connection default;
