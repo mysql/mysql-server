@@ -4335,7 +4335,7 @@ com_status(String *buffer __attribute__((unused)),
     Don't remove "limit 1",
     it is protection againts SQL_SELECT_LIMIT=0
   */
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4379,7 +4379,7 @@ com_status(String *buffer __attribute__((unused)),
     if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
       return 0;
   }
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
