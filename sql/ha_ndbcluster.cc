@@ -478,6 +478,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       if (handler->ht != ht)
       {
         DBUG_PRINT("info", ("Table %d not same SE, not pushable", join_cnt));
+        break;
       }
       if (!field_ref_is_join_pushable(join_tabs, join_cnt))
       {

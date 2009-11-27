@@ -402,5 +402,23 @@ join t1 as t4 on t4.a = t3.b
 
 drop table t1;
 
+# mixed engines
+
+create table t1 (a int primary key, b int) engine = ndb;
+create table t2 (a int primary key, b int) engine = myisam;
+insert into t1 values(1,1), (2,2), (3,3), (4,4);
+insert into t2 values(1,1), (2,2), (3,3), (4,4);
+
+explain
+select * from t1, t2, t1 as t3
+where t2.a = t1.b
+  and t3.a = t2.b;
+--sorted_result
+select * from t1, t2, t1 as t3
+where t2.a = t1.b
+  and t3.a = t2.b;
+
+drop table t1, t2;
+
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
