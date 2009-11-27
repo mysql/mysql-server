@@ -47,8 +47,7 @@ sync_with_master; # won't work if slave SQL thread stopped
 
 connection master; # cleanup
 drop table t1;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # If the machine is so fast that slave syncs before OPTIMIZE
 # starts, this test wil demonstrate nothing but will pass.

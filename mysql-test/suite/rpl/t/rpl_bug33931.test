@@ -17,10 +17,6 @@ reset slave;
 # Add suppression for expected warnings in slaves error log
 call mtr.add_suppression("Failed during slave I/O thread initialization");
 
---disable_warnings
-stop slave;
---enable_warnings
-
 # Set debug flags on slave to force errors to occur
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
 

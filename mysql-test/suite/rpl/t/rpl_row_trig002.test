@@ -39,9 +39,7 @@ INSERT INTO test.t1 VALUES (1, 'example.com'),(2, 'mysql.com'),(3, 'earthmotherw
 
 SELECT * FROM test.t1 ORDER BY id;
 #show binlog events;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1 ORDER BY id;
 connection master;
 
@@ -51,9 +49,7 @@ INSERT INTO test.t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 
 select * from test.t2;
 select * from test.t3;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from test.t2;
 select * from test.t3;
 connection master;
@@ -63,9 +59,7 @@ DELETE FROM test.t1 WHERE id = 1;
 SELECT * FROM test.t1 ORDER BY id;
 connection master;
 SELECT * FROM test.t1 ORDER BY id;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1 ORDER BY id;
 
 # Cleanup
