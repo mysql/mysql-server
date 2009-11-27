@@ -364,5 +364,6 @@ SELECT '< & >' AS `<`;
 EOF
 --exec $MYSQL --html test < $MYSQLTEST_VARDIR/tmp/bug27884.sql
 --echo
+remove_file $MYSQLTEST_VARDIR/tmp/bug27884.sql;
 
 --echo End of 5.0 tests
