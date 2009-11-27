@@ -359,7 +359,10 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 #
 # Bug #27884: mysql --html does not quote HTML special characters in output
 # 
---exec $MYSQL --html test -e "select '< & >' as \`<\`"
+--write_file $MYSQLTEST_VARDIR/tmp/bug27884.sql
+SELECT '< & >' AS `<`;
+EOF
+--exec $MYSQL --html test < $MYSQLTEST_VARDIR/tmp/bug27884.sql
 --echo
 
 --echo End of 5.0 tests
