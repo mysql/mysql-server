@@ -612,8 +612,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
                        pthread_cond_t *start_cond,
                        volatile uint *slave_running,
                        volatile ulong *slave_run_id,
-                       Master_info* mi,
-                       bool high_priority)
+                       Master_info* mi)
 {
   pthread_t th;
   ulong start_id;
@@ -643,8 +642,6 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
   }
   start_id= *slave_run_id;
   DBUG_PRINT("info",("Creating new slave thread"));
-  if (high_priority)
-    my_pthread_attr_setprio(&connection_attrib,CONNECT_PRIOR);
   if (pthread_create(&th, &connection_attrib, h_func, (void*)mi))
   {
     if (start_lock)
@@ -707,13 +704,13 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
     error=start_slave_thread(handle_slave_io,lock_io,lock_cond_io,
                              cond_io,
                              &mi->slave_running, &mi->slave_run_id,
-                             mi, 1); //high priority, to read the most possible
+                             mi);
   if (!error && (thread_mask & SLAVE_SQL))
   {
     error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
                              cond_sql,
                              &mi->rli.slave_running, &mi->rli.slave_run_id,
-                             mi, 0);
+                             mi);
     if (error)
       terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }

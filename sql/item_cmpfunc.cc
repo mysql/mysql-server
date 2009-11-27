@@ -4187,7 +4187,7 @@ void Item_cond::neg_arguments(THD *thd)
       if (!(new_item= new Item_func_not(item)))
 	return;					// Fatal OEM error
     }
-    VOID(li.replace(new_item));
+    (void) li.replace(new_item);
   }
 }
 

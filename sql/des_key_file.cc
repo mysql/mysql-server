@@ -43,7 +43,7 @@ load_des_key_file(const char *file_name)
   DBUG_ENTER("load_des_key_file");
   DBUG_PRINT("enter",("name: %s",file_name));
 
-  VOID(pthread_mutex_lock(&LOCK_des_key_file));
+  pthread_mutex_lock(&LOCK_des_key_file);
   if ((file=my_open(file_name,O_RDONLY | O_BINARY ,MYF(MY_WME))) < 0 ||
       init_io_cache(&io, file, IO_SIZE*2, READ_CACHE, 0, 0, MYF(MY_WME)))
     goto error;
@@ -96,7 +96,7 @@ error:
     my_close(file,MYF(0));
     end_io_cache(&io);
   }
-  VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+  pthread_mutex_unlock(&LOCK_des_key_file);
   DBUG_RETURN(result);
 }
 #endif /* HAVE_OPENSSL */

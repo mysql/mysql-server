@@ -124,6 +124,39 @@ disconnect addconroot1;
 --source include/wait_until_disconnected.inc
 connection default;
 
+#
+# Bug#25858 Some DROP TABLE under LOCK TABLES can cause deadlocks
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 read;
+--error ER_TABLE_NOT_LOCKED
+drop table t2;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop table t1;
+unlock tables;
+drop table t1,t2;
+connect (addconroot, localhost, root,,);
+connection default;
+create table t1 (i int);
+create table t2 (i int);
+lock tables t1 read;
+connection addconroot;
+lock tables t2 read;
+--error ER_TABLE_NOT_LOCKED
+drop table t1;
+connection default;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+drop table t1,t2;
+disconnect addconroot;
+connection default;
+unlock tables;
+drop table t1,t2;
+
 --echo End of 5.0 tests
 
 #

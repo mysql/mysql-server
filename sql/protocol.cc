@@ -247,6 +247,7 @@ net_send_ok(THD *thd,
   if (!error)
     error= net_flush(net);
 
+
   thd->stmt_da->can_overwrite_status= FALSE;
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
@@ -406,6 +407,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
     buff[2]= '#';
     pos= (uchar*) strmov((char*) buff+3, sqlstate);
   }
+
   converted_err_len= convert_error_message((char*)converted_err,
                                            sizeof(converted_err),
                                            thd->variables.character_set_results,
@@ -414,6 +416,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   length= (uint) (strmake((char*) pos, (char*)converted_err, MYSQL_ERRMSG_SIZE) -
                   (char*) buff);
   err= (char*) buff;
+
   DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
                                 length));
 }

@@ -101,7 +101,7 @@ int mi_delete(MI_INFO *info,const uchar *record)
 
   mi_sizestore(lastpos,info->lastpos);
   myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos,sizeof(lastpos),0);
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
@@ -120,7 +120,7 @@ err:
     mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* mark table crashed */
   }
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
   allow_break();			/* Allow SIGHUP & SIGINT */
   my_errno=save_errno;

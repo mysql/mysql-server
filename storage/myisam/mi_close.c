@@ -93,13 +93,13 @@ int mi_close(register MI_INFO *info)
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
-    VOID(pthread_mutex_destroy(&share->intern_lock));
+    pthread_mutex_destroy(&share->intern_lock);
     {
       int i,keys;
       keys = share->state.header.keys;
-      VOID(rwlock_destroy(&share->mmap_lock));
+      (void) rwlock_destroy(&share->mmap_lock);
       for(i=0; i<keys; i++) {
-	VOID(rwlock_destroy(&share->key_root_lock[i]));
+	(void) rwlock_destroy(&share->key_root_lock[i]);
       }
     }
 #endif

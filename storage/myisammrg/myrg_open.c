@@ -87,9 +87,9 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 
     if (!has_path(buff))
     {
-      VOID(strmake(name_buff+dir_length,buff,
-                   sizeof(name_buff)-1-dir_length));
-      VOID(cleanup_dirname(buff,name_buff));
+      (void) strmake(name_buff+dir_length,buff,
+                   sizeof(name_buff)-1-dir_length);
+      (void) cleanup_dirname(buff,name_buff);
     }
     else
       fn_format(buff, buff, "", "", 0);
@@ -167,9 +167,9 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   m_info->last_used_table=m_info->open_tables;
   m_info->children_attached= TRUE;
 
-  VOID(my_close(fd,MYF(0)));
+  (void) my_close(fd,MYF(0));
   end_io_cache(&file);
-  VOID(pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST));
+  pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST);
   m_info->open_list.data=(void*) m_info;
   pthread_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_add(myrg_open_list,&m_info->open_list);
@@ -190,7 +190,7 @@ err:
     end_io_cache(&file);
     /* Fall through */
   case 1:
-    VOID(my_close(fd,MYF(0)));
+    (void) my_close(fd,MYF(0));
   }
   my_errno=save_errno;
   DBUG_RETURN (NULL);
@@ -313,9 +313,9 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
     if (!has_path(child_name_buff))
     {
-      VOID(strmake(parent_name_buff + dir_length, child_name_buff,
-                   sizeof(parent_name_buff) - 1 - dir_length));
-      VOID(cleanup_dirname(child_name_buff, parent_name_buff));
+      (void) strmake(parent_name_buff + dir_length, child_name_buff,
+                   sizeof(parent_name_buff) - 1 - dir_length);
+      (void) cleanup_dirname(child_name_buff, parent_name_buff);
     }
     else
       fn_format(child_name_buff, child_name_buff, "", "", 0);
@@ -327,8 +327,8 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   end_io_cache(&file_cache);
-  VOID(my_close(fd, MYF(0)));
-  VOID(pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST));
+  (void) my_close(fd, MYF(0));
+  pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST);
 
   m_info->open_list.data= (void*) m_info;
   pthread_mutex_lock(&THR_LOCK_open);
@@ -348,7 +348,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     end_io_cache(&file_cache);
     /* Fall through */
   case 1:
-    VOID(my_close(fd, MYF(0)));
+    (void) my_close(fd, MYF(0));
   }
   my_errno= save_errno;
   DBUG_RETURN (NULL);

@@ -970,7 +970,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
           uchar *base=buffpek->base;
           uint max_keys=buffpek->max_keys;
 
-          VOID(queue_remove(&queue,0));
+          (void) queue_remove(&queue,0);
 
           /* Put room used by buffer to use in other buffer */
           for (refpek= (BUFFPEK**) &queue_top(&queue);
