@@ -404,7 +404,9 @@ Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
   }
 
   D(ptr << ": after");
+#ifdef VM_TRACE
   verify_page_entry(ptr);
+#endif
   D("<set_page_state");
 }
 
