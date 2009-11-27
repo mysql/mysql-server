@@ -1414,3 +1414,7 @@ max-time: 300
 cmd: testBasic
 args: -n DDInsertFailUpdateBatch
 
+max-time: 300
+cmd: testBlobs
+args: -skip hp -bug 28116
+
