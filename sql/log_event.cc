@@ -3892,7 +3892,6 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
   int ret= 0;
   DBUG_ENTER("Format_description_log_event::do_apply_event");
 
-#ifdef USING_TRANSACTIONS
   /*
     As a transaction NEVER spans on 2 or more binlogs:
     if we have an active transaction at this point, the master died
@@ -3914,7 +3913,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
                 "its binary log, thus rolled back too."); 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 1);
   }
-#endif
+
   /*
     If this event comes from ourselves, there is no cleaning task to
     perform, we don't call Start_log_event_v3::do_apply_event()
@@ -4578,7 +4577,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   if (rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->query_id = next_query_id();
+    thd->set_query_id(next_query_id());
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;

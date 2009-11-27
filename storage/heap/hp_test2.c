@@ -609,7 +609,7 @@ end:
   return(0);
 err:
   printf("Got error: %d when using heap-database\n",my_errno);
-  VOID(heap_close(file));
+  (void) heap_close(file);
   return(1);
 } /* main */
 

@@ -1,6 +1,21 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
 AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
@@ -1750,64 +1765,74 @@ then
 fi
 
 AC_ARG_WITH([atomic-ops],
-	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
-	    [Implement atomic operations using pthread rwlocks or atomic CPU
-             instructions for multi-processor (default) or uniprocessor
-             configuration]), , [with_atomic_ops=smp])
+            AS_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
+            [Implement atomic operations using pthread rwlocks or atomic CPU
+             instructions for multi-processor or uniprocessor
+             configuration. By default gcc built-in sync functions are used,
+             if available and 'smp' configuration otherwise.]))
 case "$with_atomic_ops" in
   "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
                   [Assume single-CPU mode, no concurrency]) ;;
   "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
                   [Use pthread rwlocks for atomic ops]) ;;
   "smp") ;;
+  "")
+   ;;
    *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
 esac
 
 AC_CACHE_CHECK([whether the compiler provides atomic builtins],
-               [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
-  int main()
-  {
-    int foo= -10; int bar= 10;
-    if (!__sync_fetch_and_add(&foo, bar) || foo)
-      return -1;
-    bar= __sync_lock_test_and_set(&foo, bar);
-    if (bar || foo != 10)
-      return -1;
-    bar= __sync_val_compare_and_swap(&bar, foo, 15);
-    if (bar)
-      return -1;
-    return 0;
-  }
-], [mysql_cv_gcc_atomic_builtins=yes],
+               [mysql_cv_gcc_atomic_builtins],
+  [AC_RUN_IFELSE(
+     [AC_LANG_PROGRAM(
+        [
+        ],
+     [[
+        int foo= -10; int bar= 10;
+        if (!__sync_fetch_and_add(&foo, bar) || foo)
+          return -1;
+        bar= __sync_lock_test_and_set(&foo, bar);
+        if (bar || foo != 10)
+          return -1;
+        bar= __sync_val_compare_and_swap(&bar, foo, 15);
+        if (bar)
+          return -1;
+        return 0;
+     ]]
+     )],
+   [mysql_cv_gcc_atomic_builtins=yes],
    [mysql_cv_gcc_atomic_builtins=no],
-   [mysql_cv_gcc_atomic_builtins=no])])
-
+   [mysql_cv_gcc_atomic_builtins=no]
+)])
 if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
   AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
             [Define to 1 if compiler provides atomic builtins.])
 fi
 
 AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
-               [mysql_cv_solaris_atomic], [AC_TRY_RUN([
-#include <atomic.h>
-int
-main()
-{
-	int foo = -10; int bar = 10;
-	if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
-		return -1;
-	bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
-	if (bar || foo != 10)
-		return -1;
-	bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
-	if (bar)
-		return -1;
-	return 0;
-}
-], [mysql_cv_solaris_atomic=yes],
+               [mysql_cv_solaris_atomic],
+  [AC_RUN_IFELSE(
+     [AC_LANG_PROGRAM(
+        [
+        #include <atomic.h>
+        ]
+     [[
+        int foo = -10; int bar = 10;
+        if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
+          return -1;
+        bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
+        if (bar || foo != 10)
+          return -1;
+        bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
+        if (bar)
+          return -1;
+        return 0;
+     ]]
+     )],
+   [mysql_cv_solaris_atomic=yes],
    [mysql_cv_solaris_atomic=no],
-   [mysql_cv_solaris_atomic=no])])
-
+   [mysql_cv_solaris_atomic=no]
+)])
 if test "x$mysql_cv_solaris_atomic" = xyes; then
   AC_DEFINE(HAVE_SOLARIS_ATOMIC, 1,
             [Define to 1 if OS provides atomic_* functions like Solaris.])
@@ -2098,13 +2123,11 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   localtime_r gethrtime gmtime_r \
   locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
-  pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
-  pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
-  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
-  pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
-  realpath rename rint rwlock_init setupterm \
+  pthread_attr_getstacksize pthread_attr_setstacksize pthread_condattr_create \
+  pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock pthread_sigmask \
+  readlink realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
-  sighold sigset sigthreadmask port_create sleep \
+  sighold sigset sigthreadmask port_create sleep thr_yield \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
@@ -2906,7 +2929,54 @@ case $SYSTEM_TYPE in
 esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
+#--------------------------------------------------------------------
+# Support for WL#2373 (Use cycle counter for timing)
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(time.h)
+AC_CHECK_HEADERS(sys/time.h)
+AC_CHECK_HEADERS(sys/times.h)
+AC_CHECK_HEADERS(asm/msr.h)
+#msr.h has rdtscll()
+
+AC_CHECK_HEADERS(ia64intrin.h)
+
+AC_CHECK_FUNCS(times)
+AC_CHECK_FUNCS(gettimeofday)
+AC_CHECK_FUNCS(read_real_time)
+# This should work on AIX.
+
+AC_CHECK_FUNCS(ftime)
+# This is still a normal call for milliseconds.
+
+AC_CHECK_FUNCS(time)
+# We can use time() on Macintosh if there is no ftime().
+
+AC_CHECK_FUNCS(rdtscll)
+# I doubt that we'll ever reach the check for this.
+
+# When compiling with Sun Studio C / C++ we need to include
+# my_timer_cycles.il, an "inline templates" separate file,
+# on the command line. It has assembly code, "rd %tick" for
+# SPARC or "rdtsc" for x86.
+RDTSC_SPARC_ASSEMBLY=""
+case $CC_VERSION in
+  *Sun*C*)
+    RDTSC_SPARC_ASSEMBLY="my_timer_cycles.il"
+    ;;
+esac
+case $CXX_VERSION in
+  *Sun*C++*)
+    RDTSC_SPARC_ASSEMBLY="my_timer_cycles.il"
+    ;;
+esac
+
+AC_SUBST([RDTSC_SPARC_ASSEMBLY])
+
+#--------------------------------------------------------------------
 # Output results
+#--------------------------------------------------------------------
+
 if test -d "$srcdir/pstack" ; then
   AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
 fi

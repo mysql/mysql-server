@@ -60,7 +60,7 @@ int mi_delete_all_rows(MI_INFO *info)
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
 #ifdef HAVE_MMAP
   /* Map again */
   if (share->file_map)
@@ -72,7 +72,7 @@ int mi_delete_all_rows(MI_INFO *info)
 err:
   {
     int save_errno=my_errno;
-    VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+    (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);

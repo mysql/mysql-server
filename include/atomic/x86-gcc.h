@@ -88,7 +88,4 @@
 #define make_atomic_store_body(S)				\
   asm volatile ("; xchg %0, %1;" : "+m" (*a), "+r" (v))
 #endif
-
-/* TODO test on intel whether the below helps. on AMD it makes no difference */
-//#define LF_BACKOFF ({asm volatile ("rep; nop"); 1; })
 #endif /* ATOMIC_X86_GCC_INCLUDED */
