@@ -301,6 +301,12 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_RETURN(0);
   }
 
+  if (join_tabs[1].table->file->ht != ht)
+  {
+    DBUG_PRINT("info", ("different SE -> not pushable"));
+    DBUG_RETURN(0);
+  }
+
 /******/
   DBUG_PRINT("info", ("join_root.ref.key:%d", join_root.ref.key));
   DBUG_PRINT("info", ("join_root.ref.key_parts:%d", join_root.ref.key_parts));
@@ -345,13 +351,15 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_PRINT("info", ("First child table not EQ_REF pushable in join"));
     DBUG_RETURN(0);
   }
-  if (uses_blob_value(table->read_set) || uses_blob_value(join_tabs[1].table->read_set))
+  ha_ndbcluster* handler1 = static_cast<ha_ndbcluster*>(join_tabs[1].table->file);
+  if (uses_blob_value(table->read_set) ||
+      handler1->uses_blob_value(join_tabs[1].table->read_set))
   {
     DBUG_PRINT("info", ("'read_set' contain BLOB columns -> not pushable"));
     DBUG_RETURN(0);
   }
   if (m_user_defined_partitioning || 
-      static_cast<ha_ndbcluster*>(join_tabs[1].table->file)->m_user_defined_partitioning)
+      handler1->m_user_defined_partitioning)
   {
     DBUG_PRINT("info", ("Tables has user defined partioning -> not pushable"));
     DBUG_RETURN(0);
@@ -467,19 +475,23 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
     if (join_cnt >= 2)    // First 2 tables are checked before we get here
     {
+      if (handler->ht != ht)
+      {
+        DBUG_PRINT("info", ("Table %d not same SE, not pushable", join_cnt));
+      }
       if (!field_ref_is_join_pushable(join_tabs, join_cnt))
       {
-        DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt+1));
+        DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
         break;
       }
-      if (uses_blob_value(join_tab.table->read_set))
+      if (handler->uses_blob_value(join_tab.table->read_set))
       {
-        DBUG_PRINT("info", ("Table %d, 'read_set' contains BLOBs, not pushable", join_cnt+1));
+        DBUG_PRINT("info", ("Table %d, 'read_set' contains BLOBs, not pushable", join_cnt));
         break;
       }
       if (handler->m_user_defined_partitioning)
       {
-        DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt+1));
+        DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
         break;
       }
     }
