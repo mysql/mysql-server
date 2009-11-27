@@ -8008,7 +8008,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                 COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Query_arena *arena= thd->stmt_arena, backup;
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8023,10 +8022,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
   select_lex->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
-
-  if (select_lex->conds_processed_with_permanent_arena ||
-      arena->is_conventional())
-    arena= 0;                                   // For easier test
 
   thd->mark_used_columns= MARK_COLUMNS_READ;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -8096,7 +8091,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       We do this ON -> WHERE transformation only once per PS/SP statement.
     */
     select_lex->where= *conds;
-    select_lex->conds_processed_with_permanent_arena= 1;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));
