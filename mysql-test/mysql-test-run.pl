@@ -1828,8 +1828,8 @@ sub environment_setup {
     }
     else
     {
-       $semisync_master_filename = "libsemisync_master.so";
-       $semisync_slave_filename = "libsemisync_slave.so";
+       $semisync_master_filename = "semisync_master.so";
+       $semisync_slave_filename = "semisync_slave.so";
     }
     my $lib_semisync_master_plugin=
       mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_master_filename),
