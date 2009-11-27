@@ -1338,7 +1338,7 @@ sp_head::execute(THD *thd)
   /* To avoid wiping out thd->change_list on old_change_list destruction */
   old_change_list.empty();
   thd->lex= old_lex;
-  thd->query_id= old_query_id;
+  thd->set_query_id(old_query_id);
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
@@ -2736,9 +2736,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   */
   thd->lex= m_lex;
 
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query_id= next_query_id();
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query_id(next_query_id());
 
   if (thd->prelocked_mode == NON_PRELOCKED)
   {
