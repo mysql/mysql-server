@@ -659,11 +659,6 @@ public:
   uint select_n_where_fields;
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
-  /* 
-    PS or SP cond natural joins was alredy processed with permanent
-    arena and all additional items which we need alredy stored in it
-  */
-  bool conds_processed_with_permanent_arena;
 
   ulong table_join_options;
   uint in_sum_expr;
