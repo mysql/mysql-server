@@ -387,7 +387,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
-  VOID(pthread_mutex_lock(&LOCK_open));
+  pthread_mutex_lock(&LOCK_open);
 
   if (!create)
   {
@@ -510,7 +510,7 @@ end:
     write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
-  VOID(pthread_mutex_unlock(&LOCK_open));
+  pthread_mutex_unlock(&LOCK_open);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);

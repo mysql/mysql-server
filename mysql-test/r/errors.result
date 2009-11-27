@@ -55,6 +55,42 @@ Error	1054	Unknown column 'b' in 'field list'
 INSERT INTO t1 SELECT b FROM t1;
 ERROR 42S22: Unknown column 'b' in 'field list'
 DROP TABLE t1;
+flush status;
+drop table if exists t1, t2;
+create table t1 (a int unique);
+create table t2 (a int);
+drop function if exists f1;
+Warnings:
+Note	1305	FUNCTION f1 does not exist
+drop function if exists f2;
+Warnings:
+Note	1305	FUNCTION f2 does not exist
+create function f1() returns int
+begin
+insert into t1 (a) values (1);
+insert into t1 (a) values (1);
+return 1;
+end|
+create function f2() returns int
+begin
+insert into t2 (a) values (1);
+return 2;
+end|
+flush status;
+select f1(), f2();
+ERROR 23000: Duplicate entry '1' for key 'a'
+show status like 'Com_insert';
+Variable_name	Value
+Com_insert	2
+select * from t1;
+a
+1
+select * from t2;
+a
+drop table t1;
+drop table t2;
+drop function f1;
+drop function f2;
 SET NAMES utf8;
 SET sql_quote_show_create= _binary x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'

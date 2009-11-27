@@ -721,11 +721,11 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   }
   
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
-    VOID(mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
+    (void) mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0);
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
-    VOID(mi_extra(file, HA_EXTRA_WAIT_LOCK, 0));
+    (void) mi_extra(file, HA_EXTRA_WAIT_LOCK, 0);
   if (!table->s->db_record_offset)
     int_table_flags|=HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
@@ -916,8 +916,8 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   const char* errmsg;
   DBUG_ENTER("restore");
 
-  VOID(tablename_to_filename(table->s->table_name.str, table_name,
-                             sizeof(table_name)));
+  (void) tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name));
 
   if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
 				      MI_NAME_DEXT))
@@ -959,8 +959,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   const char *errmsg;
   DBUG_ENTER("ha_myisam::backup");
 
-  VOID(tablename_to_filename(table->s->table_name.str, table_name,
-                             sizeof(table_name)));
+  (void) tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name));
 
   if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
 				      reg_ext))

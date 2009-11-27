@@ -181,19 +181,12 @@ int pthread_attr_init(pthread_attr_t *connect_att)
 {
   connect_att->dwStackSize	= 0;
   connect_att->dwCreatingFlag	= 0;
-  connect_att->priority		= 0;
   return 0;
 }
 
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack)
 {
   connect_att->dwStackSize=stack;
-  return 0;
-}
-
-int pthread_attr_setprio(pthread_attr_t *connect_att,int priority)
-{
-  connect_att->priority=priority;
   return 0;
 }
 

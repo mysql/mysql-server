@@ -173,12 +173,12 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
 	{
 	  error=my_errno;
-	  VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE)));
+	  (void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
 	  my_errno=error;
 	  break;
 	}
       }
-      VOID(_mi_test_if_changed(info));
+      (void) _mi_test_if_changed(info);
       share->r_locks++;
       share->tot_locks++;
       info->lock_type=lock_type;
@@ -217,15 +217,15 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	    if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
 	    {
 	      error=my_errno;
-	      VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-			   info->lock_wait | MY_SEEK_NOT_DONE));
+	      (void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+			   info->lock_wait | MY_SEEK_NOT_DONE);
 	      my_errno=error;
 	      break;
 	    }
 	  }
 	}
       }
-      VOID(_mi_test_if_changed(info));
+      (void) _mi_test_if_changed(info);
         
       info->lock_type=lock_type;
       info->invalidator=info->s->invalidator;
@@ -412,14 +412,14 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
 	int error=my_errno ? my_errno : -1;
-	VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-		     MYF(MY_SEEK_NOT_DONE)));
+	(void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+		     MYF(MY_SEEK_NOT_DONE));
 	my_errno=error;
 	DBUG_RETURN(1);
       }
     }
     if (check_keybuffer)
-      VOID(_mi_test_if_changed(info));
+      (void) _mi_test_if_changed(info);
     info->invalidator=info->s->invalidator;
   }
   else if (lock_type == F_WRLCK && info->lock_type == F_RDLCK)
@@ -487,7 +487,7 @@ int _mi_test_if_changed(register MI_INFO *info)
   {						/* Keyfile has changed */
     DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
-      VOID(flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE));
+      (void) flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE);
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
     info->last_loop=	share->state.update_count;

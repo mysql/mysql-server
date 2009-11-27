@@ -4200,7 +4200,7 @@ String *Field_float::val_str(String *val_buffer,
     char buff[70],*pos=buff;
     int decpt,sign,tmp_dec=dec;
 
-    VOID(sfconvert(&nr,tmp_dec,&decpt,&sign,buff));
+    (void) sfconvert(&nr,tmp_dec,&decpt,&sign,buff);
     if (sign)
     {
       *to++='-';
@@ -4559,7 +4559,7 @@ String *Field_double::val_str(String *val_buffer,
     char *pos= buff;
     int decpt,sign,tmp_dec=dec;
 
-    VOID(fconvert(nr,tmp_dec,&decpt,&sign,buff));
+    (void) fconvert(nr,tmp_dec,&decpt,&sign,buff);
     if (sign)
     {
       *to++='-';

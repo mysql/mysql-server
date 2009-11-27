@@ -48,10 +48,6 @@
 #endif
 #endif
 
-#ifndef DEFAULT_SKIP_THREAD_PRIORITY
-#define DEFAULT_SKIP_THREAD_PRIORITY 0
-#endif
-
 #include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
@@ -1046,14 +1042,14 @@ static void close_server_sock()
   {
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    (void) shutdown(tmp_sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
-    VOID(closesocket(tmp_sock));
+    (void) closesocket(tmp_sock);
 #endif
   }
   tmp_sock=unix_sock;
@@ -1061,16 +1057,16 @@ static void close_server_sock()
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    (void) shutdown(tmp_sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
-    VOID(closesocket(tmp_sock));
+    (void) closesocket(tmp_sock);
 #endif
-    VOID(unlink(mysqld_unix_port));
+    (void) unlink(mysqld_unix_port);
   }
   DBUG_VOID_RETURN;
 #endif
@@ -2476,7 +2472,8 @@ and this may fail.\n\n");
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
   fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
-  fprintf(stderr, "threads_connected=%u\n", thread_count);
+  fprintf(stderr, "thread_count=%u\n", thread_count);
+  fprintf(stderr, "connection_count=%u\n", connection_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
@@ -2685,8 +2682,6 @@ static void start_signal_handler(void)
 #if !defined(HAVE_DEC_3_2_THREADS)
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
@@ -2806,8 +2801,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 	abort_loop=1;				// mark abort for threads
 #ifdef USE_ONE_SIGNAL_HAND
 	pthread_t tmp;
-	if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-	  my_pthread_attr_setprio(&connection_attrib,INTERRUPT_PRIOR);
 	if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
 			   (void*) &sig))
 	  sql_print_error("Can't create thread to kill server");
@@ -3633,8 +3626,6 @@ static int init_thread_environment()
   (void) pthread_attr_setdetachstate(&connection_attrib,
 				     PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
 
   if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
@@ -4342,8 +4333,6 @@ int main(int argc, char **argv)
     unireg_abort(1);				// Will do exit
 
   init_signals();
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
@@ -5033,8 +5022,6 @@ void handle_connections_sockets()
 
   LINT_INIT(new_sock);
 
-  (void) my_pthread_getprio(pthread_self());		// For debugging
-
   FD_ZERO(&clientFDs);
   if (ip_sock != INVALID_SOCKET)
   {
@@ -5193,7 +5180,7 @@ void handle_connections_sockets()
     if (!(thd= new THD))
     {
       (void) shutdown(new_sock, SHUT_RDWR);
-      VOID(closesocket(new_sock));
+      (void) closesocket(new_sock);
       continue;
     }
     if (!(vio_tmp=vio_new(new_sock,
@@ -6457,8 +6444,9 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities. Deprecated option.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   DEFAULT_SKIP_THREAD_PRIORITY, 0, 0, 0, 0, 0},
+   "Don't give threads different priorities. This option is deprecated "
+   "because it has no effect; the implied behavior is already the default.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR,
    "The location where the slave should put its temporary files when \
@@ -7629,7 +7617,7 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_NOFLUSH},
-  {"Threads_connected",        (char*) &thread_count,           SHOW_INT},
+  {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
@@ -7928,9 +7916,6 @@ static int mysql_init_variables(void)
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
-#if !defined(my_pthread_setprio) && !defined(HAVE_PTHREAD_SETSCHEDPARAM)
-  opt_specialflag |= SPECIAL_NO_PRIOR;
-#endif
 
 #if defined(__WIN__) || defined(__NETWARE__)
   /* Allow Win32 and NetWare users to move MySQL anywhere */
@@ -8214,8 +8199,8 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
     sql_print_warning("The --skip-thread-priority startup option is deprecated "
-                      "and will be removed in MySQL 7.0. MySQL 6.0 and up do not "
-                      "give threads different priorities.");
+                      "and will be removed in MySQL 7.0. This option has no effect "
+                      "as the implied behavior is already the default.");
     break;
   case (int) OPT_SKIP_LOCK:
     opt_external_locking=0;

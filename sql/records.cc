@@ -178,7 +178,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   
   if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE &&
       !table->sort.addon_field)
-    VOID(table->file->extra(HA_EXTRA_MMAP));
+    (void) table->file->extra(HA_EXTRA_MMAP);
   
   if (table->sort.addon_field)
   {
@@ -266,8 +266,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	 !(table->s->db_options_in_use & HA_OPTION_PACK_RECORD) ||
 	 (use_record_cache < 0 &&
 	  !(table->file->ha_table_flags() & HA_NOT_DELETE_WITH_CACHE))))
-      VOID(table->file->extra_opt(HA_EXTRA_CACHE,
-				  thd->variables.read_buff_size));
+      (void) table->file->extra_opt(HA_EXTRA_CACHE,
+				  thd->variables.read_buff_size);
   }
   /* Condition pushdown to storage engine */
   if (thd->variables.engine_condition_pushdown && 
