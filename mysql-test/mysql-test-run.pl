@@ -3994,6 +3994,11 @@ sub extract_warning_lines ($) {
      qr/Slave SQL thread retried transaction/,
      qr/Slave \(additional info\)/,
      qr/Incorrect information in file/,
+     qr/Slave I\/O: Get master SERVER_ID failed with error:.*/,
+     qr/Slave I\/O: Get master clock failed with error:.*/,
+     qr/Slave I\/O: Get master COLLATION_SERVER failed with error:.*/,
+     qr/Slave I\/O: Get master TIME_ZONE failed with error:.*/,
+     qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
     );
 
   my $match_count= 0;
