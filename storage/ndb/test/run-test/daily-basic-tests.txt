@@ -1469,6 +1469,10 @@ cmd: testBasic
 args: -n DDInsertFailUpdateBatch
 
 max-time: 300
+cmd: testBlobs
+args: -skip hp -bug 28116
+
+max-time: 300
 cmd: testNdbApi
 args: -n FragmentedApiFailure T1
 
