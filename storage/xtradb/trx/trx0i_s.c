@@ -28,11 +28,11 @@ table cache" for later retrieval.
 Created July 17, 2007 Vasil Dimov
 *******************************************************/
 
-#include <mysql/plugin.h>
 
 #include "mysql_addons.h"
 
 #include "univ.i"
+#include <mysql/plugin.h>
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"

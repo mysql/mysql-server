@@ -96,18 +96,18 @@
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_ft_word {
-  uchar * pos;
+  const uchar *pos;
   uint	 len;
   double weight;
 } FT_WORD;
 
-int is_stopword(char *word, uint len);
+int is_stopword(const uchar *word, size_t len);
 
 uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 
-uchar ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
+uchar ft_get_word(CHARSET_INFO *, const uchar **, const uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
-uchar ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
+uchar ft_simple_get_word(CHARSET_INFO *, const uchar **, const uchar *,
                          FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
@@ -121,7 +121,7 @@ void _mi_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
+int ft_parse(TREE *, const uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * ft_linearize(TREE *, MEM_ROOT *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const uchar *, MEM_ROOT *);

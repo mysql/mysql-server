@@ -300,8 +300,8 @@ TRN *trnman_new_trn(WT_THD *wt)
     (ABA isn't possible, we're behind a mutex
   */
   my_atomic_rwlock_wrlock(&LOCK_pool);
-  while (tmp.trn && !my_atomic_casptr((void **)&pool, &tmp.v,
-                                  (void *)tmp.trn->next))
+  while (tmp.trn && !my_atomic_casptr((void **)(char*) &pool, &tmp.v,
+                                      (void *)tmp.trn->next))
     /* no-op */;
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 
@@ -545,7 +545,7 @@ static void trnman_free_trn(TRN *trn)
       down after the loop at -O2
     */
     *(TRN * volatile *)&(trn->next)= tmp.trn;
-  } while (!my_atomic_casptr((void **)&pool, &tmp.v, trn));
+  } while (!my_atomic_casptr((void **)(char*)&pool, &tmp.v, trn));
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 }
 

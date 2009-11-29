@@ -567,9 +567,9 @@ typedef struct st_mysql_ftparser_boolean_info
 typedef struct st_mysql_ftparser_param
 {
   int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     char *doc, int doc_len);
+                     const unsigned char *doc, size_t doc_len);
   int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        char *word, int word_len,
+                        const unsigned char *word, size_t word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;

@@ -4,11 +4,11 @@ extern "C" {
 #endif
 
 /* === engine.c === */
-static int matcher(CHARSET_INFO *charset,register struct re_guts *g, char *string, size_t nmatch, my_regmatch_t pmatch[], int eflags);
-static char *dissect(CHARSET_INFO *charset,register struct match *m, char *start, char *stop, sopno startst, sopno stopst);
-static char *backref(CHARSET_INFO *charset, register struct match *m, char *start, char *stop, sopno startst, sopno stopst, sopno lev);
-static char *fast(CHARSET_INFO *charset, register struct match *m, char *start, char *stop, sopno startst, sopno stopst);
-static char *slow(CHARSET_INFO *charset, register struct match *m, char *start, char *stop, sopno startst, sopno stopst);
+static int matcher(CHARSET_INFO *charset,register struct re_guts *g, const char *string, size_t nmatch, my_regmatch_t pmatch[], int eflags);
+static const char *dissect(CHARSET_INFO *charset,register struct match *m, const char *start, const char *stop, sopno startst, sopno stopst);
+static const char *backref(CHARSET_INFO *charset, register struct match *m, const char *start, const char *stop, sopno startst, sopno stopst, sopno lev);
+static const char *fast(CHARSET_INFO *charset, register struct match *m, const char *start, const char *stop, sopno startst, sopno stopst);
+static const char *slow(CHARSET_INFO *charset, register struct match *m, const char *start, const char *stop, sopno startst, sopno stopst);
 static states step(register struct re_guts *g, sopno start, sopno stop, register states bef, int ch, register states aft);
 #define	BOL	(OUT+1)
 #define	EOL	(BOL+1)

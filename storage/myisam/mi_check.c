@@ -166,7 +166,7 @@ int chk_del(HA_CHECK *param, register MI_INFO *info, ulonglong test_flag)
     empty=0;
     for (i= info->state->del ; i > 0L && next_link != HA_OFFSET_ERROR ; i--)
     {
-      if (*killed_ptr(param))
+      if (killed_ptr(param))
         DBUG_RETURN(1);
       if (test_flag & T_VERBOSE)
 	printf(" %9s",llstr(next_link,buff));
@@ -261,7 +261,7 @@ static int check_k_link(HA_CHECK *param, register MI_INFO *info, uint nr)
   records= (ha_rows) (info->state->key_file_length / block_size);
   while (next_link != HA_OFFSET_ERROR && records > 0)
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       DBUG_RETURN(1);
     if (param->testflag & T_VERBOSE)
       printf("%16s",llstr(next_link,llbuff));
@@ -778,7 +778,7 @@ static int chk_index(HA_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   }
   for ( ;; )
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       goto err;
     memcpy((char*) info->lastkey,(char*) key,key_length);
     info->lastkey_length=key_length;
@@ -990,7 +990,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
   while (pos < info->state->data_file_length)
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       goto err2;
     switch (info->s->data_file_type) {
     case BLOCK_RECORD:
@@ -3247,7 +3247,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
 
-  if (*killed_ptr(param))
+  if (killed_ptr(param))
     DBUG_RETURN(1);
 
   switch (share->data_file_type) {

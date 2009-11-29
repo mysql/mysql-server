@@ -920,7 +920,6 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile int *killed= _ma_killed_ptr(info->sort_info->param);
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
@@ -953,10 +952,6 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   {
     for (;;)
     {
-      if (*killed)
-      {
-        error=1; goto err;
-      }
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (to_file)
       {
@@ -976,6 +971,12 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       buffpek->key+=sort_length;
       if (! --buffpek->mem_count)
       {
+        /* It's enough to check for killedptr before a slow operation */
+        if (_ma_killed_ptr(info->sort_info->param))
+        {
+          error=1;
+          goto err;
+        }
         if (!(error=(int) info->read_to_buffer(from_file,buffpek,sort_length)))
         {
           uchar *base= buffpek->base;

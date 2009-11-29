@@ -66,7 +66,8 @@ int ft_init_stopwords()
   {
     File fd;
     uint len;
-    uchar *buffer, *start, *end;
+    uchar *buffer;
+    const uchar *start, *end;
     FT_WORD w;
     int error=-1;
 
@@ -109,7 +110,7 @@ err0:
 }
 
 
-int is_stopword(char *word, uint len)
+int is_stopword(const uchar *word, size_t len)
 {
   FT_STOPWORD sw;
   sw.pos=word;

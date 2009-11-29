@@ -2284,7 +2284,7 @@ mysql_stmt_param_metadata(MYSQL_STMT *stmt)
 
 /* Store type of parameter in network buffer. */
 
-static void store_param_type(char **pos, MYSQL_BIND *param)
+static void store_param_type(uchar **pos, MYSQL_BIND *param)
 {
   uint typecode= param->buffer_type | (param->is_unsigned ? 32768 : 0);
   int2store(*pos, typecode);
@@ -2564,7 +2564,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 	that is sent to the server.
       */
       for (param= stmt->params;	param < param_end ; param++)
-        store_param_type((char**) &net->write_pos, param);
+        store_param_type(&net->write_pos, param);
     }
 
     for (param= stmt->params; param < param_end; param++)
