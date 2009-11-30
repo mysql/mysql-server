@@ -1016,10 +1016,8 @@ lock tables t1 read, v1 read;
 select * from v1;
 -- error ER_TABLE_NOT_LOCKED
 select * from t2;
-drop view v1;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-drop table t1, t2;
 unlock tables;
+drop view v1;
 drop table t1, t2;
 
 #

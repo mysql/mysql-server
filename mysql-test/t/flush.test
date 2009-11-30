@@ -68,10 +68,13 @@ drop table t1;
 create table t1 (c1 int);
 lock table t1 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION 
 flush tables with read lock;
 lock table t1 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
 flush tables with read lock;
 --error 1223
 lock table t1 write;
@@ -84,12 +87,12 @@ create table t2 (c1 int);
 create table t3 (c1 int);
 lock table t1 read, t2 read, t3 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 lock table t1 read, t2 read, t3 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
-# Release all table locks and the global read lock.
 unlock tables;
 drop table t1, t2, t3;
 
@@ -157,6 +160,7 @@ flush tables with read lock;
 unlock tables;
 
 lock tables t1 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 unlock tables;
 

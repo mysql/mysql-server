@@ -178,6 +178,7 @@ select * from t2;
 --error ER_TABLE_NOT_LOCKED
 select * from t3;
 select * from v_bug5719;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 drop view v_bug5719;
 --echo
 --echo sic: did not left LOCK TABLES mode automatically
@@ -185,7 +186,7 @@ drop view v_bug5719;
 --error ER_TABLE_NOT_LOCKED
 select * from t1;
 unlock tables;
-create view v_bug5719 as select * from t1;
+create or replace view v_bug5719 as select * from t1;
 lock tables v_bug5719 write;
 select * from v_bug5719;
 --echo

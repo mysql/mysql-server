@@ -3984,6 +3984,9 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
+      table->mdl_lock= mdl_alloc_lock(0, table->db, table->table_name,
+                                      thd->mdl_el_root ? thd->mdl_el_root :
+                                                         thd->mem_root);
 
       /* Everyting else should be zeroed */
 
@@ -4025,7 +4028,9 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->lock_type= locktype;
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
-  
+  table->mdl_lock= mdl_alloc_lock(0, table->db, table->table_name,
+                                  thd->mdl_el_root ? thd->mdl_el_root :
+                                                     thd->mem_root);
   lex->add_to_query_tables(table);
   return table;
 }

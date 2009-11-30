@@ -270,6 +270,12 @@ static int myisammrg_parent_open_callback(void *callback_param,
   /* Set alias. */
   child_l->alias= child_l->table_name;
 
+  /*
+    FIXME: Actually we should use some other mem-root here.
+           To be fixed once Ingo pushes his patch for WL4144.
+  */
+  alloc_mdl_locks(child_l, &parent->mem_root);
+
   /* Initialize table map to 'undefined'. */
   child_l->init_child_def_version();
 

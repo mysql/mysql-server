@@ -33,6 +33,9 @@ flush tables with read lock;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 lock table t1 read;
 flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+flush tables with read lock;
 lock table t1 write;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
 lock table t1 read;
@@ -46,6 +49,7 @@ flush tables with read lock;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 lock table t1 read, t2 read, t3 read;
 flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 drop table t1, t2, t3;
 create table t1 (c1 int);
@@ -69,6 +73,7 @@ ERROR HY000: Can't execute the given command because you have active locked tabl
 unlock tables;
 lock tables t1 read;
 flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 drop table t1, t2;
 set session low_priority_updates=default;
