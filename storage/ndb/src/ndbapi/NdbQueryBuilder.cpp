@@ -359,6 +359,11 @@ NdbQueryDef::getQueryOperation(const char* ident) const
   return (opDef!=NULL) ? &opDef->getInterface() : NULL;
 }
 
+bool
+NdbQueryDef::isScanQuery() const
+{ return m_impl.isScanQuery();
+}
+
 NdbQueryDefImpl& 
 NdbQueryDef::getImpl() const{
   return m_impl;

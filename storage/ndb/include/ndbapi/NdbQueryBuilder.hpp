@@ -355,6 +355,10 @@ public:
   const NdbQueryOperationDef* getQueryOperation(const char* ident) const;
   const NdbQueryOperationDef* getQueryOperation(Uint32 index) const;
 
+  // A scan query may return multiple rows, and may be ::close'ed when
+  // the client has completed access to it.
+  bool isScanQuery() const;
+
   // Remove this NdbQueryDef including operation and operands it contains
   void release() const;
 
