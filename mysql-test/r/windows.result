@@ -53,3 +53,10 @@ ERROR HY000: No paths allowed for shared library
 execute abc;
 ERROR HY000: No paths allowed for shared library
 deallocate prepare abc;
+#
+# Bug#45498: Socket variable not available on Windows
+#
+SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME = 'socket';
+VARIABLE_NAME
+SOCKET

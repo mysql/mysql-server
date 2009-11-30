@@ -824,7 +824,7 @@ rl_redisplay ()
 		  cpos_buffer_position = out;
 		  lb_linenum = newlines;
 		}
-	      for (i = in; (size_t) i < in+wc_bytes; i++)
+	      for (i = in; i < in+(int)wc_bytes; i++)
 		line[out++] = rl_line_buffer[i];
 	      for (i = 0; i < wc_width; i++)
 		CHECK_LPOS();

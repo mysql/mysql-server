@@ -1526,8 +1526,7 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   char *min_org=min_str;
   char *min_end=min_str+res_length;
   size_t charlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ?
-             ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+  my_bool have_contractions= my_uca_have_contractions(cs);
   
   for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
         ; ptr+=2, charlen--)
@@ -1567,8 +1566,9 @@ fill_max_and_min:
       return 0;
     }
 
-    if (contraction_flags && ptr + 3 < end &&
-        ptr[0] == '\0' && contraction_flags[(uchar) ptr[1]])
+    if (have_contractions && ptr + 3 < end &&
+        ptr[0] == '\0' &&
+        my_uca_can_be_contraction_head(cs, (uchar) ptr[1]))
     {
       /* Contraction head found */
       if (ptr[2] == '\0' && (ptr[3] == w_one || ptr[3] == w_many))
@@ -1581,8 +1581,9 @@ fill_max_and_min:
         Check if the second letter can be contraction part,
         and if two letters really produce a contraction.
       */
-      if (ptr[2] == '\0' && contraction_flags[(uchar) ptr[3]] &&
-          cs->contractions[(ptr[1]-0x40)*0x40 + ptr[3] - 0x40])
+      if (ptr[2] == '\0' &&
+          my_uca_can_be_contraction_tail(cs, (uchar) ptr[3]) &&
+          my_uca_contraction2_weight(cs,(uchar) ptr[1], (uchar) ptr[3]))
       {
         /* Contraction found */
         if (charlen == 1 || min_str + 2 >= min_end)

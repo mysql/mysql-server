@@ -1134,6 +1134,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
+call mtr.add_suppression("InnoDB: insufficient history for index");
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 BEGIN;

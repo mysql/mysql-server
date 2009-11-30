@@ -702,11 +702,11 @@ uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
 } /* _mi_find_half_pos */
 
 
-	/*
-	  Split buffer at last key
-	  Returns pointer to the start of the key before the last key
-	  key will contain the last key
-	*/
+/*
+  Split buffer at last key
+  Returns pointer to the start of the key before the last key
+  key will contain the last key
+*/
 
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
@@ -716,6 +716,8 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
   uchar *end,*lastpos,*prevpos;
   uchar key_buff[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_find_last_pos");
+
+  LINT_INIT(last_length);
 
   key_ref_length=2;
   length=mi_getint(page)-key_ref_length;
@@ -732,8 +734,6 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
     DBUG_RETURN(end);
   }
 
-  LINT_INIT(prevpos);
-  LINT_INIT(last_length);
   end=page+length-key_ref_length;
   *key='\0';
   length=0;

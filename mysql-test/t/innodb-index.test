@@ -516,6 +516,8 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
+call mtr.add_suppression("InnoDB: insufficient history for index");
+
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;

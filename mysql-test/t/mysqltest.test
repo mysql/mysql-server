@@ -853,16 +853,21 @@ while ($outer)
   eval SELECT '$outer = outer loop variable after dec' AS "";
 }
 
+# Test source in an if in a while which is false on 1st iteration
+# Also test --error in same context
 let $outer= 2; # Number of outer loops
+let $ifval= 0; # false 1st time
 while ($outer)
 {
-  eval SELECT '$outer = outer loop variable after while' AS "";
+  echo outer=$outer ifval=$ifval;
 
-  echo here is the sourced script;
-
-  eval SELECT '$outer = outer loop variable before dec' AS "";
+  if ($ifval) {
+    --source $MYSQLTEST_VARDIR/tmp/sourced.inc
+    --error ER_NO_SUCH_TABLE
+    SELECT * from nowhere;
+  }
   dec $outer;
-  eval SELECT '$outer = outer loop variable after dec' AS "";
+  inc $ifval;
 }
 
 
@@ -1663,6 +1668,20 @@ EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+# Test append_file within while
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  append_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
+These lines should be repeated,
+if things work as expected
+EOF
+  dec $outer;
+}
+
+cat_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
+
 # ----------------------------------------------------------------------------
 # test for cat_file
 # ----------------------------------------------------------------------------
@@ -1710,10 +1729,6 @@ EOF
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
 --diff_files $MYSQLTEST_VARDIR/tmp/diff2.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
 
-# Write the below commands to a intermediary file and execute them with
-# mysqltest in --exec, since the output will vary depending on what "diff"
-# is available it is sent to /dev/null
---write_file $MYSQLTEST_VARDIR/tmp/diff.test
 # Compare files that differ in size
 --error 2
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff3.tmp
@@ -1725,13 +1740,6 @@ EOF
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff4.tmp
 --error 1
 --diff_files $MYSQLTEST_VARDIR/tmp/diff4.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
-exit;
-EOF
-
-# Execute the above diffs, and send their output to /dev/null - only
-# interesting to see that it returns correct error codes
---exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/diff.test > /dev/null 2>&1
-
 
 # Compare equal files, again...
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
@@ -1740,7 +1748,6 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/diff2.tmp
 --remove_file $MYSQLTEST_VARDIR/tmp/diff3.tmp
 --remove_file $MYSQLTEST_VARDIR/tmp/diff4.tmp
---remove_file $MYSQLTEST_VARDIR/tmp/diff.test
 
 
 # ----------------------------------------------------------------------------

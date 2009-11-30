@@ -241,8 +241,8 @@ static void dbug_print_table(const char *info, TABLE *table)
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error, my_bool disable_binlog)
 {
-  ulong save_thd_query_length= thd->query_length;
-  char *save_thd_query= thd->query;
+  ulong save_thd_query_length= thd->query_length();
+  char *save_thd_query= thd->query();
   ulong save_thread_id= thd->variables.pseudo_thread_id;
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
@@ -259,12 +259,12 @@ static void run_query(THD *thd, char *buf, char *end,
   if (disable_binlog)
     thd->options&= ~OPTION_BIN_LOG;
     
-  DBUG_PRINT("query", ("%s", thd->query));
+  DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->prelocked_mode);
 
-  mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
   if (no_print_error && thd->is_slave_error)
   {
@@ -3665,9 +3665,11 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     ndb_binlog_thread_running= -1;
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
+
+    DBUG_LEAVE;                               // Must match DBUG_ENTER()
     my_thread_end();
     pthread_exit(0);
-    DBUG_RETURN(NULL);
+    return NULL;                              // Avoid compiler warnings
   }
   lex_start(thd);
 
@@ -4378,10 +4380,11 @@ err:
   (void) pthread_cond_signal(&injector_cond);
 
   DBUG_PRINT("exit", ("ndb_binlog_thread"));
-  my_thread_end();
 
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
+  my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 bool

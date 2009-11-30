@@ -1,0 +1,47 @@
+#
+# Bug #47412: Valgrind warnings / user can read uninitalized memory
+# using SP variables
+#
+CREATE SCHEMA testdb;
+USE testdb;
+CREATE FUNCTION f2 () RETURNS INTEGER
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42000' SET @aux = 1;
+RETURN f_not_exists () ;
+END|
+CREATE PROCEDURE p3 ( arg1 VARCHAR(32) )
+BEGIN
+CALL p_not_exists ( );
+END|
+# should not return valgrind warnings
+CALL p3 ( f2 () );
+ERROR 42000: PROCEDURE testdb.p_not_exists does not exist
+DROP SCHEMA testdb;
+CREATE SCHEMA testdb;
+USE testdb;
+CREATE FUNCTION f2 () RETURNS INTEGER
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42000' SET @aux = 1;
+RETURN f_not_exists () ;
+END|
+CREATE PROCEDURE p3 ( arg2 INTEGER )
+BEGIN
+CALL p_not_exists ( );
+END|
+# should not return valgrind warnings
+CALL p3 ( f2 () );
+ERROR 42000: PROCEDURE testdb.p_not_exists does not exist
+DROP SCHEMA testdb;
+CREATE SCHEMA testdb;
+USE testdb;
+CREATE FUNCTION f2 () RETURNS INTEGER
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42000' SET @aux = 1;
+RETURN f_not_exists () ;
+END|
+# should not return valgrind warnings
+SELECT f2 ();
+f2 ()
+NULL
+DROP SCHEMA testdb;
+End of 5.1 tests

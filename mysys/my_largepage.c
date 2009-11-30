@@ -121,7 +121,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   DBUG_ENTER("my_large_malloc_int");
 
   /* Align block size to my_large_page_size */
-  size = ((size - 1) & ~(my_large_page_size - 1)) + my_large_page_size;
+  size= MY_ALIGN(size, (size_t) my_large_page_size);
   
   shmid = shmget(IPC_PRIVATE, size, SHM_HUGETLB | SHM_R | SHM_W);
   if (shmid < 0)

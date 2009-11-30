@@ -7,11 +7,6 @@
 #  include <config.h>
 #endif
 
-/* to get wcwidth() defined */
-#define _XOPEN_SOURCE 600
-#define _XOPEN_SOURCE_EXTENDED
-#define _XOPEN_
-
 /*
  Ultrix botches type-ahead when switching from canonical to
    non-canonical mode, at least through version 4.3
