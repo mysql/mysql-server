@@ -1083,11 +1083,9 @@ select f0()|
 f0()
 100
 select * from v0|
-f0()
-100
+ERROR HY000: Table 'v0' was not locked with LOCK TABLES
 select *, f0() from v0, (select 123) as d1|
-f0()	123	f0()
-100	123	100
+ERROR HY000: Table 'v0' was not locked with LOCK TABLES
 select id, f3() from t1|
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|

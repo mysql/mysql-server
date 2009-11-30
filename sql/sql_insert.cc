@@ -612,7 +612,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     upgrade the lock here instead?
   */
   if (table_list->lock_type == TL_WRITE_DELAYED && thd->locked_tables &&
-      find_locked_table(thd, table_list->db, table_list->table_name))
+      find_locked_table(thd->open_tables, table_list->db,
+                        table_list->table_name))
   {
     my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
              table_list->table_name);
@@ -2351,6 +2352,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
     thd->lex->set_stmt_unsafe();
     thd->set_current_stmt_binlog_row_based_if_mixed();
 
+    alloc_mdl_locks(&di->table_list, thd->mem_root);
+
     /* Open table */
     if (!(di->table= open_n_lock_single_table(thd, &di->table_list,
                                               TL_WRITE_DELAYED)))
@@ -3495,7 +3498,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
         pthread_mutex_lock(&LOCK_open);
-        if (reopen_name_locked_table(thd, create_table, FALSE))
+        if (reopen_name_locked_table(thd, create_table))
         {
           quick_rm_table(create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
@@ -3507,7 +3510,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        if (!(table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
+        if (!(table= open_table(thd, create_table, thd->mem_root,
+                                (enum_open_table_action*) 0,
                                 MYSQL_OPEN_TEMPORARY_ONLY)) &&
             !create_info->table_existed)
         {
@@ -3621,8 +3625,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
 
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      (create_table->table && create_table->table->db_stat))
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&  create_table->table)
   {
     /* Table already exists and was open at open_and_lock_tables() stage. */
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)

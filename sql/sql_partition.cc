@@ -6225,7 +6225,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
     */
     pthread_mutex_lock(&LOCK_open);
     lpt->thd->in_lock_tables= 1;
-    err= reopen_tables(lpt->thd, 1, 1);
+    err= reopen_tables(lpt->thd, 1);
     lpt->thd->in_lock_tables= 0;
     if (err)
     {
@@ -6564,7 +6564,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
@@ -6631,7 +6631,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
@@ -6647,7 +6647,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_9") ||
-        (alter_partition_lock_handling(lpt), FALSE)) 
+        (alter_partition_lock_handling(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;
@@ -6721,7 +6721,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||

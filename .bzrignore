@@ -3070,3 +3070,4 @@ libmysqld/rpl_handler.cc
 libmysqld/debug_sync.cc
 libmysqld/rpl_handler.cc
 dbug/tests
+libmysqld/mdl.cc

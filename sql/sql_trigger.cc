@@ -387,8 +387,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
-  pthread_mutex_lock(&LOCK_open);
-
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
@@ -444,26 +442,28 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   tables->required_type= FRMTYPE_TABLE;
 
   /* Keep consistent with respect to other DDL statements */
-  mysql_ha_rm_tables(thd, tables, TRUE);
+  mysql_ha_rm_tables(thd, tables);
 
   if (thd->locked_tables)
   {
-    /* Table must be write locked */
     if (name_lock_locked_table(thd, tables))
       goto end;
+    pthread_mutex_lock(&LOCK_open);
   }
   else
   {
-    /* Grab the name lock and insert the placeholder*/
+    /*
+      Obtain exlusive meta-data lock on the table and remove TABLE
+      instances from cache.
+    */
     if (lock_table_names(thd, tables))
       goto end;
 
-    /* Convert the placeholder to a real table */
-    if (reopen_name_locked_table(thd, tables, TRUE))
-    {
-      unlock_table_name(thd, tables);
-      goto end;
-    }
+    pthread_mutex_lock(&LOCK_open);
+    expel_table_from_cache(0, tables->db, tables->table_name);
+
+    if (reopen_name_locked_table(thd, tables))
+      goto end_unlock;
   }
   table= tables->table;
 
@@ -472,11 +472,11 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     if (!create)
     {
       my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-      goto end;
+      goto end_unlock;
     }
 
     if (!(table->triggers= new (&table->mem_root) Table_triggers_list(table)))
-      goto end;
+      goto end_unlock;
   }
 
   result= (create ?
@@ -489,7 +489,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     /* Make table suitable for reopening */
     close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
     thd->in_lock_tables= 1;
-    if (reopen_tables(thd, 1, 1))
+    if (reopen_tables(thd, 1))
     {
       /* To be safe remove this table from the set of LOCKED TABLES */
       unlink_open_table(thd, tables->table, FALSE);
@@ -503,14 +503,22 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     thd->in_lock_tables= 0;
   }
 
-end:
+end_unlock:
+  pthread_mutex_unlock(&LOCK_open);
 
+end:
   if (!result)
   {
     write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  /*
+    If we are under LOCK TABLES we should restore original state of meta-data
+    locks. Otherwise call to close_thread_tables() will take care about both
+    TABLE instance created by reopen_name_locked_table() and meta-data lock.
+  */
+  if (thd->locked_tables)
+    mdl_downgrade_exclusive_locks(&thd->mdl_context);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
@@ -1879,11 +1887,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     In the future, only an exclusive table name lock will be enough.
   */
 #ifndef DBUG_OFF
-  uchar key[MAX_DBKEY_LENGTH];
-  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
-                    old_table)-(char*)&key[0])+1;
-
-  if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
+  if (mdl_is_exclusive_lock_owner(&thd->mdl_context, 0, db, old_table))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
 

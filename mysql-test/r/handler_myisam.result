@@ -547,6 +547,7 @@ c1
 1
 connection: flush
 flush tables;;
+connection: waiter 
 connection: default
 handler t2 open;
 handler t2 read first;
@@ -566,6 +567,7 @@ handler t1 read first;
 c1
 connection: flush
 rename table t1 to t2;;
+connection: waiter 
 connection: default
 handler t2 open;
 handler t2 read first;

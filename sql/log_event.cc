@@ -3036,7 +3036,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
   else
   {
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
   }
 
   /*
@@ -7238,8 +7238,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -7322,7 +7321,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -7347,7 +7346,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
       }
@@ -7530,12 +7529,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
   
   if (error)
   {
@@ -8064,7 +8057,8 @@ Table_map_log_event::~Table_map_log_event()
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
-  char *db_mem, *tname_mem;
+  char *db_mem, *tname_mem, *mdlkey;
+  MDL_LOCK *mdl_lock;
   size_t dummy_len;
   void *memory;
   DBUG_ENTER("Table_map_log_event::do_apply_event(Relay_log_info*)");
@@ -8079,6 +8073,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
+                                &mdl_lock, sizeof(MDL_LOCK),
+                                &mdlkey, MAX_DBKEY_LENGTH,
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
@@ -8091,6 +8087,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->updating= 1;
   strmov(table_list->db, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
   strmov(table_list->table_name, m_tblnam);
+  mdl_init_lock(mdl_lock, mdlkey, 0, table_list->db, table_list->table_name);
+  table_list->mdl_lock= mdl_lock;
 
   int error= 0;
 

@@ -2997,20 +2997,13 @@ static bool update_frm_version(TABLE *table)
   if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
-    char *key= table->s->table_cache_key.str;
-    uint key_length= table->s->table_cache_key.length;
-    TABLE *entry;
-    HASH_SEARCH_STATE state;
 
     int4store(version, MYSQL_VERSION_ID);
 
     if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
-         entry;
-         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
-      entry->s->mysql_version= MYSQL_VERSION_ID;
+    table->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
   if (file >= 0)

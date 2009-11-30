@@ -128,13 +128,14 @@ select * from v_bug5719;
 1
 1
 drop view v_bug5719;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 
 sic: did not left LOCK TABLES mode automatically
 
 select * from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 unlock tables;
-create view v_bug5719 as select * from t1;
+create or replace view v_bug5719 as select * from t1;
 lock tables v_bug5719 write;
 select * from v_bug5719;
 a

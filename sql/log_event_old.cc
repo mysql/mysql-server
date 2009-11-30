@@ -32,8 +32,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
      */
     DBUG_ASSERT(ev->get_flags(Old_rows_log_event::STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -91,7 +90,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -109,10 +108,8 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       {
         if (ptr->m_tabledef.compatible_with(rli, ptr->table))
         {
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
       }
@@ -235,13 +232,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thd->options|= OPTION_KEEP_LOG;
     }
   }
-
-  /*
-    We need to delay this clear until the table def is no longer needed.
-    The table def is needed in unpack_row().
-  */
-  if (rli->tables_to_lock && ev->get_flags(Old_rows_log_event::STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -1440,8 +1430,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -1496,7 +1485,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                       "Error in %s event: when locking tables",
                       get_type_str());
         }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
         DBUG_RETURN(error);
       }
 
@@ -1515,7 +1504,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
        */
       thd->binlog_flush_pending_rows_event(false);
       TABLE_LIST *tables= rli->tables_to_lock;
-      close_tables_for_reopen(thd, &tables);
+      close_tables_for_reopen(thd, &tables, FALSE);
 
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
@@ -1533,7 +1522,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                        "unexpected success or fatal error"));
           thd->is_slave_error= 1;
         }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
         DBUG_RETURN(error);
       }
     }
@@ -1552,10 +1541,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         if (ptr->m_tabledef.compatible_with(rli, ptr->table))
         {
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
       }
@@ -1725,13 +1712,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       thd->options|= OPTION_KEEP_LOG;
     }
   } // if (table)
-
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */

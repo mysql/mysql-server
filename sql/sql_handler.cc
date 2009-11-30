@@ -116,17 +116,16 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables A list of tables with the first entry to close.
-  @param is_locked If LOCK_open is locked.
 
   @note Though this function takes a list of tables, only the first list entry
   will be closed.
   @note Broadcasts refresh if it closed a table with old version.
 */
 
-static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
-                                 bool is_locked)
+static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
   TABLE **table_ptr;
+  MDL_LOCK *mdl_lock;
 
   /*
     Though we could take the table pointer from hash_tables->table,
@@ -142,15 +141,15 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
-    if (! is_locked)
-      pthread_mutex_lock(&LOCK_open);
+    mdl_lock= (*table_ptr)->mdl_lock;
+    pthread_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, table_ptr))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
-    if (! is_locked)
-      pthread_mutex_unlock(&LOCK_open);
+    pthread_mutex_unlock(&LOCK_open);
+    mdl_release_lock(&thd->handler_mdl_context, mdl_lock);
   }
   else if (tables->table)
   {
@@ -190,10 +189,12 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 {
   TABLE_LIST    *hash_tables = NULL;
-  char          *db, *name, *alias;
+  MDL_LOCK      *mdl_lock;
+  char          *db, *name, *alias, *mdlkey;
   uint          dblen, namelen, aliaslen, counter;
   int           error;
   TABLE         *backup_open_tables;
+  MDL_CONTEXT   backup_mdl_context;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -216,7 +217,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
                      (my_hash_get_key) mysql_ha_hash_get_key,
                      (my_hash_free_key) mysql_ha_hash_free, 0))
-      goto err;
+    {
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
   }
   else if (! reopen) /* Otherwise we have 'tables' already. */
   {
@@ -224,10 +228,51 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                        strlen(tables->alias) + 1))
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
+      DBUG_PRINT("exit",("ERROR"));
       my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
-      goto err;
+      DBUG_RETURN(TRUE);
     }
   }
+
+  if (! reopen)
+  {
+    /* copy the TABLE_LIST struct */
+    dblen= strlen(tables->db) + 1;
+    namelen= strlen(tables->table_name) + 1;
+    aliaslen= strlen(tables->alias) + 1;
+    if (!(my_multi_malloc(MYF(MY_WME),
+                          &hash_tables, (uint) sizeof(*hash_tables),
+                          &db, (uint) dblen,
+                          &name, (uint) namelen,
+                          &alias, (uint) aliaslen,
+                          &mdl_lock, sizeof(MDL_LOCK),
+                          &mdlkey, MAX_DBKEY_LENGTH,
+                          NullS)))
+    {
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
+    /* structure copy */
+    *hash_tables= *tables;
+    hash_tables->db= db;
+    hash_tables->table_name= name;
+    hash_tables->alias= alias;
+    memcpy(hash_tables->db, tables->db, dblen);
+    memcpy(hash_tables->table_name, tables->table_name, namelen);
+    memcpy(hash_tables->alias, tables->alias, aliaslen);
+    mdl_init_lock(mdl_lock, mdlkey, 0, db, name);
+    hash_tables->mdl_lock= mdl_lock;
+
+    /* add to hash */
+    if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
+    {
+      my_free((char*) hash_tables, MYF(0));
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
+  }
+  else
+    hash_tables= tables;
 
   /*
     Save and reset the open_tables list so that open_tables() won't
@@ -243,21 +288,22 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   */
   backup_open_tables= thd->open_tables;
   thd->open_tables= NULL;
+  mdl_context_backup_and_reset(&thd->mdl_context, &backup_mdl_context);
 
   /*
-    open_tables() will set 'tables->table' if successful.
+    open_tables() will set 'hash_tables->table' if successful.
     It must be NULL for a real open when calling open_tables().
   */
-  DBUG_ASSERT(! tables->table);
+  DBUG_ASSERT(! hash_tables->table);
 
   /* for now HANDLER can be used only for real TABLES */
-  tables->required_type= FRMTYPE_TABLE;
+  hash_tables->required_type= FRMTYPE_TABLE;
   /*
     We use open_tables() here, rather than, say,
     open_ltable() or open_table() because we would like to be able
     to open a temporary table.
   */
-  error= open_tables(thd, &tables, &counter, 0);
+  error= open_tables(thd, &hash_tables, &counter, 0);
   if (thd->open_tables)
   {
     if (thd->open_tables->next)
@@ -281,52 +327,26 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
       thd->handler_tables= thd->open_tables;
     }
   }
+  mdl_context_merge(&thd->handler_mdl_context, &thd->mdl_context);
 
-  /* Restore the state. */
   thd->open_tables= backup_open_tables;
+  mdl_context_restore(&thd->mdl_context, &backup_mdl_context);
 
   if (error)
     goto err;
 
   /* There can be only one table in '*tables'. */
-  if (! (tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
+  if (! (hash_tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
   {
     my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
     goto err;
-  }
-
-  if (! reopen)
-  {
-    /* copy the TABLE_LIST struct */
-    dblen= strlen(tables->db) + 1;
-    namelen= strlen(tables->table_name) + 1;
-    aliaslen= strlen(tables->alias) + 1;
-    if (!(my_multi_malloc(MYF(MY_WME),
-                          &hash_tables, (uint) sizeof(*hash_tables),
-                          &db, (uint) dblen,
-                          &name, (uint) namelen,
-                          &alias, (uint) aliaslen,
-                          NullS)))
-      goto err;
-    /* structure copy */
-    *hash_tables= *tables;
-    hash_tables->db= db;
-    hash_tables->table_name= name;
-    hash_tables->alias= alias;
-    memcpy(hash_tables->db, tables->db, dblen);
-    memcpy(hash_tables->table_name, tables->table_name, namelen);
-    memcpy(hash_tables->alias, tables->alias, aliaslen);
-
-    /* add to hash */
-    if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
-      goto err;
   }
 
   /*
     If it's a temp table, don't reset table->query_id as the table is
     being used by this handler. Otherwise, no meaning at all.
   */
-  tables->table->open_by_handler= 1;
+  hash_tables->table->open_by_handler= 1;
 
   if (! reopen)
     my_ok(thd);
@@ -334,10 +354,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   DBUG_RETURN(FALSE);
 
 err:
-  if (hash_tables)
-    my_free((char*) hash_tables, MYF(0));
-  if (tables->table)
-    mysql_ha_close_table(thd, tables, FALSE);
+  if (hash_tables->table)
+    mysql_ha_close_table(thd, hash_tables);
+  if (!reopen)
+    my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
   DBUG_PRINT("exit",("ERROR"));
   DBUG_RETURN(TRUE);
 }
@@ -371,7 +391,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
                                                  (uchar*) tables->alias,
                                                  strlen(tables->alias) + 1)))
   {
-    mysql_ha_close_table(thd, hash_tables, FALSE);
+    mysql_ha_close_table(thd, hash_tables);
     my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
   }
   else
@@ -507,7 +527,7 @@ retry:
 
   if (need_reopen)
   {
-    mysql_ha_close_table(thd, hash_tables, FALSE);
+    mysql_ha_close_table(thd, hash_tables);
     /*
       The lock might have been aborted, we need to manually reset
       thd->some_tables_deleted because handler's tables are closed
@@ -734,12 +754,11 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables The list of tables to remove.
-  @param is_locked If LOCK_open is locked.
 
   @note Broadcasts refresh if it closed a table with old version.
 */
 
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
 {
   TABLE_LIST *hash_tables, *next;
   DBUG_ENTER("mysql_ha_rm_tables");
@@ -752,7 +771,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
   {
     next= hash_tables->next_local;
     if (hash_tables->table)
-      mysql_ha_close_table(thd, hash_tables, is_locked);
+      mysql_ha_close_table(thd, hash_tables);
     my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     hash_tables= next;
   }
@@ -775,13 +794,16 @@ void mysql_ha_flush(THD *thd)
   TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_flush");
 
-  safe_mutex_assert_owner(&LOCK_open);
+  safe_mutex_assert_not_owner(&LOCK_open);
 
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
-    if (hash_tables->table && hash_tables->table->needs_reopen_or_name_lock())
-      mysql_ha_close_table(thd, hash_tables, TRUE);
+    if (hash_tables->table &&
+        (hash_tables->table->mdl_lock &&
+         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock) ||
+         hash_tables->table->needs_reopen_or_name_lock()))
+      mysql_ha_close_table(thd, hash_tables);
   }
 
   DBUG_VOID_RETURN;
@@ -805,7 +827,7 @@ void mysql_ha_cleanup(THD *thd)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     if (hash_tables->table)
-      mysql_ha_close_table(thd, hash_tables, FALSE);
+      mysql_ha_close_table(thd, hash_tables);
   }
 
   my_hash_free(&thd->handler_tables_hash);

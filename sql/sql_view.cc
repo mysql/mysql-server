@@ -178,40 +178,17 @@ err:
 static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
   LEX *lex= thd->lex;
-  bool not_used;
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
+  key_length= create_table_def_key(thd, key, view, 0);
 
-  /*
-    Let's reset decoy.view before calling open_table(): when we start
-    supporting ALTER VIEW in PS/SP that may save us from a crash.
-  */
-
-  decoy.view= NULL;
-
-  /*
-    open_table() will return NULL if 'decoy' is idenitifying a view *and*
-    there is no TABLE object for that view in the table cache. However,
-    decoy.view will be set to 1.
-
-    If there is a TABLE-instance for the oject identified by 'decoy',
-    open_table() will return that instance no matter if it is a table or
-    a view.
-
-    Thus, there is no need to check for the return value of open_table(),
-    since the return value itself does not mean anything.
-  */
-
-  open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE);
-
-  if (!decoy.view)
-  {
-    /* It's a table. */
-    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+  if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
+                    thd->mem_root, OPEN_VIEW_NO_PARSE))
     return TRUE;
-  }
 
   if (!lex->definer)
   {
@@ -400,6 +377,35 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
               !lex->param_list.elements);
 
+  /*
+    We can't allow taking exclusive meta-data locks of unlocked view under
+    LOCK TABLES since this might lead to deadlock. Since at the moment we
+    can't really lock view with LOCK TABLES we simply prohibit creation/
+    alteration of views under LOCK TABLES.
+  */
+
+  if (thd->locked_tables)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
+  if ((res= create_view_precheck(thd, tables, view, mode)))
+    goto err;
+
+  lex->link_first_table_back(view, link_to_local);
+  view->open_table_type= TABLE_LIST::TAKE_EXCLUSIVE_MDL;
+
+  if (open_and_lock_tables(thd, lex->query_tables))
+  {
+    view= lex->unlink_first_table(&link_to_local);
+    res= TRUE;
+    goto err;
+  }
+
+  view= lex->unlink_first_table(&link_to_local);
+
   if (mode != VIEW_CREATE_NEW)
   {
     if (mode == VIEW_ALTER &&
@@ -464,16 +470,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
   }
 #endif
-
-  if ((res= create_view_precheck(thd, tables, view, mode)))
-    goto err;
-
-  if (open_and_lock_tables(thd, tables))
-  {
-    res= TRUE;
-    goto err;
-  }
-
   /*
     check that tables are not temporary  and this VIEW do not used in query
     (it is possible with ALTERing VIEW).
@@ -615,11 +611,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
+
   if (wait_if_global_read_lock(thd, 0, 0))
   {
     res= TRUE;
     goto err;
   }
+
   pthread_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
@@ -1331,7 +1329,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         anyway.
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
+      {
         tbl->lock_type= table->lock_type;
+        tbl->mdl_upgradable= table->mdl_upgradable;
+      }
       /*
         If the view is mergeable, we might want to
         INSERT/UPDATE/DELETE into tables of this view. Preserve the
@@ -1578,6 +1579,21 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   bool some_views_deleted= FALSE;
   bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
+
+  /*
+    We can't allow dropping of unlocked view under LOCK TABLES since this
+    might lead to deadlock. But since we can't really lock view with LOCK
+    TABLES we have to simply prohibit dropping of views.
+  */
+
+  if (thd->locked_tables)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (lock_table_names(thd, views))
+    DBUG_RETURN(TRUE);
 
   pthread_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)

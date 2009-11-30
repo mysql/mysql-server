@@ -17,6 +17,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include "sql_plist.h"
+
 /* Structs that defines the TABLE */
 
 class Item;				/* Needed by ORDER */
@@ -28,6 +30,7 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+struct MDL_LOCK;
 
 /*************************************************************************/
 
@@ -288,6 +291,9 @@ typedef enum enum_table_category TABLE_CATEGORY;
 TABLE_CATEGORY get_table_category(const LEX_STRING *db,
                                   const LEX_STRING *name);
 
+
+struct TABLE_share;
+
 /*
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -309,6 +315,13 @@ struct TABLE_SHARE
   pthread_mutex_t mutex;                /* For locking the share  */
   pthread_cond_t cond;			/* To signal that share is ready */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
+
+  /*
+    Doubly-linked (back-linked) lists of used and unused TABLE objects
+    for this share.
+  */
+  I_P_List <TABLE, TABLE_share> used_tables;
+  I_P_List <TABLE, TABLE_share> free_tables;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -613,6 +626,19 @@ struct TABLE
   handler	*file;
   TABLE *next, *prev;
 
+private:
+  /**
+     Links for the lists of used/unused TABLE objects for this share.
+     Declared as private to avoid direct manipulation with those objects.
+     One should use methods of I_P_List template instead.
+  */
+  TABLE *share_next, **share_prev;
+
+  friend struct TABLE_share;
+  friend bool reopen_table(TABLE *table);
+
+public:
+
   /* For the below MERGE related members see top comment in ha_myisammrg.cc */
   TABLE *parent;                    /* Set in MERGE child.  Ptr to parent */
   TABLE_LIST      *child_l;         /* Set in MERGE parent. List of children */
@@ -814,6 +840,7 @@ struct TABLE
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
 #endif
+  MDL_LOCK *mdl_lock;
 
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
@@ -858,6 +885,25 @@ struct TABLE
   { return s->version != refresh_version; }
   bool is_children_attached(void);
 };
+
+
+/**
+   Helper class which specifies which members of TABLE are used for
+   participation in the list of used/unused TABLE objects for the share.
+*/
+
+struct TABLE_share
+{
+  static inline TABLE **next_ptr(TABLE *l)
+  {
+    return &l->share_next;
+  }
+  static inline TABLE ***prev_ptr(TABLE *l)
+  {
+    return &l->share_prev;
+  }
+};
+
 
 enum enum_schema_table_state
 { 
@@ -1326,11 +1372,18 @@ struct TABLE_LIST
   */
   bool          prelocking_placeholder;
   /*
-    This TABLE_LIST object corresponds to the table to be created
-    so it is possible that it does not exist (used in CREATE TABLE
-    ... SELECT implementation).
+    This TABLE_LIST object corresponds to the table/view which requires
+    special handling/meta-data locking. For example this is a target
+    table in CREATE TABLE ... SELECT so it is possible that it does not
+    exist and we should take exclusive meta-data lock on it in this
+    case.
   */
-  bool          create;
+  enum {NORMAL_OPEN= 0, OPEN_OR_CREATE, TAKE_EXCLUSIVE_MDL} open_table_type;
+  /**
+     Indicates that for this table/view we need to take shared metadata
+     lock which should be upgradable to exclusive metadata lock.
+  */
+  bool mdl_upgradable;
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
@@ -1379,6 +1432,9 @@ struct TABLE_LIST
   bool has_table_lookup_value;
   uint table_open_method;
   enum enum_schema_table_state schema_table_state;
+
+  MDL_LOCK *mdl_lock;
+
   void calc_md5(char *buffer);
   void set_underlying_merge();
   int view_check_option(THD *thd, bool ignore_failure);
@@ -1386,8 +1442,7 @@ struct TABLE_LIST
   void cleanup_items();
   bool placeholder()
   {
-    return derived || view || schema_table || (create && !table->db_stat) ||
-           !table;
+    return derived || view || schema_table || !table;
   }
   void print(THD *thd, String *str, enum_query_type query_type);
   bool check_single_table(TABLE_LIST **table, table_map map,
@@ -1746,4 +1801,17 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
 
 size_t max_row_length(TABLE *table, const uchar *data);
 
+
+void alloc_mdl_locks(TABLE_LIST *table_list, MEM_ROOT *root);
+
+/**
+   Helper function which allows to mark all elements in table list
+   as requiring upgradable metadata locks.
+*/
+
+inline void set_all_mdl_upgradable(TABLE_LIST *tables)
+{
+  for (; tables; tables= tables->next_global)
+    tables->mdl_upgradable= TRUE;
+}
 #endif /* TABLE_INCLUDED */

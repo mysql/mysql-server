@@ -518,12 +518,15 @@ connect (flush,localhost,root,,);
 connection flush;
 --echo connection: flush
 --send flush tables;
-connection default;
---echo connection: default
+connect (waiter,localhost,root,,);
+connection waiter;
+--echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Flushing tables";
 --source include/wait_condition.inc
+connection default;
+--echo connection: default
 handler t2 open;
 handler t2 read first;
 handler t1 read next;
@@ -550,12 +553,14 @@ connect (flush,localhost,root,,);
 connection flush;
 --echo connection: flush
 --send rename table t1 to t2;
-connection default;
---echo connection: default
+connection waiter;
+--echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and info = "rename table t1 to t2";
 --source include/wait_condition.inc
+connection default;
+--echo connection: default
 handler t2 open;
 handler t2 read first;
 --error ER_NO_SUCH_TABLE
@@ -566,7 +571,13 @@ connection flush;
 reap;
 connection default;
 drop table t2;
+connection flush;
 disconnect flush;
+--source include/wait_until_disconnected.inc
+connection waiter;
+disconnect waiter;
+--source include/wait_until_disconnected.inc
+connection default;
 
 #
 # Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
@@ -699,19 +710,24 @@ handler t1 read a next;
 # Bug#41112: crash in mysql_ha_close_table/get_lock_data with alter table
 #
 
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+connection default;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 create table t1 (a int);
 insert into t1 values (1);
 handler t1 open;
-connect(con1,localhost,root,,);
+connection con1;
 send alter table t1 engine=memory;
-connection default;
+connection con2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "rename result table" and info = "alter table t1 engine=memory";
+  where state = "Waiting for table" and info = "alter table t1 engine=memory";
 --source include/wait_condition.inc
+connection default;
 --error ER_ILLEGAL_HA
 handler t1 read a next;
 handler t1 close;
@@ -719,6 +735,9 @@ connection con1;
 --reap
 drop table t1;
 disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
 --source include/wait_until_disconnected.inc
 connection default;
 
