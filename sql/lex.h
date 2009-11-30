@@ -252,8 +252,6 @@ static SYMBOL symbols[] = {
   { "INFILE",		SYM(INFILE)},
   { "INITIAL_SIZE",	SYM(INITIAL_SIZE_SYM)},
   { "INNER",		SYM(INNER_SYM)},
-  { "INNOBASE",		SYM(INNOBASE_SYM)},
-  { "INNODB",		SYM(INNOBASE_SYM)},
   { "INOUT",            SYM(INOUT_SYM)},
   { "INSENSITIVE",      SYM(INSENSITIVE_SYM)},
   { "INSERT",		SYM(INSERT)},

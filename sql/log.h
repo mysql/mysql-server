@@ -124,6 +124,19 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
+/* 
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows 
+        overflow/truncate.
+ */
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
+
+/* 
+   Number of warnings that will be printed to error log
+   before extension number is exhausted.
+*/
+#define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
+
 class Relay_log_info;
 
 typedef struct st_log_info
@@ -615,5 +628,6 @@ enum enum_binlog_format {
 extern TYPELIB binlog_format_typelib;
 
 int query_error_code(THD *thd, bool not_killed);
+uint purge_log_get_error_code(int res);
 
 #endif /* LOG_H */

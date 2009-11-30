@@ -144,9 +144,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              bool reconnect, bool suppress_warnings);
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
                       void* thread_killed_arg);
-static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
-static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
-                                  const char* table_name, bool overwrite);
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
@@ -266,19 +263,16 @@ int init_slave()
   }
 
   if (init_master_info(active_mi,master_info_file,relay_log_info_file,
-                       !master_host, (SLAVE_IO | SLAVE_SQL)))
+                       1, (SLAVE_IO | SLAVE_SQL)))
   {
     sql_print_error("Failed to initialize the master info structure");
     error= 1;
     goto err;
   }
 
-  if (server_id && !master_host && active_mi->host[0])
-    master_host= active_mi->host;
-
   /* If server id is not set, start_slave_thread() will say it */
 
-  if (master_host && !opt_skip_slave_start)
+  if (active_mi->host[0] && !opt_skip_slave_start)
   {
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
@@ -689,11 +683,15 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
       const char* old_msg = thd->enter_cond(start_cond,cond_lock,
                                             "Waiting for slave thread to start");
-      pthread_cond_wait(start_cond,cond_lock);
+      pthread_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       pthread_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
+      {
+        if (start_lock)
+          pthread_mutex_unlock(start_lock);
         DBUG_RETURN(thd->killed_errno());
+      }
     }
   }
   if (start_lock)
@@ -1571,7 +1569,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db = (char*)db;
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
-  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
+  /* run create table */
+  mysql_parse(thd, thd->query(), packet_len, &found_semicolon);
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
@@ -2236,37 +2235,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     else
       sql_print_error("Error on COM_BINLOG_DUMP: %d  %s, will retry in %d secs",
                       mysql_errno(mysql), mysql_error(mysql),
-                      master_connect_retry);
-    DBUG_RETURN(1);
-  }
-
-  DBUG_RETURN(0);
-}
-
-
-static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
-{
-  uchar buf[1024], *p = buf;
-  DBUG_ENTER("request_table_dump");
-
-  uint table_len = (uint) strlen(table);
-  uint db_len = (uint) strlen(db);
-  if (table_len + db_len > sizeof(buf) - 2)
-  {
-    sql_print_error("request_table_dump: Buffer overrun");
-    DBUG_RETURN(1);
-  }
-
-  *p++ = db_len;
-  memcpy(p, db, db_len);
-  p += db_len;
-  *p++ = table_len;
-  memcpy(p, table, table_len);
-
-  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
-  {
-    sql_print_error("request_table_dump: Error sending the table dump \
-command");
+                      mi->connect_retry);
     DBUG_RETURN(1);
   }
 
@@ -4915,9 +4884,6 @@ void rotate_relay_log(Master_info* mi)
 
   DBUG_EXECUTE_IF("crash_before_rotate_relaylog", abort(););
 
-  /* We don't lock rli->run_lock. This would lead to deadlocks. */
-  pthread_mutex_lock(&mi->run_lock);
-
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
      LOCK_log, which may not be inited (if we're not a slave).
@@ -4946,7 +4912,6 @@ void rotate_relay_log(Master_info* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  pthread_mutex_unlock(&mi->run_lock);
   DBUG_VOID_RETURN;
 }
 

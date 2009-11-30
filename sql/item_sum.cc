@@ -517,7 +517,8 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                name, table->s, collation.collation);
     break;
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= new Field_new_decimal(max_length, maybe_null, name,
+                                 decimals, unsigned_flag);
     break;
   case ROW_RESULT:
   default:

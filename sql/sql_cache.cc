@@ -1119,8 +1119,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
-  if ((local_tables= is_cacheable(thd, thd->query_length,
-				  thd->query, thd->lex, tables_used,
+  if ((local_tables= is_cacheable(thd, thd->query_length(),
+				  thd->query(), thd->lex, tables_used,
 				  &tables_type)))
   {
     NET *net= &thd->net;
@@ -1210,7 +1210,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
+      memcpy(thd->query() + thd->query_length() + 1, thd->db, 
+        thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1218,24 +1219,24 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
-    tot_length= thd->query_length + thd->db_length + 1 +
+    tot_length= thd->query_length() + thd->db_length + 1 +
       QUERY_CACHE_FLAGS_SIZE;
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
     */
-    memcpy((void *)(thd->query + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+    memcpy((void*) (thd->query() + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
-      hash_search(&queries, (uchar*) thd->query, tot_length);
+      hash_search(&queries, (uchar*) thd->query(), tot_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
       Query_cache_block *query_block;
-      query_block= write_block_data(tot_length, (uchar*) thd->query,
+      query_block= write_block_data(tot_length, (uchar*) thd->query(),
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, local_tables);
       if (query_block != 0)
