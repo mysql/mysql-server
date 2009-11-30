@@ -726,25 +726,23 @@ static void reference_table_share(TABLE_SHARE *share)
 }
 
 
-/*
-  Close file handle, but leave the table in the table cache
+/**
+   Close file handle, but leave the table in THD::open_tables list
+   to allow its future reopening.
 
-  SYNOPSIS
-    close_handle_and_leave_table_as_lock()
-    table		Table handler
+   @param table  Table handler
 
-  NOTES
-    By leaving the table in the table cache, it disallows any other thread
-    to open the table
+   @note THD::killed will be set if we run out of memory
 
-    thd->killed will be set if we run out of memory
+   @note If closing a MERGE child, the calling function has to
+         take care for closing the parent too, if necessary.
 
-    If closing a MERGE child, the calling function has to take care for
-    closing the parent too, if necessary.
+   @todo Get rid of this function once we refactor LOCK TABLES
+         to keep around TABLE_LIST elements used for opening
+         of tables until UNLOCK TABLES.
 */
 
-
-void close_handle_and_leave_table_as_lock(TABLE *table)
+void close_handle_and_leave_table_as_placeholder(TABLE *table)
 {
   TABLE_SHARE *share, *old_share= table->s;
   char *key_buff;
@@ -1048,8 +1046,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
           char dbname[NAME_LEN+1];
           char tname[NAME_LEN+1];
           /*
-            Since close_data_files_and_morph_locks() frees share's memroot
-            we need to make copies of database and table names.
+            Since close_data_files_and_leave_as_placeholders() frees share's
+            memroot we need to make copies of database and table names.
           */
           strmov(dbname, tab->s->db.str);
           strmov(tname, tab->s->table_name.str);
@@ -1059,7 +1057,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
             goto err_with_reopen;
           }
           pthread_mutex_lock(&LOCK_open);
-          close_data_files_and_morph_locks(thd, dbname, tname);
+          close_data_files_and_leave_as_placeholders(thd, dbname, tname);
           pthread_mutex_unlock(&LOCK_open);
         }
       }
@@ -1082,7 +1080,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
             goto err_with_reopen;
           }
           pthread_mutex_lock(&LOCK_open);
-          close_data_files_and_morph_locks(thd, table->db, table->table_name);
+          close_data_files_and_leave_as_placeholders(thd, table->db,
+                                                     table->table_name);
           pthread_mutex_unlock(&LOCK_open);
         }
       }
@@ -1529,7 +1528,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     detach_merge_children(table, TRUE);
 
   table->mdl_lock= 0;
-  if (table->needs_reopen_or_name_lock() ||
+  if (table->needs_reopen() ||
       thd->version != refresh_version || !table->db_stat)
   {
     free_cache_entry(table);
@@ -1537,12 +1536,6 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   }
   else
   {
-    /*
-      Open placeholders have TABLE::db_stat set to 0, so they should be
-      handled by the first alternative.
-    */
-    DBUG_ASSERT(!table->open_placeholder);
-
     /* Assert that MERGE children are not attached in unused_tables. */
     DBUG_ASSERT(!table->is_children_attached());
 
@@ -3244,7 +3237,7 @@ bool reopen_table(TABLE *table)
 
 /**
     Close all instances of a table open by this thread and replace
-    them with exclusive name-locks.
+    them with placeholder in THD::open_tables list for future reopening.
 
     @param thd        Thread context
     @param db         Database name for the table to be closed
@@ -3259,11 +3252,11 @@ bool reopen_table(TABLE *table)
           the strings are used in a loop even after the share may be freed.
 */
 
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name)
+void close_data_files_and_leave_as_placeholders(THD *thd, const char *db,
+                                               const char *table_name)
 {
   TABLE *table;
-  DBUG_ENTER("close_data_files_and_morph_locks");
+  DBUG_ENTER("close_data_files_and_leave_as_placeholders");
 
   safe_mutex_assert_owner(&LOCK_open);
 
@@ -3277,11 +3270,6 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
     thd->lock= 0;
   }
 
-  /*
-    Note that open table list may contain a name-lock placeholder
-    for target table name if we process ALTER TABLE ... RENAME.
-    So loop below makes sense even if we are not under LOCK TABLES.
-  */
   for (table=thd->open_tables; table ; table=table->next)
   {
     if (!strcmp(table->s->table_name.str, table_name) &&
@@ -3298,15 +3286,13 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
             won't have multiple children with the same db.table_name.
           */
           mysql_lock_remove(thd, thd->locked_tables, table->parent, TRUE);
-          table->parent->open_placeholder= 1;
-          close_handle_and_leave_table_as_lock(table->parent);
+          close_handle_and_leave_table_as_placeholder(table->parent);
         }
         else
           mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
       }
-      table->open_placeholder= 1;
       table->s->version= 0;
-      close_handle_and_leave_table_as_lock(table);
+      close_handle_and_leave_table_as_placeholder(table);
     }
   }
   DBUG_VOID_RETURN;
