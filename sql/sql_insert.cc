@@ -1817,6 +1817,7 @@ public:
   inline uint lock_count() { return locks_in_memory; }
 
   TABLE* get_local_table(THD* client_thd);
+  bool open_and_lock_table();
   bool handle_inserts(void);
 };
 
@@ -2292,6 +2293,42 @@ void kill_delayed_threads(void)
 }
 
 
+/**
+   Open and lock table for use by delayed thread and check that
+   this table is suitable for delayed inserts.
+
+   @retval FALSE - Success.
+   @retval TRUE  - Failure.
+*/
+
+bool Delayed_insert::open_and_lock_table()
+{
+  if (!(table= open_n_lock_single_table(&thd, &table_list,
+                                        TL_WRITE_DELAYED)))
+  {
+    thd.fatal_error();				// Abort waiting inserts
+    return TRUE;
+  }
+  if (!(table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
+  {
+    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
+             table_list.table_name);
+    return TRUE;
+  }
+  if (table->triggers)
+  {
+    /*
+      Table has triggers. This is not an error, but we do
+      not support triggers with delayed insert. Terminate the delayed
+      thread without an error and thus request lock upgrade.
+    */
+    return TRUE;
+  }
+  table->copy_blobs= 1;
+  return FALSE;
+}
+
+
 /*
  * Create a new delayed insert thread
 */
@@ -2354,29 +2391,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
     alloc_mdl_locks(&di->table_list, thd->mem_root);
 
-    /* Open table */
-    if (!(di->table= open_n_lock_single_table(thd, &di->table_list,
-                                              TL_WRITE_DELAYED)))
-    {
-      thd->fatal_error();				// Abort waiting inserts
+    if (di->open_and_lock_table())
       goto err;
-    }
-    if (!(di->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
-    {
-      my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
-               di->table_list.table_name);
-      goto err;
-    }
-    if (di->table->triggers)
-    {
-      /*
-        Table has triggers. This is not an error, but we do
-        not support triggers with delayed insert. Terminate the delayed
-        thread without an error and thus request lock upgrade.
-      */
-      goto err;
-    }
-    di->table->copy_blobs=1;
 
     /* Tell client that the thread is initialized */
     pthread_cond_signal(&di->cond_client);
@@ -2450,7 +2466,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
       if (di->tables_in_use && ! thd->lock)
       {
-        bool not_used;
+        bool need_reopen;
         /*
           Request for new delayed insert.
           Lock the table, but avoid to be blocked by a global read lock.
@@ -2463,11 +2479,29 @@ pthread_handler_t handle_delayed_insert(void *arg)
         */
         if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
                                             MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
-                                            &not_used)))
+                                            &need_reopen)))
         {
-          /* Fatal error */
-          di->dead= 1;
-          thd->killed= THD::KILL_CONNECTION;
+          if (need_reopen)
+          {
+            /*
+              We were waiting to obtain TL_WRITE_DELAYED (probably due to
+              someone having or requesting TL_WRITE_ALLOW_READ) and got
+              aborted. Try to reopen table and if it fails die.
+            */
+            close_thread_tables(thd);
+            di->table= 0;
+            if (di->open_and_lock_table())
+            {
+              di->dead= 1;
+              thd->killed= THD::KILL_CONNECTION;
+            }
+          }
+          else
+          {
+            /* Fatal error */
+            di->dead= 1;
+            thd->killed= THD::KILL_CONNECTION;
+          }
         }
         pthread_cond_broadcast(&di->cond_client);
       }
@@ -3533,6 +3567,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
+  /*
+    mysql_lock_tables() below should never fail with request to reopen table
+    since it won't wait for the table lock (we have exclusive metadata lock on
+    the table) and thus can't get aborted and since it ignores other threads
+    setting THD::some_tables_deleted thanks to MYSQL_LOCK_IGNORE_FLUSH.
+  */
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
         hooks->postlock(&table, 1))
