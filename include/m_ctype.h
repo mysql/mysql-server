@@ -49,6 +49,24 @@ typedef struct unicase_info_st
 extern MY_UNICASE_INFO *my_unicase_default[256];
 extern MY_UNICASE_INFO *my_unicase_turkish[256];
 
+#define MY_UCA_MAX_CONTRACTION 4
+#define MY_UCA_MAX_WEIGHT_SIZE 8
+
+typedef struct my_contraction_t
+{
+  my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
+  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+} MY_CONTRACTION;
+
+
+typedef struct my_contraction_list_t
+{
+  size_t nitems;         /* Number of items in the list                  */
+  MY_CONTRACTION *item;  /* List of contractions                         */
+  char *flags;           /* Character flags, e.g. "is contraction head") */
+} MY_CONTRACTIONS;
+
+
 typedef struct uni_ctype_st
 {
   uchar  pctype;
@@ -262,7 +280,7 @@ typedef struct charset_info_st
   uchar    *to_lower;
   uchar    *to_upper;
   uchar    *sort_order;
-  uint16   *contractions;
+  MY_CONTRACTIONS *contractions;
   uint16   **sort_order_big;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
@@ -474,6 +492,13 @@ uint my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong len);
 my_bool my_charset_is_ascii_based(CHARSET_INFO *cs);
 my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
 uint my_charset_repertoire(CHARSET_INFO *cs);
+
+my_bool my_uca_have_contractions(CHARSET_INFO *cs);
+my_bool my_uca_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc);
+my_bool my_uca_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc);
+uint16 *my_uca_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2);
+
+
 
 
 #define	_MY_U	01	/* Upper case */

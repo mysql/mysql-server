@@ -567,8 +567,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ? 
-              ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+  my_bool have_contractions= my_uca_have_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -636,8 +635,8 @@ fill_max_and_min:
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      if (contraction_flags && ptr + 1 < end &&
-          contraction_flags[(uchar) *ptr])
+      if (have_contractions && ptr + 1 < end &&
+          my_uca_can_be_contraction_head(cs, (uchar) *ptr))
       {
         /* Ptr[0] is a contraction head. */
         
@@ -659,8 +658,8 @@ fill_max_and_min:
           is not a contraction, then we put only ptr[0],
           and continue with ptr[1] on the next loop.
         */
-        if (contraction_flags[(uchar) ptr[1]] &&
-            cs->contractions[(*ptr-0x40)*0x40 + ptr[1] - 0x40])
+        if (my_uca_can_be_contraction_tail(cs, (uchar) ptr[1]) &&
+            my_uca_contraction2_weight(cs, (uchar) ptr[0], (uchar) ptr[1]))
         {
           /* Contraction found */
           if (maxcharlen == 1 || min_str + 1 >= min_end)
