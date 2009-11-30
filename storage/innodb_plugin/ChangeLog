@@ -1,3 +1,10 @@
+2009-11-12	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/db0err.h, row/row0merge.c,
+	row/row0mysql.c:
+	Allow CREATE INDEX to be interrupted.
+	Also, when CHECK TABLE is interrupted, report ER_QUERY_INTERRUPTED.
+
 2009-11-11	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb_bug47167.result,
@@ -103,6 +110,12 @@
 	* include/page0page.ic:
 	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
 	cc/CC 5.10
+
+2009-10-13	The InnoDB Team
+
+	* buf/buf0flu.c:
+	Call fsync() on datafiles after a batch of pages is written to disk
+	even when skip_innodb_doublewrite is set.
 
 2009-10-05	The InnoDB Team
 
