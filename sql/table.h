@@ -313,7 +313,6 @@ struct TABLE_SHARE
   TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
   pthread_mutex_t mutex;                /* For locking the share  */
-  pthread_cond_t cond;			/* To signal that share is ready */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
 
   /*
@@ -410,7 +409,6 @@ struct TABLE_SHARE
   bool crashed;
   bool is_view;
   bool name_lock, replace_with_name_lock;
-  bool waiting_on_cond;                 /* Protection against free */
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
 

@@ -1647,7 +1647,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       share->ref_count++;
       share->version= 0;
       pthread_mutex_unlock(&share->mutex);
-      release_table_share(share, RELEASE_WAIT_FOR_DROP);
+      release_table_share(share);
     }
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
