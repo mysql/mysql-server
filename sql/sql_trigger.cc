@@ -527,8 +527,9 @@ end:
     locks. Otherwise call to close_thread_tables() will take care about both
     TABLE instance created by reopen_name_locked_table() and meta-data lock.
   */
-  if (thd->locked_tables)
-    mdl_downgrade_exclusive_locks(&thd->mdl_context);
+  if (thd->locked_tables && tables && tables->table)
+    mdl_downgrade_exclusive_lock(&thd->mdl_context,
+                                 tables->table->mdl_lock_data);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
