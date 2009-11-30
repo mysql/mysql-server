@@ -1461,7 +1461,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     lex_start(thd);
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
-                               rli->tables_to_lock_count, &need_reopen)))
+                               rli->tables_to_lock_count, 0,
+                               &need_reopen)))
     {
       if (!need_reopen)
       {

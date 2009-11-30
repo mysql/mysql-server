@@ -94,31 +94,6 @@ static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error, const char *);
 
-/*
-  Lock tables.
-
-  SYNOPSIS
-    mysql_lock_tables()
-    thd                         The current thread.
-    tables                      An array of pointers to the tables to lock.
-    count                       The number of tables to lock.
-    flags                       Options:
-      MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
-      MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      Ignore SET GLOBAL READ_ONLY
-      MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
-      MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        Instead of reopening altered
-                                              or dropped tables by itself,
-                                              mysql_lock_tables() should
-                                              notify upper level and rely
-                                              on caller doing this.
-    need_reopen                 Out parameter, TRUE if some tables were altered
-                                or deleted and should be reopened by caller.
-
-  RETURN
-    A lock structure pointer on success.
-    NULL on error or if some tables should be reopen.
-*/
-
 /* Map the return value of thr_lock to an error from errmsg.txt */
 static int thr_lock_errno_to_mysql[]=
 { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
@@ -247,6 +222,28 @@ static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock)
 }
 
 
+/**
+   Lock tables.
+
+   @param thd          The current thread.
+   @param tables       An array of pointers to the tables to lock.
+   @param count        The number of tables to lock.
+   @param flags        Options:
+                 MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK Ignore a global read lock
+                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY Ignore SET GLOBAL READ_ONLY
+                 MYSQL_LOCK_IGNORE_FLUSH            Ignore a flush tables.
+   @param need_reopen  Out parameter, TRUE if some tables were altered
+                       or deleted and should be reopened by caller.
+
+   @note Caller of this function should always be ready to handle request to
+         reopen table unless there are external invariants which guarantee
+         that such thing won't be needed (for example we are obtaining lock
+         on table on which we already have exclusive metadata lock).
+
+   @retval  A lock structure pointer on success.
+   @retval  NULL on error or if some tables should be reopen.
+*/
+
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
                               uint flags, bool *need_reopen)
 {
@@ -330,7 +327,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       my_error(rc, MYF(0));
       break;
     }
-    else if (rc == 1)                           /* aborted */
+    else if (rc == 1)                           /* aborted or killed */
     {
       thd->some_tables_deleted=1;		// Try again
       sql_lock->lock_count= 0;                  // Locks are already freed
@@ -339,8 +336,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
     {
       /*
-        Thread was killed or lock aborted. Let upper level close all
-        used tables and retry or give error.
+        Success and nobody set thd->some_tables_deleted to force reopen
+        or we were called with MYSQL_LOCK_IGNORE_FLUSH so such attempts
+        should be ignored.
       */
       break;
     }
@@ -366,13 +364,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     */
     reset_lock_data_and_free(&sql_lock);
 retry:
-    if (flags & MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN)
-    {
-      *need_reopen= TRUE;
-      break;
-    }
-    if (wait_for_tables(thd))
-      break;					// Couldn't open tables
+    /* Let upper level close all used tables and retry or give error. */
+    *need_reopen= TRUE;
+    break;
   }
   thd_proc_info(thd, 0);
   if (thd->killed)

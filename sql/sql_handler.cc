@@ -519,8 +519,7 @@ retry:
   */
   thd->open_tables= thd->handler_tables;
 
-  lock= mysql_lock_tables(thd, &tables->table, 1,
-                          MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &need_reopen);
 
   /* restore previous context */
   thd->open_tables= backup_open_tables;

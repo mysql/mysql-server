@@ -1241,8 +1241,6 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
                                       const char *table_name);
 void close_handle_and_leave_table_as_lock(TABLE *table);
-bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table, bool wait_for_name_lock);
 void unlock_locked_tables(THD *thd);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
@@ -1476,22 +1474,24 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 /* open_and_lock_tables with optional derived handling */
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived,
+                                 uint flags);
 /* simple open_and_lock_tables without derived handling */
 inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  return open_and_lock_tables_derived(thd, tables, FALSE);
+  return open_and_lock_tables_derived(thd, tables, FALSE, 0);
 }
 /* open_and_lock_tables with derived handling */
 inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  return open_and_lock_tables_derived(thd, tables, TRUE);
+  return open_and_lock_tables_derived(thd, tables, TRUE, 0);
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
-int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
+int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
+                bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
@@ -2045,10 +2045,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 /* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
-#define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
-#define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
-#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0010
-#define MYSQL_LOCK_PERF_SCHEMA                  0x0020
+#define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
+#define MYSQL_LOCK_PERF_SCHEMA                  0x0010
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
