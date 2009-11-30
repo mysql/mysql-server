@@ -18,6 +18,7 @@ main.plugin_load  @solaris               # Bug#42144
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
+rpl.rpl_cross_version*                   # Bug #43913 2009-10-26 joro rpl_cross_version can't pass on conflicts complainig clash with --slave-load-tm
 rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
 rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
 rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
