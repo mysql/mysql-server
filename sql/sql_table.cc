@@ -4469,7 +4469,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
     {
-      release_table_share(share, RELEASE_NORMAL);
+      release_table_share(share);
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);                           // Out of memory
     }

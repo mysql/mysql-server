@@ -62,7 +62,7 @@ class I_P_List
 public:
   I_P_List() : first(NULL) { };
   inline void empty()      { first= NULL; }
-  inline bool is_empty()   { return (first == NULL); }
+  inline bool is_empty() const { return (first == NULL); }
   inline void push_front(T* a)
   {
     *B::next_ptr(a)= first;
