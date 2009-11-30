@@ -320,8 +320,8 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
         while ((item_field= it++))
         {
-          if (item_field               == keyItemField ||          // Current ref
-              item_field->field->table->map >= join_tabs[inx].table->map) // Self, or outside scope, ref
+          if (item_field               == keyItemField ||       // Current ref
+              item_field->field->table == join_tabs[inx].table) // Self ref
             continue;
 
           field_linked_parents |= item_field->field->table->map;
@@ -376,7 +376,11 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
         break;
       }
     }
-    DBUG_ASSERT(new_parent != NULL);
+    if (new_parent == NULL)
+    {
+      DBUG_PRINT("info", ("  Common parent is outside scope -> can't append table to pushed joins:%d\n",inx+1));
+      DBUG_RETURN(false);
+    }
 
     // 2) Update join_items[] not already refering new_parent
     for (uint keyPartNo = 0; keyPartNo < join_tabs[inx].ref.key_parts; keyPartNo++)
@@ -607,8 +611,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     const ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(join_tab.table->file);
     const NdbDictionary::Table* const table= handler->m_table;
     const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
-
-    DBUG_ASSERT (join_tabs[join_cnt-1].table->map < join_tab.table->map);
 
     if (join_cnt >= 2)    // First 2 tables are checked before we get here
     {
@@ -11904,6 +11906,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
+//  if ((m_pushed_join && m_pushed_join->m_queryDef->isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
     if (m_pushed_join ||    // Pushed joins currently restricted to ordered range scan i mrr
         read_multi_needs_scan(cur_index_type, key_info, r))
     {
