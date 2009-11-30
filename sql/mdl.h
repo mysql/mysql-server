@@ -66,7 +66,7 @@ struct MDL_LOCK
      point might be upgraded to an exclusive lock and therefore conflicts
      with global shared lock, FALSE -- otherwise.
   */
-  bool          upgradable;
+  bool          is_upgradable;
 
 private:
   /**
@@ -189,7 +189,7 @@ inline void mdl_set_lock_priority(MDL_LOCK *lock, enum_mdl_prio prio)
 inline void mdl_set_upgradable(MDL_LOCK *lock)
 {
   DBUG_ASSERT(lock->type == MDL_SHARED && lock->state == MDL_PENDING);
-  lock->upgradable= TRUE;
+  lock->is_upgradable= TRUE;
 }
 
 bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry);
