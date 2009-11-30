@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2006 MySQL AB, 2009 Sun Microsystems, Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,8 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_atomic.c my_getncpus.c)
+				my_atomic.c my_getncpus.c
+				my_rdtsc.c)
 
 IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
@@ -45,6 +46,12 @@ IF(CMAKE_COMPILER_IS_GNUCC AND  NOT HAVE_CXX_NEW)
  # gcc as C++ compiler  does not have new/delete
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_new.cc)
  ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
+ENDIF()
+
+IF(CMAKE_C_COMPILER MATCHES SunPro)
+  # Inline assembly template for rdtsc
+  SET_SOURCE_FILE_PROPERTIES(my_rdtsc.c
+   PROPERTIES COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il)
 ENDIF()
 
 IF(HAVE_LARGE_PAGES)
