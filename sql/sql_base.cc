@@ -1482,7 +1482,7 @@ void close_thread_tables(THD *thd,
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    (See: notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */
@@ -2228,7 +2228,7 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    (See: notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */
@@ -8444,154 +8444,6 @@ void flush_tables()
 }
 
 
-/*
-  Mark all entries with the table as deleted to force an reopen of the table
-
-  The table will be closed (not stored in cache) by the current thread when
-  close_thread_tables() is called.
-
-  PREREQUISITES
-    Lock on LOCK_open()
-
-  RETURN
-    0  This thread now have exclusive access to this table and no other thread
-       can access the table until close_thread_tables() is called.
-    1  Table is in use by another thread
-*/
-
-bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-                             uint flags)
-{
-  char key[MAX_DBKEY_LENGTH];
-  uint key_length;
-  TABLE *table;
-  TABLE_SHARE *share;
-  bool result= 0, signalled= 0;
-  DBUG_ENTER("remove_table_from_cache");
-  DBUG_PRINT("enter", ("table: '%s'.'%s'  flags: %u", db, table_name, flags));
-
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  for (;;)
-  {
-    result= signalled= 0;
-
-    if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache, (uchar*) key,
-                                              key_length)))
-    {
-      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
-      share->version= 0;
-      while ((table= it++))
-        relink_unused(table);
-
-      it.init(share->used_tables);
-      while ((table= it++))
-      {
-        THD *in_use= table->in_use;
-        DBUG_ASSERT(in_use);
-        if (in_use != thd)
-        {
-          DBUG_PRINT("info", ("Table was in use by other thread"));
-          /*
-            Mark that table is going to be deleted from cache. This will
-            force threads that are in mysql_lock_tables() (but not yet
-            in thr_multi_lock()) to abort it's locks, close all tables and retry
-          */
-          in_use->some_tables_deleted= 1;
-
-          if (table->is_name_opened())
-          {
-            DBUG_PRINT("info", ("Found another active instance of the table"));
-            result=1;
-          }
-          /* Kill delayed insert threads */
-          if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-              ! in_use->killed)
-          {
-            in_use->killed= THD::KILL_CONNECTION;
-            pthread_mutex_lock(&in_use->mysys_var->mutex);
-            if (in_use->mysys_var->current_cond)
-            {
-              pthread_mutex_lock(in_use->mysys_var->current_mutex);
-              signalled= 1;
-              pthread_cond_broadcast(in_use->mysys_var->current_cond);
-              pthread_mutex_unlock(in_use->mysys_var->current_mutex);
-            }
-            pthread_mutex_unlock(&in_use->mysys_var->mutex);
-          }
-          /*
-            Now we must abort all tables locks used by this thread
-            as the thread may be waiting to get a lock for another table.
-            Note that we need to hold LOCK_open while going through the
-            list. So that the other thread cannot change it. The other
-            thread must also hold LOCK_open whenever changing the
-            open_tables list. Aborting the MERGE lock after a child was
-            closed and before the parent is closed would be fatal.
-          */
-          for (TABLE *thd_table= in_use->open_tables;
-               thd_table ;
-               thd_table= thd_table->next)
-          {
-            /* Do not handle locks of MERGE children. */
-            if (thd_table->db_stat && !thd_table->parent)	// If table is open
-              signalled|= mysql_lock_abort_for_thread(thd, thd_table);
-          }
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Table was in use by current thread. db_stat: %u",
-                     table->db_stat));
-          result= result || (flags & RTFC_OWNED_BY_THD_FLAG);
-        }
-      }
-
-      while (unused_tables && !unused_tables->s->version)
-        free_cache_entry(unused_tables);
-
-      DBUG_PRINT("info", ("share version: %lu  ref_count: %u",
-                          share->version, share->ref_count));
-      if (share->ref_count == 0)
-        my_hash_delete(&table_def_cache, (uchar*) share);
-    }
-
-    if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
-    {
-      /*
-        Signal any thread waiting for tables to be freed to
-        reopen their tables
-      */
-      broadcast_refresh();
-      DBUG_PRINT("info", ("Waiting for refresh signal"));
-      if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
-      {
-        dropping_tables++;
-        if (likely(signalled))
-          (void) pthread_cond_wait(&COND_refresh, &LOCK_open);
-        else
-        {
-          struct timespec abstime;
-          /*
-            It can happen that another thread has opened the
-            table but has not yet locked any table at all. Since
-            it can be locked waiting for a table that our thread
-            has done LOCK TABLE x WRITE on previously, we need to
-            ensure that the thread actually hears our signal
-            before we go to sleep. Thus we wait for a short time
-            and then we retry another loop in the
-            remove_table_from_cache routine.
-          */
-          set_timespec(abstime, 10);
-          pthread_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
-        }
-        dropping_tables--;
-        continue;
-      }
-    }
-    break;
-  }
-  DBUG_RETURN(result);
-}
-
-
 /**
    A callback to the server internals that is used to address
    special cases of the locking protocol.
@@ -8895,34 +8747,6 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 
 /*
-  SYNOPSIS
-    close_open_tables_and_downgrade()
-  RESULT VALUES
-    NONE
-  DESCRIPTION
-    We need to ensure that any thread that has managed to open the table
-    but not yet encountered our lock on the table is also thrown out to
-    ensure that no threads see our frm changes premature to the final
-    version. The intermediate versions are only meant for use after a
-    crash and later REPAIR TABLE.
-    We also downgrade locks after the upgrade to WRITE_ONLY
-*/
-
-/* purecov: begin deadcode */
-void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  pthread_mutex_lock(&LOCK_open);
-  remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
-  pthread_mutex_unlock(&LOCK_open);
-  /* If MERGE child, forward lock handling to parent. */
-  mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :
-                             lpt->table, lpt->old_lock_type);
-}
-/* purecov: end */
-
-
-/*
   Tells if two (or more) tables have auto_increment columns and we want to
   lock those tables with a write lock.
 
@@ -9165,7 +8989,7 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    (See: notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */

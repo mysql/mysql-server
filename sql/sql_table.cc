@@ -4800,19 +4800,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* Close all instances of the table to allow repair to rename files */
     if (lock_type == TL_WRITE && table->table->s->version)
     {
-      DBUG_PRINT("admin", ("removing table from cache"));
-      pthread_mutex_lock(&LOCK_open);
-      const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
-					      "Waiting to get writelock");
-      mysql_lock_abort(thd,table->table, TRUE);
-      remove_table_from_cache(thd, table->table->s->db.str,
-                              table->table->s->table_name.str,
-                              RTFC_WAIT_OTHER_THREAD_FLAG |
-                              RTFC_CHECK_KILLED_FLAG);
-      thd->exit_cond(old_message);
-      DBUG_EXECUTE_IF("wait_in_mysql_admin_table", wait_for_kill_signal(thd););
-      if (thd->killed)
-	goto err;
+      if (wait_while_table_is_used(thd, table->table,
+                                   HA_EXTRA_PREPARE_FOR_RENAME))
+        goto err;
+      DBUG_EXECUTE_IF("wait_in_mysql_admin_table",
+                      wait_for_kill_signal(thd);
+                      if (thd->killed)
+                        goto err;);
       /* Flush entries in the query cache involving this table. */
       query_cache_invalidate3(thd, table->table, 0);
       open_for_modify= 0;
@@ -5064,10 +5058,10 @@ send_result_message:
           table->table->file->info(HA_STATUS_CONST);
         else
         {
-          pthread_mutex_lock(&LOCK_open);
-          remove_table_from_cache(thd, table->table->s->db.str,
-                                  table->table->s->table_name.str, RTFC_NO_FLAG);
-          pthread_mutex_unlock(&LOCK_open);
+          TABLE_LIST *save_next_global= table->next_global;
+          table->next_global= 0;
+          close_cached_tables(thd, table, FALSE, FALSE);
+          table->next_global= save_next_global;
         }
         /* May be something modified consequently we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
@@ -5133,6 +5127,7 @@ bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 bool mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_optimize_table");
+  set_all_mdl_upgradable(tables);
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,0,
 				&handler::ha_optimize, 0));
