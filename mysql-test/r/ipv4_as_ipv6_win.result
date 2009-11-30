@@ -30,4 +30,3 @@ DROP USER testuser1@'127.0.0.1';
 =============Test of '::1' ========================
 connect (con1, ::1, root, , test, MASTER_MYPORT);
 Got one of the listed errors
-
