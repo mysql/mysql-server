@@ -374,6 +374,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "drop table t1";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -389,6 +390,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "create trigger t1_bi before insert on t1 for each row set @a:=1";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -407,6 +409,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "alter table t1 add column j int";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -422,6 +425,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "alter table t1 rename to t2";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -435,6 +439,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "alter table t1 disable keys";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -449,6 +454,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "alter table t1 alter column i set default 100";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -470,6 +476,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "alter table t2 alter column i set default 100";
+--source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
 --echo # Switching to connection 'ddl'
@@ -494,6 +501,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "rename tables t1 to t3, t2 to t1";
+--source include/wait_condition.inc
 let $ID2= `select connection_id()`;
 --send insert into t2 values (1)
 --echo # Switching to connection 'default'
@@ -502,6 +510,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "insert into t2 values (1)";
+--source include/wait_condition.inc
 --replace_result $ID2 ID2
 eval kill query $ID2;
 --echo # Switching to connection 'dml'
@@ -529,6 +538,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Flushing tables" and
         info = "flush tables";
+--source include/wait_condition.inc
 --send select * from t1
 --echo # Switching to connection 'default'
 connection default;
@@ -536,6 +546,7 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and
         info = "select * from t1";
+--source include/wait_condition.inc
 --replace_result $ID2 ID2
 eval kill query $ID2;
 --echo # Switching to connection 'dml'
