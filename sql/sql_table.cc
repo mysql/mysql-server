@@ -1904,10 +1904,27 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else if (thd->locked_tables)
     {
       for (table= tables; table; table= table->next_local)
-        if (!find_temporary_table(thd, table->db, table->table_name) &&
-            !find_write_locked_table(thd->open_tables, table->db,
-                                     table->table_name))
-        DBUG_RETURN(1);
+        if (find_temporary_table(thd, table->db, table->table_name))
+        {
+          /*
+            Since we don't acquire metadata lock if we have found temporary
+            table, we should do something to avoid releasing it at the end.
+          */
+          table->mdl_lock_data= 0;
+        }
+        else
+        {
+          /*
+            Since 'tables' list can't contain duplicates (this is ensured
+            by parser) it is safe to cache pointer to the TABLE instances
+            in its elements.
+          */
+          table->table= find_write_locked_table(thd->open_tables, table->db,
+                                                table->table_name);
+          if (!table->table)
+            DBUG_RETURN(1);
+          table->mdl_lock_data= table->table->mdl_lock_data;
+        }
     }
   }
 
@@ -1956,6 +1973,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= 0;
     }
 
+    /* Probably a non-temporary table. */
+    non_temp_tables_count++;
+
     /*
       If row-based replication is used and the table is not a
       temporary table, we add the table name to the drop statement
@@ -1964,7 +1984,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
     if (!drop_temporary && thd->current_stmt_binlog_row_based && !dont_log_query)
     {
-      non_temp_tables_count++;
       /*
         Don't write the database name if it is the current one (or if
         thd->db is NULL).
@@ -1985,18 +2004,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (thd->locked_tables)
       {
-        TABLE *tab= find_locked_table(thd->open_tables, db, table->table_name);
-        if (close_cached_table(thd, tab))
+        if (close_cached_table(thd, table->table))
         {
           error= -1;
           goto err_with_placeholders;
         }
-        /*
-          Leave LOCK TABLES mode if we managed to drop all tables
-          which were locked.
-        */
-        if (thd->locked_tables->table_count == 0)
-          unlock_locked_tables(thd);
+        table->table= 0;
       }
 
       if (thd->killed)
@@ -2175,10 +2188,32 @@ err_with_placeholders:
       doing this. Unfortunately in this case we are likely to get more
       false positives in lock_table_name_if_not_cached() function. So
       it makes sense to remove exclusive meta-data locks in all cases.
+
+      Leave LOCK TABLES mode if we managed to drop all tables which were
+      locked. Additional check for 'non_temp_tables_count' is to avoid
+      leaving LOCK TABLES mode if we have dropped only temporary tables.
     */
-    mdl_release_exclusive_locks(&thd->mdl_context);
+    if (thd->locked_tables && thd->locked_tables->table_count == 0 &&
+        non_temp_tables_count > 0)
+    {
+      unlock_locked_tables(thd);
+      goto end;
+    }
+    for (table= tables; table; table= table->next_local)
+    {
+      if (table->mdl_lock_data)
+      {
+        /*
+          Under LOCK TABLES we may have several instances of table open
+          and locked and therefore have to remove several metadata lock
+          requests associated with them.
+        */
+        mdl_release_all_locks_for_name(&thd->mdl_context, table->mdl_lock_data);
+      }
+    }
   }
 
+end:
   DBUG_RETURN(error);
 }
 
@@ -4122,7 +4157,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
 unlock:
   if (target_lock_data)
-    mdl_release_exclusive_locks(&thd->mdl_context);
+    mdl_release_lock(&thd->mdl_context, target_lock_data);
   pthread_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
     pthread_cond_signal(&COND_refresh);
@@ -4292,9 +4327,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   old_lock_type= table->reginfo.lock_type;
   mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
 
-  if (mdl_upgrade_shared_lock_to_exclusive(&thd->mdl_context, 0,
-                                           table->s->db.str,
-                                           table->s->table_name.str))
+  if (mdl_upgrade_shared_lock_to_exclusive(&thd->mdl_context,
+                                           table->mdl_lock_data))
   {
     mysql_lock_downgrade_write(thd, table, old_lock_type);
     DBUG_RETURN(TRUE);
@@ -4476,6 +4510,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
     pthread_mutex_unlock(&LOCK_open);
   }
+  else
+  {
+    mdl_lock_data= table->mdl_lock_data;
+  }
 
   /* A MERGE table must not come here. */
   DBUG_ASSERT(!table->child_l);
@@ -4574,8 +4612,9 @@ end:
     closefrm(table, 1);				// Free allocated memory
     pthread_mutex_unlock(&LOCK_open);
   }
-  if (error)
-    mdl_release_exclusive_locks(&thd->mdl_context);
+  /* In case of a temporary table there will be no metadata lock. */
+  if (error && mdl_lock_data)
+    mdl_release_lock(&thd->mdl_context, mdl_lock_data);
   DBUG_RETURN(error);
 }
 
@@ -5539,7 +5578,7 @@ binlog:
 
 err:
   if (target_lock_data)
-    mdl_release_exclusive_locks(&thd->mdl_context);
+    mdl_release_lock(&thd->mdl_context, target_lock_data);
   DBUG_RETURN(res);
 }
 
@@ -6477,7 +6516,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        uint order_num, ORDER *order, bool ignore)
 {
   TABLE *table, *new_table= 0;
-  MDL_LOCK_DATA *target_lock_data= 0;
+  MDL_LOCK_DATA *mdl_lock_data, *target_lock_data= 0;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
@@ -6649,6 +6688,7 @@ view_err:
   if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
   table->use_all_columns();
+  mdl_lock_data= table->mdl_lock_data;
 
   /*
     Prohibit changing of the UNION list of a non-temporary MERGE table
@@ -6894,9 +6934,12 @@ view_err:
               lock here...
       */
       if (new_name != table_name || new_db != db)
-        mdl_release_exclusive_locks(&thd->mdl_context);
+      {
+        mdl_release_lock(&thd->mdl_context, target_lock_data);
+        mdl_release_all_locks_for_name(&thd->mdl_context, mdl_lock_data);
+      }
       else
-        mdl_downgrade_exclusive_locks(&thd->mdl_context);
+        mdl_downgrade_exclusive_lock(&thd->mdl_context, mdl_lock_data);
     }
     DBUG_RETURN(error);
   }
@@ -7575,10 +7618,11 @@ view_err:
       pthread_mutex_lock(&LOCK_open);
       unlink_open_table(thd, table, FALSE);
       pthread_mutex_unlock(&LOCK_open);
-      mdl_release_exclusive_locks(&thd->mdl_context);
+      mdl_release_lock(&thd->mdl_context, target_lock_data);
+      mdl_release_all_locks_for_name(&thd->mdl_context, mdl_lock_data);
     }
     else
-      mdl_downgrade_exclusive_locks(&thd->mdl_context);
+      mdl_downgrade_exclusive_lock(&thd->mdl_context, mdl_lock_data);
   }
 
 end_temporary:
@@ -7634,7 +7678,7 @@ err:
     thd->abort_on_warning= save_abort_on_warning;
   }
   if (target_lock_data)
-    mdl_release_exclusive_locks(&thd->mdl_context);
+    mdl_release_lock(&thd->mdl_context, target_lock_data);
   DBUG_RETURN(TRUE);
 
 err_with_placeholders:
@@ -7645,7 +7689,9 @@ err_with_placeholders:
   */
   unlink_open_table(thd, table, FALSE);
   pthread_mutex_unlock(&LOCK_open);
-  mdl_release_exclusive_locks(&thd->mdl_context);
+  if (target_lock_data)
+    mdl_release_lock(&thd->mdl_context, target_lock_data);
+  mdl_release_all_locks_for_name(&thd->mdl_context, mdl_lock_data);
   DBUG_RETURN(TRUE);
 }
 /* mysql_alter_table */

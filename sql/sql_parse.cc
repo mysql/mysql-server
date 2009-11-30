@@ -8114,31 +8114,10 @@ bool parse_sql(THD *thd,
 
 static void adjust_mdl_locks_upgradability(TABLE_LIST *tables)
 {
-  TABLE_LIST *tab, *otab;
-
-  for (tab= tables; tab; tab= tab->next_global)
+  for (TABLE_LIST *tab= tables; tab; tab= tab->next_global)
   {
     if (tab->lock_type >= TL_WRITE_ALLOW_WRITE)
       tab->mdl_upgradable= TRUE;
-    else
-    {
-      /*
-        TODO: To get rid of this loop we need to change our code to do
-              metadata lock upgrade only for those instances of tables
-              which are write locked instead of doing such upgrade for
-              all instances of tables.
-      */
-      for (otab= tables; otab; otab= otab->next_global)
-        if (otab->lock_type >= TL_WRITE_ALLOW_WRITE &&
-            otab->db_length == tab->db_length &&
-            otab->table_name_length == tab->table_name_length &&
-            !strcmp(otab->db, tab->db) &&
-            !strcmp(otab->table_name, tab->table_name))
-        {
-          tab->mdl_upgradable= TRUE;
-          break;
-        }
-    }
   }
 }
 

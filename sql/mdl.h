@@ -194,8 +194,8 @@ inline void mdl_set_upgradable(MDL_LOCK_DATA *lock_data)
 
 bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry);
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
-bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
-                                          const char *db, const char *name);
+bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
+                                          MDL_LOCK_DATA *lock_data);
 bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
                                     MDL_LOCK_DATA *lock_data);
 bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
@@ -203,9 +203,11 @@ bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
 bool mdl_wait_for_locks(MDL_CONTEXT *context);
 
 void mdl_release_locks(MDL_CONTEXT *context);
-void mdl_release_exclusive_locks(MDL_CONTEXT *context);
+void mdl_release_all_locks_for_name(MDL_CONTEXT *context,
+                                    MDL_LOCK_DATA *lock_data);
 void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
-void mdl_downgrade_exclusive_locks(MDL_CONTEXT *context);
+void mdl_downgrade_exclusive_lock(MDL_CONTEXT *context,
+                                  MDL_LOCK_DATA *lock_data);
 void mdl_release_global_shared_lock(MDL_CONTEXT *context);
 
 bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type, const char *db,
