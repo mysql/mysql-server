@@ -7415,7 +7415,7 @@ view_err:
 
   pthread_mutex_lock(&LOCK_open);
 
-  close_data_files_and_morph_locks(thd, db, table_name);
+  close_data_files_and_leave_as_placeholders(thd, db, table_name);
 
   error=0;
   save_old_db_type= old_db_type;
@@ -7507,8 +7507,7 @@ view_err:
           object to make it suitable for reopening.
         */
         DBUG_ASSERT(t_table == table);
-        table->open_placeholder= 1;
-        close_handle_and_leave_table_as_lock(table);
+        close_handle_and_leave_table_as_placeholder(table);
       }
       else
       {

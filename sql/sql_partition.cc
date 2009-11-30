@@ -6262,7 +6262,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
     and we set db_stat to zero to ensure we don't close twice.
   */
   pthread_mutex_lock(&LOCK_open);
-  close_data_files_and_morph_locks(thd, db, table_name);
+  close_data_files_and_leave_as_placeholders(thd, db, table_name);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
