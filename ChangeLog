@@ -1,3 +1,13 @@
+2009-11-30	The InnoDB Team
+
+	* dict/dict0crea.c, dict/dict0mem.c, dict/dict0load.c,
+	dict/dict0boot.c, fil/fil0fil.c, handler/ha_innodb.cc,
+	include/dict0mem.h, row/row0mysql.c:
+	Fix the bogus warning messages for non-existing temporary
+	tables that were reported in
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+	The actual crash recovery bug was corrected on 2009-04-29.
+
 2009-11-20	The InnoDB Team
 
 	* handler/ha_innodb.cc:
