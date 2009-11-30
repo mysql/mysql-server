@@ -320,7 +320,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->free_tables.empty();
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
-    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
   }
   DBUG_RETURN(share);
 }
@@ -411,18 +411,11 @@ void free_table_share(TABLE_SHARE *share)
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
 
-  /*
-    If someone is waiting for this to be deleted, inform it about this.
-    Don't do a delete until we know that no one is refering to this anymore.
-  */
+  /* The mutex is initialized only for shares that are part of the TDC */
   if (share->tmp_table == NO_TMP_TABLE)
-  {
-    /* No thread refers to this anymore */
-    pthread_mutex_unlock(&share->mutex);
-    pthread_mutex_destroy(&share->mutex);
-  }
+    pthread_mutex_destroy(&share->LOCK_ha_data);
   my_hash_free(&share->name_hash);
-  
+
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
 

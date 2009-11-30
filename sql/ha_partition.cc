@@ -2606,7 +2606,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     for the same table.
   */
   if (is_not_tmp_table)
-    pthread_mutex_lock(&table_share->mutex);
+    pthread_mutex_lock(&table_share->LOCK_ha_data);
   if (!table_share->ha_data)
   {
     HA_DATA_PARTITION *ha_data;
@@ -2617,7 +2617,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if (!ha_data)
     {
       if (is_not_tmp_table)
-        pthread_mutex_unlock(&table_share->mutex);
+        pthread_mutex_unlock(&table_share->LOCK_ha_data);
       goto err_handler;
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
@@ -2626,7 +2626,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
-    pthread_mutex_unlock(&table_share->mutex);
+    pthread_mutex_unlock(&table_share->LOCK_ha_data);
   /*
     Some handlers update statistics as part of the open call. This will in
     some cases corrupt the statistics of the partition handler and thus
