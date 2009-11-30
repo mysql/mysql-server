@@ -627,6 +627,32 @@ CHECK_FUNCTION_EXISTS_UNIX (memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS_UNIX (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS_UNIX (nl_langinfo HAVE_NL_LANGINFO)
 
+#--------------------------------------------------------------------
+# Support for WL#2373 (Use cycle counter for timing)
+#--------------------------------------------------------------------
+
+CHECK_INCLUDE_FILES_UNIX(time.h HAVE_TIME_H)
+CHECK_INCLUDE_FILES_UNIX(sys/time.h HAVE_SYS_TIME_H)
+CHECK_INCLUDE_FILES_UNIX(sys/times.h HAVE_SYS_TIMES_H)
+CHECK_INCLUDE_FILES_UNIX(asm/msr.h HAVE_ASM_MSR_H)
+#msr.h has rdtscll()
+
+CHECK_INCLUDE_FILES_UNIX(ia64intrin.h HAVE_IA64INTRIN_H)
+
+CHECK_FUNCTION_EXISTS_UNIX(times HAVE_TIMES)
+CHECK_FUNCTION_EXISTS_UNIX(gettimeofday HAVE_GETTIMEOFDAY)
+CHECK_FUNCTION_EXISTS_UNIX(read_real_time HAVE_READ_REAL_TIME)
+# This should work on AIX.
+
+CHECK_FUNCTION_EXISTS_UNIX(ftime HAVE_FTIME)
+# This is still a normal call for milliseconds.
+
+CHECK_FUNCTION_EXISTS_UNIX(time HAVE_TIME)
+# We can use time() on Macintosh if there is no ftime().
+
+CHECK_FUNCTION_EXISTS_UNIX(rdtscll HAVE_RDTSCLL)
+# I doubt that we'll ever reach the check for this.
+
 
 #
 # Tests for symbols
