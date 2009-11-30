@@ -127,8 +127,6 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                          uint db_stat, uint prgflag,
                          uint ha_open_flags, TABLE *outparam,
                          TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-                                 bool send_refresh);
 static bool tdc_wait_for_old_versions(THD *thd, MDL_CONTEXT *context);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
@@ -3439,9 +3437,6 @@ bool reopen_tables(THD *thd, bool get_locks)
   TABLE *err_tables= NULL, *err_tab_tmp;
   bool error=0, not_used;
   bool merge_table_found= FALSE;
-  const uint flags= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN |
-                    MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
-                    MYSQL_LOCK_IGNORE_FLUSH;
 
   DBUG_ENTER("reopen_tables");
 
@@ -3534,10 +3529,14 @@ bool reopen_tables(THD *thd, bool get_locks)
   if (tables != tables_ptr)			// Should we get back old locks
   {
     MYSQL_LOCK *lock;
+    const uint flags= MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                      MYSQL_LOCK_IGNORE_FLUSH;
     /*
-      We should always get these locks. Anyway, we must not go into
-      wait_for_tables() as it tries to acquire LOCK_open, which is
-      already locked.
+      Since we have exclusive metadata locks on tables which we
+      are reopening we should always get these locks (We won't
+      wait on table level locks so can't get aborted and we ignore
+      other threads that set THD::some_tables_deleted by using
+      MYSQL_LOCK_IGNORE_FLUSH flag).
     */
     thd->some_tables_deleted=0;
     if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables),
@@ -3562,165 +3561,6 @@ bool reopen_tables(THD *thd, bool get_locks)
   }
   broadcast_refresh();
   DBUG_RETURN(error);
-}
-
-
-/**
-    Close handlers for tables in list, but leave the TABLE structure
-    intact so that we can re-open these quickly.
-
-    @param thd           Thread context
-    @param table         Head of the list of TABLE objects
-    @param morph_locks   TRUE  - remove locks which we have on tables being closed
-                                 but ensure that no DML or DDL will sneak in before
-                                 we will re-open the table (i.e. temporarily morph
-                                 our table-level locks into name-locks).
-                         FALSE - otherwise
-    @param send_refresh  Should we awake waiters even if we didn't close any tables?
-*/
-
-static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-                                 bool send_refresh)
-{
-  bool found= send_refresh;
-  DBUG_ENTER("close_old_data_files");
-
-  for (; table ; table=table->next)
-  {
-    DBUG_PRINT("tcache", ("checking table: '%s'.'%s' 0x%lx",
-                          table->s->db.str, table->s->table_name.str,
-                          (long) table));
-    DBUG_PRINT("tcache", ("needs refresh: %d  is open: %u",
-                          table->needs_reopen_or_name_lock(), table->db_stat));
-    /*
-      Reopen marked for flush.
-    */
-    if (table->needs_reopen_or_name_lock())
-    {
-      found=1;
-      if (table->db_stat)
-      {
-	if (morph_locks)
-	{
-          /*
-            Forward lock handling to MERGE parent. But unlock parent
-            once only.
-          */
-          TABLE *ulcktbl= table->parent ? table->parent : table;
-          if (ulcktbl->lock_count)
-          {
-            /*
-              Wake up threads waiting for table-level lock on this table
-              so they won't sneak in when we will temporarily remove our
-              lock on it. This will also give them a chance to close their
-              instances of this table.
-            */
-            mysql_lock_abort(thd, ulcktbl, TRUE);
-            mysql_lock_remove(thd, thd->locked_tables, ulcktbl, TRUE);
-            ulcktbl->lock_count= 0;
-          }
-          if ((ulcktbl != table) && ulcktbl->db_stat)
-          {
-            /*
-              Close the parent too. Note that parent can come later in
-              the list of tables. It will then be noticed as closed and
-              as a placeholder. When this happens, do not clear the
-              placeholder flag. See the branch below ("***").
-            */
-            ulcktbl->open_placeholder= 1;
-            close_handle_and_leave_table_as_lock(ulcktbl);
-          }
-          /*
-            We want to protect the table from concurrent DDL operations
-            (like RENAME TABLE) until we will re-open and re-lock it.
-          */
-	  table->open_placeholder= 1;
-	}
-        close_handle_and_leave_table_as_lock(table);
-      }
-      else if (table->open_placeholder && !morph_locks)
-      {
-        /*
-          We come here only in close-for-back-off scenario. So we have to
-          "close" create placeholder here to avoid deadlocks (for example,
-          in case of concurrent execution of CREATE TABLE t1 SELECT * FROM t2
-          and RENAME TABLE t2 TO t1). In close-for-re-open scenario we will
-          probably want to let it stay.
-
-          Note "***": We must not enter this branch if the placeholder
-          flag has been set because of a former close through a child.
-          See above the comment that refers to this note.
-        */
-        table->open_placeholder= 0;
-      }
-    }
-  }
-  if (found)
-    broadcast_refresh();
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Wait until all threads has closed the tables in the list
-  We have also to wait if there is thread that has a lock on this table even
-  if the table is closed
-*/
-
-bool table_is_used(TABLE *table, bool wait_for_name_lock)
-{
-  DBUG_ENTER("table_is_used");
-  do
-  {
-    char *key= table->s->table_cache_key.str;
-    uint key_length= table->s->table_cache_key.length;
-    /* Note that 'table' can use artificial TABLE_SHARE object. */
-    TABLE_SHARE *share= (TABLE_SHARE*)my_hash_search(&table_def_cache,
-                                                     (uchar*) key, key_length);
-    if (share && !share->used_tables.is_empty() &&
-        share->version != refresh_version)
-      DBUG_RETURN(1);
-  } while ((table=table->next));
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Wait until all used tables are refreshed.
-
-  FIXME We should remove this function since for several functions which
-        are invoked by it new scenarios of usage are introduced, while
-        this function implements optimization useful only in rare cases.
-*/
-
-bool wait_for_tables(THD *thd)
-{
-  bool result;
-  DBUG_ENTER("wait_for_tables");
-
-  thd_proc_info(thd, "Waiting for tables");
-  pthread_mutex_lock(&LOCK_open);
-  while (!thd->killed)
-  {
-    thd->some_tables_deleted=0;
-    close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd);
-    if (!table_is_used(thd->open_tables,1))
-      break;
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-  }
-  if (thd->killed)
-    result= 1;					// aborted
-  else
-  {
-    /* Now we can open all tables without any interference */
-    thd_proc_info(thd, "Reopen tables");
-    thd->version= refresh_version;
-    result=reopen_tables(thd, 0);
-  }
-  pthread_mutex_unlock(&LOCK_open);
-  thd_proc_info(thd, 0);
-  DBUG_RETURN(result);
 }
 
 
@@ -5190,14 +5030,8 @@ retry:
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
 	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1,
-                                            (lock_flags |
-                                             MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN),
-                                            &refresh)))
+                                            lock_flags, &refresh)))
         {
-          /*
-            FIXME: Actually we should get rid of MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN option
-                   as all reopening should happen outside of mysql_lock_tables() code.
-          */
           if (refresh)
           {
             close_thread_tables(thd);
@@ -5222,6 +5056,8 @@ retry:
     open_and_lock_tables_derived()
     thd		- thread handler
     tables	- list of tables for open&locking
+    flags       - set of options to be used to open and lock tables (see
+                  open_tables() and mysql_lock_tables() for details).
     derived     - if to handle derived tables
 
   RETURN
@@ -5239,7 +5075,8 @@ retry:
     the third argument set appropriately.
 */
 
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived,
+                                 uint flags)
 {
   uint counter;
   bool need_reopen;
@@ -5248,7 +5085,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
 
   for ( ; ; ) 
   {
-    if (open_tables(thd, &tables, &counter, 0))
+    if (open_tables(thd, &tables, &counter, flags))
       DBUG_RETURN(-1);
 
     DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
@@ -5257,7 +5094,8 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
       my_sleep(6000000);
       thd->proc_info= old_proc_info;});
 
-    if (!lock_tables(thd, tables, counter, &need_reopen))
+    if (!lock_tables(thd, tables, counter, flags,
+                     &need_reopen))
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
@@ -5492,6 +5330,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     thd			Thread handler
     tables		Tables to lock
     count		Number of opened tables
+    flags               Options (see mysql_lock_tables() for details)
     need_reopen         Out parameter which if TRUE indicates that some
                         tables were dropped or altered during this call
                         and therefore invoker should reopen tables and
@@ -5512,7 +5351,8 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
    -1	Error
 */
 
-int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
+int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
+                uint flags, bool *need_reopen)
 {
   TABLE_LIST *table;
 
@@ -5540,7 +5380,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
-    uint lock_flag= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN;
 
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
       DBUG_RETURN(-1);
@@ -5573,7 +5412,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
-                                        lock_flag, need_reopen)))
+                                        flags, need_reopen)))
     {
       if (thd->lex->requires_prelocking())
       {
@@ -9190,41 +9029,38 @@ bool
 open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                             Open_tables_state *backup)
 {
+  Query_tables_list query_tables_list_backup;
+  LEX *lex= thd->lex;
+
   DBUG_ENTER("open_system_tables_for_read");
 
   alloc_mdl_locks(table_list, thd->mem_root);
 
+  /*
+    Besides using new Open_tables_state for opening system tables,
+    we also have to backup and reset/and then restore part of LEX
+    which is accessed by open_tables() in order to determine if
+    prelocking is needed and what tables should be added for it.
+    close_system_tables() doesn't require such treatment.
+  */
+  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
-  uint count= 0;
-  enum_open_table_action not_used;
-  bool not_used_2;
+  if (open_and_lock_tables_derived(thd, table_list, FALSE,
+                                   MYSQL_LOCK_IGNORE_FLUSH))
+  {
+    lex->restore_backup_query_tables_list(&query_tables_list_backup);
+    goto error;
+  }
+
   for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
   {
-    TABLE *table= open_table(thd, tables, thd->mem_root, &not_used,
-                             MYSQL_LOCK_IGNORE_FLUSH);
-    if (!table)
-      goto error;
-
-    DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_SYSTEM);
-
-    table->use_all_columns();
-    table->reginfo.lock_type= tables->lock_type;
-    tables->table= table;
-    count++;
+    DBUG_ASSERT(tables->table->s->table_category == TABLE_CATEGORY_SYSTEM);
+    tables->table->use_all_columns();
   }
+  lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
-  {
-    TABLE **list= (TABLE**) thd->alloc(sizeof(TABLE*) * count);
-    TABLE **ptr= list;
-    for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
-      *(ptr++)= tables->table;
-
-    thd->lock= mysql_lock_tables(thd, list, count,
-                                 MYSQL_LOCK_IGNORE_FLUSH, &not_used_2);
-  }
-  if (thd->lock)
-    DBUG_RETURN(FALSE);
+  DBUG_RETURN(FALSE);
 
 error:
   close_system_tables(thd, backup);
