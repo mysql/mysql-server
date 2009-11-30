@@ -1542,13 +1542,6 @@ char *generate_partition_syntax(partition_info *part_info,
                                 Alter_info *alter_info);
 #endif
 
-/* bits for last argument to remove_table_from_cache() */
-#define RTFC_NO_FLAG                0x0000
-#define RTFC_OWNED_BY_THD_FLAG      0x0001
-#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
-#define RTFC_CHECK_KILLED_FLAG      0x0004
-bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
 bool notify_thread_having_shared_lock(THD *thd, THD *in_use);
 void expel_table_from_cache(THD *leave_thd, const char *db,
                             const char *table_name);
@@ -1670,7 +1663,6 @@ extern pthread_mutex_t LOCK_gdl;
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
-void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
 /* Functions to work with system tables. */
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
