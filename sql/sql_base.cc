@@ -1066,8 +1066,9 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     {
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
-        TABLE *tab= find_locked_table(thd->open_tables, table->db,
-                                      table->table_name);
+        /* This should always succeed thanks to check in caller. */
+        TABLE *tab= find_write_locked_table(thd->open_tables, table->db,
+                                            table->table_name);
         /*
           Checking TABLE::db_stat is essential in case when we have
           several instances of the table open and locked.
@@ -1152,7 +1153,13 @@ err_with_reopen:
     result|= reopen_tables(thd, 1);
     thd->in_lock_tables=0;
     pthread_mutex_unlock(&LOCK_open);
-    mdl_downgrade_exclusive_locks(&thd->mdl_context);
+    /*
+      Since mdl_downgrade_exclusive_lock() won't do anything with shared
+      metadata lock it is much simplier to go through all open tables rather
+      than picking only those tables that were flushed.
+    */
+    for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
+      mdl_downgrade_exclusive_lock(&thd->mdl_context, tab->mdl_lock_data);
   }
   DBUG_RETURN(result);
 }
@@ -2976,7 +2983,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     lock on this table to shared metadata lock.
   */
   if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
-    mdl_downgrade_exclusive_locks(&thd->mdl_context);
+    mdl_downgrade_exclusive_lock(&thd->mdl_context, table_list->mdl_lock_data);
 
   table->mdl_lock_data= mdl_lock_data;
 
@@ -3992,7 +3999,7 @@ static bool handle_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
 
       thd->warning_info->clear_warning_info(thd->query_id);
       thd->clear_error();                 // Clear error message
-      mdl_release_exclusive_locks(&thd->mdl_context);
+      mdl_release_lock(&thd->mdl_context, table->mdl_lock_data);
       break;
     case OT_REPAIR:
       mdl_set_lock_type(table->mdl_lock_data, MDL_EXCLUSIVE);
@@ -4004,7 +4011,7 @@ static bool handle_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       pthread_mutex_unlock(&LOCK_open);
 
       result= auto_repair_table(thd, table);
-      mdl_release_exclusive_locks(&thd->mdl_context);
+      mdl_release_lock(&thd->mdl_context, table->mdl_lock_data);
       break;
     default:
       DBUG_ASSERT(0);
@@ -8694,8 +8701,8 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
                    lpt->table, TRUE);
-  if (mdl_upgrade_shared_lock_to_exclusive(&lpt->thd->mdl_context, 0,
-                                           lpt->db, lpt->table_name))
+  if (mdl_upgrade_shared_lock_to_exclusive(&lpt->thd->mdl_context,
+                                           lpt->table->mdl_lock_data))
   {
     mysql_lock_downgrade_write(lpt->thd,
                                lpt->table->parent ? lpt->table->parent :
