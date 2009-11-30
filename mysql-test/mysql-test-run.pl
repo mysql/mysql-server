@@ -3999,6 +3999,7 @@ sub extract_warning_lines ($) {
      qr/Slave I\/O: Get master COLLATION_SERVER failed with error:.*/,
      qr/Slave I\/O: Get master TIME_ZONE failed with error:.*/,
      qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
+     qr/Error reading packet/,
     );
 
   my $match_count= 0;
