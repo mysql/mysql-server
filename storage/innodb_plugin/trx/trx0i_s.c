@@ -238,6 +238,27 @@ table_cache_init(
 }
 
 /*******************************************************************//**
+Frees a table cache. */
+static
+void
+table_cache_free(
+/*=============*/
+	i_s_table_cache_t*	table_cache)	/*!< in/out: table cache */
+{
+	ulint	i;
+
+	for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
+
+		/* the memory is actually allocated in
+		table_cache_create_empty_row() */
+		if (table_cache->chunks[i].base) {
+			mem_free(table_cache->chunks[i].base);
+			table_cache->chunks[i].base = NULL;
+		}
+	}
+}
+
+/*******************************************************************//**
 Returns an empty row from a table cache. The row is allocated if no more
 empty rows are available. The number of used rows is incremented.
 If the memory limit is hit then NULL is returned and nothing is
@@ -1249,6 +1270,22 @@ trx_i_s_cache_init(
 	cache->mem_allocd = 0;
 
 	cache->is_truncated = FALSE;
+}
+
+/*******************************************************************//**
+Free the INFORMATION SCHEMA trx related cache. */
+UNIV_INTERN
+void
+trx_i_s_cache_free(
+/*===============*/
+	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
+{
+	hash_table_free(cache->locks_hash);
+	ha_storage_free(cache->storage);
+	table_cache_free(&cache->innodb_trx);
+	table_cache_free(&cache->innodb_locks);
+	table_cache_free(&cache->innodb_lock_waits);
+	memset(cache, 0, sizeof *cache);
 }
 
 /*******************************************************************//**
