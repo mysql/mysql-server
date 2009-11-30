@@ -1089,7 +1089,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
-  MDL_LOCK *mdl_lock= 0;
+  MDL_LOCK_DATA *mdl_lock_data= 0;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1164,10 +1164,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
              tries to get table enging and therefore accesses table in some way
              without holding any kind of meta-data lock.
     */
-    mdl_lock= mdl_alloc_lock(0, table_list->db, table_list->table_name,
-                             thd->mem_root);
-    mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
-    mdl_add_lock(&thd->mdl_context, mdl_lock);
+    mdl_lock_data= mdl_alloc_lock(0, table_list->db, table_list->table_name,
+                                  thd->mem_root);
+    mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
+    mdl_add_lock(&thd->mdl_context, mdl_lock_data);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(TRUE);
     pthread_mutex_lock(&LOCK_open);
@@ -1197,13 +1197,13 @@ end:
       write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
-    if (mdl_lock)
-      mdl_release_lock(&thd->mdl_context, mdl_lock);
+    if (mdl_lock_data)
+      mdl_release_lock(&thd->mdl_context, mdl_lock_data);
   }
   else if (error)
   {
-    if (mdl_lock)
-      mdl_release_lock(&thd->mdl_context, mdl_lock);
+    if (mdl_lock_data)
+      mdl_release_lock(&thd->mdl_context, mdl_lock_data);
   }
   DBUG_RETURN(error);
 

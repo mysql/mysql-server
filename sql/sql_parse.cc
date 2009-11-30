@@ -6534,9 +6534,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_lock= mdl_alloc_lock(0 , ptr->db, ptr->table_name,
-                                thd->mdl_el_root ? thd->mdl_el_root :
-                                                   thd->mem_root);
+  ptr->mdl_lock_data= mdl_alloc_lock(0 , ptr->db, ptr->table_name,
+                                     thd->mdl_el_root ? thd->mdl_el_root :
+                                                        thd->mem_root);
   DBUG_RETURN(ptr);
 }
 
