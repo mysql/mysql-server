@@ -2631,7 +2631,7 @@ case SQLCOM_PREPARE:
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
         lex->link_first_table_back(create_table, link_to_local);
-        create_table->open_table_type= TABLE_LIST::OPEN_OR_CREATE;
+        create_table->open_type= TABLE_LIST::OPEN_OR_CREATE;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))

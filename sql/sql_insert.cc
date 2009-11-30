@@ -3453,6 +3453,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   Item *item;
   Field *tmp_field;
   bool not_used;
+  enum_open_table_action not_used2;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -3544,8 +3545,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        if (!(table= open_table(thd, create_table, thd->mem_root,
-                                (enum_open_table_action*) 0,
+        if (!(table= open_table(thd, create_table, thd->mem_root, &not_used2,
                                 MYSQL_OPEN_TEMPORARY_ONLY)) &&
             !create_info->table_existed)
         {

@@ -1349,14 +1349,26 @@ struct TABLE_LIST
     used for implicit LOCK TABLES only and won't be used in real statement.
   */
   bool          prelocking_placeholder;
-  /*
-    This TABLE_LIST object corresponds to the table/view which requires
-    special handling/meta-data locking. For example this is a target
-    table in CREATE TABLE ... SELECT so it is possible that it does not
-    exist and we should take exclusive meta-data lock on it in this
-    case.
+  /**
+     Indicates that if TABLE_LIST object corresponds to the table/view
+     which requires special handling/meta-data locking.
   */
-  enum {NORMAL_OPEN= 0, OPEN_OR_CREATE, TAKE_EXCLUSIVE_MDL} open_table_type;
+  enum
+  {
+    /* Normal open, shared metadata lock should be taken. */
+    NORMAL_OPEN= 0,
+    /*
+      It's target table of CREATE TABLE ... SELECT so we should
+      either open table if it exists (and take shared metadata lock)
+      or take exclusive metadata lock if it doesn't exist.
+    */
+    OPEN_OR_CREATE,
+    /*
+      It's target view of CREATE/ALTER VIEW. We should take exclusive
+      metadata lock for this table list element.
+    */
+    TAKE_EXCLUSIVE_MDL
+  } open_type;
   /**
      Indicates that for this table/view we need to take shared metadata
      lock which should be upgradable to exclusive metadata lock.
