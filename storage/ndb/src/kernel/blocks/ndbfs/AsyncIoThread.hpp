@@ -104,6 +104,8 @@ public:
    // Information for open, needed if the first open action fails.
   AsyncFile* file;
   Uint32 theTrace;
+
+  MemoryChannel<Request>::ListMember m_mem_channel;
 };
 
 NdbOut& operator <<(NdbOut&, const Request&);
