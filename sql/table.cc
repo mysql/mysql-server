@@ -316,6 +316,9 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->table_map_id= ~0UL;
     share->cached_row_logging_check= -1;
 
+    share->used_tables.empty();
+    share->free_tables.empty();
+
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->cond, NULL);
@@ -381,6 +384,9 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     compatibility checks.
   */
   share->table_map_id= (ulong) thd->query_id;
+
+  share->used_tables.empty();
+  share->free_tables.empty();
 
   DBUG_VOID_RETURN;
 }
@@ -4831,6 +4837,20 @@ size_t max_row_length(TABLE *table, const uchar *data)
   }
   return length;
 }
+
+
+/**
+   Helper function which allows to allocate metadata lock request
+   objects for all elements of table list.
+*/
+
+void alloc_mdl_locks(TABLE_LIST *table_list, MEM_ROOT *root)
+{
+  for ( ; table_list ; table_list= table_list->next_global)
+    table_list->mdl_lock= mdl_alloc_lock(0, table_list->db,
+                                         table_list->table_name, root);
+}
+
 
 /*****************************************************************************
 ** Instansiate templates

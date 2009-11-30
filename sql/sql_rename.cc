@@ -51,7 +51,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     DBUG_RETURN(1);
   }
 
-  mysql_ha_rm_tables(thd, table_list, FALSE);
+  mysql_ha_rm_tables(thd, table_list);
 
   if (wait_if_global_read_lock(thd,0,1))
     DBUG_RETURN(1);
@@ -133,12 +133,13 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
-  if (lock_table_names_exclusively(thd, table_list))
-  {
-    pthread_mutex_unlock(&LOCK_open);
+  if (lock_table_names(thd, table_list))
     goto err;
-  }
+
+  pthread_mutex_lock(&LOCK_open);
+
+  for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
+    expel_table_from_cache(0, ren_table->db, ren_table->table_name);
 
   error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
@@ -184,9 +185,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
 
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
-  pthread_mutex_unlock(&LOCK_open);
+  unlock_table_names(thd);
 
 err:
   start_waiting_global_read_lock(thd);

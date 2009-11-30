@@ -164,7 +164,7 @@ connection locker;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info =
+  where state = "Locked" and info = 
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -196,7 +196,7 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for table" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 # This must not block.
 CREATE TABLE t2 (c1 int);
@@ -226,7 +226,7 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for table" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 AS SELECT * FROM t1;
@@ -337,10 +337,10 @@ connection con2;
 send flush tables with read lock;
 connection con5;
 --echo # con5
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Flushing tables';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "flush tables with read lock";
+--source include/wait_condition.inc
 --echo # global read lock is taken
 connection con3;
 --echo # con3
@@ -528,7 +528,7 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 alter table t1 add column j int;
 connect (insert,localhost,root,,test,,);
@@ -536,7 +536,7 @@ connection insert;
 --echo connection: insert
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 --send insert into t1 values (1,2);
 --echo connection: default
@@ -586,18 +586,14 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 flush tables;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 unlock tables;
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where state = "Flushing tables";
---source include/wait_condition.inc
 connection flush;
 --reap
 connection default;
@@ -656,18 +652,14 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 flush tables;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 drop table t1;
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where state = "Flushing tables";
---source include/wait_condition.inc
 connection flush;
 --reap
 connection default;

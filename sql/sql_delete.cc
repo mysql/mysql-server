@@ -1089,12 +1089,13 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
+  MDL_LOCK *mdl_lock= 0;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
 
   /* Remove tables from the HANDLER's hash. */
-  mysql_ha_rm_tables(thd, table_list, FALSE);
+  mysql_ha_rm_tables(thd, table_list);
 
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
@@ -1158,8 +1159,20 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
-    if (lock_and_wait_for_table_name(thd, table_list))
+    /*
+      FIXME: Actually code of TRUNCATE breaks meta-data locking protocol since
+             tries to get table enging and therefore accesses table in some way
+             without holding any kind of meta-data lock.
+    */
+    mdl_lock= mdl_alloc_lock(0, table_list->db, table_list->table_name,
+                             thd->mem_root);
+    mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
+    mdl_add_lock(&thd->mdl_context, mdl_lock);
+    if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(TRUE);
+    pthread_mutex_lock(&LOCK_open);
+    expel_table_from_cache(0, table_list->db, table_list->table_name);
+    pthread_mutex_unlock(&LOCK_open);
   }
 
   // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
@@ -1184,15 +1197,13 @@ end:
       write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
-    pthread_mutex_lock(&LOCK_open);
-    unlock_table_name(thd, table_list);
-    pthread_mutex_unlock(&LOCK_open);
+    if (mdl_lock)
+      mdl_release_lock(&thd->mdl_context, mdl_lock);
   }
   else if (error)
   {
-    pthread_mutex_lock(&LOCK_open);
-    unlock_table_name(thd, table_list);
-    pthread_mutex_unlock(&LOCK_open);
+    if (mdl_lock)
+      mdl_release_lock(&thd->mdl_context, mdl_lock);
   }
   DBUG_RETURN(error);
 

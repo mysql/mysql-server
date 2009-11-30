@@ -1308,9 +1308,11 @@ select f3()|
 select id, f3() from t1 as t11 order by id|
 # Degenerate cases work too :)
 select f0()|
+# But these should not (particularly views should be locked explicitly).
+--error ER_TABLE_NOT_LOCKED
 select * from v0|
+--error ER_TABLE_NOT_LOCKED
 select *, f0() from v0, (select 123) as d1|
-# But these should not !
 --error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
 --error ER_TABLE_NOT_LOCKED

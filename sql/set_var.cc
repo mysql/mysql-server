@@ -4333,7 +4333,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
     goto end_with_read_lock;
 
   if ((result= make_global_read_lock_block_commit(thd)))

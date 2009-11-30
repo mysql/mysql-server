@@ -1,0 +1,260 @@
+#ifndef MDL_H
+#define MDL_H
+/* Copyright (C) 2007-2008 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
+#include "sql_plist.h"
+#include <my_sys.h>
+#include <m_string.h>
+
+class THD;
+
+struct MDL_LOCK;
+struct MDL_LOCK_DATA;
+struct MDL_CONTEXT;
+
+/** Type of metadata lock request. */
+
+enum enum_mdl_type {MDL_SHARED=0, MDL_EXCLUSIVE};
+
+
+/** States which metadata lock request can have. */
+
+enum enum_mdl_state {MDL_PENDING=0, MDL_ACQUIRED, MDL_PENDING_UPGRADE};
+
+
+/**
+   Priority of metadata lock requests. High priority attribute is
+   applicable only to requests for shared locks and indicates that
+   such request should ignore pending requests for exclusive locks
+   and for upgrading of shared locks to exclusive.
+*/
+
+enum enum_mdl_prio {MDL_NORMAL_PRIO=0, MDL_HIGH_PRIO};
+
+
+/**
+   A pending lock request or a granted metadata lock. A lock is requested
+   or granted based on a fully qualified name and type. E.g. for a table
+   the key consists of <0 (=table)>+<database name>+<table name>.
+   Later in this document this triple will be referred to simply as
+   "key" or "name".
+*/
+
+struct MDL_LOCK
+{
+  char          *key;
+  uint          key_length;
+  enum          enum_mdl_type type;
+  enum          enum_mdl_state state;
+  enum          enum_mdl_prio prio;
+  /**
+     TRUE -- if shared lock corresponding to this lock request at some
+     point might be upgraded to an exclusive lock and therefore conflicts
+     with global shared lock, FALSE -- otherwise.
+  */
+  bool          upgradable;
+
+private:
+  /**
+     Pointers for participating in the list of lock requests for this context.
+  */
+  MDL_LOCK      *next_context;
+  MDL_LOCK      **prev_context;
+  /**
+     Pointers for participating in the list of satisfied/pending requests
+     for the lock.
+  */
+  MDL_LOCK      *next_lock;
+  MDL_LOCK      **prev_lock;
+
+  friend struct MDL_LOCK_context;
+  friend struct MDL_LOCK_lock;
+
+public:
+  /*
+    Pointer to the lock object for this lock request. Valid only if this lock
+    request is satisified or is present in the list of pending lock requests
+    for particular lock.
+  */
+  MDL_LOCK_DATA *lock_data;
+  MDL_CONTEXT   *ctx;
+};
+
+
+/**
+   Helper class which specifies which members of MDL_LOCK are used for
+   participation in the list lock requests belonging to one context.
+*/
+
+struct MDL_LOCK_context
+{
+  static inline MDL_LOCK **next_ptr(MDL_LOCK *l)
+  {
+    return &l->next_context;
+  }
+  static inline MDL_LOCK ***prev_ptr(MDL_LOCK *l)
+  {
+    return &l->prev_context;
+  }
+};
+
+
+/**
+   Helper class which specifies which members of MDL_LOCK are used for
+   participation in the list of satisfied/pending requests for the lock.
+*/
+
+struct MDL_LOCK_lock
+{
+  static inline MDL_LOCK **next_ptr(MDL_LOCK *l)
+  {
+    return &l->next_lock;
+  }
+  static inline MDL_LOCK ***prev_ptr(MDL_LOCK *l)
+  {
+    return &l->prev_lock;
+  }
+};
+
+
+/**
+   Context of the owner of metadata locks. I.e. each server
+   connection has such a context.
+*/
+
+struct MDL_CONTEXT
+{
+  I_P_List <MDL_LOCK, MDL_LOCK_context> locks;
+  bool has_global_shared_lock;
+  THD      *thd;
+};
+
+
+void mdl_init();
+void mdl_destroy();
+
+void mdl_context_init(MDL_CONTEXT *context, THD *thd);
+void mdl_context_destroy(MDL_CONTEXT *context);
+void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
+void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
+void mdl_context_merge(MDL_CONTEXT *target, MDL_CONTEXT *source);
+
+void mdl_init_lock(MDL_LOCK *mdl, char *key, int type, const char *db,
+                   const char *name);
+MDL_LOCK *mdl_alloc_lock(int type, const char *db, const char *name,
+                       MEM_ROOT *root);
+void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+void mdl_remove_all_locks(MDL_CONTEXT *context);
+
+/**
+   Set type of lock request. Can be only applied to pending locks.
+*/
+
+inline void mdl_set_lock_type(MDL_LOCK *lock, enum_mdl_type lock_type)
+{
+  DBUG_ASSERT(lock->state == MDL_PENDING);
+  lock->type= lock_type;
+}
+
+/**
+   Set priority for lock request. High priority can be only set
+   for shared locks.
+*/
+
+inline void mdl_set_lock_priority(MDL_LOCK *lock, enum_mdl_prio prio)
+{
+  DBUG_ASSERT(lock->type == MDL_SHARED && lock->state == MDL_PENDING);
+  lock->prio= prio;
+}
+
+/**
+   Mark request for shared lock as upgradable. Can be only applied
+   to pending locks.
+*/
+
+inline void mdl_set_upgradable(MDL_LOCK *lock)
+{
+  DBUG_ASSERT(lock->type == MDL_SHARED && lock->state == MDL_PENDING);
+  lock->upgradable= TRUE;
+}
+
+bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry);
+bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
+bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
+                                          const char *db, const char *name);
+bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
+
+bool mdl_wait_for_locks(MDL_CONTEXT *context);
+
+void mdl_release_locks(MDL_CONTEXT *context);
+void mdl_release_exclusive_locks(MDL_CONTEXT *context);
+void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+void mdl_downgrade_exclusive_locks(MDL_CONTEXT *context);
+void mdl_release_global_shared_lock(MDL_CONTEXT *context);
+
+bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type, const char *db,
+                                 const char *name);
+bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
+                       const char *name);
+
+bool mdl_has_pending_conflicting_lock(MDL_LOCK *l);
+
+inline bool mdl_has_locks(MDL_CONTEXT *context)
+{
+  return !context->locks.is_empty();
+}
+
+
+/**
+   Get iterator for walking through all lock requests in the context.
+*/
+
+inline I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> mdl_get_locks(MDL_CONTEXT *ctx)
+{
+  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> result(ctx->locks);
+  return result;
+}
+
+/**
+   Give metadata lock request object for the table get table definition
+   cache key corresponding to it.
+
+   @param l   [in]  Lock request object for the table.
+   @param key [out] LEX_STRING object where table definition cache key
+                    should be put.
+
+   @note This key will have the same life-time as this lock request object.
+
+   @note This is yet another place where border between MDL subsystem and the
+         rest of the server is broken. OTOH it allows to save some CPU cycles
+         and memory by avoiding generating these TDC keys from table list.
+*/
+
+inline void mdl_get_tdc_key(MDL_LOCK *l, LEX_STRING *key)
+{
+  key->str= l->key + 4;
+  key->length= l->key_length - 4;
+}
+
+
+typedef void (* mdl_cached_object_release_hook)(void *);
+void* mdl_get_cached_object(MDL_LOCK *l);
+void mdl_set_cached_object(MDL_LOCK *l, void *cached_object,
+                           mdl_cached_object_release_hook release_hook);
+
+#endif

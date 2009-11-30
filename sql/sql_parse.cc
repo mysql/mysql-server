@@ -47,6 +47,7 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static void adjust_mdl_locks_upgradability(TABLE_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -143,17 +144,6 @@ static bool xa_trans_rollback(THD *thd)
   return status;
 }
 
-static void unlock_locked_tables(THD *thd)
-{
-  if (thd->locked_tables)
-  {
-    thd->lock=thd->locked_tables;
-    thd->locked_tables=0;			// Will be automatically closed
-    close_thread_tables(thd);			// Free tables
-  }
-}
-
-
 bool end_active_trans(THD *thd)
 {
   int error=0;
@@ -194,12 +184,9 @@ bool begin_trans(THD *thd)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     return 1;
   }
-  if (thd->locked_tables)
-  {
-    thd->lock=thd->locked_tables;
-    thd->locked_tables=0;			// Will be automatically closed
-    close_thread_tables(thd);			// Free tables
-  }
+
+  unlock_locked_tables(thd);
+
   if (end_active_trans(thd))
     error= -1;
   else
@@ -1342,6 +1329,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       select_lex.table_list.link_in_list((uchar*) &table_list,
                                          (uchar**) &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
+    alloc_mdl_locks(&table_list, thd->mem_root);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -2643,7 +2631,7 @@ case SQLCOM_PREPARE:
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
         lex->link_first_table_back(create_table, link_to_local);
-        create_table->create= TRUE;
+        create_table->open_table_type= TABLE_LIST::OPEN_OR_CREATE;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3618,6 +3606,9 @@ end_with_restore_list:
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
+    alloc_mdl_locks(all_tables, &thd->locked_tables_root);
+    thd->mdl_el_root= &thd->locked_tables_root;
+    adjust_mdl_locks_upgradability(all_tables);
 
     if (!(res= simple_open_n_lock_tables(thd, all_tables)))
     {
@@ -3641,6 +3632,7 @@ end_with_restore_list:
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
     thd->in_lock_tables=0;
+    thd->mdl_el_root= 0;
     break;
   case SQLCOM_CREATE_DB:
   {
@@ -6542,6 +6534,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
+  ptr->mdl_lock= mdl_alloc_lock(0 , ptr->db, ptr->table_name,
+                                thd->mdl_el_root ? thd->mdl_el_root :
+                                                   thd->mem_root);
   DBUG_RETURN(ptr);
 }
 
@@ -7079,23 +7074,15 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if ((options & REFRESH_READ_LOCK) && thd)
     {
       /*
-        We must not try to aspire a global read lock if we have a write
-        locked table. This would lead to a deadlock when trying to
-        reopen (and re-lock) the table after the flush.
+        On the first hand we need write lock on the tables to be flushed,
+        on the other hand we must not try to aspire a global read lock
+        if we have a write locked table as this would lead to a deadlock
+        when trying to reopen (and re-lock) the table after the flush.
       */
       if (thd->locked_tables)
       {
-        THR_LOCK_DATA **lock_p= thd->locked_tables->locks;
-        THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
-
-        for (; lock_p < end_p; lock_p++)
-        {
-          if ((*lock_p)->type >= TL_WRITE_ALLOW_WRITE)
-          {
-            my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-            return 1;
-          }
-        }
+        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+        return 1;
       }
       /*
 	Writing to the binlog could cause deadlocks, as we don't log
@@ -7105,7 +7092,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE, TRUE))
+                              FALSE : TRUE))
           result= 1;
       
       if (make_global_read_lock_block_commit(thd)) // Killed
@@ -7117,8 +7104,35 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     }
     else
     {
+      if (thd && thd->locked_tables)
+      {
+        /*
+          If we are under LOCK TABLES we should have a write
+          lock on tables which we are going to flush.
+        */
+        if (tables)
+        {
+          for (TABLE_LIST *t= tables; t; t= t->next_local)
+            if (!find_write_locked_table(thd->open_tables, t->db,
+                                         t->table_name))
+              return 1;
+        }
+        else
+        {
+          for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
+          {
+            if (tab->reginfo.lock_type < TL_WRITE_ALLOW_WRITE)
+            {
+              my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
+                       tab->s->table_name.str);
+              return 1;
+            }
+          }
+        }
+      }
+
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE, FALSE))
+                              FALSE : TRUE))
         result= 1;
     }
     my_dbopt_cleanup();
@@ -8090,6 +8104,42 @@ bool parse_sql(THD *thd,
   ret_value= mysql_parse_status || thd->is_fatal_error;
   MYSQL_QUERY_PARSE_DONE(ret_value);
   return ret_value;
+}
+
+
+/**
+   Auxiliary function which marks metadata locks for all tables
+   on which we plan to take write lock as upgradable.
+*/
+
+static void adjust_mdl_locks_upgradability(TABLE_LIST *tables)
+{
+  TABLE_LIST *tab, *otab;
+
+  for (tab= tables; tab; tab= tab->next_global)
+  {
+    if (tab->lock_type >= TL_WRITE_ALLOW_WRITE)
+      tab->mdl_upgradable= TRUE;
+    else
+    {
+      /*
+        TODO: To get rid of this loop we need to change our code to do
+              metadata lock upgrade only for those instances of tables
+              which are write locked instead of doing such upgrade for
+              all instances of tables.
+      */
+      for (otab= tables; otab; otab= otab->next_global)
+        if (otab->lock_type >= TL_WRITE_ALLOW_WRITE &&
+            otab->db_length == tab->db_length &&
+            otab->table_name_length == tab->table_name_length &&
+            !strcmp(otab->db, tab->db) &&
+            !strcmp(otab->table_name, tab->table_name))
+        {
+          tab->mdl_upgradable= TRUE;
+          break;
+        }
+    }
+  }
 }
 
 /**
