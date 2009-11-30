@@ -446,8 +446,17 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 
   if (thd->locked_tables)
   {
-    if (name_lock_locked_table(thd, tables))
+    /* Under LOCK TABLES we must only accept write locked tables. */
+    if (!(tables->table= find_write_locked_table(thd->open_tables, tables->db,
+                                                 tables->table_name)))
       goto end;
+    /*
+      Ensure that table is opened only by this thread and that no other
+      statement will open this table.
+    */
+    if (wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN))
+      goto end;
+
     pthread_mutex_lock(&LOCK_open);
   }
   else

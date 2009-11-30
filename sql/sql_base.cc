@@ -2340,39 +2340,6 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
 }
 
 
-/**
-  Exclusively name-lock a table that is already write-locked by the
-  current thread.
-
-  @param thd current thread context
-  @param tables table list containing one table to open.
-
-  @return FALSE on success, TRUE otherwise.
-*/
-
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables)
-{
-  bool result= TRUE;
-
-  DBUG_ENTER("name_lock_locked_table");
-
-  /* Under LOCK TABLES we must only accept write locked tables. */
-  tables->table= find_write_locked_table(thd->open_tables, tables->db,
-                                         tables->table_name);
-
-  if (tables->table)
-  {
-    /*
-      Ensures that table is opened only by this thread and that no
-      other statement will open this table.
-    */
-    result= wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN);
-  }
-
-  DBUG_RETURN(result);
-}
-
-
 /*
   Open table for which this thread has exclusive meta-data lock.
 
@@ -2576,9 +2543,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   /* Parsing of partitioning information from .frm needs thd->lex set up. */
   DBUG_ASSERT(thd->lex->is_lex_started);
 
-  /* find a unused table in the open table cache */
-  if (action)
-    *action= OT_NO_ACTION;
+  *action= OT_NO_ACTION;
 
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
@@ -2716,6 +2681,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
                            table_list->db, table_list->table_name, reg_ext, 0);
+      /*
+        Note that we can't be 100% sure that it is a view since it's
+        possible that we either simply have not found unused TABLE
+        instance in THD::open_tables list or were unable to open table
+        during prelocking process (in this case in theory we still
+        should hold shared metadata lock on it).
+      */
       if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
@@ -2741,28 +2713,25 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 
   /*
-    Non pre-locked/LOCK TABLES mode, and the table is not temporary:
-    this is the normal use case.
-    Now we should:
-    - try to find the table in the table cache.
-    - if one of the discovered TABLE instances is name-locked
-      (table->s->version == 0) or some thread has started FLUSH TABLES
-      (refresh_version > table->s->version), back off -- we have to wait
-      until no one holds a name lock on the table.
-    - if there is no such TABLE in the name cache, read the table definition
-    and insert it into the cache.
-    We perform all of the above under LOCK_open which currently protects
-    the open cache (also known as table cache) and table definitions stored
-    on disk.
+    Non pre-locked/LOCK TABLES mode, and the table is not temporary.
+    This is the normal use case.
   */
 
   mdl_lock= table_list->mdl_lock;
   mdl_add_lock(&thd->mdl_context, mdl_lock);
 
-  if (table_list->open_table_type)
+  if (table_list->open_type)
   {
+    /*
+      In case of CREATE TABLE .. If NOT EXISTS .. SELECT, the table
+      may not yet exist. Let's acquire an exclusive lock for that
+      case. If later it turns out the table existsed, we will
+      downgrade the lock to shared. Note that, according to the
+      locking protocol, all exclusive locks must be acquired before
+      shared locks. This invariant is preserved here and is also
+      enforced by asserts in metadata locking subsystem.
+    */
     mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
-    /* TODO: This case can be significantly optimized. */
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(0);
   }
@@ -2776,7 +2745,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                                     MDL_HIGH_PRIO : MDL_NORMAL_PRIO);
     if (mdl_acquire_shared_lock(mdl_lock, &retry))
     {
-      if (action && retry)
+      if (retry)
         *action= OT_BACK_OFF_AND_RETRY;
       DBUG_RETURN(0);
     }
@@ -2798,13 +2767,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
            ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
-    if (action)
-      *action= OT_BACK_OFF_AND_RETRY;
+    *action= OT_BACK_OFF_AND_RETRY;
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(0);
   }
 
-  if (table_list->open_table_type == TABLE_LIST::OPEN_OR_CREATE)
+  if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
   {
     bool exists;
 
@@ -2818,7 +2786,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     /* Table exists. Let us try to open it. */
   }
-  else if (table_list->open_table_type == TABLE_LIST::TAKE_EXCLUSIVE_MDL)
+  else if (table_list->open_type == TABLE_LIST::TAKE_EXCLUSIVE_MDL)
   {
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(0);
@@ -2926,8 +2894,17 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (!(flags & MYSQL_LOCK_IGNORE_FLUSH))
     {
-      if (action)
-        *action= OT_BACK_OFF_AND_RETRY;
+       /*
+         We already have an MDL lock. But we have encountered an old
+         version of table in the table definition cache which is possible
+         when someone changes the table version directly in the cache
+         without acquiring a metadata lock (e.g. this can happen during
+         "rolling" FLUSH TABLE(S)).
+         Note, that to avoid a "busywait" in this case, we have to wait
+         separately in the caller for old table versions to go away
+         (see tdc_wait_for_old_versions()).
+       */
+      *action= OT_BACK_OFF_AND_RETRY;
       release_table_share(share);
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);
@@ -2966,18 +2943,15 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     {
       my_free(table, MYF(0));
 
-      if (action)
+      if (error == 7)
       {
-        if (error == 7)
-        {
-          share->version= 0;
-          *action= OT_DISCOVER;
-        }
-        else if (share->crashed)
-        {
-          share->version= 0;
-          *action= OT_REPAIR;
-        }
+        share->version= 0;
+        *action= OT_DISCOVER;
+      }
+      else if (share->crashed)
+      {
+        share->version= 0;
+        *action= OT_REPAIR;
       }
 
       goto err_unlock;
@@ -2996,16 +2970,19 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   pthread_mutex_unlock(&LOCK_open);
 
-  // Table existed
-  if (table_list->open_table_type == TABLE_LIST::OPEN_OR_CREATE)
+  /*
+    In CREATE TABLE .. If NOT EXISTS .. SELECT we have found that
+    table exists now we should downgrade our exclusive metadata
+    lock on this table to shared metadata lock.
+  */
+  if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
     mdl_downgrade_exclusive_locks(&thd->mdl_context);
 
   table->mdl_lock= mdl_lock;
-  if (action)
-  {
-    table->next=thd->open_tables;		/* Link into simple list */
-    thd->open_tables=table;
-  }
+
+  table->next=thd->open_tables;		/* Link into simple list */
+  thd->open_tables=table;
+
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
@@ -3856,8 +3833,8 @@ err:
 
 
 /**
-   Auxiliary routine which finalizes process of TABLE object creation
-   by loading triggers and handling implicitly emptied tables.
+   Finalize the process of TABLE creation by loading table triggers
+   and taking action if a HEAP table content was emptied implicitly.
 */
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
@@ -4636,7 +4613,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         table and successful table creation.
         ...
       */
-      if (tables->open_table_type)
+      if (tables->open_type)
         continue;
 
       if (action)

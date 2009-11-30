@@ -395,7 +395,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_table_type= TABLE_LIST::TAKE_EXCLUSIVE_MDL;
+  view->open_type= TABLE_LIST::TAKE_EXCLUSIVE_MDL;
 
   if (open_and_lock_tables(thd, lex->query_tables))
   {

@@ -1227,7 +1227,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 TABLE *find_write_locked_table(TABLE *list, const char *db,
