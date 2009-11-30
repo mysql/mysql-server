@@ -26,34 +26,34 @@
 
 /**
    The lock context. Created internally for an acquired lock.
-   For a given name, there exists only one MDL_LOCK_DATA instance,
+   For a given name, there exists only one MDL_LOCK instance,
    and it exists only when the lock has been granted.
    Can be seen as an MDL subsystem's version of TABLE_SHARE.
 */
 
-struct MDL_LOCK_DATA
+struct MDL_LOCK
 {
-  I_P_List<MDL_LOCK, MDL_LOCK_lock> active_shared;
+  I_P_List<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> active_shared;
   /*
     There can be several upgraders and active exclusive
     belonging to the same context.
   */
-  I_P_List<MDL_LOCK, MDL_LOCK_lock> active_shared_waiting_upgrade;
-  I_P_List<MDL_LOCK, MDL_LOCK_lock> active_exclusive;
-  I_P_List<MDL_LOCK, MDL_LOCK_lock> waiting_exclusive;
+  I_P_List<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> active_shared_waiting_upgrade;
+  I_P_List<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> active_exclusive;
+  I_P_List<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> waiting_exclusive;
   /**
-     Number of MDL_LOCK objects associated with this MDL_LOCK_DATA instance
+     Number of MDL_LOCK_DATA objects associated with this MDL_LOCK instance
      and therefore present in one of above lists. Note that this number
      doesn't account for pending requests for shared lock since we don't
-     associate them with MDL_LOCK_DATA and don't keep them in any list.
+     associate them with MDL_LOCK and don't keep them in any list.
   */
-  uint   lock_count;
+  uint   lock_data_count;
   void   *cached_object;
   mdl_cached_object_release_hook cached_object_release_hook;
 
-  MDL_LOCK_DATA() : cached_object(0), cached_object_release_hook(0) {}
+  MDL_LOCK() : cached_object(0), cached_object_release_hook(0) {}
 
-  MDL_LOCK *get_key_owner()
+  MDL_LOCK_DATA *get_key_owner()
   {
      return !active_shared.is_empty() ?
             active_shared.head() :
@@ -63,9 +63,9 @@ struct MDL_LOCK_DATA
               active_exclusive.head() : waiting_exclusive.head()));
   }
 
-  bool has_one_lock()
+  bool has_one_lock_data()
   {
-    return (lock_count == 1);
+    return (lock_data_count == 1);
   }
 };
 
@@ -82,18 +82,18 @@ HASH mdl_locks;
    or shared upgradable lock on particular object.
 */
 
-struct MDL_GLOBAL_LOCK_DATA
+struct MDL_GLOBAL_LOCK
 {
-  uint shared_pending;
-  uint shared_acquired;
-  uint intention_exclusive_acquired;
+  uint waiting_shared;
+  uint active_shared;
+  uint active_intention_exclusive;
 } global_lock;
 
 
 extern "C" uchar *mdl_locks_key(const uchar *record, size_t *length,
                                 my_bool not_used __attribute__((unused)))
 {
-  MDL_LOCK_DATA *entry=(MDL_LOCK_DATA*) record;
+  MDL_LOCK *entry=(MDL_LOCK*) record;
   *length= entry->get_key_owner()->key_length;
   return (uchar*) entry->get_key_owner()->key;
 }
@@ -123,8 +123,8 @@ void mdl_init()
   pthread_cond_init(&COND_mdl, NULL);
   my_hash_init(&mdl_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
                mdl_locks_key, 0, 0);
-  global_lock.shared_pending= global_lock.shared_acquired= 0;
-  global_lock.intention_exclusive_acquired= 0;
+  global_lock.waiting_shared= global_lock.active_shared= 0;
+  global_lock.active_intention_exclusive= 0;
 }
 
 
@@ -211,18 +211,18 @@ void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup)
 
 void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
 {
-  MDL_LOCK *l;
+  MDL_LOCK_DATA *lock_data;
 
   DBUG_ASSERT(dst->thd == src->thd);
 
   if (!src->locks.is_empty())
   {
-    I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(src->locks);
-    while ((l= it++))
+    I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(src->locks);
+    while ((lock_data= it++))
     {
-      DBUG_ASSERT(l->ctx);
-      l->ctx= dst;
-      dst->locks.push_front(l);
+      DBUG_ASSERT(lock_data->ctx);
+      lock_data->ctx= dst;
+      dst->locks.push_front(lock_data);
     }
     src->locks.empty();
   }
@@ -247,7 +247,7 @@ void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
    request encloses calls to mdl_acquire_shared_lock() and
    mdl_release_locks().
 
-   @param  mdl        Pointer to an MDL_LOCK object to initialize
+   @param  lock_data  Pointer to an MDL_LOCK_DATA object to initialize
    @param  key_buff   Pointer to the buffer for key for the lock request
                       (should be at least strlen(db) + strlen(name)
                       + 2 bytes, or, if the lengths are not known,                                                                                       MAX_DBNAME_LENGTH)
@@ -269,19 +269,19 @@ void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
    they share the same name space in the SQL standard.
 */
 
-void mdl_init_lock(MDL_LOCK *mdl, char *key, int type, const char *db,
-                   const char *name)
+void mdl_init_lock(MDL_LOCK_DATA *lock_data, char *key, int type,
+                   const char *db, const char *name)
 {
   int4store(key, type);
-  mdl->key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
-  mdl->key= key;
-  mdl->type= MDL_SHARED;
-  mdl->state= MDL_PENDING;
-  mdl->prio= MDL_NORMAL_PRIO;
-  mdl->is_upgradable= FALSE;
+  lock_data->key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
+  lock_data->key= key;
+  lock_data->type= MDL_SHARED;
+  lock_data->state= MDL_PENDING;
+  lock_data->prio= MDL_NORMAL_PRIO;
+  lock_data->is_upgradable= FALSE;
 #ifndef DBUG_OFF
-  mdl->ctx= 0;
-  mdl->lock_data= 0;
+  lock_data->ctx= 0;
+  lock_data->lock= 0;
 #endif
 }
 
@@ -305,19 +305,19 @@ void mdl_init_lock(MDL_LOCK *mdl, char *key, int type, const char *db,
    @retval non-0  Pointer to an object representing a lock request
 */
 
-MDL_LOCK *mdl_alloc_lock(int type, const char *db, const char *name,
-                       MEM_ROOT *root)
+MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
+                              MEM_ROOT *root)
 {
-  MDL_LOCK *lock;
+  MDL_LOCK_DATA *lock_data;
   char *key;
 
-  if (!multi_alloc_root(root, &lock, sizeof(MDL_LOCK), &key,
+  if (!multi_alloc_root(root, &lock_data, sizeof(MDL_LOCK_DATA), &key,
                         MAX_DBKEY_LENGTH, NULL))
     return NULL;
 
-  mdl_init_lock(lock, key, type, db, name);
+  mdl_init_lock(lock_data, key, type, db, name);
 
-  return lock;
+  return lock_data;
 }
 
 
@@ -334,16 +334,16 @@ MDL_LOCK *mdl_alloc_lock(int type, const char *db, const char *name,
    @param  context    The MDL context to associate the lock with.
                       There should be no more than one context per
                       connection, to avoid deadlocks.
-   @param  lock       The lock request to be added.
+   @param  lock_data  The lock request to be added.
 */
 
-void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK *lock)
+void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
 {
   DBUG_ENTER("mdl_add_lock");
-  DBUG_ASSERT(lock->state == MDL_PENDING);
-  DBUG_ASSERT(!lock->ctx);
-  lock->ctx= context;
-  context->locks.push_front(lock);
+  DBUG_ASSERT(lock_data->state == MDL_PENDING);
+  DBUG_ASSERT(!lock_data->ctx);
+  lock_data->ctx= context;
+  context->locks.push_front(lock_data);
   DBUG_VOID_RETURN;
 }
 
@@ -372,16 +372,16 @@ void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK *lock)
 
 void mdl_remove_all_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
-  while ((l= it++))
+  MDL_LOCK_DATA *lock_data;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
+  while ((lock_data= it++))
   {
     /* Reset lock request back to its initial state. */
-    l->type= MDL_SHARED;
-    l->prio= MDL_NORMAL_PRIO;
-    l->is_upgradable= FALSE;
+    lock_data->type= MDL_SHARED;
+    lock_data->prio= MDL_NORMAL_PRIO;
+    lock_data->is_upgradable= FALSE;
 #ifndef DBUG_OFF
-    l->ctx= 0;
+    lock_data->ctx= 0;
 #endif
   }
   context->locks.empty();
@@ -389,20 +389,20 @@ void mdl_remove_all_locks(MDL_CONTEXT *context)
 
 
 /**
-   Auxiliary functions needed for creation/destruction of MDL_LOCK_DATA
+   Auxiliary functions needed for creation/destruction of MDL_LOCK
    objects.
 
    @todo This naive implementation should be replaced with one that saves
          on memory allocation by reusing released objects.
 */
 
-static MDL_LOCK_DATA* get_lock_data_object(void)
+static MDL_LOCK* get_lock_object(void)
 {
-  return new MDL_LOCK_DATA();
+  return new MDL_LOCK();
 }
 
 
-static void release_lock_data_object(MDL_LOCK_DATA *lock)
+static void release_lock_object(MDL_LOCK *lock)
 {
   delete lock;
 }
@@ -421,27 +421,27 @@ static void release_lock_data_object(MDL_LOCK_DATA *lock)
 
    This function must be called after the lock is added to a context.
 
-   @param lock  [in]  Lock request object for lock to be acquired
-   @param retry [out] Indicates that conflicting lock exists and another
-                      attempt should be made after releasing all current
-                      locks and waiting for conflicting lock go away
-                      (using mdl_wait_for_locks()).
+   @param lock_data  [in]  Lock request object for lock to be acquired
+   @param retry      [out] Indicates that conflicting lock exists and another
+                           attempt should be made after releasing all current
+                           locks and waiting for conflicting lock go away
+                           (using mdl_wait_for_locks()).
 
    @retval  FALSE   Success.
    @retval  TRUE    Failure. Either error occured or conflicting lock exists.
                     In the latter case "retry" parameter is set to TRUE.
 */
 
-bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry)
+bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry)
 {
-  MDL_LOCK_DATA *lock_data;
+  MDL_LOCK *lock;
   *retry= FALSE;
 
-  DBUG_ASSERT(l->type == MDL_SHARED && l->state == MDL_PENDING);
+  DBUG_ASSERT(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING);
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
-  if (l->ctx->has_global_shared_lock && l->is_upgradable)
+  if (lock_data->ctx->has_global_shared_lock && lock_data->is_upgradable)
   {
     my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
     return TRUE;
@@ -449,46 +449,46 @@ bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry)
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  if (l->is_upgradable &&
-      (global_lock.shared_acquired || global_lock.shared_pending))
+  if (lock_data->is_upgradable &&
+      (global_lock.active_shared || global_lock.waiting_shared))
   {
     pthread_mutex_unlock(&LOCK_mdl);
     *retry= TRUE;
     return TRUE;
   }
 
-  if (!(lock_data= (MDL_LOCK_DATA *)my_hash_search(&mdl_locks, (uchar*)l->key,
-                                                   l->key_length)))
+  if (!(lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
+                                         lock_data->key_length)))
   {
-    lock_data= get_lock_data_object();
-    lock_data->active_shared.push_front(l);
-    lock_data->lock_count= 1;
-    my_hash_insert(&mdl_locks, (uchar*)lock_data);
-    l->state= MDL_ACQUIRED;
-    l->lock_data= lock_data;
-    if (l->is_upgradable)
-      global_lock.intention_exclusive_acquired++;
+    lock= get_lock_object();
+    lock->active_shared.push_front(lock_data);
+    lock->lock_data_count= 1;
+    my_hash_insert(&mdl_locks, (uchar*)lock);
+    lock_data->state= MDL_ACQUIRED;
+    lock_data->lock= lock;
+    if (lock_data->is_upgradable)
+      global_lock.active_intention_exclusive++;
   }
   else
   {
-    if ((lock_data->active_exclusive.is_empty() &&
-         (l->prio == MDL_HIGH_PRIO ||
-          lock_data->waiting_exclusive.is_empty() &&
-          lock_data->active_shared_waiting_upgrade.is_empty())) ||
-        (!lock_data->active_exclusive.is_empty() &&
-         lock_data->active_exclusive.head()->ctx == l->ctx))
+    if ((lock->active_exclusive.is_empty() &&
+         (lock_data->prio == MDL_HIGH_PRIO ||
+          lock->waiting_exclusive.is_empty() &&
+          lock->active_shared_waiting_upgrade.is_empty())) ||
+        (!lock->active_exclusive.is_empty() &&
+         lock->active_exclusive.head()->ctx == lock_data->ctx))
     {
       /*
         When exclusive lock comes from the same context we can satisfy our
         shared lock. This is required for CREATE TABLE ... SELECT ... and
         ALTER VIEW ... AS ....
       */
-      lock_data->active_shared.push_front(l);
-      lock_data->lock_count++;
-      l->state= MDL_ACQUIRED;
-      l->lock_data= lock_data;
-      if (l->is_upgradable)
-        global_lock.intention_exclusive_acquired++;
+      lock->active_shared.push_front(lock_data);
+      lock->lock_data_count++;
+      lock_data->state= MDL_ACQUIRED;
+      lock_data->lock= lock;
+      if (lock_data->is_upgradable)
+        global_lock.active_intention_exclusive++;
     }
     else
       *retry= TRUE;
@@ -499,7 +499,7 @@ bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry)
 }
 
 
-static void release_lock(MDL_LOCK *l);
+static void release_lock(MDL_LOCK_DATA *lock_data);
 
 
 /**
@@ -523,11 +523,11 @@ static void release_lock(MDL_LOCK *l);
 
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l, *lh;
-  MDL_LOCK_DATA *lock_data;
+  MDL_LOCK_DATA *lock_data, *conf_lock_data;
+  MDL_LOCK *lock;
   bool signalled= FALSE;
   const char *old_msg;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
   THD *thd= context->thd;
 
   DBUG_ASSERT(thd == current_thd);
@@ -544,34 +544,35 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
 
   old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
 
-  while ((l= it++))
+  while ((lock_data= it++))
   {
-    DBUG_ASSERT(l->type == MDL_EXCLUSIVE && l->state == MDL_PENDING);
-    if (!(lock_data= (MDL_LOCK_DATA *)my_hash_search(&mdl_locks, (uchar*)l->key,
-                                                     l->key_length)))
+    DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
+                lock_data->state == MDL_PENDING);
+    if (!(lock= (MDL_LOCK *) my_hash_search(&mdl_locks, (uchar*)lock_data->key,
+                                            lock_data->key_length)))
     {
-      lock_data= get_lock_data_object();
-      lock_data->waiting_exclusive.push_front(l);
-      lock_data->lock_count= 1;
-      my_hash_insert(&mdl_locks, (uchar*)lock_data);
-      l->lock_data= lock_data;
+      lock= get_lock_object();
+      lock->waiting_exclusive.push_front(lock_data);
+      lock->lock_data_count= 1;
+      my_hash_insert(&mdl_locks, (uchar*)lock);
+      lock_data->lock= lock;
     }
     else
     {
-      lock_data->waiting_exclusive.push_front(l);
-      lock_data->lock_count++;
-      l->lock_data= lock_data;
+      lock->waiting_exclusive.push_front(lock_data);
+      lock->lock_data_count++;
+      lock_data->lock= lock;
     }
   }
 
   while (1)
   {
     it.rewind();
-    while ((l= it++))
+    while ((lock_data= it++))
     {
-      lock_data= l->lock_data;
+      lock= lock_data->lock;
 
-      if (global_lock.shared_acquired || global_lock.shared_pending)
+      if (global_lock.active_shared || global_lock.waiting_shared)
       {
         /*
           There is active or pending global shared lock we have
@@ -580,8 +581,8 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
         signalled= TRUE;
         break;
       }
-      else if (!lock_data->active_exclusive.is_empty() ||
-               !lock_data->active_shared_waiting_upgrade.is_empty())
+      else if (!lock->active_exclusive.is_empty() ||
+               !lock->active_shared_waiting_upgrade.is_empty())
       {
         /*
           Exclusive MDL owner won't wait on table-level lock the same
@@ -591,13 +592,14 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
         signalled= TRUE;
         break;
       }
-      else if ((lh= lock_data->active_shared.head()))
+      else if ((conf_lock_data= lock->active_shared.head()))
       {
-        signalled= notify_thread_having_shared_lock(thd, lh->ctx->thd);
+        signalled= notify_thread_having_shared_lock(thd,
+                                                    conf_lock_data->ctx->thd);
         break;
       }
     }
-    if (!l)
+    if (!lock_data)
       break;
     if (signalled)
       pthread_cond_wait(&COND_mdl, &LOCK_mdl);
@@ -617,15 +619,16 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
     {
       /* Remove our pending lock requests from the locks. */
       it.rewind();
-      while ((l= it++))
+      while ((lock_data= it++))
       {
-        DBUG_ASSERT(l->type == MDL_EXCLUSIVE && l->state == MDL_PENDING);
-        release_lock(l);
+        DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
+                    lock_data->state == MDL_PENDING);
+        release_lock(lock_data);
         /* Return lock request to its initial state. */
-        l->type= MDL_SHARED;
-        l->prio= MDL_NORMAL_PRIO;
-        l->is_upgradable= FALSE;
-        context->locks.remove(l);
+        lock_data->type= MDL_SHARED;
+        lock_data->prio= MDL_NORMAL_PRIO;
+        lock_data->is_upgradable= FALSE;
+        context->locks.remove(lock_data);
       }
       /* Pending requests for shared locks can be satisfied now. */
       pthread_cond_broadcast(&COND_mdl);
@@ -634,20 +637,20 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
     }
   }
   it.rewind();
-  while ((l= it++))
+  while ((lock_data= it++))
   {
-    global_lock.intention_exclusive_acquired++;
-    lock_data= l->lock_data;
-    lock_data->waiting_exclusive.remove(l);
-    lock_data->active_exclusive.push_front(l);
-    l->state= MDL_ACQUIRED;
-    if (lock_data->cached_object)
-      (*lock_data->cached_object_release_hook)(lock_data->cached_object);
-    lock_data->cached_object= NULL;
+    global_lock.active_intention_exclusive++;
+    lock= lock_data->lock;
+    lock->waiting_exclusive.remove(lock_data);
+    lock->active_exclusive.push_front(lock_data);
+    lock_data->state= MDL_ACQUIRED;
+    if (lock->cached_object)
+      (*lock->cached_object_release_hook)(lock->cached_object);
+    lock->cached_object= NULL;
   }
   /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
   thd->exit_cond(old_msg);
-  return FALSE; 
+  return FALSE;
 }
 
 
@@ -676,9 +679,9 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   bool signalled= FALSE;
-  MDL_LOCK *l, *lh;
-  MDL_LOCK_DATA *lock_data;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK_DATA *lock_data, *conf_lock_data;
+  MDL_LOCK *lock;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
   const char *old_msg;
   THD *thd= context->thd;
 
@@ -696,41 +699,43 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
 
   old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
 
-  while ((l= it++))
-    if (l->key_length == key_length && !memcmp(l->key, key, key_length) &&
-        l->type == MDL_SHARED)
+  while ((lock_data= it++))
+    if (lock_data->key_length == key_length &&
+        !memcmp(lock_data->key, key, key_length) &&
+        lock_data->type == MDL_SHARED)
     {
       DBUG_PRINT("info", ("found shared lock for upgrade"));
-      DBUG_ASSERT(l->state == MDL_ACQUIRED);
-      DBUG_ASSERT(l->is_upgradable);
-      l->state= MDL_PENDING_UPGRADE;
-      lock_data= l->lock_data;
-      lock_data->active_shared.remove(l);
-      lock_data->active_shared_waiting_upgrade.push_front(l);
+      DBUG_ASSERT(lock_data->state == MDL_ACQUIRED);
+      DBUG_ASSERT(lock_data->is_upgradable);
+      lock_data->state= MDL_PENDING_UPGRADE;
+      lock= lock_data->lock;
+      lock->active_shared.remove(lock_data);
+      lock->active_shared_waiting_upgrade.push_front(lock_data);
     }
 
   while (1)
   {
     DBUG_PRINT("info", ("looking at conflicting locks"));
     it.rewind();
-    while ((l= it++))
+    while ((lock_data= it++))
     {
-      if (l->state == MDL_PENDING_UPGRADE)
+      if (lock_data->state == MDL_PENDING_UPGRADE)
       {
-        DBUG_ASSERT(l->type == MDL_SHARED);
+        DBUG_ASSERT(lock_data->type == MDL_SHARED);
 
-        lock_data= l->lock_data;
+        lock= lock_data->lock;
 
-        DBUG_ASSERT(global_lock.shared_acquired == 0 &&
-                    global_lock.intention_exclusive_acquired);
+        DBUG_ASSERT(global_lock.active_shared == 0 &&
+                    global_lock.active_intention_exclusive);
 
-        if ((lh= lock_data->active_shared.head()))
+        if ((conf_lock_data= lock->active_shared.head()))
         {
           DBUG_PRINT("info", ("found active shared locks"));
-          signalled= notify_thread_having_shared_lock(thd, lh->ctx->thd);
+          signalled= notify_thread_having_shared_lock(thd,
+                                                      conf_lock_data->ctx->thd);
           break;
         }
-        else if (!lock_data->active_exclusive.is_empty())
+        else if (!lock->active_exclusive.is_empty())
         {
           DBUG_PRINT("info", ("found active exclusive locks"));
           signalled= TRUE;
@@ -738,7 +743,7 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
         }
       }
     }
-    if (!l)
+    if (!lock_data)
       break;
     if (signalled)
       pthread_cond_wait(&COND_mdl, &LOCK_mdl);
@@ -758,14 +763,14 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
     if (thd->killed)
     {
       it.rewind();
-      while ((l= it++))
-        if (l->state == MDL_PENDING_UPGRADE)
+      while ((lock_data= it++))
+        if (lock_data->state == MDL_PENDING_UPGRADE)
         {
-          DBUG_ASSERT(l->type == MDL_SHARED);
-          l->state= MDL_ACQUIRED;
-          lock_data= l->lock_data;
-          lock_data->active_shared_waiting_upgrade.remove(l);
-          lock_data->active_shared.push_front(l);
+          DBUG_ASSERT(lock_data->type == MDL_SHARED);
+          lock_data->state= MDL_ACQUIRED;
+          lock= lock_data->lock;
+          lock->active_shared_waiting_upgrade.remove(lock_data);
+          lock->active_shared.push_front(lock_data);
         }
       /* Pending requests for shared locks can be satisfied now. */
       pthread_cond_broadcast(&COND_mdl);
@@ -775,18 +780,18 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
   }
 
   it.rewind();
-  while ((l= it++))
-    if (l->state == MDL_PENDING_UPGRADE)
+  while ((lock_data= it++))
+    if (lock_data->state == MDL_PENDING_UPGRADE)
     {
-      DBUG_ASSERT(l->type == MDL_SHARED);
-      lock_data= l->lock_data;
-      lock_data->active_shared_waiting_upgrade.remove(l);
-      lock_data->active_exclusive.push_front(l);
-      l->type= MDL_EXCLUSIVE;
-      l->state= MDL_ACQUIRED;
-      if (lock_data->cached_object)
-        (*lock_data->cached_object_release_hook)(lock_data->cached_object);
-      lock_data->cached_object= 0;
+      DBUG_ASSERT(lock_data->type == MDL_SHARED);
+      lock= lock_data->lock;
+      lock->active_shared_waiting_upgrade.remove(lock_data);
+      lock->active_exclusive.push_front(lock_data);
+      lock_data->type= MDL_EXCLUSIVE;
+      lock_data->state= MDL_ACQUIRED;
+      if (lock->cached_object)
+        (*lock->cached_object_release_hook)(lock->cached_object);
+      lock->cached_object= 0;
     }
 
   /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
@@ -817,40 +822,42 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
           it gives sligthly more false negatives.
 */
 
-bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context, MDL_LOCK *l)
+bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
+                                    MDL_LOCK_DATA *lock_data)
 {
-  MDL_LOCK_DATA *lock_data;
+  MDL_LOCK *lock;
 
-  DBUG_ASSERT(l->type == MDL_EXCLUSIVE && l->state == MDL_PENDING);
+  DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
+              lock_data->state == MDL_PENDING);
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  if (!(lock_data= (MDL_LOCK_DATA *)my_hash_search(&mdl_locks, (uchar*)l->key,
-                                                   l->key_length)))
+  if (!(lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
+                                         lock_data->key_length)))
   {
-    lock_data= get_lock_data_object();
-    lock_data->active_exclusive.push_front(l);
-    lock_data->lock_count= 1;
-    my_hash_insert(&mdl_locks, (uchar*)lock_data);
-    l->state= MDL_ACQUIRED;
-    l->lock_data= lock_data;
-    lock_data= 0;
-    global_lock.intention_exclusive_acquired++;
+    lock= get_lock_object();
+    lock->active_exclusive.push_front(lock_data);
+    lock->lock_data_count= 1;
+    my_hash_insert(&mdl_locks, (uchar*)lock);
+    lock_data->state= MDL_ACQUIRED;
+    lock_data->lock= lock;
+    lock= 0;
+    global_lock.active_intention_exclusive++;
   }
   pthread_mutex_unlock(&LOCK_mdl);
 
   /*
     FIXME: We can't leave pending MDL_EXCLUSIVE lock request in the list since
-           for such locks we assume that they have MDL_LOCK::lock properly set.
+           for such locks we assume that they have MDL_LOCK_DATA::lock properly set.
            Long term we should clearly define relation between lock types,
-           presence in the context lists and MDL_LOCK::lock values.
+           presence in the context lists and MDL_LOCK_DATA::lock values.
   */
-  if (lock_data)
-    context->locks.remove(l);
+  if (lock)
+    context->locks.remove(lock_data);
 
-  return lock_data;
+  return lock;
 }
 
 
@@ -859,7 +866,7 @@ bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context, MDL_LOCK *l)
 
    Holding this lock will block all requests for exclusive locks
    and shared locks which can be potentially upgraded to exclusive
-   (see MDL_LOCK::is_upgradable).
+   (see MDL_LOCK_DATA::is_upgradable).
 
    @param context Current metadata locking context.
 
@@ -878,20 +885,20 @@ bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context)
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  global_lock.shared_pending++;
+  global_lock.waiting_shared++;
   old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
 
-  while (!thd->killed && global_lock.intention_exclusive_acquired)
+  while (!thd->killed && global_lock.active_intention_exclusive)
     pthread_cond_wait(&COND_mdl, &LOCK_mdl);
 
-  global_lock.shared_pending--;
+  global_lock.waiting_shared--;
   if (thd->killed)
   {
     /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
     thd->exit_cond(old_msg);
     return TRUE;
   }
-  global_lock.shared_acquired++;
+  global_lock.active_shared++;
   context->has_global_shared_lock= TRUE;
   /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
   thd->exit_cond(old_msg);
@@ -916,9 +923,9 @@ bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context)
 
 bool mdl_wait_for_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l;
   MDL_LOCK_DATA *lock_data;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK *lock;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
   const char *old_msg;
   THD *thd= context->thd;
 
@@ -941,24 +948,24 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
     pthread_mutex_lock(&LOCK_mdl);
     old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
     it.rewind();
-    while ((l= it++))
+    while ((lock_data= it++))
     {
-      DBUG_ASSERT(l->state == MDL_PENDING);
-      if ((l->is_upgradable || l->type == MDL_EXCLUSIVE) &&
-          (global_lock.shared_acquired || global_lock.shared_pending))
+      DBUG_ASSERT(lock_data->state == MDL_PENDING);
+      if ((lock_data->is_upgradable || lock_data->type == MDL_EXCLUSIVE) &&
+          (global_lock.active_shared || global_lock.waiting_shared))
         break;
       /*
         To avoid starvation we don't wait if we have pending MDL_EXCLUSIVE lock.
       */
-      if (l->type == MDL_SHARED &&
-          (lock_data= (MDL_LOCK_DATA *)my_hash_search(&mdl_locks, (uchar*)l->key,
-                                                      l->key_length)) &&
-          !(lock_data->active_exclusive.is_empty() &&
-            lock_data->active_shared_waiting_upgrade.is_empty() &&
-            lock_data->waiting_exclusive.is_empty()))
+      if (lock_data->type == MDL_SHARED &&
+          (lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
+                                            lock_data->key_length)) &&
+          !(lock->active_exclusive.is_empty() &&
+            lock->active_shared_waiting_upgrade.is_empty() &&
+            lock->waiting_exclusive.is_empty()))
         break;
     }
-    if (!l)
+    if (!lock_data)
     {
       pthread_mutex_unlock(&LOCK_mdl);
       break;
@@ -976,50 +983,51 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
    ownership of which is represented by lock request object.
 */
 
-static void release_lock(MDL_LOCK *l)
+static void release_lock(MDL_LOCK_DATA *lock_data)
 {
-  MDL_LOCK_DATA *lock_data;
+  MDL_LOCK *lock;
 
   DBUG_ENTER("release_lock");
-  DBUG_PRINT("enter", ("db=%s name=%s", l->key + 4,
-                        l->key + 4 + strlen(l->key + 4) + 1));
+  DBUG_PRINT("enter", ("db=%s name=%s", lock_data->key + 4,
+                        lock_data->key + 4 + strlen(lock_data->key + 4) + 1));
 
-  lock_data= l->lock_data;
-  if (lock_data->has_one_lock())
+  lock= lock_data->lock;
+  if (lock->has_one_lock_data())
   {
-    my_hash_delete(&mdl_locks, (uchar *)lock_data);
+    my_hash_delete(&mdl_locks, (uchar *)lock);
     DBUG_PRINT("info", ("releasing cached_object cached_object=%p",
-                        lock_data->cached_object));
-    if (lock_data->cached_object)
-      (*lock_data->cached_object_release_hook)(lock_data->cached_object);
-    release_lock_data_object(lock_data);
-    if (l->type == MDL_EXCLUSIVE && l->state == MDL_ACQUIRED ||
-        l->type == MDL_SHARED && l->state == MDL_ACQUIRED && l->is_upgradable)
-      global_lock.intention_exclusive_acquired--;
+                        lock->cached_object));
+    if (lock->cached_object)
+      (*lock->cached_object_release_hook)(lock->cached_object);
+    release_lock_object(lock);
+    if (lock_data->type == MDL_EXCLUSIVE && lock_data->state == MDL_ACQUIRED ||
+        lock_data->type == MDL_SHARED && lock_data->state == MDL_ACQUIRED &&
+        lock_data->is_upgradable)
+      global_lock.active_intention_exclusive--;
   }
   else
   {
-    switch (l->type)
+    switch (lock_data->type)
     {
       case MDL_SHARED:
-        lock_data->active_shared.remove(l);
-        if (l->is_upgradable)
-          global_lock.intention_exclusive_acquired--;
+        lock->active_shared.remove(lock_data);
+        if (lock_data->is_upgradable)
+          global_lock.active_intention_exclusive--;
         break;
       case MDL_EXCLUSIVE:
-        if (l->state == MDL_PENDING)
-          lock_data->waiting_exclusive.remove(l);
+        if (lock_data->state == MDL_PENDING)
+          lock->waiting_exclusive.remove(lock_data);
         else
         {
-          lock_data->active_exclusive.remove(l);
-          global_lock.intention_exclusive_acquired--;
+          lock->active_exclusive.remove(lock_data);
+          global_lock.active_intention_exclusive--;
         }
         break;
       default:
         /* TODO Really? How about problems during lock upgrade ? */
         DBUG_ASSERT(0);
     }
-    lock_data->lock_count--;
+    lock->lock_data_count--;
   }
 
   DBUG_VOID_RETURN;
@@ -1040,28 +1048,28 @@ static void release_lock(MDL_LOCK *l)
 
 void mdl_release_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK_DATA *lock_data;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
   DBUG_ENTER("mdl_release_locks");
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  while ((l= it++))
+  while ((lock_data= it++))
   {
-    DBUG_PRINT("info", ("found lock to release l=%p", l));
+    DBUG_PRINT("info", ("found lock to release lock_data=%p", lock_data));
     /*
       We should not release locks which pending shared locks as these
       are not associated with lock object and don't present in its
       lists. Allows us to avoid problems in open_tables() in case of
       back-off
     */
-    if (!(l->type == MDL_SHARED && l->state == MDL_PENDING))
+    if (!(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING))
     {
-      release_lock(l);
-      l->state= MDL_PENDING;
+      release_lock(lock_data);
+      lock_data->state= MDL_PENDING;
 #ifndef DBUG_OFF
-      l->lock_data= 0;
+      lock_data->lock= 0;
 #endif
     }
     /*
@@ -1091,28 +1099,28 @@ void mdl_release_locks(MDL_CONTEXT *context)
 
 void mdl_release_exclusive_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK_DATA *lock_data;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  while ((l= it++))
+  while ((lock_data= it++))
   {
-    if (l->type == MDL_EXCLUSIVE)
+    if (lock_data->type == MDL_EXCLUSIVE)
     {
-      DBUG_ASSERT(l->state == MDL_ACQUIRED);
-      release_lock(l);
+      DBUG_ASSERT(lock_data->state == MDL_ACQUIRED);
+      release_lock(lock_data);
 #ifndef DBUG_OFF
-      l->ctx= 0;
-      l->lock_data= 0;
+      lock_data->ctx= 0;
+      lock_data->lock= 0;
 #endif
-      l->state= MDL_PENDING;
+      lock_data->state= MDL_PENDING;
       /* Return lock request to its initial state. */
-      l->type= MDL_SHARED;
-      l->prio= MDL_NORMAL_PRIO;
-      l->is_upgradable= FALSE;
-      context->locks.remove(l);
+      lock_data->type= MDL_SHARED;
+      lock_data->prio= MDL_NORMAL_PRIO;
+      lock_data->is_upgradable= FALSE;
+      context->locks.remove(lock_data);
     }
   }
   pthread_cond_broadcast(&COND_mdl);
@@ -1124,29 +1132,29 @@ void mdl_release_exclusive_locks(MDL_CONTEXT *context)
    Release a lock.
    Removes the lock from the context.
 
-   @param context Context containing lock in question
-   @param lock    Lock to be released
+   @param context   Context containing lock in question
+   @param lock_data Lock to be released
 
    @note Resets lock request for lock released back to its initial state
          (i.e.sets type and priority to MDL_SHARED and MDL_NORMAL_PRIO).
 */
 
-void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK *lr)
+void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
 {
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  release_lock(lr);
+  release_lock(lock_data);
 #ifndef DBUG_OFF
-  lr->ctx= 0;
-  lr->lock_data= 0;
+  lock_data->ctx= 0;
+  lock_data->lock= 0;
 #endif
-  lr->state= MDL_PENDING;
+  lock_data->state= MDL_PENDING;
   /* Return lock request to its initial state. */
-  lr->type= MDL_SHARED;
-  lr->prio= MDL_NORMAL_PRIO;
-  lr->is_upgradable= FALSE;
-  context->locks.remove(lr);
+  lock_data->type= MDL_SHARED;
+  lock_data->prio= MDL_NORMAL_PRIO;
+  lock_data->is_upgradable= FALSE;
+  context->locks.remove(lock_data);
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
 }
@@ -1161,23 +1169,23 @@ void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK *lr)
 
 void mdl_downgrade_exclusive_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK *l;
   MDL_LOCK_DATA *lock_data;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK *lock;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  while ((l= it++))
-    if (l->type == MDL_EXCLUSIVE)
+  while ((lock_data= it++))
+    if (lock_data->type == MDL_EXCLUSIVE)
     {
-      DBUG_ASSERT(l->state == MDL_ACQUIRED);
-      if (!l->is_upgradable)
-        global_lock.intention_exclusive_acquired--;
-      lock_data= l->lock_data;
-      lock_data->active_exclusive.remove(l);
-      l->type= MDL_SHARED;
-      lock_data->active_shared.push_front(l);
+      DBUG_ASSERT(lock_data->state == MDL_ACQUIRED);
+      if (!lock_data->is_upgradable)
+        global_lock.active_intention_exclusive--;
+      lock= lock_data->lock;
+      lock->active_exclusive.remove(lock_data);
+      lock_data->type= MDL_SHARED;
+      lock->active_shared.push_front(lock_data);
     }
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
@@ -1196,7 +1204,7 @@ void mdl_release_global_shared_lock(MDL_CONTEXT *context)
   DBUG_ASSERT(context->has_global_shared_lock);
 
   pthread_mutex_lock(&LOCK_mdl);
-  global_lock.shared_acquired--;
+  global_lock.active_shared--;
   context->has_global_shared_lock= FALSE;
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
@@ -1221,15 +1229,18 @@ bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type,
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
-  MDL_LOCK *l;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK_DATA *lock_data;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
 
   int4store(key, type);
   key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
 
-  while ((l= it++) && (l->key_length != key_length || memcmp(l->key, key, key_length)))
+  while ((lock_data= it++) &&
+         (lock_data->key_length != key_length ||
+          memcmp(lock_data->key, key, key_length)))
     continue;
-  return (l && l->type == MDL_EXCLUSIVE && l->state == MDL_ACQUIRED);
+  return (lock_data && lock_data->type == MDL_EXCLUSIVE &&
+          lock_data->state == MDL_ACQUIRED);
 }
 
 
@@ -1251,18 +1262,18 @@ bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
-  MDL_LOCK *l;
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> it(context->locks);
+  MDL_LOCK_DATA *lock_data;
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
 
   int4store(key, type);
   key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
 
-  while ((l= it++) && (l->key_length != key_length ||
-                       memcmp(l->key, key, key_length) ||
-                       l->state == MDL_PENDING))
+  while ((lock_data= it++) && (lock_data->key_length != key_length ||
+                               memcmp(lock_data->key, key, key_length) ||
+                               lock_data->state == MDL_PENDING))
     continue;
 
-  return l;
+  return lock_data;
 }
 
 
@@ -1270,21 +1281,22 @@ bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
    Check if we have any pending exclusive locks which conflict with
    existing shared lock.
 
-   @param l Shared lock against which check should be performed.
+   @param lock_data Shared lock against which check should be performed.
 
    @return TRUE if there are any conflicting locks, FALSE otherwise.
 */
 
-bool mdl_has_pending_conflicting_lock(MDL_LOCK *l)
+bool mdl_has_pending_conflicting_lock(MDL_LOCK_DATA *lock_data)
 {
   bool result;
 
-  DBUG_ASSERT(l->type == MDL_SHARED && l->state == MDL_ACQUIRED);
+  DBUG_ASSERT(lock_data->type == MDL_SHARED &&
+              lock_data->state == MDL_ACQUIRED);
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  result= !(l->lock_data->waiting_exclusive.is_empty() &&
-            l->lock_data->active_shared_waiting_upgrade.is_empty());
+  result= !(lock_data->lock->waiting_exclusive.is_empty() &&
+            lock_data->lock->active_shared_waiting_upgrade.is_empty());
   pthread_mutex_unlock(&LOCK_mdl);
   return result;
 }
@@ -1293,7 +1305,7 @@ bool mdl_has_pending_conflicting_lock(MDL_LOCK *l)
 /**
    Associate pointer to an opaque object with a lock.
 
-   @param l             Lock request for the lock with which the
+   @param lock_data     Lock request for the lock with which the
                         object should be associated.
    @param cached_object Pointer to the object
    @param release_hook  Cleanup function to be called when MDL subsystem
@@ -1318,15 +1330,16 @@ bool mdl_has_pending_conflicting_lock(MDL_LOCK *l)
   lock on this name is released.
 */
 
-void mdl_set_cached_object(MDL_LOCK *l, void *cached_object,
+void mdl_set_cached_object(MDL_LOCK_DATA *lock_data, void *cached_object,
                            mdl_cached_object_release_hook release_hook)
 {
   DBUG_ENTER("mdl_set_cached_object");
-  DBUG_PRINT("enter", ("db=%s name=%s cached_object=%p", l->key + 4,
-                       l->key + 4 + strlen(l->key + 4) + 1,
+  DBUG_PRINT("enter", ("db=%s name=%s cached_object=%p", lock_data->key + 4,
+                       lock_data->key + 4 + strlen(lock_data->key + 4) + 1,
                        cached_object));
 
-  DBUG_ASSERT(l->state == MDL_ACQUIRED || l->state == MDL_PENDING_UPGRADE);
+  DBUG_ASSERT(lock_data->state == MDL_ACQUIRED ||
+              lock_data->state == MDL_PENDING_UPGRADE);
 
   /*
     TODO: This assumption works now since we do mdl_get_cached_object()
@@ -1334,10 +1347,10 @@ void mdl_set_cached_object(MDL_LOCK *l, void *cached_object,
           this becomes false we will have to call release_hook here and
           use additional mutex protecting 'cached_object' member.
   */
-  DBUG_ASSERT(!l->lock_data->cached_object);
+  DBUG_ASSERT(!lock_data->lock->cached_object);
 
-  l->lock_data->cached_object= cached_object;
-  l->lock_data->cached_object_release_hook= release_hook;
+  lock_data->lock->cached_object= cached_object;
+  lock_data->lock->cached_object_release_hook= release_hook;
 
   DBUG_VOID_RETURN;
 }
@@ -1346,14 +1359,15 @@ void mdl_set_cached_object(MDL_LOCK *l, void *cached_object,
 /**
    Get a pointer to an opaque object that associated with the lock.
 
-   @param  l Lock request for the lock with which the object is
-             associated.
+   @param  lock_data Lock request for the lock with which the object is
+                     associated.
 
    @return Pointer to an opaque object associated with the lock.
 */
 
-void* mdl_get_cached_object(MDL_LOCK *l)
+void* mdl_get_cached_object(MDL_LOCK_DATA *lock_data)
 {
-  DBUG_ASSERT(l->state == MDL_ACQUIRED || l->state == MDL_PENDING_UPGRADE);
-  return l->lock_data->cached_object;
+  DBUG_ASSERT(lock_data->state == MDL_ACQUIRED ||
+              lock_data->state == MDL_PENDING_UPGRADE);
+  return lock_data->lock->cached_object;
 }

@@ -125,7 +125,7 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
   TABLE **table_ptr;
-  MDL_LOCK *mdl_lock;
+  MDL_LOCK_DATA *mdl_lock_data;
 
   /*
     Though we could take the table pointer from hash_tables->table,
@@ -141,7 +141,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
-    mdl_lock= (*table_ptr)->mdl_lock;
+    mdl_lock_data= (*table_ptr)->mdl_lock_data;
     pthread_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, table_ptr))
     {
@@ -149,7 +149,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
       broadcast_refresh();
     }
     pthread_mutex_unlock(&LOCK_open);
-    mdl_release_lock(&thd->handler_mdl_context, mdl_lock);
+    mdl_release_lock(&thd->handler_mdl_context, mdl_lock_data);
   }
   else if (tables->table)
   {
@@ -189,7 +189,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 {
   TABLE_LIST    *hash_tables = NULL;
-  MDL_LOCK      *mdl_lock;
+  MDL_LOCK_DATA *mdl_lock_data;
   char          *db, *name, *alias, *mdlkey;
   uint          dblen, namelen, aliaslen, counter;
   int           error;
@@ -245,7 +245,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &db, (uint) dblen,
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
-                          &mdl_lock, sizeof(MDL_LOCK),
+                          &mdl_lock_data, sizeof(MDL_LOCK_DATA),
                           &mdlkey, MAX_DBKEY_LENGTH,
                           NullS)))
     {
@@ -260,8 +260,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    mdl_init_lock(mdl_lock, mdlkey, 0, db, name);
-    hash_tables->mdl_lock= mdl_lock;
+    mdl_init_lock(mdl_lock_data, mdlkey, 0, db, name);
+    hash_tables->mdl_lock_data= mdl_lock_data;
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
@@ -798,10 +798,12 @@ void mysql_ha_flush(THD *thd)
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
-    /* TABLE::mdl_lock is 0 for temporary tables so we need extra check. */
+    /*
+      TABLE::mdl_lock_data is 0 for temporary tables so we need extra check.
+    */
     if (hash_tables->table &&
-        (hash_tables->table->mdl_lock &&
-         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock) ||
+        (hash_tables->table->mdl_lock_data &&
+         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock_data) ||
          hash_tables->table->needs_reopen()))
       mysql_ha_close_table(thd, hash_tables);
   }

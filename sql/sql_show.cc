@@ -3106,7 +3106,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
-  MDL_LOCK mdl_lock;
+  MDL_LOCK_DATA mdl_lock_data;
   char mdlkey[MAX_DBKEY_LENGTH];
   bool retry;
 
@@ -3133,10 +3133,10 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
     table_list.db= db_name->str;
   }
 
-  mdl_init_lock(&mdl_lock, mdlkey, 0, db_name->str, table_name->str);
-  table_list.mdl_lock= &mdl_lock;
-  mdl_add_lock(&thd->mdl_context, &mdl_lock);
-  mdl_set_lock_priority(&mdl_lock, MDL_HIGH_PRIO);
+  mdl_init_lock(&mdl_lock_data, mdlkey, 0, db_name->str, table_name->str);
+  table_list.mdl_lock_data= &mdl_lock_data;
+  mdl_add_lock(&thd->mdl_context, &mdl_lock_data);
+  mdl_set_lock_priority(&mdl_lock_data, MDL_HIGH_PRIO);
 
   /*
     TODO: investigate if in this particular situation we can get by
@@ -3145,7 +3145,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   */
   while (1)
   {
-    if (mdl_acquire_shared_lock(&mdl_lock, &retry))
+    if (mdl_acquire_shared_lock(&mdl_lock_data, &retry))
     {
       if (!retry || mdl_wait_for_locks(&thd->mdl_context))
       {
@@ -3212,7 +3212,7 @@ err_unlock:
   pthread_mutex_unlock(&LOCK_open);
 
 err:
-  mdl_release_lock(&thd->mdl_context, &mdl_lock);
+  mdl_release_lock(&thd->mdl_context, &mdl_lock_data);
   thd->clear_error();
   return res;
 }

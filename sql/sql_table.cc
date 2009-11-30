@@ -4043,15 +4043,15 @@ warn:
 
 static bool lock_table_name_if_not_cached(THD *thd, const char *db,
                                           const char *table_name,
-                                          MDL_LOCK **lock)
+                                          MDL_LOCK_DATA **lock_data)
 {
-  if (!(*lock= mdl_alloc_lock(0, db, table_name, thd->mem_root)))
+  if (!(*lock_data= mdl_alloc_lock(0, db, table_name, thd->mem_root)))
     return TRUE;
-  mdl_set_lock_type(*lock, MDL_EXCLUSIVE);
-  mdl_add_lock(&thd->mdl_context, *lock);
-  if (mdl_try_acquire_exclusive_lock(&thd->mdl_context, *lock))
+  mdl_set_lock_type(*lock_data, MDL_EXCLUSIVE);
+  mdl_add_lock(&thd->mdl_context, *lock_data);
+  if (mdl_try_acquire_exclusive_lock(&thd->mdl_context, *lock_data))
   {
-    *lock= 0;
+    *lock_data= 0;
   }
   return FALSE;
 }
@@ -4067,7 +4067,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                         bool internal_tmp_table,
                         uint select_field_count)
 {
-  MDL_LOCK *target_lock= 0;
+  MDL_LOCK_DATA *target_lock_data= 0;
   bool result;
   DBUG_ENTER("mysql_create_table");
 
@@ -4090,12 +4090,12 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (lock_table_name_if_not_cached(thd, db, table_name, &target_lock))
+    if (lock_table_name_if_not_cached(thd, db, table_name, &target_lock_data))
     {
       result= TRUE;
       goto unlock;
     }
-    if (!target_lock)
+    if (!target_lock_data)
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
       {
@@ -4121,7 +4121,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                                      select_field_count);
 
 unlock:
-  if (target_lock)
+  if (target_lock_data)
     mdl_release_exclusive_locks(&thd->mdl_context);
   pthread_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
@@ -4359,7 +4359,7 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 			       HA_CHECK_OPT *check_opt)
 {
-  MDL_LOCK *mdl_lock= 0;
+  MDL_LOCK_DATA *mdl_lock_data= 0;
   DBUG_ENTER("prepare_for_restore");
 
   if (table->table) // do not overwrite existing tables on restore
@@ -4383,10 +4383,10 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     build_table_filename(dst_path, sizeof(dst_path) - 1,
                          db, table_name, reg_ext, 0);
 
-    mdl_lock= mdl_alloc_lock(0, table->db, table->table_name,
-                             thd->mem_root);
-    mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
-    mdl_add_lock(&thd->mdl_context, mdl_lock);
+    mdl_lock_data= mdl_alloc_lock(0, table->db, table->table_name,
+                                  thd->mem_root);
+    mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
+    mdl_add_lock(&thd->mdl_context, mdl_lock_data);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(TRUE);
     pthread_mutex_lock(&LOCK_open);
@@ -4395,13 +4395,13 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 
     if (my_copy(src_path, dst_path, MYF(MY_WME)))
     {
-      mdl_release_lock(&thd->mdl_context, mdl_lock);
+      mdl_release_lock(&thd->mdl_context, mdl_lock_data);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed copying .frm file"));
     }
     if (mysql_truncate(thd, table, 1))
     {
-      mdl_release_lock(&thd->mdl_context, mdl_lock);
+      mdl_release_lock(&thd->mdl_context, mdl_lock_data);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file"));
     }
@@ -4415,8 +4415,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   if (reopen_name_locked_table(thd, table))
   {
     pthread_mutex_unlock(&LOCK_open);
-    if (mdl_lock)
-      mdl_release_lock(&thd->mdl_context, mdl_lock);
+    if (mdl_lock_data)
+      mdl_release_lock(&thd->mdl_context, mdl_lock_data);
     DBUG_RETURN(send_check_errmsg(thd, table, "restore",
                                   "Failed to open partially restored table"));
   }
@@ -4436,7 +4436,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
-  MDL_LOCK *mdl_lock;
+  MDL_LOCK_DATA *mdl_lock_data;
   DBUG_ENTER("prepare_for_repair");
 
   if (!(check_opt->sql_flags & TT_USEFRM))
@@ -4452,10 +4452,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       TODO: Check that REPAIR's code also conforms to meta-data
             locking protocol. Fix if it is not.
     */
-    mdl_lock= mdl_alloc_lock(0, table_list->db, table_list->table_name,
-                             thd->mem_root);
-    mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
-    mdl_add_lock(&thd->mdl_context, mdl_lock);
+    mdl_lock_data= mdl_alloc_lock(0, table_list->db, table_list->table_name,
+                                  thd->mem_root);
+    mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
+    mdl_add_lock(&thd->mdl_context, mdl_lock_data);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(0);
 
@@ -5303,7 +5303,7 @@ bool mysql_create_like_schema_frm(THD* thd, TABLE_LIST* schema_table,
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
-  MDL_LOCK *target_lock= 0;
+  MDL_LOCK_DATA *target_lock_data= 0;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN + 1];
   uint dst_path_length;
   char *db= table->db;
@@ -5360,9 +5360,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
   else
   {
-    if (lock_table_name_if_not_cached(thd, db, table_name, &target_lock))
+    if (lock_table_name_if_not_cached(thd, db, table_name, &target_lock_data))
       goto err;
-    if (!target_lock)
+    if (!target_lock_data)
       goto table_exists;
     dst_path_length= build_table_filename(dst_path, sizeof(dst_path) - 1,
                                           db, table_name, reg_ext, 0);
@@ -5538,7 +5538,7 @@ binlog:
   res= FALSE;
 
 err:
-  if (target_lock)
+  if (target_lock_data)
     mdl_release_exclusive_locks(&thd->mdl_context);
   DBUG_RETURN(res);
 }
@@ -6477,7 +6477,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        uint order_num, ORDER *order, bool ignore)
 {
   TABLE *table, *new_table= 0;
-  MDL_LOCK *target_lock= 0;
+  MDL_LOCK_DATA *target_lock_data= 0;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
@@ -6700,9 +6700,10 @@ view_err:
       }
       else
       {
-        if (lock_table_name_if_not_cached(thd, new_db, new_name, &target_lock))
+        if (lock_table_name_if_not_cached(thd, new_db, new_name,
+                                          &target_lock_data))
           DBUG_RETURN(TRUE);
-        if (!target_lock)
+        if (!target_lock_data)
         {
 	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
 	  DBUG_RETURN(TRUE);
@@ -7128,7 +7129,7 @@ view_err:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (fast_alter_partition)
   {
-    DBUG_ASSERT(!target_lock);
+    DBUG_ASSERT(!target_lock_data);
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            db, table_name,
@@ -7632,7 +7633,7 @@ err:
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
-  if (target_lock)
+  if (target_lock_data)
     mdl_release_exclusive_locks(&thd->mdl_context);
   DBUG_RETURN(TRUE);
 

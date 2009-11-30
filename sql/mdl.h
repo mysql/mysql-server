@@ -22,8 +22,8 @@
 
 class THD;
 
-struct MDL_LOCK;
 struct MDL_LOCK_DATA;
+struct MDL_LOCK;
 struct MDL_CONTEXT;
 
 /** Type of metadata lock request. */
@@ -54,7 +54,7 @@ enum enum_mdl_prio {MDL_NORMAL_PRIO=0, MDL_HIGH_PRIO};
    "key" or "name".
 */
 
-struct MDL_LOCK
+struct MDL_LOCK_DATA
 {
   char          *key;
   uint          key_length;
@@ -72,17 +72,17 @@ private:
   /**
      Pointers for participating in the list of lock requests for this context.
   */
-  MDL_LOCK      *next_context;
-  MDL_LOCK      **prev_context;
+  MDL_LOCK_DATA *next_context;
+  MDL_LOCK_DATA **prev_context;
   /**
      Pointers for participating in the list of satisfied/pending requests
      for the lock.
   */
-  MDL_LOCK      *next_lock;
-  MDL_LOCK      **prev_lock;
+  MDL_LOCK_DATA *next_lock;
+  MDL_LOCK_DATA **prev_lock;
 
-  friend struct MDL_LOCK_context;
-  friend struct MDL_LOCK_lock;
+  friend struct MDL_LOCK_DATA_context;
+  friend struct MDL_LOCK_DATA_lock;
 
 public:
   /*
@@ -90,23 +90,23 @@ public:
     request is satisified or is present in the list of pending lock requests
     for particular lock.
   */
-  MDL_LOCK_DATA *lock_data;
+  MDL_LOCK      *lock;
   MDL_CONTEXT   *ctx;
 };
 
 
 /**
-   Helper class which specifies which members of MDL_LOCK are used for
+   Helper class which specifies which members of MDL_LOCK_DATA are used for
    participation in the list lock requests belonging to one context.
 */
 
-struct MDL_LOCK_context
+struct MDL_LOCK_DATA_context
 {
-  static inline MDL_LOCK **next_ptr(MDL_LOCK *l)
+  static inline MDL_LOCK_DATA **next_ptr(MDL_LOCK_DATA *l)
   {
     return &l->next_context;
   }
-  static inline MDL_LOCK ***prev_ptr(MDL_LOCK *l)
+  static inline MDL_LOCK_DATA ***prev_ptr(MDL_LOCK_DATA *l)
   {
     return &l->prev_context;
   }
@@ -114,17 +114,17 @@ struct MDL_LOCK_context
 
 
 /**
-   Helper class which specifies which members of MDL_LOCK are used for
+   Helper class which specifies which members of MDL_LOCK_DATA are used for
    participation in the list of satisfied/pending requests for the lock.
 */
 
-struct MDL_LOCK_lock
+struct MDL_LOCK_DATA_lock
 {
-  static inline MDL_LOCK **next_ptr(MDL_LOCK *l)
+  static inline MDL_LOCK_DATA **next_ptr(MDL_LOCK_DATA *l)
   {
     return &l->next_lock;
   }
-  static inline MDL_LOCK ***prev_ptr(MDL_LOCK *l)
+  static inline MDL_LOCK_DATA ***prev_ptr(MDL_LOCK_DATA *l)
   {
     return &l->prev_lock;
   }
@@ -138,7 +138,7 @@ struct MDL_LOCK_lock
 
 struct MDL_CONTEXT
 {
-  I_P_List <MDL_LOCK, MDL_LOCK_context> locks;
+  I_P_List <MDL_LOCK_DATA, MDL_LOCK_DATA_context> locks;
   bool has_global_shared_lock;
   THD      *thd;
 };
@@ -153,21 +153,21 @@ void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
 void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
 void mdl_context_merge(MDL_CONTEXT *target, MDL_CONTEXT *source);
 
-void mdl_init_lock(MDL_LOCK *mdl, char *key, int type, const char *db,
-                   const char *name);
-MDL_LOCK *mdl_alloc_lock(int type, const char *db, const char *name,
-                       MEM_ROOT *root);
-void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+void mdl_init_lock(MDL_LOCK_DATA *lock_data, char *key, int type,
+                   const char *db, const char *name);
+MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
+                              MEM_ROOT *root);
+void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
 void mdl_remove_all_locks(MDL_CONTEXT *context);
 
 /**
    Set type of lock request. Can be only applied to pending locks.
 */
 
-inline void mdl_set_lock_type(MDL_LOCK *lock, enum_mdl_type lock_type)
+inline void mdl_set_lock_type(MDL_LOCK_DATA *lock_data, enum_mdl_type lock_type)
 {
-  DBUG_ASSERT(lock->state == MDL_PENDING);
-  lock->type= lock_type;
+  DBUG_ASSERT(lock_data->state == MDL_PENDING);
+  lock_data->type= lock_type;
 }
 
 /**
@@ -175,10 +175,10 @@ inline void mdl_set_lock_type(MDL_LOCK *lock, enum_mdl_type lock_type)
    for shared locks.
 */
 
-inline void mdl_set_lock_priority(MDL_LOCK *lock, enum_mdl_prio prio)
+inline void mdl_set_lock_priority(MDL_LOCK_DATA *lock_data, enum_mdl_prio prio)
 {
-  DBUG_ASSERT(lock->type == MDL_SHARED && lock->state == MDL_PENDING);
-  lock->prio= prio;
+  DBUG_ASSERT(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING);
+  lock_data->prio= prio;
 }
 
 /**
@@ -186,24 +186,25 @@ inline void mdl_set_lock_priority(MDL_LOCK *lock, enum_mdl_prio prio)
    to pending locks.
 */
 
-inline void mdl_set_upgradable(MDL_LOCK *lock)
+inline void mdl_set_upgradable(MDL_LOCK_DATA *lock_data)
 {
-  DBUG_ASSERT(lock->type == MDL_SHARED && lock->state == MDL_PENDING);
-  lock->is_upgradable= TRUE;
+  DBUG_ASSERT(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING);
+  lock_data->is_upgradable= TRUE;
 }
 
-bool mdl_acquire_shared_lock(MDL_LOCK *l, bool *retry);
+bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry);
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
 bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context, int type,
                                           const char *db, const char *name);
-bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
+                                    MDL_LOCK_DATA *lock_data);
 bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
 
 bool mdl_wait_for_locks(MDL_CONTEXT *context);
 
 void mdl_release_locks(MDL_CONTEXT *context);
 void mdl_release_exclusive_locks(MDL_CONTEXT *context);
-void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK *lock);
+void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
 void mdl_downgrade_exclusive_locks(MDL_CONTEXT *context);
 void mdl_release_global_shared_lock(MDL_CONTEXT *context);
 
@@ -212,7 +213,7 @@ bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type, const char *db,
 bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
                        const char *name);
 
-bool mdl_has_pending_conflicting_lock(MDL_LOCK *l);
+bool mdl_has_pending_conflicting_lock(MDL_LOCK_DATA *lock_data);
 
 inline bool mdl_has_locks(MDL_CONTEXT *context)
 {
@@ -224,9 +225,10 @@ inline bool mdl_has_locks(MDL_CONTEXT *context)
    Get iterator for walking through all lock requests in the context.
 */
 
-inline I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> mdl_get_locks(MDL_CONTEXT *ctx)
+inline I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context>
+mdl_get_locks(MDL_CONTEXT *ctx)
 {
-  I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> result(ctx->locks);
+  I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> result(ctx->locks);
   return result;
 }
 
@@ -234,9 +236,9 @@ inline I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> mdl_get_locks(MDL_CONTEXT *
    Give metadata lock request object for the table get table definition
    cache key corresponding to it.
 
-   @param l   [in]  Lock request object for the table.
-   @param key [out] LEX_STRING object where table definition cache key
-                    should be put.
+   @param lock_data  [in]  Lock request object for the table.
+   @param key        [out] LEX_STRING object where table definition cache key
+                           should be put.
 
    @note This key will have the same life-time as this lock request object.
 
@@ -245,16 +247,16 @@ inline I_P_List_iterator<MDL_LOCK, MDL_LOCK_context> mdl_get_locks(MDL_CONTEXT *
          and memory by avoiding generating these TDC keys from table list.
 */
 
-inline void mdl_get_tdc_key(MDL_LOCK *l, LEX_STRING *key)
+inline void mdl_get_tdc_key(MDL_LOCK_DATA *lock_data, LEX_STRING *key)
 {
-  key->str= l->key + 4;
-  key->length= l->key_length - 4;
+  key->str= lock_data->key + 4;
+  key->length= lock_data->key_length - 4;
 }
 
 
 typedef void (* mdl_cached_object_release_hook)(void *);
-void* mdl_get_cached_object(MDL_LOCK *l);
-void mdl_set_cached_object(MDL_LOCK *l, void *cached_object,
+void* mdl_get_cached_object(MDL_LOCK_DATA *lock_data);
+void mdl_set_cached_object(MDL_LOCK_DATA *lock_data, void *cached_object,
                            mdl_cached_object_release_hook release_hook);
 
 #endif
