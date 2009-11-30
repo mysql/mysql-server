@@ -487,7 +487,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (!result && thd->locked_tables)
   {
     /* Make table suitable for reopening */
-    close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
+    close_data_files_and_leave_as_placeholders(thd, tables->db,
+                                               tables->table_name);
     thd->in_lock_tables= 1;
     if (reopen_tables(thd, 1))
     {

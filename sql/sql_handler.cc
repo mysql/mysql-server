@@ -801,7 +801,7 @@ void mysql_ha_flush(THD *thd)
     if (hash_tables->table &&
         (hash_tables->table->mdl_lock &&
          mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock) ||
-         hash_tables->table->needs_reopen_or_name_lock()))
+         hash_tables->table->needs_reopen()))
       mysql_ha_close_table(thd, hash_tables);
   }
 

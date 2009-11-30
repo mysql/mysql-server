@@ -1238,9 +1238,9 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
 bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd, bool get_locks);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name);
-void close_handle_and_leave_table_as_lock(TABLE *table);
+void close_data_files_and_leave_as_placeholders(THD *thd, const char *db,
+                                                const char *table_name);
+void close_handle_and_leave_table_as_placeholder(TABLE *table);
 void unlock_locked_tables(THD *thd);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
