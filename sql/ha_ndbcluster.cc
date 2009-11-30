@@ -11906,8 +11906,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
-//  if ((m_pushed_join && m_pushed_join->m_queryDef->isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
-    if (m_pushed_join ||    // Pushed joins currently restricted to ordered range scan i mrr
+    if ((m_pushed_join && m_pushed_join->m_queryDef->isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
         read_multi_needs_scan(cur_index_type, key_info, r))
     {
       if (!trans)
@@ -12078,7 +12077,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     else
     {
-      DBUG_ASSERT(!m_pushed_join); // Expect to handle these as scan
       if (!trans)
       {
         DBUG_ASSERT(active_index != MAX_KEY);
@@ -12136,7 +12134,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   buffer->end_of_used_area= row_buf;
 
-  if (m_active_query)
+  if (m_pushed_join && m_pushed_join->m_queryDef->isScanQuery())
   {
 //  DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
 //                      m_active_query->getPruned()));
