@@ -798,6 +798,7 @@ void mysql_ha_flush(THD *thd)
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    /* TABLE::mdl_lock is 0 for temporary tables so we need extra check. */
     if (hash_tables->table &&
         (hash_tables->table->mdl_lock &&
          mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock) ||

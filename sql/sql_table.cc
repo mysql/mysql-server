@@ -7208,12 +7208,13 @@ view_err:
   {
     if (table->s->tmp_table)
     {
+      enum_open_table_action not_used;
       TABLE_LIST tbl;
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
       /* Table is in thd->temporary_tables */
-      new_table= open_table(thd, &tbl, thd->mem_root, (enum_open_table_action*) 0,
+      new_table= open_table(thd, &tbl, thd->mem_root, &not_used,
                             MYSQL_LOCK_IGNORE_FLUSH);
     }
     else
