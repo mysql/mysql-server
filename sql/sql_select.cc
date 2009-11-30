@@ -3586,8 +3586,9 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         {
           if (!field->eq(item->field))
           {
+            Item *tmp_item= (Item*) item;
             add_key_field(key_fields, *and_level, cond_func, field,
-                          TRUE, (Item **) &item, 1, usable_tables,
+                          TRUE, &tmp_item, 1, usable_tables,
                           sargables);
           }
         }
@@ -15748,7 +15749,11 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     DBUG_RETURN(TRUE);
 
   if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  {
+    Item *tmp_item= (Item*) cond;
+    cond->fix_fields(thd, &tmp_item);
+    DBUG_ASSERT(cond == tmp_item);
+  }
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);

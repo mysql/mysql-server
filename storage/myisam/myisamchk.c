@@ -1745,11 +1745,9 @@ err:
   sorting
 */
 
-static int not_killed= 0;
-
-volatile int *killed_ptr(HA_CHECK *param __attribute__((unused)))
+int killed_ptr(HA_CHECK *param __attribute__((unused)))
 {
-  return &not_killed;			/* always NULL */
+  return 0;
 }
 
 	/* print warnings and errors */

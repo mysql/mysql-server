@@ -4,7 +4,7 @@ path=`dirname $0`
 . "$path/SETUP.sh"
 
 extra_flags="$pentium_cflags $fast_cflags"
-extra_configs="$pentium_configs $static_link"
+extra_configs="$pentium_configs"
 strip=yes
 
 . "$path/FINISH.sh"

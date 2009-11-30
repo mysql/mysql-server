@@ -497,10 +497,9 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
 
 extern "C" {
 
-volatile int *killed_ptr(HA_CHECK *param)
+int killed_ptr(HA_CHECK *param)
 {
-  /* In theory Unsafe conversion, but should be ok for now */
-  return (int*) &(((THD *)(param->thd))->killed);
+  return thd_killed((THD*)param->thd);
 }
 
 void mi_check_print_error(HA_CHECK *param, const char *fmt,...)

@@ -96,7 +96,7 @@
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_maria_ft_word {
-  uchar * pos;
+  const uchar * pos;
   uint	 len;
   double weight;
 } FT_WORD;
@@ -106,9 +106,9 @@ int is_stopword(char *word, uint len);
 MARIA_KEY *_ma_ft_make_key(MARIA_HA *, MARIA_KEY *, uint , uchar *, FT_WORD *,
                            my_off_t);
 
-uchar maria_ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
-                        MYSQL_FTPARSER_BOOLEAN_INFO *);
-uchar maria_ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
+uchar maria_ft_get_word(CHARSET_INFO *, const uchar **, const uchar *,
+                        FT_WORD *, MYSQL_FTPARSER_BOOLEAN_INFO *);
+uchar maria_ft_simple_get_word(CHARSET_INFO *, const uchar **, const uchar *,
                                FT_WORD *, my_bool);
 
 typedef struct _st_maria_ft_seg_iterator {

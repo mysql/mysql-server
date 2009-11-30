@@ -180,7 +180,7 @@ typedef struct st_my_ftb_param
 
 
 static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
-                              char *word, int word_len,
+                              const uchar *word, size_t word_len,
                               MYSQL_FTPARSER_BOOLEAN_INFO *info)
 {
   MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
@@ -282,19 +282,19 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
-                                    char *query, int len)
+                                    const uchar *query, size_t len)
 {
   MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
-  uchar **start= (uchar**) &query;
-  uchar *end= (uchar*) query + len;
+  const uchar **start= &query;
+  const uchar *end= query + len;
   FT_WORD w;
 
   info.prev= ' ';
   info.quot= 0;
   while (ft_get_word(cs, start, end, &w, &info))
-    param->mysql_add_word(param, (char*) w.pos, w.len, &info);
+    param->mysql_add_word(param, w.pos, w.len, &info);
   return(0);
 }
 
@@ -616,7 +616,7 @@ typedef struct st_my_ftb_phrase_param
 
 
 static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
-                               char *word, int word_len,
+                               const uchar *word, size_t word_len,
     MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
@@ -648,15 +648,15 @@ static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
-                                     char *document, int len)
+                                     const uchar *document, size_t len)
 {
   FT_WORD word;
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   const uchar *docend= (uchar*) document + len;
-  while (ft_simple_get_word(phrase_param->cs, (uchar**) &document, docend,
+  while (ft_simple_get_word(phrase_param->cs, &document, docend,
                             &word, FALSE))
   {
-    param->mysql_add_word(param, (char*) word.pos, word.len, 0);
+    param->mysql_add_word(param, word.pos, word.len, 0);
     if (phrase_param->match)
       break;
   }
@@ -874,7 +874,7 @@ typedef struct st_my_ftb_find_param
 
 
 static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
-                                       char *word, int len,
+                                       const uchar *word, size_t len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
@@ -888,8 +888,8 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
   for (a= 0, b= ftb->queue.elements, c= (a+b)/2; b-a>1; c= (a+b)/2)
   {
     ftbw= ftb->list[c];
-    if (ha_compare_text(ftb->charset, (uchar*)word, len,
-                        (uchar*)ftbw->word+1, ftbw->len-1,
+    if (ha_compare_text(ftb->charset, word, len,
+                        ftbw->word+1, ftbw->len-1,
                         (my_bool) (ftbw->flags & FTB_FLAG_TRUNC), 0) < 0)
       b= c;
     else
@@ -915,8 +915,8 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
   for (; c >= 0; c--)
   {
     ftbw= ftb->list[c];
-    if (ha_compare_text(ftb->charset, (uchar*)word, len,
-                        (uchar*)ftbw->word + 1,ftbw->len - 1,
+    if (ha_compare_text(ftb->charset, word, len,
+                        ftbw->word + 1,ftbw->len - 1,
                         (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
     {
       if (ftb->with_scan & FTB_FLAG_TRUNC)
@@ -935,14 +935,14 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_find_relevance_parse(MYSQL_FTPARSER_PARAM *param,
-                                    char *doc, int len)
+                                    const uchar *doc, size_t len)
 {
   MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;
-  uchar *end= (uchar*) doc + len;
+  const uchar *end= doc + len;
   FT_WORD w;
-  while (ft_simple_get_word(ftb->charset, (uchar**) &doc, end, &w, TRUE))
-    param->mysql_add_word(param, (char*) w.pos, w.len, 0);
+  while (ft_simple_get_word(ftb->charset, &doc, end, &w, TRUE))
+    param->mysql_add_word(param, w.pos, w.len, 0);
   return(0);
 }
 

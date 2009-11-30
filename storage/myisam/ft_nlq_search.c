@@ -63,7 +63,8 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
-  int	       subkeys, r;
+  int32	       subkeys;
+  int          r;
   uint	       keylen, doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
@@ -123,7 +124,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       goto do_skip;
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-    tmp_weight=*(float*)&subkeys;
+    /* The weight we read was actually a float */
+    tmp_weight=*(float*) (char*) &subkeys;
 #else
 #error
 #endif

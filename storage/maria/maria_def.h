@@ -1160,7 +1160,7 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   Functions needed by _ma_check (are overridden in MySQL/ha_maria.cc).
   See ma_check_standalone.h .
 */
-volatile int *_ma_killed_ptr(HA_CHECK *param);
+int _ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))

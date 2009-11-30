@@ -957,6 +957,7 @@ static void close_connections(void)
 
     tmp->killed= THD::KILL_CONNECTION;
     thread_scheduler.post_kill_notification(tmp);
+    pthread_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -979,6 +980,7 @@ static void close_connections(void)
       }
       pthread_mutex_unlock(&tmp->mysys_var->mutex);
     }
+    pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 

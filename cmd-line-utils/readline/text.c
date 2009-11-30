@@ -614,7 +614,7 @@ rl_arrow_keys (count, c)
 #ifdef HANDLE_MULTIBYTE
 static char pending_bytes[MB_LEN_MAX];
 static int pending_bytes_length = 0;
-static mbstate_t ps = {0};
+static mbstate_t ps;
 #endif
 
 /* Insert the character C at the current location, moving point forward.

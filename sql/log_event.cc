@@ -2142,7 +2142,7 @@ static void write_str_with_code_and_len(uchar **dst, const char *src,
   */
   DBUG_ASSERT(len <= 255);
   DBUG_ASSERT(src);
-  *((*dst)++)= code;
+  *((*dst)++)= (uchar) code;
   *((*dst)++)= (uchar) len;
   bmove(*dst, src, len);
   (*dst)+= len;

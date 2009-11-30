@@ -5823,6 +5823,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     /* This is a base table. */
     DBUG_ASSERT(nj_col->view_field == NULL);
+    Item *ref= 0;
     /*
       This fix_fields is not necessary (initially this item is fixed by
       the Item_field constructor; after reopen_tables the Item_func_eq
@@ -5830,12 +5831,13 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       reopening for columns that was dropped by the concurrent connection.
     */
     if (!nj_col->table_field->fixed &&
-        nj_col->table_field->fix_fields(thd, (Item **)&nj_col->table_field))
+        nj_col->table_field->fix_fields(thd, &ref))
     {
       DBUG_PRINT("info", ("column '%s' was dropped by the concurrent connection",
                           nj_col->table_field->name));
       DBUG_RETURN(NULL);
     }
+    DBUG_ASSERT(ref == 0);                      // Should not have changed
     DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->field->table);
     found_field= nj_col->table_field->field;
     update_field_dependencies(thd, found_field, nj_col->table_ref->table);

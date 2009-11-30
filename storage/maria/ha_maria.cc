@@ -665,10 +665,9 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
 
 extern "C" {
 
-volatile int *_ma_killed_ptr(HA_CHECK *param)
+int _ma_killed_ptr(HA_CHECK *param)
 {
-  /* In theory Unsafe conversion, but should be ok for now */
-  return (int*) &(((THD *) (param->thd))->killed);
+  return thd_killed((THD*)param->thd);
 }
 
 

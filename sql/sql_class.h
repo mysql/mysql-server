@@ -1906,6 +1906,7 @@ public:
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  void reset_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
