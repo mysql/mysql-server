@@ -1,9 +1,7 @@
 # See if master_pos_wait(,,timeout)
 # Terminates with "timeout expired" (-1)
 source include/master-slave.inc;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 # Ask for a master log that has certainly not been reached yet
 # timeout= 2 seconds
 select master_pos_wait('master-bin.999999',0,2);
