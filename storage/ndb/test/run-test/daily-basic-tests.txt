@@ -274,6 +274,10 @@ max-time: 2500
 cmd: testIndex
 args: -n BuildDuring T6 
 
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
 max-time: 600
 cmd: testIndex
 args: -n Bug46069 T1
