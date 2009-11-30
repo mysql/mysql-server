@@ -620,6 +620,13 @@ os_aio_init(
 	ulint	n_write_segs,	/*<! in: number of writer threads */
 	ulint	n_slots_sync);	/*<! in: number of slots in the sync aio
 				array */
+/***********************************************************************
+Frees the asynchronous io system. */
+UNIV_INTERN
+void
+os_aio_free(void);
+/*=============*/
+
 /*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
