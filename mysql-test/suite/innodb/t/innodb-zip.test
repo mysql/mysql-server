@@ -175,11 +175,11 @@ set innodb_strict_mode = on;
 
 --error ER_CANT_CREATE_TABLE
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb key_block_size = 9;
-show errors;
+show warnings;
 
 
 create table t3 (id int primary key) engine = innodb key_block_size = 1;
@@ -205,22 +205,22 @@ key_block_size = 8 row_format = compressed;
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb
 key_block_size = 8 row_format = redundant;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb
 key_block_size = 8 row_format = compact;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t4 (id int primary key) engine = innodb
 key_block_size = 8 row_format = dynamic;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t5 (id int primary key) engine = innodb
 key_block_size = 8 row_format = default;
-show errors;
+show warnings;
 
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
@@ -230,17 +230,17 @@ drop table t1;
 --error ER_CANT_CREATE_TABLE
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = compact;
-show errors;
+show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
-show errors;
+show warnings;
 
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
@@ -250,25 +250,25 @@ set global innodb_file_per_table = off;
 
 --error ER_CANT_CREATE_TABLE
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t4 (id int primary key) engine = innodb key_block_size = 8;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t5 (id int primary key) engine = innodb key_block_size = 16;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t6 (id int primary key) engine = innodb row_format = compressed;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
-show errors;
+show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 
@@ -282,25 +282,25 @@ set global innodb_file_format = `0`;
 
 --error ER_CANT_CREATE_TABLE
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t4 (id int primary key) engine = innodb key_block_size = 8;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t5 (id int primary key) engine = innodb key_block_size = 16;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t6 (id int primary key) engine = innodb row_format = compressed;
-show errors;
+show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
-show errors;
+show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 

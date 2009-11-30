@@ -832,6 +832,23 @@ next_file:
 	ret = stat(full_path, &statinfo);
 
 	if (ret) {
+
+		if (errno == ENOENT) {
+			/* readdir() returned a file that does not exist,
+			it must have been deleted in the meantime. Do what
+			would have happened if the file was deleted before
+			readdir() - ignore and go to the next entry.
+			If this is the last entry then info->name will still
+			contain the name of the deleted file when this
+			function returns, but this is not an issue since the
+			caller shouldn't be looking at info when end of
+			directory is returned. */
+
+			ut_free(full_path);
+
+			goto next_file;
+		}
+
 		os_file_handle_error_no_exit(full_path, "stat");
 
 		ut_free(full_path);

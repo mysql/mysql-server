@@ -1,8 +1,6 @@
 reset master;
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
-Warnings:
-Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
@@ -59,7 +57,7 @@ Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
 Master_Port	MASTER_PORT
-Connect_Retry	1
+Connect_Retry	60
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	280
 Relay_Log_File	#
@@ -100,7 +98,7 @@ Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
 Master_Port	MASTER_PORT
-Connect_Retry	1
+Connect_Retry	60
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	280
 Relay_Log_File	#
