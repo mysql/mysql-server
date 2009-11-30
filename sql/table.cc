@@ -2077,7 +2077,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   else
   {
     char *str;
-    const char **tmp = (const char**) (char*) buf;
+    const char **tmp = (const char**) buf;
     str=(char *) (buf+a_length);
     fix_type_pointers(&tmp, save_names, 1, &str);
   }

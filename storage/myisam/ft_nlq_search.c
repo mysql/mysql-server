@@ -63,7 +63,7 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
-  int32	       subkeys;
+  FT_WEIGTH    subkeys;
   int          r;
   uint	       keylen, doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
@@ -91,7 +91,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   /* Skip rows inserted by current inserted */
   for (r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
        !r &&
-         (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+         (subkeys.i= ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
          info->lastpos >= info->state->data_file_length ;
        r= _mi_search_next(info, keyinfo, info->lastkey,
                           info->lastkey_length, SEARCH_BIGGER, key_root))
@@ -108,7 +108,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
                         info->lastkey_length-extra-1, keybuff+1,keylen-1,0,0))
      break;
 
-    if (subkeys<0)
+    if (subkeys.i < 0)
     {
       if (doc_cnt)
         DBUG_RETURN(1); /* index is corrupted */
@@ -125,7 +125,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
     /* The weight we read was actually a float */
-    tmp_weight=*(float*) (char*) &subkeys;
+    tmp_weight= subkeys.f;
 #else
 #error
 #endif
@@ -162,7 +162,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 	r=_mi_search(info, keyinfo, info->lastkey, info->lastkey_length,
                      SEARCH_BIGGER, key_root);
 do_skip:
-    while ((subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+    while ((subkeys.i= ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
            !r && info->lastpos >= info->state->data_file_length)
       r= _mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                          SEARCH_BIGGER, key_root);

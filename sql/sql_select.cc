@@ -3586,7 +3586,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         {
           if (!field->eq(item->field))
           {
-            Item *tmp_item= (Item*) item;
+            Item *tmp_item= item;
             add_key_field(key_fields, *and_level, cond_func, field,
                           TRUE, &tmp_item, 1, usable_tables,
                           sargables);

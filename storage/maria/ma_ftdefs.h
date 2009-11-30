@@ -122,15 +122,17 @@ void _ma_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _ma_ft_segiterator(FT_SEG_ITERATOR *);
 
 void maria_ft_parse_init(TREE *, CHARSET_INFO *);
-int maria_ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
+int maria_ft_parse(TREE *, uchar *, size_t, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * maria_ft_linearize(TREE *, MEM_ROOT *);
 FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const uchar *, MEM_ROOT *);
 uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, uchar *, uint, uint, uchar *);
-FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, uchar *, uint, CHARSET_INFO *);
+FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, uchar *, size_t, uint,
+                                  uchar *);
+FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, uchar *, size_t,
+                                      CHARSET_INFO *);
 
 extern const struct _ft_vft _ma_ft_vft_nlq;
 int maria_ft_nlq_read_next(FT_INFO *, char *);

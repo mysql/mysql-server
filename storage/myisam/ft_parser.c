@@ -258,7 +258,7 @@ void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
 
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
-                       const uchar *word, size_t word_len,
+                       const uchar *word, mysql_ft_size_t word_len,
                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
                        __attribute__((unused)))
 {
@@ -288,7 +288,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
-                             const uchar *doc_arg, size_t doc_len)
+                             const uchar *doc_arg, mysql_ft_size_t doc_len)
 {
   const uchar *doc= doc_arg;
   const uchar *end= doc + doc_len;
@@ -379,8 +379,8 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
     info->ftparser_param[ftparser_nr].mysql_add_word=
-      (int (*)(struct st_mysql_ftparser_param *, const uchar *, size_t,
-              MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
+      (int (*)(struct st_mysql_ftparser_param *, const uchar *,
+               mysql_ft_size_t, MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;
   }

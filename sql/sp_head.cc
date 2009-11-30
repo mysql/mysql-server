@@ -1924,7 +1924,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_out)
       {
         Item_null *null_item= new Item_null();
-        Item *tmp_item= (Item*) null_item;
+        Item *tmp_item= null_item;
 
         if (!null_item ||
             nctx->set_variable(thd, i, &tmp_item))

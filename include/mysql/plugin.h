@@ -564,19 +564,22 @@ typedef struct st_mysql_ftparser_boolean_info
   nothing.  See  enum_ftparser_mode above.
 */
 
+/* TODO: Change the following int to size_t at next ABI update */
+typedef int mysql_ft_size_t;
+
 typedef struct st_mysql_ftparser_param
 {
   int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     const unsigned char *doc, size_t doc_len);
+                     const unsigned char *doc, mysql_ft_size_t doc_len);
   int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        const unsigned char *word, size_t word_len,
+                        const unsigned char *word, mysql_ft_size_t word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
   struct charset_info_st *cs;
-  char *doc;
-  int length;
-  int flags;
+  const unsigned char *doc;
+  mysql_ft_size_t length;
+  unsigned int flags;
   enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
 
