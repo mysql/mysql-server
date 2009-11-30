@@ -966,15 +966,16 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 {
   TABLE_LIST *lock_table;
-  MDL_LOCK *mdl_lock;
+  MDL_LOCK_DATA *mdl_lock_data;
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
-    if (!(mdl_lock= mdl_alloc_lock(0, lock_table->db, lock_table->table_name,
-                                   thd->mem_root)))
+    if (!(mdl_lock_data= mdl_alloc_lock(0, lock_table->db,
+                                        lock_table->table_name,
+                                        thd->mem_root)))
       goto end;
-    mdl_set_lock_type(mdl_lock, MDL_EXCLUSIVE);
-    mdl_add_lock(&thd->mdl_context, mdl_lock);
+    mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
+    mdl_add_lock(&thd->mdl_context, mdl_lock_data);
   }
   if (mdl_acquire_exclusive_locks(&thd->mdl_context))
     return 1;

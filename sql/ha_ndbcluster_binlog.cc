@@ -140,8 +140,8 @@ static Uint64 *p_latest_trans_gci= 0;
 */
 static TABLE *ndb_binlog_index= 0;
 static TABLE_LIST binlog_tables;
-static MDL_LOCK   binlog_mdl_lock;
-static char       binlog_mdlkey[MAX_DBKEY_LENGTH];
+static MDL_LOCK_DATA binlog_mdl_lock_data;
+static char binlog_mdlkey[MAX_DBKEY_LENGTH];
 
 /*
   Helper functions
@@ -2343,9 +2343,9 @@ static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
   tables->alias= tables->table_name= reptable;
   tables->lock_type= TL_WRITE;
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
-  mdl_init_lock(&binlog_mdl_lock, binlog_mdlkey, 0, tables->db,
+  mdl_init_lock(&binlog_mdl_lock_data, binlog_mdlkey, 0, tables->db,
                 tables->table_name);
-  tables->mdl_lock= &binlog_mdl_lock;
+  tables->mdl_lock_data= &binlog_mdl_lock_data;
   tables->required_type= FRMTYPE_TABLE;
   uint counter;
   thd->clear_error();
