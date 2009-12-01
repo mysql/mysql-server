@@ -409,6 +409,188 @@ static void release_lock_object(MDL_LOCK *lock)
 
 
 /**
+   Check if request for the lock on particular object can be satisfied given
+   current state of the global metadata lock.
+
+   @note In other words, we're trying to check that the individual lock
+         request, implying a form of lock on the global metadata, is
+         compatible with the current state of the global metadata lock.
+
+   @param lock_data Request for lock on an individual object, implying a
+                    certain kind of global metadata lock.
+
+   @retval TRUE  - Lock request can be satisfied
+   @retval FALSE - There is some conflicting lock
+
+   Here is a compatibility matrix defined by this function:
+
+                   |             | Satisfied or pending requests
+                   |             | for global metadata lock
+   ----------------+-------------+--------------------------------------------
+   Type of request | Correspond. |
+   for indiv. lock | global lock | Active-S  Pending-S  Active-IS(**) Active-IX
+   ----------------+-------------+--------------------------------------------
+   S               |   IS        |    +         +          +             +
+   upgradable S    |   IX        |    -         -          +             +
+   X               |   IX        |    -         -          +             +
+   S upgraded to X |   IX (*)    |    0         +          +             +
+
+   Here: "+" -- means that request can be satisfied
+         "-" -- means that request can't be satisfied and should wait
+         "0" -- means impossible situation which will trigger assert
+
+   (*)  Since for upgradable shared locks we always take intention exclusive
+        global lock at the same time when obtaining the shared lock, there
+        is no need to obtain such lock during the upgrade itself.
+   (**) Since intention shared global locks are compatible with all other
+        type of locks we don't even have any accounting for them.
+*/
+
+static bool can_grant_global_lock(MDL_LOCK_DATA *lock_data)
+{
+  switch (lock_data->type)
+  {
+  case MDL_SHARED:
+    if (lock_data->is_upgradable &&
+        (global_lock.active_shared || global_lock.waiting_shared))
+    {
+      /*
+        We are going to obtain intention exclusive global lock and
+        there is active or pending shared global lock. Have to wait.
+      */
+      return FALSE;
+    }
+    else
+      return TRUE;
+    break;
+  case MDL_EXCLUSIVE:
+    if (lock_data->state == MDL_PENDING_UPGRADE)
+    {
+      /*
+        We are upgrading MDL_SHARED to MDL_EXCLUSIVE.
+
+        There should be no conflicting global locks since for each upgradable
+        shared lock we obtain intention exclusive global lock first.
+      */
+      DBUG_ASSERT(global_lock.active_shared == 0 &&
+                  global_lock.active_intention_exclusive);
+      return TRUE;
+    }
+    else
+    {
+      if (global_lock.active_shared || global_lock.waiting_shared)
+      {
+        /*
+          We are going to obtain intention exclusive global lock and
+          there is active or pending shared global lock.
+        */
+        return FALSE;
+      }
+      else
+        return TRUE;
+    }
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  return FALSE;
+}
+
+
+/**
+   Check if request for the lock can be satisfied given current state of lock.
+
+   @param  lock       Lock.
+   @param  lock_data  Request for lock.
+
+   @retval TRUE   Lock request can be satisfied
+   @retval FALSE  There is some conflicting lock.
+
+   This function defines the following compatibility matrix for metadata locks:
+
+                   | Satisfied or pending requests which we have in MDL_LOCK
+   ----------------+---------------------------------------------------------
+   Current request | Active-S  Pending-X Active-X Act-S-pend-upgrade-to-X
+   ----------------+---------------------------------------------------------
+   S               |    +         -         - (*)           -
+   High-prio S     |    +         +         -               +
+   X               |    -         +         -               -
+   S upgraded to X |    - (**)    +         0               0
+
+   Here: "+" -- means that request can be satisfied
+         "-" -- means that request can't be satisfied and should wait
+         "0" -- means impossible situation which will trigger assert
+
+   (*)  Unless active exclusive lock belongs to the same context as shared
+        lock being requested.
+   (**) Unless all active shared locks belong to the same context as one
+        being upgraded.
+*/
+
+static bool can_grant_lock(MDL_LOCK *lock, MDL_LOCK_DATA *lock_data)
+{
+  switch (lock_data->type)
+  {
+  case MDL_SHARED:
+    if ((lock->active_exclusive.is_empty() &&
+         (lock_data->prio == MDL_HIGH_PRIO ||
+          lock->waiting_exclusive.is_empty() &&
+          lock->active_shared_waiting_upgrade.is_empty())) ||
+        (!lock->active_exclusive.is_empty() &&
+         lock->active_exclusive.head()->ctx == lock_data->ctx))
+    {
+      /*
+        When exclusive lock comes from the same context we can satisfy our
+        shared lock. This is required for CREATE TABLE ... SELECT ... and
+        ALTER VIEW ... AS ....
+      */
+      return TRUE;
+    }
+    else
+      return FALSE;
+    break;
+  case MDL_EXCLUSIVE:
+    if (lock_data->state == MDL_PENDING_UPGRADE)
+    {
+      /* We are upgrading MDL_SHARED to MDL_EXCLUSIVE. */
+      MDL_LOCK_DATA *conf_lock_data;
+      I_P_List_iterator<MDL_LOCK_DATA,
+                        MDL_LOCK_DATA_lock> it(lock->active_shared);
+
+      /*
+        There should be no active exclusive locks since we own shared lock
+        on the object.
+      */
+      DBUG_ASSERT(lock->active_exclusive.is_empty() &&
+                  lock->active_shared_waiting_upgrade.head() == lock_data);
+
+      while ((conf_lock_data= it++))
+      {
+        /*
+          When upgrading shared lock to exclusive one we can have other shared
+          locks for the same object in the same context, e.g. in case when several
+          instances of TABLE are open.
+        */
+        if (conf_lock_data->ctx != lock_data->ctx)
+          return FALSE;
+      }
+      return TRUE;
+    }
+    else
+    {
+      return (lock->active_exclusive.is_empty() &&
+              lock->active_shared_waiting_upgrade.is_empty() &&
+              lock->active_shared.is_empty());
+    }
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  return FALSE;
+}
+
+
+/**
    Try to acquire one shared lock.
 
    Unlike exclusive locks, shared locks are acquired one by
@@ -449,8 +631,7 @@ bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry)
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  if (lock_data->is_upgradable &&
-      (global_lock.active_shared || global_lock.waiting_shared))
+  if (!can_grant_global_lock(lock_data))
   {
     pthread_mutex_unlock(&LOCK_mdl);
     *retry= TRUE;
@@ -461,6 +642,11 @@ bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry)
                                          lock_data->key_length)))
   {
     lock= get_lock_object();
+    /*
+      Before inserting MDL_LOCK object into hash we should add at least one
+      MDL_LOCK_DATA to its lists in order to provide key for this element.
+      Thus we can't merge two branches of the above if-statement.
+    */
     lock->active_shared.push_front(lock_data);
     lock->lock_data_count= 1;
     my_hash_insert(&mdl_locks, (uchar*)lock);
@@ -471,18 +657,8 @@ bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry)
   }
   else
   {
-    if ((lock->active_exclusive.is_empty() &&
-         (lock_data->prio == MDL_HIGH_PRIO ||
-          lock->waiting_exclusive.is_empty() &&
-          lock->active_shared_waiting_upgrade.is_empty())) ||
-        (!lock->active_exclusive.is_empty() &&
-         lock->active_exclusive.head()->ctx == lock_data->ctx))
+    if (can_grant_lock(lock, lock_data))
     {
-      /*
-        When exclusive lock comes from the same context we can satisfy our
-        shared lock. This is required for CREATE TABLE ... SELECT ... and
-        ALTER VIEW ... AS ....
-      */
       lock->active_shared.push_front(lock_data);
       lock->lock_data_count++;
       lock_data->state= MDL_ACQUIRED;
@@ -523,7 +699,7 @@ static void release_lock(MDL_LOCK_DATA *lock_data);
 
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
 {
-  MDL_LOCK_DATA *lock_data, *conf_lock_data;
+  MDL_LOCK_DATA *lock_data;
   MDL_LOCK *lock;
   bool signalled= FALSE;
   const char *old_msg;
@@ -552,6 +728,10 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
                                             lock_data->key_length)))
     {
       lock= get_lock_object();
+      /*
+        Again before inserting MDL_LOCK into hash provide key for
+        it by adding MDL_LOCK_DATA to one of its lists.
+      */
       lock->waiting_exclusive.push_front(lock_data);
       lock->lock_data_count= 1;
       my_hash_insert(&mdl_locks, (uchar*)lock);
@@ -572,30 +752,28 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
     {
       lock= lock_data->lock;
 
-      if (global_lock.active_shared || global_lock.waiting_shared)
+      if (!can_grant_global_lock(lock_data))
       {
         /*
-          There is active or pending global shared lock we have
+          There is an active or pending global shared lock so we have
           to wait until it goes away.
         */
         signalled= TRUE;
         break;
       }
-      else if (!lock->active_exclusive.is_empty() ||
-               !lock->active_shared_waiting_upgrade.is_empty())
+      else if (!can_grant_lock(lock, lock_data))
       {
-        /*
-          Exclusive MDL owner won't wait on table-level lock the same
-          applies to shared lock waiting upgrade (in this cases we already
-          have some table-level lock).
-        */
-        signalled= TRUE;
-        break;
-      }
-      else if ((conf_lock_data= lock->active_shared.head()))
-      {
-        signalled= notify_thread_having_shared_lock(thd,
-                                                    conf_lock_data->ctx->thd);
+        MDL_LOCK_DATA *conf_lock_data;
+        I_P_List_iterator<MDL_LOCK_DATA,
+                          MDL_LOCK_DATA_lock> it(lock->active_shared);
+
+        signalled= !lock->active_exclusive.is_empty() ||
+                   !lock->active_shared_waiting_upgrade.is_empty();
+
+        while ((conf_lock_data= it++))
+          signalled|=
+            notify_thread_having_shared_lock(thd, conf_lock_data->ctx->thd);
+
         break;
       }
     }
@@ -674,7 +852,6 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
 bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
                                           MDL_LOCK_DATA *lock_data)
 {
-  MDL_LOCK_DATA *conf_lock_data;
   MDL_LOCK *lock;
   const char *old_msg;
   THD *thd= context->thd;
@@ -700,6 +877,8 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
   old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
 
   lock_data->state= MDL_PENDING_UPGRADE;
+  /* Set type of lock request to the type at which we are aiming. */
+  lock_data->type= MDL_EXCLUSIVE;
   lock->active_shared.remove(lock_data);
   /*
     There can be only one upgrader for this lock or we will have deadlock.
@@ -711,43 +890,26 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
   lock->active_shared_waiting_upgrade.push_front(lock_data);
 
   /*
-    There should be no conflicting global locks since for each upgradable
-    shared lock we obtain intention exclusive global lock first.
+    Since we should have been already acquired intention exclusive global lock
+    this call is only enforcing asserts.
   */
-  DBUG_ASSERT(global_lock.active_shared == 0 &&
-              global_lock.active_intention_exclusive);
+  DBUG_ASSERT(can_grant_global_lock(lock_data));
 
   while (1)
   {
-    bool signalled= FALSE;
-    bool found_conflict= FALSE;
-    I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> it(lock->active_shared);
+    if (can_grant_lock(lock, lock_data))
+      break;
 
-    DBUG_PRINT("info", ("looking at conflicting locks"));
+    bool signalled= FALSE;
+    MDL_LOCK_DATA *conf_lock_data;
+    I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_lock> it(lock->active_shared);
 
     while ((conf_lock_data= it++))
     {
-      /*
-        We can have other shared locks for the same object in the same context,
-        e.g. in case when several instances of TABLE are open.
-      */
       if (conf_lock_data->ctx != context)
-      {
-        DBUG_PRINT("info", ("found active shared locks"));
-        found_conflict= TRUE;
         signalled|= notify_thread_having_shared_lock(thd,
                                                      conf_lock_data->ctx->thd);
-      }
     }
-
-    /*
-      There should be no active exclusive locks since we own shared lock
-      on the object.
-    */
-    DBUG_ASSERT(lock->active_exclusive.is_empty());
-
-    if (!found_conflict)
-      break;
 
     if (signalled)
       pthread_cond_wait(&COND_mdl, &LOCK_mdl);
@@ -767,6 +929,7 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
     if (thd->killed)
     {
       lock_data->state= MDL_ACQUIRED;
+      lock_data->type= MDL_SHARED;
       lock->active_shared_waiting_upgrade.remove(lock_data);
       lock->active_shared.push_front(lock_data);
       /* Pending requests for shared locks can be satisfied now. */
@@ -778,7 +941,6 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
 
   lock->active_shared_waiting_upgrade.remove(lock_data);
   lock->active_exclusive.push_front(lock_data);
-  lock_data->type= MDL_EXCLUSIVE;
   lock_data->state= MDL_ACQUIRED;
   if (lock->cached_object)
     (*lock->cached_object_release_hook)(lock->cached_object);
@@ -941,8 +1103,7 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
     while ((lock_data= it++))
     {
       DBUG_ASSERT(lock_data->state == MDL_PENDING);
-      if ((lock_data->is_upgradable || lock_data->type == MDL_EXCLUSIVE) &&
-          (global_lock.active_shared || global_lock.waiting_shared))
+      if (!can_grant_global_lock(lock_data))
         break;
       /*
         To avoid starvation we don't wait if we have pending MDL_EXCLUSIVE lock.
@@ -950,9 +1111,7 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
       if (lock_data->type == MDL_SHARED &&
           (lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
                                             lock_data->key_length)) &&
-          !(lock->active_exclusive.is_empty() &&
-            lock->active_shared_waiting_upgrade.is_empty() &&
-            lock->waiting_exclusive.is_empty()))
+          !can_grant_lock(lock, lock_data))
         break;
     }
     if (!lock_data)
