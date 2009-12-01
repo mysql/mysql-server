@@ -3076,6 +3076,56 @@ uint get_table_open_method(TABLE_LIST *tables,
 
 
 /**
+   Acquire high priority share metadata lock on a table.
+
+   @param thd            Thread context.
+   @param mdl_lock_data  Pointer to memory to be used for MDL_LOCK_DATA
+                         object for a lock request.
+   @param mdlkey         Pointer to the buffer for key for the lock request
+                         (should be at least strlen(db) + strlen(name) + 2
+                         bytes, or, if the lengths are not known,
+                         MAX_DBNAME_LENGTH)
+   @param table          Table list element for the table
+
+   @note This is an auxiliary function to be used in cases when we want to
+         access table's description by looking up info in TABLE_SHARE without
+         going through full-blown table open.
+   @note This function assumes that there are no other metadata lock requests
+         in the current metadata locking context.
+
+   @retval FALSE  Success
+   @retval TRUE   Some error occured (probably thread was killed).
+*/
+
+static bool
+acquire_high_prio_shared_mdl_lock(THD *thd, MDL_LOCK_DATA *mdl_lock_data,
+                                  char *mdlkey, TABLE_LIST *table)
+{
+  bool retry;
+
+  mdl_init_lock(mdl_lock_data, mdlkey, 0, table->db, table->table_name);
+  table->mdl_lock_data= mdl_lock_data;
+  mdl_add_lock(&thd->mdl_context, mdl_lock_data);
+  mdl_set_lock_type(mdl_lock_data, MDL_SHARED_HIGH_PRIO);
+
+  while (1)
+  {
+    if (mdl_acquire_shared_lock(&thd->mdl_context, mdl_lock_data, &retry))
+    {
+      if (!retry || mdl_wait_for_locks(&thd->mdl_context))
+      {
+        mdl_remove_all_locks(&thd->mdl_context);
+        return TRUE;
+      }
+      continue;
+    }
+    break;
+  }
+  return FALSE;
+}
+
+
+/**
   @brief          Fill I_S table with data from FRM file only
 
   @param[in]      thd                      thread handler
@@ -3108,7 +3158,6 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
   MDL_LOCK_DATA mdl_lock_data;
   char mdlkey[MAX_DBKEY_LENGTH];
-  bool retry;
 
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   bzero((char*) &tbl, sizeof(TABLE));
@@ -3133,32 +3182,20 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
     table_list.db= db_name->str;
   }
 
-  mdl_init_lock(&mdl_lock_data, mdlkey, 0, db_name->str, table_name->str);
-  table_list.mdl_lock_data= &mdl_lock_data;
-  mdl_add_lock(&thd->mdl_context, &mdl_lock_data);
-  mdl_set_lock_type(&mdl_lock_data, MDL_SHARED_HIGH_PRIO);
-
   /*
     TODO: investigate if in this particular situation we can get by
           simply obtaining internal lock of data-dictionary (ATM it
           is LOCK_open) instead of obtaning full-blown metadata lock.
   */
-  while (1)
+  if (acquire_high_prio_shared_mdl_lock(thd, &mdl_lock_data, mdlkey,
+                                        &table_list))
   {
-    if (mdl_acquire_shared_lock(&thd->mdl_context, &mdl_lock_data, &retry))
-    {
-      if (!retry || mdl_wait_for_locks(&thd->mdl_context))
-      {
-        /*
-          Some error occured or we have been killed while waiting
-          for conflicting locks to go away, let the caller to handle
-          the situation.
-        */
-        return 1;
-      }
-      continue;
-    }
-    break;
+    /*
+      Some error occured (most probably we have been killed while
+      waiting for conflicting locks to go away), let the caller to
+      handle the situation.
+    */
+    return 1;
   }
 
   key_length= create_table_def_key(thd, key, &table_list, 0);

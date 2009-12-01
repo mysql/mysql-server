@@ -139,7 +139,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   pthread_mutex_lock(&LOCK_open);
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
-    expel_table_from_cache(0, ren_table->db, ren_table->table_name);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
+                     ren_table->table_name);
 
   error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
