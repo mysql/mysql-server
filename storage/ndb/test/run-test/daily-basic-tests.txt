@@ -274,6 +274,10 @@ max-time: 2500
 cmd: testIndex
 args: -n BuildDuring T6 
 
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
 max-time: 600
 cmd: testIndex
 args: -n Bug46069 T1
@@ -1467,6 +1471,10 @@ args: -n ReadColumnDuplicates
 max-time: 300
 cmd: testBasic
 args: -n DDInsertFailUpdateBatch
+
+max-time: 300
+cmd: testBlobs
+args: -skip hp -bug 28116
 
 max-time: 300
 cmd: testNdbApi
