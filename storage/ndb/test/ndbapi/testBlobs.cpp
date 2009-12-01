@@ -4177,6 +4177,87 @@ bugtest_27370()
   return 0;
 }
 
+static int
+bugtest_28116()
+{
+  DBG("bug test 28116 - Crash in getBlobHandle() when called without full key");
+
+  if (g_opt.m_pk2chr.m_len == 0)
+  {
+    DBG("  ... skipped, requires multi-column primary key.");
+    return 0;
+  }
+
+  for (unsigned k = 0; k < g_opt.m_rows; k++) {
+    Tup& tup = g_tups[k];
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    int reqType = urandom(4);
+    switch(reqType) {
+    case 0:
+    {
+      DBG("Read");
+      CHK(g_opr->readTuple() == 0);
+      break;
+    }
+    case 1:
+    {
+      DBG("Insert");
+      CHK(g_opr->insertTuple() == 0);
+      break;
+    }
+    case 2:
+    {
+      DBG("Update");
+      CHK(g_opr->updateTuple() == 0);
+      break;
+    }
+    case 3:
+    default:
+    {
+      DBG("Delete");
+      CHK(g_opr->deleteTuple() == 0);
+      break;
+    }
+    }
+    switch (urandom(3)) {
+    case 0:
+    {
+      DBG("  No keys");
+      break;
+    }
+    case 1:
+    {
+      DBG("  Pk1 only");
+      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+      break;
+    }
+    case 2:
+    default:
+    {
+      DBG("  Pk2/3 only");
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+      }
+      break;
+    }
+    }
+    /* Deliberately no equal() on rest of primary key, to provoke error. */
+    CHK(g_opr->getBlobHandle("BL1") == 0);
+
+    /* 4264 - Invalid usage of Blob attribute */
+    CHK(g_con->getNdbError().code == 4264);
+    CHK(g_opr->getNdbError().code == 4264);
+
+    g_ndb->closeTransaction(g_con);
+    g_opr = 0;
+    g_con = 0;
+  }
+  return 0;
+}
+
 static struct {
   int m_bug;
   int (*m_test)();
@@ -4186,7 +4267,8 @@ static struct {
   { 27370, bugtest_27370 },
   { 36756, bugtest_36756 },
   { 45768, bugtest_45768 },
-  { 48040, bugtest_48040 }
+  { 48040, bugtest_48040 },
+  { 28116, bugtest_28116 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)

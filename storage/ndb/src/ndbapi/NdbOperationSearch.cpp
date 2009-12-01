@@ -474,7 +474,8 @@ NdbOperation::reorderKEYINFO()
 {
   Uint32 data[ NDB_MAX_KEYSIZE_IN_WORDS ];
   Uint32 size = NDB_MAX_KEYSIZE_IN_WORDS;
-  getKeyFromTCREQ(data, size);
+  int rc = getKeyFromTCREQ(data, size);
+  assert(rc == 0);
   Uint32 pos = 1;
   Uint32 k;
   for (k = 0; k < m_accessTable->m_noOfKeys; k++) {
@@ -506,7 +507,10 @@ NdbOperation::reorderKEYINFO()
 int
 NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
 {
-  assert(size >= theTupKeyLen && theTupKeyLen > 0);
+  /* Check that we can correctly return a valid key */
+  if ((size < theTupKeyLen) || (theTupKeyLen == 0))
+    return -1;
+  
   size = theTupKeyLen;
   unsigned pos = 0;
   while (pos < 8 && pos < size) {
