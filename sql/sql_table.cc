@@ -3674,9 +3674,9 @@ static inline void write_create_table_bin_log(THD *thd,
     If one creates a temporary table, this is automatically opened
 
     Note that this function assumes that caller already have taken
-    name-lock on table being created or used some other way to ensure
-    that concurrent operations won't intervene. mysql_create_table()
-    is a wrapper that can be used for this.
+    exclusive metadata lock on table being created or used some other
+    way to ensure that concurrent operations won't intervene.
+    mysql_create_table() is a wrapper that can be used for this.
 
     no_log is needed for the case of CREATE ... SELECT,
     as the logging will be done later in sql_insert.cc
@@ -5279,13 +5279,13 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
 
   /*
-    By opening source table we guarantee that it exists and no concurrent
-    DDL operation will mess with it. Later we also take an exclusive
-    name-lock on target table name, which makes copying of .frm file,
-    call to ha_create_table() and binlogging atomic against concurrent DML
-    and DDL operations on target table. Thus by holding both these "locks"
-    we ensure that our statement is properly isolated from all concurrent
-    operations which matter.
+    By opening source table and thus acquiring shared metadata lock on it
+    we guarantee that it exists and no concurrent DDL operation will mess
+    with it. Later we also take an exclusive metadata lock on target table
+    name, which makes copying of .frm file, call to ha_create_table() and
+    binlogging atomic against concurrent DML and DDL operations on target
+    table. Thus by holding both these "locks" we ensure that our statement
+    is properly isolated from all concurrent operations which matter.
   */
   if (open_tables(thd, &src_table, &not_used, 0))
     DBUG_RETURN(TRUE);
@@ -5338,15 +5338,13 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     Create a new table by copying from source table
     and sync the new table if the flag MY_SYNC is set
 
-    Altough exclusive name-lock on target table protects us from concurrent
-    DML and DDL operations on it we still want to wrap .FRM creation and call
-    to ha_create_table() in critical section protected by LOCK_open in order
-    to provide minimal atomicity against operations which disregard name-locks,
-    like I_S implementation, for example. This is a temporary and should not
-    be copied. Instead we should fix our code to always honor name-locks.
-
-    Also some engines (e.g. NDB cluster) require that LOCK_open should be held
-    during the call to ha_create_table(). See bug #28614 for more info.
+    TODO: Obtaining LOCK_open mutex here is actually a legacy from the
+          times when some operations (e.g. I_S implementation) ignored
+          exclusive metadata lock on target table. Also some engines
+          (e.g. NDB cluster) require that LOCK_open should be held
+          during the call to ha_create_table() (See bug #28614 for more
+          info). So we should double check and probably fix this code
+          to not acquire this mutex.
   */
   pthread_mutex_lock(&LOCK_open);
   if (src_table->schema_table)
@@ -5461,9 +5459,9 @@ binlog:
 
         /*
           Here we open the destination table, on which we already have
-          name-lock. This is needed for store_create_info() to work.
-          The table will be closed by unlink_open_table() at the end
-          of this function.
+          exclusive metada lock. This is needed for store_create_info()
+          to work. The table will be closed by unlink_open_table() at
+          the end of this function.
         */
         pthread_mutex_lock(&LOCK_open);
         if (reopen_name_locked_table(thd, table))
@@ -6794,9 +6792,9 @@ view_err:
       /*
         Then, we want check once again that target table does not exist.
         Actually the order of these two steps does not matter since
-        earlier we took name-lock on the target table, so we do them
-        in this particular order only to be consistent with 5.0, in which
-        we don't take this name-lock and where this order really matters.
+        earlier we took exclusive metadata lock on the target table, so
+        we do them in this particular order only to be consistent with 5.0,
+        in which we don't take this lock and where this order really matters.
         TODO: Investigate if we need this access() check at all.
       */
       if (!access(new_name_buff,F_OK))
@@ -7354,18 +7352,19 @@ view_err:
 
   /*
     Data is copied. Now we:
-    1) Wait until all other threads close old version of table.
+    1) Wait until all other threads will stop using old version of table
+       by upgrading shared metadata lock to exclusive one.
     2) Close instances of table open by this thread and replace them
-       with exclusive name-locks.
+       with placeholders to simplify reopen process.
     3) Rename the old table to a temp name, rename the new one to the
        old name.
     4) If we are under LOCK TABLES and don't do ALTER TABLE ... RENAME
        we reopen new version of table.
     5) Write statement to the binary log.
     6) If we are under LOCK TABLES and do ALTER TABLE ... RENAME we
-       remove name-locks from list of open tables and table cache.
+       remove placeholders and release metadata locks.
     7) If we are not not under LOCK TABLES we rely on close_thread_tables()
-       call to remove name-locks from table cache and list of open table.
+       call to remove placeholders and releasing metadata locks.
   */
 
   thd_proc_info(thd, "rename result table");
@@ -7602,9 +7601,9 @@ err:
 
 err_with_placeholders:
   /*
-    An error happened while we were holding exclusive name-lock on table
-    being altered. To be safe under LOCK TABLES we should remove placeholders
-    from list of open tables list and table cache.
+    An error happened while we were holding exclusive name metadata lock
+    on table being altered. To be safe under LOCK TABLES we should remove
+    placeholders from the list of open tables and relese metadata lock.
   */
   unlink_open_table(thd, table, FALSE);
   pthread_mutex_unlock(&LOCK_open);

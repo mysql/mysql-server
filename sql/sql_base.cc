@@ -869,7 +869,7 @@ void intern_close_table(TABLE *table)
 
   free_io_cache(table);
   delete table->triggers;
-  if (table->file)                              // Not true if name lock
+  if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
   DBUG_VOID_RETURN;
 }
@@ -2461,12 +2461,6 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   if (reopen_table_entry(thd, table, table_list, table_name, key, key_length))
   {
-    /*
-      If there was an error during opening of table (for example if it
-      does not exist) '*table' object can be wiped out. To be able
-      properly release name-lock in this case we should restore this
-      object to its original state.
-    */
     my_free((uchar*)table, MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -2509,8 +2503,8 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
                          exists and to FALSE otherwise.
 
     @note This function assumes that caller owns LOCK_open mutex.
-          It also assumes that the fact that there are no name-locks
-          on the table was checked beforehand.
+          It also assumes that the fact that there are no exclusive
+          metadata locks on the table was checked beforehand.
 
     @note If there is no .FRM file for the table but it exists in one
           of engines (e.g. it was created on another node of NDB cluster)
@@ -2605,10 +2599,10 @@ void table_share_release_hook(void *share)
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
 
-    If table list element for the table to be opened has "create" flag
-    set and table does not exist, this function will automatically insert
-    a placeholder for exclusive name lock into the open tables cache and
-    will return the TABLE instance that corresponds to this placeholder.
+    If table list element for the table to be opened has "open_type" set
+    to OPEN_OR_CREATE and table does not exist, this function will take
+    exclusive metadata lock on the table, also it will do this if
+    "open_type" is TAKE_EXCLUSIVE_MDL.
 
   RETURN
     NULL  Open failed.  If refresh is set then one should close
@@ -4708,11 +4702,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       if (action)
       {
         /*
-          We have met name-locked or old version of table. Now we have
-          to close all tables which are not up to date. We also have to
-          throw away set of prelocked tables (and thus close tables from
-          this set that were open by now) since it possible that one of
-          tables which determined its content was changed.
+          We have met exclusive metadata lock or old version of table. Now we
+          have to close all tables which are not up to date/release metadata
+          locks. We also have to throw away set of prelocked tables (and thus
+          close tables from this set that were open by now) since it possible
+          that one of tables which determined its content was changed.
 
           Instead of implementing complex/non-robust logic mentioned
           above we simply close and then reopen all tables.

@@ -282,7 +282,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 
     The thd->handler_tables list is kept as-is to avoid deadlocks if
     open_table(), called by open_tables(), needs to back-off because
-    of a pending name-lock on the table being opened.
+    of a pending exclusive metadata lock or flush for the table being
+    opened.
 
     See open_table() back-off comments for more details.
   */

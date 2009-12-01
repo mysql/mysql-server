@@ -525,7 +525,7 @@ end:
   /*
     If we are under LOCK TABLES we should restore original state of meta-data
     locks. Otherwise call to close_thread_tables() will take care about both
-    TABLE instance created by reopen_name_locked_table() and meta-data lock.
+    TABLE instance created by reopen_name_locked_table() and metadata lock.
   */
   if (thd->locked_tables && tables && tables->table)
     mdl_downgrade_exclusive_lock(&thd->mdl_context,
@@ -1872,7 +1872,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
     Also this method assumes that subject table is not renamed to itself.
-    This method needs to be called under an exclusive table name lock.
+    This method needs to be called under an exclusive table metadata lock.
 
   @retval FALSE Success
   @retval TRUE  Error
@@ -1894,8 +1894,8 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
 
   /*
     This method interfaces the mysql server code protected by
-    either LOCK_open mutex or with an exclusive table name lock.
-    In the future, only an exclusive table name lock will be enough.
+    either LOCK_open mutex or with an exclusive metadata lock.
+    In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
   if (mdl_is_exclusive_lock_owner(&thd->mdl_context, 0, db, old_table))

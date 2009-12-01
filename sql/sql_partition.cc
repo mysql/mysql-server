@@ -6528,10 +6528,10 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock the table in TL_WRITE_ONLY to ensure all other accesses to
          the table have completed. This ensures that other threads can not
          execute on the table in parallel.
-      4) Get a name lock on the table. This ensures that we can release all
-         locks on the table and since no one can open the table, there can
-         be no new threads accessing the table. They will be hanging on the
-         name lock.
+      4) Get an exclusive metadata lock on the table. This ensures that we
+         can release all other locks on the table and since no one can open
+         the table, there can be no new threads accessing the table. They
+         will be hanging on this exclusive lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
          close_data_files_and_morph_locks call.
@@ -6606,14 +6606,15 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Get a name lock on the table. This ensures that we can release all
-         locks on the table and since no one can open the table, there can
-         be no new threads accessing the table. They will be hanging on the
-         name lock.
+      4) Get an exclusive metadata lock on the table. This ensures that we
+         can release all other locks on the table and since no one can open
+         the table, there can be no new threads accessing the table. They
+         will be hanging on this exclusive lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
          close_data_files_and_morph_locks call.
-      6) Close all table handlers and unlock all handlers but retain name lock
+      6) Close all table handlers and unlock all handlers but retain
+         metadata lock.
       7) Write binlog
       8) Now the change is completed except for the installation of the
          new frm file. We thus write an action in the log to change to
@@ -6694,23 +6695,18 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          Copy from the reorganised partitions to the new partitions
       4) Log that operation is completed and log all complete actions
          needed to complete operation from here
-      5) Lock all partitions in TL_WRITE_ONLY to ensure that no users
-         are still using the old partitioning scheme. Wait until all
-         ongoing users have completed before progressing.
-      6) Get a name lock of the table
-      7) Close all tables opened but not yet locked, after this call we are
-         certain that no other thread is in the lock wait queue or has
-         opened the table. The name lock will ensure that they are blocked
-         on the open call.
-         This is achieved also by close_data_files_and_morph_locks call.
-      8) Close all partitions opened by this thread, but retain name lock.
-      9) Write bin log
-      10) Prepare handlers for rename and delete of partitions
-      11) Rename and drop the reorged partitions such that they are no
-          longer used and rename those added to their real new names.
-      12) Install the shadow frm file
-      13) Reopen the table if under lock tables
-      14) Complete query
+      5) Upgrade shared metadata lock on the table to an exclusive one.
+         After this we can be sure that there is no other connection
+         using this table (they will be waiting for metadata lock).
+      6) Close all table instances opened by this thread, but retain
+         exclusive metadata lock.
+      7) Write bin log
+      8) Prepare handlers for rename and delete of partitions
+      9) Rename and drop the reorged partitions such that they are no
+         longer used and rename those added to their real new names.
+      10) Install the shadow frm file
+      11) Reopen the table if under lock tables
+      12) Complete query
     */
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
