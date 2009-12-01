@@ -1257,7 +1257,7 @@ sp_head::execute(THD *thd)
       Will write this SP statement into binlog separately 
       (TODO: consider changing the condition to "not inside event union")
     */
-    if (thd->locked_tables_mode == LTM_NONE)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
     err_status= i->execute(thd, &ip);
@@ -1269,7 +1269,7 @@ sp_head::execute(THD *thd)
       If we've set thd->user_var_events_alloc to mem_root of this SP
       statement, clean all the events allocated in it.
     */
-    if (thd->locked_tables_mode == LTM_NONE)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
       reset_dynamic(&thd->user_var_events);
       thd->user_var_events_alloc= NULL;//DEBUG
@@ -2740,7 +2740,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   thd->query_id= next_query_id();
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  if (thd->locked_tables_mode == LTM_NONE)
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
   {
     /*
       This statement will enter/leave prelocked mode on its own.
