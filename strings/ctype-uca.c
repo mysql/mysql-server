@@ -36,6 +36,12 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+
+#define MY_UCA_CNT_FLAG_SIZE 4096
+#define MY_UCA_CNT_FLAG_MASK 4095
+#define MY_UCA_CNT_HEAD 1
+#define MY_UCA_CNT_TAIL 2
+
 #ifdef HAVE_UCA_COLLATIONS
 
 #define MY_UCA_NPAGES 256
@@ -6756,16 +6762,6 @@ typedef struct my_uca_scanner_handler_st
 
 static uint16 nochar[]= {0,0};
 
-
-#define MY_UCA_CNT_FLAG_SIZE 4096
-#define MY_UCA_CNT_FLAG_MASK 4095
-
-#define MY_UCA_CNT_HEAD 1
-#define MY_UCA_CNT_TAIL 2
-
-
-
-
 /********** Helper functions to handle contraction ************/
 
 
@@ -6835,85 +6831,6 @@ my_uca_alloc_contractions(CHARSET_INFO *cs, void *(*alloc)(size_t), size_t n)
   bzero((void*) cs->contractions->flags, MY_UCA_CNT_FLAG_SIZE);
   return 0;
 }
-
-
-/**
-  Check if UCA data has contractions (public version)
-
-  @cs       Pointer to CHARSET_INFO data
-  @retval   0 - no contraction, 1 - have contractions.
-*/
-
-my_bool
-my_uca_have_contractions(CHARSET_INFO *cs)
-{
-  return cs->contractions != NULL;
-}
-
-
-/**
-  Check if a character can be contraction head
-  
-  @cs       Pointer to CHARSET_INFO data
-  @wc       Code point
-  
-  @retval   0 - cannot be contraction head
-  @retval   1 - can be contraction head
-*/
-
-my_bool
-my_uca_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
-{
-  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
-}
-
-
-/**
-  Check if a character can be contraction tail
-  
-  @cs       Pointer to CHARSET_INFO data
-  @wc       Code point
-  
-  @retval   0 - cannot be contraction tail
-  @retval   1 - can be contraction tail
-*/
-
-my_bool
-my_uca_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
-{
-  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
-}
-
-
-/**
-  Find a contraction and return its weight array
-  
-  @cs       Pointer to CHARSET data
-  @wc1      First character
-  @wc2      Second character
-  
-  @return   Weight array
-  @retval   NULL - no contraction found
-  @retval   ptr  - contraction weight array
-*/
-
-uint16 *
-my_uca_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
-{
-  MY_CONTRACTIONS *list= cs->contractions;
-  MY_CONTRACTION *c, *last;
-  for (c= list->item, last= &list->item[list->nitems]; c < last; c++)
-  {
-    if (c->ch[0] == wc1 && c->ch[1] == wc2)
-    {
-      return c->weight;
-    }
-  }
-  return NULL;
-}
-
-
-
 
 #ifdef HAVE_CHARSET_ucs2
 /*
@@ -9607,3 +9524,78 @@ CHARSET_INFO my_charset_utf8_croatian_uca_ci=
 #endif /* HAVE_CHARSET_utf8 */
 
 #endif /* HAVE_UCA_COLLATIONS */
+
+/**
+  Check if UCA data has contractions (public version)
+
+  @cs       Pointer to CHARSET_INFO data
+  @retval   0 - no contraction, 1 - have contractions.
+*/
+
+my_bool
+my_uca_have_contractions(CHARSET_INFO *cs)
+{
+  return cs->contractions != NULL;
+}
+
+/**
+  Check if a character can be contraction head
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction head
+  @retval   1 - can be contraction head
+*/
+
+my_bool
+my_uca_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
+}
+
+
+/**
+  Check if a character can be contraction tail
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction tail
+  @retval   1 - can be contraction tail
+*/
+
+my_bool
+my_uca_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
+}
+
+
+/**
+  Find a contraction and return its weight array
+  
+  @cs       Pointer to CHARSET data
+  @wc1      First character
+  @wc2      Second character
+  
+  @return   Weight array
+  @retval   NULL - no contraction found
+  @retval   ptr  - contraction weight array
+*/
+
+uint16 *
+my_uca_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
+{
+  MY_CONTRACTIONS *list= cs->contractions;
+  MY_CONTRACTION *c, *last;
+  for (c= list->item, last= &list->item[list->nitems]; c < last; c++)
+  {
+    if (c->ch[0] == wc1 && c->ch[1] == wc2)
+    {
+      return c->weight;
+    }
+  }
+  return NULL;
+}
+
