@@ -2837,7 +2837,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (flags & MYSQL_LOCK_IGNORE_FLUSH)
       mdl_set_lock_type(mdl_lock_data, MDL_SHARED_HIGH_PRIO);
 
-    if (mdl_acquire_shared_lock(mdl_lock_data, &retry))
+    if (mdl_acquire_shared_lock(&thd->mdl_context, mdl_lock_data, &retry))
     {
       if (retry)
         *action= OT_BACK_OFF_AND_RETRY;
@@ -4044,18 +4044,21 @@ end_with_lock_open:
 
 
 /**
-   Handle failed attempt ot open table by performing requested action.
+   Recover from failed attempt ot open table by performing requested action.
 
    @param  thd     Thread context
    @param  table   Table list element for table that caused problem
    @param  action  Type of action requested by failed open_table() call
 
+   @pre This function should be called only with "action" != OT_NO_ACTION.
+
    @retval FALSE - Success. One should try to open tables once again.
    @retval TRUE  - Error
 */
 
-static bool handle_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
-                                             enum_open_table_action action)
+static bool
+recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
+                                       enum_open_table_action action)
 {
   bool result= FALSE;
 
@@ -4678,7 +4681,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
           TABLE_LIST element. Altough currently this assumption is valid
           it may change in future.
         */
-        if (handle_failed_open_table_attempt(thd, tables, action))
+        if (recover_from_failed_open_table_attempt(thd, tables, action))
         {
           result= -1;
           goto err;
@@ -4997,7 +5000,7 @@ retry:
       might have been acquired successfully.
     */
     close_thread_tables(thd, (action == OT_BACK_OFF_AND_RETRY));
-    if (handle_failed_open_table_attempt(thd, table_list, action))
+    if (recover_from_failed_open_table_attempt(thd, table_list, action))
       break;
   }
 
@@ -8530,7 +8533,13 @@ bool notify_thread_having_shared_lock(THD *thd, THD *in_use)
        thd_table ;
        thd_table= thd_table->next)
   {
-    /* TODO With new MDL check for db_stat is probably a legacy */
+    /*
+      Check for TABLE::db_stat is needed since in some places we call
+      handler::close() for table instance (and set TABLE::db_stat to 0)
+      and do not remove such instances from the THD::open_tables
+      for some time, during which other thread can see those instances
+      (e.g. see partitioning code).
+    */
     if (thd_table->db_stat)
       signalled|= mysql_lock_abort_for_thread(thd, thd_table);
   }
