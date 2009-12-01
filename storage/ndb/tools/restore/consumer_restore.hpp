@@ -89,6 +89,9 @@ public:
   virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
+  virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
+  virtual int restoreAutoIncrement(restore_callback_t *cb,
+                                    Uint32 tableId, Uint64 value);
   virtual void cback(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
   virtual void exitHandler();
