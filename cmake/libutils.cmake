@@ -53,11 +53,11 @@
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-IF(NOT WIN32 AND NOT CYGWIN AND NOT APPLE AND NOT WITH_PIC AND NOT DISABLE_SHARED 
-  AND CMAKE_SHARED_LIBRARY_C_FLAGS)
+IF(WIN32 OR CYGWIN OR APPLE OR WITH_PIC OR DISABLE_SHARED OR NOT CMAKE_SHARED_LIBRARY_C_FLAGS)
  SET(_SKIP_PIC 1)
 ENDIF()
- 
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # CREATE_EXPORT_FILE (VAR target api_functions)
 # Internal macro, used to create source file for shared libraries that 
 # otherwise consists entirely of "convenience" libraries. On Windows, 
@@ -107,38 +107,6 @@ MACRO(ADD_CONVENIENCE_LIBRARY)
   ENDIF()
 ENDMACRO()
 
-
-# Handy macro to parse macro arguments
-MACRO(CMAKE_PARSE_ARGUMENTS prefix arg_names option_names)
-  SET(DEFAULT_ARGS)
-  FOREACH(arg_name ${arg_names})    
-    SET(${prefix}_${arg_name})
-  ENDFOREACH(arg_name)
-  FOREACH(option ${option_names})
-    SET(${prefix}_${option} FALSE)
-  ENDFOREACH(option)
-
-  SET(current_arg_name DEFAULT_ARGS)
-  SET(current_arg_list)
-  FOREACH(arg ${ARGN})            
-    SET(larg_names ${arg_names})    
-    LIST(FIND larg_names "${arg}" is_arg_name)                   
-    IF (is_arg_name GREATER -1)
-      SET(${prefix}_${current_arg_name} ${current_arg_list})
-      SET(current_arg_name ${arg})
-      SET(current_arg_list)
-    ELSE (is_arg_name GREATER -1)
-      SET(loption_names ${option_names})    
-      LIST(FIND loption_names "${arg}" is_option)            
-      IF (is_option GREATER -1)
-      SET(${prefix}_${arg} TRUE)
-      ELSE (is_option GREATER -1)
-      SET(current_arg_list ${current_arg_list} ${arg})
-      ENDIF (is_option GREATER -1)
-    ENDIF (is_arg_name GREATER -1)
-  ENDFOREACH(arg)
-  SET(${prefix}_${current_arg_name} ${current_arg_list})
-ENDMACRO()
 
 # Write content to file, using CONFIGURE_FILE
 # The advantage compared to FILE(WRITE) is that timestamp
@@ -289,3 +257,10 @@ MACRO(MERGE_LIBRARIES)
   ENDIF()
 ENDMACRO()
 
+MACRO(RESTRICT_SYMBOL_EXPORTS target)
+  IF(CMAKE_COMPILER_IS_GNUCXX AND UNIX)
+    GET_TARGET_PROPERTY(COMPILE_FLAGS ${target} COMPILE_FLAGS)
+    SET_TARGET_PROPERTIES(${target} PROPERTIES 
+       COMPILE_FLAGS "${COMPILE_FLAGS} -fvisibility=hidden")
+  ENDIF()
+ENDMACRO()

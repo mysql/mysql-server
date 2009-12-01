@@ -28,7 +28,10 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
 				rt_split.c sort.c sp_key.c ft_eval.h myisamdef.h rt_index.h mi_rkey.c)
 
-MYSQL_STORAGE_ENGINE(MYISAM)
+MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
+  STORAGE_ENGINE 
+  MANDATORY 
+  RECOMPILE_FOR_EMBEDDED)
 
 ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
 TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys)

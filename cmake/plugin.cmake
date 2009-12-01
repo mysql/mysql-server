@@ -13,15 +13,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-# Creates a project to build plugin either as static or shared library
-# Parameters:
-# plugin - storage engine name.
-# variable BUILD_TYPE should be set to "STATIC" or "DYNAMIC"
-# Remarks:
-# ${PLUGIN}_SOURCES  variable containing source files to produce the 
-# library must set before calling this macro
 
-MACRO(MYSQL_PLUGIN plugin)
+GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
+
+# MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
+# [STORAGE_ENGINE]
+# [MANDATORY|DEFAULT]
+# [STATIC_ONLY|DYNAMIC_ONLY]
+# [MODULE_OUTPUT_NAME module_name]
+# [STATIC_OUTPUT_NAME static_name]
+# [RECOMPILE_FOR_EMBEDDED]
+# [LINK_LIBRARIES lib1...libN]
+# [DEPENDENCIES target1...targetN]
+
+MACRO(MYSQL_ADD_PLUGIN)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
+    ${ARGN}
+  )
+  
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/sql
@@ -29,90 +41,91 @@ MACRO(MYSQL_PLUGIN plugin)
                     ${SSL_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIR})
 
+  LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
+  SET(SOURCES ${ARG_DEFAULT_ARGS})
+  LIST(REMOVE_AT SOURCES 0)
   STRING(TOUPPER ${plugin} plugin)
   STRING(TOLOWER ${plugin} target)
-
-  IF(NOT ${plugin}_PLUGIN_STATIC AND NOT ${plugin}_PLUGIN_DYNAMIC)
-    MESSAGE(FATAL_ERROR   
-    "Neither ${plugin}_PLUGIN_STATIC nor ${plugin}_PLUGIN_DYNAMIC is defined.
-    Please set at least one of these variables to the name of the output 
-	library in CMakeLists.txt prior to calling MYSQL_PLUGIN"
-    )
-  ENDIF()
   
+  # Figure out whether to build plugin
   IF(WITH_PLUGIN_${plugin})
     SET(WITH_${plugin} 1)
   ENDIF()
 
-  IF(WITH_${plugin}_STORAGE_ENGINE OR WITH_{$plugin}  OR WITH_ALL
-   OR WITH_MAX AND NOT WITHOUT_${plugin}_STORAGE_ENGINE AND NOT
-   WITHOUT_${plugin})
+  IF(WITH_${plugin}_STORAGE_ENGINE 
+    OR WITH_{$plugin}
+    OR WITH_ALL 
+    OR WITH_MAX 
+    OR ARG_DEFAULT 
+    AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
+    AND NOT WITHOUT_${plugin}
+    AND NOT ARG_MODULE_ONLY)
+     
     SET(WITH_${plugin} 1)
   ELSEIF(WITHOUT_${plugin}_STORAGE_ENGINE OR WITH_NONE OR ${plugin}_DISABLED)
     SET(WITHOUT_${plugin} 1)
     SET(WITH_${plugin}_STORAGE_ENGINE 0)
     SET(WITH_${plugin} 0)
   ENDIF()
-
-  IF(${plugin}_PLUGIN_MANDATORY)
+  
+  
+  IF(ARG_MANDATORY)
     SET(WITH_${plugin} 1)
   ENDIF()
-  
-  IF(${plugin} MATCHES NDBCLUSTER AND WITH_MAX_NO_NDB)
-    SET(WITH_${plugin} 0)
-    SET(WITH_${plugin}_STORAGE_ENGINE 0)
-    SET(WITHOUT_${plugin} 1)
-    SET(WITHOUT_${plugin}_STORAGE_ENGINE 0)
-  ENDIF()
-  
-  IF(STORAGE_ENGINE)
-      SET(with_var "WITH_${plugin}_STORAGE_ENGINE" )
-  ELSE()
-      SET(with_var "WITH_${plugin}")
-  ENDIF()
-  
 
-  IF (WITH_${plugin} AND ${plugin}_PLUGIN_STATIC)
-    ADD_DEFINITIONS(-DMYSQL_SERVER)
-    #Create static library.
-    ADD_LIBRARY(${target} ${${plugin}_SOURCES})
-    DTRACE_INSTRUMENT(${target})   
-    ADD_DEPENDENCIES(${target} GenError)
-    IF(WITH_EMBEDDED_SERVER AND NOT ${plugin}_PLUGIN_DYNAMIC)
-      # Recompile couple of plugins for embedded
-      ADD_LIBRARY(${target}_embedded ${${plugin}_SOURCES})
-      DTRACE_INSTRUMENT(${target}_embedded)   
-      SET_TARGET_PROPERTIES(${target}_embedded 
-         PROPERTIES COMPILE_DEFINITIONS "EMBEDDED_LIBRARY")
-      ADD_DEPENDENCIES(${target}_embedded GenError)
-    ENDIF()
-    IF(${plugin}_LIBS)
-      TARGET_LINK_LIBRARIES(${target} ${${plugin}_LIBS})
+  
+  IF(ARG_STORAGE_ENGINE)
+    SET(with_var "WITH_${plugin}_STORAGE_ENGINE" )
+  ELSE()
+    SET(with_var "WITH_${plugin}")
+  ENDIF()
+  
+  IF(NOT ARG_DEPENDENCIES)
+    SET(ARG_DEPENDENCIES)
+  ENDIF()
+  # Build either static library or module
+  IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
+    ADD_LIBRARY(${target} STATIC ${SOURCES})
+    SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
+    DTRACE_INSTRUMENT(${target})
+    ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+    IF(WITH_EMBEDDED_SERVER)
+      # Embedded library should contain PIC code and be linkable
+      # to shared libraries (on systems that need PIC)
+      IF(ARG_RECOMPILE_FOR_EMBEDDED OR NOT _SKIP_PIC)
+        # Recompile some plugins for embedded
+        ADD_CONVENIENCE_LIBRARY(${target}_embedded ${SOURCES})
+        DTRACE_INSTRUMENT(${target}_embedded)   
+        IF(ARG_RECOMPILE_FOR_EMBEDDED)
+          SET_TARGET_PROPERTIES(${target}_embedded 
+            PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER;EMBEDDED_LIBRARY")
+        ENDIF()
+        ADD_DEPENDENCIES(${target}_embedded GenError)
+      ENDIF()
     ENDIF()
     
-    SET_TARGET_PROPERTIES(${target} PROPERTIES 
-      OUTPUT_NAME "${${plugin}_PLUGIN_STATIC}")
+    IF(ARG_STATIC_OUTPUT_NAME)
+      SET_TARGET_PROPERTIES(${target} PROPERTIES 
+      OUTPUT_NAME ${ARG_STATIC_OUTPUT_NAME})
+    ENDIF()
+
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
-	  ${target} PARENT_SCOPE)
+      ${target} CACHE INTERNAL "")
+
     SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${target}_plugin" 
-	  PARENT_SCOPE)
-    SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
-	  FORCE)
-    
-  ELSEIF(NOT WITHOUT_${plugin} AND ${plugin}_PLUGIN_DYNAMIC 
-    AND NOT WITHOUT_DYNAMIC_PLUGINS)
-	
-    # Create a shared module.
-    ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
-    ADD_LIBRARY(${target} MODULE ${${plugin}_SOURCES})  
-    IF(${plugin}_LIBS)
-      TARGET_LINK_LIBRARIES(${target} ${${plugin}_LIBS})
-	ENDIF()	
-    DTRACE_INSTRUMENT(${target})   
-    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX "")
+      PARENT_SCOPE)
+    IF(ARG_STORAGE_ENGINE)
+      SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
+        FORCE)
+    ENDIF()
+  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
+     
+    ADD_LIBRARY(${target} MODULE ${SOURCES})  
+    DTRACE_INSTRUMENT(${target})
+    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
+      COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
-	
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
     # unresolved symbols. Others are less strict and allow unresolved symbols
@@ -121,41 +134,26 @@ MACRO(MYSQL_PLUGIN plugin)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-      TARGET_LINK_LIBRARIES (${target} mysqld)
+      TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
     ENDIF()
-    ADD_DEPENDENCIES(${target} GenError)
-	
-    IF(${plugin}_PLUGIN_DYNAMIC)
-      SET_TARGET_PROPERTIES(${target} PROPERTIES 
-        OUTPUT_NAME "${${plugin}_PLUGIN_DYNAMIC}")
+    ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+
+    IF(NOT ARG_MODULE_OUTPUT_NAME)
+      IF(ARG_STORAGE_ENGINE)
+        SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
+      ELSE()
+        SET(ARG_MODULE_OUTPUT_NAME "${target}")
+      ENDIF()
     ENDIF()
-	
-    # Update cache "WITH" variable for plugins that support static linking
-    IF(${plugin}_PLUGIN_STATIC)
-      SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server"
-	    FORCE)
-    ENDIF()
-	
+    SET_TARGET_PROPERTIES(${target} PROPERTIES 
+      OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
     # Install dynamic library
     SET(INSTALL_LOCATION lib/plugin)
     INSTALL(TARGETS ${target} DESTINATION ${INSTALL_LOCATION})
     INSTALL_DEBUG_SYMBOLS(${target})
-  ELSE()
-    IF(STORAGE_ENGINE)
-      SET(without_var "WITHOUT_${plugin}_STORAGE_ENGINE")
-    ELSE()
-      SET(without_var "WITHOUT_${plugin}")
-	ENDIF()
-    SET(${without_var} ON CACHE BOOL "Link ${plugin} statically to the server"
-	  FORCE)
-    MARK_AS_ADVANCED(${without_var})
   ENDIF()
 ENDMACRO()
 
-MACRO (MYSQL_STORAGE_ENGINE engine)
-  SET(STORAGE_ENGINE 1)
-  MYSQL_PLUGIN(${engine})
-ENDMACRO()
 
 # Add all CMake projects under storage  and plugin 
 # subdirectories, configure sql_builtins.cc
@@ -167,12 +165,4 @@ MACRO(CONFIGURE_PLUGINS)
       ADD_SUBDIRECTORY(${dir})
     ENDIF()
   ENDFOREACH()
-  # Special handling for partition(not really pluggable)
-  IF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
-   SET (WITH_PARTITION_STORAGE_ENGINE 1)
-   SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_partition_plugin")
-  ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
-  ADD_DEFINITIONS(${STORAGE_ENGINE_DEFS})
-  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
-    ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 ENDMACRO()

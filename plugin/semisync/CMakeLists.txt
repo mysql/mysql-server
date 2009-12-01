@@ -13,20 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02
 
-IF(WIN32)
-  SET(LIBPREFIX "")
-ELSE()
-  SET(LIBPREFIX "lib")
-ENDIF()
+
 
 SET(SEMISYNC_MASTER_SOURCES  semisync.cc semisync_master.cc semisync_master_plugin.cc
  semisync.h semisync_master.h)
 
-SET(SEMISYNC_MASTER_PLUGIN_DYNAMIC ${LIBPREFIX}semisync_master)
-MYSQL_PLUGIN(SEMISYNC_MASTER)
+MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")
 
-SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc semisync_slave_plugin.cc
-semisync.h semisync_slave.h )
-SET(SEMISYNC_SLAVE_PLUGIN_DYNAMIC ${LIBPREFIX}semisync_slave)
-MYSQL_PLUGIN(SEMISYNC_SLAVE)
+SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc semisync_slave_plugin.cc semisync.h semisync_slave.h )
+MYSQL_ADD_PLUGIN(semisync_slave ${SEMISYNC_MASTER_SOURCES}  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_slave")
 

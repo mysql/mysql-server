@@ -13,6 +13,5 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-SET(FTEXAMPLE_PLUGIN_DYNAMIC mypluglib)
-SET(FTEXAMPLE_SOURCES plugin_example.c)
-MYSQL_PLUGIN(FTEXAMPLE)
+
+MYSQL_ADD_PLUGIN(FTEXAMPLE plugin_example.c MODULE_ONLY MODULE_OUTPUT_NAME mypluglib)

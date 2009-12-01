@@ -13,6 +13,4 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-SET(DAEMON_EXAMPLE_PLUGIN_DYNAMIC daemon_example)
-SET(DAEMON_EXAMPLE_SOURCES daemon_example.cc)
-MYSQL_PLUGIN(DAEMON_EXAMPLE)
+MYSQL_ADD_PLUGIN(DAEMON_EXAMPLE daemon_example.cc MODULE_ONLY)
