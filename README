@@ -1,60 +1,57 @@
-This is a release of MariaDB, a branch of MySQL.
+This is a release of MariaDB.
 
-MariaDB is a drop-in replacement of MySQL, with more features, less
-bugs and better performance.
+MariaDB is designed as a drop-in replacement of MySQL(R) with more
+features, new storage engines, fewer bugs, and better performance.
 
-MariaDB is brought to you by many of the original developers of MySQL,
-that now work for Monty Program Ab, and by many people in the
+MariaDB is brought to you by many of the original developers of MySQL
+who now work for Monty Program Ab, and by many people in the
 community.
 
-MySQL, which is the base of MariaDB, is brought to you by Sun.
+MySQL, which is the base of MariaDB, is a product and trademark of Sun
+Microsystems, Inc. For a list of developers and other contributors,
+see the Credits appendix.  You can also do 'SHOW authors' to get a
+list of active contributors.
 
-License information can be found in these files:
-- For GPL (free) distributions, see the COPYING file and
-  the EXCEPTIONS-CLIENT file.
-
-A description of the MariaDB project can be found at:
+A description of the MariaDB project and a manual can be found at:
 http://askmonty.org/wiki/index.php/MariaDB
-
-GPLv2 Disclaimer
-For the avoidance of doubt, except that if any license choice
-other than GPL or LGPL is available it will apply instead, Sun
-elects to use only the General Public License version 2 (GPLv2)
-at this time for any software where a choice of GPL license versions
-is made available with the language indicating that GPLv2 or any
-later version may be used, or where a choice of which version of
-the GPL is applied is otherwise unspecified.
-
-The differences between MariaDB and MySQL can be found at:
 http://askmonty.org/wiki/index.php/MariaDB_versus_MySQL
+http://askmonty.org/wiki/index.php/Manual:Contents
 
-Documentation about MySQL can be found at:
-http://dev.mysql.com/doc
+As MariaDB is a full replacement of MySQL, the MySQL manual at
+http://dev.mysql.com/doc is generally applicable.
 
-For further information about MySQL documentation, see:
-- The current MySQL documentation: 
+More help is available from the Maria Discuss mailing list
+https://launchpad.net/~maria-discuss
+and the #maria IRC channel on Freenode.
 
-Some manual sections of special interest:
+***************************************************************************
 
+NOTE: 
 
+MariaDB is specifically available only under version 2 of the GNU
+General Public License (GPLv2). (I.e. Without the "any later version"
+clause.) This is inherited from MySQL. Please see the README file in
+the MySQL distribution for more information.
 
-- For a list of developers and other contributors, see the Credits
-  appendix.
+License information can be found in the COPYING file and the
+EXCEPTIONS-CLIENT file.
 
-A local copy of the MySQL Reference Manual can be found in the Docs
-directory in GNU Info format.  You can also browse the manual online or
-download it in any of several formats from
-http://dev.mysql.com/doc
-
-************************************************************
+***************************************************************************
 
 IMPORTANT:
 
-Bug or error reports regarding MariaDB should be sent to
+Bug and/or error reports regarding MariaDB should be submitted at
 https://bugs.launchpad.net/maria
-Bugs in the MySQL code can also be sent to http://bugs.mysql.com
+
+Bugs in the MySQL code can also be submitted at http://bugs.mysql.com
+
 ***************************************************************************
 
+
+
+
+
+***************************************************************************
 %%The following software may be included in this product:
 Fred Fish's Dbug Library
 
