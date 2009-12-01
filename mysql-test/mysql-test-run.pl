@@ -1873,18 +1873,10 @@ sub environment_setup {
   # Add the path where mysqld will find semisync plugins
   # --------------------------------------------------------------------------
   if (!$opt_embedded_server) {
-    my $semisync_lib_prefix;
-    if (IS_WINDOWS)
-    {
-       $semisync_lib_prefix = "";
-    }
-    else
-    {
-       $semisync_lib_prefix= "lib";
-    }
 
-    my ($lib_semisync_master_plugin) = find_plugin($semisync_lib_prefix."semisync_master", "plugin/semisync");
-    my ($lib_semisync_slave_plugin) = find_plugin($semisync_lib_prefix."semisync_slave", "plugin/semisync");
+
+    my ($lib_semisync_master_plugin) = find_plugin("semisync_master", "plugin/semisync");
+    my ($lib_semisync_slave_plugin) = find_plugin("semisync_slave", "plugin/semisync");
   
     if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
     {

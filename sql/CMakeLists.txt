@@ -48,7 +48,6 @@ SET (SQL_SOURCE
                ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
-               ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -81,11 +80,12 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc rpl_handler.cc
-			   ${GEN_SOURCES}
+               ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
+MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY)
 
-SET (MYSQLD_CORE_LIBS mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES}  vio regex )
+
 IF(WIN32)
   SET(SQL_SOURCE ${SQL_SOURCE} nt_servc.cc nt_servc.h)
 ENDIF()
@@ -113,7 +113,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "/DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB ${MYSQLD_CORE_LIBS}  dbug strings)
+    FOREACH (CORELIB sql mysys dbug strings)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
@@ -129,7 +129,8 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})  
-TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_STATIC_PLUGIN_LIBS} ${MYSQLD_CORE_LIBS} ${LIBWRAP_LIBRARY})
+TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_STATIC_PLUGIN_LIBS} sql mysys dbug strings vio regex ${MYSQLD_CORE_LIBS}   
+  ${LIBWRAP_LIBRARY} ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 INSTALL(TARGETS mysqld DESTINATION bin)
 INSTALL_DEBUG_SYMBOLS(mysqld)
   

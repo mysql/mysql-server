@@ -27,4 +27,5 @@ SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp
 				include/md2.hpp include/md5.hpp include/misc.hpp include/modarith.hpp include/modes.hpp
 				include/random.hpp include/ripemd.hpp include/rsa.hpp include/sha.hpp)
 ADD_CONVENIENCE_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
+RESTRICT_SYMBOL_EXPORTS(taocrypt)
 
