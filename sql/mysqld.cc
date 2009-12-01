@@ -1670,7 +1670,7 @@ static void network_init(void)
     if (error != 0)
     {
       DBUG_PRINT("error",("Got error: %d from getaddrinfo()", error));
-      sql_perror(ER(ER_IPSOCK_ERROR));		/* purecov: tested */
+      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
       unireg_abort(1);				/* purecov: tested */
     }
 
@@ -1684,7 +1684,7 @@ static void network_init(void)
     if (ip_sock == INVALID_SOCKET)
     {
       DBUG_PRINT("error",("Got error: %d from socket()",socket_errno));
-      sql_perror(ER(ER_IPSOCK_ERROR));		/* purecov: tested */
+      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
       unireg_abort(1);				/* purecov: tested */
     }
 
