@@ -3041,6 +3041,14 @@ xtPublic MX_CHARSET_INFO *myxt_getcharset(bool convert)
 	return (MX_CHARSET_INFO *)&my_charset_utf8_general_ci;
 }
 
+#ifdef DBUG_OFF
+//typedef struct st_plugin_int *plugin_ref;
+#define REF_MYSQL_PLUGIN(x)		(x)
+#else
+//typedef struct st_plugin_int **plugin_ref;
+#define REF_MYSQL_PLUGIN(x)		(*(x))
+#endif
+
 xtPublic void *myxt_create_thread()
 {
 #ifdef DRIZZLED
@@ -3093,12 +3101,22 @@ xtPublic void *myxt_create_thread()
 		return NULL;
 	}
 
-	if (!(new_thd = new THD())) {
+	if (!(new_thd = new THD)) {
 		my_thread_end();
 		xt_register_error(XT_REG_CONTEXT, XT_ERR_MYSQL_ERROR, 0, "Unable to create MySQL thread (THD)");
 		return NULL;
 	}
 
+	/*
+	 * If PBXT is the default storage engine, then creating any THD objects will add extra 
+	 * references to the PBXT plugin object and will effectively deadlock the plugin so 
+	 * that server will have to force plugin shutdown. To avoid deadlocking and forced shutdown 
+	 * we must dereference the plugin after creating THD objects.
+	 */
+	LEX_STRING& plugin_name = REF_MYSQL_PLUGIN(new_thd->variables.table_plugin)->name;
+	if ((plugin_name.length == 4) && (strncmp(plugin_name.str, "PBXT", plugin_name.length) == 0)) {
+		REF_MYSQL_PLUGIN(new_thd->variables.table_plugin)->ref_count--;
+	}
 	new_thd->thread_stack = (char *) &new_thd;
 	new_thd->store_globals();
 	lex_start(new_thd);
@@ -3134,6 +3152,17 @@ xtPublic void myxt_destroy_thread(void *thread, xtBool end_threads)
 	close_thread_tables(thd);
 #endif
 
+	/*
+	 * In myxt_create_thread we decremented plugin ref-count to avoid dead-locking.
+	 * Here we need to increment ref-count to avoid assertion failures.
+	 */
+	if (thd->variables.table_plugin) {
+		LEX_STRING& plugin_name = REF_MYSQL_PLUGIN(thd->variables.table_plugin)->name;
+		if ((plugin_name.length == 4) && (strncmp(plugin_name.str, "PBXT", plugin_name.length) == 0)) {
+			REF_MYSQL_PLUGIN(thd->variables.table_plugin)->ref_count++;
+		}
+	}
+	
 	delete thd;
 
 	/* Remember that we don't have a THD */
