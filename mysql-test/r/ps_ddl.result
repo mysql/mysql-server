@@ -850,7 +850,7 @@ flush table t1;
 execute stmt;
 f1()
 6
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 execute stmt;

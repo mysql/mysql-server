@@ -1543,8 +1543,11 @@ char *generate_partition_syntax(partition_info *part_info,
 #endif
 
 bool notify_thread_having_shared_lock(THD *thd, THD *in_use);
-void expel_table_from_cache(THD *leave_thd, const char *db,
-                            const char *table_name);
+
+enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
+                                 TDC_RT_REMOVE_UNUSED};
+void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
+                      const char *db, const char *table_name);
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1

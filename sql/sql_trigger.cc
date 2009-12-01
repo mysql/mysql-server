@@ -469,7 +469,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
 
     pthread_mutex_lock(&LOCK_open);
-    expel_table_from_cache(0, tables->db, tables->table_name);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, tables->db, tables->table_name);
 
     if (reopen_name_locked_table(thd, tables))
       goto end_unlock;

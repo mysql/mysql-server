@@ -921,12 +921,17 @@ void free_io_cache(TABLE *table)
    particular table identified by its share.
 
    @param share Table share.
+
+   @pre Caller should have LOCK_open mutex acquired.
 */
 
 static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 {
   I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
   TABLE *tab;
+
+  safe_mutex_assert_owner(&LOCK_open);
+
   while ((tab= it++))
   {
     THD *in_use= tab->in_use;
@@ -983,6 +988,15 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
     kill_delayed_threads();
+    /*
+      Get rid of all unused TABLE and TABLE_SHARE instances. By doing
+      this we automatically close all tables which were marked as "old".
+    */
+    while (unused_tables)
+      free_cache_entry(unused_tables);
+    /* Free table shares which were not freed implicitly by loop above. */
+    while (oldest_unused_share->next)
+      (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
   }
   else
   {
@@ -993,8 +1007,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
       if (share)
       {
-        share->version= 0;
         kill_delayed_threads_for_table(share);
+        /* tdc_remove_table() also sets TABLE_SHARE::version to 0. */
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                         table->table_name);
 	found=1;
       }
     }
@@ -1002,28 +1018,14 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       wait_for_refresh=0;			// Nothing to wait for
   }
 
-  /*
-    Get rid of all unused TABLE and TABLE_SHARE instances. By doing
-    this we automatically close all tables which were marked as "old".
-
-    FIXME: Do not close all unused TABLE instances when flushing
-           particular table.
-  */
-  while (unused_tables)
-    free_cache_entry(unused_tables);
-  /* Free table shares */
-  while (oldest_unused_share->next)
-    (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+  if (!have_lock)
+    pthread_mutex_unlock(&LOCK_open);
 
   if (!wait_for_refresh)
-  {
-    if (!have_lock)
-      pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(result);
-  }
 
+  /* Code below assume that LOCK_open is released. */
   DBUG_ASSERT(!have_lock);
-  pthread_mutex_unlock(&LOCK_open);
 
   if (thd->locked_tables_mode)
   {
@@ -2109,27 +2111,6 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 }
 
 
-	/* move table first in unused links */
-
-static void relink_unused(TABLE *table)
-{
-  /* Assert that MERGE children are not attached in unused_tables. */
-  DBUG_ASSERT(!table->is_children_attached());
-
-  if (table != unused_tables)
-  {
-    table->prev->next=table->next;		/* Remove from unused list */
-    table->next->prev=table->prev;
-    table->next=unused_tables;			/* Link in unused tables */
-    table->prev=unused_tables->prev;
-    unused_tables->prev->next=table;
-    unused_tables->prev=table;
-    unused_tables=table;
-    check_unused();
-  }
-}
-
-
 /**
   Prepare an open merge table for close.
 
@@ -2241,7 +2222,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   }
 
   pthread_mutex_lock(&LOCK_open);
-  expel_table_from_cache(thd, table->s->db.str, table->s->table_name.str);
+  tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
+                   table->s->db.str, table->s->table_name.str);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(FALSE);
 }
@@ -4075,7 +4057,7 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       if (mdl_acquire_exclusive_locks(&thd->mdl_context))
         return TRUE;
       pthread_mutex_lock(&LOCK_open);
-      expel_table_from_cache(0, table->db, table->table_name);
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
       ha_create_table_from_engine(thd, table->db, table->table_name);
       pthread_mutex_unlock(&LOCK_open);
 
@@ -4089,7 +4071,7 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       if (mdl_acquire_exclusive_locks(&thd->mdl_context))
         return TRUE;
       pthread_mutex_lock(&LOCK_open);
-      expel_table_from_cache(0, table->db, table->table_name);
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
       pthread_mutex_unlock(&LOCK_open);
 
       result= auto_repair_table(thd, table);
@@ -8549,50 +8531,82 @@ bool notify_thread_having_shared_lock(THD *thd, THD *in_use)
 
 
 /**
-   Remove all instances of the table from cache assuming that current thread
-   has exclusive meta-data lock on it (optionally leave instances belonging
-   to the current thread in cache).
+   Remove all or some (depending on parameter) instances of TABLE and
+   TABLE_SHARE from the table definition cache.
 
-   @param  leave_thd  0      If we should remove all instances
-                      non-0  Pointer to current thread context if we should
-                      leave instances belonging to this thread.
-   @param  db         Name of database
-   @param  table_name Name of table
+   @param  thd          Thread context
+   @param  remove_type  Type of removal:
+                        TDC_RT_REMOVE_ALL     - remove all TABLE instances and
+                                                TABLE_SHARE instance. There
+                                                should be no used TABLE objects
+                                                and caller should have exclusive
+                                                metadata lock on the table.
+                        TDC_RT_REMOVE_NOT_OWN - remove all TABLE instances
+                                                except those that belong to
+                                                this thread. There should be
+                                                no TABLE objects used by other
+                                                threads and caller should have
+                                                exclusive metadata lock on the
+                                                table.
+                        TDC_RT_REMOVE_UNUSED  - remove all unused TABLE
+                                                instances (if there are no
+                                                used instances will also
+                                                remove TABLE_SHARE).
+   @param  db           Name of database
+   @param  table_name   Name of table
 
    @note Unlike remove_table_from_cache() it assumes that table instances
          are already not used by any (other) thread (this should be achieved
          by using meta-data locks).
 */
 
-void expel_table_from_cache(THD *leave_thd, const char *db, const char *table_name)
+void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
+                      const char *db, const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   TABLE *table;
   TABLE_SHARE *share;
 
+  safe_mutex_assert_owner(&LOCK_open);
+
+  DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
+              mdl_is_exclusive_lock_owner(&thd->mdl_context, 0,
+                                          db, table_name));
+
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
                                             key_length)))
   {
-    I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
-    share->version= 0;
-
-    while ((table= it++))
-      relink_unused(table);
-  }
-
-  /* This may destroy share so we have to do new look-up later. */
-  while (unused_tables && !unused_tables->s->version)
-    free_cache_entry(unused_tables);
-
-  if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
-                                            key_length)))
-  {
-    DBUG_ASSERT(leave_thd || share->ref_count == 0);
-    if (share->ref_count == 0)
-      my_hash_delete(&table_def_cache, (uchar*) share);
+    if (share->ref_count)
+    {
+      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+#ifndef DBUG_OFF
+      if (remove_type == TDC_RT_REMOVE_ALL)
+      {
+        DBUG_ASSERT(share->used_tables.is_empty());
+      }
+      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
+      {
+        I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
+        while ((table= it2++))
+          if (table->in_use != thd)
+          {
+            DBUG_ASSERT(0);
+          }
+      }
+#endif
+      /*
+        Set share's version to zero in order to ensure that it gets
+        automatically deleted once it is no longer referenced.
+      */
+      share->version= 0;
+      while ((table= it++))
+        free_cache_entry(table);
+    }
+    else
+      (void) my_hash_delete(&table_def_cache, (uchar*) share);
   }
 }
 
@@ -8793,7 +8807,7 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
     DBUG_RETURN(1);
   }
   pthread_mutex_lock(&LOCK_open);
-  expel_table_from_cache(lpt->thd, lpt->db, lpt->table_name);
+  tdc_remove_table(lpt->thd, TDC_RT_REMOVE_NOT_OWN, lpt->db, lpt->table_name);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
