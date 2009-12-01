@@ -41,10 +41,7 @@ CALL test.p2();
 SELECT release_lock("test");
 SELECT * FROM test.t1; 
 #show binlog events;
-# Added sleep for use with NDB to ensure that
-# the injector thread will populate log before
-# we switch to the slave.
-sleep 5;
+--source include/wait_for_ndb_to_binlog.inc
 sync_slave_with_master;
 connection slave;
 SELECT * FROM test.t1;
