@@ -15,11 +15,15 @@
 
 
 
-SET(SEMISYNC_MASTER_SOURCES  semisync.cc semisync_master.cc semisync_master_plugin.cc
+SET(SEMISYNC_MASTER_SOURCES  
+ semisync.cc semisync_master.cc semisync_master_plugin.cc
  semisync.h semisync_master.h)
 
-MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")
+MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  
+  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")
 
-SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc semisync_slave_plugin.cc semisync.h semisync_slave.h )
-MYSQL_ADD_PLUGIN(semisync_slave ${SEMISYNC_MASTER_SOURCES}  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_slave")
+SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc 
+  semisync_slave_plugin.cc semisync.h semisync_slave.h )
+MYSQL_ADD_PLUGIN(semisync_slave ${SEMISYNC_SLAVE_SOURCES} 
+  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_slave")
 
