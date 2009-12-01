@@ -6855,8 +6855,8 @@ view_err:
     {
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                          table->alias);
     }
 
     if (!error && (new_name != table_name || new_db != db))
@@ -6882,20 +6882,20 @@ view_err:
       */
       if (!access(new_name_buff,F_OK))
       {
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
-	error= -1;
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
+        error= -1;
       }
       else
       {
-	*fn_ext(new_name)=0;
+        *fn_ext(new_name)=0;
         pthread_mutex_lock(&LOCK_open);
-	if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
-	  error= -1;
+        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
+          error= -1;
         else if (Table_triggers_list::change_table_name(thd, db, table_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
-                                  table_name, 0);
+                                    table_name, 0);
           error= -1;
         }
         pthread_mutex_unlock(&LOCK_open);
@@ -6906,8 +6906,8 @@ view_err:
     {
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                          table->alias);
     }
 
     if (!error)
@@ -6931,7 +6931,7 @@ view_err:
         them.
 
         TODO: Investigate what should be done with upgraded table-level
-              lock here...
+        lock here...
       */
       if (new_name != table_name || new_db != db)
       {
@@ -6966,7 +6966,7 @@ view_err:
 
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
-  
+
   need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
@@ -6990,7 +6990,7 @@ view_err:
                        &index_add_buffer, &index_add_count,
                        &candidate_key_count))
       goto err;
-   
+
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
   }
