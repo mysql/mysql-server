@@ -1142,6 +1142,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       (void) filename_to_tablename(file->name, table_list->table_name,
                                  MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                  strlen(file->name) + 1);
+
+      /* To be able to correctly look up the table in the table cache. */
+      if (lower_case_table_names)
+        my_casedn_str(files_charset_info, table_list->table_name);
+
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
       /* Link into list */
