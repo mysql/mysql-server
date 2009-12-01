@@ -18,6 +18,12 @@ static void run_test (void) {
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
+    // create a txn that never closes, forcing recovery to run from the beginning of the log
+    {
+        DB_TXN *oldest_living_txn;
+        r = env->txn_begin(env, NULL, &oldest_living_txn, 0);                                         CKERR(r);
+    }
+
     DB *db;
     r = db_create(&db, env, 0);                                                         CKERR(r);
     r = db->open(db, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
@@ -48,24 +54,13 @@ static void run_test (void) {
     abort();
 }
 
-static int my_truncate(const char *fname, toku_off_t offset) {
-    int fd = open(fname, O_RDWR + O_BINARY);
-    if (fd == -1) return errno;
-    int r = ftruncate(fd, offset);
-    close(fd);
-    return r;
-}
 
 static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    // strip the end_checkpoint from the log.  this will force recovery to run the over
-    // the entire log.
-    // TODO need an API to do this
-    toku_struct_stat s;
-    r = toku_stat(ENVDIR "/log000000000000.tokulog", &s);                               CKERR(r);
-    r = my_truncate(ENVDIR "/log000000000000.tokulog", s.st_size - 0x25);               CKERR(r);
+    // Recovery starts from oldest_living_txn, which is older than any inserts done in run_test,
+    // so recovery always runs over the entire log.
 
     // run recovery
     r = db_env_create(&env, 0);                                                         CKERR(r);
