@@ -47,7 +47,6 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
-static void adjust_mdl_locks_upgradability(TABLE_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -3608,9 +3607,9 @@ end_with_restore_list:
     thd->options|= OPTION_TABLE_LOCK;
     alloc_mdl_locks(all_tables, &thd->locked_tables_root);
     thd->mdl_el_root= &thd->locked_tables_root;
-    adjust_mdl_locks_upgradability(all_tables);
 
-    if (!(res= simple_open_n_lock_tables(thd, all_tables)))
+    if (!(res= open_and_lock_tables_derived(thd, all_tables, FALSE,
+                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL)))
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
@@ -8104,21 +8103,6 @@ bool parse_sql(THD *thd,
   ret_value= mysql_parse_status || thd->is_fatal_error;
   MYSQL_QUERY_PARSE_DONE(ret_value);
   return ret_value;
-}
-
-
-/**
-   Auxiliary function which marks metadata locks for all tables
-   on which we plan to take write lock as upgradable.
-*/
-
-static void adjust_mdl_locks_upgradability(TABLE_LIST *tables)
-{
-  for (TABLE_LIST *tab= tables; tab; tab= tab->next_global)
-  {
-    if (tab->lock_type >= TL_WRITE_ALLOW_WRITE)
-      tab->mdl_upgradable= TRUE;
-  }
 }
 
 /**

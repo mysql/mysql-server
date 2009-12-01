@@ -2304,7 +2304,7 @@ void kill_delayed_threads(void)
 bool Delayed_insert::open_and_lock_table()
 {
   if (!(table= open_n_lock_single_table(&thd, &table_list,
-                                        TL_WRITE_DELAYED)))
+                                        TL_WRITE_DELAYED, 0)))
   {
     thd.fatal_error();				// Abort waiting inserts
     return TRUE;
