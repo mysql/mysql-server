@@ -1033,8 +1033,6 @@ bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
-bool wait_while_table_is_used(THD *thd, TABLE *table,
-                              enum ha_extra_function function);
 bool table_def_init(void);
 void table_def_free(void);
 void assign_new_table_id(TABLE_SHARE *share);
@@ -1390,6 +1388,9 @@ void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
+bool close_cached_table(THD *thd, TABLE *table);
+bool wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function);
 void unlink_open_table(THD *thd, TABLE *find, bool unlock);
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name);

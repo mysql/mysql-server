@@ -2201,6 +2201,85 @@ static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
 
 
 /**
+   Force all other threads to stop using the table by upgrading
+   metadata lock on it and remove unused TABLE instances from cache.
+
+   @param thd      Thread handler
+   @param table    Table to remove from cache
+   @param function HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
+                   HA_EXTRA_FORCE_REOPEN if table is not be used
+                   HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
+
+   @note When returning, the table will be unusable for other threads
+         until metadata lock is downgraded.
+
+   @retval FALSE Success.
+   @retval TRUE  Failure (e.g. because thread was killed).
+*/
+
+bool wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function)
+{
+  enum thr_lock_type old_lock_type;
+
+  DBUG_ENTER("wait_while_table_is_used");
+  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
+                       table->s->table_name.str, (ulong) table->s,
+                       table->db_stat, table->s->version));
+
+  (void) table->file->extra(function);
+
+  old_lock_type= table->reginfo.lock_type;
+  mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
+
+  if (mdl_upgrade_shared_lock_to_exclusive(&thd->mdl_context,
+                                           table->mdl_lock_data))
+  {
+    mysql_lock_downgrade_write(thd, table, old_lock_type);
+    DBUG_RETURN(TRUE);
+  }
+
+  pthread_mutex_lock(&LOCK_open);
+  expel_table_from_cache(thd, table->s->db.str, table->s->table_name.str);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+   Upgrade metadata lock on the table and close all its instances.
+
+   @param thd   Thread handler
+   @param table Table to remove from cache
+
+   @retval FALSE Success.
+   @retval TRUE  Failure (e.g. because thread was killed).
+*/
+
+bool close_cached_table(THD *thd, TABLE *table)
+{
+  DBUG_ENTER("close_cached_table");
+
+  /* FIXME: check if we pass proper parameters everywhere. */
+  if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    DBUG_RETURN(TRUE);
+
+  /* Close lock if this is not got with LOCK TABLES */
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;			// Start locked threads
+  }
+
+  pthread_mutex_lock(&LOCK_open);
+  /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
+  unlink_open_table(thd, table, TRUE);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
     Remove all instances of table from thread's open list and
     table cache.
 
