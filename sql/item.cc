@@ -5766,6 +5766,67 @@ bool Item::send(Protocol *protocol, String *buffer)
 }
 
 
+/**
+  Check if an item is a constant one and can be cached.
+
+  @param arg [out] TRUE <=> Cache this item.
+
+  @return TRUE  Go deeper in item tree.
+  @return FALSE Don't go deeper in item tree.
+*/
+
+bool Item::cache_const_expr_analyzer(uchar **arg)
+{
+  bool *cache_flag= (bool*)*arg;
+  if (!*cache_flag)
+  {
+    Item *item= real_item();
+    /*
+      Cache constant items unless it's a basic constant, constant field or
+      a subselect (they use their own cache).
+    */
+    if (const_item() &&
+        !(item->basic_const_item() || item->type() == Item::FIELD_ITEM ||
+          item->type() == SUBSELECT_ITEM ||
+           /*
+             Do not cache GET_USER_VAR() function as its const_item() may
+             return TRUE for the current thread but it still may change
+             during the execution.
+           */
+          (item->type() == Item::FUNC_ITEM &&
+           ((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC)))
+      *cache_flag= TRUE;
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
+  Cache item if needed.
+
+  @param arg   TRUE <=> Cache this item.
+
+  @return cache if cache needed.
+  @return this otherwise.
+*/
+
+Item* Item::cache_const_expr_transformer(uchar *arg)
+{
+  if (*(bool*)arg)
+  {
+    *((bool*)arg)= FALSE;
+    Item_cache *cache= Item_cache::get_cache(this);
+    if (!cache)
+      return NULL;
+    cache->setup(this);
+    cache->store(this);
+    return cache;
+  }
+  return this;
+}
+
+
 bool Item_field::send(Protocol *protocol, String *buffer)
 {
   return protocol->store(result_field);
@@ -7127,6 +7188,10 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
   case DECIMAL_RESULT:
     return new Item_cache_decimal();
   case STRING_RESULT:
+    if (item->field_type() == MYSQL_TYPE_DATE ||
+        item->field_type() == MYSQL_TYPE_DATETIME ||
+        item->field_type() == MYSQL_TYPE_TIME)
+      return new Item_cache_datetime(item->field_type());
     return new Item_cache_str(item);
   case ROW_RESULT:
     return new Item_cache_row();
@@ -7206,6 +7271,72 @@ longlong Item_cache_int::val_int()
   if (!value_cached)
     cache_value();
   return value;
+}
+
+void  Item_cache_datetime::cache_value_int()
+{
+  value_cached= TRUE;
+  /* Assume here that the underlying item will do correct conversion.*/
+  int_value= example->val_int_result();
+  null_value= example->null_value;
+  unsigned_flag= example->unsigned_flag;
+}
+
+
+void  Item_cache_datetime::cache_value()
+{
+  str_value_cached= TRUE;
+  /* Assume here that the underlying item will do correct conversion.*/
+  String *res= example->str_result(&str_value);
+  if (res && res != &str_value)
+    str_value.copy(*res);
+  null_value= example->null_value;
+  unsigned_flag= example->unsigned_flag;
+}
+
+
+void Item_cache_datetime::store(Item *item, longlong val_arg)
+{
+  /* An explicit values is given, save it. */
+  value_cached= TRUE;
+  int_value= val_arg;
+  null_value= item->null_value;
+  unsigned_flag= item->unsigned_flag;
+}
+
+
+String *Item_cache_datetime::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!str_value_cached)
+    cache_value();
+  return &str_value;
+}
+
+
+my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached)
+    cache_value_int();
+  int2my_decimal(E_DEC_FATAL_ERROR, int_value, unsigned_flag, decimal_val);
+  return decimal_val;
+}
+
+double Item_cache_datetime::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached)
+    cache_value_int();
+  return (double) int_value;
+}
+
+longlong Item_cache_datetime::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached)
+    cache_value_int();
+  return int_value;
 }
 
 void Item_cache_real::cache_value()

@@ -903,6 +903,9 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+
+  virtual bool cache_const_expr_analyzer(uchar **arg);
+  virtual Item* cache_const_expr_transformer(uchar *arg);
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -2292,6 +2295,7 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
+  bool basic_const_item() { return (*ref)->basic_const_item(); }
 
 };
 
@@ -2977,6 +2981,8 @@ public:
   }
   virtual void store(Item *item);
   virtual void cache_value()= 0;
+  bool basic_const_item() const
+  { return test(example && example->basic_const_item());}
 };
 
 
@@ -3123,6 +3129,38 @@ public:
       values= 0;
     DBUG_VOID_RETURN;
   }
+  void cache_value();
+};
+
+
+class Item_cache_datetime: public Item_cache
+{
+protected:
+  String str_value;
+  ulonglong int_value;
+  bool str_value_cached;
+public:
+  Item_cache_datetime(enum_field_types field_type_arg):
+    Item_cache(field_type_arg), int_value(0), str_value_cached(0)
+  {
+    cmp_context= STRING_RESULT;
+  }
+
+  void store(Item *item, longlong val_arg);
+  double val_real();
+  longlong val_int();
+  String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
+  enum Item_result result_type() const { return STRING_RESULT; }
+  bool result_as_longlong() { return TRUE; }
+  /*
+    In order to avoid INT <-> STRING conversion of a DATETIME value
+    two cache_value functions are introduced. One (cache_value) caches STRING
+    value, another (cache_value_int) - INT value. Thus this cache item
+    completely relies on the ability of the underlying item to do the
+    correct conversion.
+  */
+  void cache_value_int();
   void cache_value();
 };
 
