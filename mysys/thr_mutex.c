@@ -36,6 +36,7 @@
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
 #undef pthread_mutex_unlock
+#undef pthread_mutex_trylock
 #undef pthread_mutex_destroy
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
@@ -838,31 +839,9 @@ static void print_deadlock_warning(safe_mutex_t *new_mutex,
   DBUG_VOID_RETURN;
 }
 
+#elif defined(MY_PTHREAD_FASTMUTEX)
 
-#endif /* THREAD && SAFE_MUTEX */
-
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
-
-#include "mysys_priv.h"
-#include "my_static.h"
-#include <m_string.h>
-
-#include <m_ctype.h>
-#include <hash.h>
-#include <myisampack.h>
-#include <mysys_err.h>
-#include <my_sys.h>
-
-#undef pthread_mutex_t
-#undef pthread_mutex_init
-#undef pthread_mutex_lock
-#undef pthread_mutex_trylock
-#undef pthread_mutex_unlock
-#undef pthread_mutex_destroy
-#undef pthread_cond_wait
-#undef pthread_cond_timedwait
-
-ulong mutex_delay(ulong delayloops)
+static ulong mutex_delay(ulong delayloops)
 {
   ulong	i;
   volatile ulong j;
@@ -943,6 +922,6 @@ void fastmutex_global_init(void)
   cpu_count= sysconf(_SC_NPROCESSORS_CONF);
 #endif
 }
-  
-#endif /* SAFE_MUTEX_DEFINED */
+
+#endif /* defined(MY_PTHREAD_FASTMUTEX) */
 #endif /* THREAD */
