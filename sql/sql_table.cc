@@ -7182,8 +7182,9 @@ view_err:
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
       /* Table is in thd->temporary_tables */
-      new_table= open_table(thd, &tbl, thd->mem_root, &not_used,
-                            MYSQL_LOCK_IGNORE_FLUSH);
+      (void) open_table(thd, &tbl, thd->mem_root, &not_used,
+                        MYSQL_LOCK_IGNORE_FLUSH);
+      new_table= tbl.table;
     }
     else
     {

@@ -3555,8 +3555,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        if (!(table= open_table(thd, create_table, thd->mem_root, &not_used2,
-                                MYSQL_OPEN_TEMPORARY_ONLY)) &&
+        if (open_table(thd, create_table, thd->mem_root, &not_used2,
+                       MYSQL_OPEN_TEMPORARY_ONLY) &&
             !create_info->table_existed)
         {
           /*
@@ -3566,6 +3566,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           */
           drop_temporary_table(thd, create_table);
         }
+        else
+          table= create_table->table;
       }
     }
     reenable_binlog(thd);
