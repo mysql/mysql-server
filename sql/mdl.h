@@ -164,7 +164,8 @@ inline void mdl_set_lock_type(MDL_LOCK_DATA *lock_data, enum_mdl_type lock_type)
   lock_data->type= lock_type;
 }
 
-bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry);
+bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data,
+                             bool *retry);
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
 bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
                                           MDL_LOCK_DATA *lock_data);

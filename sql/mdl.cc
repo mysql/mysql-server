@@ -611,6 +611,7 @@ static bool can_grant_lock(MDL_LOCK *lock, MDL_LOCK_DATA *lock_data)
 
    This function must be called after the lock is added to a context.
 
+   @param context    [in]  Context containing request for lock
    @param lock_data  [in]  Lock request object for lock to be acquired
    @param retry      [out] Indicates that conflicting lock exists and another
                            attempt should be made after releasing all current
@@ -622,16 +623,19 @@ static bool can_grant_lock(MDL_LOCK *lock, MDL_LOCK_DATA *lock_data)
                     In the latter case "retry" parameter is set to TRUE.
 */
 
-bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry)
+bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data,
+                             bool *retry)
 {
   MDL_LOCK *lock;
   *retry= FALSE;
 
   DBUG_ASSERT(is_shared(lock_data) && lock_data->state == MDL_PENDING);
 
+  DBUG_ASSERT(lock_data->ctx == context);
+
   safe_mutex_assert_not_owner(&LOCK_open);
 
-  if (lock_data->ctx->has_global_shared_lock &&
+  if (context->has_global_shared_lock &&
       lock_data->type == MDL_SHARED_UPGRADABLE)
   {
     my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
