@@ -1139,17 +1139,17 @@ TableS::get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) co
     value in the sequence (note though that sequences of
     values can have been fetched and that are cached in NdbAPI).
     SYSTAB_0 can contain other data so we need to check that
-    the found SYSKEY value is a valid table_id (< 0x1000000).
+    the found SYSKEY value is a valid table_id (< 0x10000000).
    */
   AttributeData * attr_data = tuple.getData(0);
   const AttributeDesc * attr_desc = tuple.getDesc(0);
   const AttributeS attr1 = {attr_desc, *attr_data};
-  *syskey = *(attr1.Data.u_int32_value);
+  memcpy(syskey ,attr1.Data.u_int32_value, sizeof(Uint32));
   attr_data = tuple.getData(1);
   attr_desc = tuple.getDesc(1);
   const AttributeS attr2 = {attr_desc, *attr_data};
-  *nextid = *(attr2.Data.u_int64_value);
-  if (*syskey < 0x1000000)
+  memcpy(nextid, attr2.Data.u_int64_value, sizeof(Uint64));
+  if (*syskey < 0x10000000)
   {
     return true;
   }
