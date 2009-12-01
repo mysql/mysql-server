@@ -921,10 +921,6 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; EN
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN DROP TRIGGER test1; return 1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
-CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN load table t1 from master; END |
-ERROR 0A000: LOAD TABLE is not allowed in stored procedures
-CREATE FUNCTION bug_13627_f() returns int BEGIN load table t1 from master; return 1; END |
-ERROR 0A000: LOAD TABLE is not allowed in stored procedures
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create table t2 (a int); END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN create table t2 (a int); return 1; END |
@@ -1112,18 +1108,6 @@ DROP FUNCTION IF EXISTS bug13012|
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
 REPAIR TABLE t1;
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-BACKUP TABLE t1 TO '/tmp';
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-RESTORE TABLE t1 FROM '/tmp';
 RETURN 1;
 END|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -1639,11 +1623,9 @@ DROP TABLE t1|
 drop procedure if exists p1;
 create procedure p1()
 begin
-create table t1 (a int) type=MyISAM;
+create table t1 (a int) engine=MyISAM;
 drop table t1;
 end|
-Warnings:
-Warning	1287	The syntax 'TYPE=storage_engine' is deprecated and will be removed in MySQL 6.0. Please use 'ENGINE=storage_engine' instead
 call p1();
 call p1();
 drop procedure p1;
@@ -1670,3 +1652,19 @@ NULL
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 ERROR 42000: FUNCTION test.non_existent does not exist
 DROP TABLE t1;
+#
+# Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 
+#   SP + MERGE + ALTER
+#
+CREATE TABLE t1 (pk INT, b INT, KEY (b));
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1 (a int) UPDATE IGNORE v1 SET b = a;
+CALL p1(5);
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+CALL p1(7);
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+End of 5.1 tests

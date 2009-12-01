@@ -920,35 +920,6 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_VOID_RETURN;
 }
 
-
-int
-mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
-{
-  Protocol *protocol= thd->protocol;
-  String *packet= protocol->storage_packet();
-  DBUG_ENTER("mysqld_dump_create_info");
-  DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
-
-  protocol->prepare_for_resend();
-  if (store_create_info(thd, table_list, packet, NULL,
-                        FALSE /* show_database */))
-    DBUG_RETURN(-1);
-
-  if (fd < 0)
-  {
-    if (protocol->write())
-      DBUG_RETURN(-1);
-    protocol->flush();
-  }
-  else
-  {
-    if (my_write(fd, (const uchar*) packet->ptr(), packet->length(),
-		 MYF(MY_WME)))
-      DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(0);
-}
-
 /*
   Go through all character combinations and ensure that sql_lex.cc can
   parse it as an identifier.
@@ -1864,10 +1835,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
         pthread_mutex_lock(&tmp->LOCK_thd_data);
-        if (tmp->query)
+        if (tmp->query())
         {
-          uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->strmake(tmp->query,length);
+          uint length= min(max_query_length, tmp->query_length());
+          thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
@@ -1992,11 +1963,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         pthread_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
-      if (tmp->query)
+      if (tmp->query())
       {
-        table->field[7]->store(tmp->query,
+        table->field[7]->store(tmp->query(),
                                min(PROCESS_LIST_INFO_WIDTH,
-                                   tmp->query_length), cs);
+                                   tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
 
