@@ -582,6 +582,11 @@ NdbDictionary::Table::getNoOfColumns() const {
 }
 
 int
+NdbDictionary::Table::getNoOfAutoIncrementColumns() const {
+  return m_impl.m_noOfAutoIncColumns;
+}
+
+int
 NdbDictionary::Table::getNoOfPrimaryKeys() const {
   return m_impl.m_noOfKeys;
 }

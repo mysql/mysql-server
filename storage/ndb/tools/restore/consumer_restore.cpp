@@ -176,8 +176,15 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
 
   int cnt, id1, id2;
   char db[256], schema[256];
-  if((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", 
-		   db, schema, &id1, &id2)) == 4){
+  if (strcmp(tab->getName(), "SYSTAB_0") == 0 ||
+      strcmp(tab->getName(), "sys/def/SYSTAB_0") == 0) {
+    /*
+      Restore SYSTAB_0 to itself
+    */
+    m_cache.m_new_table = tab;
+  }
+  else if((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", 
+                        db, schema, &id1, &id2)) == 4){
     m_ndb->setDatabaseName(db);
     m_ndb->setSchemaName(schema);
     
@@ -1442,6 +1449,8 @@ BackupRestore::endOfTables(){
 
 void BackupRestore::tuple(const TupleS & tup, Uint32 fragmentId)
 {
+  const TableS * tab = tup.getTable();
+
   if (!m_restore) 
     return;
 
@@ -1458,12 +1467,19 @@ void BackupRestore::tuple(const TupleS & tup, Uint32 fragmentId)
   if (cb == 0)
     assert(false);
   
-  m_free_callback = cb->next;
   cb->retries = 0;
   cb->fragId = fragmentId;
   cb->tup = tup; // must do copy!
-  tuple_a(cb);
 
+  if (tab->isSYSTAB_0())
+  {
+    tuple_SYSTAB_0(cb, *tab);
+    return;
+  }
+
+  m_free_callback = cb->next;
+
+  tuple_a(cb);
 }
 
 void BackupRestore::tuple_a(restore_callback_t *cb)
@@ -1635,6 +1651,59 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
       << m_ndb->getNdbError(cb->error_code) << endl
       << "...Unable to recover from errors. Exiting..." << endl;
   exitHandler();
+}
+
+void BackupRestore::tuple_SYSTAB_0(restore_callback_t *cb,
+                                   const TableS & tab)
+{
+  const TupleS & tup = cb->tup;
+  Uint32 syskey;
+  Uint64 nextid;
+
+  if (tab.get_auto_data(tup, &syskey, &nextid))
+  {
+    /*
+      We found a valid auto_increment value in SYSTAB_0
+      where syskey is a table_id and nextid is next auto_increment
+      value.
+     */
+    if (restoreAutoIncrement(cb, syskey, nextid) ==  -1)
+      exitHandler();
+  }
+}
+
+int BackupRestore::restoreAutoIncrement(restore_callback_t *cb,
+                                        Uint32 tableId, Uint64 value)
+{
+  /*
+    Restore the auto_increment value found in SYSTAB_0 from
+    backup. First map the old table id to the new table while
+    also checking that it is an actual table will some auto_increment
+    column. Note that the SYSTAB_0 table in the backup can contain
+    stale information from dropped tables.
+   */
+  int result = 0;
+  const NdbDictionary::Table* tab = (tableId < m_new_tables.size())? m_new_tables[tableId] : NULL;
+  if (tab && tab->getNoOfAutoIncrementColumns() > 0)
+  {
+    /*
+      Write the auto_increment value back into SYSTAB_0.
+      This is done in a separate transaction and could possibly
+      fail, so we retry if a temporary error is received.
+     */
+    while (cb->retries < 10)
+    {
+      if ((result = m_ndb->setAutoIncrementValue(tab, value, false) == -1))
+      {
+        if (errorHandler(cb)) 
+        {
+          continue;
+        }
+      }
+      break;
+    }
+  }
+  return result;
 }
 
 void BackupRestore::cback(int result, restore_callback_t *cb)

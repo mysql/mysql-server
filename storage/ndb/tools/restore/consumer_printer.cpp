@@ -18,6 +18,7 @@
 
 #include "consumer_printer.hpp"
 extern FilteredNdbOut info;
+extern bool ga_dont_ignore_systab_0;
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern const char *tab_path;
 
@@ -44,6 +45,9 @@ BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
       info.setLevel(254);
       info << tup.getTable()->getTableName() << "; ";
     }
+    const TableS * table = tup.getTable();
+    if ((!ga_dont_ignore_systab_0) &&  table->isSYSTAB_0())
+      return;
     m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;  
   }
 }
