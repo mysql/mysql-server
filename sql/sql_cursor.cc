@@ -289,7 +289,6 @@ Sensitive_cursor::Sensitive_cursor(THD *thd, select_result *result_arg)
   Save THD state into cursor.
 
   @todo
-    - XXX: thd->locked_tables is not changed.
     -  What problems can we have with it if cursor is open?
     - TODO: must be fixed because of the prelocked mode.
 */
@@ -342,7 +341,6 @@ Sensitive_cursor::post_open(THD *thd)
     }
   }
   /*
-    XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
     TODO: must be fixed because of the prelocked mode.
   */

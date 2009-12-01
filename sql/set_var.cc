@@ -4292,7 +4292,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
   DBUG_ENTER("sys_var_opt_readonly::update");
 
   /* Prevent self dead-lock */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->active_transaction())
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(true);

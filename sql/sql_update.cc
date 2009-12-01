@@ -978,7 +978,7 @@ int mysql_multi_update_prepare(THD *thd)
     count in open_tables()
   */
   uint  table_count= lex->table_count;
-  const bool using_lock_tables= thd->locked_tables != 0;
+  const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   bool need_reopen= FALSE;
   DBUG_ENTER("mysql_multi_update_prepare");

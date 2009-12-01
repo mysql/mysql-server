@@ -384,7 +384,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     alteration of views under LOCK TABLES.
   */
 
-  if (thd->locked_tables)
+  if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     res= TRUE;
@@ -1583,7 +1583,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     TABLES we have to simply prohibit dropping of views.
   */
 
-  if (thd->locked_tables)
+  if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(TRUE);

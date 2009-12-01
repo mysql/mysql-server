@@ -163,7 +163,7 @@ bool end_active_trans(THD *thd)
   {
     DBUG_PRINT("info",("options: 0x%llx", thd->options));
     /* Safety if one did "drop table" on locked tables */
-    if (!thd->locked_tables)
+    if (!thd->locked_tables_mode)
       thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
@@ -2211,7 +2211,7 @@ mysql_execute_command(THD *thd)
     if (res)
       break;
 
-    if (!thd->locked_tables && lex->protect_against_global_read_lock &&
+    if (!thd->locked_tables_mode && lex->protect_against_global_read_lock &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       break;
 
@@ -2553,7 +2553,7 @@ case SQLCOM_PREPARE:
       TABLE in the same way. That way we avoid that a new table is
       created during a gobal read lock.
     */
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
@@ -2779,7 +2779,8 @@ end_with_restore_list:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
+  if (thd->locked_tables_mode ||
+      thd->active_transaction() || thd->global_read_lock)
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -2855,7 +2856,7 @@ end_with_restore_list:
       if (end_active_trans(thd))
 	goto error;
 
-      if (!thd->locked_tables &&
+      if (!thd->locked_tables_mode &&
           !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       {
         res= 1;
@@ -3089,7 +3090,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
@@ -3126,7 +3127,7 @@ end_with_restore_list:
       Protection might have already been risen if its a fall through
       from the SQLCOM_UPDATE case above.
     */
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         lex->sql_command == SQLCOM_UPDATE_MULTI &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
@@ -3230,7 +3231,7 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
@@ -3270,7 +3271,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (! thd->locked_tables &&
+    if (! thd->locked_tables_mode &&
         ! (need_start_waiting= ! wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
@@ -3340,7 +3341,7 @@ end_with_restore_list:
       Don't allow this within a transaction because we want to use
       re-generate table
     */
-    if (thd->locked_tables || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3358,7 +3359,7 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
@@ -3379,7 +3380,7 @@ end_with_restore_list:
       (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *del_result;
 
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
@@ -3526,7 +3527,7 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
 
@@ -3615,8 +3616,7 @@ end_with_restore_list:
       if (thd->variables.query_cache_wlock_invalidate)
 	query_cache.invalidate_locked_for_write(first_table);
 #endif /*HAVE_QUERY_CACHE*/
-      thd->locked_tables=thd->lock;
-      thd->lock=0;
+      thd->locked_tables_mode= LTM_LOCK_TABLES;
       my_ok(thd);
     }
     else
@@ -3707,7 +3707,7 @@ end_with_restore_list:
     if (check_access(thd,DROP_ACL,lex->name.str,0,1,0,
                      is_schema_db(lex->name.str)))
       break;
-    if (thd->locked_tables || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3746,7 +3746,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    if (thd->locked_tables || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       res= 1;
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
@@ -3786,7 +3786,7 @@ end_with_restore_list:
 #endif
     if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
       break;
-    if (thd->locked_tables || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -4776,7 +4776,7 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (thd->active_transaction() || thd->locked_tables)
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       my_error(ER_XAER_OUTSIDE, MYF(0));
       break;
@@ -7078,7 +7078,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         if we have a write locked table as this would lead to a deadlock
         when trying to reopen (and re-lock) the table after the flush.
       */
-      if (thd->locked_tables)
+      if (thd->locked_tables_mode)
       {
         my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
         return 1;
@@ -7103,7 +7103,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     }
     else
     {
-      if (thd && thd->locked_tables)
+      if (thd && thd->locked_tables_mode)
       {
         /*
           If we are under LOCK TABLES we should have a write

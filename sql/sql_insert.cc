@@ -441,7 +441,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
     */
     if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
         thd->variables.max_insert_delayed_threads == 0 ||
-        thd->prelocked_mode ||
+        thd->locked_tables_mode > LTM_LOCK_TABLES ||
         thd->lex->uses_stored_routines())
     {
       *lock_type= TL_WRITE;
@@ -611,7 +611,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     never be able to get a lock on the table. QQQ: why not
     upgrade the lock here instead?
   */
-  if (table_list->lock_type == TL_WRITE_DELAYED && thd->locked_tables &&
+  if (table_list->lock_type == TL_WRITE_DELAYED &&
+      thd->locked_tables_mode &&
       find_locked_table(thd->open_tables, table_list->db,
                         table_list->table_name))
   {
@@ -741,7 +742,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (duplic != DUP_ERROR || ignore)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    if (!thd->prelocked_mode)
+    /**
+      This is a simple check for the case when the table has a trigger
+      that reads from it, or when the statement invokes a stored function
+      that reads from the table being inserted to.
+      Engines can't handle a bulk insert in parallel with a read form the
+      same table in the same connection.
+    */
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       table->file->ha_start_bulk_insert(values_list.elements);
   }
 
@@ -856,7 +864,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -3076,7 +3085,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
   else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           !thd->prelocked_mode)
+           thd->locked_tables_mode <= LTM_LOCK_TABLES)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -3142,7 +3151,7 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode)
+      thd->locked_tables_mode <= LTM_LOCK_TABLES)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -3269,7 +3278,8 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
+  error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
+          table->file->ha_end_bulk_insert() : 0);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3349,7 +3359,7 @@ void select_insert::abort() {
       If we are not in prelocked mode, we end the bulk insert started
       before.
     */
-    if (!thd->prelocked_mode)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       table->file->ha_end_bulk_insert();
 
     /*
@@ -3730,7 +3740,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  if (!thd->prelocked_mode)
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
