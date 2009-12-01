@@ -501,8 +501,12 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
-
-      table->isSysTable = true;
+    {
+      table->m_isSysTable = true;
+      if (strcmp(tableName, "SYSTAB_0") == 0 ||
+          strcmp(tableName, "sys/def/SYSTAB_0") == 0)
+        table->m_isSYSTAB_0 = true;
+    }
   }
   for (i = 0; i < getNoOfTables(); i++) {
     TableS* blobTable = allTables[i];
@@ -517,8 +521,8 @@ RestoreMetaData::markSysTables()
       for (j = 0; j < getNoOfTables(); j++) {
         TableS* table = allTables[j];
         if (table->getTableId() == (Uint32) id1) {
-          if (table->isSysTable)
-            blobTable->isSysTable = true;
+          if (table->m_isSysTable)
+            blobTable->m_isSysTable = true;
           blobTable->m_main_table = table;
           blobTable->m_main_column_id = id2;
           break;
@@ -662,7 +666,8 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_max_auto_val= 0;
   m_noOfRecords= 0;
   backupVersion = version;
-  isSysTable = false;
+  m_isSysTable = false;
+  m_isSYSTAB_0 = false;
   m_main_table = NULL;
   m_main_column_id = ~(Uint32)0;
   
@@ -1741,6 +1746,35 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
   m_variableAttribs.push_back(d);
 } // TableS::createAttr
+
+bool
+TableS::get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const
+{
+  /*
+    Read current (highest) auto_increment value for
+    a table. Currently there can only be one per table.
+    The values are stored in sustable SYSTAB_0 as
+    {SYSKEY,NEXTID} values where SYSKEY (32-bit) is
+    the table_id and NEXTID (64-bit) is the next auto_increment
+    value in the sequence (note though that sequences of
+    values can have been fetched and that are cached in NdbAPI).
+    SYSTAB_0 can contain other data so we need to check that
+    the found SYSKEY value is a valid table_id (< 0x10000000).
+   */
+  AttributeData * attr_data = tuple.getData(0);
+  const AttributeDesc * attr_desc = tuple.getDesc(0);
+  const AttributeS attr1 = {attr_desc, *attr_data};
+  memcpy(syskey ,attr1.Data.u_int32_value, sizeof(Uint32));
+  attr_data = tuple.getData(1);
+  attr_desc = tuple.getDesc(1);
+  const AttributeS attr2 = {attr_desc, *attr_data};
+  memcpy(nextid, attr2.Data.u_int64_value, sizeof(Uint64));
+  if (*syskey < 0x10000000)
+  {
+    return true;
+  }
+  return false;
+};
 
 Uint16 Twiddle16(Uint16 in)
 {
