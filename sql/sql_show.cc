@@ -3145,7 +3145,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   */
   while (1)
   {
-    if (mdl_acquire_shared_lock(&mdl_lock_data, &retry))
+    if (mdl_acquire_shared_lock(&thd->mdl_context, &mdl_lock_data, &retry))
     {
       if (!retry || mdl_wait_for_locks(&thd->mdl_context))
       {
