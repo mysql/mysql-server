@@ -1067,7 +1067,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO ),
   ROW(GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO ),
   ROW(LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
-  ROW(LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO ),
+  ROW(LocalCheckpointCompleted,LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
   ROW(LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT ),
   ROW(LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO ),
   ROW(UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
@@ -1091,11 +1091,11 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
   
   // NODERESTART
-  ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
-  ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
-  ROW(NR_CopyFragsStarted,     LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyDict,             LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(NR_CopyFragsStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(NR_CopyFragDone,         LogLevel::llNodeRestart,10, Logger::LL_INFO ),
-  ROW(NR_CopyFragsCompleted,   LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyFragsCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
 
   ROW(NodeFailCompleted,       LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
   ROW(NODE_FAILREP,            LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
