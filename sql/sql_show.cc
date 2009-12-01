@@ -3271,7 +3271,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   /*
     We should not introduce deadlocks even if we already have some
     tables open and locked, since we won't lock tables which we will
-    open and will ignore possible name-locks for these tables.
+    open and will ignore pending exclusive metadata locks for these
+    tables by using high-priority requests for shared metadata locks.
   */
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
 
@@ -7301,8 +7302,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     Open the table by name in order to load Table_triggers_list object.
 
     NOTE: there is race condition here -- the table can be dropped after
-    LOCK_open is released. It will be fixed later by introducing
-    acquire-shared-table-name-lock functionality.
+    LOCK_open is released. It will be fixed later by acquiring shared
+    metadata lock on trigger or table name.
   */
 
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */

@@ -408,7 +408,6 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
-  bool name_lock, replace_with_name_lock;
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
 
