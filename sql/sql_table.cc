@@ -4397,16 +4397,16 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!(check_opt->sql_flags & TT_USEFRM))
     DBUG_RETURN(0);
 
-  if (!(table= table_list->table))		/* if open_ltable failed */
+  if (!(table= table_list->table))
   {
+    /*
+      Attempt to do full-blown table open in mysql_admin_table() has failed.
+      Let us try to open at least a .FRM for this table.
+    */
     char key[MAX_DBKEY_LENGTH];
     uint key_length;
 
     key_length= create_table_def_key(thd, key, table_list, 0);
-    /*
-      TODO: Check that REPAIR's code also conforms to meta-data
-            locking protocol. Fix if it is not.
-    */
     mdl_lock_data= mdl_alloc_lock(0, table_list->db, table_list->table_name,
                                   thd->mem_root);
     mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
@@ -4486,12 +4486,19 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   if (table_list->table)
   {
-    /* If we could open the table, close it */
+    /*
+      Table was successfully open in mysql_admin_table(). Now we need
+      to close it, but leave it protected by exclusive metadata lock.
+    */
     if (close_cached_table(thd, table))
       goto end;
     table_list->table= 0;
   }
-  // After this point we have X mdl lock in both cases
+  /*
+    After this point we have an exclusive metadata lock on our table
+    in both cases when table was successfully open in mysql_admin_table()
+    and when it was open in prepare_for_repair().
+  */
 
   if (my_rename(from, tmp, MYF(MY_WME)))
   {
