@@ -1488,7 +1488,7 @@ inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type);
+                                thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
                 bool *need_reopen);
@@ -2040,6 +2040,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
 #define MYSQL_LOCK_PERF_SCHEMA                  0x0010
+#define MYSQL_OPEN_TAKE_UPGRADABLE_MDL          0x0020
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);

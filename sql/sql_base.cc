@@ -2598,6 +2598,9 @@ void table_share_release_hook(void *share)
                           No version number checking is done.
                           MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
                           table not the base table or view.
+                          MYSQL_OPEN_TAKE_UPGRADABLE_MDL - Obtain upgradable
+                          metadata lock for tables on which we are going to
+                          take some kind of write table-level lock.
 
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
@@ -2825,7 +2828,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     bool retry;
 
-    if (table_list->mdl_upgradable)
+    if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL &&
+        table_list->lock_type >= TL_WRITE_ALLOW_WRITE)
       mdl_set_upgradable(mdl_lock_data);
     mdl_set_lock_priority(mdl_lock_data, (flags & MYSQL_LOCK_IGNORE_FLUSH) ?
                                          MDL_HIGH_PRIO : MDL_NORMAL_PRIO);
@@ -4146,7 +4150,6 @@ static int add_merge_table_list(TABLE_LIST *tlist)
 
     /* Set lock type. */
     child_l->lock_type= tlist->lock_type;
-    child_l->mdl_upgradable= tlist->mdl_upgradable;
 
     /* Set parent reference. */
     child_l->parent_l= tlist;
@@ -4905,6 +4908,8 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   @param[in]    thd             thread handle
   @param[in]    table_l         table to open is first table in this list
   @param[in]    lock_type       lock to use for table
+  @param[in]    flags           options to be used while opening and locking
+                                table (see open_table(), mysql_lock_tables())
 
   @return       table
     @retval     != NULL         OK, opened table returned
@@ -4930,7 +4935,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
 */
 
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type)
+                                thr_lock_type lock_type, uint flags)
 {
   TABLE_LIST *save_next_global;
   DBUG_ENTER("open_n_lock_single_table");
@@ -4946,7 +4951,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->required_type= FRMTYPE_TABLE;
 
   /* Open the table. */
-  if (simple_open_n_lock_tables(thd, table_l))
+  if (open_and_lock_tables_derived(thd, table_l, FALSE, flags))
     table_l->table= NULL; /* Just to be sure. */
 
   /* Restore list. */

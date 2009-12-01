@@ -1371,11 +1371,6 @@ struct TABLE_LIST
     */
     TAKE_EXCLUSIVE_MDL
   } open_type;
-  /**
-     Indicates that for this table/view we need to take shared metadata
-     lock which should be upgradable to exclusive metadata lock.
-  */
-  bool mdl_upgradable;
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
@@ -1796,14 +1791,4 @@ size_t max_row_length(TABLE *table, const uchar *data);
 
 void alloc_mdl_locks(TABLE_LIST *table_list, MEM_ROOT *root);
 
-/**
-   Helper function which allows to mark all elements in table list
-   as requiring upgradable metadata locks.
-*/
-
-inline void set_all_mdl_upgradable(TABLE_LIST *tables)
-{
-  for (; tables; tables= tables->next_global)
-    tables->mdl_upgradable= TRUE;
-}
 #endif /* TABLE_INCLUDED */
