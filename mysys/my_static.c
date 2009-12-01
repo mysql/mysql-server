@@ -111,3 +111,31 @@ my_bool NEAR my_disable_async_io=0;
 my_bool NEAR my_disable_flush_key_blocks=0;
 my_bool NEAR my_disable_symlinks=0;
 my_bool NEAR mysys_uses_curses=0;
+
+/*
+  Note that PSI_hook and PSI_server are unconditionally
+  (no ifdef HAVE_PSI_INTERFACE) defined.
+  This is to ensure binary compatibility between the server and plugins,
+  in the case when:
+  - the server is not compiled with HAVE_PSI_INTERFACE
+  - a plugin is compiled with HAVE_PSI_INTERFACE
+  See the doxygen documentation for the performance schema.
+*/
+
+/**
+  Hook for the instrumentation interface.
+  Code implementing the instrumentation interface should register here.
+*/
+struct PSI_bootstrap *PSI_hook= NULL;
+
+/**
+  Instance of the instrumentation interface for the MySQL server.
+  @todo This is currently a global variable, which is handy when
+  compiling instrumented code that is bundled with the server.
+  When dynamic plugin are truly supported, this variable will need
+  to be replaced by a macro, so that each XYZ plugin can have it's own
+  xyz_psi_server variable, obtained from PSI_bootstrap::get_interface()
+  with the version used at compile time for plugin XYZ.
+*/
+PSI *PSI_server= NULL;
+
