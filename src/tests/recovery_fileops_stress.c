@@ -9,8 +9,8 @@
 #include <stdlib.h>
 
 static const int OPER_PER_STEP = 3;
-//static const int NUM_DICTIONARIES = 100;
-static const int NUM_DICTIONARIES = 3;
+static const int NUM_DICTIONARIES = 100;
+//static const int NUM_DICTIONARIES = 3;
 static const char *table = "tbl";
 static const int ROWS_PER_TABLE = 10;
 
