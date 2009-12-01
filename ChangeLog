@@ -8,6 +8,10 @@
 	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
 	The actual crash recovery bug was corrected on 2009-04-29.
 
+2009-11-27	The InnoDB Team
+
+	InnoDB Plugin 1.0.6 released
+
 2009-11-20	The InnoDB Team
 
 	* handler/ha_innodb.cc:
