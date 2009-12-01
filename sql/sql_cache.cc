@@ -1136,7 +1136,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || query_cache_size == 0)
+  if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -1364,7 +1364,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     See also a note on double-check locking usage above.
   */
-  if (is_disabled() || thd->locked_tables ||
+  if (is_disabled() || thd->locked_tables_mode ||
       thd->variables.query_cache_type == 0 || query_cache_size == 0)
     goto err;
 

@@ -4060,7 +4060,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     this will close all tables on the slave.
   */
   bool const end_stmt=
-    thd->prelocked_mode && thd->lex->requires_prelocking();
+    thd->locked_tables_mode && thd->lex->requires_prelocking();
   if (thd->binlog_flush_pending_rows_event(end_stmt))
     DBUG_RETURN(error);
 

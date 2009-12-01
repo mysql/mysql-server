@@ -383,7 +383,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     LOCK_open is not enough because global read lock is held without holding
     LOCK_open).
   */
-  if (!thd->locked_tables &&
+  if (!thd->locked_tables_mode &&
       !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
@@ -444,7 +444,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /* Keep consistent with respect to other DDL statements */
   mysql_ha_rm_tables(thd, tables);
 
-  if (thd->locked_tables)
+  if (thd->locked_tables_mode)
   {
     /* Under LOCK TABLES we must only accept write locked tables. */
     if (!(tables->table= find_write_locked_table(thd->open_tables, tables->db,
@@ -493,7 +493,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
            table->triggers->drop_trigger(thd, tables, &stmt_query));
 
   /* Under LOCK TABLES we must reopen the table to activate the trigger. */
-  if (!result && thd->locked_tables)
+  if (!result && thd->locked_tables_mode)
   {
     /* Make table suitable for reopening */
     close_data_files_and_leave_as_placeholders(thd, tables->db,
@@ -527,7 +527,7 @@ end:
     locks. Otherwise call to close_thread_tables() will take care about both
     TABLE instance created by reopen_name_locked_table() and metadata lock.
   */
-  if (thd->locked_tables && tables && tables->table)
+  if (thd->locked_tables_mode && tables && tables->table)
     mdl_downgrade_exclusive_lock(&thd->mdl_context,
                                  tables->table->mdl_lock_data);
 

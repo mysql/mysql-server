@@ -1786,7 +1786,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (!drop_temporary)
   {
-    if (!thd->locked_tables &&
+    if (!thd->locked_tables_mode &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       DBUG_RETURN(TRUE);
   }
@@ -1891,7 +1891,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   if (!drop_temporary)
   {
-    if (!thd->locked_tables)
+    if (!thd->locked_tables_mode)
     {
       if (lock_table_names(thd, tables))
         DBUG_RETURN(1);
@@ -1900,7 +1900,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         expel_table_from_cache(0, table->db, table->table_name);
       pthread_mutex_unlock(&LOCK_open);
     }
-    else if (thd->locked_tables)
+    else
     {
       for (table= tables; table; table= table->next_local)
         if (find_temporary_table(thd, table->db, table->table_name))
@@ -2001,7 +2001,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     table_type= table->db_type;
     if (!drop_temporary)
     {
-      if (thd->locked_tables)
+      if (thd->locked_tables_mode)
       {
         if (close_cached_table(thd, table->table))
         {
@@ -2192,8 +2192,8 @@ err_with_placeholders:
       locked. Additional check for 'non_temp_tables_count' is to avoid
       leaving LOCK TABLES mode if we have dropped only temporary tables.
     */
-    if (thd->locked_tables && thd->locked_tables->table_count == 0 &&
-        non_temp_tables_count > 0)
+    if (thd->locked_tables_mode &&
+        thd->lock && thd->lock->table_count == 0 && non_temp_tables_count > 0)
     {
       unlock_locked_tables(thd);
       goto end;
@@ -6571,7 +6571,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if the user is trying to to do this in a transcation context
     */
 
-    if (thd->locked_tables || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -6620,7 +6620,7 @@ view_err:
     set of tables from the old table or to open a new TABLE object for
     an extended list and verify that they belong to locked tables.
   */
-  if (thd->locked_tables &&
+  if (thd->locked_tables_mode &&
       (create_info->used_fields & HA_CREATE_USED_UNION) &&
       (table->s->tmp_table == NO_TMP_TABLE))
   {
@@ -6847,7 +6847,7 @@ view_err:
     table_list->table= NULL;                    // For query cache
     query_cache_invalidate3(thd, table_list, 0);
 
-    if (thd->locked_tables)
+    if (thd->locked_tables_mode)
     {
       /*
         Under LOCK TABLES we should adjust meta-data locks before finishing
@@ -7330,7 +7330,7 @@ view_err:
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Close lock if this is a transactional table */
-    if (thd->lock)
+    if (thd->lock && ! thd->locked_tables_mode)
     {
       mysql_unlock_tables(thd, thd->lock);
       thd->lock=0;
@@ -7467,7 +7467,7 @@ view_err:
     if (t_table->file->ha_create_handler_files(path, NULL, CHF_INDEX_FLAG,
                                                create_info))
       goto err_with_placeholders;
-    if (thd->locked_tables)
+    if (thd->locked_tables_mode)
     {
       if (new_name == table_name && new_db == db)
       {
@@ -7489,7 +7489,7 @@ view_err:
 
   (void) quick_rm_table(old_db_type, db, old_name, FN_IS_TMP);
 
-  if (thd->locked_tables && new_name == table_name && new_db == db)
+  if (thd->locked_tables_mode && new_name == table_name && new_db == db)
   {
     thd->in_lock_tables= 1;
     error= reopen_tables(thd, 1);
@@ -7536,7 +7536,7 @@ view_err:
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 
-  if (thd->locked_tables)
+  if (thd->locked_tables_mode)
   {
     if ((new_name != table_name || new_db != db))
     {

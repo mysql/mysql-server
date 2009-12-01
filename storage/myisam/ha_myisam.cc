@@ -1109,7 +1109,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   ha_release_temporary_latches(thd);
 
   // Don't lock tables if we have used LOCK TABLE
-  if (!thd->locked_tables && 
+  if (! thd->locked_tables_mode &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
@@ -1219,7 +1219,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
     update_state_info(&param, file, 0);
   }
   thd_proc_info(thd, old_proc_info);
-  if (!thd->locked_tables)
+  if (! thd->locked_tables_mode)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
