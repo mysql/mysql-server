@@ -1,23 +1,35 @@
 
-2.9. Installing MySQL from tar.gz Packages on Other Unix-Like Systems
+2.2. Installing MySQL from Generic Binaries on Unix/Linux
 
    This section covers the installation of MySQL binary distributions
    that are provided for various platforms in the form of compressed
-   tar files (files with a .tar.gz extension). See Section 2.1.2.4,
-   "MySQL Binaries Compiled by Sun Microsystems, Inc.," for a
+   tar files (files with a .tar.gz extension). See Section 2.2,
+   "Installing MySQL from Generic Binaries on Unix/Linux," for a
    detailed list.
 
    To obtain MySQL, see Section 2.1.3, "How to Get MySQL."
 
+   Sun Microsystems, Inc. provides a set of binary distributions of
+   MySQL. In addition to binaries provided in platform-specific
+   package formats, we offer binary distributions for a number of
+   platforms in the form of compressed tar files (.tar.gz files). For
+   Windows distributions, see Section 2.5, "Installing MySQL on
+   Windows."
+
+   If you want to compile a debug version of MySQL from a source
+   distribution, you should add --with-debug or --with-debug=full to
+   the configure command used to configure the distribution and
+   remove any -fomit-frame-pointer options.
+
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.39), and OS indicates the type of operating system for which
+   5.1.41), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
-   platform-specific package formats for selected platforms. See
-   Section 2.2, "Standard MySQL Installation Using a Binary
-   Distribution," for more information on how to install these.
+   platform-specific package formats for selected platforms. See the
+   platform specific sections for more information, for more
+   information on how to install these.
 
    You need the following tools to install a MySQL tar file binary
    distribution:
@@ -27,11 +39,13 @@
      * A reasonable tar to unpack the distribution. GNU tar is known
        to work. Some operating systems come with a preinstalled
        version of tar that is known to have problems. For example,
-       the tar provided with early versions of Mac OS X, SunOS 4.x
-       and Solaris 8 and earlier are known to have problems with long
-       file names. On Mac OS X, you can use the preinstalled gnutar
-       program. On other systems with a deficient tar, you should
-       install GNU tar first.
+       the tar provided with early versions of Mac OS X, SunOS 4.x,
+       Solaris 8, Solaris 9, Solaris 10 and OpenSolaris, and HP-UX
+       are known to have problems with long file names. On Mac OS X,
+       you can use the preinstalled gnutar program. On Solaris 10 and
+       OpenSolaris you can use the preinstalled gtar. On other
+       systems with a deficient tar, you should install GNU tar
+       first.
 
    If you run into problems and need to file a bug report, please use
    the instructions in Section 1.6, "How to Report Bugs or Problems."
@@ -54,7 +68,7 @@ shell> bin/mysqld_safe --user=mysql &
 Note
 
    This procedure does not set up any passwords for MySQL accounts.
-   After following the procedure, proceed to Section 2.11,
+   After following the procedure, proceed to Section 2.13,
    "Post-Installation Setup and Testing."
 
    A more detailed version of the preceding description for
@@ -148,7 +162,7 @@ shell> chown -R mysql data
        machine, you can copy support-files/mysql.server to the
        location where your system has its startup files. More
        information can be found in the support-files/mysql.server
-       script itself and in Section 2.11.2.2, "Starting and Stopping
+       script itself and in Section 2.13.1.2, "Starting and Stopping
        MySQL Automatically."
    10. You can set up new accounts using the bin/mysql_setpermission
        script if you install the DBI and DBD::mysql Perl modules. See
@@ -187,5 +201,5 @@ Note
 
    The accounts that are listed in the MySQL grant tables initially
    have no passwords. After starting the server, you should set up
-   passwords for them using the instructions in Section 2.11,
+   passwords for them using the instructions in Section 2.13,
    "Post-Installation Setup and Testing."
