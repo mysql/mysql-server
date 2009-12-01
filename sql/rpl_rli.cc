@@ -105,7 +105,8 @@ int init_relay_log_info(Relay_log_info* rli,
   rli->tables_to_lock_count= 0;
 
   char pattern[FN_REFLEN];
-  if (fn_format(pattern, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
+  (void) my_realpath(pattern, slave_load_tmpdir, 0);
+  if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
             MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
     pthread_mutex_unlock(&rli->data_lock);
