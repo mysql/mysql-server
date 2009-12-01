@@ -375,6 +375,8 @@ maybe_do_fclose_during_recover_backward(RECOVER_ENV renv, FILENUM filenum) {
     struct file_map_tuple *tuple = NULL;
     int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r == 0) {
+        struct scan_state *ss = &renv->ss;
+        assert(ss->ss == SS_BACKWARD_SAW_CKPT);
         //Must keep existing lsn.
         //The only way this should be dirty, is if its doing a file-format upgrade.
         //If not dirty, header will not be written.
@@ -582,10 +584,8 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV UU(renv)) 
     return 0;
 }
 
-static int toku_recover_backward_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
-    // tree open
-    char *fixedfname = fixup_fname(&l->iname);
-    internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL, 0, NULL);
+static int toku_recover_backward_fclose (struct logtype_fclose *UU(l), RECOVER_ENV UU(renv)) {
+    // NO-OP
     return 0;
 }
 
@@ -668,8 +668,13 @@ static int toku_recover_fassociate (struct logtype_fassociate *UU(l), RECOVER_EN
 }
 
 static int toku_recover_backward_fassociate (struct logtype_fassociate *l, RECOVER_ENV renv) {
-    char *fixedfname = fixup_fname(&l->iname);
-    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL, 0, NULL);
+    int r = 0;
+    struct scan_state *ss = &renv->ss;
+    if (ss->ss == SS_BACKWARD_SAW_CKPT_END) {
+        char *fixedfname = fixup_fname(&l->iname);
+        r = internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL, 0, NULL);
+    }
+    return r;
 }
 
 static int toku_recover_xstillopen (struct logtype_xstillopen *UU(l), RECOVER_ENV UU(renv)) {
