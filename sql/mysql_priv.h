@@ -1220,8 +1220,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 enum enum_open_table_action {OT_NO_ACTION= 0, OT_BACK_OFF_AND_RETRY,
                              OT_DISCOVER, OT_REPAIR};
-TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
-		  enum_open_table_action *action, uint flags);
+bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
+                enum_open_table_action *action, uint flags);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);

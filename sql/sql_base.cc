@@ -2574,8 +2574,6 @@ void table_share_release_hook(void *share)
                         which will be set according to action which is
                         required to remedy problem appeared during attempt
                         to open table.
-                        If this is a NULL pointer, then the table is not
-                        put in the thread-open-list.
     flags               Bitmap of flags to modify how open works:
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
                           someone has done a flush or there is a pending
@@ -2597,14 +2595,16 @@ void table_share_release_hook(void *share)
     "open_type" is TAKE_EXCLUSIVE_MDL.
 
   RETURN
-    NULL  Open failed.  If refresh is set then one should close
-          all other tables and retry the open.
-    #     Success. Pointer to TABLE object for open table.
+    TRUE  Open failed. "action" parameter may contain type of action
+          needed to remedy problem before retrying again.
+    FALSE Success. Members of TABLE_LIST structure are filled properly (e.g.
+          TABLE_LIST::table is set for real tables and TABLE_LIST::view is
+          set for views).
 */
 
 
-TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-		  enum_open_table_action *action, uint flags)
+bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
+                enum_open_table_action *action, uint flags)
 {
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
@@ -2622,10 +2622,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
 
   if (thd->killed)
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
 
   key_length= (create_table_def_key(thd, key, table_list, 1) -
                TMP_TABLE_KEY_EXTRA);
@@ -2659,7 +2659,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                       (ulong) table->query_id, (uint) thd->server_id,
                       (ulong) thd->variables.pseudo_thread_id));
 	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-	  DBUG_RETURN(0);
+	  DBUG_RETURN(TRUE);
 	}
 	table->query_id= thd->query_id;
 	thd->thread_specific_used= TRUE;
@@ -2672,7 +2672,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (flags & MYSQL_OPEN_TEMPORARY_ONLY)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -2770,7 +2770,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                            mem_root, 0))
         {
           DBUG_ASSERT(table_list->view != 0);
-          DBUG_RETURN(0); // VIEW
+          DBUG_RETURN(FALSE); // VIEW
         }
       }
     }
@@ -2785,7 +2785,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
     else
       my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -2809,7 +2809,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
-      DBUG_RETURN(0);
+      DBUG_RETURN(TRUE);
   }
   else
   {
@@ -2832,7 +2832,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     {
       if (retry)
         *action= OT_BACK_OFF_AND_RETRY;
-      DBUG_RETURN(0);
+      DBUG_RETURN(TRUE);
     }
   }
 
@@ -2854,7 +2854,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     /* Someone did a refresh while thread was opening tables */
     *action= OT_BACK_OFF_AND_RETRY;
     pthread_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
   }
 
   if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
@@ -2867,14 +2867,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (!exists)
     {
       pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);
+      DBUG_RETURN(FALSE);
     }
     /* Table exists. Let us try to open it. */
   }
   else if (table_list->open_type == TABLE_LIST::TAKE_EXCLUSIVE_MDL)
   {
     pthread_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
   }
 
   if (!(share= (TABLE_SHARE *)mdl_get_cached_object(mdl_lock_data)))
@@ -2921,28 +2921,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       }
 
       pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);
+      DBUG_RETURN(FALSE);
     }
-    else if (table_list->view)
-    {
-      /*
-        We're trying to open a table for what was a view.
-        This can only happen during (re-)execution.
-        At prepared statement prepare the view has been opened and
-        merged into the statement parse tree. After that, someone
-        performed a DDL and replaced the view with a base table.
-        Don't try to open the table inside a prepared statement,
-        invalidate it instead.
-
-        Note, the assert below is known to fail inside stored
-        procedures (Bug#27011).
-      */
-      DBUG_ASSERT(thd->m_reprepare_observer);
-      check_and_update_table_version(thd, table_list, share);
-      /* Always an error. */
-      DBUG_ASSERT(thd->is_error());
-      goto err_unlock;
-    }
+    /*
+      Note that situation when we are trying to open a table for what
+      was a view during previous execution of PS will be handled in by
+      the caller. Here we should simply open our table even if
+      TABLE_LIST::view is true.
+    */
 
     if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
       goto err_unlock;
@@ -2992,7 +2978,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       *action= OT_BACK_OFF_AND_RETRY;
       release_table_share(share);
       pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);
+      DBUG_RETURN(TRUE);
     }
     /* Force close at once after usage */
     thd->version= share->version;
@@ -3103,15 +3089,16 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
+  table_list->table= table;
   DBUG_ASSERT(table->key_read == 0);
-  DBUG_RETURN(table);
+  DBUG_RETURN(FALSE);
 
 err_unlock:
   release_table_share(share);
 err_unlock2:
   pthread_mutex_unlock(&LOCK_open);
   mdl_release_lock(&thd->mdl_context, mdl_lock_data);
-  DBUG_RETURN(0);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -4502,6 +4489,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   TABLE_LIST *tables= NULL;
   enum_open_table_action action;
   int result=0;
+  bool error;
   MEM_ROOT new_frm_mem;
   /* Also used for indicating that prelocking is need */
   TABLE_LIST **query_tables_last_own;
@@ -4620,64 +4608,30 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
                           tables->db, tables->table_name, (long) tables));
     (*counter)++;
 
-    /*
-      Not a placeholder: must be a base table or a view, and the table is
-      not opened yet. Try to open the table.
-    */
-    if (!tables->table)
+    /* Not a placeholder: must be a base table or a view. Let us open it. */
+    DBUG_ASSERT(!tables->table);
+
+    if (tables->prelocking_placeholder)
     {
-      if (tables->prelocking_placeholder)
-      {
-        /*
-          For the tables added by the pre-locking code, attempt to open
-          the table but fail silently if the table does not exist.
-          The real failure will occur when/if a statement attempts to use
-          that table.
-        */
-        Prelock_error_handler prelock_handler;
-        thd->push_internal_handler(& prelock_handler);
-        tables->table= open_table(thd, tables, &new_frm_mem, &action, flags);
-        thd->pop_internal_handler();
-        safe_to_ignore_table= prelock_handler.safely_trapped_errors();
-      }
-      else
-        tables->table= open_table(thd, tables, &new_frm_mem, &action, flags);
+      /*
+        For the tables added by the pre-locking code, attempt to open
+        the table but fail silently if the table does not exist.
+        The real failure will occur when/if a statement attempts to use
+        that table.
+      */
+      Prelock_error_handler prelock_handler;
+      thd->push_internal_handler(& prelock_handler);
+      error= open_table(thd, tables, &new_frm_mem, &action, flags);
+      thd->pop_internal_handler();
+      safe_to_ignore_table= prelock_handler.safely_trapped_errors();
     }
     else
-      DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",
-                            tables->db, tables->table_name,
-                            (long) tables->table));
+      error= open_table(thd, tables, &new_frm_mem, &action, flags);
 
-    if (!tables->table)
+    free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
+
+    if (error)
     {
-      free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
-
-      if (tables->view)
-      {
-        /* VIEW placeholder */
-	(*counter)--;
-
-        /*
-          tables->next_global list consists of two parts:
-          1) Query tables and underlying tables of views.
-          2) Tables used by all stored routines that this statement invokes on
-             execution.
-          We need to know where the bound between these two parts is. If we've
-          just opened a view, which was the last table in part #1, and it
-          has added its base tables after itself, adjust the boundary pointer
-          accordingly.
-        */
-        if (query_tables_last_own == &(tables->next_global) &&
-            tables->view->query_tables)
-          query_tables_last_own= tables->view->query_tables_last;
-        /*
-          Let us free memory used by 'sroutines' hash here since we never
-          call destructor for this LEX.
-        */
-        my_hash_free(&tables->view->sroutines);
-	goto process_view_routines;
-      }
-
       /*
         If in a MERGE table open, we need to remove the children list
         from statement table list before restarting. Otherwise the list
@@ -4690,15 +4644,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         DBUG_ASSERT(parent_l->table);
         parent_l->next_global= *parent_l->table->child_last_l;
       }
-
-      /*
-        FIXME This is a temporary hack. Actually we need check that will
-        allow us to differentiate between error while opening/creating
-        table and successful table creation.
-        ...
-      */
-      if (tables->open_type)
-        continue;
 
       if (action)
       {
@@ -4742,36 +4687,73 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       result= -1;				// Fatal error
       break;
     }
-    else
+
+    /*
+      We can't rely on simple check for TABLE_LIST::view to determine
+      that this is a view since during re-execution we might reopen
+      ordinary table in place of view and thus have TABLE_LIST::view
+      set from repvious execution and TABLE_LIST::table set from
+      current.
+    */
+    if (!tables->table && tables->view)
     {
+      /* VIEW placeholder */
+      (*counter)--;
+
       /*
-        If we are not already in prelocked mode and extended table list is not
-        yet built and we have trigger for table being opened then we should
-        cache all routines used by its triggers and add their tables to
-        prelocking list.
-        If we lock table for reading we won't update it so there is no need to
-        process its triggers since they never will be activated.
+        tables->next_global list consists of two parts:
+        1) Query tables and underlying tables of views.
+        2) Tables used by all stored routines that this statement invokes on
+           execution.
+        We need to know where the bound between these two parts is. If we've
+        just opened a view, which was the last table in part #1, and it
+        has added its base tables after itself, adjust the boundary pointer
+        accordingly.
       */
-      if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-          !thd->lex->requires_prelocking() &&
-          tables->trg_event_map && tables->table->triggers &&
-          tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (query_tables_last_own == &(tables->next_global) &&
+          tables->view->query_tables)
+        query_tables_last_own= tables->view->query_tables_last;
+      /*
+        Let us free memory used by 'sroutines' hash here since we never
+        call destructor for this LEX.
+      */
+      my_hash_free(&tables->view->sroutines);
+      goto process_view_routines;
+    }
+
+    /*
+      Special types of open can succeed but still don't set
+      TABLE_LIST::table to anything.
+    */
+    if (tables->open_type && !tables->table)
+      continue;
+
+    /*
+      If we are not already in prelocked mode and extended table list is not
+      yet built and we have trigger for table being opened then we should
+      cache all routines used by its triggers and add their tables to
+      prelocking list.
+      If we lock table for reading we won't update it so there is no need to
+      process its triggers since they never will be activated.
+    */
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        !thd->lex->requires_prelocking() &&
+        tables->trg_event_map && tables->table->triggers &&
+        tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+    {
+      if (!query_tables_last_own)
+        query_tables_last_own= thd->lex->query_tables_last;
+      if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
+                                                        tables))
       {
-        if (!query_tables_last_own)
-          query_tables_last_own= thd->lex->query_tables_last;
-        if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                          tables))
-        {
-          /*
-            Serious error during reading stored routines from mysql.proc table.
-            Something's wrong with the table or its contents, and an error has
-            been emitted; we must abort.
-          */
-          result= -1;
-          goto err;
-        }
+        /*
+          Serious error during reading stored routines from mysql.proc table.
+          Something's wrong with the table or its contents, and an error has
+          been emitted; we must abort.
+        */
+        result= -1;
+        goto err;
       }
-      free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
@@ -4985,6 +4967,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   TABLE *table;
   enum_open_table_action action;
   bool refresh;
+  bool error;
   DBUG_ENTER("open_ltable");
 
   /* should not be used in a prelocked_mode context, see NOTE above */
@@ -4996,7 +4979,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   table_list->required_type= FRMTYPE_TABLE;
 
 retry:
-  while (!(table= open_table(thd, table_list, thd->mem_root, &action, 0)) &&
+  while ((error= open_table(thd, table_list, thd->mem_root, &action, 0)) &&
          action)
   {
     /*
@@ -5009,8 +4992,14 @@ retry:
       break;
   }
 
-  if (table)
+  if (!error)
   {
+    /*
+      We can't have a view or some special "open_type" in this function
+      so there should be a TABLE instance.
+    */
+    DBUG_ASSERT(table_list->table);
+    table= table_list->table;
     if (table->child_l)
     {
       /* A MERGE table must not come here. */
@@ -5023,7 +5012,6 @@ retry:
     }
 
     table_list->lock_type= lock_type;
-    table_list->table=	   table;
     table->grant= table_list->grant;
     if (thd->locked_tables_mode)
     {
@@ -5047,6 +5035,8 @@ retry:
         }
     }
   }
+  else
+    table= 0;
 
  end:
   thd_proc_info(thd, 0);
