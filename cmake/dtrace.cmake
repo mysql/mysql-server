@@ -86,7 +86,13 @@ MACRO (DTRACE_INSTRUMENT target)
           -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
         WORKING_DIRECTORY ${objdir}
       )
-      SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
+      GET_TARGET_PROPERTY(target_link_flags ${target} LINK_FLAGS)
+      IF(NOT target_link_flags)
+       SET(target_link_flags) 
+      ENDIF()
+        
+      SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS 
+         "${target_link_flags} ${outfile}")
     ENDIF()
   ENDIF()
 ENDMACRO()
