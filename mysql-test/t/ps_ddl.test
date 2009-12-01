@@ -745,7 +745,7 @@ execute stmt;
 call p_verify_reprepare_count(1);
 flush table t1;
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 execute stmt;
 
 --echo # Test 18-c: dependent VIEW has changed

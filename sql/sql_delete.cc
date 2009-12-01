@@ -1172,7 +1172,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
       DBUG_RETURN(TRUE);
     pthread_mutex_lock(&LOCK_open);
-    expel_table_from_cache(0, table_list->db, table_list->table_name);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
+                     table_list->table_name);
     pthread_mutex_unlock(&LOCK_open);
   }
 
