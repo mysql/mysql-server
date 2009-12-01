@@ -3136,7 +3136,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   mdl_init_lock(&mdl_lock_data, mdlkey, 0, db_name->str, table_name->str);
   table_list.mdl_lock_data= &mdl_lock_data;
   mdl_add_lock(&thd->mdl_context, &mdl_lock_data);
-  mdl_set_lock_priority(&mdl_lock_data, MDL_HIGH_PRIO);
+  mdl_set_lock_type(&mdl_lock_data, MDL_SHARED_HIGH_PRIO);
 
   /*
     TODO: investigate if in this particular situation we can get by

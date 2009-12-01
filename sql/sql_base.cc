@@ -2822,11 +2822,19 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     bool retry;
 
+    /*
+      There is no MDL_SHARED_UPGRADABLE_HIGH_PRIO type of metadata lock so we
+      want to be sure that caller doesn't pass us both flags simultaneously.
+    */
+    DBUG_ASSERT(!(flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) ||
+                !(flags & MYSQL_LOCK_IGNORE_FLUSH));
+
     if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL &&
         table_list->lock_type >= TL_WRITE_ALLOW_WRITE)
-      mdl_set_upgradable(mdl_lock_data);
-    mdl_set_lock_priority(mdl_lock_data, (flags & MYSQL_LOCK_IGNORE_FLUSH) ?
-                                         MDL_HIGH_PRIO : MDL_NORMAL_PRIO);
+      mdl_set_lock_type(mdl_lock_data, MDL_SHARED_UPGRADABLE);
+    if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+      mdl_set_lock_type(mdl_lock_data, MDL_SHARED_HIGH_PRIO);
+
     if (mdl_acquire_shared_lock(mdl_lock_data, &retry))
     {
       if (retry)
