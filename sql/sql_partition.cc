@@ -6216,7 +6216,7 @@ static void release_log_entries(partition_info *part_info)
 static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   int err;
-  if (lpt->thd->locked_tables)
+  if (lpt->thd->locked_tables_mode)
   {
     /*
       When we have the table locked, it is necessary to reopen the table

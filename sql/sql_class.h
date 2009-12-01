@@ -862,12 +862,17 @@ typedef I_List<Item_change_record> Item_change_list;
 
 
 /**
-  Type of prelocked mode.
-  See comment for THD::prelocked_mode for complete description.
+  Type of locked tables mode.
+  See comment for THD::locked_tables_mode for complete description.
 */
 
-enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
-                          PRELOCKED_UNDER_LOCK_TABLES= 2};
+enum enum_locked_tables_mode
+{
+  LTM_NONE= 0,
+  LTM_LOCK_TABLES,
+  LTM_PRELOCKED,
+  LTM_PRELOCKED_UNDER_LOCK_TABLES
+};
 
 
 /**
@@ -920,19 +925,13 @@ public:
     statement ends.
     Manual mode comes into play when a user issues a 'LOCK TABLES'
     statement. In this mode the user can only use the locked tables.
-    Trying to use any other tables will give an error. The locked tables are
-    stored in 'locked_tables' member.  Manual locking is described in
+    Trying to use any other tables will give an error.
+    The locked tables are also stored in this member, however,
+    thd->locked_tables_mode is turned on.  Manual locking is described in
     the 'LOCK_TABLES' chapter of the MySQL manual.
     See also lock_tables() for details.
   */
   MYSQL_LOCK *lock;
-  /*
-    Tables that were locked with explicit or implicit LOCK TABLES.
-    (Implicit LOCK TABLES happens when we are prelocking tables for
-     execution of statement which uses stored routines. See description
-     THD::prelocked_mode for more info.)
-  */
-  MYSQL_LOCK *locked_tables;
 
   /*
     CREATE-SELECT keeps an extra lock for the table being
@@ -942,29 +941,34 @@ public:
   MYSQL_LOCK *extra_lock;
 
   /*
-    prelocked_mode_type enum and prelocked_mode member are used for
-    indicating whenever "prelocked mode" is on, and what type of
-    "prelocked mode" is it.
+    Enum enum_locked_tables_mode and locked_tables_mode member are
+    used to indicate whether the so-called "locked tables mode" is on,
+    and what kind of mode is active.
 
-    Prelocked mode is used for execution of queries which explicitly
-    or implicitly (via views or triggers) use functions, thus may need
-    some additional tables (mentioned in query table list) for their
-    execution.
+    Locked tables mode is used when it's necessary to open and
+    lock many tables at once, for usage across multiple
+    (sub-)statements.
+    This may be necessary either for queries that use stored functions
+    and triggers, in which case the statements inside functions and
+    triggers may be executed many times, or for implementation of
+    LOCK TABLES, in which case the opened tables are reused by all
+    subsequent statements until a call to UNLOCK TABLES.
 
-    First open_tables() call for such query will analyse all functions
-    used by it and add all additional tables to table its list. It will
-    also mark this query as requiring prelocking. After that lock_tables()
-    will issue implicit LOCK TABLES for the whole table list and change
-    thd::prelocked_mode to non-0. All queries called in functions invoked
-    by the main query will use prelocked tables. Non-0 prelocked_mode
-    will also surpress mentioned analysys in those queries thus saving
-    cycles. Prelocked mode will be turned off once close_thread_tables()
-    for the main query will be called.
-
-    Note: Since not all "tables" present in table list are really locked
-    thd::prelocked_mode does not imply thd::locked_tables.
+    The kind of locked tables mode employed for stored functions and
+    triggers is also called "prelocked mode".
+    In this mode, first open_tables() call to open the tables used
+    in a statement analyses all functions used by the statement
+    and adds all indirectly used tables to the list of tables to
+    open and lock.
+    It also marks the parse tree of the statement as requiring
+    prelocking. After that, lock_tables() locks the entire list
+    of tables and changes THD::locked_tables_modeto LTM_PRELOCKED.
+    All statements executed inside functions or triggers
+    use the prelocked tables, instead of opening their own ones.
+    Prelocked mode is turned off automatically once close_thread_tables()
+    of the main statement is called.
   */
-  prelocked_mode_type prelocked_mode;
+  enum enum_locked_tables_mode locked_tables_mode;
   ulong	version;
   uint current_tablenr;
 
@@ -996,8 +1000,8 @@ public:
   void reset_open_tables_state(THD *thd)
   {
     open_tables= temporary_tables= handler_tables= derived_tables= 0;
-    extra_lock= lock= locked_tables= 0;
-    prelocked_mode= NON_PRELOCKED;
+    extra_lock= lock= 0;
+    locked_tables_mode= LTM_NONE;
     state_flags= 0U;
     m_reprepare_observer= NULL;
     mdl_context_init(&mdl_context, thd);

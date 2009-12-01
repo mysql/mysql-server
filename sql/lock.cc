@@ -754,7 +754,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
     goto end;
 
   /* Get command lock or LOCK TABLES lock. Maybe empty for INSERT DELAYED. */
-  if (! (mylock= thd->lock ? thd->lock : thd->locked_tables))
+  if (! (mylock= thd->lock))
     goto end;
 
   /* If we have less than two tables, we cannot have duplicates. */
