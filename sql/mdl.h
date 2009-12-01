@@ -26,24 +26,25 @@ struct MDL_LOCK_DATA;
 struct MDL_LOCK;
 struct MDL_CONTEXT;
 
-/** Type of metadata lock request. */
+/**
+   Type of metadata lock request.
 
-enum enum_mdl_type {MDL_SHARED=0, MDL_EXCLUSIVE};
+   - High-priority shared locks differ from ordinary shared locks by
+     that they ignore pending requests for exclusive locks.
+   - Upgradable shared locks can be later upgraded to exclusive
+     (because of that their acquisition involves implicit
+      acquisition of global intention-exclusive lock).
+
+   @see Comments for can_grant_lock() and can_grant_global_lock() for details.
+*/
+
+enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
+                    MDL_SHARED_UPGRADABLE, MDL_EXCLUSIVE};
 
 
 /** States which metadata lock request can have. */
 
 enum enum_mdl_state {MDL_PENDING=0, MDL_ACQUIRED, MDL_PENDING_UPGRADE};
-
-
-/**
-   Priority of metadata lock requests. High priority attribute is
-   applicable only to requests for shared locks and indicates that
-   such request should ignore pending requests for exclusive locks
-   and for upgrading of shared locks to exclusive.
-*/
-
-enum enum_mdl_prio {MDL_NORMAL_PRIO=0, MDL_HIGH_PRIO};
 
 
 /**
@@ -60,13 +61,6 @@ struct MDL_LOCK_DATA
   uint          key_length;
   enum          enum_mdl_type type;
   enum          enum_mdl_state state;
-  enum          enum_mdl_prio prio;
-  /**
-     TRUE -- if shared lock corresponding to this lock request at some
-     point might be upgraded to an exclusive lock and therefore conflicts
-     with global shared lock, FALSE -- otherwise.
-  */
-  bool          is_upgradable;
 
 private:
   /**
@@ -168,28 +162,6 @@ inline void mdl_set_lock_type(MDL_LOCK_DATA *lock_data, enum_mdl_type lock_type)
 {
   DBUG_ASSERT(lock_data->state == MDL_PENDING);
   lock_data->type= lock_type;
-}
-
-/**
-   Set priority for lock request. High priority can be only set
-   for shared locks.
-*/
-
-inline void mdl_set_lock_priority(MDL_LOCK_DATA *lock_data, enum_mdl_prio prio)
-{
-  DBUG_ASSERT(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING);
-  lock_data->prio= prio;
-}
-
-/**
-   Mark request for shared lock as upgradable. Can be only applied
-   to pending locks.
-*/
-
-inline void mdl_set_upgradable(MDL_LOCK_DATA *lock_data)
-{
-  DBUG_ASSERT(lock_data->type == MDL_SHARED && lock_data->state == MDL_PENDING);
-  lock_data->is_upgradable= TRUE;
 }
 
 bool mdl_acquire_shared_lock(MDL_LOCK_DATA *lock_data, bool *retry);
