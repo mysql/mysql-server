@@ -1,5 +1,5 @@
 
-2.10.6. Installing MySQL from Source on Windows
+2.5.10. Installing MySQL from Source on Windows
 
    These instructions describe how to build binaries from source for
    MySQL 5.1 on Windows. Instructions are provided for building
@@ -15,7 +15,7 @@ Note
    to use precompiled binary distributions of MySQL that are built
    specifically for optimal performance on Windows by Sun
    Microsystems, Inc. Instructions for installing binary
-   distributions are available in Section 2.3, "Installing MySQL on
+   distributions are available in Section 2.5, "Installing MySQL on
    Windows."
 
    To build MySQL on Windows from source, you must satisfy the
@@ -68,7 +68,7 @@ Note
 
      * 3GB to 5GB of disk space.
 
-   The exact system requirements can be found here:
+   The exact system requirements for Visual Studio can be found here:
    http://msdn.microsoft.com/vstudio/Previous/2003/sysreqs/default.as
    px and
    http://msdn.microsoft.com/vstudio/products/sysreqs/default.aspx
@@ -81,7 +81,7 @@ Note
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
-       source files, see Section 2.10.3, "Installing from the
+       source files, see Section 2.3.3, "Installing from the
        Development Source Tree."
 
    If you find something not working as expected, or you have
@@ -89,7 +89,7 @@ Note
    Windows, please send a message to the win32 mailing list. See
    Section 1.5.1, "MySQL Mailing Lists."
 
-2.10.6.1. Building MySQL from Source Using CMake and Visual Studio
+2.5.10.1. Building MySQL from Source Using CMake and Visual Studio
 
    You can build MySQL on Windows by using a combination of cmake and
    Microsoft Visual Studio .NET 2003 (7.1), Microsoft Visual Studio
@@ -99,7 +99,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.0.45.tar.gz).
+   standard source distribution (for example, mysql-5.1.41.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -264,5 +264,5 @@ C:\workdir> copy libmysql\libmysql.def C:\mysql\include
 C:\workdir> xcopy sql-bench\*.* C:\mysql\bench /E
 
    After installation, set up and start the server in the same way as
-   for binary Windows distributions. See Section 2.3, "Installing
+   for binary Windows distributions. See Section 2.5, "Installing
    MySQL on Windows."
