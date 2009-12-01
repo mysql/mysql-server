@@ -327,4 +327,59 @@ Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+CREATE TABLE t1 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+CREATE FUNCTION func_modify_t1 ()
+RETURNS INT
+BEGIN
+INSERT INTO t1 SET a = 1;
+RETURN 0;
+END|
+# The following statement causes auto-incrementation  
+# of both t1 and t2. It is logged in statement format, 
+# so it should produce unsafe warning.
+INSERT INTO t2 SET a = func_modify_t1();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SET SESSION binlog_format = MIXED;
+# Check if the statement is logged in row format.
+INSERT INTO t2 SET a = func_modify_t1();
+SHOW BINLOG EVENTS FROM 12283;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	12283	Query	1	12351	BEGIN
+master-bin.000001	12351	Table_map	1	12393	table_id: 44 (test.t2)
+master-bin.000001	12393	Table_map	1	12435	table_id: 45 (test.t1)
+master-bin.000001	12435	Write_rows	1	12473	table_id: 45
+master-bin.000001	12473	Write_rows	1	12511	table_id: 44 flags: STMT_END_F
+master-bin.000001	12511	Query	1	12580	COMMIT
+DROP TABLE t1,t2;
+DROP FUNCTION func_modify_t1;
+SET SESSION binlog_format = STATEMENT;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE t3 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+create trigger tri_modify_two_tables before insert on t1 for each row begin
+insert into t2(a) values(new.a);
+insert into t3(a) values(new.a);
+end |
+# The following statement causes auto-incrementation  
+# of both t2 and t3. It is logged in statement format, 
+# so it should produce unsafe warning
+INSERT INTO t1 SET a = 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SET SESSION binlog_format = MIXED;
+# Check if the statement is logged in row format.
+INSERT INTO t1 SET a = 2;
+SHOW BINLOG EVENTS FROM 13426;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	13426	Query	1	13494	BEGIN
+master-bin.000001	13494	Table_map	1	13535	table_id: 47 (test.t1)
+master-bin.000001	13535	Table_map	1	13577	table_id: 48 (test.t3)
+master-bin.000001	13577	Table_map	1	13619	table_id: 49 (test.t2)
+master-bin.000001	13619	Write_rows	1	13657	table_id: 49
+master-bin.000001	13657	Write_rows	1	13695	table_id: 48
+master-bin.000001	13695	Write_rows	1	13729	table_id: 47 flags: STMT_END_F
+master-bin.000001	13729	Query	1	13798	COMMIT
+DROP TABLE t1,t2,t3;
 "End of tests"

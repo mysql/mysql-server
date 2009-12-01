@@ -2089,7 +2089,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           tables).  In this case, we can write the original query into
           the binary log.
          */
-        write_bin_log(thd, !error, thd->query, thd->query_length);
+        write_bin_log(thd, !error, thd->query(), thd->query_length());
       }
       else if (thd->current_stmt_binlog_row_based &&
                tmp_table_deleted)
@@ -3554,7 +3554,7 @@ static inline void write_create_table_bin_log(THD *thd,
       (!thd->current_stmt_binlog_row_based ||
        (thd->current_stmt_binlog_row_based &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 }
 
 
@@ -4262,73 +4262,6 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
   return 1;
 }
 
-
-static int prepare_for_restore(THD* thd, TABLE_LIST* table,
-			       HA_CHECK_OPT *check_opt)
-{
-  DBUG_ENTER("prepare_for_restore");
-
-  if (table->table) // do not overwrite existing tables on restore
-  {
-    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
-				  "table exists, will not overwrite on restore"
-				  ));
-  }
-  else
-  {
-    char* backup_dir= thd->lex->backup_dir;
-    char src_path[FN_REFLEN], dst_path[FN_REFLEN + 1], uname[FN_REFLEN];
-    char* table_name= table->table_name;
-    char* db= table->db;
-
-    VOID(tablename_to_filename(table->table_name, uname, sizeof(uname) - 1));
-
-    if (fn_format_relative_to_data_home(src_path, uname, backup_dir, reg_ext))
-      DBUG_RETURN(-1); // protect buffer overflow
-
-    build_table_filename(dst_path, sizeof(dst_path) - 1,
-                         db, table_name, reg_ext, 0);
-
-    if (lock_and_wait_for_table_name(thd,table))
-      DBUG_RETURN(-1);
-
-    if (my_copy(src_path, dst_path, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "restore",
-				    "Failed copying .frm file"));
-    }
-    if (mysql_truncate(thd, table, 1))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "restore",
-				    "Failed generating table from .frm file"));
-    }
-  }
-
-  /*
-    Now we should be able to open the partially restored table
-    to finish the restore in the handler later on
-  */
-  pthread_mutex_lock(&LOCK_open);
-  if (reopen_name_locked_table(thd, table, TRUE))
-  {
-    unlock_table_name(thd, table);
-    pthread_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
-                                  "Failed to open partially restored table"));
-  }
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->table || !table->table->child_l);
-  pthread_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(0);
-}
-
-
 static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			      HA_CHECK_OPT *check_opt)
 {
@@ -4994,29 +4927,6 @@ err:
 }
 
 
-bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
-{
-  DBUG_ENTER("mysql_backup_table");
-  WARN_DEPRECATED(thd, "6.0", "BACKUP TABLE",
-                  "MySQL Administrator (mysqldump, mysql)");
-  DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				"backup", TL_READ, 0, 0, 0, 0,
-				&handler::ha_backup, 0));
-}
-
-
-bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
-{
-  DBUG_ENTER("mysql_restore_table");
-  WARN_DEPRECATED(thd, "6.0", "RESTORE TABLE",
-                  "MySQL Administrator (mysqldump, mysql)");
-  DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				"restore", TL_WRITE, 1, 1, 0,
-				&prepare_for_restore,
-				&handler::ha_restore, 0));
-}
-
-
 bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
@@ -5427,14 +5337,14 @@ binlog:
         write_bin_log(thd, TRUE, query.ptr(), query.length());
       }
       else                                      // Case 1
-        write_bin_log(thd, TRUE, thd->query, thd->query_length);
+        write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     /*
       Case 3 and 4 does nothing under RBR
     */
   }
   else
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
   res= FALSE;
 
@@ -5522,7 +5432,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     error=1;
   if (error)
     goto err;
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
 err:
   ha_autocommit_or_rollback(thd, error);
@@ -6531,7 +6441,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length,
+        Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                               0, FALSE, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -6785,7 +6695,7 @@ view_err:
 
     if (!error)
     {
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);
     }
     else if (error > 0)
@@ -7275,7 +7185,7 @@ view_err:
       goto err1;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->current_stmt_binlog_row_based)
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     goto end_temporary;
   }
 
@@ -7432,13 +7342,13 @@ view_err:
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       db, table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
   if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
   {

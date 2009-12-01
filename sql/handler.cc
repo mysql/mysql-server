@@ -1331,7 +1331,8 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request)
+    if (is_real_trans && thd->transaction_rollback_request &&
+        thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
@@ -3227,36 +3228,6 @@ handler::ha_reset_auto_increment(ulonglong value)
   mark_trx_read_write();
 
   return reset_auto_increment(value);
-}
-
-
-/**
-  Backup table: public interface.
-
-  @sa handler::backup()
-*/
-
-int
-handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return backup(thd, check_opt);
-}
-
-
-/**
-  Restore table: public interface.
-
-  @sa handler::restore()
-*/
-
-int
-handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return restore(thd, check_opt);
 }
 
 
