@@ -179,7 +179,9 @@ begin
 end|
 delimiter ;|
 
+--disable_warnings
 insert into t1 (last_id) values (0);
+--enable_warnings
 
 drop trigger t1_bi;
 
@@ -512,7 +514,9 @@ set sql_log_bin=0;
 insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;
 set sql_log_bin=1;
+--disable_warnings
 insert into t1 select insid();
+--enable_warnings
 select * from t1 order by id;
 select * from t2 order by id;
 

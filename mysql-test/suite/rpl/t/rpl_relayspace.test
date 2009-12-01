@@ -4,6 +4,7 @@
 source include/master-slave.inc;
 connection slave;
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 connection master;
 # This will generate a master's binlog > 10 bytes
 create table t1 (a int);
