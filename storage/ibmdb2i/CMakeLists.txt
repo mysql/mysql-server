@@ -34,7 +34,7 @@ SET (IBMDB2I_SOURCES ha_ibmdb2i.cc db2i_ileBridge.cc db2i_conversion.cc
             db2i_collationSupport.cc db2i_errors.cc db2i_constraints.cc
             db2i_rir.cc db2i_sqlStatementStream.cc db2i_ioBuffers.cc db2i_myconv.cc)
 
-SET(IBMDB2I_LIBS iconv)
-MYSQL_STORAGE_ENGINE(IBMDB2I)
+
+MYSQL_ADD_PLUGIN(ibmdb2i ${IBMDB2I_SOURCES}  STORAGE_ENGINE LINK_LIBRARIES iconv)
 
 ENDIF(HAVE_PASE_ENVIRONMENT)

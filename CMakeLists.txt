@@ -169,6 +169,7 @@ MYSQL_CHECK_SSL()
 MYSQL_CHECK_READLINE()
 
 IF(NOT WITHOUT_SERVER)
+SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
  CONFIGURE_PLUGINS()
 ENDIF()
@@ -219,7 +220,8 @@ CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_BINARY_DIR}/include/mysql_version.h )
-
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
+    ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 
 # Packaging
 IF(WIN32)

@@ -42,7 +42,8 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   CHECK_FUNCTION_EXISTS(atomic_add_long HAVE_ATOMIC_ADD_LONG)
   IF(HAVE_ATOMIC_CAS_ULONG AND HAVE_ATOMIC_CAS_32 AND
     HAVE_ATOMIC_CAS_64 AND HAVE_ATOMIC_ADD_LONG)
-	SET(HAVE_SOLARIS_ATOMICS 1)
+    
+    SET(HAVE_SOLARIS_ATOMICS 1)
   ENDIF()
 ENDIF()
 
@@ -67,7 +68,7 @@ IF(NOT HAVE_ATOMIC_PTHREAD_T_GCC AND HAVE_SOLARIS_ATOMICS)
   int main()
   {
     pthread_t x = 0;
-	return(0);
+    return(0);
   }" HAVE_ATOMIC_PTHREAD_T_SOLARIS
   )
   IF(HAVE_ATOMIC_PTHREAD_T_SOLARIS)
@@ -88,7 +89,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
   CHECK_C_SOURCE_RUNS("
     int main()
-	{ 
+    { 
       __asm__ __volatile__ (\"pause\"); 
       return 0;
     }"  IB_HAVE_PAUSE_INSTRUCTION)
@@ -176,15 +177,6 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-SET(INNOBASE_PLUGIN_STATIC  "innobase")
-SET(INNOBASE_PLUGIN_DYNAMIC "ha_innodb")
-
-# Innobase depends on zlib. If server links with system
-# zlib shared library, and innobase builds as shared library,
-# innobase need to link with it too, to avoid unresolved symbols.
-IF(ZLIB_FOUND AND NOT WITH_ZLIB STREQUAL "bundled")
-	SET(INNOBASE_LIBS ${ZLIB_LIBRARY})
-ENDIF()
 
 #The plugin's CMakeLists.txt still needs to work with previous versions of MySQL.
 IF(EXISTS ${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
@@ -207,5 +199,7 @@ ELSEIF (MYSQL_VERSION_ID LESS "50137")
 ELSE()
 	# New plugin support, cross-platform , name for shared library
 	# is given in INNOBASE_PLUGIN_STATIC and INNOBASE_PLUGIN_DYNAMIC
-	MYSQL_STORAGE_ENGINE(INNOBASE)
+	MYSQL_ADD_PLUGIN(INNOBASE ${INNOBASE_SOURCES} STORAGE_ENGINE 
+		MODULE_OUTPUT_NAME ha_innodb
+		LINK_LIBRARIES ${ZLIB_LIBRARY})
 ENDIF()
