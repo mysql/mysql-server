@@ -79,6 +79,9 @@ static void set_crash_timer(void) {
 
 static void update_crash_timer(void) {
     if ( --crash_timer == 0 ) {
+        // close the states table before we crash
+        int r = states->close(states, 0); 
+        CKERR(r);
         if ( verbose ) {
             printf("%s : crash\n", __FILE__);
             fflush(stdout);
@@ -236,7 +239,7 @@ static void do_random_fileops(void)
     }
 }
 
-static void run_test(int iter, int crash){
+static void run_test(int iter){
     u_int32_t recovery_flags = DB_INIT_LOG | DB_INIT_TXN;
     int r, i;
 
@@ -367,46 +370,34 @@ static void run_test(int iter, int crash){
     db_env_set_checkpoint_callback(NULL, NULL);
     db_env_set_checkpoint_callback2(NULL, NULL);
 
-
     // after checkpoint
     if ( verbose ) printf("%s : after checkpoint #2\n", __FILE__);
     do_random_fileops();
     
-    // close the states table before we crash
-    r = states->close(states, 0);                                                                         CKERR(r);
-    crash = crash;
-    if (iter > 10 ) {
-        if ( verbose ) printf("%s : crash\n", __FILE__);
-        crash_it();
-    }
-
-    if ( verbose ) printf("%s : done\n", __FILE__);
-        
     r = env->txn_checkpoint(env, 0, 0, 0);                                                                CKERR(r);
 
     for (i=0;i<NUM_DICTIONARIES;i++) {
         db = db_array[i];
         state = get_state(i);
         if ( state == CREATED || state == OPEN ) {
-            r = db->close(db, 0);                                                                        CKERR(r);
+            r = db->close(db, 0);                                                                         CKERR(r);
             db = NULL;
         }
     }
 
-    r = env->close(env, 0);
-//    assert((r == 0) || (r == EINVAL)); // OK to have open transactions prior to close
-    CKERR(r);
+    r = states->close(states, 0);                                                                         CKERR(r);
+    r = env->close(env, 0);                                                                               CKERR(r);
+    if ( verbose ) printf("%s : done\n", __FILE__);
 }
 
 // ------------ infrastructure ----------
 static void do_args(int argc, char *argv[]);
 
 static int iter_arg = 0;
-static int do_crash = 0;
 
 int test_main(int argc, char **argv) {
     do_args(argc, argv);
-    run_test(iter_arg,do_crash);
+    run_test(iter_arg);
     return 0;
 }
 
@@ -423,13 +414,11 @@ static void do_args(int argc, char *argv[]) {
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] [-i] [-C] \n", cmd);
+	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] [-i] \n", cmd);
 	    exit(resultcode);
 	} else if (strcmp(argv[0], "-i")==0) {
             argc--; argv++;
             iter_arg = atoi(argv[0]);
-	} else if (strcmp(argv[0], "-C")==0) {
-            do_crash = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
