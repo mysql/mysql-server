@@ -416,7 +416,16 @@ RestoreMetaData::fixBlobs()
           break;
         }
       }
-      assert(blobTable != NULL);
+      if (blobTable == NULL)
+      {
+        /* Corrupt backup, has main table, but no blob table */
+        err << "Table " << table->m_dictTable->getName()
+            << " has blob column " << j << " (" 
+            << c->m_name.c_str()
+            << ") with missing parts table in backup."
+            << endl;
+        return false;
+      }
       assert(blobTable->m_dictTable != NULL);
       NdbTableImpl& bt = NdbTableImpl::getImpl(*blobTable->m_dictTable);
       const char* colName = c->m_blobVersion == 1 ? "DATA" : "NDB$DATA";
