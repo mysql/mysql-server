@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2006 MySQL AB, 2009 Sun Microsystems, Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_atomic.c my_getncpus.c)
+				my_atomic.c my_getncpus.c
+				my_rdtsc.c)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(mysys ${MYSYS_SOURCES})

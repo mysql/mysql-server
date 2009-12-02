@@ -68,8 +68,8 @@ enable_query_log;
 connection slave;
 lock tables t1 read;
 start slave;
-#hope this is long enough for I/O thread to fetch over 16K relay log data
-sleep 3;
+connection master;
+--source include/sync_slave_io_with_master.inc
 unlock tables;
 
 #test handling of aborted connection in the middle of update

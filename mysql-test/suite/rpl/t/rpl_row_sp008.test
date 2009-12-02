@@ -41,9 +41,7 @@ SELECT * FROM test.t2;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t2;
 
 # Cleanup

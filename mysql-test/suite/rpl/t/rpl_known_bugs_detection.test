@@ -34,12 +34,14 @@ SELECT * FROM t1;
 
 # restart replication for the next testcase
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 reset slave;
 connection master;
 reset master;
 drop table t1;
 connection slave;
 start slave;
+--source include/wait_for_slave_to_start.inc
 
 # testcase with INSERT SELECT
 connection master;
