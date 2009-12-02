@@ -3250,6 +3250,7 @@ err_unlock:
 
 err:
   mdl_release_lock(&thd->mdl_context, &mdl_lock_data);
+  mdl_remove_lock(&thd->mdl_context, &mdl_lock_data);
   thd->clear_error();
   return res;
 }

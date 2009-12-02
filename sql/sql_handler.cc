@@ -150,6 +150,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     }
     pthread_mutex_unlock(&LOCK_open);
     mdl_release_lock(&thd->handler_mdl_context, mdl_lock_data);
+    mdl_remove_lock(&thd->handler_mdl_context, mdl_lock_data);
   }
   else if (tables->table)
   {

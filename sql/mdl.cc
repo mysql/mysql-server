@@ -257,7 +257,7 @@ void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
 
    Stores the database name, object name and the type in the key
    buffer. Initializes mdl_el to point to the key.
-   We can't simply initialize mdl_el with type, db and name
+   We can't simply initialize MDL_LOCK_DATA with type, db and name
    by-pointer because of the underlying HASH implementation
    requires the key to be a contiguous buffer.
 
@@ -275,7 +275,7 @@ void mdl_init_lock(MDL_LOCK_DATA *lock_data, char *key, int type,
   lock_data->key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
   lock_data->key= key;
   lock_data->type= MDL_SHARED;
-  lock_data->state= MDL_PENDING;
+  lock_data->state= MDL_INITIALIZED;
 #ifndef DBUG_OFF
   lock_data->ctx= 0;
   lock_data->lock= 0;
@@ -336,10 +336,40 @@ MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
 void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
 {
   DBUG_ENTER("mdl_add_lock");
-  DBUG_ASSERT(lock_data->state == MDL_PENDING);
+  DBUG_ASSERT(lock_data->state == MDL_INITIALIZED);
   DBUG_ASSERT(!lock_data->ctx);
   lock_data->ctx= context;
   context->locks.push_front(lock_data);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+   Remove a lock request from the list of lock requests of the context.
+
+   Disassociates a lock request from the given context.
+
+   @param  context    The MDL context to remove the lock from.
+   @param  lock_data  The lock request to be removed.
+
+   @pre The lock request being removed should correspond to lock which
+        was released or was not acquired.
+
+   @note Resets lock request for lock released back to its initial state
+         (i.e. sets type to MDL_SHARED).
+*/
+
+void mdl_remove_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
+{
+  DBUG_ENTER("mdl_remove_lock");
+  DBUG_ASSERT(lock_data->state == MDL_INITIALIZED);
+  DBUG_ASSERT(context == lock_data->ctx);
+  /* Reset lock request back to its initial state. */
+  lock_data->type= MDL_SHARED;
+#ifndef DBUG_OFF
+  lock_data->ctx= 0;
+#endif
+  context->locks.remove(lock_data);
   DBUG_VOID_RETURN;
 }
 
@@ -629,7 +659,7 @@ bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data,
   MDL_LOCK *lock;
   *retry= FALSE;
 
-  DBUG_ASSERT(is_shared(lock_data) && lock_data->state == MDL_PENDING);
+  DBUG_ASSERT(is_shared(lock_data) && lock_data->state == MDL_INITIALIZED);
 
   DBUG_ASSERT(lock_data->ctx == context);
 
@@ -654,7 +684,11 @@ bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data,
   if (!(lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
                                          lock_data->key_length)))
   {
-    lock= get_lock_object();
+    if (!(lock= get_lock_object()))
+    {
+      pthread_mutex_unlock(&LOCK_mdl);
+      return TRUE;
+    }
     /*
       Before inserting MDL_LOCK object into hash we should add at least one
       MDL_LOCK_DATA to its lists in order to provide key for this element.
@@ -662,7 +696,12 @@ bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data,
     */
     lock->active_shared.push_front(lock_data);
     lock->lock_data_count= 1;
-    my_hash_insert(&mdl_locks, (uchar*)lock);
+    if (my_hash_insert(&mdl_locks, (uchar*)lock))
+    {
+      release_lock_object(lock);
+      pthread_mutex_unlock(&LOCK_mdl);
+      return TRUE;
+    }
     lock_data->state= MDL_ACQUIRED;
     lock_data->lock= lock;
     if (lock_data->type == MDL_SHARED_UPGRADABLE)
@@ -702,9 +741,6 @@ static void release_lock(MDL_LOCK_DATA *lock_data);
    @param context  A context containing requests for exclusive locks
                    The context may not have other lock requests.
 
-   @note In case of failure (for example, if our thread was killed)
-         resets lock requests back to their initial state (MDL_SHARED)
-
    @retval FALSE  Success
    @retval TRUE   Failure
 */
@@ -735,25 +771,32 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
   while ((lock_data= it++))
   {
     DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
-                lock_data->state == MDL_PENDING);
+                lock_data->state == MDL_INITIALIZED);
     if (!(lock= (MDL_LOCK *) my_hash_search(&mdl_locks, (uchar*)lock_data->key,
                                             lock_data->key_length)))
     {
-      lock= get_lock_object();
+      if (!(lock= get_lock_object()))
+        goto err;
       /*
         Again before inserting MDL_LOCK into hash provide key for
         it by adding MDL_LOCK_DATA to one of its lists.
       */
       lock->waiting_exclusive.push_front(lock_data);
       lock->lock_data_count= 1;
-      my_hash_insert(&mdl_locks, (uchar*)lock);
+      if (my_hash_insert(&mdl_locks, (uchar*)lock))
+      {
+        release_lock_object(lock);
+        goto err;
+      }
       lock_data->lock= lock;
+      lock_data->state= MDL_PENDING;
     }
     else
     {
       lock->waiting_exclusive.push_front(lock_data);
       lock->lock_data_count++;
       lock_data->lock= lock;
+      lock_data->state= MDL_PENDING;
     }
   }
 
@@ -806,23 +849,7 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
       pthread_cond_timedwait(&COND_mdl, &LOCK_mdl, &abstime);
     }
     if (thd->killed)
-    {
-      /* Remove our pending lock requests from the locks. */
-      it.rewind();
-      while ((lock_data= it++))
-      {
-        DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
-                    lock_data->state == MDL_PENDING);
-        release_lock(lock_data);
-        /* Return lock request to its initial state. */
-        lock_data->type= MDL_SHARED;
-        context->locks.remove(lock_data);
-      }
-      /* Pending requests for shared locks can be satisfied now. */
-      pthread_cond_broadcast(&COND_mdl);
-      thd->exit_cond(old_msg);
-      return TRUE;
-    }
+      goto err;
   }
   it.rewind();
   while ((lock_data= it++))
@@ -839,6 +866,22 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
   /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
   thd->exit_cond(old_msg);
   return FALSE;
+
+err:
+  /*
+    Remove our pending lock requests from the locks.
+    Ignore those lock requests which were not made MDL_PENDING.
+  */
+  it.rewind();
+  while ((lock_data= it++) && lock_data->state == MDL_PENDING)
+  {
+    release_lock(lock_data);
+    lock_data->state= MDL_INITIALIZED;
+  }
+  /* May be some pending requests for shared locks can be satisfied now. */
+  pthread_cond_broadcast(&COND_mdl);
+  thd->exit_cond(old_msg);
+  return TRUE;
 }
 
 
@@ -976,50 +1019,56 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
 
    @param context  [in]  The context containing the lock request
    @param lock     [in]  The lock request
+   @param conflict [out] Indicates that conflicting lock exists
 
-   @retval FALSE the lock was granted
-   @retval TRUE  there were conflicting locks.
+   @retval TRUE  Failure either conflicting lock exists or some error
+                 occured (probably OOM).
+   @retval FALSE Success, lock was acquired.
 
    FIXME: Compared to lock_table_name_if_not_cached()
           it gives sligthly more false negatives.
 */
 
 bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
-                                    MDL_LOCK_DATA *lock_data)
+                                    MDL_LOCK_DATA *lock_data,
+                                    bool *conflict)
 {
   MDL_LOCK *lock;
 
   DBUG_ASSERT(lock_data->type == MDL_EXCLUSIVE &&
-              lock_data->state == MDL_PENDING);
+              lock_data->state == MDL_INITIALIZED);
 
   safe_mutex_assert_not_owner(&LOCK_open);
+
+  *conflict= FALSE;
 
   pthread_mutex_lock(&LOCK_mdl);
 
   if (!(lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
                                          lock_data->key_length)))
   {
-    lock= get_lock_object();
+    if (!(lock= get_lock_object()))
+      goto err;
     lock->active_exclusive.push_front(lock_data);
     lock->lock_data_count= 1;
-    my_hash_insert(&mdl_locks, (uchar*)lock);
+    if (my_hash_insert(&mdl_locks, (uchar*)lock))
+    {
+      release_lock_object(lock);
+      goto err;
+    }
     lock_data->state= MDL_ACQUIRED;
     lock_data->lock= lock;
-    lock= 0;
     global_lock.active_intention_exclusive++;
+    pthread_mutex_unlock(&LOCK_mdl);
+    return FALSE;
   }
+
+  /* There is some lock for the object. */
+  *conflict= TRUE;
+
+err:
   pthread_mutex_unlock(&LOCK_mdl);
-
-  /*
-    FIXME: We can't leave pending MDL_EXCLUSIVE lock request in the list since
-           for such locks we assume that they have MDL_LOCK_DATA::lock properly set.
-           Long term we should clearly define relation between lock types,
-           presence in the context lists and MDL_LOCK_DATA::lock values.
-  */
-  if (lock)
-    context->locks.remove(lock_data);
-
-  return lock;
+  return TRUE;
 }
 
 
@@ -1111,11 +1160,12 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
     it.rewind();
     while ((lock_data= it++))
     {
-      DBUG_ASSERT(lock_data->state == MDL_PENDING);
+      DBUG_ASSERT(lock_data->state == MDL_INITIALIZED);
       if (!can_grant_global_lock(lock_data))
         break;
       /*
-        To avoid starvation we don't wait if we have pending MDL_EXCLUSIVE lock.
+        To avoid starvation we don't wait if we have a conflict against
+        request for MDL_EXCLUSIVE lock.
       */
       if (is_shared(lock_data) &&
           (lock= (MDL_LOCK *)my_hash_search(&mdl_locks, (uchar*)lock_data->key,
@@ -1148,6 +1198,9 @@ static void release_lock(MDL_LOCK_DATA *lock_data)
   DBUG_ENTER("release_lock");
   DBUG_PRINT("enter", ("db=%s name=%s", lock_data->key + 4,
                         lock_data->key + 4 + strlen(lock_data->key + 4) + 1));
+
+  DBUG_ASSERT(lock_data->state == MDL_PENDING ||
+              lock_data->state == MDL_ACQUIRED);
 
   lock= lock_data->lock;
   if (lock->has_one_lock_data())
@@ -1184,7 +1237,6 @@ static void release_lock(MDL_LOCK_DATA *lock_data)
         }
         break;
       default:
-        /* TODO Really? How about problems during lock upgrade ? */
         DBUG_ASSERT(0);
     }
     lock->lock_data_count--;
@@ -1224,10 +1276,10 @@ void mdl_release_locks(MDL_CONTEXT *context)
       lists. Allows us to avoid problems in open_tables() in case of
       back-off
     */
-    if (!(is_shared(lock_data) && lock_data->state == MDL_PENDING))
+    if (lock_data->state != MDL_INITIALIZED)
     {
       release_lock(lock_data);
-      lock_data->state= MDL_PENDING;
+      lock_data->state= MDL_INITIALIZED;
 #ifndef DBUG_OFF
       lock_data->lock= 0;
 #endif
@@ -1247,13 +1299,10 @@ void mdl_release_locks(MDL_CONTEXT *context)
 
 /**
    Release a lock.
-   Removes the lock from the context.
 
    @param context   Context containing lock in question
    @param lock_data Lock to be released
 
-   @note Resets lock request for lock released back to its initial state
-         (i.e. sets type to MDL_SHARED).
 */
 
 void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
@@ -1263,13 +1312,9 @@ void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
   pthread_mutex_lock(&LOCK_mdl);
   release_lock(lock_data);
 #ifndef DBUG_OFF
-  lock_data->ctx= 0;
   lock_data->lock= 0;
 #endif
-  lock_data->state= MDL_PENDING;
-  /* Return lock request to its initial state. */
-  lock_data->type= MDL_SHARED;
-  context->locks.remove(lock_data);
+  lock_data->state= MDL_INITIALIZED;
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
 }
@@ -1277,17 +1322,15 @@ void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data)
 
 /**
    Release all locks in the context which correspond to the same name/
-   object as this lock request.
+   object as this lock request, remove lock requests from the context.
 
    @param context   Context containing locks in question
    @param lock_data One of the locks for the name/object for which all
                     locks should be released.
-
-   @see mdl_release_lock()
 */
 
-void mdl_release_all_locks_for_name(MDL_CONTEXT *context,
-                                    MDL_LOCK_DATA *lock_data)
+void mdl_release_and_remove_all_locks_for_name(MDL_CONTEXT *context,
+                                               MDL_LOCK_DATA *lock_data)
 {
   MDL_LOCK *lock;
   I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
@@ -1306,7 +1349,10 @@ void mdl_release_all_locks_for_name(MDL_CONTEXT *context,
   {
     DBUG_ASSERT(lock_data->state == MDL_ACQUIRED);
     if (lock_data->lock == lock)
+    {
       mdl_release_lock(context, lock_data);
+      mdl_remove_lock(context, lock_data);
+    }
   }
 }
 
@@ -1418,9 +1464,10 @@ bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
   int4store(key, type);
   key_length= (uint) (strmov(strmov(key+4, db)+1, name)-key)+1;
 
-  while ((lock_data= it++) && (lock_data->key_length != key_length ||
-                               memcmp(lock_data->key, key, key_length) ||
-                               lock_data->state == MDL_PENDING))
+  while ((lock_data= it++) &&
+         (lock_data->key_length != key_length ||
+          memcmp(lock_data->key, key, key_length) ||
+          lock_data->state != MDL_ACQUIRED))
     continue;
 
   return lock_data;

@@ -44,7 +44,8 @@ enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
 
 /** States which metadata lock request can have. */
 
-enum enum_mdl_state {MDL_PENDING=0, MDL_ACQUIRED, MDL_PENDING_UPGRADE};
+enum enum_mdl_state {MDL_INITIALIZED=0, MDL_PENDING,
+                     MDL_ACQUIRED, MDL_PENDING_UPGRADE};
 
 
 /**
@@ -152,6 +153,7 @@ void mdl_init_lock(MDL_LOCK_DATA *lock_data, char *key, int type,
 MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
                               MEM_ROOT *root);
 void mdl_add_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
+void mdl_remove_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
 void mdl_remove_all_locks(MDL_CONTEXT *context);
 
 /**
@@ -160,7 +162,7 @@ void mdl_remove_all_locks(MDL_CONTEXT *context);
 
 inline void mdl_set_lock_type(MDL_LOCK_DATA *lock_data, enum_mdl_type lock_type)
 {
-  DBUG_ASSERT(lock_data->state == MDL_PENDING);
+  DBUG_ASSERT(lock_data->state == MDL_INITIALIZED);
   lock_data->type= lock_type;
 }
 
@@ -170,14 +172,15 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
 bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
                                           MDL_LOCK_DATA *lock_data);
 bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
-                                    MDL_LOCK_DATA *lock_data);
+                                    MDL_LOCK_DATA *lock_data,
+                                    bool *conflict);
 bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
 
 bool mdl_wait_for_locks(MDL_CONTEXT *context);
 
 void mdl_release_locks(MDL_CONTEXT *context);
-void mdl_release_all_locks_for_name(MDL_CONTEXT *context,
-                                    MDL_LOCK_DATA *lock_data);
+void mdl_release_and_remove_all_locks_for_name(MDL_CONTEXT *context,
+                                               MDL_LOCK_DATA *lock_data);
 void mdl_release_lock(MDL_CONTEXT *context, MDL_LOCK_DATA *lock_data);
 void mdl_downgrade_exclusive_lock(MDL_CONTEXT *context,
                                   MDL_LOCK_DATA *lock_data);
