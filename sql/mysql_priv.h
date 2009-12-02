@@ -1534,8 +1534,6 @@ char *generate_partition_syntax(partition_info *part_info,
                                 Alter_info *alter_info);
 #endif
 
-bool notify_thread_having_shared_lock(THD *thd, THD *in_use);
-
 enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
                                  TDC_RT_REMOVE_UNUSED};
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
