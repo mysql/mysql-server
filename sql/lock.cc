@@ -687,6 +687,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   /* Delete old, not needed locks */
   my_free((uchar*) a,MYF(0));
   my_free((uchar*) b,MYF(0));
+
+  thr_lock_merge_status(sql_lock->locks, sql_lock->lock_count);
   DBUG_RETURN(sql_lock);
 }
 
