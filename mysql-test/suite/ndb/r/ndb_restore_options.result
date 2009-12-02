@@ -374,10 +374,12 @@ drop table db2.tab1, db2.tab2;
 *********************************
 Include db1, and include db2.tab1
 *********************************
-Should result in db2.tab1 only restored.
+Should result in all tables in db1 and db2.tab1 being restored.
 use db1;
 show tables;
 Tables_in_db1
+tab1
+tab2
 use db2;
 show tables;
 Tables_in_db2
@@ -394,7 +396,7 @@ a
 7
 8
 9
-drop table db2.tab1;
+drop table db1.tab1,db1.tab2,db2.tab1;
 ************************
 Include unknown database
 ************************
@@ -479,13 +481,14 @@ a	b	c	d
 7	Highlea	7	UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU
 drop table db1.tab1, db1.tab2;
 drop table db2.tab1, db2.tab2;
-*********************************************
-Check that last argument of each type is used
-*********************************************
-Should result in just db1.tab2 restored.
+************************************
+Check accumulative include arguments
+************************************
+Should result in both db1.tab1 and db1.tab2 restored.
 use db1;
 show tables;
 Tables_in_db1
+tab1
 tab2
 select * from tab2 order by a;
 a	b	c	d
@@ -499,6 +502,19 @@ a	b	c	d
 use db2;
 show tables;
 Tables_in_db2
-drop table db1.tab2;
+drop table db1.tab1, db1.tab2;
+************************************
+Check accumulative exclude arguments
+************************************
+Should result in both db2.tab1 and db2.tab2 restored.
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+tab1
+tab2
+drop table db2.tab1, db2.tab2;
 drop database db1;
 drop database db2;
