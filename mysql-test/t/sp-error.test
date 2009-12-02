@@ -1325,11 +1325,6 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; EN
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION bug_13627_f() returns int BEGIN DROP TRIGGER test1; return 1; END |
 
--- error ER_SP_BADSTATEMENT
-CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN load table t1 from master; END |
--- error ER_SP_BADSTATEMENT
-CREATE FUNCTION bug_13627_f() returns int BEGIN load table t1 from master; return 1; END |
-
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create table t2 (a int); END |
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -1578,18 +1573,6 @@ DROP FUNCTION IF EXISTS bug13012|
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
   REPAIR TABLE t1;
-  RETURN 1;
-END|
---error ER_SP_NO_RETSET
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-  BACKUP TABLE t1 TO '/tmp';
-  RETURN 1;
-END|
---error ER_SP_NO_RETSET
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-  RESTORE TABLE t1 FROM '/tmp';
   RETURN 1;
 END|
 create table t1 (a int)|
@@ -2386,7 +2369,7 @@ drop procedure if exists p1;
 delimiter |;
 create procedure p1()
 begin
-  create table t1 (a int) type=MyISAM;
+  create table t1 (a int) engine=MyISAM;
   drop table t1;
 end|
 delimiter ;|

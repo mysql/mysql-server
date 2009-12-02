@@ -1,0 +1,61 @@
+# Test for Bug #41902 MYSQL_BIN_LOG::reset_logs() doesn't call my_error()
+#                     in face of an error
+#
+
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+#
+# test checks that 
+# a. there is no crash when find_log_pos() returns with an error
+#    that tests expect to receive;
+# b. in the case of multiple error messages the first error message is 
+#    reported to the user and others are available as warnings.
+#
+
+connection slave;
+stop slave;
+
+SET @@debug="d,simulate_find_log_pos_error";
+
+--error ER_UNKNOWN_TARGET_BINLOG
+reset slave;
+show warnings;
+
+SET @@debug="";
+reset slave;
+change master to master_host='dummy';
+
+SET @@debug="d,simulate_find_log_pos_error";
+
+--error ER_UNKNOWN_TARGET_BINLOG
+change master to master_host='dummy';
+
+SET @@debug="";
+reset slave;
+change master to master_host='dummy';
+
+connection master;
+SET @@debug="d,simulate_find_log_pos_error";
+--error ER_UNKNOWN_TARGET_BINLOG
+reset master;
+
+SET @@debug="";
+reset master;
+
+SET @@debug="d,simulate_find_log_pos_error";
+--error ER_UNKNOWN_TARGET_BINLOG
+purge binary logs to 'master-bin.000001';
+
+SET @@debug="";
+purge binary logs to 'master-bin.000001';
+
+--disable_query_log
+call mtr.add_suppression("Failed to locate old binlog or relay log files");
+call mtr.add_suppression("MYSQL_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index");
+connection slave;
+call mtr.add_suppression("Failed to locate old binlog or relay log files");
+call mtr.add_suppression("MYSQL_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index");
+--enable_query_log
+
+--echo End of the tests
