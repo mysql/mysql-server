@@ -6035,9 +6035,10 @@ int ha_ndbcluster::info(uint flag)
 
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-    if (lm == NdbOperation::LM_CommittedRead &&
-        table_share->blob_fields == 0)
+    if (lm == NdbOperation::LM_CommittedRead)
+    {
       DBUG_RETURN(1);
+    }
     DBUG_RETURN(0);
   }
 

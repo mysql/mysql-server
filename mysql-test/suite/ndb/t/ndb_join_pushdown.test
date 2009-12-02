@@ -470,6 +470,17 @@ from t1, t2
 where t2.a = t1.b;
 
 explain
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t2.a = t1.b
+  and t1.a = 2;
+--sorted_result
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t2.a = t1.b
+  and t1.a = 2;
+
+explain
 select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t1.a = t2.b;
@@ -478,8 +489,61 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t2.a = t1.b;
 
-drop table t1, t2;
+explain
+select t1.a, t1.b, t2.a, t2.b
+from t1, t2
+where t1.a = t2.b
+  and t2.a = 3;
+--sorted_result
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t1.a = t2.b
+  and t2.a = 3;
 
+#
+# result sets contain blob
+#   i.e no push
+explain
+select *
+from t1, t2
+where t2.a = t1.b;
+--sorted_result
+select *
+from t1, t2
+where t2.a = t1.b;
+
+explain
+select *
+from t1, t2
+where t2.a = t1.b
+  and t1.a = 2;
+--sorted_result
+select *
+from t1, t2
+where t2.a = t1.b
+  and t1.a = 2;
+
+explain
+select *
+from t1, t2
+where t1.a = t2.b;
+--sorted_result
+select *
+from t1, t2
+where t2.a = t1.b;
+
+explain
+select *
+from t1, t2
+where t1.a = t2.b
+  and t2.a = 3;
+--sorted_result
+select *
+from t1, t2
+where t1.a = t2.b
+  and t2.a = 3;
+
+drop table t1, t2;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
