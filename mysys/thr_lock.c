@@ -1026,12 +1026,43 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
 	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
 #endif
   }
-  /*
-    Ensure that all get_locks() have the same status
-    If we lock the same table multiple times, we must use the same
-    status_param!
-  */
+  thr_lock_merge_status(data, count);
+  DBUG_RETURN(THR_LOCK_SUCCESS);
+}
+
+
+/**
+  Ensure that all locks for a given table have the same
+  status_param.
+
+  This is a MyISAM and possibly Maria specific crutch. MyISAM
+  engine stores data file length, record count and other table
+  properties in status_param member of handler. When a table is
+  locked, connection-local copy is made from a global copy
+  (myisam_share) by mi_get_status(). When a table is unlocked,
+  the changed status is transferred back to the global share by
+  mi_update_status().
+
+  One thing MyISAM doesn't do is to ensure that when the same
+  table is opened twice in a connection all instances share the
+  same status_param. This is necessary, however: for one, to keep
+  all instances of a connection "on the same page" with regard to
+  the current state of the table. For other, unless this is done,
+  myisam_share will always get updated from the last unlocked
+  instance (in mi_update_status()), and when this instance was not
+  the one that was used to update data, records may be lost.
+
+  For each table, this function looks up the last lock_data in the
+  list of acquired locks, and makes sure that all other instances
+  share status_param with it.
+*/
+
+void
+thr_lock_merge_status(THR_LOCK_DATA **data, uint count)
+{
 #if !defined(DONT_USE_RW_LOCKS)
+  THR_LOCK_DATA **pos= data;
+  THR_LOCK_DATA **end= data + count;
   if (count > 1)
   {
     THR_LOCK_DATA *last_lock= end[-1];
@@ -1073,7 +1104,6 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
     } while (pos != data);
   }
 #endif
-  DBUG_RETURN(THR_LOCK_SUCCESS);
 }
 
   /* free all locks */

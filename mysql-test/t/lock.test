@@ -291,6 +291,24 @@ select * from t1;
 unlock tables;
 drop table t1, t2;
 
+--echo #
+--echo # Ensure that mi_copy_status is called for two instances
+--echo # of the same table when it is reopened after a flush.
+--echo # 
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1;
+--enable_warnings
+create table t1 (c1 int);
+create view v1 as select * from t1;
+lock tables t1 write, v1 write;
+flush table t1;
+insert into t1 values (33);
+flush table t1;
+select * from t1;
+unlock tables;
+drop table t1;
+drop view v1;
 
 --echo #
 --echo # End of 6.0 tests.
