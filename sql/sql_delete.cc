@@ -1170,7 +1170,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
     mdl_add_lock(&thd->mdl_context, mdl_lock_data);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+    {
+      mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
       DBUG_RETURN(TRUE);
+    }
     pthread_mutex_lock(&LOCK_open);
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
                      table_list->table_name);
@@ -1200,12 +1203,18 @@ end:
       my_ok(thd);		// This should return record count
     }
     if (mdl_lock_data)
+    {
       mdl_release_lock(&thd->mdl_context, mdl_lock_data);
+      mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
+    }
   }
   else if (error)
   {
     if (mdl_lock_data)
+    {
       mdl_release_lock(&thd->mdl_context, mdl_lock_data);
+      mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
+    }
   }
   DBUG_RETURN(error);
 
