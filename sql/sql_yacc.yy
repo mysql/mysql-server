@@ -603,10 +603,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 168 shift/reduce conflicts.
+  Currently there are 173 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 168
+%expect 173
 
 /*
    Comments for TOKENS.
