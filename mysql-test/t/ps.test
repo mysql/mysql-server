@@ -1973,4 +1973,25 @@ select @arg;
 execute stmt using @arg;
 deallocate prepare stmt;
 
+--echo #
+--echo # Bug#48508: Crash on prepared statement re-execution.
+--echo #
+create table t1(b int);
+insert into t1 values (0);
+create view v1 AS select 1 as a from t1 where b;
+prepare stmt from "select * from v1 where a";
+execute stmt;
+execute stmt;
+drop table t1;
+drop view v1;
+
+create table t1(a bigint);
+create table t2(b tinyint);
+insert into t2 values (null);
+prepare stmt from "select 1 from t1 join  t2 on a xor b where b > 1  and a =1";
+execute stmt;
+execute stmt;
+drop table t1,t2;
+--echo #
+
 --echo End of 5.0 tests.
