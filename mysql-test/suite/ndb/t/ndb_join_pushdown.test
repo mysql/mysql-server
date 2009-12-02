@@ -453,6 +453,8 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t2.a = t1.b;
 
+drop table t1, t2;
+
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
