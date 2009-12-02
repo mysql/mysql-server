@@ -543,6 +543,8 @@ static void set_tabname(const char *pathname, char *tabname);
 
   uint has_pushed_joins() const;
 
+  int read_pushed_next(uchar *buf);
+
   uint8 table_cache_type();
 
   /*
