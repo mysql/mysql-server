@@ -15,13 +15,9 @@
 
 
 
-/*
-  TODO: Remove this dependency on mysql_priv.h. It's not
-  trivial step at the moment since currently we access to
-  some of THD members and use some of its methods here.
-*/
-#include "mysql_priv.h"
 #include "mdl.h"
+#include <hash.h>
+#include <mysqld_error.h>
 
 
 /**
@@ -308,7 +304,7 @@ MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
   char *key;
 
   if (!multi_alloc_root(root, &lock_data, sizeof(MDL_LOCK_DATA), &key,
-                        MAX_DBKEY_LENGTH, NULL))
+                        MAX_MDLKEY_LENGTH, NULL))
     return NULL;
 
   mdl_init_lock(lock_data, key, type, db, name);
@@ -438,6 +434,58 @@ static void release_lock_object(MDL_LOCK *lock)
 static bool is_shared(MDL_LOCK_DATA *lock_data)
 {
   return (lock_data->type < MDL_EXCLUSIVE);
+}
+
+
+/**
+   Helper functions and macros to be used for killable waiting in metadata
+   locking subsystem.
+
+   @sa THD::enter_cond()/exit_cond()/killed.
+
+   @note We can't use THD::enter_cond()/exit_cond()/killed directly here
+         since this will make metadata subsystem dependant on THD class
+         and thus prevent us from writing unit tests for it. And usage of
+         wrapper functions to access THD::killed/enter_cond()/exit_cond()
+         will probably introduce too much overhead.
+*/
+
+#define MDL_ENTER_COND(A, B) mdl_enter_cond(A, B, __func__, __FILE__, __LINE__)
+
+static inline const char* mdl_enter_cond(MDL_CONTEXT *context,
+                                         st_my_thread_var *mysys_var,
+                                         const char *calling_func,
+                                         const char *calling_file,
+                                         const unsigned int calling_line)
+{
+  safe_mutex_assert_owner(&LOCK_mdl);
+
+  mysys_var->current_mutex= &LOCK_mdl;
+  mysys_var->current_cond= &COND_mdl;
+
+  return set_thd_proc_info(context->thd, "Waiting for table",
+                           calling_func, calling_file, calling_line);
+}
+
+#define MDL_EXIT_COND(A, B, C) mdl_exit_cond(A, B, C, __func__, __FILE__, __LINE__)
+
+static inline void mdl_exit_cond(MDL_CONTEXT *context,
+                                 st_my_thread_var *mysys_var,
+                                 const char* old_msg,
+                                 const char *calling_func,
+                                 const char *calling_file,
+                                 const unsigned int calling_line)
+{
+  DBUG_ASSERT(&LOCK_mdl == mysys_var->current_mutex);
+
+  pthread_mutex_unlock(&LOCK_mdl);
+  pthread_mutex_lock(&mysys_var->mutex);
+  mysys_var->current_mutex= 0;
+  mysys_var->current_cond= 0;
+  pthread_mutex_unlock(&mysys_var->mutex);
+
+  (void) set_thd_proc_info(context->thd, old_msg, calling_func,
+                           calling_file, calling_line);
 }
 
 
@@ -752,9 +800,7 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
   bool signalled= FALSE;
   const char *old_msg;
   I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
-  THD *thd= context->thd;
-
-  DBUG_ASSERT(thd == current_thd);
+  st_my_thread_var *mysys_var= my_thread_var;
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
@@ -766,7 +812,7 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
+  old_msg= MDL_ENTER_COND(context, mysys_var);
 
   while ((lock_data= it++))
   {
@@ -826,8 +872,11 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
                    !lock->active_shared_waiting_upgrade.is_empty();
 
         while ((conf_lock_data= it++))
+        {
           signalled|=
-            notify_thread_having_shared_lock(thd, conf_lock_data->ctx->thd);
+            mysql_notify_thread_having_shared_lock(context->thd,
+                                                   conf_lock_data->ctx->thd);
+        }
 
         break;
       }
@@ -848,7 +897,7 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
       set_timespec(abstime, 10);
       pthread_cond_timedwait(&COND_mdl, &LOCK_mdl, &abstime);
     }
-    if (thd->killed)
+    if (mysys_var->abort)
       goto err;
   }
   it.rewind();
@@ -863,8 +912,8 @@ bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
       (*lock->cached_object_release_hook)(lock->cached_object);
     lock->cached_object= NULL;
   }
-  /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
-  thd->exit_cond(old_msg);
+  /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+  MDL_EXIT_COND(context, mysys_var, old_msg);
   return FALSE;
 
 err:
@@ -880,7 +929,7 @@ err:
   }
   /* May be some pending requests for shared locks can be satisfied now. */
   pthread_cond_broadcast(&COND_mdl);
-  thd->exit_cond(old_msg);
+  MDL_EXIT_COND(context, mysys_var, old_msg);
   return TRUE;
 }
 
@@ -907,11 +956,9 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
 {
   MDL_LOCK *lock;
   const char *old_msg;
-  THD *thd= context->thd;
+  st_my_thread_var *mysys_var= my_thread_var;
 
   DBUG_ENTER("mdl_upgrade_shared_lock_to_exclusive");
-
-  DBUG_ASSERT(thd == current_thd);
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
@@ -927,7 +974,7 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
 
   pthread_mutex_lock(&LOCK_mdl);
 
-  old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
+  old_msg= MDL_ENTER_COND(context, mysys_var);
 
   lock_data->state= MDL_PENDING_UPGRADE;
   /* Set type of lock request to the type at which we are aiming. */
@@ -960,8 +1007,11 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
     while ((conf_lock_data= it++))
     {
       if (conf_lock_data->ctx != context)
-        signalled|= notify_thread_having_shared_lock(thd,
-                                                     conf_lock_data->ctx->thd);
+      {
+        signalled|=
+          mysql_notify_thread_having_shared_lock(context->thd,
+                                                 conf_lock_data->ctx->thd);
+      }
     }
 
     if (signalled)
@@ -979,7 +1029,7 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
       DBUG_PRINT("info", ("Failed to wake-up from table-level lock ... sleeping"));
       pthread_cond_timedwait(&COND_mdl, &LOCK_mdl, &abstime);
     }
-    if (thd->killed)
+    if (mysys_var->abort)
     {
       lock_data->state= MDL_ACQUIRED;
       lock_data->type= MDL_SHARED_UPGRADABLE;
@@ -987,7 +1037,7 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
       lock->active_shared.push_front(lock_data);
       /* Pending requests for shared locks can be satisfied now. */
       pthread_cond_broadcast(&COND_mdl);
-      thd->exit_cond(old_msg);
+      MDL_EXIT_COND(context, mysys_var, old_msg);
       DBUG_RETURN(TRUE);
     }
   }
@@ -999,8 +1049,8 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
     (*lock->cached_object_release_hook)(lock->cached_object);
   lock->cached_object= 0;
 
-  /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
-  thd->exit_cond(old_msg);
+  /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+  MDL_EXIT_COND(context, mysys_var, old_msg);
   DBUG_RETURN(FALSE);
 }
 
@@ -1086,32 +1136,31 @@ err:
 
 bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context)
 {
-  THD *thd= context->thd;
+  st_my_thread_var *mysys_var= my_thread_var;
   const char *old_msg;
 
   safe_mutex_assert_not_owner(&LOCK_open);
-  DBUG_ASSERT(thd == current_thd);
   DBUG_ASSERT(!context->has_global_shared_lock);
 
   pthread_mutex_lock(&LOCK_mdl);
 
   global_lock.waiting_shared++;
-  old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
+  old_msg= MDL_ENTER_COND(context, mysys_var);
 
-  while (!thd->killed && global_lock.active_intention_exclusive)
+  while (!mysys_var->abort && global_lock.active_intention_exclusive)
     pthread_cond_wait(&COND_mdl, &LOCK_mdl);
 
   global_lock.waiting_shared--;
-  if (thd->killed)
+  if (mysys_var->abort)
   {
-    /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
-    thd->exit_cond(old_msg);
+    /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+    MDL_EXIT_COND(context, mysys_var, old_msg);
     return TRUE;
   }
   global_lock.active_shared++;
   context->has_global_shared_lock= TRUE;
-  /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
-  thd->exit_cond(old_msg);
+  /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+  MDL_EXIT_COND(context, mysys_var, old_msg);
   return FALSE;
 }
 
@@ -1137,12 +1186,11 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
   MDL_LOCK *lock;
   I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
   const char *old_msg;
-  THD *thd= context->thd;
+  st_my_thread_var *mysys_var= my_thread_var;
 
   safe_mutex_assert_not_owner(&LOCK_open);
-  DBUG_ASSERT(thd == current_thd);
 
-  while (!thd->killed)
+  while (!mysys_var->abort)
   {
     /*
       We have to check if there are some HANDLERs open by this thread
@@ -1156,7 +1204,7 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
     */
     mysql_ha_flush(context->thd);
     pthread_mutex_lock(&LOCK_mdl);
-    old_msg= thd->enter_cond(&COND_mdl, &LOCK_mdl, "Waiting for table");
+    old_msg= MDL_ENTER_COND(context, mysys_var);
     it.rewind();
     while ((lock_data= it++))
     {
@@ -1179,10 +1227,10 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
       break;
     }
     pthread_cond_wait(&COND_mdl, &LOCK_mdl);
-    /* As a side-effect THD::exit_cond() unlocks LOCK_mdl. */
-    thd->exit_cond(old_msg);
+    /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+    MDL_EXIT_COND(context, mysys_var, old_msg);
   }
-  return thd->killed;
+  return mysys_var->abort;
 }
 
 
@@ -1422,7 +1470,7 @@ void mdl_release_global_shared_lock(MDL_CONTEXT *context)
 bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type,
                                  const char *db, const char *name)
 {
-  char key[MAX_DBKEY_LENGTH];
+  char key[MAX_MDLKEY_LENGTH];
   uint key_length;
   MDL_LOCK_DATA *lock_data;
   I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);
@@ -1456,7 +1504,7 @@ bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, int type,
 bool mdl_is_lock_owner(MDL_CONTEXT *context, int type, const char *db,
                         const char *name)
 {
-  char key[MAX_DBKEY_LENGTH];
+  char key[MAX_MDLKEY_LENGTH];
   uint key_length;
   MDL_LOCK_DATA *lock_data;
   I_P_List_iterator<MDL_LOCK_DATA, MDL_LOCK_DATA_context> it(context->locks);

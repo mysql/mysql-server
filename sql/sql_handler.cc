@@ -247,7 +247,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
                           &mdl_lock_data, sizeof(MDL_LOCK_DATA),
-                          &mdlkey, MAX_DBKEY_LENGTH,
+                          &mdlkey, MAX_MDLKEY_LENGTH,
                           NullS)))
     {
       DBUG_PRINT("exit",("ERROR"));

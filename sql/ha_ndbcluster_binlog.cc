@@ -141,7 +141,7 @@ static Uint64 *p_latest_trans_gci= 0;
 static TABLE *ndb_binlog_index= 0;
 static TABLE_LIST binlog_tables;
 static MDL_LOCK_DATA binlog_mdl_lock_data;
-static char binlog_mdlkey[MAX_DBKEY_LENGTH];
+static char binlog_mdlkey[MAX_MDLKEY_LENGTH];
 
 /*
   Helper functions
