@@ -1062,10 +1062,10 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::open_main_dictionary(const char* name, int mode, DB_TXN* txn) {
+int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN* txn) {
     int error;    
     char* newname = NULL;
-    uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
+    uint open_flags = (is_read_only ? DB_RDONLY : 0) | DB_THREAD;
     open_flags += DB_AUTO_COMMIT;
 
     assert(share->file == NULL);
@@ -1118,10 +1118,10 @@ exit:
 //
 // Open a secondary table, the key will be a secondary index, the data will be a primary key
 //
-int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, DB_TXN* txn) {
+int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, bool is_read_only, DB_TXN* txn) {
     int error = ENOSYS;
     char dict_name[MAX_DICT_NAME_LEN];
-    uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
+    uint open_flags = (is_read_only ? DB_RDONLY : 0) | DB_THREAD;
     char* newname = NULL;
     uint newname_len = 0;
     
@@ -1335,7 +1335,7 @@ int ha_tokudb::initialize_share(
 
     }
 
-    error = open_main_dictionary(name, mode, NULL);
+    error = open_main_dictionary(name, mode == O_RDONLY, NULL);
     if (error) { goto exit; }
     
     /* Open other keys;  These are part of the share structure */
@@ -1345,7 +1345,7 @@ int ha_tokudb::initialize_share(
                 &share->key_file[i],
                 &table_share->key_info[i],
                 name,
-                mode,
+                mode == O_RDONLY,
                 NULL
                 );
             if (error) {
@@ -5676,7 +5676,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             &share->key_file[curr_index], 
             &key_info[i],
             share->table_name,
-            2, // TODO: This is a hack. Need to learn what should really be here. Need to ask Yoni
+            false,
             txn
             );
         if (error) { goto cleanup; }
@@ -6177,7 +6177,7 @@ To truncate the table, make sure no transactions touch the table.", share->table
                     &share->key_file[i], 
                     &table_share->key_info[i],
                     share->table_name,
-                    2, // TODO: This is a hack. Need to learn what should really be here. Need to ask Yoni
+                    false, // 
                     NULL
                     );
                 assert(!r);
@@ -6185,7 +6185,7 @@ To truncate the table, make sure no transactions touch the table.", share->table
             else {
                 r = open_main_dictionary(
                     share->table_name, 
-                    2, // TODO: This is a hack. Need to learn what should really be here. Need to ask Yoni
+                    false, 
                     NULL
                     );
                 assert(!r);
