@@ -105,6 +105,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "btr0pcur.h"
 # include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+# include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -1105,7 +1106,15 @@ innobase_start_or_create_for_mysql(void)
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-	fprintf(stderr, "InnoDB: %s\n", IB_ATOMICS_STARTUP_MSG);
+	fputs("InnoDB: " IB_ATOMICS_STARTUP_MSG
+	      "\nInnoDB: Compressed tables use zlib " ZLIB_VERSION
+#ifdef UNIV_ZIP_DEBUG
+	      " with validation"
+#endif /* UNIV_ZIP_DEBUG */
+#ifdef UNIV_ZIP_COPY
+	      " and extra copying"
+#endif /* UNIV_ZIP_COPY */
+	      "\n" , stderr);
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
