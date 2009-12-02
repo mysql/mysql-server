@@ -1169,6 +1169,58 @@ private:
   Internal_error_handler *m_err_handler;
 };
 
+/**
+  Tables that were locked with LOCK TABLES statement.
+
+  Encapsulates a list of TABLE_LIST instances for tables
+  locked by LOCK TABLES statement, memory root for metadata locks,
+  and, generally, the context of LOCK TABLES statement.
+
+  In LOCK TABLES mode, the locked tables are kept open between
+  statements.
+  Therefore, we can't allocate metadata locks on execution memory
+  root -- as well as tables, the locks need to stay around till
+  UNLOCK TABLES is called.
+  The locks are allocated in the memory root encapsulate in this
+  class.
+
+  Some SQL commands, like FLUSH TABLE or ALTER TABLE, demand that
+  the tables they operate on are closed, at least temporarily.
+  This class encapsulates a list of TABLE_LIST instances, one
+  for each base table from LOCK TABLES list,
+  which helps conveniently close the TABLEs when it's necessary
+  and later reopen them.
+
+  Implemented in sql_base.cc
+*/
+
+class Locked_tables_list
+{
+private:
+  MEM_ROOT m_locked_tables_root;
+  TABLE_LIST *m_locked_tables;
+  TABLE_LIST **m_locked_tables_last;
+public:
+  Locked_tables_list()
+    :m_locked_tables(NULL),
+    m_locked_tables_last(&m_locked_tables)
+  {
+    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+  }
+  void unlock_locked_tables(THD *thd);
+  ~Locked_tables_list()
+  {
+    unlock_locked_tables(0);
+  }
+  bool init_locked_tables(THD *thd);
+  TABLE_LIST *locked_tables() { return m_locked_tables; }
+  MEM_ROOT *locked_tables_root() { return &m_locked_tables_root; }
+  void unlink_from_list(THD *thd, TABLE_LIST *table_list,
+                        bool remove_from_locked_tables);
+  void unlink_all_closed_tables();
+  bool reopen_tables(THD *thd);
+};
+
 
 /**
   Storage engine specific thread local data.
@@ -1810,6 +1862,8 @@ public:
   */
   Parser_state *m_parser_state;
 
+  Locked_tables_list locked_tables_list;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif
@@ -1819,8 +1873,13 @@ public:
   struct st_debug_sync_control *debug_sync_control;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  MEM_ROOT *mdl_el_root;
-  MEM_ROOT locked_tables_root;
+  /**
+    Points to the memory root of Locked_tables_list if
+    we're locking the tables for LOCK TABLES. Otherwise is NULL.
+    This is necessary to ensure that metadata locks allocated for
+    tables used in triggers will persist after statement end.
+  */
+  MEM_ROOT *locked_tables_root;
 
   THD();
   ~THD();

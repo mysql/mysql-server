@@ -469,7 +469,7 @@ THD::THD()
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    main_warning_info(0),
-   mdl_el_root(NULL)
+   locked_tables_root(NULL)
 {
   ulong tmp;
 
@@ -574,8 +574,6 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
-
-  init_sql_alloc(&locked_tables_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
 
@@ -995,7 +993,7 @@ void THD::cleanup(void)
     ha_rollback(this);
     xid_cache_delete(&transaction.xid_state);
   }
-  unlock_locked_tables(this);
+  locked_tables_list.unlock_locked_tables(this);
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
@@ -1074,7 +1072,6 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  free_root(&locked_tables_root, MYF(0));
   DBUG_VOID_RETURN;
 }
 

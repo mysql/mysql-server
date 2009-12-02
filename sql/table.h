@@ -632,7 +632,6 @@ private:
   TABLE *share_next, **share_prev;
 
   friend struct TABLE_share;
-  friend bool reopen_table(TABLE *table);
 
 public:
 
@@ -679,6 +678,8 @@ public:
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
+  /* Position in thd->locked_table_list under LOCK TABLES */
+  TABLE_LIST *pos_in_locked_tables;
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;

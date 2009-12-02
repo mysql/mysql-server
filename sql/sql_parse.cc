@@ -184,7 +184,7 @@ bool begin_trans(THD *thd)
     return 1;
   }
 
-  unlock_locked_tables(thd);
+  thd->locked_tables_list.unlock_locked_tables(thd);
 
   if (end_active_trans(thd))
     error= -1;
@@ -3583,7 +3583,7 @@ end_with_restore_list:
       done FLUSH TABLES WITH READ LOCK + BEGIN. If this assumption becomes
       false, mysqldump will not work.
     */
-    unlock_locked_tables(thd);
+    thd->locked_tables_list.unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)
     {
       end_active_trans(thd);
@@ -3594,7 +3594,7 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
-    unlock_locked_tables(thd);
+    thd->locked_tables_list.unlock_locked_tables(thd);
     /* we must end the trasaction first, regardless of anything */
     if (end_active_trans(thd))
       goto error;
@@ -3604,24 +3604,23 @@ end_with_restore_list:
     if (lex->protect_against_global_read_lock &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
-    thd->in_lock_tables=1;
-    thd->options|= OPTION_TABLE_LOCK;
-    alloc_mdl_locks(all_tables, &thd->locked_tables_root);
-    thd->mdl_el_root= &thd->locked_tables_root;
 
-    if (!(res= open_and_lock_tables_derived(thd, all_tables, FALSE,
-                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL)))
+    alloc_mdl_locks(all_tables, thd->locked_tables_list.locked_tables_root());
+
+    thd->options|= OPTION_TABLE_LOCK;
+    thd->in_lock_tables=1;
+    thd->locked_tables_root= thd->locked_tables_list.locked_tables_root();
+
+    res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
+                                       MYSQL_OPEN_TAKE_UPGRADABLE_MDL) ||
+          thd->locked_tables_list.init_locked_tables(thd));
+
+    thd->in_lock_tables= 0;
+    thd->locked_tables_root= NULL;
+
+    if (res)
     {
-#ifdef HAVE_QUERY_CACHE
-      if (thd->variables.query_cache_wlock_invalidate)
-	query_cache.invalidate_locked_for_write(first_table);
-#endif /*HAVE_QUERY_CACHE*/
-      thd->locked_tables_mode= LTM_LOCK_TABLES;
-      my_ok(thd);
-    }
-    else
-    {
-      /* 
+      /*
         Need to end the current transaction, so the storage engine (InnoDB)
         can free its locks if LOCK TABLES locked some tables before finding
         that it can't lock a table in its list
@@ -3630,8 +3629,14 @@ end_with_restore_list:
       end_active_trans(thd);
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
-    thd->in_lock_tables=0;
-    thd->mdl_el_root= 0;
+    else
+    {
+#ifdef HAVE_QUERY_CACHE
+      if (thd->variables.query_cache_wlock_invalidate)
+        query_cache.invalidate_locked_for_write(first_table);
+#endif /*HAVE_QUERY_CACHE*/
+      my_ok(thd);
+    }
     break;
   case SQLCOM_CREATE_DB:
   {
@@ -6534,8 +6539,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
   ptr->mdl_lock_data= mdl_alloc_lock(0 , ptr->db, ptr->table_name,
-                                     thd->mdl_el_root ? thd->mdl_el_root :
-                                                        thd->mem_root);
+                                thd->locked_tables_root ?
+                                thd->locked_tables_root : thd->mem_root);
   DBUG_RETURN(ptr);
 }
 

@@ -676,7 +676,8 @@ my_bool acl_reload(THD *thd)
   my_bool return_val= 1;
   DBUG_ENTER("acl_reload");
 
-  unlock_locked_tables(thd);  // Can't have locked tables here
+  /* Can't have locked tables here. */
+  thd->locked_tables_list.unlock_locked_tables(thd);
 
   /*
     To avoid deadlocks we should obtain table locks before

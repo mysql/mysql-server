@@ -201,3 +201,48 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 DROP TABLE t1,t2;
 End of 5.1 tests.
+#
+# Ensure that FLUSH TABLES doesn't substitute a base locked table
+# with a temporary one.
+#
+drop table if exists t1, t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+create temporary table t1 (a int);
+flush table t1;
+drop temporary table t1;
+select * from t1;
+a
+unlock tables;
+drop table t1, t2;
+#
+# Ensure that REPAIR .. USE_FRM works under LOCK TABLES.
+#
+drop table if exists t1, t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select * from t1;
+a
+select * from t2;
+a
+repair table t2 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+repair table t2 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+select * from t1;
+a
+unlock tables;
+drop table t1, t2;
+#
+# End of 6.0 tests.
+#
