@@ -635,11 +635,6 @@ private:
 
 public:
 
-  /* For the below MERGE related members see top comment in ha_myisammrg.cc */
-  TABLE *parent;                    /* Set in MERGE child.  Ptr to parent */
-  TABLE_LIST      *child_l;         /* Set in MERGE parent. List of children */
-  TABLE_LIST      **child_last_l;   /* Set in MERGE parent. End of list */
-
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
 
@@ -809,8 +804,6 @@ public:
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
-  /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
-  my_bool children_attached;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -861,7 +854,6 @@ public:
   */
   inline bool needs_reopen()
   { return s->version != refresh_version; }
-  bool is_children_attached(void);
 };
 
 

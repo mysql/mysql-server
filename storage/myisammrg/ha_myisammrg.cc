@@ -33,39 +33,28 @@
   and hence through open_tables(). When the parent appears in the list
   of tables to open, the initial open of the handler does nothing but
   read the meta file and collect a list of TABLE_LIST objects for the
-  children. This list is attached to the parent TABLE object as
-  TABLE::child_l. The end of the children list is saved in
-  TABLE::child_last_l.
+  children. This list is attached to the handler object as
+  ha_myisammrg::children_l. The end of the children list is saved in
+  ha_myisammrg::children_last_l.
 
-  Back in open_tables(), add_merge_table_list() is called. It updates
-  each list member with the lock type and a back pointer to the parent
-  TABLE_LIST object TABLE_LIST::parent_l. The list is then inserted in
-  the list of tables to open, right behind the parent. Consequently,
-  open_tables() opens the children, one after the other. The TABLE
-  references of the TABLE_LIST objects are implicitly set to the open
-  tables. The children are opened as independent MyISAM tables, right as
-  if they are used by the SQL statement.
+  Back in open_tables(), handler::extra(HA_EXTRA_ADD_CHILDREN_LIST) is
+  called. It updates each list member with the lock type and a back
+  pointer to the parent TABLE_LIST object TABLE_LIST::parent_l. The list
+  is then inserted in the list of tables to open, right behind the
+  parent. Consequently, open_tables() opens the children, one after the
+  other. The TABLE references of the TABLE_LIST objects are implicitly
+  set to the open tables by open_table(). The children are opened as
+  independent MyISAM tables, right as if they are used by the SQL
+  statement.
 
-  TABLE_LIST::parent_l is required to find the parent 1. when the last
-  child has been opened and children are to be attached, and 2. when an
-  error happens during child open and the child list must be removed
-  from the queuery list. In these cases the current child does not have
-  TABLE::parent set or does not have a TABLE at all respectively.
-
-  When the last child is open, attach_merge_children() is called. It
-  removes the list of children from the open list. Then the children are
-  "attached" to the parent. All required references between parent and
+  When all tables from the statement query list are open,
+  handler::extra(HA_EXTRA_ATTACH_CHILDREN) is called. It "attaches" the
+  children to the parent. All required references between parent and
   children are set up.
 
   The MERGE storage engine sets up an array with references to the
   low-level MyISAM table objects (MI_INFO). It remembers the state of
   the table in MYRG_INFO::children_attached.
-
-  Every child TABLE::parent references the parent TABLE object. That way
-  TABLE objects belonging to a MERGE table can be identified.
-  TABLE::parent is required because the parent and child TABLE objects
-  can live longer than the parent TABLE_LIST object. So the path
-  child->pos_in_table_list->parent_l->table can be broken.
 
   If necessary, the compatibility of parent and children is checked.
   This check is necessary when any of the objects are reopend. This is
@@ -80,14 +69,20 @@
   myisammrg_attach_children_callback() sets it ot TRUE if a table
   def version mismatches the remembered child def version.
 
-  Finally the parent TABLE::children_attached is set.
+  The children chain remains in the statement query list until the table
+  is closed or the children are detached. This is done so that the
+  children are locked by lock_tables().
+
+  At statement end the children are detached. At the next statement
+  begin the open-add-attach sequence repeats. There is no exception for
+  LOCK TABLES. The fresh establishment of the parent-child relationship
+  before every statement catches numerous cases of ALTER/FLUSH/DROP/etc
+  of parent or children during LOCK TABLES.
 
   ---
 
   On parent open the storage engine structures are allocated and initialized.
   They stay with the open table until its final close.
-
-
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -118,7 +113,10 @@ static handler *myisammrg_create_handler(handlerton *hton,
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0), is_cloned(0)
-{}
+{
+  init_sql_alloc(&children_mem_root, max(4 * sizeof(TABLE_LIST), FN_REFLEN) +
+                 ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+}
 
 
 /**
@@ -126,7 +124,9 @@ ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
 */
 
 ha_myisammrg::~ha_myisammrg(void)
-{}
+{
+  free_root(&children_mem_root, MYF(0));
+}
 
 
 static const char *ha_myisammrg_exts[] = {
@@ -178,45 +178,48 @@ const char *ha_myisammrg::index_type(uint key_number)
 
 
 /**
-  @brief Callback function for open of a MERGE parent table.
-
-  @detail This function adds a TABLE_LIST object for a MERGE child table
-    to a list of tables of the parent TABLE object. It is called for
-    each child table.
-
-    The list of child TABLE_LIST objects is kept in the TABLE object of
-    the parent for the whole life time of the MERGE table. It is
-    inserted in the statement list behind the MERGE parent TABLE_LIST
-    object when the MERGE table is opened. It is removed from the
-    statement list after the last child is opened.
-
-    All memeory used for the child TABLE_LIST objects and the strings
-    referred by it are taken from the parent TABLE::mem_root. Thus they
-    are all freed implicitly at the final close of the table.
-
-    TABLE::child_l -> TABLE_LIST::next_global -> TABLE_LIST::next_global
-    #                 #               ^          #               ^
-    #                 #               |          #               |
-    #                 #               +--------- TABLE_LIST::prev_global
-    #                 #                                          |
-    #           |<--- TABLE_LIST::prev_global                    |
-    #                                                            |
-    TABLE::child_last_l -----------------------------------------+
+  Callback function for open of a MERGE parent table.
 
   @param[in]    callback_param  data pointer as given to myrg_parent_open()
+                                this is used to pass the handler handle
   @param[in]    filename        file name of MyISAM table
                                 without extension.
 
   @return status
     @retval     0               OK
     @retval     != 0            Error
+
+  @detail
+
+    This function adds a TABLE_LIST object for a MERGE child table to a
+    list of tables in the parent handler object. It is called for each
+    child table.
+
+    The list of child TABLE_LIST objects is kept in the handler object
+    of the parent for the whole life time of the MERGE table. It is
+    inserted in the statement query list behind the MERGE parent
+    TABLE_LIST object when the MERGE table is opened. It is removed from
+    the statement query list at end of statement or at children detach.
+
+    All memory used for the child TABLE_LIST objects and the strings
+    referred by it are taken from the parent
+    ha_myisammrg::children_mem_root. Thus they are all freed implicitly at
+    the final close of the table.
+
+    children_l -> TABLE_LIST::next_global -> TABLE_LIST::next_global
+    #             #               ^          #               ^
+    #             #               |          #               |
+    #             #               +--------- TABLE_LIST::prev_global
+    #             #                                          |
+    #       |<--- TABLE_LIST::prev_global                    |
+    #                                                        |
+    children_last_l -----------------------------------------+
 */
 
 static int myisammrg_parent_open_callback(void *callback_param,
                                           const char *filename)
 {
-  ha_myisammrg  *ha_myrg;
-  TABLE         *parent;
+  ha_myisammrg  *ha_myrg= (ha_myisammrg*) callback_param;
   TABLE_LIST    *child_l;
   const char    *db;
   const char    *table_name;
@@ -242,11 +245,8 @@ static int myisammrg_parent_open_callback(void *callback_param,
   dirlen-= db - dir_path; /* This is now the length of 'db'. */
   DBUG_PRINT("myrg", ("open: '%s'.'%s'", db, table_name));
 
-  ha_myrg= (ha_myisammrg*) callback_param;
-  parent= ha_myrg->table_ptr();
-
   /* Get a TABLE_LIST object. */
-  if (!(child_l= (TABLE_LIST*) alloc_root(&parent->mem_root,
+  if (!(child_l= (TABLE_LIST*) alloc_root(&ha_myrg->children_mem_root,
                                           sizeof(TABLE_LIST))))
   {
     /* purecov: begin inspected */
@@ -258,68 +258,231 @@ static int myisammrg_parent_open_callback(void *callback_param,
 
   /* Set database (schema) name. */
   child_l->db_length= dirlen;
-  child_l->db= strmake_root(&parent->mem_root, db, dirlen);
+  child_l->db= strmake_root(&ha_myrg->children_mem_root, db, dirlen);
   /* Set table name. */
   child_l->table_name_length= strlen(table_name);
-  child_l->table_name= strmake_root(&parent->mem_root, table_name,
+  child_l->table_name= strmake_root(&ha_myrg->children_mem_root, table_name,
                                     child_l->table_name_length);
   /* Convert to lowercase if required. */
   if (lower_case_table_names && child_l->table_name_length)
+  {
+    /* purecov: begin tested */
     child_l->table_name_length= my_casedn_str(files_charset_info,
                                               child_l->table_name);
+    /* purecov: end */
+  }
   /* Set alias. */
   child_l->alias= child_l->table_name;
-
-  /*
-    FIXME: Actually we should use some other mem-root here.
-           To be fixed once Ingo pushes his patch for WL4144.
-  */
-  alloc_mdl_locks(child_l, &parent->mem_root);
 
   /* Initialize table map to 'undefined'. */
   child_l->init_child_def_version();
 
-  /* Link TABLE_LIST object into the parent list. */
-  if (!parent->child_last_l)
+  /* Link TABLE_LIST object into the children list. */
+  if (ha_myrg->children_last_l)
+    child_l->prev_global= ha_myrg->children_last_l;
+  else
   {
-    /* Initialize parent->child_last_l when handling first child. */
-    parent->child_last_l= &parent->child_l;
+    /* Initialize ha_myrg->children_last_l when handling first child. */
+    ha_myrg->children_last_l= &ha_myrg->children_l;
   }
-  *parent->child_last_l= child_l;
-  child_l->prev_global= parent->child_last_l;
-  parent->child_last_l= &child_l->next_global;
+  *ha_myrg->children_last_l= child_l;
+  ha_myrg->children_last_l= &child_l->next_global;
 
   DBUG_RETURN(0);
 }
 
 
 /**
-  @brief Callback function for attaching a MERGE child table.
+  Open a MERGE parent table, but not its children.
 
-  @detail This function retrieves the MyISAM table handle from the
-    next child table. It is called for each child table.
+  @param[in]    name            MERGE table path name
+  @param[in]    mode            read/write mode, unused
+  @param[in]    test_if_locked  open flags
 
-  @param[in]    callback_param      data pointer as given to
-                                    myrg_attach_children()
+  @return       status
+  @retval     0               OK
+  @retval     -1              Error, my_errno gives reason
+
+  @detail
+  This function initializes the MERGE storage engine structures
+  and adds a child list of TABLE_LIST to the parent handler.
+*/
+
+int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
+                       uint test_if_locked)
+{
+  DBUG_ENTER("ha_myisammrg::open");
+  DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
+  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked));
+
+  /* Must not be used when table is open. */
+  DBUG_ASSERT(!this->file);
+
+  /* Save for later use. */
+  this->test_if_locked= test_if_locked;
+
+  /* In case this handler was open and closed before, free old data. */
+  free_root(&this->children_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+
+  /*
+    Initialize variables that are used, modified, and/or set by
+    myisammrg_parent_open_callback().
+    'children_l' is the head of the children chain.
+    'children_last_l' points to the end of the children chain.
+    'my_errno' is set by myisammrg_parent_open_callback() in
+    case of an error.
+  */
+  children_l= NULL;
+  children_last_l= NULL;
+  my_errno= 0;
+
+  /* retrieve children table list. */
+  if (is_cloned)
+  {
+    /*
+      Open and attaches the MyISAM tables,that are under the MERGE table 
+      parent, on the MyISAM storage engine interface directly within the
+      MERGE engine. The new MyISAM table instances, as well as the MERGE 
+      clone itself, are not visible in the table cache. This is not a 
+      problem because all locking is handled by the original MERGE table
+      from which this is cloned of.
+    */
+    if (!(file= myrg_open(name, table->db_stat,  HA_OPEN_IGNORE_IF_LOCKED)))
+    {
+      DBUG_PRINT("error", ("my_errno %d", my_errno));
+      DBUG_RETURN(my_errno ? my_errno : -1); 
+    }
+
+    file->children_attached= TRUE;
+
+    info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+  }
+  else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
+  {
+    /* purecov: begin inspected */
+    DBUG_PRINT("error", ("my_errno %d", my_errno));
+    DBUG_RETURN(my_errno ? my_errno : -1);
+    /* purecov: end */
+  }
+  DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx  child tables: %u",
+                      (long) file, file->tables));
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Add list of MERGE children to a TABLE_LIST chain.
+
+  @return status
+    @retval     0               OK
+    @retval     != 0            Error
+
+  @detail
+    When a MERGE parent table has just been opened, insert the
+    TABLE_LIST chain from the MERGE handle into the table list used for
+    opening tables for this statement. This lets the children be opened
+    too.
+*/
+
+int ha_myisammrg::add_children_list(void)
+{
+  TABLE_LIST  *parent_l= this->table->pos_in_table_list;
+  TABLE_LIST  *child_l;
+  THD         *thd= current_thd;
+  DBUG_ENTER("ha_myisammrg::add_children_list");
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", this->table->s->db.str,
+                      this->table->s->table_name.str, (long) this->table));
+
+  /* Must call this with open table. */
+  DBUG_ASSERT(this->file);
+
+  /* Ignore this for empty MERGE tables (UNION=()). */
+  if (!this->file->tables)
+  {
+    DBUG_PRINT("myrg", ("empty merge table union"));
+    goto end;
+  }
+
+  /* Must not call this with attached children. */
+  DBUG_ASSERT(!this->file->children_attached);
+
+  /* Must not call this with children list in place. */
+  DBUG_ASSERT(parent_l->next_global != this->children_l);
+
+  /*
+    Prevent inclusion of another MERGE table, which could make infinite
+    recursion.
+  */
+  if (parent_l->parent_l)
+  {
+    my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), parent_l->alias);
+    DBUG_RETURN(1);
+  }
+
+  /* Fix children. */
+  DBUG_ASSERT(this->children_l);
+  for (child_l= this->children_l; ; child_l= child_l->next_global)
+  {
+    DBUG_ASSERT(!child_l->table);
+
+    /* Set lock type. */
+    child_l->lock_type= parent_l->lock_type;
+
+    /* Set parent reference. Used to detect MERGE in children list. */
+    child_l->parent_l= parent_l;
+
+    /* Copy select_lex. Used in unique_table() at least. */
+    child_l->select_lex= parent_l->select_lex;
+
+    child_l->mdl_lock_data= NULL; /* Safety, if alloc_mdl_locks fails. */
+
+    /* Break when this was the last child. */
+    if (&child_l->next_global == this->children_last_l)
+      break;
+  }
+
+  alloc_mdl_locks(children_l,
+                  thd->locked_tables_root ? thd->locked_tables_root :
+                  thd->mem_root);
+
+  /* Insert children into the table list. */
+  if (parent_l->next_global)
+    parent_l->next_global->prev_global= this->children_last_l;
+  *this->children_last_l= parent_l->next_global;
+  parent_l->next_global= this->children_l;
+  this->children_l->prev_global= &parent_l->next_global;
+
+end:
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Callback function for attaching a MERGE child table.
+
+  @param[in]    callback_param  data pointer as given to myrg_attach_children()
+                                this is used to pass the handler handle
 
   @return       pointer to open MyISAM table structure
     @retval     !=NULL                  OK, returning pointer
     @retval     NULL, my_errno == 0     Ok, no more child tables
     @retval     NULL, my_errno != 0     error
+
+  @detail
+    This function retrieves the MyISAM table handle from the
+    next child table. It is called for each child table.
 */
 
 static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 {
-  ha_myisammrg  *ha_myrg;
-  TABLE         *parent;
+  ha_myisammrg  *ha_myrg= (ha_myisammrg*) callback_param;
+  TABLE         *parent= ha_myrg->table_ptr();
   TABLE         *child;
   TABLE_LIST    *child_l;
   MI_INFO       *myisam;
   DBUG_ENTER("myisammrg_attach_children_callback");
 
   my_errno= 0;
-  ha_myrg= (ha_myisammrg*) callback_param;
-  parent= ha_myrg->table_ptr();
 
   /* Get child list item. */
   child_l= ha_myrg->next_child_attach;
@@ -329,22 +492,17 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     DBUG_RETURN(NULL);
   }
   child= child_l->table;
-  DBUG_PRINT("myrg", ("child table: '%s'.'%s' 0x%lx", child->s->db.str,
-                      child->s->table_name.str, (long) child));
   /*
     Prepare for next child. Used as child_l in next call to this function.
     We cannot rely on a NULL-terminated chain.
   */
-  if (&child_l->next_global == parent->child_last_l)
+  if (&child_l->next_global == ha_myrg->children_last_l)
   {
     DBUG_PRINT("myrg", ("attaching last child"));
     ha_myrg->next_child_attach= NULL;
   }
   else
     ha_myrg->next_child_attach= child_l->next_global;
-
-  /* Set parent reference. */
-  child->parent= parent;
 
   /*
     Do a quick compatibility check. The table def version is set when
@@ -393,63 +551,6 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   DBUG_RETURN(my_errno ? NULL : myisam);
 }
 
-
-/**
-  @brief Open a MERGE parent table, not its children.
-
-  @detail This function initializes the MERGE storage engine structures
-    and adds a child list of TABLE_LIST to the parent TABLE.
-
-  @param[in]    name            MERGE table path name
-  @param[in]    mode            read/write mode, unused
-  @param[in]    test_if_locked  open flags
-
-  @return       status
-    @retval     0               OK
-    @retval     -1              Error, my_errno gives reason
-*/
-
-int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
-                       uint test_if_locked)
-{
-  DBUG_ENTER("ha_myisammrg::open");
-  DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
-  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked));
-
-  /* Save for later use. */
-  this->test_if_locked= test_if_locked;
-
-  /* retrieve children table list. */
-  my_errno= 0;
-  if (is_cloned)
-  {
-    /*
-      Open and attaches the MyISAM tables,that are under the MERGE table 
-      parent, on the MyISAM storage engine interface directly within the
-      MERGE engine. The new MyISAM table instances, as well as the MERGE 
-      clone itself, are not visible in the table cache. This is not a 
-      problem because all locking is handled by the original MERGE table
-      from which this is cloned of.
-    */
-    if (!(file= myrg_open(table->s->normalized_path.str, table->db_stat, 
-                                       HA_OPEN_IGNORE_IF_LOCKED)))
-    {
-      DBUG_PRINT("error", ("my_errno %d", my_errno));
-      DBUG_RETURN(my_errno ? my_errno : -1); 
-    }
-
-    file->children_attached= TRUE;
-
-    info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
-  }
-  else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
-  {
-    DBUG_PRINT("error", ("my_errno %d", my_errno));
-    DBUG_RETURN(my_errno ? my_errno : -1);
-  }
-  DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx", (long) file));
-  DBUG_RETURN(0);
-}
 
 /**
    Returns a cloned instance of the current handler.
@@ -502,22 +603,24 @@ handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
 
 
 /**
-  @brief Attach children to a MERGE table.
+  Attach children to a MERGE table.
 
-  @detail Let the storage engine attach its children through a callback
+  @return status
+    @retval     0               OK
+    @retval     != 0            Error, my_errno gives reason
+
+  @detail
+    Let the storage engine attach its children through a callback
     function. Check table definitions for consistency.
 
-  @note Special thd->open_options may be in effect. We can make use of
+  @note
+    Special thd->open_options may be in effect. We can make use of
     them in attach. I.e. we use HA_OPEN_FOR_REPAIR to report the names
     of mismatching child tables. We cannot transport these options in
     ha_myisammrg::test_if_locked because they may change after the
     parent is opened. The parent is kept open in the table cache over
     multiple statements and can be used by other threads. Open options
     can change over time.
-
-  @return status
-    @retval     0               OK
-    @retval     != 0            Error, my_errno gives reason
 */
 
 int ha_myisammrg::attach_children(void)
@@ -532,7 +635,26 @@ int ha_myisammrg::attach_children(void)
   DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                       table->s->table_name.str, (long) table));
   DBUG_PRINT("myrg", ("test_if_locked: %u", this->test_if_locked));
+
+  /* Must call this with open table. */
+  DBUG_ASSERT(this->file);
+
+  /*
+    A MERGE table with no children (empty union) is always seen as
+    attached internally.
+  */
+  if (!this->file->tables)
+  {
+    DBUG_PRINT("myrg", ("empty merge table union"));
+    goto end;
+  }
+  DBUG_PRINT("myrg", ("child tables: %u", this->file->tables));
+
+  /* Must not call this with attached children. */
   DBUG_ASSERT(!this->file->children_attached);
+
+  /* Must call this with children list in place. */
+  DBUG_ASSERT(this->table->pos_in_table_list->next_global == this->children_l);
 
   /*
     Initialize variables that are used, modified, and/or set by
@@ -546,7 +668,7 @@ int ha_myisammrg::attach_children(void)
     'my_errno' is set by myisammrg_attach_children_callback() in
     case of an error.
   */
-  next_child_attach= table->child_l;
+  next_child_attach= this->children_l;
   need_compat_check= FALSE;
   my_errno= 0;
 
@@ -555,8 +677,8 @@ int ha_myisammrg::attach_children(void)
                            myisammrg_attach_children_callback, this,
                            (my_bool *) &need_compat_check))
   {
-    DBUG_PRINT("error", ("my_errno %d", my_errno));
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    error= my_errno;
+    goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
   myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
@@ -583,7 +705,11 @@ int ha_myisammrg::attach_children(void)
       DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
                           table->s->reclength, stats.mean_rec_length));
       if (test_if_locked & HA_OPEN_FOR_REPAIR)
+      {
+        /* purecov: begin inspected */
         myrg_print_wrong_table(file->open_tables->table->filename);
+        /* purecov: end */
+      }
       error= HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
     }
@@ -614,20 +740,23 @@ int ha_myisammrg::attach_children(void)
           my_free((uchar*) recinfo, MYF(0));
           goto err;
         }
+        /* purecov: begin inspected */
         myrg_print_wrong_table(u_table->table->filename);
+        /* purecov: end */
       }
     }
     my_free((uchar*) recinfo, MYF(0));
     if (error == HA_ERR_WRONG_MRG_TABLE_DEF)
-      goto err;
+      goto err; /* purecov: inspected */
 
     /* All checks passed so far. Now update child def version. */
-    for (child_l= table->child_l; ; child_l= child_l->next_global)
+    DBUG_ASSERT(this->children_l);
+    for (child_l= this->children_l; ; child_l= child_l->next_global)
     {
       child_l->set_child_def_version(
         child_l->table->s->get_table_def_version());
 
-      if (&child_l->next_global == table->child_last_l)
+      if (&child_l->next_global == this->children_last_l)
         break;
     }
   }
@@ -640,50 +769,115 @@ int ha_myisammrg::attach_children(void)
     goto err;
   }
 #endif
+
+ end:
   DBUG_RETURN(0);
 
 err:
-  myrg_detach_children(file);
+  DBUG_PRINT("error", ("attaching MERGE children failed: %d", error));
+  print_error(error, MYF(0));
+  detach_children();
   DBUG_RETURN(my_errno= error);
 }
 
 
 /**
-  @brief Detach all children from a MERGE table.
-
-  @note Detach must not touch the children in any way.
-    They may have been closed at ths point already.
-    All references to the children should be removed.
+  Detach all children from a MERGE table and from the query list of tables.
 
   @return status
     @retval     0               OK
     @retval     != 0            Error, my_errno gives reason
+
+  @note
+    Detach must not touch the child TABLE objects in any way.
+    They may have been closed at ths point already.
+    All references to the children should be removed.
 */
 
 int ha_myisammrg::detach_children(void)
 {
+  TABLE_LIST *child_l;
   DBUG_ENTER("ha_myisammrg::detach_children");
-  DBUG_ASSERT(this->file && this->file->children_attached);
+
+  /* Must call this with open table. */
+  DBUG_ASSERT(this->file);
+
+  /* A MERGE table with no children (empty union) cannot be detached. */
+  if (!this->file->tables)
+  {
+    DBUG_PRINT("myrg", ("empty merge table union"));
+    goto end;
+  }
+
+  /* Clear TABLE references. */
+  DBUG_ASSERT(this->children_l);
+  for (child_l= this->children_l; ; child_l= child_l->next_global)
+  {
+    /*
+      Do not DBUG_ASSERT(child_l->table); open_tables might be
+      incomplete.
+
+      Clear the table reference.
+    */
+    child_l->table= NULL;
+
+    /* Break when this was the last child. */
+    if (&child_l->next_global == this->children_last_l)
+      break;
+  }
+
+  /*
+    Remove children from the table list. This won't fail if called
+    twice. The list is terminated after removal.
+
+    If the parent is LEX::query_tables_own_last and pre-locked tables
+    follow (tables used by stored functions or triggers), the children
+    are inserted behind the parent and before the pre-locked tables. But
+    we do not adjust LEX::query_tables_own_last. The pre-locked tables
+    could have chopped off the list by clearing
+    *LEX::query_tables_own_last. This did also chop off the children. If
+    we would copy the reference from *this->children_last_l in this
+    case, we would put the chopped off pre-locked tables back to the
+    list. So we refrain from copying it back, if the destination has
+    been set to NULL meanwhile.
+  */
+  if (this->children_l->prev_global && *this->children_l->prev_global)
+    *this->children_l->prev_global= *this->children_last_l;
+  if (*this->children_last_l)
+    (*this->children_last_l)->prev_global= this->children_l->prev_global;
+
+  /* Terminate child list. So it cannot be tried to remove again. */
+  *this->children_last_l= NULL;
+  this->children_l->prev_global= NULL;
+
+  if (!this->file->children_attached)
+  {
+    DBUG_PRINT("myrg", ("merge children are already detached"));
+    goto end;
+  }
 
   if (myrg_detach_children(this->file))
   {
     /* purecov: begin inspected */
-    DBUG_PRINT("error", ("my_errno %d", my_errno));
+    print_error(my_errno, MYF(0));
     DBUG_RETURN(my_errno ? my_errno : -1);
     /* purecov: end */
   }
+
+ end:
   DBUG_RETURN(0);
 }
 
 
 /**
-  @brief Close a MERGE parent table, not its children.
-
-  @note The children are expected to be closed separately by the caller.
+  Close a MERGE parent table, but not its children.
 
   @return status
     @retval     0               OK
     @retval     != 0            Error, my_errno gives reason
+
+  @note
+    The children are expected to be closed separately by the caller.
 */
 
 int ha_myisammrg::close(void)
@@ -691,11 +885,12 @@ int ha_myisammrg::close(void)
   int rc;
   DBUG_ENTER("ha_myisammrg::close");
   /*
-    Children must not be attached here. Unless the MERGE table has no
-    children or the handler instance has been cloned. In these cases 
-    children_attached is always true. 
+    There are cases where children are not explicitly detached before
+    close. detach_children() protects itself against double detach.
   */
-  DBUG_ASSERT(!this->file->children_attached || !this->file->tables || this->is_cloned);
+  if (!is_cloned)
+    detach_children();
+
   rc= myrg_close(file);
   file= 0;
   DBUG_RETURN(rc);
@@ -973,12 +1168,22 @@ int ha_myisammrg::info(uint flag)
 
 int ha_myisammrg::extra(enum ha_extra_function operation)
 {
-  if (operation == HA_EXTRA_ATTACH_CHILDREN)
+  if (operation == HA_EXTRA_ADD_CHILDREN_LIST)
+  {
+    int rc= add_children_list();
+    return(rc);
+  }
+  else if (operation == HA_EXTRA_ATTACH_CHILDREN)
   {
     int rc= attach_children();
     if (!rc)
       (void) extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
     return(rc);
+  }
+  else if (operation == HA_EXTRA_IS_ATTACHED_CHILDREN)
+  {
+    /* For the upper layer pretend empty MERGE union is never attached. */
+    return(file && file->tables && file->children_attached);
   }
   else if (operation == HA_EXTRA_DETACH_CHILDREN)
   {
@@ -1000,6 +1205,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
 
 int ha_myisammrg::reset(void)
 {
+  /* This is normally called with detached children. */
   return myrg_reset(file);
 }
 
@@ -1015,21 +1221,24 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
-  DBUG_ASSERT(this->file->children_attached);
-  return myrg_lock_database(file,lock_type);
+  /*
+    This can be called with no children attached. E.g. FLUSH TABLES
+    unlocks and re-locks tables under LOCK TABLES, but it does not open
+    them first. So they are detached all the time. But locking of the
+    children should work anyway because thd->open_tables is not changed
+    during FLUSH TABLES.
+
+    If this handler instance has been cloned, we still must call
+    myrg_lock_database().
+  */
+  if (is_cloned)
+    return myrg_lock_database(file, lock_type);
+  return 0;
 }
 
 uint ha_myisammrg::lock_count(void) const
 {
-  /*
-    Return the real lock count even if the children are not attached.
-    This method is used for allocating memory. If we would return 0
-    to another thread (e.g. doing FLUSH TABLE), and attach the children
-    before the other thread calls store_lock(), then we would return
-    more locks in store_lock() than we claimed by lock_count(). The
-    other tread would overrun its memory.
-  */
-  return file->tables;
+  return 0;
 }
 
 
@@ -1037,37 +1246,6 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 THR_LOCK_DATA **to,
 					 enum thr_lock_type lock_type)
 {
-  MYRG_TABLE *open_table;
-
-  /*
-    This method can be called while another thread is attaching the
-    children. If the processor reorders instructions or write to memory,
-    'children_attached' could be set before 'open_tables' has all the
-    pointers to the children. Use of a mutex here and in
-    myrg_attach_children() forces consistent data.
-  */
-  pthread_mutex_lock(&this->file->mutex);
-
-  /*
-    When MERGE table is open, but not yet attached, other threads
-    could flush it, which means call mysql_lock_abort_for_thread()
-    on this threads TABLE. 'children_attached' is FALSE in this
-    situaton. Since the table is not locked, return no lock data.
-  */
-  if (!this->file->children_attached)
-    goto end; /* purecov: tested */
-
-  for (open_table=file->open_tables ;
-       open_table != file->end_table ;
-       open_table++)
-  {
-    *(to++)= &open_table->table->lock;
-    if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
-      open_table->table->lock.type=lock_type;
-  }
-
- end:
-  pthread_mutex_unlock(&this->file->mutex);
   return to;
 }
 
@@ -1156,7 +1334,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   /* Allocate a table_names array in thread mem_root. */
   if (!(table_names= (const char**)
         thd->alloc((create_info->merge_list.elements+1) * sizeof(char*))))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
 
   /* Create child path names. */
   for (pos= table_names; tables; tables= tables->next_local)
@@ -1266,7 +1444,7 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
 
 int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_OK;
+  return this->file->children_attached ? HA_ADMIN_OK : HA_ADMIN_CORRUPT;
 }
 
 
