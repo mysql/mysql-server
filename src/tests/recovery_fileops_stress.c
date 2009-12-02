@@ -18,12 +18,30 @@ DB_ENV *env;
 DB** db_array;
 DB* states;
 static const int percent_do_op = 20;
+static const int commit_abort_ratio = 3;
 char *state_db_name="states.db";
 
 #define CREATED 0
 #define OPEN    1
 #define CLOSED  2
 #define DELETED 3
+
+#define COMMIT_TXN 0
+#define ABORT_TXN 1
+
+static int commit_or_abort(void) {
+    int rval;
+#if 1
+    int i = random() % (commit_abort_ratio + 1);
+    rval = ( i < commit_abort_ratio ) ? COMMIT_TXN : ABORT_TXN;
+    if ( verbose ) {
+        if ( rval == ABORT_TXN ) printf("%s :     abort txn\n", __FILE__);
+    }
+#else
+    rval = COMMIT_TXN;
+#endif
+    return rval;
+}
 
 static void put_state(int db_num, int state) {
     int r;
@@ -76,32 +94,57 @@ static int     verify_identical_dbts(const DBT *dbt1, const DBT *dbt2);
 static void    verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys);
 
 static DB* do_create(char* name, int* next_state) {
-    DB* db;
+    DB* db = NULL;
     if ( verbose ) printf("%s :   do_create(%s)\n", __FILE__, name);
     int r;
     DB_TXN* txn;
-    r = db_create(&db, env, 0);                                                             
-    CKERR(r);
-    r = db->open(db, NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                          
-    CKERR(r);
     r = env->txn_begin(env, NULL, &txn, 0);                                                 
     CKERR(r);
-    insert_n(db, txn, 0, ROWS_PER_TABLE);
-    r = txn->commit(txn, 0);                                                                
+    r = db_create(&db, env, 0);                                                             
     CKERR(r);
-    *next_state = CREATED;
+    r = db->open(db, txn, name, NULL, DB_BTREE, DB_CREATE, 0666);                          
+    CKERR(r);
+    insert_n(db, txn, 0, ROWS_PER_TABLE);
+    if ( commit_or_abort() == COMMIT_TXN ) {
+        r = txn->commit(txn, 0);                                                   
+        CKERR(r);
+        *next_state = CREATED;
+    }
+    else {
+        r = db->close(db, 0);
+        db = NULL;
+        CKERR(r);
+        r = txn->abort(txn);                                                   
+        CKERR(r);
+        db = NULL;
+    }
     return db;
 }
 
 static DB* do_open(char* name, int* next_state) {
-    DB* db;
+    DB* db = NULL;
+    DB_TXN* txn;
     if ( verbose ) printf("%s :   do_open(%s)\n", __FILE__, name);
     int r;
+    r = env->txn_begin(env, NULL, &txn, 0);                                                 
+    CKERR(r);
     r = db_create(&db, env, 0);
     CKERR(r);
-    r = db->open(db, NULL, name, NULL, DB_UNKNOWN, 0, 0666);
+    r = db->open(db, txn, name, NULL, DB_UNKNOWN, 0, 0666);
     CKERR(r);
-    *next_state = OPEN;
+    if ( commit_or_abort() == COMMIT_TXN ) {
+        r = txn->commit(txn, 0);                                                   
+        CKERR(r);
+        *next_state = OPEN;
+    }
+    else {
+        r = db->close(db, 0);
+        db = NULL;
+        CKERR(r);
+        r = txn->abort(txn);                                                   
+        CKERR(r);
+        db = NULL;
+    }
     return db;
 }
 
@@ -111,14 +154,28 @@ static void do_close(DB* db, char* name, int* next_state) {
 
     int r = db->close(db, 0); 
     CKERR(r);
+    db = NULL;
     *next_state = CLOSED;
 }
 
 static void do_delete(char* name, int* next_state) {
+    DB_TXN* txn;
     if ( verbose ) printf("%s :   do_delete(%s)\n", __FILE__, name);
-    int r = env->dbremove(env, NULL, name, NULL, 0);
+    int r;
+    r = env->txn_begin(env, NULL, &txn, 0);                                                 
     CKERR(r);
-    *next_state = DELETED;
+    r = env->dbremove(env, txn, name, NULL, 0);
+    CKERR(r);
+
+    if ( commit_or_abort() == COMMIT_TXN ) {
+        r = txn->commit(txn, 0);                                                   
+        CKERR(r);
+        *next_state = DELETED;
+    }
+    else {
+        r = txn->abort(txn);                                                   
+        CKERR(r);
+    }
 }
 
 static int do_random_fileop(int i, int state) {
@@ -326,8 +383,19 @@ static void run_test(int iter, int crash){
     if ( verbose ) printf("%s : done\n", __FILE__);
         
     r = env->txn_checkpoint(env, 0, 0, 0);                                                                CKERR(r);
+
+    for (i=0;i<NUM_DICTIONARIES;i++) {
+        db = db_array[i];
+        state = get_state(i);
+        if ( state == CREATED || state == OPEN ) {
+            r = db->close(db, 0);                                                                        CKERR(r);
+            db = NULL;
+        }
+    }
+
     r = env->close(env, 0);
-    assert((r == 0) || (r == EINVAL)); // OK to have open transactions prior to close
+//    assert((r == 0) || (r == EINVAL)); // OK to have open transactions prior to close
+    CKERR(r);
 }
 
 // ------------ infrastructure ----------
