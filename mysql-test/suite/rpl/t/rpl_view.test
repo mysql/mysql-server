@@ -74,9 +74,7 @@ DROP VIEW IF EXISTS v1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo
 --echo ---> connection: master
@@ -104,9 +102,7 @@ SELECT * FROM t1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo ---> connection: master
 
@@ -127,9 +123,7 @@ SELECT * FROM t1;
 DROP VIEW v1;
 DROP TABLE t1;
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 --connection master
 
 #

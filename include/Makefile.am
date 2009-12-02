@@ -38,6 +38,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_handler.h my_time.h service_versions.h \
+			my_rdtsc.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \

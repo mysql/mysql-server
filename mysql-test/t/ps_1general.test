@@ -458,9 +458,6 @@ prepare stmt1 from ' analyze table t1 ' ;
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
 
---replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
---error ER_UNSUPPORTED_PS
-eval prepare stmt1 from ' restore table t1 from ''$datafile'' ' ;
 --remove_file $datafile
 
 ## handler
