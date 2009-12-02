@@ -4291,7 +4291,7 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     uchar *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
     if (new_item && new_item != item)
-      li.replace(new_item);
+      current_thd->change_item_tree(li.ref(), new_item);
   }
   return Item_func::transform(transformer, arg_t);
 }
