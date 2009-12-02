@@ -127,7 +127,7 @@ struct XTTablePath;
 #define XT_TAB_ROW_UNLOCK(i, s)			xt_xsmutex_unlock(i, (s)->t_id)
 #elif defined(XT_TAB_ROW_USE_PTHREAD_RW)
 #define XT_TAB_ROW_LOCK_TYPE			xt_rwlock_type
-#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
+#define XT_TAB_ROW_INIT_LOCK(s, i)		xt_init_rwlock_with_autoname(s, i)
 #define XT_TAB_ROW_FREE_LOCK(s, i)		xt_free_rwlock(i)	
 #define XT_TAB_ROW_READ_LOCK(i, s)		xt_slock_rwlock_ns(i)
 #define XT_TAB_ROW_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
@@ -528,13 +528,14 @@ xtBool				xt_table_exists(struct XTDatabase *db);
 void				xt_enum_tables_init(u_int *edx);
 XTTableEntryPtr		xt_enum_tables_next(struct XTThread *self, struct XTDatabase *db, u_int *edx);
 
-void				xt_enum_files_of_tables_init(struct XTDatabase *db, char *tab_name, xtTableID tab_id, XTFilesOfTablePtr ft);
+void				xt_enum_files_of_tables_init(XTPathStrPtr tab_name, xtTableID tab_id, XTFilesOfTablePtr ft);
 xtBool				xt_enum_files_of_tables_next(XTFilesOfTablePtr ft);
 
 xtBool				xt_tab_seq_init(XTOpenTablePtr ot);
 void				xt_tab_seq_reset(XTOpenTablePtr ot);
 void				xt_tab_seq_exit(XTOpenTablePtr ot);
 xtBool				xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof);
+void				xt_tab_seq_repeat(XTOpenTablePtr ot);
 
 xtBool				xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *buffer);
 xtBool				xt_tab_delete_record(XTOpenTablePtr ot, xtWord1 *buffer);

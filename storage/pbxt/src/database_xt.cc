@@ -54,6 +54,8 @@
  * GLOBALS
  */
 
+xtPublic XTDatabaseHPtr		pbxt_database = NULL;		// The global open database
+
 xtPublic xtLogOffset		xt_db_log_file_threshold;
 xtPublic size_t				xt_db_log_buffer_size;
 xtPublic size_t				xt_db_transaction_buffer_size;
@@ -505,6 +507,15 @@ xtPublic XTDatabaseHPtr xt_get_database(XTThreadPtr self, char *path, xtBool mul
 	 * all index entries that are not visible have
 	 * been removed.
 	 *
+	 * REASON WHY WE SET ROWID ON RECOVERY:
+	 * The row ID is set on recovery because the
+	 * change to the index may be lost after a crash.
+	 * The change to the index is done by the sweeper, and
+	 * there is no record of this change in the log.
+	 * The sweeper will not "re-sweep" all transations
+	 * that are recovered. As a result, this upadte
+	 * of the index by the sweeper may be lost.
+	 *
 	 * {OPEN-DB-SWEEPER-WAIT}
 	 * This has been moved to after the release of the open
 	 * database lock because:
@@ -518,9 +529,12 @@ xtPublic XTDatabaseHPtr xt_get_database(XTThreadPtr self, char *path, xtBool mul
 	 * - To open the database it needs the open database
 	 * lock.
 	 */
+	/*
+	 * This has been moved, see: {WAIT-FOR-SW-AFTER-RECOV}
 	pushr_(xt_heap_release, db);
 	xt_wait_for_sweeper(self, db, 0);
 	popr_();
+	*/
 
 	return db;
 }

@@ -160,6 +160,7 @@ typedef struct XTXLogCache {
 #define XT_LOG_ENT_END_OF_LOG		37					/* This is a record that indicates the end of the log, and
 														 * fills to the end of a 512 byte block.
 														 */
+#define XT_LOG_ENT_PREPARE			39					/* XA prepare log entry. */
 
 #define XT_LOG_FILE_MAGIC			0xAE88FE12
 #define XT_LOG_VERSION_NO			1
@@ -200,6 +201,14 @@ typedef struct XTXactEndEntry {
 	XTDiskValue4			xe_xact_id_4;		/* The transaction. */
 	XTDiskValue4			xe_not_used_4;		/* Was the end sequence number (no longer used - v1.0.04+), set to zero). */
 } XTXactEndEntryDRec, *XTXactEndEntryDPtr;
+
+typedef struct XTXactPrepareEntry {
+	xtWord1					xp_status_1;		/* XT_LOG_ENT_PREPARE */
+	XTDiskValue2			xp_checksum_2;		
+	XTDiskValue4			xp_xact_id_4;		/* The transaction. */
+	xtWord1					xp_xa_len_1;		/* The length of the XA data. */
+	xtWord1					xp_xa_data[XT_MAX_XA_DATA_SIZE];
+} XTXactPrepareEntryDRec, *XTXactPrepareEntryDPtr;
 
 typedef struct XTXactCleanupEntry {
 	xtWord1					xc_status_1;		/* XT_LOG_ENT_CLEANUP */
@@ -344,6 +353,7 @@ typedef union XTXactLogBuffer {
 	XTactOpSyncEntryDRec	os;
 	XTactExtRecEntryDRec	er;
 	XTactNoOpEntryDRec		no;
+	XTXactPrepareEntryDRec	xp;
 } XTXactLogBufferDRec, *XTXactLogBufferDPtr;
 
 /* ---------------------------------------- */
@@ -453,9 +463,9 @@ private:
 	xtBool					xlog_open_log(xtLogID log_id, off_t curr_eof, struct XTThread *thread);
 } XTDatabaseLogRec, *XTDatabaseLogPtr;
 
-xtBool			xt_xlog_flush_log(struct XTThread *thread);
+xtBool			xt_xlog_flush_log(struct XTDatabase *db, struct XTThread *thread);
 xtBool			xt_xlog_log_data(struct XTThread *thread, size_t len, XTXactLogBufferDPtr log_entry, xtBool commit);
-xtBool			xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpSeqNo op_seq, xtRecordID free_list, xtRecordID address, size_t size, xtWord1 *data);
+xtBool			xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo op_seq, xtRecordID free_list, xtRecordID address, size_t size, xtWord1 *data, struct XTThread *thread);
 
 void			xt_xlog_init(struct XTThread *self, size_t cache_size);
 void			xt_xlog_exit(struct XTThread *self);
