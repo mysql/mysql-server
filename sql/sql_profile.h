@@ -16,14 +16,6 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
-#ifndef __func__
-#ifdef __FUNCTION__
-#define __func__ __FUNCTION__
-#else
-#define __func__ "unknown function"
-#endif
-#endif
-
 extern ST_FIELD_INFO query_profile_statistics_info[];
 int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
