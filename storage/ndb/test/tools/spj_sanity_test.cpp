@@ -23,6 +23,9 @@
 #endif
 
 namespace SPJSanityTest{
+  class RowInt;
+
+  static bool lessOrEqual(const RowInt& a, const RowInt& b);
 
   static const char* colName(int colNo){
     static const char* names[] = {
@@ -81,7 +84,7 @@ namespace SPJSanityTest{
     void verifyRow();
 
     /** Check that result of this op is ok.*/
-    virtual void verifyOwnRow() const = 0;
+    virtual void verifyOwnRow() = 0;
 
     /** Build operation definition.*/
     virtual void buildThis(NdbQueryBuilder& builder, 
@@ -140,6 +143,10 @@ namespace SPJSanityTest{
     const NdbDictionary::Dictionary* getDictionary() const {
       return m_ndb.getDictionary();
     }
+
+    void close(bool forceSend = false){
+      m_query->close(forceSend);
+    }
   private:
     Ndb& m_ndb;
     NdbQueryBuilder m_builder;
@@ -157,7 +164,7 @@ namespace SPJSanityTest{
   public:
     explicit LookupOperation(Query<Row>& query, 
                              Operation<Row>* parent = NULL);
-    virtual void verifyOwnRow() const;
+    virtual void verifyOwnRow();
   protected:
     virtual void buildThis(NdbQueryBuilder& builder, 
                            const NdbDictionary::Table& tab);
@@ -169,7 +176,7 @@ namespace SPJSanityTest{
     explicit IndexLookupOperation(Query<Row>& query, 
                                   const char* indexName,
                                   Operation<Row>* parent = NULL);
-    virtual void verifyOwnRow() const;
+    virtual void verifyOwnRow();
   protected:
     virtual void buildThis(NdbQueryBuilder& builder, 
                            const NdbDictionary::Table& tab);
@@ -184,7 +191,7 @@ namespace SPJSanityTest{
     virtual ~TableScanOperation() {
       delete[] m_rowFound;
     } 
-    virtual void verifyOwnRow() const;
+    virtual void verifyOwnRow();
   protected:
     virtual void buildThis(NdbQueryBuilder& builder, 
                            const NdbDictionary::Table& tab);
@@ -198,11 +205,12 @@ namespace SPJSanityTest{
     explicit IndexScanOperation(Query<Row>& query,
                                 const char* indexName,
                                 int lowerBoundRowNo, 
-                                int upperBoundRowNo);
+                                int upperBoundRowNo,
+                                NdbScanOrdering ordering);
     virtual ~IndexScanOperation() {
       delete[] m_rowFound;
     } 
-    virtual void verifyOwnRow() const;
+    virtual void verifyOwnRow();
   protected:
     virtual void buildThis(NdbQueryBuilder& builder, 
                            const NdbDictionary::Table& tab);
@@ -214,6 +222,12 @@ namespace SPJSanityTest{
     const int m_upperBoundRowNo;
     /** An entry per row. True if row has been seen in the result stream.*/
     bool* m_rowFound;
+    /** Ordering of results.*/
+    NdbScanOrdering m_ordering;
+    /** Previous row, for verifying ordering.*/
+    Row m_previousRow;
+    /** True from the second row and onwards.*/
+    bool m_hasPreviousRow;
   };
 
 
@@ -368,7 +382,7 @@ namespace SPJSanityTest{
   }
 
   template <typename Row, typename Key>
-  void LookupOperation<Row, Key>::verifyOwnRow() const{
+  void LookupOperation<Row, Key>::verifyOwnRow(){
     if(Operation<Row>::m_parent==NULL){
       const Row expected(0);
       Operation<Row>::compareRows("lookup root operation",
@@ -449,7 +463,7 @@ namespace SPJSanityTest{
   }
 
   template <typename Row, typename Key>
-  void IndexLookupOperation<Row, Key>::verifyOwnRow() const{
+  void IndexLookupOperation<Row, Key>::verifyOwnRow(){
     if(Operation<Row>::m_parent==NULL){
       const Row expected(0);
       Operation<Row>::compareRows("index lookup root operation",
@@ -501,7 +515,7 @@ namespace SPJSanityTest{
   }
 
   template <typename Row>
-  void TableScanOperation<Row>::verifyOwnRow() const{
+  void TableScanOperation<Row>::verifyOwnRow(){
     bool found = false;
     for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
       //const Row row(i);
@@ -534,11 +548,15 @@ namespace SPJSanityTest{
   ::IndexScanOperation(Query<Row>& query, 
                        const char* indexName,
                        int lowerBoundRowNo, 
-                       int upperBoundRowNo):
+                       int upperBoundRowNo,
+                       NdbScanOrdering ordering):
     Operation<Row>(query, NULL),
     m_indexName(indexName),
     m_lowerBoundRowNo(lowerBoundRowNo),
-    m_upperBoundRowNo(upperBoundRowNo){
+    m_upperBoundRowNo(upperBoundRowNo),
+    m_ordering(ordering),
+    m_previousRow(0),
+    m_hasPreviousRow(false){
   }
 
   template <typename Row, typename Key>
@@ -567,7 +585,10 @@ namespace SPJSanityTest{
     high[Key::size] = NULL;
 
     const NdbQueryIndexBound bound(low, high);
-    Operation<Row>::m_operationDef = builder.scanIndex(index, &tab, &bound);
+    NdbQueryIndexScanOperationDef* opDef 
+      = builder.scanIndex(index, &tab, &bound);
+    opDef->setOrdering(m_ordering);
+    Operation<Row>::m_operationDef = opDef;
     ASSERT_ALWAYS(Operation<Row>::m_operationDef!=NULL);
     m_rowFound = new bool[Operation<Row>::m_query.getTableSize()];
     for(int i = 0; i<Operation<Row>::m_query.getTableSize(); i++){
@@ -576,7 +597,7 @@ namespace SPJSanityTest{
   }
 
   template <typename Row, typename Key>
-  void IndexScanOperation<Row, Key>::verifyOwnRow() const{
+  void IndexScanOperation<Row, Key>::verifyOwnRow(){
     bool found = false;
     for(int i = m_lowerBoundRowNo; i<=m_upperBoundRowNo; i++){
       //const Row row(i);
@@ -596,6 +617,32 @@ namespace SPJSanityTest{
              << *Operation<Row>::m_resultPtr << endl;
       ASSERT_ALWAYS(false);
     }else{
+      if(m_hasPreviousRow){
+        switch(m_ordering){
+        case NdbScanOrdering_ascending:
+          if(!lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
+            ndbout << "Error in result ordering. Did not expect row "
+                   <<  *Operation<Row>::m_resultPtr
+                   << " now." << endl;
+            ASSERT_ALWAYS(false);
+          }
+          break;
+        case NdbScanOrdering_descending:
+          if(lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
+            ndbout << "Error in result ordering. Did not expect row "
+                   <<  *Operation<Row>::m_resultPtr
+                   << " now." << endl;
+            ASSERT_ALWAYS(false);
+          }
+          break;
+        case NdbScanOrdering_unordered:
+          break;
+        default:
+          ASSERT_ALWAYS(false);
+        }
+      }
+      m_hasPreviousRow = true;
+      m_previousRow = *Operation<Row>::m_resultPtr;
       ndbout << "Root index scan operation. Got row: " 
              << *Operation<Row>::m_resultPtr
              << " as expected." << endl;
@@ -669,6 +716,12 @@ namespace SPJSanityTest{
     for(int i = 0; i<rowCount; i++){
       ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_gotRow);
       query.verifyRow();
+      if(false && i>3){ 
+        // Enable to test close of incomplete scan.
+        query.close();
+        ndb.closeTransaction(trans);
+        return;
+      }
     }
     ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_scanComplete);
     ndb.closeTransaction(trans);
@@ -677,8 +730,8 @@ namespace SPJSanityTest{
   /** Run a set of test cases.*/
   template <typename Row, typename Key>
   void runTestSuite(MYSQL& mysql, Ndb& ndb){
-    for(int caseNo = 0; caseNo<5; caseNo++){
-      ndbout << "Running test case " << caseNo << endl;
+    for(int caseNo = 0; caseNo<6; caseNo++){
+      ndbout << endl << "Running test case " << caseNo << endl;
 
       char tabName[20];
       sprintf(tabName, "t%d", caseNo);
@@ -702,7 +755,8 @@ namespace SPJSanityTest{
         break;
       case 2:
         {
-          IndexScanOperation<Row, Key> root(query, "PRIMARY", 2, 4);
+          IndexScanOperation<Row, Key> root(query, "PRIMARY", 2, 4,
+                                            NdbScanOrdering_unordered);
           LookupOperation<Row, Key> child(query, &root);
           IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
           LookupOperation<Row, Key> child3(query, &child);
@@ -727,6 +781,25 @@ namespace SPJSanityTest{
           runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
         }
         break;
+      case 5:
+        {
+          IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 10, 
+                                            NdbScanOrdering_descending);
+          LookupOperation<Row, Key> child(query, &root);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
+        }
+        break;
+#if 0
+      default:
+        //case 6:
+        {
+          IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 1000, 
+                                            NdbScanOrdering_descending);
+          LookupOperation<Row, Key> child(query, &root);
+          runCase<Row, Key>(mysql, ndb, query, tabName, 10*(caseNo-6), 10*(caseNo-6));
+        }
+        break;
+#endif
       }
     }
   }
@@ -824,7 +897,7 @@ namespace SPJSanityTest{
     return size-KeyInt::size-keyNo+keyCol;
   }
 
-  bool operator==(const RowInt& a, const RowInt& b){
+  static bool operator==(const RowInt& a, const RowInt& b){
     for(int i = 0; i<RowInt::size; i++){
       if(a.m_values[i]!=b.m_values[i]){
         return false;
@@ -833,7 +906,7 @@ namespace SPJSanityTest{
     return true;
   }
 
-  bool operator==(const KeyInt& a, const KeyInt& b){
+  static bool operator==(const KeyInt& a, const KeyInt& b){
     for(int i = 0; i<KeyInt::size; i++){
       if(a.m_values[i]!=b.m_values[i]){
         return false;
@@ -842,7 +915,17 @@ namespace SPJSanityTest{
     return true;
   }
 
-  NdbOut& operator<<(NdbOut& out, const RowInt& row){
+  /** Returns true if key of a <= key of b.*/
+  static bool lessOrEqual(const RowInt& a, const RowInt& b){
+    for(int i = 0; i<KeyInt::size; i++){
+      if(a.m_values[i]>b.m_values[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static NdbOut& operator<<(NdbOut& out, const RowInt& row){
     out << "{";
     for(int i = 0; i<RowInt::size; i++){
       out << row.m_values[i];

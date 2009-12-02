@@ -191,7 +191,7 @@ private:
 
     // Prepare internal datastructures.
     // Return 0 if ok, else errorcode
-    int prepare(int size);
+    int prepare(int capacity);
 
     NdbResultStream* top() const { 
       return m_current>=0 ? m_array[m_current] : NULL; 
@@ -210,7 +210,7 @@ private:
 
   private:
     /** Capacity of stack.*/
-    int m_size;
+    int m_capacity;
     /** Index of current top of stack.*/
     int m_current;
     NdbResultStream** m_array;
@@ -218,6 +218,60 @@ private:
     StreamStack(const StreamStack&);
     StreamStack& operator=(const StreamStack&);
   }; // class StreamStack
+
+  class OrderedStreamSet{
+  public:
+    explicit OrderedStreamSet();
+
+    ~OrderedStreamSet() 
+    { delete[] m_array; }
+
+    // Prepare internal datastructures.
+    // Return 0 if ok, else errorcode
+    int prepare(NdbScanOrdering ordering, 
+                int size, 
+                const NdbRecord* keyRecord,
+                const NdbRecord* resultRecord);
+
+    NdbResultStream* getCurrent();
+
+    void reorder();
+
+    void add(NdbResultStream& stream);
+
+    void clear() 
+    { m_size = 0; }
+
+
+    /** When doing an ordered scan, get the stream that needs a new batch.*/
+    NdbResultStream* getEmpty() const;
+
+    bool verifySortOrder() const;
+
+  private:
+    /** Max no of streams.*/
+    int m_capacity;
+    /** Current number of streams.*/
+    int m_size;
+    /** Current number of completed stream (where all data have been receoved
+     * and processed).*/
+    int m_completedStreams;
+    /** Ordering of index scan result.*/
+    NdbScanOrdering m_ordering;
+    /** Needed for comparing records when ordering results.*/
+    const NdbRecord* m_keyRecord;
+    /** Needed for comparing records when ordering results.*/
+    const NdbRecord* m_resultRecord;
+    NdbResultStream** m_array;
+    // No copying.
+    OrderedStreamSet(const OrderedStreamSet&);
+    OrderedStreamSet& operator=(const OrderedStreamSet&);
+    /** For sorting streams according to index value of first record. Also
+     * s1<s2 if s2 has reached end of data and s1 has not.
+     * @return 1 if s1>s2, 0 if s1==s2, -1 if s1<s2.*/
+    int compare(const NdbResultStream& stream1,
+                const NdbResultStream& stream2) const;
+  };
 
   /** The interface that is visible to the application developer.*/
   NdbQuery m_interface;
@@ -235,9 +289,7 @@ private:
 
   enum {        // Assumed state of query cursor in TC block
     Inactive,   // Execution not started at TC
-    Fetching,
-    FetchMore,
-    Completed
+    Active
   } m_tcState;
 
   /** Next query in same transaction.*/
@@ -263,9 +315,9 @@ private:
   /** Number of streams not yet completed within the current batch.*/
   Uint32 m_pendingStreams;
 
-  /** Number of fragments to be scanned in parallel. (1 if root operation is 
-   *  a lookup)*/
-  Uint32 m_parallelism;
+  /** Number of fragments to be read by the root operation. (1 if root 
+   * operation is a lookup)*/
+  Uint32 m_rootFragCount;
 
   /** Max rows (per resultStream) in a scan batch.*/
   Uint32 m_maxBatchRows;
@@ -273,15 +325,21 @@ private:
   /** Streams that the application is currently iterating over. Only accessed
    *  by application thread.
    */
-  StreamStack m_applStreams;
+  OrderedStreamSet m_applStreams;
 
   /** Streams that have received a complete batch. Shared between 
    *  application thread and receiving thread. Access should be mutex protected.
    */
   StreamStack m_fullStreams;
 
+  /** Number of streams for which the final batch (with tcPtrI=RNIL)
+   * has been received.
+   */
+  Uint32 m_finalBatchStreams;
+
   /* Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
+
   /* Most recently added IndexBound's range number */
   Uint32 m_previous_range_num;
 
@@ -331,9 +389,6 @@ private:
   const NdbQuery& getInterface() const
   { return m_interface; }
 
-  Uint32 getParallelism() const
-  { return m_parallelism; } 
-
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U); }
 
@@ -344,6 +399,9 @@ private:
    */
   bool countPendingStreams(int increment);
 
+  /** Get the number of fragments to be read for the root operation.*/
+  Uint32 getRootFragCount() const
+  { return m_rootFragCount; }
 }; // class NdbQueryImpl
 
 
@@ -417,6 +475,11 @@ public:
   NdbQueryOperation& getInterface()
   { return m_interface; }
 
+  int setOrdering(NdbScanOrdering ordering);
+
+  NdbScanOrdering getOrdering() const
+  { return m_ordering; }
+
 private:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -462,6 +525,8 @@ private:
     * Used for old-style result retrieval (using getValue()).*/
   NdbRecAttr* m_firstRecAttr;
   NdbRecAttr* m_lastRecAttr;
+  /** Ordering of scan results (only applies to ordered index scans.)*/
+  NdbScanOrdering m_ordering;
 
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);

@@ -171,7 +171,7 @@ class NdbQueryLookupOperationDefImpl : public NdbQueryOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef);
 
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const;
@@ -210,7 +210,7 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return &m_index; }
 
-  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef);
 
 private:
   virtual ~NdbQueryIndexOperationDefImpl() {}
@@ -233,33 +233,12 @@ private:
 }; // class NdbQueryIndexOperationDefImpl
 
 
-class NdbQueryScanOperationDefImpl :
-  public NdbQueryOperationDefImpl
-{
-public:
-  virtual ~NdbQueryScanOperationDefImpl()=0;
-  explicit NdbQueryScanOperationDefImpl (
-                           const NdbTableImpl& table,
-                           const char* ident,
-                           Uint32      ix)
-  : NdbQueryOperationDefImpl(table,ident,ix)
-  {}
-
-  virtual bool isScanOperation() const
-  { return true; }
-
-protected:
-  int serialize(Uint32Buffer& serializedDef,
-                const NdbTableImpl& tableOrIndex) const;
-
-}; // class NdbQueryScanOperationDefImpl
-
 class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef);
 
   virtual const NdbQueryTableScanOperationDef& getInterface() const
   { return m_interface; }
@@ -286,51 +265,6 @@ private:
 
 }; // class NdbQueryTableScanOperationDefImpl
 
-
-class NdbQueryIndexScanOperationDefImpl : public NdbQueryScanOperationDefImpl
-{
-  friend class NdbQueryBuilder;  // Allow privat access from builder interface
-
-public:
-  virtual const NdbIndexImpl* getIndex() const
-  { return &m_index; }
-
-  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
-
-  virtual const NdbQueryIndexScanOperationDef& getInterface() const
-  { return m_interface; }
-
-  virtual Type getType() const
-  { return OrderedIndexScan; }
-
-  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[]) const;
-
-  virtual int checkPrunable(const Uint32Buffer& keyInfo,
-                            bool&   isPruned,
-                            Uint32& hashValue) const;
-
-private:
-  virtual ~NdbQueryIndexScanOperationDefImpl() {};
-  explicit NdbQueryIndexScanOperationDefImpl (
-                           const NdbIndexImpl& index,
-                           const NdbTableImpl& table,
-                           const NdbQueryIndexBound* bound,
-                           const char* ident,
-                           Uint32      ix);
-
-private:
-  NdbQueryIndexScanOperationDef m_interface;
-  const NdbIndexImpl& m_index;
-
-  struct bound {  // Limiting 'bound ' definition
-    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
-    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
-    Uint32 lowKeys, highKeys;
-    bool lowIncl, highIncl;
-    bool eqBound;  // True if 'low == high'
-  } m_bound;
-}; // class NdbQueryIndexScanOperationDefImpl
 
 
 
@@ -541,6 +475,18 @@ const NdbDictionary::Index*
 NdbQueryLookupOperationDef::getIndex() const
 {
   return ::getImpl(*this).getIndex();
+}
+
+int 
+NdbQueryIndexScanOperationDef::setOrdering(NdbScanOrdering ordering)
+{
+  return ::getImpl(*this).setOrdering(ordering);
+}
+
+NdbScanOrdering
+NdbQueryIndexScanOperationDef::getOrdering() const
+{
+  return ::getImpl(*this).getOrdering();
 }
 
 
@@ -1635,7 +1581,18 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
 
 } // NdbQueryIndexScanOperationDefImpl::checkPrunable
 
-
+int
+NdbQueryIndexScanOperationDefImpl::setOrdering(NdbScanOrdering ordering)
+{
+  /* Check that query has not been prepared yet.*/
+  if(m_isPrepared)
+  {
+    return -1;
+  }
+  m_ordering = ordering;
+  return 0;
+}
+  
 void
 NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
 {
@@ -1867,9 +1824,12 @@ appendKeyPattern(Uint32Buffer& serializedDef,
 
 int
 NdbQueryLookupOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const
+::serializeOperation(Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
+  // This method should only be invoked once.
+  assert (!m_isPrepared);
+  m_isPrepared = true;
 
   // Reserve memory for LookupNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
@@ -1937,9 +1897,12 @@ NdbQueryLookupOperationDefImpl
 
 int
 NdbQueryIndexOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const
+::serializeOperation(Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
+  // This method should only be invoked once.
+  assert (!m_isPrepared);
+  m_isPrepared = true;
 
   /**
    * Serialize index as a seperate lookupNode
@@ -2068,8 +2031,11 @@ NdbQueryIndexOperationDefImpl
 
 int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
-                                        const NdbTableImpl& tableOrIndex) const
+                                        const NdbTableImpl& tableOrIndex)
 {
+  // This method should only be invoked once.
+  assert (!m_isPrepared);
+  m_isPrepared = true;
   // Reserve memory for ScanFragNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   size_t startPos = serializedDef.getSize();
@@ -2125,7 +2091,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
 
 int
 NdbQueryTableScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const
+::serializeOperation(Uint32Buffer& serializedDef)
 {
   return NdbQueryScanOperationDefImpl::serialize(serializedDef, getTable());
 } // NdbQueryTableScanOperationDefImpl::serializeOperation
@@ -2133,7 +2099,7 @@ NdbQueryTableScanOperationDefImpl
 
 int
 NdbQueryIndexScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const
+::serializeOperation(Uint32Buffer& serializedDef)
 {
   return NdbQueryScanOperationDefImpl::serialize(serializedDef, *m_index.getIndexTable());
 } // NdbQueryIndexScanOperationDefImpl::serializeOperation

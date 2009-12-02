@@ -41,6 +41,12 @@ class NdbReceiver
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
+  friend int compare_ndbrecord(const NdbReceiver *r1,
+                      const NdbReceiver *r2,
+                      const NdbRecord *key_record,
+                      const NdbRecord *result_record,
+                      bool descending,
+                      bool read_range_no);
   friend int spjTest(int argc, char** argv);
 
 public:

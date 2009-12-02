@@ -40,10 +40,14 @@
 #define QRY_HAS_ZERO_OPERATIONS 4816
 #define QRY_IN_ERROR_STATE 4817
 #define QRY_ILLEGAL_STATE 4818
+#define QRY_WRONG_OPERATION_TYPE 4819
+#define QRY_SCAN_ORDER_ALREADY_SET 4820
 
 #ifdef __cplusplus
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
+#include "NdbIndexScanOperation.hpp"
+#include "ndb_limits.h"
 
 // Forward declared
 class NdbTableImpl;
@@ -316,7 +320,7 @@ public:
    * the struct QueryNode type.
    * @return Possible error code.
    */
-  virtual int serializeOperation(Uint32Buffer& serializedTree) const = 0;
+  virtual int serializeOperation(Uint32Buffer& serializedTree) = 0;
 
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
@@ -351,7 +355,7 @@ protected:
                                      const NdbTableImpl& table,
                                      const char* ident,
                                      Uint32      ix)
-   : m_table(table), m_ident(ident), m_ix(ix), m_id(ix),
+    :m_isPrepared(false), m_table(table), m_ident(ident), m_ix(ix), m_id(ix),
      m_parents(), m_children(), m_params(),
      m_spjProjection()
   {}
@@ -373,6 +377,10 @@ protected:
   // Append list of parent nodes to serialized code
   void appendParentList(Uint32Buffer& serializedDef) const;
 
+protected:
+  /** True if enclosing query has been prepared.*/
+  bool m_isPrepared;
+
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
 
@@ -382,7 +390,7 @@ private:
   // Remove a linked child refering specified operation
   void removeChild(const NdbQueryOperationDefImpl*);
 
- private:
+private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array
@@ -400,6 +408,90 @@ private:
   // Column from this operation required by its child operations
   Vector<const NdbColumnImpl*> m_spjProjection;
 }; // class NdbQueryOperationDefImpl
+
+
+class NdbQueryScanOperationDefImpl :
+  public NdbQueryOperationDefImpl
+{
+public:
+  virtual ~NdbQueryScanOperationDefImpl()=0;
+  explicit NdbQueryScanOperationDefImpl (
+                           const NdbTableImpl& table,
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryOperationDefImpl(table,ident,ix)
+  {}
+
+  virtual bool isScanOperation() const
+  { return true; }
+
+protected:
+  int serialize(Uint32Buffer& serializedDef,
+                const NdbTableImpl& tableOrIndex);
+
+}; // class NdbQueryScanOperationDefImpl
+
+
+class NdbQueryIndexScanOperationDefImpl : public NdbQueryScanOperationDefImpl
+{
+  friend class NdbQueryBuilder;  // Allow privat access from builder interface
+
+public:
+  virtual const NdbIndexImpl* getIndex() const
+  { return &m_index; }
+
+  virtual int serializeOperation(Uint32Buffer& serializedDef);
+
+  virtual const NdbQueryIndexScanOperationDef& getInterface() const
+  { return m_interface; }
+
+  virtual Type getType() const
+  { return OrderedIndexScan; }
+
+  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
+                             const constVoidPtr actualParam[]) const;
+
+  virtual int checkPrunable(const Uint32Buffer& keyInfo,
+                            bool&   isPruned,
+                            Uint32& hashValue) const;
+
+  /** Define result ordering. Alternatively, ordering may be set when the 
+   * query definition has been instantiated, using 
+   * NdbQueryOperation::setOrdering(). It is an error to call this method 
+   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
+   * @param ordering The desired ordering of results.
+   * @return 0 if ok, -1 in case of error.
+   */
+  int setOrdering(NdbScanOrdering ordering);
+
+  /** Get the result ordering for this operation.*/
+  NdbScanOrdering getOrdering() const
+  { return m_ordering; }
+
+private:
+  virtual ~NdbQueryIndexScanOperationDefImpl() {};
+  explicit NdbQueryIndexScanOperationDefImpl (
+                           const NdbIndexImpl& index,
+                           const NdbTableImpl& table,
+                           const NdbQueryIndexBound* bound,
+                           const char* ident,
+                           Uint32      ix);
+
+private:
+  NdbQueryIndexScanOperationDef m_interface;
+  const NdbIndexImpl& m_index;
+
+  struct bound {  // Limiting 'bound ' definition
+    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
+    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 lowKeys, highKeys;
+    bool lowIncl, highIncl;
+    bool eqBound;  // True if 'low == high'
+  } m_bound;
+
+  /** Ordering of scan results.*/
+  NdbScanOrdering m_ordering;
+}; // class NdbQueryIndexScanOperationDefImpl
 
 
 class NdbQueryDefImpl
