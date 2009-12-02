@@ -2934,7 +2934,7 @@ Locked_tables_list::init_locked_tables(THD *thd)
                            &db, db_len,
                            &table_name, table_name_len,
                            &alias, alias_len,
-                           0))
+                           NullS))
     {
       unlock_locked_tables(0);
       return TRUE;
