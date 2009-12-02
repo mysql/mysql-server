@@ -965,7 +965,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
     lock_table->mdl_lock_data= mdl_lock_data;
   }
   if (mdl_acquire_exclusive_locks(&thd->mdl_context))
-    return 1;
+    goto end;
   return 0;
 
 end:

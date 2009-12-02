@@ -2278,9 +2278,9 @@ void table_share_release_hook(void *share)
 }
 
 
-/*
-  A helper function that acquires an MDL lock for a table
-  being opened.
+/**
+   A helper function that acquires an MDL lock for a table
+   being opened.
 */
 
 static bool
@@ -2304,7 +2304,10 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     */
     mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
     if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+    {
+      mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
       return 1;
+    }
   }
   else
   {
@@ -2327,6 +2330,8 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     {
       if (retry)
         *action= OT_BACK_OFF_AND_RETRY;
+      else
+        mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
       return 1;
     }
   }
@@ -2833,7 +2838,11 @@ err_unlock:
   release_table_share(share);
 err_unlock2:
   pthread_mutex_unlock(&LOCK_open);
-  mdl_release_lock(&thd->mdl_context, mdl_lock_data);
+  if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
+  {
+    mdl_release_lock(&thd->mdl_context, mdl_lock_data);
+    mdl_remove_lock(&thd->mdl_context, mdl_lock_data);
+  }
   DBUG_RETURN(TRUE);
 }
 
@@ -3497,7 +3506,10 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       mdl_set_lock_type(table->mdl_lock_data, MDL_EXCLUSIVE);
       mdl_add_lock(&thd->mdl_context, table->mdl_lock_data);
       if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+      {
+        mdl_remove_lock(&thd->mdl_context, table->mdl_lock_data);
         return TRUE;
+      }
       pthread_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
       ha_create_table_from_engine(thd, table->db, table->table_name);
@@ -3506,18 +3518,23 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       thd->warning_info->clear_warning_info(thd->query_id);
       thd->clear_error();                 // Clear error message
       mdl_release_lock(&thd->mdl_context, table->mdl_lock_data);
+      mdl_remove_lock(&thd->mdl_context, table->mdl_lock_data);
       break;
     case OT_REPAIR:
       mdl_set_lock_type(table->mdl_lock_data, MDL_EXCLUSIVE);
       mdl_add_lock(&thd->mdl_context, table->mdl_lock_data);
       if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+      {
+        mdl_remove_lock(&thd->mdl_context, table->mdl_lock_data);
         return TRUE;
+      }
       pthread_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
       pthread_mutex_unlock(&LOCK_open);
 
       result= auto_repair_table(thd, table);
       mdl_release_lock(&thd->mdl_context, table->mdl_lock_data);
+      mdl_remove_lock(&thd->mdl_context, table->mdl_lock_data);
       break;
     default:
       DBUG_ASSERT(0);
