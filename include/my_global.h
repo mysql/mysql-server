@@ -1574,6 +1574,25 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
 
+/* Provide __func__ macro definition for platforms that miss it. */
+#if __STDC_VERSION__ < 199901L
+#  if __GNUC__ >= 2
+#    define __func__ __FUNCTION__
+#  else
+#    define __func__ "<unknown>"
+#  endif
+#elif defined(_MSC_VER)
+#  if _MSC_VER < 1300
+#    define __func__ "<unknown>"
+#  else
+#    define __func__ __FUNCTION__
+#  endif
+#elif defined(__BORLANDC__)
+#  define __func__ __FUNC__
+#else
+#  define __func__ "<unknown>"
+#endif
+
 #ifndef HAVE_RINT
 /**
    All integers up to this number can be represented exactly as double precision
