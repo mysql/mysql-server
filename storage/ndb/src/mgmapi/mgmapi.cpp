@@ -40,6 +40,7 @@
 
 #include <base64.h>
 
+//#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
  { name, \
    0, \
@@ -1163,6 +1164,27 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
 extern "C"
 int
+ndb_mgm_obtain_mgmd_version(NdbMgmHandle handle)
+{
+  if (handle->mgmd_version_build == -1)
+  {
+    char verStr[64]; /* Long enough? */
+
+    if (!ndb_mgm_get_version(handle,
+                             &(handle->mgmd_version_major),
+                             &(handle->mgmd_version_minor),
+                             &(handle->mgmd_version_build),
+                             sizeof(verStr),
+                             verStr))
+    {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+extern "C"
+int
 ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 	      int abort, int *disconnect)
 {
@@ -1184,19 +1206,11 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
   CHECK_CONNECTED(handle, -1);
 
-  if(handle->mgmd_version_build==-1)
+  if(ndb_mgm_obtain_mgmd_version(handle) == -1)
   {
-    char verstr[50];
-    if(!ndb_mgm_get_version(handle,
-                        &(handle->mgmd_version_major),
-                        &(handle->mgmd_version_minor),
-                        &(handle->mgmd_version_build),
-                        sizeof(verstr),
-                            verstr))
-    {
       return -1;
-    }
   }
+
   int use_v2= ((handle->mgmd_version_major==5)
     && (
         (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
@@ -2211,6 +2225,20 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 		     unsigned int input_backupId,
 		     unsigned int backuppoint) 
 {
+  /* Before we start the backup, first get the version of the
+   * management node we are connected to
+   */
+  if (ndb_mgm_obtain_mgmd_version(handle) == -1)
+  {
+    return -1;
+  }
+
+  Uint32 mgmdVersion = NDB_MAKE_VERSION(handle->mgmd_version_major,
+                                        handle->mgmd_version_minor,
+                                        handle->mgmd_version_build);
+  
+  bool sendBackupPoint = (mgmdVersion >= MGMD_MGMAPI_PROTOCOL_CHANGE);
+
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
   const ParserRow<ParserDummy> start_backup_reply[] = {
@@ -2225,7 +2253,9 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
   args.put("completed", wait_completed);
   if(input_backupId > 0)
     args.put("backupid", input_backupId);
-  args.put("backuppoint", backuppoint);
+  if (sendBackupPoint)
+    args.put("backuppoint", backuppoint);
+
   const Properties *reply;
   { // start backup can take some time, set timeout high
     int old_timeout= handle->timeout;
@@ -2308,13 +2338,30 @@ struct ndb_mgm_configuration *
 ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
                            enum ndb_mgm_node_type nodetype)
 {
+  /* Before we get the config, first get the version of the
+   * managment node we are connected to
+   */
+  if (ndb_mgm_obtain_mgmd_version(handle) == -1)
+  {
+    return NULL;
+  }
+
+  Uint32 mgmdVersion = NDB_MAKE_VERSION(handle->mgmd_version_major,
+                                        handle->mgmd_version_minor,
+                                        handle->mgmd_version_build);
+  
+  bool getConfigUsingNodetype = (mgmdVersion >= MGMD_MGMAPI_PROTOCOL_CHANGE); 
+
   CHECK_HANDLE(handle, 0);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_configuration");
   CHECK_CONNECTED(handle, 0);
 
   Properties args;
   args.put("version", version);
-  args.put("nodetype", nodetype);
+  if (getConfigUsingNodetype)
+  {
+    args.put("nodetype", nodetype);
+  }
 
   const ParserRow<ParserDummy> reply[] = {
     MGM_CMD("get config reply", NULL, ""),
