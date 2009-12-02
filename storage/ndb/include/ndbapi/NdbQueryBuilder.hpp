@@ -63,7 +63,7 @@ public:
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperand(NdbQueryOperandImpl& impl);
+  explicit NdbQueryOperand(NdbQueryOperandImpl& impl);
   ~NdbQueryOperand();
 
 private:
@@ -79,7 +79,7 @@ class NdbConstOperand : public NdbQueryOperand
 {
 private:
   friend class NdbConstOperandImpl;
-  NdbConstOperand(NdbQueryOperandImpl& impl);
+  explicit NdbConstOperand(NdbQueryOperandImpl& impl);
   ~NdbConstOperand();
 };
 
@@ -87,7 +87,7 @@ class NdbLinkedOperand : public NdbQueryOperand
 {
 private:
   friend class NdbLinkedOperandImpl;
-  NdbLinkedOperand(NdbQueryOperandImpl& impl);
+  explicit NdbLinkedOperand(NdbQueryOperandImpl& impl);
   ~NdbLinkedOperand();
 };
 
@@ -98,7 +98,7 @@ public:
 
 private:
   friend class NdbParamOperandImpl;
-  NdbParamOperand(NdbQueryOperandImpl& impl);
+  explicit NdbParamOperand(NdbQueryOperandImpl& impl);
   ~NdbParamOperand();
 };
 
@@ -125,7 +125,7 @@ public:
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryOperationDef();
 
 private:
@@ -148,7 +148,7 @@ public:
 private:
   // Enforce object creation through NdbQueryBuilder factory
   friend class NdbQueryLookupOperationDefImpl;
-  NdbQueryLookupOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryLookupOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryLookupOperationDef();
 }; // class NdbQueryLookupOperationDef
 
@@ -156,7 +156,7 @@ class NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for 
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryScanOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryScanOperationDef();
 }; // class NdbQueryScanOperationDef
 
@@ -165,16 +165,40 @@ class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
 private:
   // Enforce object creation through NdbQueryBuilder factory 
   friend class NdbQueryTableScanOperationDefImpl;
-  NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
+/** Ordering of scan results when scanning ordered indexes.*/
+enum NdbScanOrdering
+{
+  /** Undefined (not yet set). */
+  NdbScanOrdering_void, 
+  /** Results will not be ordered.*/
+  NdbScanOrdering_unordered, 
+  NdbScanOrdering_ascending,
+  NdbScanOrdering_descending
+};
+
 class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
+public:
+  /** Define result ordering. Alternatively, ordering may be set when the 
+   * query definition has been instantiated, using 
+   * NdbQueryOperation::setOrdering(). It is an error to call this method 
+   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
+   * @param ordering The desired ordering of results.
+   * @return 0 if ok, -1 in case of error.
+   */
+  int setOrdering(NdbScanOrdering ordering);
+
+  /** Get the result ordering for this operation.*/
+  NdbScanOrdering getOrdering() const;
+
 private:
   // Enforce object creation through NdbQueryBuilder factory 
   friend class NdbQueryIndexScanOperationDefImpl;
-  NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl& impl);
+  explicit NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryIndexScanOperationDef();
 }; // class NdbQueryIndexScanOperationDef
 
@@ -241,7 +265,7 @@ private:
 class NdbQueryBuilder 
 {
 public:
-  NdbQueryBuilder(Ndb&);    // Or getQueryBuilder() from Ndb..
+  explicit NdbQueryBuilder(Ndb&);    // Or getQueryBuilder() from Ndb..
  ~NdbQueryBuilder();
 
   const NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
@@ -367,7 +391,7 @@ public:
 private:
   NdbQueryDefImpl& m_impl;
 
-  NdbQueryDef(NdbQueryDefImpl& impl);
+  explicit NdbQueryDef(NdbQueryDefImpl& impl);
   ~NdbQueryDef();
 };
 

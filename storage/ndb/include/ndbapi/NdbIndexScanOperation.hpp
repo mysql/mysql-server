@@ -333,8 +333,6 @@ private:
   int ordered_send_scan_wait_for_all(bool forceSend);
   int send_next_scan_ordered(Uint32 idx);
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
-  int compare_ndbrecord(const NdbReceiver *r1,
-                        const NdbReceiver *r2) const;
   Uint32 m_sort_columns;
 
   /* Number of IndexBounds for this scan (NdbRecord only) */
@@ -378,4 +376,20 @@ NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* value,
   return setBound(anAttrId, type, value);
 }
 
+/** 
+ *   Compare keys of  the current records of two NdbReceiver objects.
+ * @param r1 holds the first record to compare.
+ * @param r2 holds the second record to compare.
+ * @param key_record specifies the keys to compare.
+ * @param result_record specifies the format of full records.
+ * @param descending if true, descending sort order is to be used.
+ * @param read_range_no if true, range numbers will first be compared, and then keys if range numbers are the same for both records.
+ * @return -1 if r1<r2, 0 if r1=r2, 1 if r1> r2 (reversed when using 'descending').
+ **/
+int compare_ndbrecord(const NdbReceiver *r1,
+                      const NdbReceiver *r2,
+                      const NdbRecord *key_record,
+                      const NdbRecord *result_record,
+                      bool descending,
+                      bool read_range_no);
 #endif

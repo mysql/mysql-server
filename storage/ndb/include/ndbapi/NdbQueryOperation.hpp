@@ -22,6 +22,8 @@
 /* There is no way to forward declare nested class NdbDictionary::Column,
  * so this header file must be included.*/
 #include "NdbDictionary.hpp"
+// Needed to get NdbScanOrdering.
+#include "NdbQueryBuilder.hpp" 
 #include "NdbIndexScanOperation.hpp"
 
 
@@ -230,6 +232,7 @@ public:
    *
    * @param  result_mask defines as subset of attributes to read. 
    *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId & 7))' is set
+   * @return 0 on success, -1 otherwise (call getNdbError() for details).
    */
   int setResultRowBuf (const NdbRecord *rec,
                        char* resBuffer,
@@ -252,6 +255,18 @@ public:
   /** Get object implementing NdbQueryOperation interface.*/
   NdbQueryOperationImpl& getImpl() const
   { return m_impl; }
+
+  /** Define result ordering for ordered index scan. It is an error to call
+   * this method on an operation that is not a scan, or to call it if an
+   * ordering was already set on the operation defintion by calling 
+   * NdbQueryOperationDef::setOrdering().
+   * @param ordering The desired ordering of results.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setOrdering(NdbScanOrdering ordering);
+
+  /** Get the result ordering for this operation.*/
+  NdbScanOrdering getOrdering() const;
 
 private:
   // Opaque implementation class instance.

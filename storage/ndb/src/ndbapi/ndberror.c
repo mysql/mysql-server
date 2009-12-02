@@ -765,6 +765,11 @@ ErrorBundle ErrorCodes[] = {
     "A previous query operation failed, which you missed to catch."},
   { QRY_ILLEGAL_STATE, DMEC, AE, 
     "Query is in illegal state for this operation."},
+  { QRY_WRONG_OPERATION_TYPE, DMEC, AE, 
+    "This method cannot be invoked on this type of operation (lookup/scan/"
+    "index scan)."},
+  { QRY_SCAN_ORDER_ALREADY_SET, DMEC, AE, 
+    "Index scan order was already set in query definition."},
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

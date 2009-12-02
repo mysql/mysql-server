@@ -3415,14 +3415,15 @@ NdbIndexScanOperation::processIndexScanDefs(LockMode lm,
   return res;
 }
 
-int
-NdbIndexScanOperation::compare_ndbrecord(const NdbReceiver *r1,
-                                         const NdbReceiver *r2) const
+int compare_ndbrecord(const NdbReceiver *r1,
+                      const NdbReceiver *r2,
+                      const NdbRecord *key_record,
+                      const NdbRecord *result_record,
+                      bool descending,
+                      bool read_range_no)
 {
   Uint32 i;
-  int jdir= 1 - 2 * (int)m_descending;
-  const NdbRecord *key_record= m_key_record;
-  const NdbRecord *result_record= m_attribute_record;
+  int jdir= 1 - 2 * (int)descending;
 
   assert(jdir == 1 || jdir == -1);
 
@@ -3430,7 +3431,7 @@ NdbIndexScanOperation::compare_ndbrecord(const NdbReceiver *r1,
   const char *b_row= r2->peek_row();
 
   /* First compare range_no if needed. */
-  if (m_read_range_no)
+  if (read_range_no)
   {
     Uint32 a_range_no= uint4korr(a_row+result_record->m_row_size);
     Uint32 b_range_no= uint4korr(b_row+result_record->m_row_size);
@@ -3562,7 +3563,12 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
   while (first < last)
   {
     Uint32 idx= (first+last)/2;
-    int res= compare_ndbrecord(receiver, m_api_receivers[idx]);
+    int res= compare_ndbrecord(receiver, 
+                               m_api_receivers[idx],
+                               m_key_record,
+                               m_attribute_record,
+                               m_descending,
+                               m_read_range_no);
     if (res <= 0)
       last= idx;
     else
