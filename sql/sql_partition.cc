@@ -4314,7 +4314,6 @@ set_engine_all_partitions(partition_info *part_info,
 
 static int fast_end_partition(THD *thd, ulonglong copied,
                               ulonglong deleted,
-                              TABLE *table,
                               TABLE_LIST *table_list, bool is_empty,
                               ALTER_PARTITION_PARAM_TYPE *lpt,
                               bool written_bin_log)
@@ -4333,11 +4332,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
     error= 1;
 
   if (error)
-  {
-    /* If error during commit, no need to rollback, it's done. */
-    table->file->print_error(error, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
+    DBUG_RETURN(TRUE);                      /* The error has been reported */
 
   if ((!is_empty) && (!written_bin_log) &&
       (!thd->lex->no_write_to_binlog))
@@ -6215,30 +6210,13 @@ static void release_log_entries(partition_info *part_info)
 */
 static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  int err;
-  if (lpt->thd->locked_tables_mode)
-  {
-    /*
-      When we have the table locked, it is necessary to reopen the table
-      since all table objects were closed and removed as part of the
-      ALTER TABLE of partitioning structure.
-    */
-    pthread_mutex_lock(&LOCK_open);
-    lpt->thd->in_lock_tables= 1;
-    err= reopen_tables(lpt->thd, 1);
-    lpt->thd->in_lock_tables= 0;
-    if (err)
-    {
-      /*
-       Issue a warning since we weren't able to regain the lock again.
-       We also need to unlink table from thread's open list and from
-       table_cache
-     */
-      unlink_open_table(lpt->thd, lpt->table, FALSE);
-      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
-    }
-    pthread_mutex_unlock(&LOCK_open);
-  }
+  THD *thd= lpt->thd;
+
+  close_all_tables_for_name(thd, lpt->table->s, FALSE);
+  lpt->table= 0;
+  lpt->table_list->table= 0;
+  if (thd->locked_tables_list.reopen_tables(thd))
+    sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 }
 
 /*
@@ -6252,17 +6230,37 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
+  TABLE_SHARE *share= lpt->table->s;
   THD *thd= lpt->thd;
-  const char *db= lpt->db;
-  const char *table_name= lpt->table_name;
+  TABLE *table;
   DBUG_ENTER("alter_close_tables");
   /*
-    We need to also unlock tables and close all handlers.
-    We set lock to zero to ensure we don't do this twice
-    and we set db_stat to zero to ensure we don't close twice.
+    We must keep LOCK_open while manipulating with thd->open_tables.
+    Another thread may be working on it.
   */
   pthread_mutex_lock(&LOCK_open);
-  close_data_files_and_leave_as_placeholders(thd, db, table_name);
+  /*
+    We can safely remove locks for all tables with the same name:
+    later they will all be closed anyway in
+    alter_partition_lock_handling().
+  */
+  for (table= thd->open_tables; table ; table= table->next)
+  {
+    if (!strcmp(table->s->table_name.str, share->table_name.str) &&
+	!strcmp(table->s->db.str, share->db.str))
+    {
+      mysql_lock_remove(thd, thd->lock, table);
+      table->file->close();
+      table->db_stat= 0;                        // Mark file closed
+      /*
+        Ensure that we won't end up with a crippled table instance
+        in the table cache if an error occurs before we reach
+        alter_partition_lock_handling() and the table is closed
+        by close_thread_tables() instead.
+      */
+      table->s->version= 0;
+    }
+  }
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
@@ -6429,6 +6427,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   DBUG_ENTER("fast_alter_partition_table");
 
   lpt->thd= thd;
+  lpt->table_list= table_list;
   lpt->part_info= part_info;
   lpt->alter_info= alter_info;
   lpt->create_info= create_info;
@@ -6745,7 +6744,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     user
   */
   DBUG_RETURN(fast_end_partition(thd, lpt->copied, lpt->deleted,
-                                 table, table_list, FALSE, NULL,
+                                 table_list, FALSE, NULL,
                                  written_bin_log));
 err:
   close_thread_tables(thd);

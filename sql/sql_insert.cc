@@ -3542,16 +3542,22 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-        pthread_mutex_lock(&LOCK_open);
-        if (reopen_name_locked_table(thd, create_table))
+        enum enum_open_table_action ot_action_unused;
+        /*
+          Here we open the destination table, on which we already have
+          an exclusive metadata lock.
+        */
+        if (open_table(thd, create_table, thd->mem_root,
+                       &ot_action_unused, MYSQL_OPEN_REOPEN))
         {
+          pthread_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
                          0);
+          pthread_mutex_unlock(&LOCK_open);
         }
         else
           table= create_table->table;
-        pthread_mutex_unlock(&LOCK_open);
       }
       else
       {

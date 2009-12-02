@@ -224,7 +224,8 @@ bool servers_reload(THD *thd)
   bool return_val= TRUE;
   DBUG_ENTER("servers_reload");
 
-  unlock_locked_tables(thd); // Can't have locked tables here
+  /* Can't have locked tables here */
+  thd->locked_tables_list.unlock_locked_tables(thd);
 
   DBUG_PRINT("info", ("locking servers_cache"));
   rw_wrlock(&THR_LOCK_servers);

@@ -512,28 +512,15 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
 /**
   Try to find the table in the list of locked tables.
   In case of success, unlock the table and remove it from this list.
-
-  @note This function has a legacy side effect: the table is
-  unlocked even if it is not found in the locked list.
-  It's not clear if this side effect is intentional or still
-  desirable. It might lead to unmatched calls to
-  unlock_external(). Moreover, a discrepancy can be left
-  unnoticed by the storage engine, because in
-  unlock_external() we call handler::external_lock(F_UNLCK) only
-  if table->current_lock is not F_UNLCK.
+  If a table has more than one lock instance, removes them all.
 
   @param  thd             thread context
   @param  locked          list of locked tables
   @param  table           the table to unlock
-  @param  always_unlock   specify explicitly if the legacy side
-                          effect is desired.
 */
 
-void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table,
-                       bool always_unlock)
+void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
 {
-  if (always_unlock == TRUE)
-    mysql_unlock_some_tables(thd, &table, /* table count */ 1);
   if (locked)
   {
     reg1 uint i;
@@ -547,9 +534,8 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table,
 
         DBUG_ASSERT(table->lock_position == i);
 
-        /* Unlock if not yet unlocked */
-        if (always_unlock == FALSE)
-          mysql_unlock_some_tables(thd, &table, /* table count */ 1);
+        /* Unlock the table. */
+        mysql_unlock_some_tables(thd, &table, /* table count */ 1);
 
         /* Decrement table_count in advance, making below expressions easier */
         old_tables= --locked->table_count;
