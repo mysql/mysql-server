@@ -28,6 +28,9 @@ class ha_myisammrg: public handler
   my_bool is_cloned;                    /* This instance has been cloned */
 
  public:
+  MEM_ROOT      children_mem_root;      /* mem root for children list */
+  TABLE_LIST    *children_l;            /* children list */
+  TABLE_LIST    **children_last_l;      /* children list end */
   TABLE_LIST    *next_child_attach;     /* next child to attach */
   uint          test_if_locked;         /* flags from ::open() */
   bool          need_compat_check;      /* if need compatibility check */
@@ -60,6 +63,7 @@ class ha_myisammrg: public handler
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, uint test_if_locked);
+  int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
   virtual handler *clone(MEM_ROOT *mem_root);

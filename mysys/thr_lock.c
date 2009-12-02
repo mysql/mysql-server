@@ -631,6 +631,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     {
       if (lock->write.data->type == TL_WRITE_ONLY)
       {
+        /* purecov: begin tested */
         /* Allow lock owner to bypass TL_WRITE_ONLY. */
         if (!thr_lock_owner_equal(data->owner, lock->write.data->owner))
         {
@@ -639,6 +640,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
           result= THR_LOCK_ABORTED;               /* Can't wait for this one */
           goto end;
         }
+        /* purecov: end */
       }
 
       /*

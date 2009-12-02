@@ -4396,7 +4396,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
                                   "Failed to open partially restored table"));
   }
   /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->table || !table->table->child_l);
+  DBUG_ASSERT(!table->table ||
+              table->table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
   DBUG_RETURN(0);
 }
 
@@ -4463,7 +4464,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   }
 
   /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->child_l);
+  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
@@ -7270,7 +7271,8 @@ view_err:
   }
   else
   {
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    if (!table->s->tmp_table &&
+        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto err_new_table_cleanup;
     thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
