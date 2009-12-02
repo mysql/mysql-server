@@ -1120,13 +1120,17 @@ struct TABLE_LIST
     simple_open_and_lock_tables
   */
   inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
                              const char *table_name_arg,
+                             size_t table_name_length_arg,
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
     bzero((char*) this, sizeof(*this));
     db= (char*) db_name_arg;
+    db_length= db_length_arg;
     table_name= (char*) table_name_arg;
+    table_name_length= table_name_length_arg;
     alias= (char*) alias_arg;
     lock_type= lock_type_arg;
   }

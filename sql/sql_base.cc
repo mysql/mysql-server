@@ -2924,16 +2924,16 @@ Locked_tables_list::init_locked_tables(THD *thd)
   {
     TABLE_LIST *src_table_list= table->pos_in_table_list;
     char *db, *table_name, *alias;
-    size_t db_len= strlen(src_table_list->db) + 1;
-    size_t table_name_len= strlen(src_table_list->table_name) + 1;
-    size_t alias_len= strlen(src_table_list->alias) + 1;
+    size_t db_len= src_table_list->db_length;
+    size_t table_name_len= src_table_list->table_name_length;
+    size_t alias_len= strlen(src_table_list->alias);
     TABLE_LIST *dst_table_list;
 
     if (! multi_alloc_root(&m_locked_tables_root,
                            &dst_table_list, sizeof(*dst_table_list),
-                           &db, db_len,
-                           &table_name, table_name_len,
-                           &alias, alias_len,
+                           &db, db_len + 1,
+                           &table_name, table_name_len + 1,
+                           &alias, alias_len + 1,
                            NullS))
     {
       unlock_locked_tables(0);
@@ -2947,13 +2947,14 @@ Locked_tables_list::init_locked_tables(THD *thd)
       TL_WRITE_DEFAULT, whereas reginfo.lock_type has been updated from
       thd->update_lock_default.
     */
-    dst_table_list->init_one_table(db, table_name, alias,
+    dst_table_list->init_one_table(db, db_len, table_name, table_name_len,
+                                   alias,
                                    src_table_list->table->reginfo.lock_type);
     dst_table_list->mdl_lock_data= src_table_list->mdl_lock_data;
     dst_table_list->table= table;
-    memcpy(db, src_table_list->db, db_len);
-    memcpy(table_name, src_table_list->table_name, table_name_len);
-    memcpy(alias, src_table_list->alias, alias_len);
+    memcpy(db, src_table_list->db, db_len + 1);
+    memcpy(table_name, src_table_list->table_name, table_name_len + 1);
+    memcpy(alias, src_table_list->alias, alias_len + 1);
     /* Link last into the list of tables */
     *(dst_table_list->prev_global= m_locked_tables_last)= dst_table_list;
     m_locked_tables_last= &dst_table_list->next_global;
