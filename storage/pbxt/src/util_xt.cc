@@ -150,6 +150,23 @@ xtPublic xtWord1 xt_get_checksum1(xtWord1 *data, size_t len)
 	return (xtWord1) (sum ^ (sum >> 24) ^ (sum >> 16) ^ (sum >> 8));
 }
 
+xtPublic xtWord4 xt_get_checksum4(xtWord1 *data, size_t len)
+{
+	register xtWord4	sum = 0, g;
+	xtWord1				*chk;
+
+	chk = data + len - 1;
+	while (chk > data) {
+		sum = (sum << 4) + *chk;
+		if ((g = sum & 0xF0000000)) {
+			sum = sum ^ (g >> 24);
+			sum = sum ^ g;
+		}
+		chk--;
+	}
+	return sum;
+}
+
 /*
  * --------------- Data Buffer ------------------
  */

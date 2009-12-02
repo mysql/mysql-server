@@ -30,8 +30,9 @@
 
 #ifdef DRIZZLED
 #include <drizzled/common.h>
-#include <drizzled/handler.h>
+#include <drizzled/handler_structs.h>
 #include <drizzled/current_session.h>
+#include <drizzled/cursor.h>
 #else
 #include "mysql_priv.h"
 #endif

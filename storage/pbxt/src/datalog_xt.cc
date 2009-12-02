@@ -410,7 +410,7 @@ static void dl_recover_log(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogFilePtr
 	ASSERT_NS(seq_read.sl_log_eof == seq_read.sl_rec_log_offset);
 	data_log->dlf_log_eof = seq_read.sl_rec_log_offset;
 
-	if ((size_t) data_log->dlf_log_eof < sizeof(XTXactLogHeaderDRec)) {
+	if (data_log->dlf_log_eof < (off_t) sizeof(XTXactLogHeaderDRec)) {
 		data_log->dlf_log_eof = sizeof(XTXactLogHeaderDRec);
 		if (!dl_create_log_header(data_log, seq_read.sl_log_file, self))
 			xt_throw(self);
@@ -1162,7 +1162,7 @@ xtBool XTDataLogBuffer::dlb_close_log(XTThreadPtr thread)
 /* When I use 'thread' instead of 'self', this means
  * that I will not throw an error.
  */
-xtBool XTDataLogBuffer::dlb_get_log_offset(xtLogID *log_id, xtLogOffset *out_offset, size_t req_size, struct XTThread *thread)
+xtBool XTDataLogBuffer::dlb_get_log_offset(xtLogID *log_id, xtLogOffset *out_offset, size_t XT_UNUSED(req_size), struct XTThread *thread)
 {
 	/* Note, I am allowing a log to grow beyond the threshold.
 	 * The amount depends on the maximum extended record size.
@@ -1757,7 +1757,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 			freer_(); // xt_unlock_mutex(&db->db_co_dlog_lock)
 
 			/* Flush the transaction log. */
-			if (!xt_xlog_flush_log(self))
+			if (!xt_xlog_flush_log(db, self))
 				xt_throw(self);
 
 			xt_lock_mutex_ns(&db->db_datalogs.dlc_head_lock);
@@ -1891,7 +1891,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	freer_(); // xt_unlock_mutex(&db->db_co_dlog_lock)
 	
 	/* Flush the transaction log. */
-	if (!xt_xlog_flush_log(self))
+	if (!xt_xlog_flush_log(db, self))
 		xt_throw(self);
 
 	/* Save state in source log header. */

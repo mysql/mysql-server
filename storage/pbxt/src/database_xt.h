@@ -105,6 +105,8 @@ typedef struct XTTablePath {
 #define XT_THREAD_IDLE		1
 #define XT_THREAD_INERR		2
 
+#define XT_XA_HASH_TAB_SIZE	223
+
 typedef struct XTDatabase : public XTHeap {
 	char					*db_name;								/* The name of the database, last component of the path! */
 	char					*db_main_path;
@@ -131,6 +133,9 @@ typedef struct XTDatabase : public XTHeap {
 	u_int					db_stat_sweep_waits;					/* STATISTICS: count the sweeper waits. */
 	XTDatabaseLogRec		db_xlog;								/* The transaction log for this database. */
 	XTXactRestartRec		db_restart;								/* Database recovery stuff. */
+	xt_mutex_type			db_xn_xa_lock;
+	XTXactPreparePtr		db_xn_xa_table[XT_XA_HASH_TAB_SIZE];
+	XTSortedListPtr			db_xn_xa_list;							/* The "wait-for" list, of transactions waiting for other transactions. */
 
 	XTSortedListPtr			db_xn_wait_for;							/* The "wait-for" list, of transactions waiting for other transactions. */
 	u_int					db_xn_call_start;						/* Start of the post wait calls. */
@@ -198,6 +203,7 @@ void				xt_check_database(XTThreadPtr self);
 
 void				xt_add_pbxt_file(size_t size, char *path, const char *file);
 void				xt_add_location_file(size_t size, char *path);
+void				xt_add_pbxt_dir(size_t size, char *path);
 void				xt_add_system_dir(size_t size, char *path);
 void				xt_add_data_dir(size_t size, char *path);
 
@@ -243,5 +249,7 @@ inline void xt_xlog_check_long_writer(XTThreadPtr thread)
 		}
 	}
 }
+
+extern XTDatabaseHPtr	pbxt_database;				// The global open database
 
 #endif
