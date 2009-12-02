@@ -53,7 +53,7 @@ LOGGER logger;
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static bool test_if_number(const char *str,
-			   long *res, bool allow_wildcards);
+			   ulong *res, bool allow_wildcards);
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
@@ -61,6 +61,35 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+
+/**
+   purge logs, master and slave sides both, related error code
+   convertor.
+   Called from @c purge_error_message(), @c MYSQL_BIN_LOG::reset_logs()
+
+   @param  res  an internal to purging routines error code 
+
+   @return the user level error code ER_*
+*/
+uint purge_log_get_error_code(int res)
+{
+  uint errcode= 0;
+
+  switch (res)  {
+  case 0: break;
+  case LOG_INFO_EOF:	errcode= ER_UNKNOWN_TARGET_BINLOG; break;
+  case LOG_INFO_IO:	errcode= ER_IO_ERR_LOG_INDEX_READ; break;
+  case LOG_INFO_INVALID:errcode= ER_BINLOG_PURGE_PROHIBITED; break;
+  case LOG_INFO_SEEK:	errcode= ER_FSEEK_FAIL; break;
+  case LOG_INFO_MEM:	errcode= ER_OUT_OF_RESOURCES; break;
+  case LOG_INFO_FATAL:	errcode= ER_BINLOG_PURGE_FATAL_ERR; break;
+  case LOG_INFO_IN_USE: errcode= ER_LOG_IN_USE; break;
+  case LOG_INFO_EMFILE: errcode= ER_BINLOG_PURGE_EMFILE; break;
+  default:		errcode= ER_LOG_PURGE_UNKNOWN_ERR; break;
+  }
+
+  return errcode;
+}
 
 /**
   Silence all errors and warnings reported when performing a write
@@ -1852,22 +1881,27 @@ static void setup_windows_event_source()
 /**
   Find a unique filename for 'filename.#'.
 
-  Set '#' to a number as low as possible.
+  Set '#' to the number next to the maximum found in the most
+  recent log file extension.
+
+  This function will return nonzero if: (i) the generated name
+  exceeds FN_REFLEN; (ii) if the number of extensions is exhausted;
+  or (iii) some other error happened while examining the filesystem.
 
   @return
-    nonzero if not possible to get unique filename
+    nonzero if not possible to get unique filename.
 */
 
 static int find_uniq_filename(char *name)
 {
-  long                  number;
   uint                  i;
-  char                  buff[FN_REFLEN];
+  char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
   struct st_my_dir     *dir_info;
   reg1 struct fileinfo *file_info;
-  ulong                 max_found=0;
+  ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
   char			*start, *end;
+  int                   error= 0;
   DBUG_ENTER("find_uniq_filename");
 
   length= dirname_part(buff, name, &buf_length);
@@ -1875,15 +1909,15 @@ static int find_uniq_filename(char *name)
   end=    strend(start);
 
   *end='.';
-  length= (size_t) (end-start+1);
+  length= (size_t) (end - start + 1);
 
-  if (!(dir_info = my_dir(buff,MYF(MY_DONT_SORT))))
+  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
   file_info= dir_info->dir_entry;
-  for (i=dir_info->number_off_files ; i-- ; file_info++)
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
     if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
@@ -1893,9 +1927,44 @@ static int find_uniq_filename(char *name)
   }
   my_dirend(dir_info);
 
+  /* check if reached the maximum possible extension number */
+  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
+  {
+    sql_print_error("Log filename extension number exhausted: %06lu. \
+Please fix this by archiving old logs and \
+updating the index files.", max_found);
+    error= 1;
+    goto end;
+  }
+
+  next= max_found + 1;
+  sprintf(ext_buf, "%06lu", next);
   *end++='.';
-  sprintf(end,"%06ld",max_found+1);
-  DBUG_RETURN(0);
+
+  /* 
+    Check if the generated extension size + the file name exceeds the
+    buffer size used. If one did not check this, then the filename might be
+    truncated, resulting in error.
+   */
+  if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
+  {
+    sql_print_error("Log filename too large: %s%s (%lu). \
+Please fix this by archiving old logs and updating the \
+index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
+    error= 1;
+    goto end;
+  }
+
+  sprintf(end, "%06lu", next);
+
+  /* print warning if reaching the end of available extensions. */
+  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
+    sql_print_warning("Next log extension: %lu. \
+Remaining log filename extensions: %lu. \
+Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
+
+end:
+  DBUG_RETURN(error);
 }
 
 
@@ -2094,6 +2163,13 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
+        /* 
+          This should be treated as error once propagation of error further
+          up in the stack gets proper handling.
+        */
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                            log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -2789,8 +2865,10 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   {
     uint length;
     my_off_t offset= my_b_tell(&index_file);
-    /* If we get 0 or 1 characters, this is the end of the file */
 
+    DBUG_EXECUTE_IF("simulate_find_log_pos_error",
+                    error=  LOG_INFO_EOF; break;);
+    /* If we get 0 or 1 characters, this is the end of the file */
     if ((length= my_b_gets(&index_file, fname, FN_REFLEN)) <= 1)
     {
       /* Did not find the given entry; Return not found or error */
@@ -2892,6 +2970,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 {
   LOG_INFO linfo;
   bool error=0;
+  int err;
   const char* save_name;
   DBUG_ENTER("reset_logs");
 
@@ -2918,9 +2997,12 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   /* First delete all old log files */
 
-  if (find_log_pos(&linfo, NullS, 0))
+  if ((err= find_log_pos(&linfo, NullS, 0)) != 0)
   {
-    error=1;
+    uint errcode= purge_log_get_error_code(err);
+    sql_print_error("Failed to locate old binlog or relay log files");
+    my_message(errcode, ER(errcode), MYF(0));
+    error= 1;
     goto err;
   }
 
@@ -2989,6 +3071,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   my_free((uchar*) save_name, MYF(0));
 
 err:
+  if (error == 1)
+    name= const_cast<char*>(save_name);
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
@@ -4812,11 +4896,11 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
   @retval
     1	String is a number
   @retval
-    0	Error
+    0	String is not a number
 */
 
 static bool test_if_number(register const char *str,
-			   long *res, bool allow_wildcards)
+			   ulong *res, bool allow_wildcards)
 {
   reg2 int flag;
   const char *start;
