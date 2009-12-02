@@ -252,3 +252,46 @@ UNLOCK TABLES;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Ensure that FLUSH TABLES doesn't substitute a base locked table
+--echo # with a temporary one.
+--echo #
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+create temporary table t1 (a int);
+flush table t1;
+drop temporary table t1;
+select * from t1;
+unlock tables;
+drop table t1, t2;
+
+--echo #
+--echo # Ensure that REPAIR .. USE_FRM works under LOCK TABLES.
+--echo #
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+repair table t1 use_frm;
+repair table t1 use_frm;
+select * from t1;
+select * from t2;
+repair table t2 use_frm;
+repair table t2 use_frm;
+select * from t1;
+unlock tables;
+drop table t1, t2;
+
+
+--echo #
+--echo # End of 6.0 tests.
+--echo #

@@ -328,6 +328,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   bool result= TRUE;
   String stmt_query;
   bool need_start_waiting= FALSE;
+  bool lock_upgrade_done= FALSE;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -450,71 +451,53 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     if (!(tables->table= find_write_locked_table(thd->open_tables, tables->db,
                                                  tables->table_name)))
       goto end;
-    /*
-      Ensure that table is opened only by this thread and that no other
-      statement will open this table.
-    */
-    if (wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN))
-      goto end;
-
-    pthread_mutex_lock(&LOCK_open);
+    /* Later on we will need it to downgrade the lock */
+    tables->mdl_lock_data= tables->table->mdl_lock_data;
   }
   else
   {
-    /*
-      Obtain exlusive meta-data lock on the table and remove TABLE
-      instances from cache.
-    */
-    if (lock_table_names(thd, tables))
+    tables->table= open_n_lock_single_table(thd, tables,
+                                            TL_WRITE_ALLOW_READ,
+                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+    if (! tables->table)
       goto end;
-
-    pthread_mutex_lock(&LOCK_open);
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, tables->db, tables->table_name);
-
-    if (reopen_name_locked_table(thd, tables))
-      goto end_unlock;
+    tables->table->use_all_columns();
   }
   table= tables->table;
+
+  if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    goto end;
+
+  lock_upgrade_done= TRUE;
 
   if (!table->triggers)
   {
     if (!create)
     {
       my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-      goto end_unlock;
+      goto end;
     }
 
     if (!(table->triggers= new (&table->mem_root) Table_triggers_list(table)))
-      goto end_unlock;
+      goto end;
   }
 
+  pthread_mutex_lock(&LOCK_open);
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
-
-  /* Under LOCK TABLES we must reopen the table to activate the trigger. */
-  if (!result && thd->locked_tables_mode)
-  {
-    /* Make table suitable for reopening */
-    close_data_files_and_leave_as_placeholders(thd, tables->db,
-                                               tables->table_name);
-    thd->in_lock_tables= 1;
-    if (reopen_tables(thd, 1))
-    {
-      /* To be safe remove this table from the set of LOCKED TABLES */
-      unlink_open_table(thd, tables->table, FALSE);
-
-      /*
-        Ignore reopen_tables errors for now. It's better not leave master/slave
-        in a inconsistent state.
-      */
-      thd->clear_error();
-    }
-    thd->in_lock_tables= 0;
-  }
-
-end_unlock:
   pthread_mutex_unlock(&LOCK_open);
+
+  if (result)
+    goto end;
+
+  close_all_tables_for_name(thd, table->s, FALSE);
+  /*
+    Reopen the table if we were under LOCK TABLES.
+    Ignore the return value for now. It's better to
+    keep master/slave in consistent state.
+  */
+  thd->locked_tables_list.reopen_tables(thd);
 
 end:
   if (!result)
@@ -525,11 +508,11 @@ end:
   /*
     If we are under LOCK TABLES we should restore original state of meta-data
     locks. Otherwise call to close_thread_tables() will take care about both
-    TABLE instance created by reopen_name_locked_table() and metadata lock.
+    TABLE instance created by open_n_lock_single_table() and metadata lock.
   */
-  if (thd->locked_tables_mode && tables && tables->table)
+  if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_downgrade_exclusive_lock(&thd->mdl_context,
-                                 tables->table->mdl_lock_data);
+                                 tables->mdl_lock_data);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
