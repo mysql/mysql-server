@@ -1,0 +1,17 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_PORT,master_user='root';
+START SLAVE IO_THREAD;
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id
+3	slave2	DEFAULT_PORT	1
+2		SLAVE_PORT	1
+STOP SLAVE IO_THREAD;
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id
+2		SLAVE_PORT	1
