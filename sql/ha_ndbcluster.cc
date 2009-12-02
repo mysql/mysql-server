@@ -485,6 +485,14 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   {
     DBUG_RETURN(0);
   }
+
+  // 'pk' in (x,y,z) is not correctly handled in MRR result handling yet.
+  if (join_root.select && join_root.select->quick &&
+      m_index[join_root.select->quick->index].index == NULL)
+  {
+    DBUG_RETURN(0);
+  }
+
   /****** TODO, END 'temporary limitations' *****************/
 
   if (!field_ref_is_join_pushable(join_tabs, 1, join_items))
@@ -587,11 +595,31 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       DBUG_PRINT("info", ("Root operation scan index:%d w/ upper/lower bounds", quick->index));
 
       DBUG_EXECUTE("info", quick->dbug_dump(0, true););
-//    DBUG_ASSERT (!quick->sorted);  -- TODO: Don't handle ordered scans yet, let it through anyway
 
-      // Bounds will be generated and supplied during execute
-      DBUG_ASSERT (m_index[quick->index].index);
-      operationDefs[0]= builder.scanIndex(m_index[quick->index].index, m_table);
+      if (!m_index[quick->index].index) // Use PK, typically 'pk in (X,Y,Z)'
+      {
+        // This case has been temporarily disabled further above as it
+        // need massive changes in the MRR handling of multiple PK reads.
+        DBUG_ASSERT(quick->index == join_root.table->s->primary_key);
+
+        const NdbRecord *key_rec= m_index[quick->index].ndb_unique_record_key;
+        const NdbQueryOperand* rootKey[10] = {NULL};
+        for (uint i = 0; i < key_rec->noOfColumns; i++)
+        {
+          rootKey[i]= builder.paramValue();
+          if (!rootKey[i])
+            DBUG_RETURN(0);
+        }
+        rootKey[key_rec->noOfColumns]= NULL;
+
+        operationDefs[0]= builder.readTuple(m_table, rootKey);
+      }
+      else
+      {
+        // Bounds will be generated and supplied during execute
+        //DBUG_ASSERT (m_index[quick->index].index);
+        operationDefs[0]= builder.scanIndex(m_index[quick->index].index, m_table);
+      }
     }
     else
     {
@@ -11800,7 +11828,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table_share->reclength;
-  const NdbOperation* op;
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans= m_thd_ndb->trans;
 
@@ -12122,14 +12149,24 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         ppartitionId=&partitionId;
       }
 
-      DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u",
-                          i));
-      if (!(op= pk_unique_index_read_key(active_index,
-                                         r->start_key.key,
-                                         row_buf, lm,
-                                         ppartitionId)))
-        ERR_RETURN(trans->getNdbError());
-
+      DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u", i));
+      if (m_pushed_join)
+      {
+        const NdbQuery* query;
+        if (!(query= pk_unique_index_read_key_pushed(active_index,
+                                           r->start_key.key,
+                                           lm, ppartitionId)))
+          ERR_RETURN(trans->getNdbError());
+      }
+      else
+      {
+        const NdbOperation* op;
+        if (!(op= pk_unique_index_read_key(active_index,
+                                           r->start_key.key,
+                                           row_buf, lm,
+                                           ppartitionId)))
+          ERR_RETURN(trans->getNdbError());
+      }
       row_buf+= reclength;
     }
   }

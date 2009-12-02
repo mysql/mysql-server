@@ -1505,7 +1505,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
   } else {  // Lookup query
 
     NdbApiSignal tSignal(&ndb);
-    tSignal.setSignal(GSN_TCKEYREQ);  // TODO: or GSN_TCINDXREQ
+    tSignal.setSignal(GSN_TCKEYREQ);
 
     TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, tSignal.getDataPtrSend());
 
