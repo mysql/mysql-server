@@ -19,6 +19,7 @@
 #include "sql_plist.h"
 #include <my_sys.h>
 #include <m_string.h>
+#include <mysql_com.h>
 
 class THD;
 
@@ -148,6 +149,9 @@ void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
 void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
 void mdl_context_merge(MDL_CONTEXT *target, MDL_CONTEXT *source);
 
+/** Maximal length of key for metadata locking subsystem. */
+#define MAX_MDLKEY_LENGTH (4 + NAME_LEN + 1 + NAME_LEN + 1)
+
 void mdl_init_lock(MDL_LOCK_DATA *lock_data, char *key, int type,
                    const char *db, const char *name);
 MDL_LOCK_DATA *mdl_alloc_lock(int type, const char *db, const char *name,
@@ -236,5 +240,20 @@ typedef void (* mdl_cached_object_release_hook)(void *);
 void* mdl_get_cached_object(MDL_LOCK_DATA *lock_data);
 void mdl_set_cached_object(MDL_LOCK_DATA *lock_data, void *cached_object,
                            mdl_cached_object_release_hook release_hook);
+
+
+/*
+  Functions in the server's kernel used by metadata locking subsystem.
+*/
+
+extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use);
+extern void mysql_ha_flush(THD *thd);
+extern "C" const char *set_thd_proc_info(THD *thd, const char *info,
+                                         const char *calling_function,
+                                         const char *calling_file,
+                                         const unsigned int calling_line);
+#ifndef DBUG_OFF
+extern pthread_mutex_t LOCK_open;
+#endif
 
 #endif

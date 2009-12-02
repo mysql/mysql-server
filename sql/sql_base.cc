@@ -1275,7 +1275,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   /*
     We need to hold LOCK_open while changing the open_tables
     list, since another thread may work on it.
-    @sa notify_thread_having_shared_lock()
+    @sa mysql_notify_thread_having_shared_lock()
   */
   pthread_mutex_lock(&LOCK_open);
 
@@ -1455,7 +1455,7 @@ void close_thread_tables(THD *thd,
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: notify_thread_having_shared_lock())
+    (See: mysql_notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */
@@ -7956,7 +7956,7 @@ void flush_tables()
          rest of the server is broken.
 */
 
-bool notify_thread_having_shared_lock(THD *thd, THD *in_use)
+bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use)
 {
   bool signalled= FALSE;
   if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
@@ -8501,7 +8501,7 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: notify_thread_having_shared_lock())
+    (See: mysql_notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */

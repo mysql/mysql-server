@@ -8074,7 +8074,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
                                 &mdl_lock_data, sizeof(MDL_LOCK_DATA),
-                                &mdlkey, MAX_DBKEY_LENGTH,
+                                &mdlkey, MAX_MDLKEY_LENGTH,
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
