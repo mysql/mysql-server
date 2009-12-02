@@ -291,6 +291,11 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
       LqhKeyReq::getOperation(reqInfo) == ZREAD)
   {
     jam();
+
+    ndbrequire(LqhKeyReq::getApplicationAddressFlag(reqInfo));
+    //const Uint32 apiRef   = lqhKeyReq->variableData[0];
+    //const Uint32 apiOpRec = lqhKeyReq->variableData[1];
+    tmp = req->variableData[1];
     requestP->m_senderData = tmp;
     requestP->m_senderRef = 0;
   }
