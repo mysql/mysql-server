@@ -1820,6 +1820,9 @@ public:
   virtual uint has_pushed_joins() const
   { return 0; }
 
+  virtual int read_pushed_next(uchar *buf)
+  { return -1; }
+
  /*
     Part of old fast alter table, to be depricated
   */

@@ -2794,7 +2794,6 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
     int result= fetch_next(query);
     if (result == NdbQuery::NextResult_gotRow)
     {
-      DBUG_ASSERT(query->nextResult() == NdbQuery::NextResult_scanComplete);
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3190,7 +3189,6 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
     int result= fetch_next(query);
     if (result == NdbQuery::NextResult_gotRow)
     {
-      DBUG_ASSERT(query->nextResult() == NdbQuery::NextResult_scanComplete);
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3328,26 +3326,22 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
   DBUG_ENTER("fetch_next (from pushed join)");
 
   NdbQuery::NextResultOutcome result = query->nextResult(true, m_thd_ndb->m_force_send);
+
+  /**
+   * Only prepare result & status from first operation in pushed join
+   * which is the one related to 'this' handlers table.
+   * Consecutive rows are prepared through ::read_pushed_next() which unpack
+   * and set correct status for each row.
+   */
   if (result == NdbQuery::NextResult_gotRow)
   {
-    for (uint i = 0; i<query->getNoOfOperations(); i++)
-    {
-      TABLE* _table= m_pushed_join->m_tabs[i].table;
-      if (query->getQueryOperation(i)->isRowNULL())
-        _table->status= STATUS_NULL_ROW;
-      else
-        _table->status= 0;
-//    unpack_record(buf, _table->record[0]);
-    }
+    table->status= 0;
+    unpack_record(table->record[0], m_next_row);
   }
   else if (result == NdbQuery::NextResult_scanComplete)
   {
-    for (uint i = 0; i<query->getNoOfOperations(); i++)
-    {
-      DBUG_ASSERT(query->getQueryOperation(i)->isRowNULL());
-      TABLE* _table= m_pushed_join->m_tabs[i].table;
-      _table->status= STATUS_NOT_FOUND;
-    }
+    table->status= STATUS_NOT_FOUND;
+    DBUG_ASSERT(m_next_row==NULL);
   }
   else
   {
@@ -3357,6 +3351,22 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
   DBUG_RETURN(result);
 }
 
+
+int 
+ha_ndbcluster::read_pushed_next(uchar *buf)
+{
+  if (m_next_row)
+  {
+    table->status= 0;
+    unpack_record(buf, m_next_row);
+  }
+  else
+  {
+    table->status= STATUS_NOT_FOUND;
+  }
+
+  return 0;
+}
 
 
 /**
@@ -3399,13 +3409,6 @@ inline int ha_ndbcluster::next_result(uchar *buf)
   }
   else if (m_active_query)
   {
-    /* Initialize the null bitmap, setting unused null bits to 1. */
-    for (uint i = 0; i < m_pushed_join->m_count; i++)
-    {
-      TABLE* tab = m_pushed_join->m_tabs[i].table;
-      bfill(tab->null_flags, tab->s->null_bytes, 0xff);
-    }
-
     res= fetch_next(m_active_query);
     if (res == NdbQuery::NextResult_gotRow)
     {
@@ -3507,13 +3510,6 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   else
     key_rec= m_ndb_hidden_key_record;
 
-  /* Initialize the null bitmap, setting unused null bits to 1. */
-  for (uint i = 0; i < m_pushed_join->m_count; i++)
-  {
-    TABLE* tab = m_pushed_join->m_tabs[i].table;
-    bfill(tab->null_flags, tab->s->null_bytes, 0xff);
-  }
-
   if (table_share->primary_key == MAX_KEY)
   {
     get_hidden_fields_keyop(&options, gets);
@@ -3541,11 +3537,13 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   for (uint i = 0; i<m_pushed_join->m_count; i++)
   {
     TABLE* tab= m_pushed_join->m_tabs[i].table;
-    const NdbRecord* const resultRec= 
-      static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
+    DBUG_ASSERT(tab->file->ht == ht);
+    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+    const NdbRecord* const resultRec= handler->m_ndb_record;
     query->getQueryOperation(i)
-      ->setResultRowBuf(resultRec,
-                        reinterpret_cast<char*>(tab->record[0]),
+      ->setResultRowRef(resultRec,
+                        handler->_m_next_row,
                         (uchar *)(tab->read_set->bitmap));
   }
 
@@ -3708,11 +3706,13 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
       TABLE* tab= m_pushed_join->m_tabs[i].table;
-      const NdbRecord* const resultRec= 
-        static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
+      DBUG_ASSERT(tab->file->ht == ht);
+      ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+      const NdbRecord* const resultRec= handler->m_ndb_record;
       query->getQueryOperation(i)
-        ->setResultRowBuf(resultRec,
-                          reinterpret_cast<char*>(tab->record[0]),
+        ->setResultRowRef(resultRec,
+                          handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
     }
 
@@ -3893,11 +3893,13 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
       TABLE* tab= m_pushed_join->m_tabs[i].table;
-      const NdbRecord* const resultRec= 
-        static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
+      DBUG_ASSERT(tab->file->ht == ht);
+      ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+      const NdbRecord* const resultRec= handler->m_ndb_record;
       query->getQueryOperation(i)
-        ->setResultRowBuf(resultRec,
-                          reinterpret_cast<char*>(tab->record[0]),
+        ->setResultRowRef(resultRec,
+                          handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
     }
 
@@ -11965,16 +11967,18 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           for (uint i = 0; i<m_pushed_join->m_count; i++)
           {
             TABLE* tab= m_pushed_join->m_tabs[i].table;
-            const NdbRecord* const resultRec= 
-              static_cast<ha_ndbcluster*>(tab->file)->m_ndb_record;
-            query->getQueryOperation(i)
-              ->setResultRowBuf(resultRec,
-                                reinterpret_cast<char*>(tab->record[0]),
-                                (uchar *)(tab->read_set->bitmap));
-          }
+            DBUG_ASSERT(tab->file->ht == ht);
+            ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
-          /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
-          m_next_row= 0;
+            const NdbRecord* const resultRec= handler->m_ndb_record;
+            query->getQueryOperation(i)
+              ->setResultRowRef(resultRec,
+                                handler->_m_next_row,
+                                (uchar *)(tab->read_set->bitmap));
+
+            /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
+            handler->_m_next_row= 0;
+          }
         }
       }
       else if (!m_multi_cursor)
@@ -12374,18 +12378,10 @@ ha_ndbcluster::read_multi_range_fetch_next()
     DBUG_PRINT("info", ("read_multi_range_fetch_next from pushed join, m_next_row:%p", m_next_row));
     if (!m_next_row)
     {
-      /* Initialize the null bitmap, setting unused null bits to 1. */
-      for (uint i = 0; i < m_pushed_join->m_count; i++)
-      {
-        TABLE* tab = m_pushed_join->m_tabs[i].table;
-        bfill(tab->null_flags, tab->s->null_bytes, 0xff);
-      }
-
       int res= fetch_next(m_active_query);
       if (res == NdbQuery::NextResult_gotRow)
       {
         DBUG_PRINT("info", ("One more record found"));
-        m_next_row= table->record[0];
         m_current_range_no= 0;
 //      m_current_range_no= cursor->get_range_no();  // FIXME SPJ, need rangeNo from index scan
       }

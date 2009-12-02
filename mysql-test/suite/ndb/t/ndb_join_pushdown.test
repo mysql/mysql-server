@@ -420,5 +420,39 @@ where t2.a = t1.b
 
 drop table t1, t2;
 
+# Tables with blob, but not in the selected columns:
+
+create table t1 (a int primary key, b int, c blob) engine = ndb;
+insert into t1 values (1,1, 'kalle');
+insert into t1 values (2,1, 'kalle');
+insert into t1 values (3,3, 'kalle');
+insert into t1 values (4,1, 'kalle');
+
+create table t2 (a int primary key, b int) engine = ndb;
+insert into t2 values (1,1);
+insert into t2 values (2,1);
+insert into t2 values (3,3);
+insert into t2 values (4,1);
+
+set ndb_join_pushdown=on;
+explain
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t2.a = t1.b;
+--sorted_result
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t2.a = t1.b;
+
+explain
+select t1.a, t1.b, t2.a, t2.b
+from t1, t2
+where t1.a = t2.b;
+--sorted_result
+select t1.a, t1.b, t2.a, t2.b 
+from t1, t2
+where t2.a = t1.b;
+
+
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 

@@ -11691,6 +11691,7 @@ join_read_key(JOIN_TAB *tab)
   DBUG_RETURN(rc);
 }
 
+
 static int
 join_read_linked_key(JOIN_TAB *tab)
 {
@@ -11700,10 +11701,15 @@ join_read_linked_key(JOIN_TAB *tab)
   // 'read' itself is a NOOP: Already fetched through linked key operation
   // 'table->status' has also been correctly set previosly.
 
+  int error= table->file->read_pushed_next(table->record[0]);
+  if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    DBUG_RETURN(report_error(table, error));
+
   table->null_row=0;
   int rc = table->status ? -1 : 0;
   DBUG_RETURN(rc);
 }
+
 
 /*
   ref access method implementation: "read_first" function
