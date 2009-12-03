@@ -30,8 +30,8 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
-struct MDL_LOCK_REQUEST;
-struct MDL_LOCK_TICKET;
+struct MDL_request;
+struct MDL_ticket;
 
 /*************************************************************************/
 
@@ -814,7 +814,7 @@ public:
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
 #endif
-  MDL_LOCK_TICKET *mdl_lock_ticket;
+  MDL_ticket *mdl_ticket;
 
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
@@ -1417,7 +1417,7 @@ struct TABLE_LIST
   uint table_open_method;
   enum enum_schema_table_state schema_table_state;
 
-  MDL_LOCK_REQUEST *mdl_lock_request;
+  MDL_request *mdl_request;
 
   void calc_md5(char *buffer);
   void set_underlying_merge();

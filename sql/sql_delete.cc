@@ -1100,7 +1100,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
-  MDL_LOCK_REQUEST *mdl_lock_request= NULL;
+  MDL_request *mdl_request= NULL;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1175,13 +1175,13 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
              tries to get table enging and therefore accesses table in some way
              without holding any kind of meta-data lock.
     */
-    mdl_lock_request= mdl_request_alloc(0, table_list->db,
-                                        table_list->table_name, thd->mem_root);
-    mdl_request_set_type(mdl_lock_request, MDL_EXCLUSIVE);
-    mdl_request_add(&thd->mdl_context, mdl_lock_request);
-    if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+    mdl_request= MDL_request::create(0, table_list->db,
+                                     table_list->table_name, thd->mem_root);
+    mdl_request->set_type(MDL_EXCLUSIVE);
+    thd->mdl_context.add_request(mdl_request);
+    if (thd->mdl_context.acquire_exclusive_locks())
     {
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.remove_request(mdl_request);
       DBUG_RETURN(TRUE);
     }
     pthread_mutex_lock(&LOCK_open);
@@ -1212,18 +1212,18 @@ end:
       write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
-    if (mdl_lock_request)
+    if (mdl_request)
     {
-      mdl_ticket_release(&thd->mdl_context, mdl_lock_request->ticket);
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.release_lock(mdl_request->ticket);
+      thd->mdl_context.remove_request(mdl_request);
     }
   }
   else if (error)
   {
-    if (mdl_lock_request)
+    if (mdl_request)
     {
-      mdl_ticket_release(&thd->mdl_context, mdl_lock_request->ticket);
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.release_lock(mdl_request->ticket);
+      thd->mdl_context.remove_request(mdl_request);
     }
   }
   DBUG_RETURN(error);

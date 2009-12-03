@@ -944,7 +944,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
    @note This function assumes that no metadata locks were acquired
          before calling it. Also it cannot be called while holding
          LOCK_open mutex. Both these invariants are enforced by asserts
-         in mdl_acquire_exclusive_locks() functions.
+         in MDL_context::acquire_exclusive_locks().
 
    @retval FALSE  Success.
    @retval TRUE   Failure (OOM or thread was killed).
@@ -953,24 +953,24 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 {
   TABLE_LIST *lock_table;
-  MDL_LOCK_REQUEST *mdl_lock_req;
+  MDL_request *mdl_request;
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
-    mdl_lock_req= mdl_request_alloc(0, lock_table->db, lock_table->table_name,
-                                    thd->mem_root);
-    if (!mdl_lock_req)
+    mdl_request= MDL_request::create(0, lock_table->db, lock_table->table_name,
+                                     thd->mem_root);
+    if (!mdl_request)
       goto end;
-    mdl_request_set_type(mdl_lock_req, MDL_EXCLUSIVE);
-    mdl_request_add(&thd->mdl_context, mdl_lock_req);
-    lock_table->mdl_lock_request= mdl_lock_req;
+    mdl_request->set_type(MDL_EXCLUSIVE);
+    thd->mdl_context.add_request(mdl_request);
+    lock_table->mdl_request= mdl_request;
   }
-  if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+  if (thd->mdl_context.acquire_exclusive_locks())
     goto end;
   return 0;
 
 end:
-  mdl_request_remove_all(&thd->mdl_context);
+  thd->mdl_context.remove_all_requests();
   return 1;
 }
 
@@ -986,8 +986,8 @@ end:
 void unlock_table_names(THD *thd)
 {
   DBUG_ENTER("unlock_table_names");
-  mdl_ticket_release_all(&thd->mdl_context);
-  mdl_request_remove_all(&thd->mdl_context);
+  thd->mdl_context.release_all_locks();
+  thd->mdl_context.remove_all_requests();
   DBUG_VOID_RETURN;
 }
 
@@ -1147,7 +1147,7 @@ bool lock_global_read_lock(THD *thd)
             redundancy between metadata locks, global read lock and DDL
             blocker (see WL#4399 and WL#4400).
     */
-    if (mdl_acquire_global_shared_lock(&thd->mdl_context))
+    if (thd->mdl_context.acquire_global_shared_lock())
     {
       /* Our thread was killed -- return back to initial state. */
       pthread_mutex_lock(&LOCK_global_read_lock);
@@ -1181,7 +1181,7 @@ void unlock_global_read_lock(THD *thd)
              ("global_read_lock: %u  global_read_lock_blocks_commit: %u",
               global_read_lock, global_read_lock_blocks_commit));
 
-  mdl_release_global_shared_lock(&thd->mdl_context);
+  thd->mdl_context.release_global_shared_lock();
 
   pthread_mutex_lock(&LOCK_global_read_lock);
   tmp= --global_read_lock;

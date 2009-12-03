@@ -124,7 +124,7 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                          uint db_stat, uint prgflag,
                          uint ha_open_flags, TABLE *outparam,
                          TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static bool tdc_wait_for_old_versions(THD *thd, MDL_CONTEXT *context);
+static bool tdc_wait_for_old_versions(THD *thd, MDL_context *context);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 
@@ -449,8 +449,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     To be able perform any operation on table we should own
     some kind of metadata lock on it.
   */
-  DBUG_ASSERT(mdl_is_lock_owner(&thd->mdl_context, 0, table_list->db,
-                                table_list->table_name));
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(0, table_list->db,
+                                             table_list->table_name));
 
   /* Read table definition from cache */
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
@@ -1050,12 +1050,12 @@ err_with_reopen:
     */
     thd->locked_tables_list.reopen_tables(thd);
     /*
-      Since mdl_downgrade_exclusive_lock() won't do anything with shared
-      metadata lock it is much simplier to go through all open tables rather
+      Since downgrade_exclusive_lock() won't do anything with shared
+      metadata lock it is much simpler to go through all open tables rather
       than picking only those tables that were flushed.
     */
     for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
-      mdl_downgrade_exclusive_lock(&thd->mdl_context, tab->mdl_lock_ticket);
+      tab->mdl_ticket->downgrade_exclusive_lock();
   }
   DBUG_RETURN(result);
 }
@@ -1336,7 +1336,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 */
 
 void close_thread_tables(THD *thd,
-                         bool skip_mdl)
+                         bool is_back_off)
 {
   TABLE *table;
   DBUG_ENTER("close_thread_tables");
@@ -1478,10 +1478,10 @@ void close_thread_tables(THD *thd,
   if (thd->open_tables)
     close_open_tables(thd);
 
-  mdl_ticket_release_all(&thd->mdl_context);
-  if (!skip_mdl)
+  thd->mdl_context.release_all_locks();
+  if (!is_back_off)
   {
-    mdl_request_remove_all(&thd->mdl_context);
+    thd->mdl_context.remove_all_requests();
   }
   DBUG_VOID_RETURN;
 }
@@ -1500,7 +1500,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 
   *table_ptr=table->next;
 
-  table->mdl_lock_ticket= NULL;
+  table->mdl_ticket= NULL;
   if (table->needs_reopen() ||
       thd->version != refresh_version || !table->db_stat)
   {
@@ -2095,8 +2095,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   old_lock_type= table->reginfo.lock_type;
   mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
 
-  if (mdl_upgrade_shared_lock_to_exclusive(&thd->mdl_context,
-                                           table->mdl_lock_ticket))
+  if (table->mdl_ticket->upgrade_shared_lock_to_exclusive())
   {
     mysql_lock_downgrade_write(thd, table, old_lock_type);
     DBUG_RETURN(TRUE);
@@ -2279,11 +2278,11 @@ void table_share_release_hook(void *share)
 
 static bool
 open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
-                        MDL_LOCK_REQUEST *mdl_lock_request,
+                        MDL_request *mdl_request,
                         uint flags,
                         enum_open_table_action *action)
 {
-  mdl_request_add(&thd->mdl_context, mdl_lock_request);
+  thd->mdl_context.add_request(mdl_request);
 
   if (table_list->open_type)
   {
@@ -2296,10 +2295,10 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
       shared locks. This invariant is preserved here and is also
       enforced by asserts in metadata locking subsystem.
     */
-    mdl_request_set_type(mdl_lock_request, MDL_EXCLUSIVE);
-    if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+    mdl_request->set_type(MDL_EXCLUSIVE);
+    if (thd->mdl_context.acquire_exclusive_locks())
     {
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.remove_request(mdl_request);
       return 1;
     }
   }
@@ -2316,16 +2315,16 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
 
     if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL &&
         table_list->lock_type >= TL_WRITE_ALLOW_WRITE)
-      mdl_request_set_type(mdl_lock_request, MDL_SHARED_UPGRADABLE);
+      mdl_request->set_type(MDL_SHARED_UPGRADABLE);
     if (flags & MYSQL_LOCK_IGNORE_FLUSH)
-      mdl_request_set_type(mdl_lock_request, MDL_SHARED_HIGH_PRIO);
+      mdl_request->set_type(MDL_SHARED_HIGH_PRIO);
 
-    if (mdl_acquire_shared_lock(&thd->mdl_context, mdl_lock_request, &retry))
+    if (thd->mdl_context.acquire_shared_lock(mdl_request, &retry))
     {
       if (retry)
         *action= OT_BACK_OFF_AND_RETRY;
       else
-        mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+        thd->mdl_context.remove_request(mdl_request);
       return 1;
     }
   }
@@ -2380,8 +2379,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
-  MDL_LOCK_REQUEST *mdl_lock_request;
-  MDL_LOCK_TICKET *mdl_lock_ticket;
+  MDL_request *mdl_request;
+  MDL_ticket *mdl_ticket;
   int error;
   TABLE_SHARE *share;
   DBUG_ENTER("open_table");
@@ -2517,8 +2516,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       TABLES breaks metadata locking protocol (potentially can lead
       to deadlocks) it should be disallowed.
     */
-    if (mdl_is_lock_owner(&thd->mdl_context, 0, table_list->db,
-                          table_list->table_name))
+    if (thd->mdl_context.is_lock_owner(0, table_list->db,
+                                       table_list->table_name))
     {
       char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
@@ -2560,10 +2559,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     This is the normal use case.
   */
 
-  mdl_lock_request= table_list->mdl_lock_request;
+  mdl_request= table_list->mdl_request;
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    if (open_table_get_mdl_lock(thd, table_list, mdl_lock_request, flags,
+    if (open_table_get_mdl_lock(thd, table_list, mdl_request, flags,
                                 action))
       DBUG_RETURN(TRUE);
   }
@@ -2573,7 +2572,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     open_table_get_mdl_lock as the lock on the table might have been
     acquired previously (MYSQL_OPEN_HAS_MDL_LOCK).
   */
-  mdl_lock_ticket= mdl_lock_request->ticket;
+  mdl_ticket= mdl_request->ticket;
 
   pthread_mutex_lock(&LOCK_open);
 
@@ -2616,7 +2615,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(FALSE);
   }
 
-  if (!(share= (TABLE_SHARE *)mdl_get_cached_object(mdl_lock_ticket)))
+  if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
   {
     if (!(share= get_table_share_with_create(thd, table_list, key,
                                              key_length, OPEN_VIEW,
@@ -2687,7 +2686,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       so we need to increase reference counter;
     */
     reference_table_share(share);
-    mdl_set_cached_object(mdl_lock_ticket, share, table_share_release_hook);
+    mdl_ticket->set_cached_object(share, table_share_release_hook);
   }
   else
   {
@@ -2796,9 +2795,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     lock on this table to shared metadata lock.
   */
   if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
-    mdl_downgrade_exclusive_lock(&thd->mdl_context, mdl_lock_ticket);
+    mdl_ticket->downgrade_exclusive_lock();
 
-  table->mdl_lock_ticket= mdl_lock_ticket;
+  table->mdl_ticket= mdl_ticket;
 
   table->next=thd->open_tables;		/* Link into simple list */
   thd->open_tables=table;
@@ -2850,8 +2849,8 @@ err_unlock2:
   pthread_mutex_unlock(&LOCK_open);
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    mdl_ticket_release(&thd->mdl_context, mdl_lock_ticket);
-    mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+    thd->mdl_context.release_lock(mdl_ticket);
+    thd->mdl_context.remove_request(mdl_request);
   }
   DBUG_RETURN(TRUE);
 }
@@ -2969,7 +2968,7 @@ Locked_tables_list::init_locked_tables(THD *thd)
     dst_table_list->init_one_table(db, db_len, table_name, table_name_len,
                                    alias,
                                    src_table_list->table->reginfo.lock_type);
-    dst_table_list->mdl_lock_request= src_table_list->mdl_lock_request;
+    dst_table_list->mdl_request= src_table_list->mdl_request;
     dst_table_list->table= table;
     memcpy(db, src_table_list->db, db_len + 1);
     memcpy(table_name, src_table_list->table_name, table_name_len + 1);
@@ -3020,8 +3019,6 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
     thd->locked_tables_mode= LTM_NONE;
 
     close_thread_tables(thd);
-
-    mdl_ticket_release_all(&thd->mdl_context);
   }
   /*
     After closing tables we can free memory used for storing lock
@@ -3506,21 +3503,21 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
                                        enum_open_table_action action)
 {
   bool result= FALSE;
-  MDL_LOCK_REQUEST *mdl_lock_request= table->mdl_lock_request;
+  MDL_request *mdl_request= table->mdl_request;
 
   switch (action)
   {
     case OT_BACK_OFF_AND_RETRY:
-      result= (mdl_wait_for_locks(&thd->mdl_context) ||
+      result= (thd->mdl_context.wait_for_locks() ||
                tdc_wait_for_old_versions(thd, &thd->mdl_context));
-      mdl_request_remove_all(&thd->mdl_context);
+      thd->mdl_context.remove_all_requests();
       break;
     case OT_DISCOVER:
-      mdl_request_set_type(mdl_lock_request, MDL_EXCLUSIVE);
-      mdl_request_add(&thd->mdl_context, mdl_lock_request);
-      if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+      mdl_request->set_type(MDL_EXCLUSIVE);
+      thd->mdl_context.add_request(mdl_request);
+      if (thd->mdl_context.acquire_exclusive_locks())
       {
-        mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+        thd->mdl_context.remove_request(mdl_request);
         return TRUE;
       }
       pthread_mutex_lock(&LOCK_open);
@@ -3530,15 +3527,15 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
 
       thd->warning_info->clear_warning_info(thd->query_id);
       thd->clear_error();                 // Clear error message
-      mdl_ticket_release(&thd->mdl_context, mdl_lock_request->ticket);
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.release_lock(mdl_request->ticket);
+      thd->mdl_context.remove_request(mdl_request);
       break;
     case OT_REPAIR:
-      mdl_request_set_type(mdl_lock_request, MDL_EXCLUSIVE);
-      mdl_request_add(&thd->mdl_context, mdl_lock_request);
-      if (mdl_acquire_exclusive_locks(&thd->mdl_context))
+      mdl_request->set_type(MDL_EXCLUSIVE);
+      thd->mdl_context.add_request(mdl_request);
+      if (thd->mdl_context.acquire_exclusive_locks())
       {
-        mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+        thd->mdl_context.remove_request(mdl_request);
         return TRUE;
       }
       pthread_mutex_lock(&LOCK_open);
@@ -3546,8 +3543,8 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table,
       pthread_mutex_unlock(&LOCK_open);
 
       result= auto_repair_table(thd, table);
-      mdl_ticket_release(&thd->mdl_context, mdl_lock_request->ticket);
-      mdl_request_remove(&thd->mdl_context, mdl_lock_request);
+      thd->mdl_context.release_lock(mdl_request->ticket);
+      thd->mdl_context.remove_request(mdl_request);
       break;
     default:
       DBUG_ASSERT(0);
@@ -4652,7 +4649,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 
 */
 
-void close_tables_for_reopen(THD *thd, TABLE_LIST **tables, bool skip_mdl)
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables, bool is_back_off)
 {
   /*
     If table list consists only from tables from prelocking set, table list
@@ -4664,7 +4661,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables, bool skip_mdl)
   sp_remove_not_own_routines(thd->lex);
   for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
     tmp->table= 0;
-  close_thread_tables(thd, skip_mdl);
+  close_thread_tables(thd, is_back_off);
 }
 
 
@@ -7691,8 +7688,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   safe_mutex_assert_owner(&LOCK_open);
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
-              mdl_is_exclusive_lock_owner(&thd->mdl_context, 0,
-                                          db, table_name));
+              thd->mdl_context.is_exclusive_lock_owner(0, db, table_name));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
@@ -7739,11 +7735,11 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
    @param context  Metadata locking context with locks.
 */
 
-static bool tdc_wait_for_old_versions(THD *thd, MDL_CONTEXT *context)
+static bool tdc_wait_for_old_versions(THD *thd, MDL_context *mdl_context)
 {
   TABLE_SHARE *share;
   const char *old_msg;
-  MDL_LOCK_REQUEST *lock_req;
+  MDL_request *mdl_request;
 
   while (!thd->killed)
   {
@@ -7756,16 +7752,16 @@ static bool tdc_wait_for_old_versions(THD *thd, MDL_CONTEXT *context)
     mysql_ha_flush(thd);
     pthread_mutex_lock(&LOCK_open);
 
-    MDL_CONTEXT::Request_iterator it= mdl_get_requests(context);
-    while ((lock_req= it++))
+    MDL_context::Request_iterator it= mdl_context->get_requests();
+    while ((mdl_request= it++))
     {
-      if ((share= get_cached_table_share(lock_req->key.db_name(),
-                                         lock_req->key.table_name())) &&
+      if ((share= get_cached_table_share(mdl_request->key.db_name(),
+                                         mdl_request->key.table_name())) &&
           share->version != refresh_version &&
           !share->used_tables.is_empty())
         break;
     }
-    if (!lock_req)
+    if (!mdl_request)
     {
       pthread_mutex_unlock(&LOCK_open);
       break;
@@ -8169,8 +8165,8 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
 
   pthread_mutex_unlock(&LOCK_open);
 
-  mdl_ticket_release_all(&thd->mdl_context);
-  mdl_request_remove_all(&thd->mdl_context);
+  thd->mdl_context.release_all_locks();
+  thd->mdl_context.remove_all_requests();
 
   thd->restore_backup_open_tables_state(backup);
 }

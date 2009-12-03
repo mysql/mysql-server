@@ -8060,7 +8060,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
   char *db_mem, *tname_mem;
-  MDL_LOCK_REQUEST *mdl_lock_request;
+  MDL_request *mdl_request;
   size_t dummy_len;
   void *memory;
   DBUG_ENTER("Table_map_log_event::do_apply_event(Relay_log_info*)");
@@ -8075,7 +8075,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
-                                &mdl_lock_request, sizeof(MDL_LOCK_REQUEST),
+                                &mdl_request, sizeof(MDL_request),
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
@@ -8088,9 +8088,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->updating= 1;
   strmov(table_list->db, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
   strmov(table_list->table_name, m_tblnam);
-  mdl_request_init(mdl_lock_request, 0, table_list->db,
-                   table_list->table_name);
-  table_list->mdl_lock_request= mdl_lock_request;
+  mdl_request->init(0, table_list->db, table_list->table_name);
+  table_list->mdl_request= mdl_request;
 
   int error= 0;
 
