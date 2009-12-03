@@ -27,6 +27,7 @@
 #include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
+#include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
 
@@ -888,16 +889,16 @@ void ha_close_connection(THD* thd)
   a transaction in a given engine is read-write and will not
   involve the two-phase commit protocol!
 
-  At the end of a statement, server call
-  ha_autocommit_or_rollback() is invoked. This call in turn
-  invokes handlerton::prepare() for every involved engine.
-  Prepare is followed by a call to handlerton::commit_one_phase()
-  If a one-phase commit will suffice, handlerton::prepare() is not
-  invoked and the server only calls handlerton::commit_one_phase().
-  At statement commit, the statement-related read-write engine
-  flag is propagated to the corresponding flag in the normal
-  transaction.  When the commit is complete, the list of registered
-  engines is cleared.
+  At the end of a statement, server call trans_commit_stmt is
+  invoked. This call in turn invokes handlerton::prepare()
+  for every involved engine. Prepare is followed by a call
+  to handlerton::commit_one_phase() If a one-phase commit
+  will suffice, handlerton::prepare() is not invoked and
+  the server only calls handlerton::commit_one_phase().
+  At statement commit, the statement-related read-write
+  engine flag is propagated to the corresponding flag in the
+  normal transaction.  When the commit is complete, the list
+  of registered engines is cleared.
 
   Rollback is handled in a similar fashion.
 
@@ -908,7 +909,7 @@ void ha_close_connection(THD* thd)
   do not "register" in thd->transaction lists, and thus do not
   modify the transaction state. Besides, each DDL in
   MySQL is prefixed with an implicit normal transaction commit
-  (a call to end_active_trans()), and thus leaves nothing
+  (a call to trans_commit_implicit()), and thus leaves nothing
   to modify.
   However, as it has been pointed out with CREATE TABLE .. SELECT,
   some DDL statements can start a *new* transaction.
@@ -1367,47 +1368,6 @@ int ha_rollback_trans(THD *thd, bool all)
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  DBUG_RETURN(error);
-}
-
-/**
-  This is used to commit or rollback a single statement depending on
-  the value of error.
-
-  @note
-    Note that if the autocommit is on, then the following call inside
-    InnoDB will commit or rollback the whole transaction (= the statement). The
-    autocommit mechanism built into InnoDB is based on counting locks, but if
-    the user has used LOCK TABLES then that mechanism does not know to do the
-    commit.
-*/
-int ha_autocommit_or_rollback(THD *thd, int error)
-{
-  DBUG_ENTER("ha_autocommit_or_rollback");
-
-  if (thd->transaction.stmt.ha_list)
-  {
-    if (!error)
-    {
-      if (ha_commit_trans(thd, 0))
-	error=1;
-    }
-    else 
-    {
-      (void) ha_rollback_trans(thd, 0);
-      if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-        (void) ha_rollback(thd);
-    }
-
-    thd->variables.tx_isolation=thd->session_tx_isolation;
-  }
-  else
-  {
-    if (!error)
-      RUN_HOOK(transaction, after_commit, (thd, FALSE));
-    else
-      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  }
   DBUG_RETURN(error);
 }
 
@@ -3496,7 +3456,7 @@ int ha_enable_transaction(THD *thd, bool on)
       So, let's commit an open transaction (if any) now.
     */
     if (!(error= ha_commit_trans(thd, 0)))
-      error= end_trans(thd, COMMIT);
+      error= trans_commit_implicit(thd);
   }
   DBUG_RETURN(error);
 }

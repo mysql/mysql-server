@@ -31,6 +31,7 @@
 #include "rpl_filter.h"
 #include "rpl_utility.h"
 #include "rpl_record.h"
+#include "transaction.h"
 #include <my_dir.h>
 
 #endif /* MYSQL_CLIENT */
@@ -3231,7 +3232,7 @@ Default database: '%s'. Query: '%s'",
         them back here.
       */
       if (expected_error && expected_error == actual_error)
-        ha_autocommit_or_rollback(thd, TRUE);
+        trans_rollback_stmt(thd);
     }
     /*
       If we expected a non-zero error code and get nothing and, it is a concurrency
@@ -3240,7 +3241,8 @@ Default database: '%s'. Query: '%s'",
     else if (expected_error && !actual_error && 
              (concurrency_error_code(expected_error) ||
               ignored_error_code(expected_error)))
-      ha_autocommit_or_rollback(thd, TRUE);
+      trans_rollback_stmt(thd);
+
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -5315,7 +5317,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+  return trans_commit(thd);
 }
 
 Log_event::enum_skip_reason
@@ -7607,7 +7609,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error= ha_autocommit_or_rollback(thd, 0);
+    error= trans_commit_stmt(thd);
 
     /*
       Now what if this is not a transactional engine? we still need to

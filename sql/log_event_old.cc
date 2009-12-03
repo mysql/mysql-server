@@ -6,6 +6,7 @@
 #endif
 #include "log_event_old.h"
 #include "rpl_record_old.h"
+#include "transaction.h"
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
@@ -1795,7 +1796,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if ((error= ha_autocommit_or_rollback(thd, 0)))
+    if ((error= trans_commit_stmt(thd)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

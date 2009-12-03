@@ -61,6 +61,7 @@
 #include <my_dir.h>
 
 #include "events.h"
+#include "transaction.h"
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -3190,7 +3191,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
    */
   if (var->save_result.ulong_value != 0 &&
       (thd->options & OPTION_NOT_AUTOCOMMIT) &&
-      ha_commit(thd))
+      trans_commit(thd))
     return 1;
 
   if (var->save_result.ulong_value != 0)
