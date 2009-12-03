@@ -614,6 +614,33 @@ int ha_tina::find_current_row(uchar *buf)
 
   memset(buf, 0, table->s->null_bytes);
 
+  /*
+    Parse the line obtained using the following algorithm
+   
+    BEGIN
+      1) Store the EOL (end of line) for the current row
+      2) Until all the fields in the current query have not been 
+         filled
+         2.1) If the current character is a quote
+              2.1.1) Until EOL has not been reached
+                     a) If end of current field is reached, move
+                        to next field and jump to step 2.3
+                     b) If current character is a \\ handle
+                        \\n, \\r, \\, \\"
+                     c) else append the current character into the buffer
+                        before checking that EOL has not been reached.
+          2.2) If the current character does not begin with a quote
+               2.2.1) Until EOL has not been reached
+                      a) If the end of field has been reached move to the
+                         next field and jump to step 2.3
+                      b) If current character begins with \\ handle
+                        \\n, \\r, \\, \\"
+                      c) else append the current character into the buffer
+                         before checking that EOL has not been reached.
+          2.3) Store the current field value and jump to 2)
+    TERMINATE
+  */  
+
   for (Field **field=table->field ; *field ; field++)
   {
     char curr_char;
@@ -622,19 +649,23 @@ int ha_tina::find_current_row(uchar *buf)
     if (curr_offset >= end_offset)
       goto err;
     curr_char= file_buff->get_value(curr_offset);
+    /* Handle the case where the first character is a quote */
     if (curr_char == '"')
     {
-      curr_offset++; // Incrementpast the first quote
+      /* Increment past the first quote */
+      curr_offset++;
 
-      for(; curr_offset < end_offset; curr_offset++)
+      /* Loop through the row to extract the values for the current field */
+      for ( ; curr_offset < end_offset; curr_offset++)
       {
         curr_char= file_buff->get_value(curr_offset);
-        // Need to convert line feeds!
+        /* check for end of the current field */
         if (curr_char == '"' &&
             (curr_offset == end_offset - 1 ||
              file_buff->get_value(curr_offset + 1) == ','))
         {
-          curr_offset+= 2; // Move past the , and the "
+          /* Move past the , and the " */
+          curr_offset+= 2;
           break;
         }
         if (curr_char == '\\' && curr_offset != (end_offset - 1))
@@ -656,7 +687,7 @@ int ha_tina::find_current_row(uchar *buf)
         else // ordinary symbol
         {
           /*
-            We are at final symbol and no last quote was found =>
+            If we are at final symbol and no last quote was found =>
             we are working with a damaged file.
           */
           if (curr_offset == end_offset - 1)
@@ -667,15 +698,41 @@ int ha_tina::find_current_row(uchar *buf)
     }
     else 
     {
-      for(; curr_offset < end_offset; curr_offset++)
+      for ( ; curr_offset < end_offset; curr_offset++)
       {
         curr_char= file_buff->get_value(curr_offset);
+        /* Move past the ,*/
         if (curr_char == ',')
         {
-          curr_offset++;       // Skip the ,
+          curr_offset++;
           break;
         }
-        buffer.append(curr_char);
+        if (curr_char == '\\' && curr_offset != (end_offset - 1))
+        {
+          curr_offset++;
+          curr_char= file_buff->get_value(curr_offset);
+          if (curr_char == 'r')
+            buffer.append('\r');
+          else if (curr_char == 'n' )
+            buffer.append('\n');
+          else if (curr_char == '\\' || curr_char == '"')
+            buffer.append(curr_char);
+          else  /* This could only happed with an externally created file */
+          {
+            buffer.append('\\');
+            buffer.append(curr_char);
+          }
+        }
+        else
+        {
+          /*
+             We are at the final symbol and a quote was found for the
+             unquoted field => We are working with a damaged field.
+          */
+          if (curr_offset == end_offset - 1 && curr_char == '"')
+            goto err;
+          buffer.append(curr_char);
+        }
       }
     }
 
