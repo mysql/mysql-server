@@ -120,6 +120,8 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
 }
 extern "C"
 void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+extern "C"
+void vndbout_c(const char * fmt, va_list ap);
 
 class FilteredNdbOut : public NdbOut {
 public:

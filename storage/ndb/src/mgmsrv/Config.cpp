@@ -24,12 +24,6 @@
 
 #include <HashMap.hpp>
 
-static void require(bool b)
-{
-  if (!b)
-    abort();
-}
-
 Config::Config(struct ndb_mgm_configuration *config_values) :
   m_configValues(config_values)
 {

@@ -64,8 +64,6 @@ static int commit();
 static int restart();
 static int validate();
 
-#define require(x) { bool b = x; if(!b){g_err << __LINE__ << endl; abort();}}
-
 int 
 main(int argc, char ** argv){
   ndb_init();

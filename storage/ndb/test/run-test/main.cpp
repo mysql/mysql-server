@@ -1404,13 +1404,6 @@ started:
   return true;
 }
 
-void
-require(bool x)
-{
-  if (!x)
-    abort();
-}
-
 bool
 reset_config(atrt_config & config)
 {

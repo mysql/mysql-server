@@ -28,19 +28,6 @@
 #include <ndb_version.h>
 
 
-static void
-_require(bool v, const char* expr, const char* file, int line)
-{
-  if (unlikely(!v))
-  {
-    fprintf(stderr, "%s:%d: require('%s') failed\n",
-            file, line, expr);
-    fflush(stderr);
-    abort();
-  }
-}
-#define require(v)  _require((v), #v, __FILE__, __LINE__)
-
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,

@@ -2789,21 +2789,8 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 /****************************************************************************
  * Ctor
  ****************************************************************************/
-static void
-_require(bool v, const char* expr, unsigned line)
-{
-  if(!v)
-  {
-    fprintf(stderr, "require(%s) failed at %s:%d\n",
-            expr, __FILE__, line);
-    fflush(stderr);
-    if (opt_core)
-      abort();
-    else
-      exit(-1);
-  }
-}
-#define require(x) _require(x, #x, __LINE__)
+#undef require
+#define require(x) require_exit_or_core(x, -1)
 
 ConfigInfo::ConfigInfo()
   : m_info(true), m_systemDefaults(true)
@@ -3860,21 +3847,21 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	case ConfigInfo::CI_INT:
 	case ConfigInfo::CI_BOOL:{
 	  Uint32 val = 0;
-	  ::require(defaults->get(name, &val));
+	  require(defaults->get(name, &val));
 	  ctx.m_currentSection->put(name, val);
           DBUG_PRINT("info",("%s=%d #default",name,val));
 	  break;
 	}
 	case ConfigInfo::CI_INT64:{
 	  Uint64 val = 0;
-	  ::require(defaults->get(name, &val));
+	  require(defaults->get(name, &val));
 	  ctx.m_currentSection->put64(name, val);
           DBUG_PRINT("info",("%s=%lld #default",name,val));
 	  break;
 	}
 	case ConfigInfo::CI_STRING:{
 	  const char * val;
-	  ::require(defaults->get(name, &val));
+	  require(defaults->get(name, &val));
 	  ctx.m_currentSection->put(name, val);
           DBUG_PRINT("info",("%s=%s #default",name,val));
 	  break;
@@ -3890,20 +3877,20 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
         case ConfigInfo::CI_INT:
         case ConfigInfo::CI_BOOL:{
           Uint32 val = 0;
-          ::require(ctx.m_currentSection->get(name, &val));
+          require(ctx.m_currentSection->get(name, &val));
           DBUG_PRINT("info",("%s=%d",name,val));
           break;
         }
         case ConfigInfo::CI_INT64:{
           Uint64 val = 0;
-          ::require(ctx.m_currentSection->get(name, &val));
+          require(ctx.m_currentSection->get(name, &val));
           DBUG_PRINT("info",("%s=%lld",name,val));
           break;
         }
         case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
-          ::require(ctx.m_currentSection->get(name, &val));
+          require(ctx.m_currentSection->get(name, &val));
           DBUG_PRINT("info",("%s=%s",name,val));
           break;
         }
@@ -3939,11 +3926,11 @@ checkMandatory(InitConfigFileParser::Context & ctx, const char * data){
   Properties::Iterator it(ctx.m_currentInfo);
   for(const char * name = it.first(); name != NULL; name = it.next()){
     const Properties * info = NULL;
-    ::require(ctx.m_currentInfo->get(name, &info));
+    require(ctx.m_currentInfo->get(name, &info));
     Uint32 val;
     if(info->get("Mandatory", &val)){
       const char * fname;
-      ::require(info->get("Fname", &fname));
+      require(info->get("Fname", &fname));
       if(!ctx.m_currentSection->contains(fname)){
 	ctx.reportError("Mandatory parameter %s missing from section "
 			"[%s] starting at line: %d",
@@ -4444,24 +4431,24 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
     case PropertiesType_Uint32:{
       Uint32 val;
       require(tmp.get(name, &val));
-      ::require(ctx.m_currentSection->put(name, val));
+      require(ctx.m_currentSection->put(name, val));
       break;
     }
     case PropertiesType_char:{
       const char * val;
       require(tmp.get(name, &val));
-      ::require(ctx.m_currentSection->put(name, val));
+      require(ctx.m_currentSection->put(name, val));
       break;
     }
     case PropertiesType_Uint64:{
       Uint64 val;
       require(tmp.get(name, &val));
-      ::require(ctx.m_currentSection->put64(name, val));
+      require(ctx.m_currentSection->put64(name, val));
       break;
     }
     case PropertiesType_Properties:
     default:
-      ::require(false);
+      require(false);
     }
   }
   return true;
