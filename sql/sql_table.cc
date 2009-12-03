@@ -4565,8 +4565,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   DBUG_ENTER("mysql_admin_table");
 
-  if (end_active_trans(thd))
-    DBUG_RETURN(1);
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Op", 10));

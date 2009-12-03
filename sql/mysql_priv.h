@@ -2014,8 +2014,8 @@ extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
 extern scheduler_functions thread_scheduler;
 extern TYPELIB thread_handling_typelib;
-extern uint8 uc_update_queries[SQLCOM_END+1];
 extern uint sql_command_flags[];
+extern uint server_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
