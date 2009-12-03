@@ -42,8 +42,8 @@ public:
   /** The type of lock (shared or exclusive). */
   enum
   {
-    SHARED,
-    EXCLUSIVE,
+    MDL_LOCK_SHARED,
+    MDL_LOCK_EXCLUSIVE,
   } type;
   /** The key of the object (data) being protected. */
   MDL_key key;
@@ -71,7 +71,7 @@ public:
   inline static void destroy(MDL_lock *lock);
 private:
   MDL_lock(const MDL_key *key_arg)
-  : type(SHARED),
+  : type(MDL_LOCK_SHARED),
     key(key_arg),
     cached_object(NULL),
     cached_object_release_hook(NULL)
@@ -673,7 +673,7 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
   case MDL_SHARED:
   case MDL_SHARED_UPGRADABLE:
   case MDL_SHARED_HIGH_PRIO:
-    if (type == MDL_lock::SHARED)
+    if (type == MDL_lock::MDL_LOCK_SHARED)
     {
       /* Pending exclusive locks have higher priority over shared locks. */
       if (waiting.is_empty() || type_arg == MDL_SHARED_HIGH_PRIO)
@@ -700,7 +700,7 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
         There should be no active exclusive locks since we own shared lock
         on the object.
       */
-      DBUG_ASSERT(type == MDL_lock::SHARED);
+      DBUG_ASSERT(type == MDL_lock::MDL_LOCK_SHARED);
 
       while ((conflicting_ticket= it++))
       {
@@ -717,7 +717,7 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
         can_grant= TRUE;
       break;
     }
-    else if (type == MDL_lock::SHARED)
+    else if (type == MDL_lock::MDL_LOCK_SHARED)
     {
       can_grant= granted.is_empty();
     }
@@ -829,7 +829,7 @@ MDL_context::acquire_shared_lock(MDL_request *mdl_request, bool *retry)
   if (!(lock= (MDL_lock*) my_hash_search(&mdl_locks,
                                          key->ptr(), key->length())))
   {
-    /* Default lock type is MDL_lock::SHARED */
+    /* Default lock type is MDL_lock::MDL_LOCK_SHARED */
     lock= MDL_lock::create(key);
     if (!lock || my_hash_insert(&mdl_locks, (uchar*)lock))
     {
@@ -972,7 +972,7 @@ bool MDL_context::acquire_exclusive_locks()
         MDL_ticket *conflicting_ticket;
         MDL_lock::Ticket_iterator it(lock->granted);
 
-        signalled= (lock->type == MDL_lock::EXCLUSIVE);
+        signalled= (lock->type == MDL_lock::MDL_LOCK_EXCLUSIVE);
 
         while ((conflicting_ticket= it++))
           signalled|= notify_shared_lock(m_thd, conflicting_ticket);
@@ -1009,7 +1009,7 @@ bool MDL_context::acquire_exclusive_locks()
     global_lock.active_intention_exclusive++;
     ticket= mdl_request->ticket;
     lock= ticket->m_lock;
-    lock->type= MDL_lock::EXCLUSIVE;
+    lock->type= MDL_lock::MDL_LOCK_EXCLUSIVE;
     lock->waiting.remove(ticket);
     lock->granted.push_front(ticket);
     m_tickets.push_front(ticket);
@@ -1135,7 +1135,7 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
     }
   }
 
-  m_lock->type= MDL_lock::EXCLUSIVE;
+  m_lock->type= MDL_lock::MDL_LOCK_EXCLUSIVE;
   /* Set the new type of lock in the ticket. */
   m_type= MDL_EXCLUSIVE;
   if (m_lock->cached_object)
@@ -1200,7 +1200,7 @@ MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request,
       goto err;
     }
     mdl_request->ticket= ticket;
-    lock->type= MDL_lock::EXCLUSIVE;
+    lock->type= MDL_lock::MDL_LOCK_EXCLUSIVE;
     lock->granted.push_front(ticket);
     m_tickets.push_front(ticket);
     ticket->m_state= MDL_ACQUIRED;
@@ -1355,7 +1355,7 @@ void MDL_context::release_ticket(MDL_ticket *ticket)
       lock->granted.remove(ticket);
       break;
     case MDL_EXCLUSIVE:
-      lock->type= MDL_lock::SHARED;
+      lock->type= MDL_lock::MDL_LOCK_SHARED;
       lock->granted.remove(ticket);
       global_lock.active_intention_exclusive--;
       break;
@@ -1497,7 +1497,7 @@ void MDL_ticket::downgrade_exclusive_lock()
     return;
 
   pthread_mutex_lock(&LOCK_mdl);
-  m_lock->type= MDL_lock::SHARED;
+  m_lock->type= MDL_lock::MDL_LOCK_SHARED;
   m_type= MDL_SHARED_UPGRADABLE;
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
@@ -1543,7 +1543,7 @@ MDL_context::is_exclusive_lock_owner(unsigned char type,
 
   while ((ticket= it++))
   {
-    if (ticket->m_lock->type == MDL_lock::EXCLUSIVE &&
+    if (ticket->m_lock->type == MDL_lock::MDL_LOCK_EXCLUSIVE &&
         ticket->m_lock->key.is_equal(&key))
       break;
   }
