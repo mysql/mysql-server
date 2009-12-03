@@ -293,7 +293,7 @@ static int tokudb_init_func(void *p) {
     }
     
 
-    r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
+    r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
     if (r) {
         if (r != ENOENT) {
             sql_print_error("Got error %d when trying to open metadata_db", r);
@@ -311,7 +311,7 @@ static int tokudb_init_func(void *p) {
             DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
             goto error;
         }
-        r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
+        r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
         if (r) {
             goto error;
         }
@@ -326,7 +326,8 @@ error:
         assert(rr==0);
     }
     if (db_env) {
-        db_env->close(db_env, 0);
+        int rr= db_env->close(db_env, 0);
+        assert(rr==0);
         db_env = 0;
     }
     DBUG_RETURN(TRUE);
@@ -364,6 +365,7 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
         error = db_env->close(db_env, 0);       // Error is logged
+        assert(error==0);
         db_env = NULL;
     }
     TOKUDB_DBUG_RETURN(error);
@@ -590,7 +592,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
             error = db_create(&curr_db, db_env, 0);
             if (error) { goto cleanup; }
             
-            error = curr_db->open(curr_db, 0, newname, NULL, DB_BTREE, DB_THREAD, 0);
+            error = curr_db->open(curr_db, txn, newname, NULL, DB_BTREE, DB_THREAD, 0);
             if (error == ENOENT) { error = 0; continue; }
             if (error) { goto cleanup; }
 
@@ -616,8 +618,9 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
                     if ( (curr_num_items % 1000) == 0 && thd->killed) {
                         goto cleanup;
                     }
-                }                
-                tmp_table_cursor->c_close(tmp_table_cursor);
+                }
+                error = tmp_table_cursor->c_close(tmp_table_cursor);
+                assert(error==0);
                 tmp_table_cursor = NULL;
             }
 
@@ -675,10 +678,12 @@ cleanup:
         assert(r==0);
     }
     if (tmp_cursor) {
-        tmp_cursor->c_close(tmp_cursor);
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
     }
     if (tmp_table_cursor) {
-        tmp_table_cursor->c_close(tmp_table_cursor);
+        int r = tmp_table_cursor->c_close(tmp_table_cursor);
+        assert(error==0);
     }
     if (txn) {
         commit_txn(txn, 0);

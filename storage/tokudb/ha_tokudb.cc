@@ -1068,7 +1068,6 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
     int error;    
     char* newname = NULL;
     uint open_flags = (is_read_only ? DB_RDONLY : 0) | DB_THREAD;
-    open_flags |= DB_AUTO_COMMIT;
 
     assert(share->file == NULL);
     assert(share->key_file[primary_key] == NULL);
@@ -1135,7 +1134,6 @@ int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* na
     }
     make_name(newname, name, dict_name);
 
-    open_flags |= DB_AUTO_COMMIT;
 
     if ((error = db_create(ptr, db_env, 0))) {
         my_errno = error;
@@ -1578,7 +1576,8 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
     error = 0;
 cleanup:
     if (crsr != NULL) {
-        crsr->c_close(crsr);
+        int r = crsr->c_close(crsr);
+        assert(r==0);
         crsr = NULL;
     }
     if (do_commit) {
@@ -2633,7 +2632,8 @@ bool ha_tokudb::may_table_be_empty() {
     error = 0;
 cleanup:
     if (tmp_cursor) {
-        tmp_cursor->c_close(tmp_cursor);
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
         tmp_cursor = NULL;
     }
     if (txn) {
@@ -2734,7 +2734,8 @@ int ha_tokudb::is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint
 
 cleanup:
     if (tmp_cursor) {
-        tmp_cursor->c_close(tmp_cursor);
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
         tmp_cursor = NULL;
     }
     return error;
@@ -3407,7 +3408,8 @@ cleanup:
         // cursor should be initialized here, but in case it is not, we still check
         //
         if (cursor) {
-            cursor->c_close(cursor);
+            int r = cursor->c_close(cursor);
+            assert(r==0);
             cursor = NULL;
         }
     }
@@ -3437,7 +3439,8 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
      */
     if (cursor) {
         DBUG_PRINT("note", ("Closing active cursor"));
-        cursor->c_close(cursor);
+        int r = cursor->c_close(cursor);
+        assert(r==0);
     }
     active_index = keynr;
     last_cursor_error = 0;
@@ -3473,6 +3476,7 @@ int ha_tokudb::index_end() {
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
         error = cursor->c_close(cursor);
+        assert(error==0);
         cursor = NULL;
         last_cursor_error = 0;
     }
@@ -3495,7 +3499,8 @@ int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
     if (error) {
         last_cursor_error = error;
         table->status = STATUS_NOT_FOUND;
-        cursor->c_close(cursor);
+        int r = cursor->c_close(cursor);
+        assert(r==0);
         cursor = NULL;
         if (error == DB_NOTFOUND) {
             error = err_to_return;
@@ -4231,7 +4236,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         // cursor should be initialized here, but in case it is not, we still check
         //
         if (cursor) {
-            cursor->c_close(cursor);
+            int r = cursor->c_close(cursor);
+            assert(r==0);
             cursor = NULL;
         }
         goto cleanup; 
@@ -5187,6 +5193,7 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     if (error) { goto cleanup; }
 
     error = status_cursor->c_close(status_cursor);
+    assert(error==0);
     status_cursor = NULL;
     if (error) { goto cleanup; }
 
@@ -5203,7 +5210,8 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     my_errno = error;
 cleanup:
     if (status_cursor) {
-        status_cursor->c_close(status_cursor);
+        int r = status_cursor->c_close(status_cursor);
+        assert(r==0);
     }
     if (status_db) {
         int r = status_db->close(status_db, 0);
@@ -5783,7 +5791,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         }
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
     }
-    tmp_cursor->c_close(tmp_cursor);
+    error = tmp_cursor->c_close(tmp_cursor);
+    assert(error==0);
     tmp_cursor = NULL;
 
     //
@@ -5820,7 +5829,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             }
         }
         
-        tmp_cursor->c_close(tmp_cursor);
+        error = tmp_cursor->c_close(tmp_cursor);
+        assert(error==0);
         tmp_cursor = NULL;
     }
 
@@ -5837,7 +5847,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     error = 0;
 cleanup:
     if (tmp_cursor) {            
-        tmp_cursor->c_close(tmp_cursor);
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
         tmp_cursor = NULL;
     }
     if (txn) {
@@ -6044,14 +6055,16 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
                 goto cleanup;
             }
         }
-        tmp_cursor->c_close(tmp_cursor);
+        error = tmp_cursor->c_close(tmp_cursor);
+        assert(error==0);
         tmp_cursor = NULL;
     }
 
     error = 0;
 cleanup:
     if (tmp_cursor) {
-        tmp_cursor->c_close(tmp_cursor);
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
         tmp_cursor = NULL;
     }
     if (do_commit) {
