@@ -148,8 +148,9 @@ struct I_P_List_adapter
   or destructor for it.
 */
 
-struct MDL_request
+class MDL_request
 {
+public:
   /** Type of metadata lock. */
   enum          enum_mdl_type type;
 
