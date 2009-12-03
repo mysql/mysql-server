@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   300; # minutes
-my $opt_shutdown_timeout=    10; # seconds
-my $opt_start_timeout   =   180; # seconds
+my $opt_testcase_timeout=     15; # 15 minutes
+my $opt_suite_timeout   =    360; # 6 hours
+my $opt_shutdown_timeout=     10; # 10 seconds
+my $opt_start_timeout   =    180; # 180 seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -215,7 +215,7 @@ my $opt_start_dirty;
 my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
-my $opt_retry= 3;
+my $opt_retry= 1;
 my $opt_retry_failure= 2;
 
 my $opt_strace_client;
@@ -612,8 +612,9 @@ sub run_test_server ($$$) {
           my $fake_test= My::Test::read_test($sock);
           my $test_list= join (" ", @{$fake_test->{testnames}});
           push @$extra_warnings, $test_list;
+          my $report= $fake_test->{'warnings'};
           mtr_report("***Warnings generated in error logs during shutdown ".
-                     "after running tests: $test_list");
+                     "after running tests: $test_list\n\n$report");
           $test_failure= 1;
           if ( !$opt_force ) {
             # Test failure due to warnings, force is off
@@ -1318,6 +1319,8 @@ sub command_line_setup {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
+    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
+    $opt_suite_timeout= $opt_testcase_timeout;
     $opt_retry= 1;
     $opt_retry_failure= 1;
 
@@ -2150,7 +2153,6 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
-
 }
 
 
@@ -2907,8 +2909,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
-			      "share/mariadb", "share", "scripts"],
+			     ["mysql", "sql/share", "share/mariadb",
+			      "share/mysql", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
@@ -3860,7 +3862,7 @@ sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
-  # belonging to current tets into @lines
+  # belonging to current test into @lines
   my $Ferr = IO::File->new($error_log)
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
@@ -3999,9 +4001,11 @@ sub extract_warning_lines ($) {
      qr/Slave I\/O: Get master COLLATION_SERVER failed with error:.*/,
      qr/Slave I\/O: Get master TIME_ZONE failed with error:.*/,
      qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
+     qr/Error reading packet/,
+     qr/Slave: Can't drop database.* database doesn't exist/,
     );
 
-  my $match_count= 0;
+  my $matched_lines= [];
   LINE: foreach my $line ( @lines )
   {
     PAT: foreach my $pat ( @patterns )
@@ -4013,18 +4017,18 @@ sub extract_warning_lines ($) {
           next LINE if $line =~ $apat;
         }
 	print $Fwarn $line;
-        ++$match_count;
+        push @$matched_lines, $line;
 	last PAT;
       }
     }
   }
   $Fwarn = undef; # Close file
 
-  if ($match_count > 0 &&
+  if (scalar(@$matched_lines) > 0 &&
       defined($last_warning_position->{$error_log}{test_names})) {
-    return $last_warning_position->{$error_log}{test_names};
+    return ($last_warning_position->{$error_log}{test_names}, $matched_lines);
   } else {
-    return [];
+    return ([], $matched_lines);
   }
 }
 
@@ -4201,14 +4205,18 @@ sub check_warnings ($) {
 sub check_warnings_post_shutdown {
   my ($server_socket)= @_;
   my $testname_hash= { };
+  my $report= '';
   foreach my $mysqld ( mysqlds())
   {
-    my $testlist= extract_warning_lines($mysqld->value('#log-error'));
+    my ($testlist, $match_lines)=
+        extract_warning_lines($mysqld->value('#log-error'));
     $testname_hash->{$_}= 1 for @$testlist;
+    $report.= join('', @$match_lines);
   }
   my @warning_tests= keys(%$testname_hash);
   if (@warning_tests) {
     my $fake_test= My::Test->new(testnames => \@warning_tests);
+    $fake_test->{'warnings'}= $report;
     $fake_test->write_test($server_socket, 'WARNINGS');
   }
 }

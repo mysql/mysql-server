@@ -472,11 +472,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (commit_rate)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
-    if (pre_system)
-      if ((sysret= system(pre_system)) != 0)
-        fprintf(stderr,
-                "Warning: Execution of pre_system option returned %d.\n", 
-                sysret);
+    if (pre_system && (sysret= system(pre_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of pre_system option returned %d.\n", 
+              sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -490,11 +489,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (post_statements)
       run_statements(mysql, post_statements);
 
-    if (post_system)
-      if ((sysret= system(post_system)) != 0)
-        fprintf(stderr,
-                "Warning: Execution of post_system option returned %d.\n", 
-                sysret);
+    if (post_system && (sysret= system(post_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of post_system option returned %d.\n", 
+              sysret);
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       drop_primary_key_list();
