@@ -965,6 +965,54 @@ bool LOGGER::flush_logs(THD *thd)
 }
 
 
+/**
+  Close and reopen the slow log (with locks).
+  
+  @returns FALSE.
+*/
+bool LOGGER::flush_slow_log()
+{
+  /*
+    Now we lock logger, as nobody should be able to use logging routines while
+    log tables are closed
+  */
+  logger.lock_exclusive();
+
+  /* Reopen slow log file */
+  if (opt_slow_log)
+    file_log_handler->get_mysql_slow_log()->reopen_file();
+
+  /* End of log flush */
+  logger.unlock();
+
+  return 0;
+}
+
+
+/**
+  Close and reopen the general log (with locks).
+
+  @returns FALSE.
+*/
+bool LOGGER::flush_general_log()
+{
+  /*
+    Now we lock logger, as nobody should be able to use logging routines while
+    log tables are closed
+  */
+  logger.lock_exclusive();
+
+  /* Reopen general log file */
+  if (opt_log)
+    file_log_handler->get_mysql_log()->reopen_file();
+
+  /* End of log flush */
+  logger.unlock();
+
+  return 0;
+}
+
+
 /*
   Log slow query with all enabled log event handlers
 
