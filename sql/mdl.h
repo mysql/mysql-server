@@ -23,10 +23,9 @@
 
 class THD;
 
-struct MDL_LOCK_REQUEST;
-struct MDL_LOCK_TICKET;
-struct MDL_LOCK;
-struct MDL_CONTEXT;
+class MDL_context;
+class MDL_lock;
+class MDL_ticket;
 
 /**
   Type of metadata lock request.
@@ -62,7 +61,7 @@ enum enum_mdl_state { MDL_PENDING, MDL_ACQUIRED };
   or "name".
 */
 
-class MDL_KEY
+class MDL_key
 {
 public:
   const uchar *ptr() const { return (uchar*) m_ptr; }
@@ -90,21 +89,34 @@ public:
     m_db_name_length= (uint) (strmov(m_ptr + 1, db) - m_ptr - 1);
     m_length= (uint) (strmov(m_ptr + m_db_name_length + 2, name) - m_ptr + 1);
   }
-  void mdl_key_init(const MDL_KEY *rhs)
+  void mdl_key_init(const MDL_key *rhs)
   {
     memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
     m_length= rhs->m_length;
     m_db_name_length= rhs->m_db_name_length;
   }
-  bool is_equal(const MDL_KEY *rhs) const
+  bool is_equal(const MDL_key *rhs) const
   {
     return (m_length == rhs->m_length &&
             memcmp(m_ptr, rhs->m_ptr, m_length) == 0);
   }
+  MDL_key(const MDL_key *rhs)
+  {
+    mdl_key_init(rhs);
+  }
+  MDL_key(char type_arg, const char *db_arg, const char *name_arg)
+  {
+    mdl_key_init(type_arg, db_arg, name_arg);
+  }
+  MDL_key() {} /* To use when part of MDL_request. */
+
 private:
   char m_ptr[MAX_MDLKEY_LENGTH];
   uint m_length;
   uint m_db_name_length;
+private:
+  MDL_key(const MDL_key &);                     /* not implemented */
+  MDL_key &operator=(const MDL_key &);          /* not implemented */
 };
 
 
@@ -125,14 +137,18 @@ struct I_P_List_adapter
 
 /**
   A pending metadata lock request.
-  A pending lock request or a granted metadata lock share the same abstract
-  base but are presented individually because they have different allocation
+
+  A lock request and a granted metadata lock are represented by
+  different classes because they have different allocation
   sites and hence different lifetimes. The allocation of lock requests is
   controlled from outside of the MDL subsystem, while allocation of granted
   locks (tickets) is controlled within the MDL subsystem.
+
+  MDL_request is a C structure, you don't need to call a constructor
+  or destructor for it.
 */
 
-struct MDL_LOCK_REQUEST
+struct MDL_request
 {
   /** Type of metadata lock. */
   enum          enum_mdl_type type;
@@ -140,51 +156,94 @@ struct MDL_LOCK_REQUEST
   /**
     Pointers for participating in the list of lock requests for this context.
   */
-  MDL_LOCK_REQUEST *next_in_context;
-  MDL_LOCK_REQUEST **prev_in_context;
+  MDL_request *next_in_context;
+  MDL_request **prev_in_context;
   /** A lock is requested based on a fully qualified name and type. */
-  MDL_KEY key;
+  MDL_key key;
+
+  void init(unsigned char type_arg, const char *db_arg, const char *name_arg);
+  /** Set type of lock request. Can be only applied to pending locks. */
+  inline void set_type(enum_mdl_type type_arg)
+  {
+    DBUG_ASSERT(ticket == NULL);
+    type= type_arg;
+  }
+  bool is_shared() const { return type < MDL_EXCLUSIVE; }
 
   /**
     Pointer to the lock ticket object for this lock request.
     Valid only if this lock request is satisfied.
   */
-  MDL_LOCK_TICKET *ticket;
+  MDL_ticket *ticket;
+
+  static MDL_request *create(unsigned char type, const char *db,
+                             const char *name, MEM_ROOT *root);
+
 };
 
+
+typedef void (*mdl_cached_object_release_hook)(void *);
 
 /**
   A granted metadata lock.
 
-  @warning MDL_LOCK_TICKET members are private to the MDL subsystem.
+  @warning MDL_ticket members are private to the MDL subsystem.
 
   @note Multiple shared locks on a same object are represented by a
         single ticket. The same does not apply for other lock types.
 */
 
-struct MDL_LOCK_TICKET
+class MDL_ticket
 {
-  /** Type of metadata lock. */
-  enum          enum_mdl_type type;
-  /** State of the metadata lock ticket. */
-  enum enum_mdl_state state;
-
+public:
   /**
     Pointers for participating in the list of lock requests for this context.
   */
-  MDL_LOCK_TICKET *next_in_context;
-  MDL_LOCK_TICKET **prev_in_context;
+  MDL_ticket *next_in_context;
+  MDL_ticket **prev_in_context;
   /**
     Pointers for participating in the list of satisfied/pending requests
     for the lock.
   */
-  MDL_LOCK_TICKET *next_in_lock;
-  MDL_LOCK_TICKET **prev_in_lock;
+  MDL_ticket *next_in_lock;
+  MDL_ticket **prev_in_lock;
+public:
+  bool has_pending_conflicting_lock() const;
+
+  void *get_cached_object();
+  void set_cached_object(void *cached_object,
+                         mdl_cached_object_release_hook release_hook);
+  const MDL_context *get_ctx() const { return m_ctx; }
+  bool is_shared() const { return m_type < MDL_EXCLUSIVE; }
+  bool upgrade_shared_lock_to_exclusive();
+  void downgrade_exclusive_lock();
+private:
+  friend class MDL_context;
+
+  MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg)
+   : m_type(type_arg),
+     m_state(MDL_PENDING),
+     m_ctx(ctx_arg),
+     m_lock(NULL)
+  {}
+
+
+  static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg);
+  static void destroy(MDL_ticket *ticket);
+private:
+  /** Type of metadata lock. */
+  enum enum_mdl_type m_type;
+  /** State of the metadata lock ticket. */
+  enum enum_mdl_state m_state;
+
   /** Context of the owner of the metadata lock ticket. */
-  MDL_CONTEXT *ctx;
+  MDL_context *m_ctx;
 
   /** Pointer to the lock object for this lock ticket. */
-  MDL_LOCK *lock;
+  MDL_lock *m_lock;
+private:
+  MDL_ticket(const MDL_ticket &);               /* not implemented */
+  MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
 };
 
 
@@ -193,115 +252,86 @@ struct MDL_LOCK_TICKET
   connection has such a context.
 */
 
-struct MDL_CONTEXT
+class MDL_context
 {
-  typedef I_P_List<MDL_LOCK_REQUEST,
-                   I_P_List_adapter<MDL_LOCK_REQUEST,
-                                    &MDL_LOCK_REQUEST::next_in_context,
-                                    &MDL_LOCK_REQUEST::prev_in_context> >
+public:
+  typedef I_P_List<MDL_request,
+                   I_P_List_adapter<MDL_request,
+                                    &MDL_request::next_in_context,
+                                    &MDL_request::prev_in_context> >
           Request_list;
 
   typedef Request_list::Iterator Request_iterator;
 
-  typedef I_P_List<MDL_LOCK_TICKET,
-                   I_P_List_adapter<MDL_LOCK_TICKET,
-                                    &MDL_LOCK_TICKET::next_in_context,
-                                    &MDL_LOCK_TICKET::prev_in_context> >
+  typedef I_P_List<MDL_ticket,
+                   I_P_List_adapter<MDL_ticket,
+                                    &MDL_ticket::next_in_context,
+                                    &MDL_ticket::prev_in_context> >
           Ticket_list;
 
   typedef Ticket_list::Iterator Ticket_iterator;
 
-  Request_list requests;
-  Ticket_list tickets;
-  bool has_global_shared_lock;
-  THD      *thd;
+  void init(THD *thd);
+  void destroy();
+
+  void backup_and_reset(MDL_context *backup);
+  void restore_from_backup(MDL_context *backup);
+  void merge(MDL_context *source);
+
+  void add_request(MDL_request *mdl_request);
+  void remove_request(MDL_request *mdl_request);
+  void remove_all_requests();
+
+  bool acquire_shared_lock(MDL_request *mdl_request, bool *retry);
+  bool acquire_exclusive_locks();
+  bool try_acquire_exclusive_lock(MDL_request *mdl_request, bool *conflict);
+  bool acquire_global_shared_lock();
+
+  bool wait_for_locks();
+
+  void release_all_locks();
+  void release_all_locks_for_name(MDL_ticket *ticket);
+  void release_lock(MDL_ticket *ticket);
+  void release_global_shared_lock();
+
+  bool is_exclusive_lock_owner(unsigned char type,
+                               const char *db,
+                               const char *name);
+  bool is_lock_owner(unsigned char type, const char *db, const char *name);
+
+  inline bool has_locks() const
+  {
+    return !m_tickets.is_empty();
+  }
+
+  inline MDL_ticket *mdl_savepoint()
+  {
+    return m_tickets.head();
+  }
+
+  void rollback_to_savepoint(MDL_ticket *mdl_savepoint);
+
+  /**
+    Get iterator for walking through all lock requests in the context.
+  */
+  inline Request_iterator get_requests()
+  {
+    return Request_iterator(m_requests);
+  }
+  inline THD *get_thd() const { return m_thd; }
+private:
+  Request_list m_requests;
+  Ticket_list m_tickets;
+  bool m_has_global_shared_lock;
+  THD *m_thd;
+private:
+  void release_ticket(MDL_ticket *ticket);
+  MDL_ticket *find_ticket(MDL_request *mdl_req);
 };
 
 
 void mdl_init();
 void mdl_destroy();
-
-void mdl_context_init(MDL_CONTEXT *context, THD *thd);
-void mdl_context_destroy(MDL_CONTEXT *context);
-void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
-void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup);
-void mdl_context_merge(MDL_CONTEXT *target, MDL_CONTEXT *source);
-
-void mdl_request_init(MDL_LOCK_REQUEST *lock_req, unsigned char type,
-                      const char *db, const char *name);
-MDL_LOCK_REQUEST *mdl_request_alloc(unsigned char type, const char *db,
-                                    const char *name, MEM_ROOT *root);
-void mdl_request_add(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req);
-void mdl_request_remove(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req);
-void mdl_request_remove_all(MDL_CONTEXT *context);
-
-/**
-   Set type of lock request. Can be only applied to pending locks.
-*/
-
-inline void mdl_request_set_type(MDL_LOCK_REQUEST *lock_req, enum_mdl_type lock_type)
-{
-  DBUG_ASSERT(lock_req->ticket == NULL);
-  lock_req->type= lock_type;
-}
-
-bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req,
-                             bool *retry);
-bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context);
-bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
-                                          MDL_LOCK_TICKET *ticket);
-bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
-                                    MDL_LOCK_REQUEST *lock_req,
-                                    bool *conflict);
-bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context);
-
-bool mdl_wait_for_locks(MDL_CONTEXT *context);
-
-void mdl_ticket_release_all(MDL_CONTEXT *context);
-void mdl_ticket_release_all_for_name(MDL_CONTEXT *context,
-                                     MDL_LOCK_TICKET *ticket);
-void mdl_ticket_release(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket);
-void mdl_downgrade_exclusive_lock(MDL_CONTEXT *context,
-                                  MDL_LOCK_TICKET *ticket);
-void mdl_release_global_shared_lock(MDL_CONTEXT *context);
-
-bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, unsigned char type,
-                                 const char *db, const char *name);
-bool mdl_is_lock_owner(MDL_CONTEXT *context, unsigned char type,
-                       const char *db, const char *name);
-
-bool mdl_has_pending_conflicting_lock(MDL_LOCK_TICKET *ticket);
-
-inline bool mdl_has_locks(MDL_CONTEXT *context)
-{
-  return !context->tickets.is_empty();
-}
-
-inline MDL_LOCK_TICKET *mdl_savepoint(MDL_CONTEXT *ctx)
-{
-  return ctx->tickets.head();
-}
-
-void mdl_rollback_to_savepoint(MDL_CONTEXT *ctx,
-                               MDL_LOCK_TICKET *mdl_savepoint);
-
-/**
-  Get iterator for walking through all lock requests in the context.
-*/
-
-inline MDL_CONTEXT::Request_iterator
-mdl_get_requests(MDL_CONTEXT *ctx)
-{
-  MDL_CONTEXT::Request_iterator result(ctx->requests);
-  return result;
-}
-
-
-void mdl_get_tdc_key(MDL_LOCK_TICKET *ticket, LEX_STRING *key);
-typedef void (* mdl_cached_object_release_hook)(void *);
-void *mdl_get_cached_object(MDL_LOCK_TICKET *ticket);
-void mdl_set_cached_object(MDL_LOCK_TICKET *ticket, void *cached_object,
-                           mdl_cached_object_release_hook release_hook);
 
 
 /*

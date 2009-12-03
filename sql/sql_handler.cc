@@ -125,7 +125,7 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
   TABLE **table_ptr;
-  MDL_LOCK_TICKET *mdl_lock_ticket;
+  MDL_ticket *mdl_ticket;
 
   /*
     Though we could take the table pointer from hash_tables->table,
@@ -141,7 +141,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
-    mdl_lock_ticket= (*table_ptr)->mdl_lock_ticket;
+    mdl_ticket= (*table_ptr)->mdl_ticket;
     pthread_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, table_ptr))
     {
@@ -149,8 +149,8 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
       broadcast_refresh();
     }
     pthread_mutex_unlock(&LOCK_open);
-    mdl_ticket_release(&thd->handler_mdl_context, mdl_lock_ticket);
-    mdl_request_remove(&thd->handler_mdl_context, tables->mdl_lock_request);
+    thd->handler_mdl_context.release_lock(mdl_ticket);
+    thd->handler_mdl_context.remove_request(tables->mdl_request);
   }
   else if (tables->table)
   {
@@ -194,8 +194,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   uint          dblen, namelen, aliaslen, counter;
   int           error;
   TABLE         *backup_open_tables;
-  MDL_CONTEXT   backup_mdl_context;
-  MDL_LOCK_REQUEST *mdl_lock_request;
+  MDL_context   backup_mdl_context;
+  MDL_request  *mdl_request;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -246,7 +246,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &db, (uint) dblen,
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
-                          &mdl_lock_request, sizeof(MDL_LOCK_REQUEST),
+                          &mdl_request, sizeof(MDL_request),
                           NullS)))
     {
       DBUG_PRINT("exit",("ERROR"));
@@ -260,8 +260,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    mdl_request_init(mdl_lock_request, 0, db, name);
-    hash_tables->mdl_lock_request= mdl_lock_request;
+    mdl_request->init(0, db, name);
+    hash_tables->mdl_request= mdl_request;
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
@@ -289,7 +289,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   */
   backup_open_tables= thd->open_tables;
   thd->open_tables= NULL;
-  mdl_context_backup_and_reset(&thd->mdl_context, &backup_mdl_context);
+  thd->mdl_context.backup_and_reset(&backup_mdl_context);
 
   /*
     open_tables() will set 'hash_tables->table' if successful.
@@ -328,10 +328,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
       thd->handler_tables= thd->open_tables;
     }
   }
-  mdl_context_merge(&thd->handler_mdl_context, &thd->mdl_context);
+  thd->handler_mdl_context.merge(&thd->mdl_context);
 
   thd->open_tables= backup_open_tables;
-  mdl_context_restore(&thd->mdl_context, &backup_mdl_context);
+  thd->mdl_context.restore_from_backup(&backup_mdl_context);
 
   if (error)
     goto err;
@@ -800,11 +800,11 @@ void mysql_ha_flush(THD *thd)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     /*
-      TABLE::mdl_lock_ticket is 0 for temporary tables so we need extra check.
+      TABLE::mdl_ticket is 0 for temporary tables so we need extra check.
     */
     if (hash_tables->table &&
-        (hash_tables->table->mdl_lock_ticket &&
-         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock_ticket) ||
+        (hash_tables->table->mdl_ticket &&
+         hash_tables->table->mdl_ticket->has_pending_conflicting_lock() ||
          hash_tables->table->needs_reopen()))
       mysql_ha_close_table(thd, hash_tables);
   }

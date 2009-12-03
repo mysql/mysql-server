@@ -329,7 +329,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   String stmt_query;
   bool need_start_waiting= FALSE;
   bool lock_upgrade_done= FALSE;
-  MDL_LOCK_TICKET *mdl_lock_ticket= NULL;
+  MDL_ticket *mdl_ticket= NULL;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -465,7 +465,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   table= tables->table;
 
   /* Later on we will need it to downgrade the lock */
-  mdl_lock_ticket= table->mdl_lock_ticket;
+  mdl_ticket= table->mdl_ticket;
 
   if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
     goto end;
@@ -513,7 +513,7 @@ end:
     TABLE instance created by open_n_lock_single_table() and metadata lock.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
-    mdl_downgrade_exclusive_lock(&thd->mdl_context, mdl_lock_ticket);
+    mdl_ticket->downgrade_exclusive_lock();
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
@@ -1882,7 +1882,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
-  if (mdl_is_exclusive_lock_owner(&thd->mdl_context, 0, db, old_table))
+  if (thd->mdl_context.is_exclusive_lock_owner(0, db, old_table))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
 
