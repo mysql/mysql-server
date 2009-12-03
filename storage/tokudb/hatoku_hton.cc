@@ -322,7 +322,8 @@ static int tokudb_init_func(void *p) {
 
 error:
     if (metadata_db) {
-        metadata_db->close(metadata_db, 0);
+        int rr = metadata_db->close(metadata_db, 0);
+        assert(rr==0);
     }
     if (db_env) {
         db_env->close(db_env, 0);
@@ -356,7 +357,8 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     TOKUDB_DBUG_ENTER("tokudb_end");
     int error = 0;
     if (metadata_db) {
-        metadata_db->close(metadata_db, 0);
+        int r = metadata_db->close(metadata_db, 0);
+        assert(r==0);
     }
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
@@ -645,9 +647,11 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
 
             num_bytes_in_db += curr_num_bytes;
 
-            curr_db->close(curr_db, 0);
-            curr_db = NULL;
-            
+            {
+                int r = curr_db->close(curr_db, 0);
+                assert(r==0);
+                curr_db = NULL;
+            }
             my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
         }
     }
@@ -667,7 +671,8 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
 
 cleanup:
     if (curr_db) {
-        curr_db->close(curr_db, 0);
+        int r = curr_db->close(curr_db, 0);
+        assert(r==0);
     }
     if (tmp_cursor) {
         tmp_cursor->c_close(tmp_cursor);
