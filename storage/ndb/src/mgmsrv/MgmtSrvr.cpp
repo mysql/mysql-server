@@ -77,18 +77,6 @@ int g_errorInsert;
 
 extern "C" my_bool opt_core;
 
-static void require(bool v)
-{
-  if(!v)
-  {
-    if (opt_core)
-      abort();
-    else
-      exit(-1);
-  }
-}
-
-
 void *
 MgmtSrvr::logLevelThread_C(void* m)
 {

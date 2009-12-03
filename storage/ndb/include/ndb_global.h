@@ -211,4 +211,33 @@ extern "C" {
 #define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
 #endif
 
+/*
+ * require is like a normal assert, only it's always on (eg. in release)
+*/
+C_MODE_START
+// see below
+typedef int(*RequirePrinter)(const char *fmt, ...);
+void require_failed(int exitcode, RequirePrinter p,
+                    const char* expr, const char* file, int line);
+C_MODE_END
+/*
+ *  this allows for an exit() call if exitcode is not zero
+ *  and takes a Printer to print the error
+*/
+#define require_exit_or_core_with_printer(v, exitcode, printer) \
+  do { if (likely(v)) break; \
+       require_failed((exitcode), (printer), #v, __FILE__, __LINE__); \
+  } while (0)
+
+/*
+ *  this allows for an exit() call if exitcode is not zero
+*/
+#define require_exit_or_core(v, exitcode) \
+       require_exit_or_core_with_printer((v), (exitcode), 0)
+
+/*
+ * this require is like a normal assert.  (only it's always on)
+*/
+#define require(v) require_exit_or_core_with_printer((v), 0, 0)
+
 #endif

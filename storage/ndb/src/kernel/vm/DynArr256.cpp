@@ -47,7 +47,18 @@ struct DA256Page
   struct DA256Node m_nodes[30];
 };
 
-#define require(x) require_impl(x, __LINE__)
+extern "C" int printer(const char * fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vndbout_c(fmt, ap);
+  va_end(ap);
+  return 1;
+}
+
+#undef require
+#define require(x) require_exit_or_core_with_printer((x), 0, printer)
 //#define DA256_USE_PX
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
