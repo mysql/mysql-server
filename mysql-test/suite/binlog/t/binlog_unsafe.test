@@ -388,4 +388,72 @@ DELETE FROM t1 LIMIT 1;
 
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+
+#
+# BUG#45827
+# The test verifies if stmt that have more than one 
+# different tables to update with autoinc columns 
+# will produce unsafe warning
+#
+
+# Test case1: stmt that have more than one different tables 
+#             to update with autoinc columns should produce 
+#             unsafe warning when calling a function
+CREATE TABLE t1 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+
+# The purpose of this function is to insert into t1 so that the second
+# column is auto_increment'ed.
+DELIMITER |;
+CREATE FUNCTION func_modify_t1 ()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 SET a = 1;
+  RETURN 0;
+END|
+DELIMITER ;|
+--echo # The following statement causes auto-incrementation  
+--echo # of both t1 and t2. It is logged in statement format, 
+--echo # so it should produce unsafe warning.
+INSERT INTO t2 SET a = func_modify_t1();
+
+SET SESSION binlog_format = MIXED;
+--echo # Check if the statement is logged in row format.
+let $pos0_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+INSERT INTO t2 SET a = func_modify_t1();
+eval SHOW BINLOG EVENTS FROM $pos0_master;
+
+# clean up
+DROP TABLE t1,t2;
+DROP FUNCTION func_modify_t1;
+
+# Test case2: stmt that have more than one different tables 
+#             to update with autoinc columns should produce 
+#             unsafe warning when invoking a trigger 
+SET SESSION binlog_format = STATEMENT;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE t3 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+# The purpose of this function is to insert into t1 so that the second
+# column is auto_increment'ed.
+delimiter |;
+create trigger tri_modify_two_tables before insert on t1 for each row begin
+    insert into t2(a) values(new.a);
+    insert into t3(a) values(new.a);
+end |
+delimiter ;|
+--echo # The following statement causes auto-incrementation  
+--echo # of both t2 and t3. It is logged in statement format, 
+--echo # so it should produce unsafe warning
+INSERT INTO t1 SET a = 1;
+
+SET SESSION binlog_format = MIXED;
+--echo # Check if the statement is logged in row format.
+let $pos1_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+INSERT INTO t1 SET a = 2;
+eval SHOW BINLOG EVENTS FROM $pos1_master;
+
+# clean up
+DROP TABLE t1,t2,t3;
+
 --echo "End of tests"
