@@ -20,6 +20,7 @@
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
 #include "rpl_utility.h"
+#include "transaction.h"
 
 static int count_relay_log_space(Relay_log_info* rli);
 
@@ -1183,8 +1184,8 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   if (error)
   {
-    ha_autocommit_or_rollback(thd, 1); // if a "statement transaction"
-    end_trans(thd, ROLLBACK); // if a "real transaction"
+    trans_rollback_stmt(thd); // if a "statement transaction"
+    trans_rollback(thd);      // if a "real transaction"
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
