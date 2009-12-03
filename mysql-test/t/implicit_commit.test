@@ -1,5 +1,5 @@
 source include/have_innodb.inc;
-source include/have_log_bin.inc;
+source include/not_embedded.inc;
 
 SET GLOBAL EVENT_SCHEDULER = OFF;
 SET BINLOG_FORMAT = STATEMENT;
