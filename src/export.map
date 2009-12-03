@@ -13,6 +13,8 @@
    db_env_set_func_write;
    db_env_set_checkpoint_callback;
    db_env_set_checkpoint_callback2;
+   db_env_set_recover_callback;
+   db_env_set_recover_callback2;
 
    toku_os_get_max_rss;
 
