@@ -1320,10 +1320,11 @@ void mdl_release_locks(MDL_CONTEXT *context)
   {
     DBUG_PRINT("info", ("found lock to release lock_data=%p", lock_data));
     /*
-      We should not release locks which pending shared locks as these
-      are not associated with lock object and don't present in its
-      lists. Allows us to avoid problems in open_tables() in case of
-      back-off
+      Don't call release_lock() for a shared lock if has not been
+      granted. Lock state in this case is MDL_INITIALIZED.
+      We have pending and granted shared locks in the same context
+      when this function is called from the "back-off" path of
+      open_tables().
     */
     if (lock_data->state != MDL_INITIALIZED)
     {
