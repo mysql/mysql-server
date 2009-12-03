@@ -469,11 +469,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
 
   /****** TODO: BEGIN: Further temporary limitations we expect to remove soon: ******/
-  if (join_root.type == JT_REF && join_root.sorted)    // Ordered index scans not possible
-  {
-    DBUG_RETURN(0);
-  }
-
   // TODO: Incomplete testing of 'late quick-optimized' range scan, will be liftet soon
   if (join_root.type == JT_ALL && join_root.use_quick == 2)
   {
@@ -3726,11 +3721,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   if (m_pushed_join)
   {
-    // There are current limitations on pushed_joins:
-    DBUG_ASSERT(!sorted);
-    DBUG_ASSERT(!descending);
-    DBUG_ASSERT(!(m_use_partition_pruning && m_user_defined_partitioning));
-
     DBUG_PRINT("info", ("executing chain of a index scan + %d primary key joins."
                         " First table is %s.", 
                           m_pushed_join->m_count-1,
@@ -3741,6 +3731,13 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
+
+    if (sorted)
+    {
+      query->getQueryOperation(0U)
+        ->setOrdering(descending ? NdbScanOrdering_descending
+                                 : NdbScanOrdering_ascending);
+    }
 
     if (pbound  && query->setBound(pbound)!=0)
       ERR_RETURN(query->getNdbError());
@@ -11992,10 +11989,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       {
         if (!m_active_query)
         {
-          // There are current limitations on mrr pushed_joins:
-          DBUG_ASSERT(!sorted);
-          DBUG_ASSERT(!(m_use_partition_pruning && m_user_defined_partitioning));
-
           DBUG_PRINT("info", ("executing chain of a index scan + %d primary key joins."
                               " First table is %s.", 
                                 m_pushed_join->m_count-1,
@@ -12005,6 +11998,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           if (unlikely(!query))
             ERR_RETURN(trans->getNdbError());
           m_active_query= query;
+
+          if (sorted)
+            query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending);
 
           for (uint i = 0; i<m_pushed_join->m_count; i++)
           {

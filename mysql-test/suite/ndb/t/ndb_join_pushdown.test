@@ -171,7 +171,8 @@ where t1.a = 1 and t1.b = 1;
 
 #
 # Test index scan w/ equal-bounds (low == high)
-# NOTE: There is temp restriction of not allowing ordered index scans to be pushed.
+# NOTE: There used to be temp restriction of not allowing ordered 
+# index scans to be pushed. (Has later been lifted)
 # SQL stmt. are therefore written with pushable JT_REFs from table 2 -> 
 #
 set ndb_join_pushdown=on;
@@ -227,6 +228,19 @@ from t1
 left join t1 as t2 on t2.a = t1.c
 left join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
+
+# JT_REF as root operations is now supported as pushed joins
+set ndb_join_pushdown=on;
+explain
+select *
+from t1 as t2
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d
+where t2.a = 1;
+--sorted_result
+select *
+from t1 as t2
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d
+where t2.a = 1;
 
 
 # Test a combination of pushed table scan (x, y)
