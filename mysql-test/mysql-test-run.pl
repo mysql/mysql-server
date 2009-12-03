@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   300; # minutes
-my $opt_shutdown_timeout=    10; # seconds
-my $opt_start_timeout   =   180; # seconds
+my $opt_testcase_timeout=     15; # 15 minutes
+my $opt_suite_timeout   =    360; # 6 hours
+my $opt_shutdown_timeout=     10; # 10 seconds
+my $opt_start_timeout   =    180; # 180 seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -1319,6 +1319,8 @@ sub command_line_setup {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
+    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
+    $opt_suite_timeout= $opt_testcase_timeout;
     $opt_retry= 1;
     $opt_retry_failure= 1;
 
@@ -2151,7 +2153,6 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
-
 }
 
 
@@ -2908,8 +2909,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
-			      "share/mariadb", "share", "scripts"],
+			     ["mysql", "sql/share", "share/mariadb",
+			      "share/mysql", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
@@ -3861,7 +3862,7 @@ sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
-  # belonging to current tets into @lines
+  # belonging to current test into @lines
   my $Ferr = IO::File->new($error_log)
     or mtr_error("Could not open file '$error_log' for reading: $!");
 

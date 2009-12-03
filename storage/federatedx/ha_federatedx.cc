@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2008, Patrick Galbraith 
+Copyright (c) 2008-2009, Patrick Galbraith & Antony Curtis
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -308,7 +308,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#define MYSQL_SERVER 1q
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 
@@ -1627,7 +1627,13 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
   {
     MEM_ROOT mem_root;
 
-    txn->close(server);
+    if (!txn)
+    {
+      federatedx_txn tmp_txn;
+      tmp_txn.close(server);
+    }
+    else
+      txn->close(server);
 
     DBUG_ASSERT(server->io_count == 0);
 
@@ -1785,21 +1791,25 @@ int ha_federatedx::close(void)
   if (stored_result)
     retval= free_result();
 
-  /* Disconnect from mysql. thd may be null during refresh */
-  txn= thd ? get_txn(thd, true) : new federatedx_txn();
+  /* Disconnect from mysql */
+  if (!thd || !(txn= get_txn(thd, true)))
+  {
+    federatedx_txn tmp_txn;
 
-  if (txn)
+    tmp_txn.release(&io);
+
+    DBUG_ASSERT(io == NULL);
+    
+    if ((error= free_share(&tmp_txn, share)))
+      retval= error;
+  }
+  else
   {
     txn->release(&io);
-    
     DBUG_ASSERT(io == NULL);
 
     if ((error= free_share(txn, share)))
       retval= error;
-
-    if (!thd)
-      delete txn;
-
   }
   DBUG_RETURN(retval);
 }
@@ -2793,14 +2803,16 @@ int ha_federatedx::rnd_end()
 int ha_federatedx::free_result()
 {
   int error;
+  federatedx_io *tmp_io= 0, **iop;
   DBUG_ASSERT(stored_result);
-  if ((error= txn->acquire(share, FALSE, &io)))
+  if (!*(iop= &io) && (error= txn->acquire(share, TRUE, (iop= &tmp_io))))
   {
     DBUG_ASSERT(0);                             // Fail when testing
     return error;
   }
-  io->free_result(stored_result);
+  (*iop)->free_result(stored_result);
   stored_result= 0;
+  txn->release(&tmp_io);
   return 0;
 }
 
@@ -2985,7 +2997,7 @@ int ha_federatedx::info(uint flag)
 {
   char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   uint error_code;
-  federatedx_io *tmp_io= 0;
+  federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
 
   error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
@@ -2993,7 +3005,7 @@ int ha_federatedx::info(uint flag)
   /* we want not to show table status if not needed to do so */
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST | HA_STATUS_AUTO))
   {
-    if ((error_code= txn->acquire(share, TRUE, &tmp_io)))
+    if (!*(iop= &io) && (error_code= txn->acquire(share, TRUE, (iop= &tmp_io))))
       goto fail;
   }
 
@@ -3006,13 +3018,13 @@ int ha_federatedx::info(uint flag)
     if (flag & HA_STATUS_CONST)
       stats.block_size= 4096;
 
-    if (tmp_io->table_metadata(&stats, share->table_name,
+    if ((*iop)->table_metadata(&stats, share->table_name,
                                share->table_name_length, flag))
       goto error;
   }
 
   if (flag & HA_STATUS_AUTO)
-    stats.auto_increment_value= tmp_io->last_insert_id();
+    stats.auto_increment_value= (*iop)->last_insert_id();
 
   /*
     If ::info created it's own transaction, close it. This happens in case
@@ -3023,10 +3035,10 @@ int ha_federatedx::info(uint flag)
   DBUG_RETURN(0);
 
 error:
-  if (tmp_io)
+  if (iop && *iop)
   {
     my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              tmp_io->error_code(), tmp_io->error_str()));
+                              (*iop)->error_code(), (*iop)->error_str()));
     my_error(error_code, MYF(0), error_buffer);
   }
   else

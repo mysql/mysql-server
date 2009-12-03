@@ -1280,7 +1280,6 @@ sig_handler handle_sigint(int sig)
   MYSQL *kill_mysql= NULL;
 
   /* terminate if no query being executed, or we already tried interrupting */
-  /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
     tee_fprintf(stdout, "Ctrl-C -- exit!\n");
@@ -1295,6 +1294,7 @@ sig_handler handle_sigint(int sig)
     goto err;
   }
 
+  /* First time try to kill the query, second time the connection */
   interrupted_query++;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
@@ -1305,10 +1305,13 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  if (verbose)
+    tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n",
+                kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
+  tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
+  interrupted_query= 0;
 
   return;
 
@@ -1321,7 +1324,6 @@ err:
    handler called mysql_end(). 
   */
   mysql_thread_end();
-  return;
 #else
   mysql_end(sig);
 #endif  
@@ -2881,13 +2883,8 @@ com_help(String *buffer __attribute__((unused)),
 	  return com_server_help(buffer,line,help_arg);
   }
 
-  put_info("\nFor information about MySQL products and services, visit:\n"
-           "   http://www.mysql.com/\n"
-           "For developer information, including the MySQL Reference Manual, "
-           "visit:\n"
-           "   http://dev.mysql.com/\n"
-           "To buy MySQL Enterprise support, training, or other products, visit:\n"
-           "   https://shop.mysql.com/\n", INFO_INFO);
+  put_info("\nGeneral information about MariaDB can be found at\n"
+           "http://askmonty.org/wiki/index.php/Manual:Contents\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
