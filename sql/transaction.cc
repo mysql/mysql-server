@@ -163,8 +163,7 @@ bool trans_commit_implicit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
-                      OPTION_TABLE_LOCK))
+  if (thd->in_multi_stmt_transaction() || (thd->options & OPTION_TABLE_LOCK))
   {
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables_mode)
@@ -299,8 +298,8 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   SAVEPOINT **sv, *newsv;
   DBUG_ENTER("trans_savepoint");
 
-  if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
-        thd->in_sub_stmt) || !opt_using_transactions)
+  if (!(thd->in_multi_stmt_transaction() || thd->in_sub_stmt) ||
+      !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
   sv= find_savepoint(thd, name);
