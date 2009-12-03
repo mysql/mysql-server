@@ -293,17 +293,13 @@ static int tokudb_init_func(void *p) {
     }
     
 
-    r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
+    r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
     if (r) {
         if (r != ENOENT) {
             sql_print_error("Got error %d when trying to open metadata_db", r);
             goto error;
         }
         sql_print_warning("No metadata table exists, so creating it");
-        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
-        if (r) {
-            goto error;
-        }
         r = metadata_db->close(metadata_db,0);
         assert(r == 0);
         r = db_create(&metadata_db, db_env, 0);
@@ -311,7 +307,8 @@ static int tokudb_init_func(void *p) {
             DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
             goto error;
         }
-        r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD, 0);
+
+        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
         if (r) {
             goto error;
         }
