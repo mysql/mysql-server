@@ -2013,7 +2013,8 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
        * base table, schema and database, and put that in
        * string form into the caller's buffer
        */
-      Uint32 indexObjectId = (Uint32) err.details;
+      UintPtr uip = (UintPtr) err.details;
+      Uint32 indexObjectId = (Uint32) (uip - (UintPtr(0)));
       Uint32 primTableObjectId = ~ (Uint32) 0;
       BaseString indexName;
       
