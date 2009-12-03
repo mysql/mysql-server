@@ -4512,7 +4512,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   trans_register_ha(thd, FALSE, ndbcluster_hton);
   if (!thd_ndb->trans)
   {
-    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd->in_multi_stmt_transaction())
       trans_register_ha(thd, TRUE, ndbcluster_hton);
     DBUG_PRINT("trans",("Starting transaction"));      
     thd_ndb->trans= ndb->startTransaction();
@@ -4582,7 +4582,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
   }
 #endif
 
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd->in_multi_stmt_transaction())
   {
     const void *key= m_table;
     HASH_SEARCH_STATE state;
@@ -4666,7 +4666,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (ndb_cache_check_time && m_rows_changed)
     {
       DBUG_PRINT("info", ("Rows has changed and util thread is running"));
-      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      if (thd->in_multi_stmt_transaction())
       {
         DBUG_PRINT("info", ("Add share to list of tables to be invalidated"));
         /* NOTE push_back allocates memory using transactions mem_root! */
@@ -4685,7 +4685,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("trans", ("Last external_lock"));
       PRINT_OPTION_FLAGS(thd);
 
-      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+      if (!thd->in_multi_stmt_transaction())
       {
         if (thd_ndb->trans)
         {
@@ -4795,8 +4795,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   PRINT_OPTION_FLAGS(thd);
   DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
   thd_ndb->start_stmt_count= 0;
-  if (trans == NULL || (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (trans == NULL || (!all && thd->in_multi_stmt_transaction()))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -4866,7 +4865,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL || (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+      thd->in_multi_stmt_transaction()))
   {
     /* Ignore end-of-statement until real rollback or commit is called */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
@@ -8041,17 +8040,15 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
                                    ulonglong *engine_data)
 {
   Uint64 commit_count;
-  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
 #ifndef DBUG_OFF
   char buff[22], buff2[22];
 #endif
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
-  DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
-                       dbname, tabname, is_autocommit));
+  DBUG_PRINT("enter", ("dbname: %s, tabname: %s", dbname, tabname));
 
-  if (!is_autocommit)
+  if (thd->in_multi_stmt_transaction())
   {
     DBUG_PRINT("exit", ("No, don't use cache in transaction"));
     DBUG_RETURN(FALSE);
@@ -8116,12 +8113,10 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 #ifndef DBUG_OFF
   char buff[22];
 #endif
-  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
-  DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
-		      m_dbname, m_tabname, is_autocommit));
+  DBUG_PRINT("enter",("dbname: %s, tabname: %s", m_dbname, m_tabname));
 
-  if (!is_autocommit)
+  if (thd->in_multi_stmt_transaction())
   {
     DBUG_PRINT("exit", ("Can't register table during transaction"));
     DBUG_RETURN(FALSE);
