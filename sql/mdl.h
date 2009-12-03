@@ -29,15 +29,15 @@ struct MDL_LOCK;
 struct MDL_CONTEXT;
 
 /**
-   Type of metadata lock request.
+  Type of metadata lock request.
 
-   - High-priority shared locks differ from ordinary shared locks by
-     that they ignore pending requests for exclusive locks.
-   - Upgradable shared locks can be later upgraded to exclusive
-     (because of that their acquisition involves implicit
-      acquisition of global intention-exclusive lock).
+  - High-priority shared locks differ from ordinary shared locks by
+    that they ignore pending requests for exclusive locks.
+  - Upgradable shared locks can be later upgraded to exclusive
+    (because of that their acquisition involves implicit
+     acquisition of global intention-exclusive lock).
 
-   @see Comments for can_grant_lock() and can_grant_global_lock() for details.
+  @see Comments for can_grant_lock() and can_grant_global_lock() for details.
 */
 
 enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
@@ -54,12 +54,12 @@ enum enum_mdl_state { MDL_PENDING, MDL_ACQUIRED };
 
 
 /**
-   Metadata lock object key.
+  Metadata lock object key.
 
-   A lock is requested or granted based on a fully qualified name and type.
-   E.g. They key for a table consists of <0 (=table)>+<database>+<table name>.
-   Elsewhere in the comments this triple will be referred to simply as "key"
-   or "name".
+  A lock is requested or granted based on a fully qualified name and type.
+  E.g. They key for a table consists of <0 (=table)>+<database>+<table name>.
+  Elsewhere in the comments this triple will be referred to simply as "key"
+  or "name".
 */
 
 class MDL_KEY
@@ -110,8 +110,8 @@ private:
 
 
 /**
-   Hook class which via its methods specifies which members
-   of T should be used for participating in MDL lists.
+  Hook class which via its methods specifies which members
+  of T should be used for participating in MDL lists.
 */
 
 template <typename T, T* T::*next, T** T::*prev>
@@ -124,12 +124,12 @@ struct I_P_List_adapter
 
 
 /**
-   A pending metadata lock request.
-   A pending lock request or a granted metadata lock share the same abstract
-   base but are presented individually because they have different allocation
-   sites and hence different lifetimes. The allocation of lock requests is
-   controlled from outside of the MDL subsystem, while allocation of granted
-   locks (tickets) is controlled within the MDL subsystem.
+  A pending metadata lock request.
+  A pending lock request or a granted metadata lock share the same abstract
+  base but are presented individually because they have different allocation
+  sites and hence different lifetimes. The allocation of lock requests is
+  controlled from outside of the MDL subsystem, while allocation of granted
+  locks (tickets) is controlled within the MDL subsystem.
 */
 
 struct MDL_LOCK_REQUEST
@@ -138,7 +138,7 @@ struct MDL_LOCK_REQUEST
   enum          enum_mdl_type type;
 
   /**
-     Pointers for participating in the list of lock requests for this context.
+    Pointers for participating in the list of lock requests for this context.
   */
   MDL_LOCK_REQUEST *next_in_context;
   MDL_LOCK_REQUEST **prev_in_context;
@@ -154,12 +154,12 @@ struct MDL_LOCK_REQUEST
 
 
 /**
-   A granted metadata lock.
+  A granted metadata lock.
 
-   @warning MDL_LOCK_TICKET members are private to the MDL subsystem.
+  @warning MDL_LOCK_TICKET members are private to the MDL subsystem.
 
-   @note Multiple shared locks on a same object are represented by a
-         single ticket. The same does not apply for other lock types.
+  @note Multiple shared locks on a same object are represented by a
+        single ticket. The same does not apply for other lock types.
 */
 
 struct MDL_LOCK_TICKET
@@ -170,13 +170,13 @@ struct MDL_LOCK_TICKET
   enum enum_mdl_state state;
 
   /**
-     Pointers for participating in the list of lock requests for this context.
+    Pointers for participating in the list of lock requests for this context.
   */
   MDL_LOCK_TICKET *next_in_context;
   MDL_LOCK_TICKET **prev_in_context;
   /**
-     Pointers for participating in the list of satisfied/pending requests
-     for the lock.
+    Pointers for participating in the list of satisfied/pending requests
+    for the lock.
   */
   MDL_LOCK_TICKET *next_in_lock;
   MDL_LOCK_TICKET **prev_in_lock;
@@ -189,8 +189,8 @@ struct MDL_LOCK_TICKET
 
 
 /**
-   Context of the owner of metadata locks. I.e. each server
-   connection has such a context.
+  Context of the owner of metadata locks. I.e. each server
+  connection has such a context.
 */
 
 struct MDL_CONTEXT
@@ -286,7 +286,7 @@ void mdl_rollback_to_savepoint(MDL_CONTEXT *ctx,
                                MDL_LOCK_TICKET *mdl_savepoint);
 
 /**
-   Get iterator for walking through all lock requests in the context.
+  Get iterator for walking through all lock requests in the context.
 */
 
 inline MDL_CONTEXT::Request_iterator
