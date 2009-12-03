@@ -2273,35 +2273,4 @@ END|
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
-#
-# Bug #20837 Apparent change of isolation 
-#     level during transaction
-#
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-CREATE TABLE t1 (s1 INT) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (1),(2);
-COMMIT;
-SET @@autocommit = 0;
-COMMIT;
-SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-START TRANSACTION;
-SELECT * FROM t1;
-s1
-1
-2
-Should be READ UNCOMMITTED
-SELECT @@tx_isolation;
-@@tx_isolation
-READ-UNCOMMITTED
-INSERT INTO t1 VALUES (-1);
-Should be READ UNCOMMITTED
-SELECT @@tx_isolation;
-@@tx_isolation
-READ-UNCOMMITTED
-COMMIT;
-Should now be REPEATABLE READ
-SELECT @@tx_isolation;
-@@tx_isolation
-REPEATABLE-READ
-DROP TABLE t1;
 End of 5.1 tests
