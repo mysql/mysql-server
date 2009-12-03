@@ -1575,6 +1575,18 @@ public:
    */
   const NdbError & getNdbError(int errorCode);
 
+  /**
+   * Get a string containing any extra error details in the supplied
+   * buffer
+   * Where there is extra detail available a ptr to the start of
+   * the supplied buffer will be returned.
+   * If the extra detail string is longer than the passed buffer 
+   * then it will be truncated to fit.
+   * Where there is no extra detail, NULL will be returned.
+   */
+  const char* getNdbErrorDetail(const NdbError& err, 
+                                char* buff, 
+                                Uint32 buffLen) const;
 
   /** @} *********************************************************************/
 
