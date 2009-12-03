@@ -1062,9 +1062,18 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
   table_list->lock_type= TL_WRITE;
   mysql_init_select(thd->lex);
   thd->clear_current_stmt_binlog_row_based();
+  /* Delete all rows from table */
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
-  ha_autocommit_or_rollback(thd, error);
-  end_trans(thd, error ? ROLLBACK : COMMIT);
+  /*
+    All effects of a TRUNCATE TABLE operation are rolled back if a row by row
+    deletion fails. Otherwise, operation is automatically committed at the end.
+  */
+  if (error)
+  {
+    DBUG_ASSERT(thd->stmt_da->is_error());
+    ha_autocommit_or_rollback(thd, TRUE);
+    end_active_trans(thd);
+  }
   thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(error);
 }
