@@ -1928,6 +1928,7 @@ execute stmt;
 a
 execute stmt;
 a
+deallocate prepare stmt;
 drop table t1;
 drop view v1;
 create table t1(a bigint);
@@ -1938,6 +1939,7 @@ execute stmt;
 1
 execute stmt;
 1
+deallocate prepare stmt;
 drop table t1,t2;
 #
 End of 5.0 tests.
