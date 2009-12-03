@@ -22,10 +22,10 @@
 
 
 /**
-   The lock context. Created internally for an acquired lock.
-   For a given name, there exists only one MDL_LOCK instance,
-   and it exists only when the lock has been granted.
-   Can be seen as an MDL subsystem's version of TABLE_SHARE.
+  The lock context. Created internally for an acquired lock.
+  For a given name, there exists only one MDL_LOCK instance,
+  and it exists only when the lock has been granted.
+  Can be seen as an MDL subsystem's version of TABLE_SHARE.
 */
 
 struct MDL_LOCK
@@ -48,7 +48,7 @@ struct MDL_LOCK
   MDL_KEY key;
   /** List of granted tickets for this lock. */
   Ticket_list granted;
-  /*
+  /**
     There can be several upgraders and active exclusive
     belonging to the same context.
   */
@@ -76,11 +76,11 @@ pthread_cond_t  COND_mdl;
 HASH mdl_locks;
 
 /**
-   Structure implementing global metadata lock. The only types
-   of locks which are supported at the moment are shared and
-   intention exclusive locks. Note that the latter type of global
-   lock acquired automatically when one tries to acquire exclusive
-   or shared upgradable lock on particular object.
+  Structure implementing global metadata lock. The only types
+  of locks which are supported at the moment are shared and
+  intention exclusive locks. Note that the latter type of global
+  lock acquired automatically when one tries to acquire exclusive
+  or shared upgradable lock on particular object.
 */
 
 struct MDL_GLOBAL_LOCK
@@ -102,21 +102,21 @@ mdl_locks_key(const uchar *record, size_t *length,
 
 
 /**
-   Initialize the metadata locking subsystem.
+  Initialize the metadata locking subsystem.
 
-   This function is called at server startup.
+  This function is called at server startup.
 
-   In particular, initializes the new global mutex and
-   the associated condition variable: LOCK_mdl and COND_mdl.
-   These locking primitives are implementation details of the MDL
-   subsystem and are private to it.
+  In particular, initializes the new global mutex and
+  the associated condition variable: LOCK_mdl and COND_mdl.
+  These locking primitives are implementation details of the MDL
+  subsystem and are private to it.
 
-   Note, that even though the new implementation adds acquisition
-   of a new global mutex to the execution flow of almost every SQL
-   statement, the design capitalizes on that to later save on
-   look ups in the table definition cache. This leads to reduced
-   contention overall and on LOCK_open in particular.
-   Please see the description of mdl_acquire_shared_lock() for details.
+  Note, that even though the new implementation adds acquisition
+  of a new global mutex to the execution flow of almost every SQL
+  statement, the design capitalizes on that to later save on
+  look ups in the table definition cache. This leads to reduced
+  contention overall and on LOCK_open in particular.
+  Please see the description of mdl_acquire_shared_lock() for details.
 */
 
 void mdl_init()
@@ -131,10 +131,10 @@ void mdl_init()
 
 
 /**
-   Release resources of metadata locking subsystem.
+  Release resources of metadata locking subsystem.
 
-   Destroys the global mutex and the condition variable.
-   Called at server shutdown.
+  Destroys the global mutex and the condition variable.
+  Called at server shutdown.
 */
 
 void mdl_destroy()
@@ -147,9 +147,9 @@ void mdl_destroy()
 
 
 /**
-   Initialize a metadata locking context.
+  Initialize a metadata locking context.
 
-   This is to be called when a new server connection is created.
+  This is to be called when a new server connection is created.
 */
 
 void mdl_context_init(MDL_CONTEXT *context, THD *thd)
@@ -162,15 +162,15 @@ void mdl_context_init(MDL_CONTEXT *context, THD *thd)
 
 
 /**
-   Destroy metadata locking context.
+  Destroy metadata locking context.
 
-   Assumes and asserts that there are no active or pending locks
-   associated with this context at the time of the destruction.
+  Assumes and asserts that there are no active or pending locks
+  associated with this context at the time of the destruction.
 
-   Currently does nothing. Asserts that there are no pending
-   or satisfied lock requests. The pending locks must be released
-   prior to destruction. This is a new way to express the assertion
-   that all tables are closed before a connection is destroyed.
+  Currently does nothing. Asserts that there are no pending
+  or satisfied lock requests. The pending locks must be released
+  prior to destruction. This is a new way to express the assertion
+  that all tables are closed before a connection is destroyed.
 */
 
 void mdl_context_destroy(MDL_CONTEXT *context)
@@ -182,13 +182,13 @@ void mdl_context_destroy(MDL_CONTEXT *context)
 
 
 /**
-   Backup and reset state of meta-data locking context.
+  Backup and reset state of meta-data locking context.
 
-   mdl_context_backup_and_reset(), mdl_context_restore() and
-   mdl_context_merge() are used by HANDLER implementation which
-   needs to open table for new HANDLER independently of already
-   open HANDLERs and add this table/metadata lock to the set of
-   tables open/metadata locks for HANDLERs afterwards.
+  mdl_context_backup_and_reset(), mdl_context_restore() and
+  mdl_context_merge() are used by HANDLER implementation which
+  needs to open table for new HANDLER independently of already
+  open HANDLERs and add this table/metadata lock to the set of
+  tables open/metadata locks for HANDLERs afterwards.
 */
 
 void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup)
@@ -201,7 +201,7 @@ void mdl_context_backup_and_reset(MDL_CONTEXT *ctx, MDL_CONTEXT *backup)
 
 
 /**
-   Restore state of meta-data locking context from backup.
+  Restore state of meta-data locking context from backup.
 */
 
 void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup)
@@ -214,7 +214,7 @@ void mdl_context_restore(MDL_CONTEXT *ctx, MDL_CONTEXT *backup)
 
 
 /**
-   Merge meta-data locks from one context into another.
+  Merge meta-data locks from one context into another.
 */
 
 void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
@@ -247,32 +247,32 @@ void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
 
 
 /**
-   Initialize a lock request.
+  Initialize a lock request.
 
-   This is to be used for every lock request.
+  This is to be used for every lock request.
 
-   Note that initialization and allocation are split into two
-   calls. This is to allow flexible memory management of lock
-   requests. Normally a lock request is stored in statement memory
-   (e.g. is a member of struct TABLE_LIST), but we would also like
-   to allow allocation of lock requests in other memory roots,
-   for example in the grant subsystem, to lock privilege tables.
+  Note that initialization and allocation are split into two
+  calls. This is to allow flexible memory management of lock
+  requests. Normally a lock request is stored in statement memory
+  (e.g. is a member of struct TABLE_LIST), but we would also like
+  to allow allocation of lock requests in other memory roots,
+  for example in the grant subsystem, to lock privilege tables.
 
-   The MDL subsystem does not own or manage memory of lock requests.
-   Instead it assumes that the life time of every lock request (including
-   encompassed members db/name) encloses calls to mdl_request_add()
-   and mdl_request_remove() or mdl_request_remove_all().
+  The MDL subsystem does not own or manage memory of lock requests.
+  Instead it assumes that the life time of every lock request (including
+  encompassed members db/name) encloses calls to mdl_request_add()
+  and mdl_request_remove() or mdl_request_remove_all().
 
-   @param  lock_req   Pointer to an MDL_LOCK_REQUEST object to initialize
-   @param  type       Id of type of object to be locked
-   @param  db         Name of database to which the object belongs
-   @param  name       Name of of the object
+  @param  lock_req   Pointer to an MDL_LOCK_REQUEST object to initialize
+  @param  type       Id of type of object to be locked
+  @param  db         Name of database to which the object belongs
+  @param  name       Name of of the object
 
-   The initialized lock request will have MDL_SHARED type.
+  The initialized lock request will have MDL_SHARED type.
 
-   Suggested lock types: TABLE - 0 PROCEDURE - 1 FUNCTION - 2
-   Note that tables and views must have the same lock type, since
-   they share the same name space in the SQL standard.
+  Suggested lock types: TABLE - 0 PROCEDURE - 1 FUNCTION - 2
+  Note that tables and views must have the same lock type, since
+  they share the same name space in the SQL standard.
 */
 
 void mdl_request_init(MDL_LOCK_REQUEST *lock_req, unsigned char type,
@@ -285,21 +285,21 @@ void mdl_request_init(MDL_LOCK_REQUEST *lock_req, unsigned char type,
 
 
 /**
-   Allocate and initialize one lock request.
+  Allocate and initialize one lock request.
 
-   Same as mdl_init_lock(), but allocates the lock and the key buffer
-   on a memory root. Necessary to lock ad-hoc tables, e.g.
-   mysql.* tables of grant and data dictionary subsystems.
+  Same as mdl_init_lock(), but allocates the lock and the key buffer
+  on a memory root. Necessary to lock ad-hoc tables, e.g.
+  mysql.* tables of grant and data dictionary subsystems.
 
-   @param  type       Id of type of object to be locked
-   @param  db         Name of database to which object belongs
-   @param  name       Name of of object
-   @param  root       MEM_ROOT on which object should be allocated
+  @param  type       Id of type of object to be locked
+  @param  db         Name of database to which object belongs
+  @param  name       Name of of object
+  @param  root       MEM_ROOT on which object should be allocated
 
-   @note The allocated lock request will have MDL_SHARED type.
+  @note The allocated lock request will have MDL_SHARED type.
 
-   @retval 0      Error
-   @retval non-0  Pointer to an object representing a lock request
+  @retval 0      Error if out of memory
+  @retval non-0  Pointer to an object representing a lock request
 */
 
 MDL_LOCK_REQUEST *
@@ -319,19 +319,19 @@ mdl_request_alloc(unsigned char type, const char *db,
 
 
 /**
-   Add a lock request to the list of lock requests of the context.
+  Add a lock request to the list of lock requests of the context.
 
-   The procedure to acquire metadata locks is:
-     - allocate and initialize lock requests (mdl_request_alloc())
-     - associate them with a context (mdl_request_add())
-     - call mdl_acquire_shared_lock()/mdl_ticket_release() (maybe repeatedly).
+  The procedure to acquire metadata locks is:
+    - allocate and initialize lock requests (mdl_request_alloc())
+    - associate them with a context (mdl_request_add())
+    - call mdl_acquire_shared_lock()/mdl_ticket_release() (maybe repeatedly).
 
-   Associates a lock request with the given context.
+  Associates a lock request with the given context.
 
-   @param  context    The MDL context to associate the lock with.
-                      There should be no more than one context per
-                      connection, to avoid deadlocks.
-   @param  lock_req   The lock request to be added.
+  @param  context    The MDL context to associate the lock with.
+                     There should be no more than one context per
+                     connection, to avoid deadlocks.
+  @param  lock_req   The lock request to be added.
 */
 
 void mdl_request_add(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req)
@@ -344,18 +344,18 @@ void mdl_request_add(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req)
 
 
 /**
-   Remove a lock request from the list of lock requests.
+  Remove a lock request from the list of lock requests.
 
-   Disassociates a lock request from the given context.
+  Disassociates a lock request from the given context.
 
-   @param  context    The MDL context to remove the lock from.
-   @param  lock_req   The lock request to be removed.
+  @param  context    The MDL context to remove the lock from.
+  @param  lock_req   The lock request to be removed.
 
-   @pre The lock request being removed should correspond to a ticket that
-        was released or was not acquired.
+  @pre The lock request being removed should correspond to a ticket that
+       was released or was not acquired.
 
-   @note Resets lock request back to its initial state
-         (i.e. sets type to MDL_SHARED).
+  @note Resets lock request back to its initial state
+        (i.e. sets type to MDL_SHARED).
 */
 
 void mdl_request_remove(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req)
@@ -370,12 +370,12 @@ void mdl_request_remove(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req)
 
 
 /**
-   Clear all lock requests in the context.
-   Disassociates lock requests from the context.
+  Clear all lock requests in the context.
+  Disassociates lock requests from the context.
 
-   Also resets lock requests back to their initial state (i.e. MDL_SHARED).
+  Also resets lock requests back to their initial state (i.e. MDL_SHARED).
 
-   @param context Context to be cleared.
+  @param context Context to be cleared.
 */
 
 void mdl_request_remove_all(MDL_CONTEXT *context)
@@ -393,10 +393,10 @@ void mdl_request_remove_all(MDL_CONTEXT *context)
 
 
 /**
-   Auxiliary functions needed for creation/destruction of MDL_LOCK objects.
+  Auxiliary functions needed for creation/destruction of MDL_LOCK objects.
 
-   @todo This naive implementation should be replaced with one that saves
-         on memory allocation by reusing released objects.
+  @todo This naive implementation should be replaced with one that saves
+        on memory allocation by reusing released objects.
 */
 
 static MDL_LOCK* alloc_lock_object(const MDL_KEY *mdl_key)
@@ -412,11 +412,11 @@ static void free_lock_object(MDL_LOCK *lock)
 
 
 /**
-   Auxiliary functions needed for creation/destruction of MDL_LOCK_TICKET
-   objects.
+  Auxiliary functions needed for creation/destruction of MDL_LOCK_TICKET
+  objects.
 
-   @todo This naive implementation should be replaced with one that saves
-         on memory allocation by reusing released objects.
+  @todo This naive implementation should be replaced with one that saves
+        on memory allocation by reusing released objects.
 */
 
 static MDL_LOCK_TICKET* alloc_ticket_object(MDL_CONTEXT *context)
@@ -433,7 +433,7 @@ static void free_ticket_object(MDL_LOCK_TICKET *ticket)
 
 
 /**
-   Helper functions which simplifies writing various checks and asserts.
+  Helper functions which simplifies writing various checks and asserts.
 */
 
 template <typename T>
@@ -444,16 +444,16 @@ static inline bool is_shared(T *lock_data)
 
 
 /**
-   Helper functions and macros to be used for killable waiting in metadata
-   locking subsystem.
+  Helper functions and macros to be used for killable waiting in metadata
+  locking subsystem.
 
-   @sa THD::enter_cond()/exit_cond()/killed.
+  @sa THD::enter_cond()/exit_cond()/killed.
 
-   @note We can't use THD::enter_cond()/exit_cond()/killed directly here
-         since this will make metadata subsystem dependant on THD class
-         and thus prevent us from writing unit tests for it. And usage of
-         wrapper functions to access THD::killed/enter_cond()/exit_cond()
-         will probably introduce too much overhead.
+  @note We can't use THD::enter_cond()/exit_cond()/killed directly here
+        since this will make metadata subsystem dependant on THD class
+        and thus prevent us from writing unit tests for it. And usage of
+        wrapper functions to access THD::killed/enter_cond()/exit_cond()
+        will probably introduce too much overhead.
 */
 
 #define MDL_ENTER_COND(A, B) mdl_enter_cond(A, B, __func__, __FILE__, __LINE__)
@@ -496,41 +496,41 @@ static inline void mdl_exit_cond(MDL_CONTEXT *context,
 
 
 /**
-   Check if request for the lock on particular object can be satisfied given
-   current state of the global metadata lock.
+  Check if request for the lock on particular object can be satisfied given
+  current state of the global metadata lock.
 
-   @note In other words, we're trying to check that the individual lock
-         request, implying a form of lock on the global metadata, is
-         compatible with the current state of the global metadata lock.
+  @note In other words, we're trying to check that the individual lock
+        request, implying a form of lock on the global metadata, is
+        compatible with the current state of the global metadata lock.
 
-   @param lock_req  Request for lock on an individual object, implying a
-                    certain kind of global metadata lock.
+  @param lock_req  Request for lock on an individual object, implying a
+                   certain kind of global metadata lock.
 
-   @retval TRUE  - Lock request can be satisfied
-   @retval FALSE - There is some conflicting lock
+  @retval TRUE  - Lock request can be satisfied
+  @retval FALSE - There is some conflicting lock
 
-   Here is a compatibility matrix defined by this function:
+  Here is a compatibility matrix defined by this function:
 
-                   |             | Satisfied or pending requests
-                   |             | for global metadata lock
-   ----------------+-------------+--------------------------------------------
-   Type of request | Correspond. |
-   for indiv. lock | global lock | Active-S  Pending-S  Active-IS(**) Active-IX
-   ----------------+-------------+--------------------------------------------
-   S, high-prio S  |   IS        |    +         +          +             +
-   upgradable S    |   IX        |    -         -          +             +
-   X               |   IX        |    -         -          +             +
-   S upgraded to X |   IX (*)    |    0         +          +             +
+                  |             | Satisfied or pending requests
+                  |             | for global metadata lock
+  ----------------+-------------+--------------------------------------------
+  Type of request | Correspond. |
+  for indiv. lock | global lock | Active-S  Pending-S  Active-IS(**) Active-IX
+  ----------------+-------------+--------------------------------------------
+  S, high-prio S  |   IS        |    +         +          +             +
+  upgradable S    |   IX        |    -         -          +             +
+  X               |   IX        |    -         -          +             +
+  S upgraded to X |   IX (*)    |    0         +          +             +
 
-   Here: "+" -- means that request can be satisfied
-         "-" -- means that request can't be satisfied and should wait
-         "0" -- means impossible situation which will trigger assert
+  Here: "+" -- means that request can be satisfied
+        "-" -- means that request can't be satisfied and should wait
+        "0" -- means impossible situation which will trigger assert
 
-   (*)  Since for upgradable shared locks we always take intention exclusive
-        global lock at the same time when obtaining the shared lock, there
-        is no need to obtain such lock during the upgrade itself.
-   (**) Since intention shared global locks are compatible with all other
-        type of locks we don't even have any accounting for them.
+  (*)  Since for upgradable shared locks we always take intention exclusive
+       global lock at the same time when obtaining the shared lock, there
+       is no need to obtain such lock during the upgrade itself.
+  (**) Since intention shared global locks are compatible with all other
+       type of locks we don't even have any accounting for them.
 */
 
 static bool can_grant_global_lock(enum_mdl_type type, bool is_upgrade)
@@ -588,33 +588,33 @@ static bool can_grant_global_lock(enum_mdl_type type, bool is_upgrade)
 
 
 /**
-   Check if request for the lock can be satisfied given current state of lock.
+  Check if request for the lock can be satisfied given current state of lock.
 
-   @param  lock       Lock.
-   @param  lock_req   Request for lock.
+  @param  lock       Lock.
+  @param  lock_req   Request for lock.
 
-   @retval TRUE   Lock request can be satisfied
-   @retval FALSE  There is some conflicting lock.
+  @retval TRUE   Lock request can be satisfied
+  @retval FALSE  There is some conflicting lock.
 
-   This function defines the following compatibility matrix for metadata locks:
+  This function defines the following compatibility matrix for metadata locks:
 
-                   | Satisfied or pending requests which we have in MDL_LOCK
-   ----------------+---------------------------------------------------------
-   Current request | Active-S  Pending-X Active-X Act-S-pend-upgrade-to-X
-   ----------------+---------------------------------------------------------
-   S, upgradable S |    +         -         - (*)           -
-   High-prio S     |    +         +         -               +
-   X               |    -         +         -               -
-   S upgraded to X |    - (**)    +         0               0
+                  | Satisfied or pending requests which we have in MDL_LOCK
+  ----------------+---------------------------------------------------------
+  Current request | Active-S  Pending-X Active-X Act-S-pend-upgrade-to-X
+  ----------------+---------------------------------------------------------
+  S, upgradable S |    +         -         - (*)           -
+  High-prio S     |    +         +         -               +
+  X               |    -         +         -               -
+  S upgraded to X |    - (**)    +         0               0
 
-   Here: "+" -- means that request can be satisfied
-         "-" -- means that request can't be satisfied and should wait
-         "0" -- means impossible situation which will trigger assert
+  Here: "+" -- means that request can be satisfied
+        "-" -- means that request can't be satisfied and should wait
+        "0" -- means impossible situation which will trigger assert
 
-   (*)  Unless active exclusive lock belongs to the same context as shared
-        lock being requested.
-   (**) Unless all active shared locks belong to the same context as one
-        being upgraded.
+  (*)  Unless active exclusive lock belongs to the same context as shared
+       lock being requested.
+  (**) Unless all active shared locks belong to the same context as one
+       being upgraded.
 */
 
 static bool can_grant_lock(MDL_CONTEXT *ctx, MDL_LOCK *lock,
@@ -683,12 +683,12 @@ static bool can_grant_lock(MDL_CONTEXT *ctx, MDL_LOCK *lock,
 
 
 /**
-   Check whether the context already holds a compatible lock ticket
-   on a object. Only shared locks can be recursive.
+  Check whether the context already holds a compatible lock ticket
+  on a object. Only shared locks can be recursive.
 
-   @param lock_req  Lock request object for lock to be acquired
+  @param lock_req  Lock request object for lock to be acquired
 
-   @return A pointer to the lock ticket for the object or NULL otherwise.
+  @return A pointer to the lock ticket for the object or NULL otherwise.
 */
 
 static MDL_LOCK_TICKET *
@@ -711,28 +711,28 @@ mdl_context_find_ticket(MDL_CONTEXT *ctx, MDL_LOCK_REQUEST *lock_req)
 
 
 /**
-   Try to acquire one shared lock.
+  Try to acquire one shared lock.
 
-   Unlike exclusive locks, shared locks are acquired one by
-   one. This is interface is chosen to simplify introduction of
-   the new locking API to the system. mdl_acquire_shared_lock()
-   is currently used from open_table(), and there we have only one
-   table to work with.
+  Unlike exclusive locks, shared locks are acquired one by
+  one. This is interface is chosen to simplify introduction of
+  the new locking API to the system. mdl_acquire_shared_lock()
+  is currently used from open_table(), and there we have only one
+  table to work with.
 
-   In future we may consider allocating multiple shared locks at once.
+  In future we may consider allocating multiple shared locks at once.
 
-   This function must be called after the lock is added to a context.
+  This function must be called after the lock is added to a context.
 
-   @param context    [in]  Context containing request for lock
-   @param lock_req   [in]  Lock request object for lock to be acquired
-   @param retry      [out] Indicates that conflicting lock exists and another
-                           attempt should be made after releasing all current
-                           locks and waiting for conflicting lock go away
-                           (using mdl_wait_for_locks()).
+  @param context    [in]  Context containing request for lock
+  @param lock_req   [in]  Lock request object for lock to be acquired
+  @param retry      [out] Indicates that conflicting lock exists and another
+                          attempt should be made after releasing all current
+                          locks and waiting for conflicting lock go away
+                          (using mdl_wait_for_locks()).
 
-   @retval  FALSE   Success.
-   @retval  TRUE    Failure. Either error occured or conflicting lock exists.
-                    In the latter case "retry" parameter is set to TRUE.
+  @retval  FALSE   Success.
+  @retval  TRUE    Failure. Either error occured or conflicting lock exists.
+                   In the latter case "retry" parameter is set to TRUE.
 */
 
 bool mdl_acquire_shared_lock(MDL_CONTEXT *context, MDL_LOCK_REQUEST *lock_req,
@@ -824,13 +824,13 @@ static void release_ticket(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket);
 
 
 /**
-   Notify a thread holding a shared metadata lock of a pending exclusive lock.
+  Notify a thread holding a shared metadata lock of a pending exclusive lock.
 
-   @param thd               Current thread context
-   @param conf_lock_ticket  Conflicting metadata lock
+  @param thd               Current thread context
+  @param conf_lock_ticket  Conflicting metadata lock
 
-   @retval TRUE   A thread was woken up
-   @retval FALSE  Lock is not a shared one or no thread was woken up
+  @retval TRUE   A thread was woken up
+  @retval FALSE  Lock is not a shared one or no thread was woken up
 */
 
 static bool notify_shared_lock(THD *thd, MDL_LOCK_TICKET *conf_lock_ticket)
@@ -843,18 +843,18 @@ static bool notify_shared_lock(THD *thd, MDL_LOCK_TICKET *conf_lock_ticket)
 
 
 /**
-   Acquire exclusive locks. The context must contain the list of
-   locks to be acquired. There must be no granted locks in the
-   context.
+  Acquire exclusive locks. The context must contain the list of
+  locks to be acquired. There must be no granted locks in the
+  context.
 
-   This is a replacement of lock_table_names(). It is used in
-   RENAME, DROP and other DDL SQL statements.
+  This is a replacement of lock_table_names(). It is used in
+  RENAME, DROP and other DDL SQL statements.
 
-   @param context  A context containing requests for exclusive locks
-                   The context may not have other lock requests.
+  @param context  A context containing requests for exclusive locks
+                  The context may not have other lock requests.
 
-   @retval FALSE  Success
-   @retval TRUE   Failure
+  @retval FALSE  Success
+  @retval TRUE   Failure
 */
 
 bool mdl_acquire_exclusive_locks(MDL_CONTEXT *context)
@@ -1009,25 +1009,25 @@ err:
 
 
 /**
-   Upgrade a shared metadata lock to exclusive.
+  Upgrade a shared metadata lock to exclusive.
 
-   Used in ALTER TABLE, when a copy of the table with the
-   new definition has been constructed.
+  Used in ALTER TABLE, when a copy of the table with the
+  new definition has been constructed.
 
-   @param context   Context to which shared lock belongs
-   @param ticket    Ticket for shared lock to be upgraded
+  @param context   Context to which shared lock belongs
+  @param ticket    Ticket for shared lock to be upgraded
 
-   @note In case of failure to upgrade lock (e.g. because upgrader
-         was killed) leaves lock in its original state (locked in
-         shared mode).
+  @note In case of failure to upgrade lock (e.g. because upgrader
+        was killed) leaves lock in its original state (locked in
+        shared mode).
 
-   @note There can be only one upgrader for a lock or we will have deadlock.
-         This invariant is ensured by code outside of metadata subsystem usually
-         by obtaining some sort of exclusive table-level lock (e.g. TL_WRITE,
-         TL_WRITE_ALLOW_READ) before performing upgrade of metadata lock.
+  @note There can be only one upgrader for a lock or we will have deadlock.
+        This invariant is ensured by code outside of metadata subsystem usually
+        by obtaining some sort of exclusive table-level lock (e.g. TL_WRITE,
+        TL_WRITE_ALLOW_READ) before performing upgrade of metadata lock.
 
-   @retval FALSE  Success
-   @retval TRUE   Failure (thread was killed)
+  @retval FALSE  Success
+  @retval TRUE   Failure (thread was killed)
 */
 
 bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
@@ -1110,27 +1110,27 @@ bool mdl_upgrade_shared_lock_to_exclusive(MDL_CONTEXT *context,
 
 
 /**
-   Try to acquire an exclusive lock on the object if there are
-   no conflicting locks.
+  Try to acquire an exclusive lock on the object if there are
+  no conflicting locks.
 
-   Similar to the previous function, but returns
-   immediately without any side effect if encounters a lock
-   conflict. Otherwise takes the lock.
+  Similar to the previous function, but returns
+  immediately without any side effect if encounters a lock
+  conflict. Otherwise takes the lock.
 
-   This function is used in CREATE TABLE ... LIKE to acquire a lock
-   on the table to be created. In this statement we don't want to
-   block and wait for the lock if the table already exists.
+  This function is used in CREATE TABLE ... LIKE to acquire a lock
+  on the table to be created. In this statement we don't want to
+  block and wait for the lock if the table already exists.
 
-   @param context  [in]  The context containing the lock request
-   @param lock_req [in]  The lock request
-   @param conflict [out] Indicates that conflicting lock exists
+  @param context  [in]  The context containing the lock request
+  @param lock_req [in]  The lock request
+  @param conflict [out] Indicates that conflicting lock exists
 
-   @retval TRUE  Failure either conflicting lock exists or some error
-                 occured (probably OOM).
-   @retval FALSE Success, lock was acquired.
+  @retval TRUE  Failure either conflicting lock exists or some error
+                occured (probably OOM).
+  @retval FALSE Success, lock was acquired.
 
-   FIXME: Compared to lock_table_name_if_not_cached()
-          it gives sligthly more false negatives.
+  FIXME: Compared to lock_table_name_if_not_cached()
+         it gives sligthly more false negatives.
 */
 
 bool mdl_try_acquire_exclusive_lock(MDL_CONTEXT *context,
@@ -1184,15 +1184,15 @@ err:
 
 
 /**
-   Acquire global shared metadata lock.
+  Acquire global shared metadata lock.
 
-   Holding this lock will block all requests for exclusive locks
-   and shared locks which can be potentially upgraded to exclusive.
+  Holding this lock will block all requests for exclusive locks
+  and shared locks which can be potentially upgraded to exclusive.
 
-   @param context Current metadata locking context.
+  @param context Current metadata locking context.
 
-   @retval FALSE Success -- the lock was granted.
-   @retval TRUE  Failure -- our thread was killed.
+  @retval FALSE Success -- the lock was granted.
+  @retval TRUE  Failure -- our thread was killed.
 */
 
 bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context)
@@ -1227,18 +1227,18 @@ bool mdl_acquire_global_shared_lock(MDL_CONTEXT *context)
 
 
 /**
-   Wait until there will be no locks that conflict with lock requests
-   in the context.
+  Wait until there will be no locks that conflict with lock requests
+  in the context.
 
-   This is a part of the locking protocol and must be used by the
-   acquirer of shared locks after a back-off.
+  This is a part of the locking protocol and must be used by the
+  acquirer of shared locks after a back-off.
 
-   Does not acquire the locks!
+  Does not acquire the locks!
 
-   @param context Context with which lock requests are associated.
+  @param context Context with which lock requests are associated.
 
-   @retval FALSE  Success. One can try to obtain metadata locks.
-   @retval TRUE   Failure (thread was killed)
+  @retval FALSE  Success. One can try to obtain metadata locks.
+  @retval TRUE   Failure (thread was killed)
 */
 
 bool mdl_wait_for_locks(MDL_CONTEXT *context)
@@ -1297,8 +1297,8 @@ bool mdl_wait_for_locks(MDL_CONTEXT *context)
 
 
 /**
-   Auxiliary function which allows to release particular lock
-   ownership of which is represented by a lock ticket object.
+  Auxiliary function which allows to release particular lock
+  ownership of which is represented by a lock ticket object.
 */
 
 static void release_ticket(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket)
@@ -1347,15 +1347,15 @@ static void release_ticket(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket)
 
 
 /**
-   Release all locks associated with the context, but leave them
-   in the context as lock requests.
+  Release all locks associated with the context, but leave them
+  in the context as lock requests.
 
-   This function is used to back off in case of a lock conflict.
-   It is also used to release shared locks in the end of an SQL
-   statement.
+  This function is used to back off in case of a lock conflict.
+  It is also used to release shared locks in the end of an SQL
+  statement.
 
-   @param context The context with which the locks to be released
-                  are associated.
+  @param context The context with which the locks to be released
+                 are associated.
 */
 
 void mdl_ticket_release_all(MDL_CONTEXT *context)
@@ -1395,11 +1395,10 @@ void mdl_ticket_release_all(MDL_CONTEXT *context)
 
 
 /**
-   Release a lock.
+  Release a lock.
 
-   @param context   Context containing lock in question
-   @param ticket    Lock to be released
-
+  @param context   Context containing lock in question
+  @param ticket    Lock to be released
 */
 
 void mdl_ticket_release(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket)
@@ -1415,12 +1414,12 @@ void mdl_ticket_release(MDL_CONTEXT *context, MDL_LOCK_TICKET *ticket)
 
 
 /**
-   Release all locks in the context which correspond to the same name/
-   object as this lock request, remove lock requests from the context.
+  Release all locks in the context which correspond to the same name/
+  object as this lock request, remove lock requests from the context.
 
-   @param context   Context containing locks in question
-   @param ticket    One of the locks for the name/object for which all
-                    locks should be released.
+  @param context   Context containing locks in question
+  @param ticket    One of the locks for the name/object for which all
+                   locks should be released.
 */
 
 void mdl_ticket_release_all_for_name(MDL_CONTEXT *context,
@@ -1461,10 +1460,10 @@ void mdl_ticket_release_all_for_name(MDL_CONTEXT *context,
 
 
 /**
-   Downgrade an exclusive lock to shared metadata lock.
+  Downgrade an exclusive lock to shared metadata lock.
 
-   @param context   A context to which exclusive lock belongs
-   @param ticket    Ticket for exclusive lock to be downgraded
+  @param context   A context to which exclusive lock belongs
+  @param ticket    Ticket for exclusive lock to be downgraded
 */
 
 void mdl_downgrade_exclusive_lock(MDL_CONTEXT *context,
@@ -1490,9 +1489,9 @@ void mdl_downgrade_exclusive_lock(MDL_CONTEXT *context,
 
 
 /**
-   Release global shared metadata lock.
+  Release global shared metadata lock.
 
-   @param context Current context
+  @param context Current context
 */
 
 void mdl_release_global_shared_lock(MDL_CONTEXT *context)
@@ -1509,16 +1508,16 @@ void mdl_release_global_shared_lock(MDL_CONTEXT *context)
 
 
 /**
-   Auxiliary function which allows to check if we have exclusive lock
-   on the object.
+  Auxiliary function which allows to check if we have exclusive lock
+  on the object.
 
-   @param context Current context
-   @param type    Id of object type
-   @param db      Name of the database
-   @param name    Name of the object
+  @param context Current context
+  @param type    Id of object type
+  @param db      Name of the database
+  @param name    Name of the object
 
-   @return TRUE if current context contains exclusive lock for the object,
-           FALSE otherwise.
+  @return TRUE if current context contains exclusive lock for the object,
+          FALSE otherwise.
 */
 
 bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, unsigned char type,
@@ -1542,16 +1541,16 @@ bool mdl_is_exclusive_lock_owner(MDL_CONTEXT *context, unsigned char type,
 
 
 /**
-   Auxiliary function which allows to check if we have some kind of lock on
-   a object.
+  Auxiliary function which allows to check if we have some kind of lock on
+  a object.
 
-   @param context Current context
-   @param type    Id of object type
-   @param db      Name of the database
-   @param name    Name of the object
+  @param context Current context
+  @param type    Id of object type
+  @param db      Name of the database
+  @param name    Name of the object
 
-   @return TRUE if current context contains satisfied lock for the object,
-           FALSE otherwise.
+  @return TRUE if current context contains satisfied lock for the object,
+          FALSE otherwise.
 */
 
 bool mdl_is_lock_owner(MDL_CONTEXT *context, unsigned char type,
@@ -1574,12 +1573,12 @@ bool mdl_is_lock_owner(MDL_CONTEXT *context, unsigned char type,
 
 
 /**
-   Check if we have any pending exclusive locks which conflict with
-   existing shared lock.
+  Check if we have any pending exclusive locks which conflict with
+  existing shared lock.
 
-   @param ticket Shared lock against which check should be performed.
+  @param ticket Shared lock against which check should be performed.
 
-   @return TRUE if there are any conflicting locks, FALSE otherwise.
+  @return TRUE if there are any conflicting locks, FALSE otherwise.
 */
 
 bool mdl_has_pending_conflicting_lock(MDL_LOCK_TICKET *ticket)
@@ -1597,31 +1596,31 @@ bool mdl_has_pending_conflicting_lock(MDL_LOCK_TICKET *ticket)
 
 
 /**
-   Associate pointer to an opaque object with a lock.
+  Associate pointer to an opaque object with a lock.
 
-   @param ticket        Lock ticket for the lock with which the object
-                        should be associated.
-   @param cached_object Pointer to the object
-   @param release_hook  Cleanup function to be called when MDL subsystem
-                        decides to remove lock or associate another object.
+  @param ticket        Lock ticket for the lock with which the object
+                       should be associated.
+  @param cached_object Pointer to the object
+  @param release_hook  Cleanup function to be called when MDL subsystem
+                       decides to remove lock or associate another object.
 
-   This is used to cache a pointer to TABLE_SHARE in the lock
-   structure. Such caching can save one acquisition of LOCK_open
-   and one table definition cache lookup for every table.
+  This is used to cache a pointer to TABLE_SHARE in the lock
+  structure. Such caching can save one acquisition of LOCK_open
+  and one table definition cache lookup for every table.
 
-   Since the pointer may be stored only inside an acquired lock,
-   the caching is only effective when there is more than one lock
-   granted on a given table.
+  Since the pointer may be stored only inside an acquired lock,
+  the caching is only effective when there is more than one lock
+  granted on a given table.
 
-   This function has the following usage pattern:
-     - try to acquire an MDL lock
-     - when done, call for mdl_get_cached_object(). If it returns NULL, our
-       thread has the only lock on this table.
-     - look up TABLE_SHARE in the table definition cache
-     - call mdl_set_cache_object() to assign the share to the opaque pointer.
+  This function has the following usage pattern:
+    - try to acquire an MDL lock
+    - when done, call for mdl_get_cached_object(). If it returns NULL, our
+      thread has the only lock on this table.
+    - look up TABLE_SHARE in the table definition cache
+    - call mdl_set_cache_object() to assign the share to the opaque pointer.
 
-  The release hook is invoked when the last shared metadata
-  lock on this name is released.
+ The release hook is invoked when the last shared metadata
+ lock on this name is released.
 */
 
 void mdl_set_cached_object(MDL_LOCK_TICKET *ticket, void *cached_object,
@@ -1648,11 +1647,11 @@ void mdl_set_cached_object(MDL_LOCK_TICKET *ticket, void *cached_object,
 
 
 /**
-   Get a pointer to an opaque object that associated with the lock.
+  Get a pointer to an opaque object that associated with the lock.
 
-   @param ticket  Lock ticket for the lock which the object is associated to.
+  @param ticket  Lock ticket for the lock which the object is associated to.
 
-   @return Pointer to an opaque object associated with the lock.
+  @return Pointer to an opaque object associated with the lock.
 */
 
 void* mdl_get_cached_object(MDL_LOCK_TICKET *ticket)
