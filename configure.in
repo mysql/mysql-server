@@ -1,6 +1,21 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
 AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
@@ -864,6 +879,42 @@ AC_CHECK_DECLS(MHA_MAPSIZE_VA,
 fi
 
 #--------------------------------------------------------------------
+# Check for IPv6 support
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(netinet/in6.h)
+
+AC_CHECK_TYPES([struct sockaddr_in6, struct in6_addr],
+                [have_in6_types=yes],
+                [have_in6_types=no], 
+  [[
+    #ifdef WIN32
+      #include <winsock2.h>
+    #else
+      #include <sys/types.h>
+      #include <netinet/in.h>
+      #include <sys/socket.h>
+    #endif
+
+    #ifdef HAVE_NETINET_IN6_H
+      #include <netinet/in6.h>
+    #endif
+  ]])
+
+AC_MSG_CHECKING([for IPv6 support])
+
+AC_ARG_ENABLE(ipv6,
+  AS_HELP_STRING([--disable-ipv6], [Disable support for IPv6 networking]),
+  [disable_ipv6=yes], [disable_ipv6=no])
+
+if test x"$disable_ipv6" = xyes -o x"$have_in6_types" = xno; then
+  AC_MSG_RESULT([no])
+else
+  AC_DEFINE([HAVE_IPV6], [1], [Define if IPv6 networking support is present])
+  AC_MSG_RESULT([yes])
+fi
+
+#--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
 
@@ -960,12 +1011,6 @@ NON_THREADED_LIBS="$LIBS"
 AC_CHECK_TYPES([int8, uint8, int16, uint16, int32, uint32, int64, uint64,
                 uchar, uint, ulong],[],[], [
 #include <sys/types.h>
-])
-AC_CHECK_TYPES([in_addr_t], [], [], [
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 ])
 AC_CHECK_TYPES([fp_except], [], [], [
 #include <sys/types.h>
@@ -2914,7 +2959,54 @@ case $SYSTEM_TYPE in
 esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
+#--------------------------------------------------------------------
+# Support for WL#2373 (Use cycle counter for timing)
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(time.h)
+AC_CHECK_HEADERS(sys/time.h)
+AC_CHECK_HEADERS(sys/times.h)
+AC_CHECK_HEADERS(asm/msr.h)
+#msr.h has rdtscll()
+
+AC_CHECK_HEADERS(ia64intrin.h)
+
+AC_CHECK_FUNCS(times)
+AC_CHECK_FUNCS(gettimeofday)
+AC_CHECK_FUNCS(read_real_time)
+# This should work on AIX.
+
+AC_CHECK_FUNCS(ftime)
+# This is still a normal call for milliseconds.
+
+AC_CHECK_FUNCS(time)
+# We can use time() on Macintosh if there is no ftime().
+
+AC_CHECK_FUNCS(rdtscll)
+# I doubt that we'll ever reach the check for this.
+
+# When compiling with Sun Studio C / C++ we need to include
+# my_timer_cycles.il, an "inline templates" separate file,
+# on the command line. It has assembly code, "rd %tick" for
+# SPARC or "rdtsc" for x86.
+RDTSC_SPARC_ASSEMBLY=""
+case $CC_VERSION in
+  *Sun*C*)
+    RDTSC_SPARC_ASSEMBLY="my_timer_cycles.il"
+    ;;
+esac
+case $CXX_VERSION in
+  *Sun*C++*)
+    RDTSC_SPARC_ASSEMBLY="my_timer_cycles.il"
+    ;;
+esac
+
+AC_SUBST([RDTSC_SPARC_ASSEMBLY])
+
+#--------------------------------------------------------------------
 # Output results
+#--------------------------------------------------------------------
+
 if test -d "$srcdir/pstack" ; then
   AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
 fi
