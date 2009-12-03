@@ -555,7 +555,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   DBUG_ENTER("Event_db_repository::open_event_table");
 
   tables.init_one_table("mysql", 5, "event", 5, "event", lock_type);
-  alloc_mdl_locks(&tables, thd->mem_root);
+  alloc_mdl_requests(&tables, thd->mem_root);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1110,7 +1110,7 @@ Event_db_repository::check_system_tables(THD *thd)
 
   /* Check mysql.db */
   tables.init_one_table("mysql", 5, "db", 2, "db", TL_READ);
-  alloc_mdl_locks(&tables, thd->mem_root);
+  alloc_mdl_requests(&tables, thd->mem_root);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1128,7 +1128,7 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   /* Check mysql.user */
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
-  alloc_mdl_locks(&tables, thd->mem_root);
+  alloc_mdl_requests(&tables, thd->mem_root);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1149,7 +1149,7 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   /* Check mysql.event */
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
-  alloc_mdl_locks(&tables, thd->mem_root);
+  alloc_mdl_requests(&tables, thd->mem_root);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {

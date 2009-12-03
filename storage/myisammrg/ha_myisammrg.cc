@@ -434,16 +434,15 @@ int ha_myisammrg::add_children_list(void)
     /* Copy select_lex. Used in unique_table() at least. */
     child_l->select_lex= parent_l->select_lex;
 
-    child_l->mdl_lock_data= NULL; /* Safety, if alloc_mdl_locks fails. */
+    child_l->mdl_lock_request= NULL; /* Safety, if alloc_mdl_requests fails. */
 
     /* Break when this was the last child. */
     if (&child_l->next_global == this->children_last_l)
       break;
   }
 
-  alloc_mdl_locks(children_l,
-                  thd->locked_tables_root ? thd->locked_tables_root :
-                  thd->mem_root);
+  alloc_mdl_requests(children_l, thd->locked_tables_root ?
+                     thd->locked_tables_root : thd->mem_root);
 
   /* Insert children into the table list. */
   if (parent_l->next_global)

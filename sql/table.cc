@@ -4811,12 +4811,11 @@ size_t max_row_length(TABLE *table, const uchar *data)
    objects for all elements of table list.
 */
 
-void alloc_mdl_locks(TABLE_LIST *table_list, MEM_ROOT *root)
+void alloc_mdl_requests(TABLE_LIST *table_list, MEM_ROOT *root)
 {
   for ( ; table_list ; table_list= table_list->next_global)
-    table_list->mdl_lock_data= mdl_alloc_lock(0, table_list->db,
-                                              table_list->table_name,
-                                              root);
+    table_list->mdl_lock_request=
+      mdl_request_alloc(0, table_list->db, table_list->table_name, root);
 }
 
 

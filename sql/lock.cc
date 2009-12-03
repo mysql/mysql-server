@@ -953,24 +953,24 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 {
   TABLE_LIST *lock_table;
-  MDL_LOCK_DATA *mdl_lock_data;
+  MDL_LOCK_REQUEST *mdl_lock_req;
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
-    if (!(mdl_lock_data= mdl_alloc_lock(0, lock_table->db,
-                                        lock_table->table_name,
-                                        thd->mem_root)))
+    mdl_lock_req= mdl_request_alloc(0, lock_table->db, lock_table->table_name,
+                                    thd->mem_root);
+    if (!mdl_lock_req)
       goto end;
-    mdl_set_lock_type(mdl_lock_data, MDL_EXCLUSIVE);
-    mdl_add_lock(&thd->mdl_context, mdl_lock_data);
-    lock_table->mdl_lock_data= mdl_lock_data;
+    mdl_request_set_type(mdl_lock_req, MDL_EXCLUSIVE);
+    mdl_request_add(&thd->mdl_context, mdl_lock_req);
+    lock_table->mdl_lock_request= mdl_lock_req;
   }
   if (mdl_acquire_exclusive_locks(&thd->mdl_context))
     goto end;
   return 0;
 
 end:
-  mdl_remove_all_locks(&thd->mdl_context);
+  mdl_request_remove_all(&thd->mdl_context);
   return 1;
 }
 
@@ -986,8 +986,8 @@ end:
 void unlock_table_names(THD *thd)
 {
   DBUG_ENTER("unlock_table_names");
-  mdl_release_locks(&thd->mdl_context);
-  mdl_remove_all_locks(&thd->mdl_context);
+  mdl_ticket_release_all(&thd->mdl_context);
+  mdl_request_remove_all(&thd->mdl_context);
   DBUG_VOID_RETURN;
 }
 

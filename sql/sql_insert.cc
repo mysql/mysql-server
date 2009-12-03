@@ -2399,7 +2399,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     thd->lex->set_stmt_unsafe();
     thd->set_current_stmt_binlog_row_based_if_mixed();
 
-    alloc_mdl_locks(&di->table_list, thd->mem_root);
+    alloc_mdl_requests(&di->table_list, thd->mem_root);
 
     if (di->open_and_lock_table())
       goto err;

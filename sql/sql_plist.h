@@ -90,6 +90,7 @@ public:
 #ifndef _lint
   friend class I_P_List_iterator<T, B>;
 #endif
+  typedef I_P_List_iterator<T, B> Iterator;
 };
 
 

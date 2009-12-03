@@ -1115,7 +1115,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       select_lex.table_list.link_in_list((uchar*) &table_list,
                                          (uchar**) &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
-    alloc_mdl_locks(&table_list, thd->mem_root);
+    alloc_mdl_requests(&table_list, thd->mem_root);
 
     /* switch on VIEW optimisation: do not fill temporary tables */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -3324,7 +3324,7 @@ end_with_restore_list:
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
 
-    alloc_mdl_locks(all_tables, thd->locked_tables_list.locked_tables_root());
+    alloc_mdl_requests(all_tables, thd->locked_tables_list.locked_tables_root());
 
     thd->options|= OPTION_TABLE_LOCK;
     thd->in_lock_tables=1;
@@ -5977,9 +5977,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_lock_data= mdl_alloc_lock(0 , ptr->db, ptr->table_name,
-                                thd->locked_tables_root ?
-                                thd->locked_tables_root : thd->mem_root);
+  ptr->mdl_lock_request=
+    mdl_request_alloc(0, ptr->db, ptr->table_name, thd->locked_tables_root ?
+                      thd->locked_tables_root : thd->mem_root);
   DBUG_RETURN(ptr);
 }
 
