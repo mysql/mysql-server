@@ -1440,6 +1440,16 @@ select hex(_utf8 B'001111111111');
 --error ER_INVALID_CHARACTER_STRING
 select (_utf8 X'616263FF');
 
+--echo #
+--echo # Bug#44131 Binary-mode "order by" returns records in incorrect order for UTF-8 strings
+--echo #
+CREATE TABLE t1 (id int not null primary key, name varchar(10)) character set utf8;
+INSERT INTO t1 VALUES
+(2,'一二三01'),(3,'一二三09'),(4,'一二三02'),(5,'一二三08'),
+(6,'一二三11'),(7,'一二三91'),(8,'一二三21'),(9,'一二三81');
+SELECT * FROM t1 ORDER BY BINARY(name);
+DROP TABLE t1;
+
 #
 # Bug #36772: When using UTF8, CONVERT with GROUP BY returns truncated results
 #
