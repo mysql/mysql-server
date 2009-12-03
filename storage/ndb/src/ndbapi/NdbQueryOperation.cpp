@@ -482,6 +482,18 @@ NdbQueryOperation::isRowChanged() const
   return m_impl.isRowChanged();
 }
 
+int
+NdbQueryOperation::setOrdering(NdbScanOrdering ordering)
+{
+  return m_impl.setOrdering(ordering);
+}
+
+NdbScanOrdering
+NdbQueryOperation::getOrdering() const
+{
+  return m_impl.getOrdering();
+}
+
 
 ///////////////////////////////////////////
 /////////  NdbQueryImpl methods ///////////
