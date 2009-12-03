@@ -203,7 +203,7 @@ drop table if exists t1,t2;
 create table t1 (a int);
 flush status;
 lock tables t1 read;
-insert into t1 values(1);;
+insert into t1 values(1);
 unlock tables;
 drop table t1;
 select @tlwa < @tlwb;
