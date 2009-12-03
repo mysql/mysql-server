@@ -1370,8 +1370,14 @@ int ha_autocommit_or_rollback(THD *thd, int error)
       if (thd->transaction_rollback_request && !thd->in_sub_stmt)
         (void) ha_rollback(thd);
     }
-
-    thd->variables.tx_isolation=thd->session_tx_isolation;
+  } 
+  else if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  {
+    /* 
+       If we're in autocommit mode, reset tx_isolation
+       to the default value
+    */
+    thd->variables.tx_isolation= thd->session_tx_isolation;
   }
 #endif
   DBUG_RETURN(error);
