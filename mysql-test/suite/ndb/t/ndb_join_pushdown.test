@@ -295,6 +295,39 @@ explain
     (x.a <= 2 or (x.a,x.b) in ((0,0),(5,0),(4,3))) and
     y.a=x.d and y.b=x.b;
 
+# Test ORDER BY expressons
+# Order by on non indexed fields require filesort()
+# .... Which is not possible to combine with pushed_join
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.c,t1.d;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.c,t1.d;
+
+# Temporarily pushed joins are also disabled for PK order by
+# The plan is to push these joins and use ordered index scan 
+# to provide sorted access.
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a,t1.b;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a,t1.b;
+
+
 drop table t1;
 
 
