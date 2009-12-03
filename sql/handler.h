@@ -515,6 +515,46 @@ class st_alter_tablespace : public Sql_alloc
 /* The handler for a table type.  Will be included in the TABLE structure */
 
 struct TABLE;
+
+/*
+  Make sure that the order of schema_tables and enum_schema_tables are the same.
+*/
+enum enum_schema_tables
+{
+  SCH_CHARSETS= 0,
+  SCH_COLLATIONS,
+  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
+  SCH_COLUMNS,
+  SCH_COLUMN_PRIVILEGES,
+  SCH_ENGINES,
+  SCH_EVENTS,
+  SCH_FILES,
+  SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_VARIABLES,
+  SCH_KEY_COLUMN_USAGE,
+  SCH_OPEN_TABLES,
+  SCH_PARTITIONS,
+  SCH_PLUGINS,
+  SCH_PROCESSLIST,
+  SCH_PROFILES,
+  SCH_REFERENTIAL_CONSTRAINTS,
+  SCH_PROCEDURES,
+  SCH_SCHEMATA,
+  SCH_SCHEMA_PRIVILEGES,
+  SCH_SESSION_STATUS,
+  SCH_SESSION_VARIABLES,
+  SCH_STATISTICS,
+  SCH_STATUS,
+  SCH_TABLES,
+  SCH_TABLE_CONSTRAINTS,
+  SCH_TABLE_NAMES,
+  SCH_TABLE_PRIVILEGES,
+  SCH_TRIGGERS,
+  SCH_USER_PRIVILEGES,
+  SCH_VARIABLES,
+  SCH_VIEWS
+};
+
 struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
@@ -679,9 +719,9 @@ struct handlerton
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
-   int (*fill_files_table)(handlerton *hton, THD *thd,
-                           TABLE_LIST *tables,
-                           class Item *cond);
+   int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
+                        class Item *cond, 
+                        enum enum_schema_tables);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler

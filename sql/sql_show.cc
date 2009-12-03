@@ -6264,8 +6264,9 @@ static my_bool run_hton_fill_schema_files(THD *thd, plugin_ref plugin,
   struct run_hton_fill_schema_files_args *args=
     (run_hton_fill_schema_files_args *) arg;
   handlerton *hton= plugin_data(plugin, handlerton *);
-  if(hton->fill_files_table && hton->state == SHOW_OPTION_YES)
-    hton->fill_files_table(hton, thd, args->tables, args->cond);
+  if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
+      hton->fill_is_table(hton, thd, args->tables, args->cond,
+            get_schema_table_idx(args->tables->schema_table));
   return false;
 }
 
