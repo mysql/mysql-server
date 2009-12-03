@@ -310,7 +310,6 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       break;
     }
     DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
-    thd_proc_info(thd, "Locked");
     /* Copy the lock data array. thr_multi_lock() reorders its contens. */
     memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
            sql_lock->lock_count * sizeof(*sql_lock->locks));

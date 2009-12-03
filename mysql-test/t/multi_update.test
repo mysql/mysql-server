@@ -496,7 +496,7 @@ connection updater;
 # Wait till "alter table t1 ..." of session changer is in work.
 # = There is one session is in state "Locked".
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                     where state= 'Locked';
+                     where state= 'Table lock';
 --source include/wait_condition.inc
 send update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
 
@@ -507,7 +507,7 @@ connection locker;
 # are in work.
 # = There are two session is in state "Locked".
 let $wait_condition= select count(*)= 2 from information_schema.processlist
-                     where state= 'Locked';
+                     where state= 'Table lock';
 --source include/wait_condition.inc
 unlock tables;
 

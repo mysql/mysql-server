@@ -396,6 +396,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   my_bool can_deadlock= test(data->owner->info->n_cursors);
+  const char *old_proc_info;
   DBUG_ENTER("wait_for_lock");
 
   /*
@@ -433,6 +434,9 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_mutex= &data->lock->mutex;
   thread_var->current_cond=  cond;
   data->cond= cond;
+
+  old_proc_info= proc_info_hook(NULL, "Table lock",
+                                __func__, __FILE__, __LINE__);
 
   if (can_deadlock)
     set_timespec(wait_timeout, table_lock_wait_timeout);
@@ -504,6 +508,9 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_mutex= 0;
   thread_var->current_cond=  0;
   pthread_mutex_unlock(&thread_var->mutex);
+
+  proc_info_hook(NULL, old_proc_info, __func__, __FILE__, __LINE__);
+
   DBUG_RETURN(result);
 }
 
