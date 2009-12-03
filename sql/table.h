@@ -30,8 +30,8 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
-struct MDL_request;
-struct MDL_ticket;
+class MDL_request;
+class MDL_ticket;
 
 /*************************************************************************/
 
