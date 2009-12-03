@@ -2554,9 +2554,9 @@ void Item_char_typecast::fix_length_and_dec()
                        from_cs != &my_charset_bin &&
                        cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ?
-                 cast_length :
-                 args[0]->max_length / args[0]->collation.collation->mbmaxlen;
+  char_length= (cast_length >= 0) ? cast_length :
+                args[0]->max_length /
+                (cast_cs == &my_charset_bin ? 1 : args[0]->collation.collation->mbmaxlen);
   max_length= char_length * cast_cs->mbmaxlen;
 }
 

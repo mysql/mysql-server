@@ -1848,6 +1848,24 @@ select hex(_utf8 B'001111111111');
 ERROR HY000: Invalid utf8 character string: 'FF'
 select (_utf8 X'616263FF');
 ERROR HY000: Invalid utf8 character string: 'FF'
+#
+# Bug#44131 Binary-mode "order by" returns records in incorrect order for UTF-8 strings
+#
+CREATE TABLE t1 (id int not null primary key, name varchar(10)) character set utf8;
+INSERT INTO t1 VALUES
+(2,'一二三01'),(3,'一二三09'),(4,'一二三02'),(5,'一二三08'),
+(6,'一二三11'),(7,'一二三91'),(8,'一二三21'),(9,'一二三81');
+SELECT * FROM t1 ORDER BY BINARY(name);
+id	name
+2	一二三01
+4	一二三02
+5	一二三08
+3	一二三09
+6	一二三11
+8	一二三21
+9	一二三81
+7	一二三91
+DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
