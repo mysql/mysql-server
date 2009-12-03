@@ -4775,6 +4775,8 @@ dict_table_check_for_dup_indexes(
 	const dict_index_t*	index1;
 	const dict_index_t*	index2;
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
 	/* The primary index _must_ exist */
 	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
 
