@@ -1,0 +1,92 @@
+#  BUG#40611: MySQL cannot make a binary log after sequential number beyond 
+#             unsigned long.
+# 
+#  Problem statement
+#  =================
+#
+#    Extension for log file names might be created with negative 
+#    numbers (when counter used would wrap around), causing server 
+#    failure when incrementing -00001 (reaching number 000000 
+#    extension).
+#
+#  Test
+#  ====
+#    This tests aims at testing the a patch that removes negatives 
+#    numbers from log name extensions and checks that the server 
+#    reports gracefully that the limit has been reached.
+#
+#    It instruments index file to point to a log file close to
+#    the new maximum and calls flush logs to get warning.
+#
+
+call mtr.add_suppression("Next log extension: 2147483647. Remaining log filename extensions: 0.");
+call mtr.add_suppression("Log filename extension number exhausted:");
+call mtr.add_suppression("Can't generate a unique log-filename");
+
+
+-- source include/have_log_bin.inc
+RESET MASTER;
+
+-- let $MYSQLD_DATADIR= `select @@datadir`
+
+###############################################
+# check hitting maximum file name extension:
+###############################################
+
+##########
+# Prepare
+##########
+
+# 1. Stop master server
+-- write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+-- shutdown_server 10
+-- source include/wait_until_disconnected.inc
+
+# 2. Prepare log and index file
+-- copy_file $MYSQLD_DATADIR/master-bin.index $MYSQLD_DATADIR/master-bin.index.orig
+-- copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.2147483646
+-- append_file $MYSQLD_DATADIR/master-bin.index
+master-bin.2147483646
+EOF
+
+# 3. Restart the server
+-- append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+###########
+# Assertion
+###########
+
+# assertion: should throw warning
+FLUSH LOGS;
+
+##############
+# Clean up
+##############
+
+# 1. Stop the server
+-- write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+-- shutdown_server 10
+-- source include/wait_until_disconnected.inc
+
+# 2. Undo changes to index and log files
+-- remove_file $MYSQLD_DATADIR/master-bin.index
+-- copy_file $MYSQLD_DATADIR/master-bin.index.orig $MYSQLD_DATADIR/master-bin.index
+-- remove_file $MYSQLD_DATADIR/master-bin.index.orig
+
+-- remove_file $MYSQLD_DATADIR/master-bin.2147483646
+-- remove_file $MYSQLD_DATADIR/master-bin.2147483647
+
+# 3. Restart the server
+-- append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
