@@ -129,6 +129,16 @@ public:
     return m_pendingResults==0 && !m_pendingConf;
   }
 
+  bool isEmpty() const
+  {
+    return !m_receiver.nextResult();
+  }
+
+  bool finalBatchReceived() const
+  {
+    return m_receiver.m_tcPtrI==RNIL;
+  }
+
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
 
@@ -1622,7 +1632,7 @@ NdbQueryImpl::sendFetchMore(int nodeId)
     for(unsigned i = 0; i<getRootFragCount(); i++)
     {
       const Uint32 tcPtrI = root.getReceiver(i).m_tcPtrI;
-      if (tcPtrI != RNIL) 
+      if (tcPtrI != RNIL) // Check if we have received the final batch.
       {
         receivers[sent++] = tcPtrI;
         m_pendingStreams++;
@@ -1753,7 +1763,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
         }
         while(m_fullStreams.top()!=NULL)
         {
-          if(m_fullStreams.top()->m_receiver.m_tcPtrI==RNIL)
+          if(m_fullStreams.top()->finalBatchReceived())
           {
             // This was the final batch for that stream.
             m_finalBatchStreams++;
@@ -1837,6 +1847,9 @@ NdbQueryImpl::OrderedStreamSet::OrderedStreamSet():
   m_capacity(0),
   m_size(0),
   m_completedStreams(0),
+  m_ordering(NdbScanOrdering_void),
+  m_keyRecord(NULL),
+  m_resultRecord(NULL),
   m_array(NULL)
 {
 }
@@ -1869,7 +1882,7 @@ NdbResultStream*
 NdbQueryImpl::OrderedStreamSet::getCurrent()
 { 
   if(m_ordering==NdbScanOrdering_unordered){
-    while(m_size>0 && !m_array[m_size-1]->m_receiver.nextResult())
+    while(m_size>0 && m_array[m_size-1]->isEmpty())
     {
       m_size--;
     }
@@ -1891,7 +1904,7 @@ NdbQueryImpl::OrderedStreamSet::getCurrent()
       // Waiting for the first batch for all streams to arrive.
       return NULL;
     }
-    if(m_size==0 || !m_array[0]->m_receiver.nextResult()) 
+    if(m_size==0 || m_array[0]->isEmpty()) 
     {      
       // Waiting for a new batch for a stream.
       return NULL;
@@ -1908,8 +1921,8 @@ NdbQueryImpl::OrderedStreamSet::reorder()
 {
   if(m_ordering!=NdbScanOrdering_unordered && m_size>0)
   {
-    if(m_array[0]->m_receiver.m_tcPtrI==RNIL &&
-       !m_array[0]->m_receiver.nextResult())
+    if(m_array[0]->finalBatchReceived() &&
+       m_array[0]->isEmpty())
     {
       m_completedStreams++;
       m_size--;
@@ -1927,6 +1940,7 @@ NdbQueryImpl::OrderedStreamSet::reorder()
       int middle = (first+last)/2;
       while(first<last)
       {
+        assert(middle<m_size);
         switch(compare(*m_array[0], *m_array[middle]))
         {
         case -1:
@@ -1965,7 +1979,7 @@ NdbQueryImpl::OrderedStreamSet::add(NdbResultStream& stream)
   {
     if(m_size+m_completedStreams < m_capacity)
     {
-      if(stream.m_receiver.nextResult())
+      if(!stream.isEmpty())
       {
         // Stream is non-empty.
         int current = 0;
@@ -1985,7 +1999,7 @@ NdbQueryImpl::OrderedStreamSet::add(NdbResultStream& stream)
       else
       {
         // First batch is empty, therefore it should also be the final batch. 
-        assert(stream.m_receiver.m_tcPtrI==RNIL);
+        assert(stream.finalBatchReceived());
         m_completedStreams++;
       }
     }
@@ -2010,7 +2024,7 @@ NdbQueryImpl::OrderedStreamSet::getEmpty() const
   // This method is not applicable to unordered scans.
   assert(m_ordering!=NdbScanOrdering_unordered);
   // The first stream should be empty when calling this method.
-  assert(m_size==0 || !m_array[0]->m_receiver.nextResult());
+  assert(m_size==0 || m_array[0]->isEmpty());
   assert(verifySortOrder());
   if(m_completedStreams==m_capacity)
   {
@@ -2018,14 +2032,14 @@ NdbQueryImpl::OrderedStreamSet::getEmpty() const
     // All streams are complete.
     return NULL;
   }
-  assert(m_array[0]->m_receiver.m_tcPtrI!=RNIL);
+  assert(!m_array[0]->finalBatchReceived());
   return m_array[0];
 }
 
 bool 
 NdbQueryImpl::OrderedStreamSet::verifySortOrder() const
 {
-  for(int i = 0; i<m_size-1; i++)
+  for(int i = 0; i<m_size-2; i++)
   {
     if(compare(*m_array[i], *m_array[i+1])==1)
     {
@@ -2048,9 +2062,9 @@ NdbQueryImpl::OrderedStreamSet::compare(const NdbResultStream& stream1,
 {
   assert(m_ordering!=NdbScanOrdering_unordered);
   /* s1<s2 if s1 is empty but s2 is not.*/
-  if(!stream1.m_receiver.nextResult())
+  if(stream1.isEmpty())
   {
-    if(stream2.m_receiver.nextResult())
+    if(!stream2.isEmpty())
     {
       return -1;
     }
@@ -2846,7 +2860,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   resultStream.m_pendingResults += rowCount;
 
   resultStream.m_receiver.m_tcPtrI = tcPtrI;  // Handle for SCAN_NEXTREQ, RNIL -> EOF
-  if (tcPtrI == RNIL)
+  if (resultStream.finalBatchReceived())
   {
     m_queryImpl.m_finalBatchStreams++;
   }

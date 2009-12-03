@@ -1220,7 +1220,9 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            Uint32      ix)
 : NdbQueryScanOperationDefImpl(table,ident,ix),
   m_interface(*this), 
-  m_index(index), m_bound()
+  m_index(index), 
+  m_bound(),
+  m_ordering(NdbScanOrdering_void)
 {
   if (bound!=NULL) {
 
