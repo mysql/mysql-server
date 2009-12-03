@@ -933,7 +933,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
        * as abs. value of char* in NdbError struct
        */
 
-      int idxObjId = (int) err.details;
+      int idxObjId = (int) ((UintPtr) err.details - UintPtr(0));
       char detailsBuff[100];
       const char* errIdxName = NULL;
       
