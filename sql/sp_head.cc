@@ -3981,10 +3981,10 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
-      table->mdl_lock_request= mdl_request_alloc(0, table->db, table->table_name,
-                                                 thd->locked_tables_root ?
-                                                 thd->locked_tables_root :
-                                                 thd->mem_root);
+      table->mdl_request= MDL_request::create(0, table->db, table->table_name,
+                                              thd->locked_tables_root ?
+                                              thd->locked_tables_root :
+                                              thd->mem_root);
 
       /* Everyting else should be zeroed */
 
@@ -4026,10 +4026,10 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->lock_type= locktype;
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
-  table->mdl_lock_request= mdl_request_alloc(0, table->db, table->table_name,
-                                             thd->locked_tables_root ?
-                                             thd->locked_tables_root :
-                                             thd->mem_root);
+  table->mdl_request= MDL_request::create(0, table->db, table->table_name,
+                                          thd->locked_tables_root ?
+                                          thd->locked_tables_root :
+                                          thd->mem_root);
 
   lex->add_to_query_tables(table);
   return table;

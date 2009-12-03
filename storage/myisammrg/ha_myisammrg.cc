@@ -434,7 +434,7 @@ int ha_myisammrg::add_children_list(void)
     /* Copy select_lex. Used in unique_table() at least. */
     child_l->select_lex= parent_l->select_lex;
 
-    child_l->mdl_lock_request= NULL; /* Safety, if alloc_mdl_requests fails. */
+    child_l->mdl_request= NULL; /* Safety, if alloc_mdl_requests fails. */
 
     /* Break when this was the last child. */
     if (&child_l->next_global == this->children_last_l)

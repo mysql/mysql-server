@@ -1205,7 +1205,7 @@ void Relay_log_info::clear_tables_to_lock()
     meta-data locks are stored. So we want to be sure that we don't have
     any references to this memory left.
   */
-  DBUG_ASSERT(!mdl_has_locks(&(current_thd->mdl_context)));
+  DBUG_ASSERT(!current_thd->mdl_context.has_locks());
 
   while (tables_to_lock)
   {

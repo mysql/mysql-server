@@ -1050,8 +1050,8 @@ THD::~THD()
   if (!cleanup_done)
     cleanup();
 
-  mdl_context_destroy(&mdl_context);
-  mdl_context_destroy(&handler_mdl_context);
+  mdl_context.destroy();
+  handler_mdl_context.destroy();
 
   ha_close_connection(this);
   plugin_thdvar_cleanup(this);
@@ -3033,8 +3033,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
               m_reprepare_observer == NULL);
-  mdl_context_destroy(&mdl_context);
-  mdl_context_destroy(&handler_mdl_context);
+  mdl_context.destroy();
+  handler_mdl_context.destroy();
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
