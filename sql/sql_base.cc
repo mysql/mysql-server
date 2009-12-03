@@ -22,6 +22,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sql_trigger.h"
+#include "transaction.h"
 #include "sql_prepare.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1402,7 +1403,7 @@ void close_thread_tables(THD *thd,
   if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
     thd->stmt_da->can_overwrite_status= TRUE;
-    ha_autocommit_or_rollback(thd, thd->is_error());
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     thd->stmt_da->can_overwrite_status= FALSE;
 
     /*

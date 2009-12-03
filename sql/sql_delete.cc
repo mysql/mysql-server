@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "transaction.h"
 
 /**
   Implement DELETE SQL word.
@@ -1071,8 +1072,8 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
   if (error)
   {
     DBUG_ASSERT(thd->stmt_da->is_error());
-    ha_autocommit_or_rollback(thd, TRUE);
-    end_active_trans(thd);
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
   }
   thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(error);

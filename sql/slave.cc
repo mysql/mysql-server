@@ -34,6 +34,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
+#include "transaction.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 #include <sql_common.h>
@@ -2430,7 +2431,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= 0;
-            end_trans(thd, ROLLBACK);
+            trans_rollback(thd);
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);

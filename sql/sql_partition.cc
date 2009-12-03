@@ -50,6 +50,7 @@
 #include <errno.h>
 #include <m_ctype.h>
 #include "my_md5.h"
+#include "transaction.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -4327,8 +4328,8 @@ static int fast_end_partition(THD *thd, ulonglong copied,
   if (!is_empty)
     query_cache_invalidate3(thd, table_list, 0);
 
-  error= ha_autocommit_or_rollback(thd, 0);
-  if (end_active_trans(thd))
+  error= trans_commit_stmt(thd);
+  if (trans_commit_implicit(thd))
     error= 1;
 
   if (error)
