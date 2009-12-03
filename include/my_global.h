@@ -1561,7 +1561,7 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
-#endif  
+#endif
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
   file creation/deletion/renaming in(from,to) this directory durable.
