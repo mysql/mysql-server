@@ -11,14 +11,12 @@ import optparse
 parser = optparse.OptionParser()
 parser.add_option('--test', dest='test', type='string', default=None, help="name of stress test to run")
 parser.add_option('--iterations', dest='iterations', type='int', default=1, help="Number of test iterations (default = 1)")
-parser.add_option('--crash', dest='crash', action="store_true", default=False, help="Crash the DB every iteration (default = FALSE)")
 parser.add_option('--verbose', dest='verbose', action="store_true", default=False, help="Verbose printing (default = FALSE)")
 options, remainder = parser.parse_args()
 
 def run_test():
     cmd = options.test
     if ( options.verbose ): cmd += ' -v'
-    if ( options.crash ):   cmd += ' -C'
     for i in range(options.iterations):
         os.system(cmd + ' -i %d' % (i))
 

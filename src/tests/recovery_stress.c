@@ -13,6 +13,9 @@ static const u_int64_t max_windows_cachesize = 256 << 20;
 static const int NUM_DICTIONARIES = 1;
 
 static const int OPER_STEPS = 6;
+
+static const int ITERATIONS_PER_CRASH_IN_RECOVERY = 7;
+
 typedef enum __recovery_stress_steps 
 {
     PRE_PRE_STEP = 0, 
@@ -52,6 +55,10 @@ drop_dead(void) {
     printf("intothevoid = %p, infinity = %d\n", intothevoid, infinity);
     printf("This line should never be printed\n");
     fflush(stdout);
+}
+
+static void drop_dead_callback_f(void *dummy UU()) {
+    drop_dead();
 }
 
 static void verify (DICTIONARY dictionaries, int iter) {
@@ -388,8 +395,7 @@ static void post_checkpoint_acts(ITER_SPEC spec) {
     return;
 }
 
-
-static void run_test (int iter, int die UU()) {
+static void run_test (int iter) {
 
     u_int32_t flags = DB_DUP|DB_DUPSORT;
     int i, r;
@@ -414,7 +420,28 @@ static void run_test (int iter, int die UU()) {
     if ( iter != 0 )
         recovery_flags += DB_RECOVER;
 
+    // crash somewhat frequently during recovery
+    //   first, wait until after the system is primed
+    if ( iter > ITERATIONS_PER_CRASH_IN_RECOVERY + 5 ) {
+        // every N cycles, crash in recovery
+        if ( (iter % ITERATIONS_PER_CRASH_IN_RECOVERY) == 0 ) {
+            // crash at different places in recovery
+            if ( iter & 1 ) 
+                db_env_set_recover_callback(drop_dead_callback_f, NULL);
+            else
+                db_env_set_recover_callback2(drop_dead_callback_f, NULL);
+        }
+    }
+
     env_startup(cachebytes, recovery_flags);
+
+    // logic below counts on a mapping of 'iter' to dictionary values
+    // since crashes in recovery do not modify dictionary values
+    //    need to adjust 'iter' to be iter of successful recoveries
+    int crashes_in_recovery = (iter / ITERATIONS_PER_CRASH_IN_RECOVERY) - ( ( ITERATIONS_PER_CRASH_IN_RECOVERY + 5 ) / ITERATIONS_PER_CRASH_IN_RECOVERY );
+    if ( crashes_in_recovery > 0 ) {
+        iter = iter - crashes_in_recovery;
+    }
 
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts
@@ -453,7 +480,7 @@ static void run_test (int iter, int die UU()) {
     post_checkpoint_acts(&spec);
 
     // if requesting crash, randomly do other non-committed acts, then "drop_dead"
-    if (die && (iter > 0)) {
+    if (iter > 0) {
         if (verbose) printf("dying\n");
 #if 0
 	// separate thread will perform random acts on other dictionaries (not 0)
@@ -486,11 +513,10 @@ static void run_test (int iter, int die UU()) {
 static void do_args(int argc, char *argv[]);
 
 static int iter_arg = 0;
-static int do_crash = 0;
 
 int test_main(int argc, char **argv) {
     do_args(argc, argv);
-    run_test(iter_arg,do_crash);
+    run_test(iter_arg);
     return 0;
 }
 
@@ -512,8 +538,6 @@ static void do_args(int argc, char *argv[]) {
 	} else if (strcmp(argv[0], "-i")==0) {
             argc--; argv++;
             iter_arg = atoi(argv[0]);
-	} else if (strcmp(argv[0], "-C")==0) {
-            do_crash = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

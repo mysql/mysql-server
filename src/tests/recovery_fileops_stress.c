@@ -8,7 +8,6 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
-static const int OPER_PER_STEP = 3;
 static const int NUM_DICTIONARIES = 100;
 //static const int NUM_DICTIONARIES = 3;
 static const char *table = "tbl";
@@ -18,7 +17,11 @@ DB_ENV *env;
 DB** db_array;
 DB* states;
 static const int percent_do_op = 20;
+static const int percent_do_abort = 25;
 static const int commit_abort_ratio = 3;
+static const int start_crashing_iter = 10;
+// iterations_per_crash_in_recovery should be an odd number;
+static const int iterations_per_crash_in_recovery = 7;
 char *state_db_name="states.db";
 
 #define CREATED 0
@@ -30,16 +33,11 @@ char *state_db_name="states.db";
 #define ABORT_TXN 1
 
 static int commit_or_abort(void) {
-    int rval;
-#if 1
-    int i = random() % (commit_abort_ratio + 1);
-    rval = ( i < commit_abort_ratio ) ? COMMIT_TXN : ABORT_TXN;
+    int i = random() % 100;
+    int rval = ( i < percent_do_abort ) ? ABORT_TXN : COMMIT_TXN;
     if ( verbose ) {
         if ( rval == ABORT_TXN ) printf("%s :     abort txn\n", __FILE__);
     }
-#else
-    rval = COMMIT_TXN;
-#endif
     return rval;
 }
 
@@ -73,6 +71,7 @@ static int get_state(int db_num) {
 
 static int crash_timer;
 static void crash_it(void);
+static void crash_it_callback_f(void*);
 static void set_crash_timer(void) {
     crash_timer = random() % (3 * NUM_DICTIONARIES);
 }
@@ -239,6 +238,7 @@ static void do_random_fileops(void)
     }
 }
 
+
 static void run_test(int iter){
     u_int32_t recovery_flags = DB_INIT_LOG | DB_INIT_TXN;
     int r, i;
@@ -253,6 +253,19 @@ static void run_test(int iter){
     }
     else
         recovery_flags += DB_RECOVER;
+
+    // crash somewhat frequently during recovery
+    //   first, wait until after first crash
+    if ( iter > start_crashing_iter + 1 ) {
+        // every N cycles, crash in recovery
+        if ( (iter % iterations_per_crash_in_recovery) == 0 ) {
+            // crash at different places in recovery
+            if ( iter & 1 ) 
+                db_env_set_recover_callback(crash_it_callback_f, NULL);
+            else
+                db_env_set_recover_callback2(crash_it_callback_f, NULL);
+        }
+    }
 
     env_startup(recovery_flags);
     if ( verbose ) printf("%s : environment init\n", __FILE__);
@@ -347,7 +360,7 @@ static void run_test(int iter){
     //  2) during the next checkpoint
     //  3) after the next (final) checkpoint
 
-    if ( iter > 10 ) {
+    if ( iter >= start_crashing_iter ) {
         set_crash_timer();
     } 
     else {
@@ -528,4 +541,8 @@ static void UU() crash_it(void) {
     printf("force use of %d\n", divide_by_zero);
     fflush(stdout);
     fflush(stderr);
+}
+
+static void crash_it_callback_f(void *dummy UU()) {
+    crash_it();
 }
