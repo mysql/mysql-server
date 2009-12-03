@@ -13162,8 +13162,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       If not used with LIMIT, only use keys if the whole query can be
       resolved with a key;  This is because filesort() is usually faster than
       retrieving all rows through an index.
+      The exception is if there is a pushed join which we can't filesort().
+      This is due to the prefetch of result rows from the pushed join
+      which filesort() is not able to buffer.
     */
-    if (select_limit >= table_records)
+    if (select_limit >= table_records  &&
+       !table->file->has_pushed_joins())
     {
       /* 
         filesort() and join cache are usually faster than reading in 
@@ -13223,7 +13227,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	*/ 
         if (is_covering ||
             select_limit != HA_POS_ERROR || 
-            (ref_key < 0 && (group || table->force_index)))
+            (ref_key < 0 && (group || table->file->has_pushed_joins() || table->force_index)))
         { 
           double rec_per_key;
           double index_scan_time;
@@ -13289,7 +13293,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           index_scan_time= select_limit/rec_per_key *
 	                   min(rec_per_key, table->file->scan_time());
           if ((ref_key < 0 && is_covering) || 
-              (ref_key < 0 && (group || table->force_index)) ||
+              (ref_key < 0 && (group || table->file->has_pushed_joins() || table->force_index)) ||
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;

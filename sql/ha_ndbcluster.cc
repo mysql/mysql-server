@@ -425,6 +425,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 {
   DBUG_ENTER("make_pushed_join");
   THD *thd= current_thd;
+  const JOIN *join = join_tabs->join;
   Item_field* join_items[MAX_LINKED_KEYS+1];
 
   DBUG_ASSERT (m_pushed_join == NULL);
@@ -489,6 +490,19 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   // 'pk' in (x,y,z) is not correctly handled in MRR result handling yet.
   if (join_root.select && join_root.select->quick &&
       m_index[join_root.select->quick->index].index == NULL)
+  {
+    DBUG_RETURN(0);
+  }
+
+  /**
+   * Can't push joins in combination with possible filesort()
+   * May be too restrictive as there are cases where we may use an index
+   * to scan the root operation of the pushed join in correct order.
+   * The core logic to detect possible index usage is in 
+   * test_if_skip_sort_order() - This should be further explored later.
+   */
+  if (&join_root == &join->join_tab[join->const_tables] &&
+      join->order && !join->skip_sort_order)
   {
     DBUG_RETURN(0);
   }
