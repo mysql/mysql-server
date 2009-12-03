@@ -245,8 +245,9 @@ void mdl_context_merge(MDL_CONTEXT *dst, MDL_CONTEXT *src)
 
    @param  lock_data  Pointer to an MDL_LOCK_DATA object to initialize
    @param  key_buff   Pointer to the buffer for key for the lock request
-                      (should be at least strlen(db) + strlen(name)
-                      + 2 bytes, or, if the lengths are not known,                                                                                       MAX_DBNAME_LENGTH)
+                      (should be at least 4+ strlen(db) + 1 + strlen(name)
+                      + 1 bytes, or, if the lengths are not known,
+                      MAX_MDLKEY_LENGTH)
    @param  type       Id of type of object to be locked
    @param  db         Name of database to which the object belongs
    @param  name       Name of of the object
