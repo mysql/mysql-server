@@ -16,7 +16,8 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
+INCLUDES =		@ZLIB_INCLUDES@ @RDTSC_SPARC_ASSEMBLY@ \
+			-I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
 LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
@@ -53,7 +54,8 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
-			my_windac.c my_access.c base64.c my_libwrap.c
+			my_windac.c my_access.c base64.c my_libwrap.c \
+			my_rdtsc.c
 
 if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
@@ -65,7 +67,9 @@ endif
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			CMakeLists.txt mf_soundex.c \
-			my_conio.c my_wincond.c my_winthread.c my_winerr.c my_winfile.c
+			my_conio.c my_wincond.c my_winthread.c my_winerr.c \
+			my_winfile.c \
+			my_timer_cycles.il
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
