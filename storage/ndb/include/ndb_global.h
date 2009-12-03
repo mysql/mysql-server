@@ -225,7 +225,7 @@ C_MODE_END
  *  and takes a Printer to print the error
 */
 #define require_exit_or_core_with_printer(v, exitcode, printer) \
-  do { if (likely(v)) break; \
+  do { if (likely(!(!(v)))) break;                                    \
        require_failed((exitcode), (printer), #v, __FILE__, __LINE__); \
   } while (0)
 
