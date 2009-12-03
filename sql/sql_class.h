@@ -984,13 +984,22 @@ public:
   MDL_CONTEXT mdl_context;
   MDL_CONTEXT handler_mdl_context;
 
-  /*
-    This constructor serves for creation of Open_tables_state instances
-    which are used as backup storage.
+  /**
+     This constructor initializes Open_tables_state instance which can only
+     be used as backup storage. To prepare Open_tables_state instance for
+     operations which open/lock/close tables (e.g. open_table()) one has to
+     call init_open_tables_state().
   */
   Open_tables_state() : state_flags(0U) { }
 
-  Open_tables_state(THD *thd, ulong version_arg);
+  /**
+     Prepare Open_tables_state instance for operations dealing with tables.
+  */
+  void init_open_tables_state(THD *thd, ulong version_arg)
+  {
+    reset_open_tables_state(thd);
+    version= version_arg;
+  }
 
   void set_open_tables_state(Open_tables_state *state)
   {
