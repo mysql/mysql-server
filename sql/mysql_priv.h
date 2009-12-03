@@ -53,6 +53,9 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 class Parser_state;
 
@@ -121,16 +124,35 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-#define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
-  do {                                                                               \
-    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
-      push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
-    else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+/*
+  Generates a warning that a feature is deprecated. After a specified
+  version asserts that the feature is removed.
+
+  Using it as
+
+  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+
+  Will result in a warning
+ 
+  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
+   use 'GOOD' instead"
+
+   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
+   Note that the version is TWO numbers, separated with a comma
+   (two macro arguments, that is)
+*/
+#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+  do {                                                                      \
+    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
+    if (((THD *) Thd) != NULL)                                              \
+      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+                        ER_WARN_DEPRECATED_SYNTAX,                          \
+                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
+                        (Old), #VerHi "." #VerLo, (New));                   \
+    else                                                                    \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
+                        "in MySQL %s. Please use %s instead.",              \
+                        (Old), #VerHi "." #VerLo, (New));                   \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -2228,10 +2250,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

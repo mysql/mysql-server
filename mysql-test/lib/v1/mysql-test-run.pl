@@ -4024,15 +4024,26 @@ sub mysqld_arguments ($$$$) {
     }
     else
     {
-      if ($mysql_version_id < 50200)
-      {
-        mtr_add_arg($args, "%s--master-user=root", $prefix);
-        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
-        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
-        mtr_add_arg($args, "%s--master-password=", $prefix);
-        mtr_add_arg($args, "%s--master-port=%d", $prefix,
-    	            $master->[0]->{'port'}); # First master
-      }
+#      NOTE: the backport (see BUG#48048) originally removed the
+#            commented out lines below. However, given that they are
+#            protected with a version check (< 50200) now, it should be 
+#            safe to keep them. The problem is that the backported patch 
+#            was into a 5.1 GA codebase - mysql-5.1-rep+2 tree - so 
+#            version is 501XX, consequently check becomes worthless. It 
+#            should be safe to uncomment them when merging up to 5.5.
+#
+#            RQG semisync test runs on the 5.1 GA tree and needs MTR v1.
+#            This was causing the test to fail (slave would not start
+#            due to unrecognized option(s)).
+#      if ($mysql_version_id < 50200)
+#      {
+#        mtr_add_arg($args, "%s--master-user=root", $prefix);
+#        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
+#        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
+#        mtr_add_arg($args, "%s--master-password=", $prefix);
+#        mtr_add_arg($args, "%s--master-port=%d", $prefix,
+#    	            $master->[0]->{'port'}); # First master
+#      }
       my $slave_server_id=  2 + $idx;
       my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
