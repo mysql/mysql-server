@@ -3050,12 +3050,8 @@ uint get_table_open_method(TABLE_LIST *tables,
    Acquire high priority share metadata lock on a table.
 
    @param thd            Thread context.
-   @param mdl_lock_data  Pointer to memory to be used for MDL_LOCK_DATA
+   @param mdl_lock_req   Pointer to memory to be used for MDL_LOCK_REQUEST
                          object for a lock request.
-   @param mdlkey         Pointer to the buffer for key for the lock request
-                         (should be at least strlen(db) + strlen(name) + 2
-                         bytes, or, if the lengths are not known,
-                         MAX_MDLKEY_LENGTH)
    @param table          Table list element for the table
 
    @note This is an auxiliary function to be used in cases when we want to
@@ -3069,23 +3065,23 @@ uint get_table_open_method(TABLE_LIST *tables,
 */
 
 static bool
-acquire_high_prio_shared_mdl_lock(THD *thd, MDL_LOCK_DATA *mdl_lock_data,
-                                  char *mdlkey, TABLE_LIST *table)
+acquire_high_prio_shared_mdl_lock(THD *thd, MDL_LOCK_REQUEST *mdl_lock_req,
+                                  TABLE_LIST *table)
 {
   bool retry;
 
-  mdl_init_lock(mdl_lock_data, mdlkey, 0, table->db, table->table_name);
-  table->mdl_lock_data= mdl_lock_data;
-  mdl_add_lock(&thd->mdl_context, mdl_lock_data);
-  mdl_set_lock_type(mdl_lock_data, MDL_SHARED_HIGH_PRIO);
+  mdl_request_init(mdl_lock_req, 0, table->db, table->table_name);
+  table->mdl_lock_request= mdl_lock_req;
+  mdl_request_add(&thd->mdl_context, mdl_lock_req);
+  mdl_request_set_type(mdl_lock_req, MDL_SHARED_HIGH_PRIO);
 
   while (1)
   {
-    if (mdl_acquire_shared_lock(&thd->mdl_context, mdl_lock_data, &retry))
+    if (mdl_acquire_shared_lock(&thd->mdl_context, mdl_lock_req, &retry))
     {
       if (!retry || mdl_wait_for_locks(&thd->mdl_context))
       {
-        mdl_remove_all_locks(&thd->mdl_context);
+        mdl_request_remove_all(&thd->mdl_context);
         return TRUE;
       }
       continue;
@@ -3127,8 +3123,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
-  MDL_LOCK_DATA mdl_lock_data;
-  char mdlkey[MAX_MDLKEY_LENGTH];
+  MDL_LOCK_REQUEST mdl_lock_request;
 
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   bzero((char*) &tbl, sizeof(TABLE));
@@ -3158,8 +3153,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
           simply obtaining internal lock of data-dictionary (ATM it
           is LOCK_open) instead of obtaning full-blown metadata lock.
   */
-  if (acquire_high_prio_shared_mdl_lock(thd, &mdl_lock_data, mdlkey,
-                                        &table_list))
+  if (acquire_high_prio_shared_mdl_lock(thd, &mdl_lock_request, &table_list))
   {
     /*
       Some error occured (most probably we have been killed while
@@ -3220,8 +3214,8 @@ err_unlock:
   pthread_mutex_unlock(&LOCK_open);
 
 err:
-  mdl_release_lock(&thd->mdl_context, &mdl_lock_data);
-  mdl_remove_lock(&thd->mdl_context, &mdl_lock_data);
+  mdl_ticket_release(&thd->mdl_context, mdl_lock_request.ticket);
+  mdl_request_remove(&thd->mdl_context, &mdl_lock_request);
   thd->clear_error();
   return res;
 }
@@ -7317,7 +7311,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
 
-  alloc_mdl_locks(lst, thd->mem_root);
+  alloc_mdl_requests(lst, thd->mem_root);
 
   if (open_tables(thd, &lst, &num_tables, 0))
   {

@@ -1,0 +1,21 @@
+SET DEBUG_SYNC= 'RESET';
+drop table if exists t1,t2,t3;
+create table t1 (i int);
+create table t2 (i int);
+connection: default
+lock tables t2 read;
+connection: con1
+set debug_sync='mdl_upgrade_shared_lock_to_exclusive SIGNAL parked WAIT_FOR go';
+alter table t1 rename t3;
+connection: default
+set debug_sync= 'now WAIT_FOR parked';
+connection: con2
+set debug_sync='mdl_acquire_exclusive_locks_wait SIGNAL go';
+drop table t1,t2;
+connection: con1
+connection: default
+unlock tables;
+connection: con2
+ERROR 42S02: Unknown table 't1'
+drop table t3;
+SET DEBUG_SYNC= 'RESET';

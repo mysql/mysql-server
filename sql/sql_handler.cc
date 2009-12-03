@@ -125,7 +125,7 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
   TABLE **table_ptr;
-  MDL_LOCK_DATA *mdl_lock_data;
+  MDL_LOCK_TICKET *mdl_lock_ticket;
 
   /*
     Though we could take the table pointer from hash_tables->table,
@@ -141,7 +141,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
-    mdl_lock_data= (*table_ptr)->mdl_lock_data;
+    mdl_lock_ticket= (*table_ptr)->mdl_lock_ticket;
     pthread_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, table_ptr))
     {
@@ -149,8 +149,8 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
       broadcast_refresh();
     }
     pthread_mutex_unlock(&LOCK_open);
-    mdl_release_lock(&thd->handler_mdl_context, mdl_lock_data);
-    mdl_remove_lock(&thd->handler_mdl_context, mdl_lock_data);
+    mdl_ticket_release(&thd->handler_mdl_context, mdl_lock_ticket);
+    mdl_request_remove(&thd->handler_mdl_context, tables->mdl_lock_request);
   }
   else if (tables->table)
   {
@@ -190,12 +190,12 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 {
   TABLE_LIST    *hash_tables = NULL;
-  MDL_LOCK_DATA *mdl_lock_data;
-  char          *db, *name, *alias, *mdlkey;
+  char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen, counter;
   int           error;
   TABLE         *backup_open_tables;
   MDL_CONTEXT   backup_mdl_context;
+  MDL_LOCK_REQUEST *mdl_lock_request;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -246,8 +246,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &db, (uint) dblen,
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
-                          &mdl_lock_data, sizeof(MDL_LOCK_DATA),
-                          &mdlkey, MAX_MDLKEY_LENGTH,
+                          &mdl_lock_request, sizeof(MDL_LOCK_REQUEST),
                           NullS)))
     {
       DBUG_PRINT("exit",("ERROR"));
@@ -261,8 +260,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    mdl_init_lock(mdl_lock_data, mdlkey, 0, db, name);
-    hash_tables->mdl_lock_data= mdl_lock_data;
+    mdl_request_init(mdl_lock_request, 0, db, name);
+    hash_tables->mdl_lock_request= mdl_lock_request;
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
@@ -801,11 +800,11 @@ void mysql_ha_flush(THD *thd)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     /*
-      TABLE::mdl_lock_data is 0 for temporary tables so we need extra check.
+      TABLE::mdl_lock_ticket is 0 for temporary tables so we need extra check.
     */
     if (hash_tables->table &&
-        (hash_tables->table->mdl_lock_data &&
-         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock_data) ||
+        (hash_tables->table->mdl_lock_ticket &&
+         mdl_has_pending_conflicting_lock(hash_tables->table->mdl_lock_ticket) ||
          hash_tables->table->needs_reopen()))
       mysql_ha_close_table(thd, hash_tables);
   }
