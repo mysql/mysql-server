@@ -71,7 +71,7 @@ set debug_sync= 'now WAIT_FOR parked';
 connection default;
 --echo # Wait until this LOCK TABLES statement starts waiting for table lock.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                       where state= 'Locked' and
+                       where state= 'Table lock' and
                              info='lock table t1 write';
 --source include/wait_condition.inc
 --echo # Allow SELECT ... FOR UPDATE to resume.
