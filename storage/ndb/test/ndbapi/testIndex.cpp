@@ -31,6 +31,13 @@
   result = NDBT_FAILED; break;\
 } 
 
+#define CHECKRET(b) if (!(b)) { \
+  g_err << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  abort(); /* Remove */                             \
+  return NDBT_FAILED;                             \
+} 
+
 
 struct Attrib {
   bool indexCreated;
@@ -721,6 +728,298 @@ int runInsertDelete(NDBT_Context* ctx, NDBT_Step* step){
   
   return result;
 }
+
+int tryAddUniqueIndex(Ndb* pNdb,
+                      const NdbDictionary::Table* pTab,
+                      const char* idxName,
+                      HugoCalculator& calc,
+                      int& chosenCol)
+{
+  for(int c = 0; c < pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column* col = pTab->getColumn(c);
+    
+    if (!col->getPrimaryKey() &&
+        !calc.isUpdateCol(c) &&
+        !col->getNullable() &&
+        col->getStorageType() != NDB_STORAGETYPE_DISK)
+    {
+      chosenCol = c;
+      break;
+    }
+  }
+  
+  if (chosenCol == -1)
+  {
+    return 1;
+  }
+  
+
+  /* Create unique index on chosen column */
+
+  const char* colName = pTab->getColumn(chosenCol)->getName();
+  ndbout << "Creating unique index :" << idxName << " on ("
+         << colName << ")" << endl;
+
+  NdbDictionary::Index idxDef(idxName);
+  idxDef.setTable(pTab->getName());
+  idxDef.setType(NdbDictionary::Index::UniqueHashIndex);
+  
+  idxDef.addIndexColumn(colName);
+  idxDef.setStoredIndex(false);
+
+  if (pNdb->getDictionary()->createIndex(idxDef) != 0)
+  {
+    ndbout << "FAILED!" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    ERR(err);
+    return -1;
+  }
+
+  return 0;
+}
+
+int tryInsertUniqueRecord(NDBT_Step* step,
+                          HugoOperations& hugoOps,
+                          int& recordNum)
+{
+  Ndb* pNdb = GETNDB(step);
+  do
+  {
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+    CHECKRET(hugoOps.pkInsertRecord(pNdb,
+                                    recordNum,
+                                    1,  // NumRecords 
+                                    0)  // UpdatesValue
+             == 0);
+    if (hugoOps.execute_Commit(pNdb) != 0)
+    {
+      NdbError err = hugoOps.getTransaction()->getNdbError();
+      hugoOps.closeTransaction(pNdb);
+      if (err.code == 839)
+      {
+        /* Unique constraint violation, try again with
+         * different record
+         */
+        recordNum++;
+        continue;
+      }
+      else
+      {
+        ERR(err);
+        return NDBT_FAILED;
+      }
+    }
+    
+    hugoOps.closeTransaction(pNdb);
+    break;
+  } while (true);
+
+  return NDBT_OK;
+}
+                     
+
+int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  /* Steps in testcase
+   * 1) Choose a column to index - not pk or updates column
+   * 2) Insert a couple of unique rows
+   * 3) For a number of different batch sizes :
+   *    i)  Insert a row with a conflicting values
+   *    ii) Update an existing row with a conflicting value
+   *    Verify :
+   *    - The correct error is received
+   *    - The failing constraint is detected
+   *    - The error details string is as expected.
+   */
+  HugoCalculator calc(*pTab);
+
+  /* Choose column to add unique index to */
+
+  int chosenCol = -1;
+  const char* idxName = "constraintCheck";
+  
+  int rc = tryAddUniqueIndex(pNdb, pTab, idxName, calc, chosenCol);
+
+  if (rc)
+  {
+    if (rc == 1)
+    {
+      ndbout << "No suitable column in this table, skipping" << endl;
+      return NDBT_OK;
+    }
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Index* pIdx = 
+    pNdb->getDictionary()->getIndex(idxName, pTab->getName());
+  CHECKRET(pIdx != 0);
+
+
+  /* Now insert a couple of rows */
+
+  HugoOperations hugoOps(*pTab);
+  int firstRecordNum = 0;
+  CHECKRET(tryInsertUniqueRecord(step, hugoOps, firstRecordNum) == NDBT_OK);
+  int secondRecordNum = firstRecordNum + 1;
+  CHECKRET(tryInsertUniqueRecord(step, hugoOps, secondRecordNum) == NDBT_OK);
+
+
+  /* Now we'll attempt to insert/update records 
+   * in various sized batches and check the errors which 
+   * are returned
+   */
+
+  int maxBatchSize = 10;
+  int recordOffset = secondRecordNum + 1;
+  char buff[NDB_MAX_TUPLE_SIZE];
+  Uint32 real_len;
+  CHECKRET(calc.calcValue(firstRecordNum, chosenCol, 0, &buff[0], 
+                          pTab->getColumn(chosenCol)->getSizeInBytes(), 
+                          &real_len) != 0);
+  
+  for (int optype = 0; optype < 2; optype ++)
+  {
+    bool useInsert = (optype == 0);
+    ndbout << "Verifying constraint violation for " 
+           << (useInsert?"Insert":"Update")
+           << " operations" << endl;
+      
+    for (int batchSize = 1; batchSize <= maxBatchSize; batchSize++)
+    {
+      NdbTransaction* trans = pNdb->startTransaction();
+      CHECKRET(trans != 0);
+      
+      for (int rows = 0; rows < batchSize; rows ++)
+      {
+        int rowId = recordOffset + rows;
+        NdbOperation* op = trans->getNdbOperation(pTab);
+        CHECKRET(op != 0);
+        if (useInsert)
+        {
+          CHECKRET(op->insertTuple() == 0);
+          
+          CHECKRET(hugoOps.setValues(op, rowId, 0) == 0);
+          
+          /* Now override setValue for the indexed column to cause
+           * constraint violation
+           */
+          CHECKRET(op->setValue(chosenCol, &buff[0], real_len) == 0);
+        }
+        else
+        {
+          /* Update value of 'second' row to conflict with
+           * first
+           */
+          CHECKRET(op->updateTuple() == 0);
+          CHECKRET(hugoOps.equalForRow(op, secondRecordNum) == 0);
+          
+          CHECKRET(op->setValue(chosenCol, &buff[0], real_len) == 0);
+        }
+      }
+      
+      CHECKRET(trans->execute(Commit) == -1);
+      
+      NdbError err = trans->getNdbError();
+      
+      ERR(err);
+      
+      CHECKRET(err.code == 893);
+      
+      /* Ugliness - current NdbApi puts index schema object id
+       * as abs. value of char* in NdbError struct
+       */
+
+      int idxObjId = (int) err.details;
+      char detailsBuff[100];
+      const char* errIdxName = NULL;
+      
+      ndbout_c("Got details column val of %p and string of %s\n",
+               err.details, pNdb->getNdbErrorDetail(err, 
+                                                    &detailsBuff[0],
+                                                    100));
+      if (idxObjId == pIdx->getObjectId())
+      {
+        /* Insert / update failed on the constraint we added */
+        errIdxName = pIdx->getName();
+      }
+      else
+      {
+        /* We failed on a different constraint.
+         * Some NDBT tables already have constraints (e.g. I3)
+         * Check that the failing constraint contains our column
+         */
+        NdbDictionary::Dictionary::List tableIndices;
+        
+        CHECKRET(pNdb->getDictionary()->listIndexes(tableIndices,
+                                                    pTab->getName()) == 0);
+        
+        bool ok = false;
+        for (unsigned ind = 0; ind < tableIndices.count; ind ++)
+        {
+          if (tableIndices.elements[ind].id == (unsigned) idxObjId)
+          {
+            const char* otherIdxName = tableIndices.elements[ind].name;
+            ndbout << "Found other violated constraint : " << otherIdxName << endl;
+            const NdbDictionary::Index* otherIndex = 
+              pNdb->getDictionary()->getIndex(otherIdxName,
+                                              pTab->getName());
+            CHECKRET(otherIndex != NULL);
+            
+            for (unsigned col = 0; col < otherIndex->getNoOfColumns(); col++)
+            {
+              if (strcmp(otherIndex->getColumn(col)->getName(),
+                         pTab->getColumn(chosenCol)->getName()) == 0)
+              {
+                /* Found our column in the index */
+                ok = true;
+                errIdxName = otherIndex->getName();
+                break;
+              }
+            }
+            
+            if (ok)
+            {
+              ndbout << "  Constraint contains unique column " << endl;
+              break;
+            }
+            ndbout << "  Constraint does not contain unique col - fail" << endl;
+            CHECKRET(false);
+          }
+        }
+        
+        if (!ok)
+        {
+          ndbout << "Did not find violated constraint" << endl;
+          CHECKRET(false);
+        }
+      }
+
+      /* Finally verify the name returned is :
+       * <db>/<schema>/<table>/<index> 
+       */
+      BaseString expected;
+
+      expected.assfmt("%s/%s/%s/%s",
+                      pNdb->getDatabaseName(),
+                      pNdb->getSchemaName(),
+                      pTab->getName(),
+                      errIdxName);
+
+      CHECKRET(strcmp(expected.c_str(), &detailsBuff[0]) == 0);
+
+      ndbout << " OK " << endl;
+
+      trans->close();
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   
@@ -1874,6 +2173,11 @@ TESTCASE("Bug46069", ""){
   STEPS(runBug46069_pkdel, 10);
   STEPS(runBug46069_scandel, 2);
   FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("ConstraintDetails",
+         "Test that the details part of the returned NdbError is as "
+         "expected"){
+  INITIALIZER(runConstraintDetails);
 }
 NDBT_TESTSUITE_END(testIndex);
 

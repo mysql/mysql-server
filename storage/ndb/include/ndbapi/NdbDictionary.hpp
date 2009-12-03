@@ -1930,6 +1930,9 @@ public:
 #endif
     int listObjects(List & list,
 		    Object::Type type = Object::TypeUndefined) const;
+    int listObjects(List & list,
+                    Object::Type type,
+                    bool fullyQualified) const;
 
     /**
      * Get the latest error
