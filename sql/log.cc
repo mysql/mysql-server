@@ -1503,7 +1503,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       transaction cache to remove the statement.
      */
     thd->binlog_remove_pending_rows_event(TRUE);
-    if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
+    if (all || !thd->in_multi_stmt_transaction())
     {
       if (trx_data->has_incident())
         mysql_bin_log.write_incident(thd, TRUE);
@@ -1571,8 +1571,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
     Otherwise, we accumulate the statement
   */
-  ulonglong const in_transaction=
-    thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
+  bool const in_transaction= thd->in_multi_stmt_transaction();
   DBUG_PRINT("debug",
              ("all: %d, empty: %s, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
@@ -3903,7 +3902,7 @@ THD::binlog_start_trans_and_stmt()
       trx_data->before_stmt_pos == MY_OFF_T_UNDEF)
   {
     this->binlog_set_stmt_begin();
-    if (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (in_multi_stmt_transaction())
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
     /*
