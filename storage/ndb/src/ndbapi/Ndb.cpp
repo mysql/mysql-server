@@ -2206,6 +2206,152 @@ Ndb::printState(const char* fmt, ...)
     theCompletedTransactionsArray[i]->printState();
   NdbMutex_Unlock(ndb_print_state_mutex);
 }
+
+const char*
+Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
+{
+  DBUG_ENTER("Ndb::getNdbErrorDetail");
+  /* If err has non-null details member, prepare a string containing
+   * those details
+   */
+  if (!buff)
+    DBUG_RETURN(NULL);
+
+  if (err.details != NULL)
+  {
+    DBUG_PRINT("info", ("err.code is %u", err.code));
+    switch (err.code) {
+    case 893: /* Unique constraint violation */
+    {
+      /* err.details contains the violated Index's object id
+       * We'll map it to a name, then map the name to a 
+       * base table, schema and database, and put that in
+       * string form into the caller's buffer
+       */
+      Uint32 indexObjectId = (Uint32) err.details;
+      Uint32 primTableObjectId = ~ (Uint32) 0;
+      BaseString indexName;
+      
+      {
+        DBUG_PRINT("info", ("Index object id is %u", indexObjectId));
+        NdbDictionary::Dictionary::List allIndices;
+        int rc = theDictionary->listObjects(allIndices, 
+                                            NdbDictionary::Object::UniqueHashIndex,
+                                            false); // FullyQualified names
+        if (rc)
+        {
+          DBUG_PRINT("info", ("listObjects call 1 failed with rc %u", rc));
+          DBUG_RETURN(NULL);
+        }
+        
+        DBUG_PRINT("info", ("Retrieved details for %u indices", allIndices.count));
+        
+        for (unsigned i = 0; i < allIndices.count; i++)
+        {
+          if (allIndices.elements[i].id == indexObjectId)
+          {
+            /* Found the index in question
+             * Expect fully qualified name to be in the form :
+             * <db>/<schema>/<primTabId>/<IndexName>
+             */
+            Vector<BaseString> idxNameComponents;
+            BaseString idxName(allIndices.elements[i].name);
+            
+            Uint32 components = idxName.split(idxNameComponents,
+                                              &table_name_separator);
+            
+            assert(components == 4);
+            
+            primTableObjectId = atoi(idxNameComponents[2].c_str());
+            indexName = idxNameComponents[3];
+            
+            DBUG_PRINT("info", ("Found index name : %s, primary table id : %u",
+                                indexName.c_str(), primTableObjectId));
+            
+            break;
+          }
+        }
+      }
+
+      if (primTableObjectId != (~(Uint32) 0))
+      {
+        NdbDictionary::Dictionary::List allTables;
+        int rc = theDictionary->listObjects(allTables,
+                                            NdbDictionary::Object::UserTable,
+                                            false); // FullyQualified names
+        
+        if (rc)
+        {
+          DBUG_PRINT("info", ("listObjects call 2 failed with rc %u", rc));
+          DBUG_RETURN(NULL);
+        }
+
+        DBUG_PRINT("info", ("Retrieved details for %u tables", allTables.count));
+
+        for (Uint32 t = 0; t < allTables.count; t++)
+        {
+          
+          if (allTables.elements[t].id == primTableObjectId)
+          {
+            /* Found table, name should be in format :
+             * <db>/<schema>/<tablename>
+             */
+            Vector<BaseString> tabNameComponents;
+            BaseString tabName(allTables.elements[t].name);
+            
+            Uint32 components = tabName.split(tabNameComponents,
+                                              &table_name_separator);
+            assert (components == 3);
+            
+            /* Now we generate a string of the format
+             * <dbname>/<schemaname>/<tabname>/<idxname>
+             * which should be usable by end users
+             */
+            BaseString result;
+            result.assfmt("%s/%s/%s/%s",
+                          tabNameComponents[0].c_str(),
+                          tabNameComponents[1].c_str(),
+                          tabNameComponents[2].c_str(),
+                          indexName.c_str());
+            
+            DBUG_PRINT("info", ("Found full index details : %s",
+                                result.c_str()));
+            
+            memcpy(buff, result.c_str(), 
+                   MIN(buffLen, 
+                       (result.length() + 1)));
+            buff[buffLen] = 0;
+
+            DBUG_RETURN(buff);
+          }
+        }
+
+        /* Primary table not found!  
+         * Strange - perhaps it's been dropped?
+         */          
+        DBUG_PRINT("info", ("Table id %u not found", primTableObjectId));
+        DBUG_RETURN(NULL);
+      }
+      else
+      {
+        /* Index not found from id - strange.
+         * Perhaps it has been dropped?
+         */
+        DBUG_PRINT("info", ("Index id %u not found", indexObjectId));
+        DBUG_RETURN(NULL);
+      }
+    }
+    default:
+    {
+      /* Unhandled details type */
+    }
+    }
+  }
+  
+  DBUG_PRINT("info", ("No details string for this error"));
+  DBUG_RETURN(NULL);
+}
+
 #endif
 
 

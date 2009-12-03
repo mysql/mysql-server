@@ -827,7 +827,8 @@ public:
 
   int forceGCPWait();
 
-  int listObjects(List& list, NdbDictionary::Object::Type type);
+  int listObjects(List& list, NdbDictionary::Object::Type type, 
+                  bool fullyQualified);
   int listIndexes(List& list, Uint32 indexId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);

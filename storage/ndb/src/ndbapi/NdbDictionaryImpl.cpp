@@ -5098,7 +5098,9 @@ NdbDictionaryImpl::listEvents(List& list)
  * List objects or indexes
  */
 int
-NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
+NdbDictionaryImpl::listObjects(List& list, 
+                               NdbDictionary::Object::Type type,
+                               bool fullyQualified)
 {
   int ret;
   List list1, list2;
@@ -5118,8 +5120,8 @@ NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
   if (!list2.count)
-    return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
-  ret = m_receiver.listObjects(list1, req, m_ndb.usingFullyQualifiedNames());
+    return m_receiver.listObjects(list, req, fullyQualified);
+  ret = m_receiver.listObjects(list1, req, fullyQualified);
   if (ret)
     return ret;
   list.count = list1.count + list2.count;
