@@ -300,53 +300,209 @@ my_socket vio_fd(Vio* vio)
   return vio->sd;
 }
 
+/**
+  Convert a sock-address (AF_INET or AF_INET6) into the "normalized" form,
+  which is the IPv4 form for IPv4-mapped or IPv4-compatible IPv6 addresses.
 
-my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
+  @note Background: when IPv4 and IPv6 are used simultaneously, IPv4
+  addresses may be written in a form of IPv4-mapped or IPv4-compatible IPv6
+  addresses. That means, one address (a.b.c.d) can be written in three forms:
+    - IPv4: a.b.c.d;
+    - IPv4-compatible IPv6: ::a.b.c.d;
+    - IPv4-mapped IPv4: ::ffff:a.b.c.d;
+
+  Having three forms of one address makes it a little difficult to compare
+  addresses with each other (the IPv4-compatible IPv6-address of foo.bar
+  will be different from the IPv4-mapped IPv6-address of foo.bar).
+
+  @note This function can be made public when it's needed.
+
+  @param src        [in] source IP address (AF_INET or AF_INET6).
+  @param src_length [in] length of the src.
+  @param dst        [out] a buffer to store normalized IP address
+                          (sockaddr_storage).
+  @param dst_length [out] actual length of the normalized IP address.
+*/
+static void vio_get_normalized_ip(const struct sockaddr *src,
+                                  int src_length,
+                                  struct sockaddr *dst,
+                                  int *dst_length)
+{
+  switch (src->sa_family) {
+  case AF_INET:
+    memcpy(dst, src, src_length);
+    *dst_length= src_length;
+    break;
+
+#ifdef HAVE_IPV6
+  case AF_INET6:
+  {
+    const struct sockaddr_in6 *src_addr6= (const struct sockaddr_in6 *) src;
+    const struct in6_addr *src_ip6= &(src_addr6->sin6_addr);
+    const uint32 *src_ip6_int32= (uint32 *) src_ip6->s6_addr;
+
+    if (IN6_IS_ADDR_V4MAPPED(src_ip6) || IN6_IS_ADDR_V4COMPAT(src_ip6))
+    {
+      struct sockaddr_in *dst_ip4= (struct sockaddr_in *) dst;
+
+      /*
+        This is an IPv4-mapped or IPv4-compatible IPv6 address. It should
+        be converted to the IPv4 form.
+      */
+
+      *dst_length= sizeof (struct sockaddr_in);
+
+      memset(dst_ip4, 0, *dst_length);
+      dst_ip4->sin_family= AF_INET;
+      dst_ip4->sin_port= src_addr6->sin6_port;
+
+      /*
+        In an IPv4 mapped or compatible address, the last 32 bits represent
+        the IPv4 address. The byte orders for IPv6 and IPv4 addresses are
+        the same, so a simple copy is possible.
+      */
+      dst_ip4->sin_addr.s_addr= src_ip6_int32[3];
+    }
+    else
+    {
+      /* This is a "native" IPv6 address. */
+
+      memcpy(dst, src, src_length);
+      *dst_length= src_length;
+    }
+
+    break;
+  }
+#endif /* HAVE_IPV6 */
+  }
+}
+
+
+/**
+  Return the normalized IP address string for a sock-address.
+
+  The idea is to return an IPv4-address for an IPv4-mapped and
+  IPv4-compatible IPv6 address.
+
+  The function writes the normalized IP address to the given buffer.
+  The buffer should have enough space, otherwise error flag is returned.
+  The system constant INET6_ADDRSTRLEN can be used to reserve buffers of
+  the right size.
+
+  @param addr           [in]  sockaddr object (AF_INET or AF_INET6).
+  @param addr_length    [in]  length of the addr.
+  @param ip_string      [out] buffer to write normalized IP address.
+  @param ip_string_size [in]  size of the ip_string.
+
+  @return Error status.
+  @retval TRUE in case of error (the ip_string buffer is not enough).
+  @retval FALSE on success.
+*/
+
+my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
+                                     int addr_length,
+                                     char *ip_string,
+                                     size_t ip_string_size)
+{
+  struct sockaddr_storage norm_addr_storage;
+  struct sockaddr *norm_addr= (struct sockaddr *) &norm_addr_storage;
+  int norm_addr_length;
+  int err_code;
+
+  vio_get_normalized_ip(addr, addr_length, norm_addr, &norm_addr_length);
+
+  err_code= vio_getnameinfo(norm_addr, ip_string, ip_string_size, NULL, 0,
+                            NI_NUMERICHOST);
+
+  if (!err_code)
+    return FALSE;
+
+  DBUG_PRINT("error", ("getnameinfo() failed with %d (%s).",
+                       (int) err_code,
+                       (const char *) gai_strerror(err_code)));
+  return TRUE;
+}
+
+
+/**
+  Return IP address and port of a VIO client socket.
+
+  The function returns an IPv4 address if IPv6 support is disabled.
+
+  The function returns an IPv4 address if the client socket is associated
+  with an IPv4-compatible or IPv4-mapped IPv6 address. Otherwise, the native
+  IPv6 address is returned.
+*/
+
+my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
+                      size_t ip_buffer_size)
 {
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("sd: %d", vio->sd));
+  DBUG_PRINT("enter", ("Client socked fd: %d", (int) vio->sd));
+
   if (vio->localhost)
   {
-    strmov(buf,"127.0.0.1");
+    /*
+      Initialize vio->remote and vio->addLen. Set vio->remote to IPv4 loopback
+      address.
+    */
+    struct in_addr *ip4= &((struct sockaddr_in *) &(vio->remote))->sin_addr;
+
+    vio->remote.ss_family= AF_INET;
+    vio->addrLen= sizeof (struct sockaddr_in);
+
+    ip4->s_addr= htonl(INADDR_LOOPBACK);
+
+    /* Initialize ip_buffer and port. */
+
+    strmov(ip_buffer, "127.0.0.1");
     *port= 0;
   }
   else
   {
-    size_socket addrLen = sizeof(vio->remote);
-    if (getpeername(vio->sd, (struct sockaddr *) (&vio->remote),
-		    &addrLen) != 0)
+    int err_code;
+    char port_buffer[NI_MAXSERV];
+
+    struct sockaddr_storage addr_storage;
+    struct sockaddr *addr= (struct sockaddr *) &addr_storage;
+    size_socket addr_length= sizeof (addr_storage);
+
+    /* Get sockaddr by socked fd. */
+
+    err_code= getpeername(vio->sd, addr, &addr_length);
+
+    if (err_code)
     {
-      DBUG_PRINT("exit", ("getpeername gave error: %d", socket_errno));
-      DBUG_RETURN(1);
+      DBUG_PRINT("exit", ("getpeername() gave error: %d", socket_errno));
+      DBUG_RETURN(TRUE);
     }
-    my_inet_ntoa(vio->remote.sin_addr,buf);
-    *port= ntohs(vio->remote.sin_port);
+
+    /* Normalize IP address. */
+
+    vio_get_normalized_ip(addr, addr_length,
+                          (struct sockaddr *) &vio->remote, &vio->addrLen);
+
+    /* Get IP address & port number. */
+
+    err_code= vio_getnameinfo((struct sockaddr *) &vio->remote,
+                              ip_buffer, ip_buffer_size,
+                              port_buffer, NI_MAXSERV,
+                              NI_NUMERICHOST | NI_NUMERICSERV);
+
+    if (err_code)
+    {
+      DBUG_PRINT("exit", ("getnameinfo() gave error: %s",
+                          gai_strerror(err_code)));
+      DBUG_RETURN(TRUE);
+    }
+
+    *port= (uint16) strtol(port_buffer, NULL, 10);
   }
-  DBUG_PRINT("exit", ("addr: %s", buf));
-  DBUG_RETURN(0);
-}
 
-
-/*
-  Get in_addr for a TCP/IP connection
-
-  SYNOPSIS
-    vio_in_addr()
-    vio		vio handle
-    in		put in_addr here
-
-  NOTES
-    one must call vio_peer_addr() before calling this one
-*/
-
-void vio_in_addr(Vio *vio, struct in_addr *in)
-{
-  DBUG_ENTER("vio_in_addr");
-  if (vio->localhost)
-    bzero((char*) in, sizeof(*in));
-  else
-    *in=vio->remote.sin_addr;
-  DBUG_VOID_RETURN;
+  DBUG_PRINT("exit", ("Client IP address: %s; port: %d",
+                      (const char *) ip_buffer,
+                      (int) *port));
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -377,7 +533,8 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
   FD_ZERO(&errorfds);
   FD_SET(fd, &readfds);
   FD_SET(fd, &errorfds);
-  if ((res= select(fd, &readfds, NULL, &errorfds, &tm) <= 0))
+  /* The first argument is ignored on Windows, so a conversion to int is OK */
+  if ((res= select((int) fd, &readfds, NULL, &errorfds, &tm) <= 0))
   {
     DBUG_RETURN(res < 0 ? 0 : 1);
   }
@@ -879,4 +1036,37 @@ ssize_t vio_pending(Vio *vio)
 #endif
 
   return 0;
+}
+
+
+/**
+  This is a wrapper for the system getnameinfo(), because different OS
+  differ in the getnameinfo() implementation. For instance, Solaris 10
+  requires that the 2nd argument (salen) must match the actual size of the
+  struct sockaddr_storage passed to it.
+*/
+
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags)
+{
+  int sa_length= 0;
+
+  switch (sa->sa_family) {
+  case AF_INET:
+    sa_length= sizeof (struct sockaddr_in);
+    break;
+
+#ifdef HAVE_IPV6
+  case AF_INET6:
+    sa_length= sizeof (struct sockaddr_in6);
+    break;
+#endif /* HAVE_IPV6 */
+  }
+
+  return getnameinfo(sa, sa_length,
+                     hostname, hostname_size,
+                     port, port_size,
+                     flags);
 }
