@@ -2207,6 +2207,8 @@ Ndb::printState(const char* fmt, ...)
   NdbMutex_Unlock(ndb_print_state_mutex);
 }
 
+#endif
+
 const char*
 Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
 {
@@ -2353,6 +2355,5 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
   DBUG_RETURN(NULL);
 }
 
-#endif
 
 
