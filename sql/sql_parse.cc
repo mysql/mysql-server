@@ -6664,6 +6664,30 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tables.
     */
 
+    options|= REFRESH_BINARY_LOG;
+    options|= REFRESH_RELAY_LOG;
+    options|= REFRESH_SLOW_LOG;
+    options|= REFRESH_GENERAL_LOG;
+    options|= REFRESH_ENGINE_LOG;
+    options|= REFRESH_ERROR_LOG;
+  }
+
+  if (options & REFRESH_ERROR_LOG)
+    if (flush_error_log())
+      result= 1;
+
+  if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
+    logger.flush_slow_log();
+
+  if ((options & REFRESH_GENERAL_LOG) && opt_log)
+    logger.flush_general_log();
+
+  if (options & REFRESH_ENGINE_LOG)
+    if (ha_flush_logs(NULL))
+      result= 1;
+
+  if (options & REFRESH_BINARY_LOG)
+  {
     /*
       Writing this command to the binlog may result in infinite loops
       when doing mysqlbinlog|mysql, and anyway it does not really make
@@ -6671,23 +6695,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       than it would help them)
     */
     tmp_write_to_binlog= 0;
-    if( mysql_bin_log.is_open() )
-    {
+    if (mysql_bin_log.is_open())
       mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
-    }
+  }
+  if (options & REFRESH_RELAY_LOG)
+  {
 #ifdef HAVE_REPLICATION
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
 #endif
-
-    /* flush slow and general logs */
-    logger.flush_logs(thd);
-
-    if (ha_flush_logs(NULL))
-      result=1;
-    if (flush_error_log())
-      result=1;
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
