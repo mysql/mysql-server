@@ -3828,6 +3828,10 @@ static int init_server_components()
     }
   }
 
+  proc_info_hook= (const char *(*)(void *, const char *, const char *,
+                                   const char *, const unsigned int))
+                  set_thd_proc_info;
+
   if (xid_cache_init())
   {
     sql_print_error("Out of memory");
