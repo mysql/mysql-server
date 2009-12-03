@@ -681,6 +681,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ENUM
 %token  EQ                            /* OPERATOR */
 %token  EQUAL_SYM                     /* OPERATOR */
+%token  ERROR_SYM
 %token  ERRORS
 %token  ESCAPED
 %token  ESCAPE_SYM                    /* SQL-2003-R */
@@ -714,6 +715,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  FULLTEXT_SYM
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
+%token  GENERAL
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
@@ -931,6 +933,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  REDUNDANT_SYM
 %token  REFERENCES                    /* SQL-2003-R */
 %token  REGEXP
+%token  RELAY
 %token  RELAYLOG_SYM
 %token  RELAY_LOG_FILE_SYM
 %token  RELAY_LOG_POS_SYM
@@ -985,6 +988,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SIGNED_SYM
 %token  SIMPLE_SYM                    /* SQL-2003-N */
 %token  SLAVE
+%token  SLOW
 %token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SOCKET_SYM
@@ -10313,6 +10317,18 @@ flush_option:
           opt_table_list {}
         | TABLES WITH READ_SYM LOCK_SYM
           { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
+        | ERROR_SYM LOGS_SYM
+          { Lex->type|= REFRESH_ERROR_LOG; }
+        | ENGINE_SYM LOGS_SYM
+          { Lex->type|= REFRESH_ENGINE_LOG; } 
+        | GENERAL LOGS_SYM
+          { Lex->type|= REFRESH_GENERAL_LOG; }
+        | SLOW LOGS_SYM
+          { Lex->type|= REFRESH_SLOW_LOG; }
+        | BINARY LOGS_SYM
+          { Lex->type|= REFRESH_BINARY_LOG; }
+        | RELAY LOGS_SYM
+          { Lex->type|= REFRESH_RELAY_LOG; }
         | QUERY_SYM CACHE_SYM
           { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
         | HOSTS_SYM
@@ -11436,6 +11452,7 @@ keyword_sp:
         | ENUM                     {}
         | ENGINE_SYM               {}
         | ENGINES_SYM              {}
+        | ERROR_SYM                {}
         | ERRORS                   {}
         | ESCAPE_SYM               {}
         | EVENT_SYM                {}
@@ -11560,6 +11577,7 @@ keyword_sp:
         | REDO_BUFFER_SIZE_SYM     {}
         | REDOFILE_SYM             {}
         | REDUNDANT_SYM            {}
+        | RELAY                    {}
         | RELAYLOG_SYM             {}
         | RELAY_LOG_FILE_SYM       {}
         | RELAY_LOG_POS_SYM        {}
