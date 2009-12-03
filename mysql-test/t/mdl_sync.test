@@ -1,0 +1,69 @@
+#
+# We need the Debug Sync Facility.
+#
+--source include/have_debug_sync.inc
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
+
+#
+# Test the case of when a exclusive lock request waits for a
+# shared lock being upgraded to a exclusive lock.
+#
+
+connect (con1,localhost,root,,test,,);
+connect (con2,localhost,root,,test,,);
+connect (con3,localhost,root,,test,,);
+
+connection default;
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+create table t1 (i int);
+create table t2 (i int);
+
+--echo connection: default
+lock tables t2 read;
+
+connection con1;
+--echo connection: con1
+set debug_sync='mdl_upgrade_shared_lock_to_exclusive SIGNAL parked WAIT_FOR go';
+--send alter table t1 rename t3
+
+connection default;
+--echo connection: default
+set debug_sync= 'now WAIT_FOR parked';
+
+connection con2;
+--echo connection: con2
+set debug_sync='mdl_acquire_exclusive_locks_wait SIGNAL go';
+--send drop table t1,t2
+
+connection con1;
+--echo connection: con1
+--reap
+
+connection default;
+--echo connection: default
+unlock tables;
+
+connection con2;
+--echo connection: con2
+--error ER_BAD_TABLE_ERROR
+--reap
+
+connection default;
+drop table t3;
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
