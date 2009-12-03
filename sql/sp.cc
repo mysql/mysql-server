@@ -1693,6 +1693,12 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
     int type= rt->key.str[0];
     sp_head *sp;
 
+    /*
+      Triggers can't happen here: their bodies are always processed
+      in sp_cache_routines_and_add_tables_for_triggers().
+    */
+    DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
+
     if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
                               &thd->sp_func_cache : &thd->sp_proc_cache),
                               &name)))
@@ -1836,11 +1842,6 @@ int
 sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                               TABLE_LIST *table)
 {
-  int ret= 0;
-
-  Sroutine_hash_entry **last_cached_routine_ptr=
-    (Sroutine_hash_entry **)lex->sroutines_list.next;
-
   if (static_cast<int>(table->lock_type) >=
       static_cast<int>(TL_WRITE_ALLOW_WRITE))
   {
@@ -1857,21 +1858,29 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
               add_used_routine(lex, thd->stmt_arena, &trigger->m_sroutines_key,
                                table->belong_to_view))
           {
+            int ret;
+            /* Sic: excludes the trigger key from processing */
+            Sroutine_hash_entry **last_cached_routine_ptr=
+              (Sroutine_hash_entry **)lex->sroutines_list.next;
+
             trigger->add_used_tables_to_table_list(thd, &lex->query_tables_last,
                                                    table->belong_to_view);
             trigger->propagate_attributes(lex);
             sp_update_stmt_used_routines(thd, lex,
                                          &trigger->m_sroutines,
                                          table->belong_to_view);
+
+            ret= sp_cache_routines_and_add_tables_aux(thd, lex,
+                                                      *last_cached_routine_ptr,
+                                                      FALSE);
+            if (ret)
+              return ret;
           }
         }
       }
     }
   }
-  ret= sp_cache_routines_and_add_tables_aux(thd, lex,
-                                            *last_cached_routine_ptr,
-                                            FALSE);
-  return ret;
+  return 0;
 }
 
 
