@@ -1422,3 +1422,7 @@ max-time: 300
 cmd: testBlobs
 args: -skip hp -bug 28116
 
+max-time: 300
+cmd: testIndex
+args: -n ConstraintDetails
+
