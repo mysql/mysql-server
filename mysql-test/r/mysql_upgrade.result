@@ -135,9 +135,6 @@ CREATE PROCEDURE testproc() BEGIN END;
 UPDATE mysql.proc SET character_set_client = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
-WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
-WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (latin1_swedish_ci). Please verify if necessary.
-WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
@@ -169,3 +166,6 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 CALL testproc();
 DROP PROCEDURE testproc;
+WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
+WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (latin1_swedish_ci). Please verify if necessary.
+WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.

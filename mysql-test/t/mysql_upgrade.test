@@ -103,6 +103,8 @@ CREATE PROCEDURE testproc() BEGIN END;
 UPDATE mysql.proc SET character_set_client = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --force 2> $MYSQLTEST_VARDIR/tmp/41569.txt
 CALL testproc();
 DROP PROCEDURE testproc;
+--cat_file $MYSQLTEST_VARDIR/tmp/41569.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/41569.txt
