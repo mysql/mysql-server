@@ -226,6 +226,13 @@ env_shutdown(void) {
 }
 
 static void
+checkpoint(void) {
+    int r;
+    r = env->txn_checkpoint(env, 0, 0, 0);
+    CKERR(r);
+}
+
+static void
 maybe_make_oldest_living_txn(void) {
     if (get_choice_first_create_unrelated_txn()) {
         // create a txn that never closes, forcing recovery to run from the beginning of the log
@@ -233,6 +240,7 @@ maybe_make_oldest_living_txn(void) {
         int r;
         r = env->txn_begin(env, NULL, &oldest_living_txn, 0);
         CKERR(r);
+        checkpoint();
     }
 }
 
@@ -250,6 +258,29 @@ fcreate(void) {
     CKERR(r);
     r = db->open(db, txn, oldname, NULL, DB_BTREE, DB_CREATE|DB_EXCL, 0666);
     CKERR(r);
+    DBT key, val;
+    dbt_init(&key, choices, sizeof(choices));
+    dbt_init(&val, NULL, 0);
+    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    CKERR(r);
+    dbt_init(&key, "name", sizeof("name"));
+    dbt_init(&val, (void*)oldname, strlen(oldname)+1);
+    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    CKERR(r);
+
+    dbt_init(&key, "to_delete", sizeof("to_delete"));
+    dbt_init(&val, "delete_me", sizeof("delete_me"));
+    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    CKERR(r);
+    r = db->del(db, txn, &key, DB_DELETE_ANY);
+    CKERR(r);
+
+    dbt_init(&key, "to_delete2", sizeof("to_delete2"));
+    dbt_init(&val, "delete_me2", sizeof("delete_me2"));
+    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    CKERR(r);
+    r = db->delboth(db, txn, &key, &val, DB_DELETE_ANY);
+    CKERR(r);
     r = db->close(db, 0);
     CKERR(r);
 }
@@ -264,6 +295,20 @@ fdelete(void) {
 static void
 frename(void) {
     int r;
+    {
+        //Rename in 'key/val' pair.
+        DBT key,val;
+        r = db_create(&db, env, 0);                                                             
+        CKERR(r);
+        r = db->open(db, txn, oldname, NULL, DB_BTREE, 0, 0666);
+        CKERR(r);
+        dbt_init(&key, "name", sizeof("name"));
+        dbt_init(&val, (void*)newname, strlen(newname)+1);
+        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+        CKERR(r);
+        r = db->close(db, 0);
+        CKERR(r);
+    }
     r = env->dbrename(env, txn, oldname, NULL, newname, 0);
     CKERR(r);
 }
@@ -286,13 +331,6 @@ close_txn(int type) {
     }
     else
         assert(type == CLOSE_TXN_NONE);
-}
-
-static void
-checkpoint(void) {
-    int r;
-    r = env->txn_checkpoint(env, 0, 0, 0);
-    CKERR(r);
 }
 
 static void
@@ -450,18 +488,48 @@ did_create_commit_early(void) {
     return r;
 }
 
+static int
+getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
+    return 0;
+}
+
 static void
 verify_file_exists(const char *name, int should_exist) {
     int r;
-    r = db_create(&db, env, 0);                                                             
+    make_txn();
+    r = db_create(&db, env, 0);
     CKERR(r);
-    r = db->open(db, NULL, name, NULL, DB_BTREE, 0, 0666);
-    if (should_exist)
+    r = db->open(db, txn, name, NULL, DB_BTREE, 0, 0666);
+    if (should_exist) {
         CKERR(r);
+        DBT key, val;
+        dbt_init(&key, choices, sizeof(choices));
+        dbt_init(&val, NULL, 0);
+        r = db->get(db, txn, &key, &val, DB_YESOVERWRITE);
+        r = db->getf_get_both(db, txn, 0, &key, &val, getf_do_nothing, NULL);
+        CKERR(r);
+        dbt_init(&key, "name", sizeof("name"));
+        dbt_init(&val, (void*)name, strlen(name)+1);
+        r = db->getf_get_both(db, txn, 0, &key, &val, getf_do_nothing, NULL);
+        CKERR(r);
+
+        DBC *c;
+        r = db->cursor(db, txn, &c, 0);
+        CKERR(r);
+        int num_found = 0;
+        while ((r = c->c_getf_next(c, 0, getf_do_nothing, NULL)) == 0) {
+            num_found++;
+        }
+        CKERR2(r, DB_NOTFOUND);
+        assert(num_found == 2); //name and choices array.
+        r = c->c_close(c);
+        CKERR(r);
+    }
     else
         CKERR2(r, ENOENT);
     r = db->close(db, 0);
     CKERR(r);
+    close_txn(CLOSE_TXN_COMMIT);
 }
 
 static int

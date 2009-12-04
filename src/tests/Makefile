@@ -509,7 +509,7 @@ recovery_fileops_unit.tdbrun: SHELL=/bin/bash
 recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	rm -rf dir.$@.errors
 	mkdir dir.$@.errors
-	( \
+	$(MAYBEATSIGN)( \
         Oset="c d r"; \
         aset="0 1"; \
         bset="0 1"; \
@@ -543,7 +543,7 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
                                    combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$"; \
                                    ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile && { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
                                    grep 'HAPPY CRASH' $$errorfile >/dev/null || { cat $$errorfile; echo Error: incorrect crash in $$errorfile ; exit 1; }; \
-                                   $(TDBVGRIND) ./$< $(VERBVERBOSE) -r $$combination || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
+                                   ./$< $(VERBVERBOSE) -r $$combination 2>> $$errorfile || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
                                    count=$$(($$count + 1)); \
                                 done; \
                              done; \
