@@ -376,6 +376,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+
   if (thd->query())
   {
     if (max_query_len < 1)
@@ -385,6 +387,9 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append('\n');
     str.append(thd->query(), len);
   }
+
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+
   if (str.c_ptr_safe() == buffer)
     return buffer;
 
