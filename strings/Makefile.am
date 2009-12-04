@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,16 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
+#
+# Note that the string library is built with #define THREAD,
+# which by default cause all the thread related code (my_pthread.h)
+# and therefore the associated instrumentation (mysql/psi/mysql_thread.h)
+# to be used.
+# Since the string code itself is not instrumented, we use
+# #define DISABLE_MYSQL_THREAD_H here to avoid unneeded dependencies.
+#
+
+INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include -DDISABLE_MYSQL_THREAD_H
 pkglib_LIBRARIES =	libmystrings.a
 
 # Exact one of ASSEMBLER_X
