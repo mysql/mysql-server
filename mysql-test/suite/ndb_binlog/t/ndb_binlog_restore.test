@@ -17,10 +17,6 @@ insert into t1 values (1,1);
 --enable_query_log
 
 --echo #
---echo # extra table to be used to ensure data has arrived to binlog
-create table t2 (a int key, b int) engine ndb;
-
---echo #
 --echo # reset and restore schema
 drop table t1;
 reset master;
@@ -33,32 +29,39 @@ show tables;
 --exec $NDB_RESTORE --no-defaults --no-binlog -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo #
---echo # check the binlog, should be empty
---echo # extra insert (not logged) to ensure data has arrived to binlog
-set SQL_LOG_BIN=0;
-insert into t2 values (1,1);
+--echo # check the binlog, should be empty apart from our marker
+--echo # create dummy table to wait for to ensure Binlog contains any previous events
+
+create table binlogmarker (a int) engine=ndb;
+let $wait_binlog_event= binlogmarker;
+--source include/wait_for_binlog_event.inc
+
 --source include/show_binlog_events2.inc
 
 --echo #
 --echo # reset and restore schema again
+drop table binlogmarker;
 drop table t1;
 reset master;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 show tables;
 
 --echo #
---echo # restore and  binlog should now happen
+--echo # restore and  binlog should now happen as well as the marker
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo #
 --echo # check the binlog, should contain data
---echo # extra insert (not logged) to ensure data has arrived to binlog
-set SQL_LOG_BIN=0;
-insert into t2 values (2,2);
+--echo # create dummy table to wait for to ensure Binlog contains any previous events
+
+create table binlogmarker (a int) engine=ndb;
+let $wait_binlog_event= binlogmarker;
+--source include/wait_for_binlog_event.inc
+
 --source include/show_binlog_events2.inc
 
-drop table t1, t2;
+drop table binlogmarker, t1;
 
 
 
