@@ -788,23 +788,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_DIH_API_CONNECT, 
 	    2 * noOfTransactions);
     
-    Uint32 noFragPerTable= ((noOfDBNodes + NO_OF_FRAGS_PER_CHUNK - 1) >>
-                           LOG_NO_OF_FRAGS_PER_CHUNK) <<
-                           LOG_NO_OF_FRAGS_PER_CHUNK;
+    Uint32 noFragPerTable= (((noOfDBNodes * lqhInstances) + 
+                             NO_OF_FRAGS_PER_CHUNK - 1) >>
+                            LOG_NO_OF_FRAGS_PER_CHUNK) <<
+      LOG_NO_OF_FRAGS_PER_CHUNK;
 
     cfg.put(CFG_DIH_FRAG_CONNECT, 
 	    noFragPerTable *  noOfMetaTables);
     
-    int temp;
-    temp = noOfReplicas - 2;
-    if (temp < 0)
-      temp = 1;
-    else
-      temp++;
-    cfg.put(CFG_DIH_MORE_NODES, 
-	    temp * NO_OF_FRAG_PER_NODE *
-	    noOfMetaTables *  noOfDBNodes);
-
     cfg.put(CFG_DIH_REPLICAS, 
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables *
 	    noOfDBNodes * noOfReplicas * lqhInstances);
