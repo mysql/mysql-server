@@ -22,8 +22,15 @@ static S_Scan g_scans[] = {
   { "subgenrestometamap", "metaid", 0, 0, 0, 0 }
 };
 
-#define require(x) if(!(x)) { ndbout << "LINE: " << __LINE__ << endl;abort(); }
-#define require2(o, x) if(!(x)) { ndbout << o->getNdbError() << endl; abort(); }
+#undef require
+#define require(x)     require_exit_or_core_with_printer((x), 0, ndbout_printer)
+#define require2(o, x) \
+    if(!(x))\
+    {\
+      ndbout << o->getNdbError() << endl;\
+      require_exit_or_core_with_printer(0, 0, ndbout_printer);\
+    }
+
 Uint32 g_affiliateid = 2;
 Uint32 g_formatids[] = { 8, 31, 76 };
 
