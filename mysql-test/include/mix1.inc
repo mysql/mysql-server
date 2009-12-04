@@ -1392,6 +1392,7 @@ SELECT * FROM t1;
 connection con2;
 --reap
 SELECT * FROM t1;
+COMMIT;
 
 --echo # Switch to connection con1
 connection con1;

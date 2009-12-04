@@ -83,9 +83,15 @@ int injector::transaction::commit()
      explicitly.
    */
    trans_commit_stmt(m_thd);
-   trans_commit(m_thd);
+   if (!trans_commit(m_thd))
+   {
+     close_thread_tables(m_thd);
+     if (!m_thd->locked_tables_mode)
+       m_thd->mdl_context.release_all_locks();
+   }
    DBUG_RETURN(0);
 }
+
 
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {

@@ -1189,6 +1189,8 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
+  if (error && !thd->locked_tables_mode)
+    thd->mdl_context.release_all_locks();
   clear_flag(IN_STMT);
   /*
     Cleanup for the flags that have been set at do_apply_event.
@@ -1200,13 +1202,6 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
 
 void Relay_log_info::clear_tables_to_lock()
 {
-  /*
-    Deallocating elements of table list below will also free memory where
-    meta-data locks are stored. So we want to be sure that we don't have
-    any references to this memory left.
-  */
-  DBUG_ASSERT(!current_thd->mdl_context.has_locks());
-
   while (tables_to_lock)
   {
     uchar* to_free= reinterpret_cast<uchar*>(tables_to_lock);
@@ -1225,12 +1220,6 @@ void Relay_log_info::clear_tables_to_lock()
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
-  /*
-    Since we use same memory chunks for allocation of metadata lock
-    objects for tables as we use for allocating corresponding elements
-    of 'tables_to_lock' list, we have to release metadata locks by
-    closing tables before calling clear_tables_to_lock().
-  */
   close_thread_tables(thd);
   clear_tables_to_lock();
 }

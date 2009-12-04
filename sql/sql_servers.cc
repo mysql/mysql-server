@@ -39,6 +39,7 @@
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
+#include "transaction.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
@@ -224,9 +225,6 @@ bool servers_reload(THD *thd)
   bool return_val= TRUE;
   DBUG_ENTER("servers_reload");
 
-  /* Can't have locked tables here */
-  thd->locked_tables_list.unlock_locked_tables(thd);
-
   DBUG_PRINT("info", ("locking servers_cache"));
   rw_wrlock(&THR_LOCK_servers);
 
@@ -252,7 +250,10 @@ bool servers_reload(THD *thd)
   }
 
 end:
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  if (!thd->locked_tables_mode)
+    thd->mdl_context.release_all_locks();
   DBUG_PRINT("info", ("unlocking servers_cache"));
   rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);

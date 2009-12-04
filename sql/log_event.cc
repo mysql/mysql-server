@@ -5314,10 +5314,17 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  bool res;
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return trans_commit(thd);
+  if (!(res= trans_commit(thd)))
+  {
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
+  }
+  return res;
 }
 
 Log_event::enum_skip_reason
