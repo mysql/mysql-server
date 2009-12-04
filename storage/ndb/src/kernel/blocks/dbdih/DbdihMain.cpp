@@ -7541,7 +7541,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   }//if
   if (noFragments > cremainingfrags) {
     jam();
-    addtabrefuseLab(signal, connectPtr, ZREPLERROR1);
+    addtabrefuseLab(signal, connectPtr, ZREPLERROR2);
     return;
   }//if
   
