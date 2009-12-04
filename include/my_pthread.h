@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ struct timespec {
 
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
-int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
+int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
@@ -139,8 +139,8 @@ int pthread_cancel(pthread_t thread);
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
-#define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
-#define pthread_mutex_destroy(A) DeleteCriticalSection(A)
+#define pthread_mutex_unlock(A)  (LeaveCriticalSection(A), 0)
+#define pthread_mutex_destroy(A) (DeleteCriticalSection(A), 0)
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
 
@@ -630,6 +630,10 @@ extern int pthread_dummy(int);
 #define DEFAULT_THREAD_STACK	(192*1024)
 #endif
 #endif
+
+#include <mysql/psi/mysql_thread.h>
+
+#define INSTRUMENT_ME 0
 
 struct st_my_thread_var
 {
