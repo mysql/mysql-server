@@ -7048,12 +7048,14 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
   {"binlog-row-image", OPT_BINLOG_ROW_IMAGE,
-    "Controls wether the records should be logged in a full, reversible or "
-    "minimal manner. Full means that all columns are stored in the before "
-    "and after image are logged. Reversible means that PK and changed "
-    "columns are stored in the before and after image. Minimal means that PK "
-    "columns are stored in before image and changed columns in the after "
-    "image. (Default: minimal.)", 
+    "Controls whether rows should be logged in 'FULL', 'NOBLOB' or "
+    "'MINIMAL' formats. 'FULL', means that all columns in the before "
+    "and after image are logged. 'NOBLOB', means that mysqld avoids logging "
+    "blob columns whenever possible (eg, blob column was not changed or "
+    "is not part of primary key). 'MINIMAL', means that a PK equivalent (PK "
+    "columns or full row if there is no PK in the table) is logged in the "
+    "before image, and only changed columns are logged in the after image. "
+    "(Default: FULL).",
     (uchar **) &opt_binlog_row_image_arg,
     (uchar **) &opt_binlog_row_image_arg,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

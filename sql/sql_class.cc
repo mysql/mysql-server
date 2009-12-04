@@ -3657,7 +3657,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   error= ev->add_row_data(before_row, before_size) ||
          ev->add_row_data(after_row, after_size);
 
-  /* restore read set for the rest of execution */
+  /* restore read/write set for the rest of execution */
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
 
@@ -3706,7 +3706,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
   error= ev->add_row_data(row_data, len);
 
-  /* restore read set for the rest of execution */
+  /* restore read/write set for the rest of execution */
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
 
@@ -3731,6 +3731,10 @@ void THD::binlog_prepare_row_images(TABLE *table)
   if (table->s->primary_key < MAX_KEY &&
       (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL))
   {
+    /**
+      Just to be sure that tmp_set is currently not in use as
+      the read_set already.
+    */
     DBUG_ASSERT(table->read_set != &table->tmp_set);
 
     bitmap_clear_all(&table->tmp_set);

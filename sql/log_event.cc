@@ -8743,7 +8743,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
 
   /* Compare updated fields */
   for (Field **ptr=table->field ; 
-       *ptr && ((ptr - table->field) < cols->n_bits);
+       *ptr && ((*ptr)->field_index < cols->n_bits);
        ptr++)
   {
     if (bitmap_is_set(cols, (*ptr)->field_index))
@@ -8777,53 +8777,91 @@ record_compare_exit:
 
 
 /**
-  Validates before image. Searches the bitmap for 
-  columns set. If no colum, for the existing table, 
-  then the image cannot be used for searching a
-  record (regardless of using position(), index scan
-  or table scan).
+  Checks if any of the columns in the given table is
+  signaled in the bitmap.
 
-  @param table   the table we are using.
-  @param bi_cols the bitmap that signals usable columns.
+  For each column in the given table checks if it is
+  signaled in the bitmap. This is most useful when deciding
+  whether a before image (BI) can be used or not for 
+  searching a row. If no column is signaled, then the 
+  image cannot be used for searching a record (regardless 
+  of using position(), index scan or table scan). Here is 
+  an example:
 
-  @return TRUE if invalid, FALSE otherwise.
+  MASTER> SET @@binlog_row_image='MINIMAL';
+  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
+  SLAVE> CREATE TABLE t1 (a int, b int);
+  MASTER> INSERT INTO t1 VALUES (1,2,3);
+  MASTER> UPDATE t1 SET a=2 WHERE b=2;
+
+  For the update statement only the PK (column c) is 
+  logged in the before image (BI). As such, given that 
+  the slave has no column c, it will not be able to 
+  find the row, because BI has no values for the columns
+  the slave knows about (column a and b).
+
+  @param table   the table reference on the slave.
+  @param cols the bitmap signaling columns available in 
+                 the BI.
+
+  @return TRUE if BI contains usable colums for searching, 
+          FALSE otherwise.
 */
 static
-my_bool invalid_bi(TABLE *table, MY_BITMAP *bi_cols)
+my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
 {
 
   int nfields_set= 0;
   for (Field **ptr=table->field ; 
-       *ptr && ((ptr - table->field) < bi_cols->n_bits);
+       *ptr && ((*ptr)->field_index < cols->n_bits);
        ptr++)
   {
-    if (bitmap_is_set(bi_cols, (*ptr)->field_index))
+    if (bitmap_is_set(cols, (*ptr)->field_index))
       nfields_set++;
   }
 
-  return (nfields_set == 0);
+  return (nfields_set != 0);
 }
 
 /**
+  Checks if the fields in the given key are signaled in
+  the bitmap.
+
   Validates whether the before image is usable for the
   given key. It can be the case that the before image
   does not contain values for the key (eg, master was
   using 'minimal' option for image logging and slave has
-  different index structure on the table).
+  different index structure on the table). Here is an
+  example:
+
+  MASTER> SET @@binlog_row_image='MINIMAL';
+  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
+  SLAVE> CREATE TABLE t1 (a int, b int, c int, key(a,c));
+  MASTER> INSERT INTO t1 VALUES (1,2,3);
+  MASTER> UPDATE t1 SET a=2 WHERE b=2;
+
+  When finding the row on the slave, one cannot use the
+  index (a,c) to search for the row, because there is only
+  data in the before image for column c. This function
+  checks the fields needed for a given key and searches
+  the bitmap to see if all the fields required are 
+  signaled.
   
   @param keyinfo  reference to key.
-  @param bi_cols  the bitmap that signals usable columns.
+  @param cols     the bitmap signaling which columns 
+                  have available data.
 
-  @return TRUE if usable, FALSE otherwise.
+  @return TRUE if all fields are signaled in the bitmap 
+          for the given key, FALSE otherwise.
 */
 static
-my_bool is_usable_key(KEY *keyinfo, MY_BITMAP *bi_cols)
+my_bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
 {
   for (uint i=0 ; i < keyinfo->key_parts ;i++)
   {
     uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
-    if (fieldnr >= bi_cols->n_bits || 
-        !bitmap_is_set(bi_cols, fieldnr))
+    if (fieldnr >= cols->n_bits || 
+        !bitmap_is_set(cols, fieldnr))
       return FALSE;
   }
  
@@ -8859,8 +8897,10 @@ my_bool is_usable_key(KEY *keyinfo, MY_BITMAP *bi_cols)
   is suitable, MAX_KEY is returned.
 
   @param table    reference to the table.
-  @param bi_cols  the bitmap that signals usable columns.
-  @param key_type the type of key to search.
+  @param bi_cols  a bitmap that filters out columns that should
+                  not be considered while searching the key. 
+                  Columns that should be considered are set.
+  @param key_type the type of key to search for.
 
   @return MAX_KEY if no key, according to the key_type specified
           is suitable. Returns the key otherwise.
@@ -8868,59 +8908,52 @@ my_bool is_usable_key(KEY *keyinfo, MY_BITMAP *bi_cols)
 */
 static
 uint
-search_key_for_bi(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
+search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
 {
   KEY *keyinfo;
   uint res= MAX_KEY;
   uint key;
 
-  if (key_type & PRI_KEY_FLAG)
+  if (key_type & PRI_KEY_FLAG && (table->s->primary_key < MAX_KEY))
   {
-    if (table->s->primary_key < MAX_KEY)
+    keyinfo= table->s->key_info + (uint) table->s->primary_key;
+    if (are_all_columns_signaled_for_key(keyinfo, bi_cols)) 
+      return table->s->primary_key;
+  }
+
+  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
+  {
+    for (key=0,keyinfo= table->key_info ; 
+         (key < table->s->keys) && (res == MAX_KEY);
+         key++,keyinfo++)
     {
-      keyinfo= table->s->key_info + (uint) table->s->primary_key;
-      if (is_usable_key(keyinfo, bi_cols)) 
-        return table->s->primary_key;
+      if (!(keyinfo->flags & HA_NOSAME) || /* skip not unique */
+          (key == table->s->primary_key))  /* skip primary */
+        continue;
+      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
+           key : MAX_KEY;
+
+      if (res < MAX_KEY)
+        return res;
     }
   }
 
-  if (key_type & UNIQUE_KEY_FLAG)
+  if (key_type & MULTIPLE_KEY_FLAG && table->s->keys)
   {
-    if (table->s->uniques)
+    for (key=0,keyinfo= table->key_info ; 
+         (key < table->s->keys) && (res == MAX_KEY);
+         key++,keyinfo++)
     {
-      for (key=0,keyinfo= table->key_info ; 
-           (key < table->s->keys) && (res == MAX_KEY);
-           key++,keyinfo++)
-      {
-        if (!(keyinfo->flags & HA_NOSAME) || /* skip not unique */
-            (key == table->s->primary_key))  /* skip primary */
-          continue;
-        res= is_usable_key(keyinfo, bi_cols) ? key : MAX_KEY;
+      if (!(table->s->keys_in_use.is_set(key)) || /* key is no active */
+          (keyinfo->flags & HA_NOSAME) || /* skip uniques */
+          (key == table->s->primary_key)) /* skip primary */
+        continue;
 
-        if (res < MAX_KEY)
-          return res;
-      }
-    }
-  }
+      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
+           key : MAX_KEY;
 
-  if (key_type & MULTIPLE_KEY_FLAG)
-  {
-    if (table->s->keys)
-    {
-      for (key=0,keyinfo= table->key_info ; 
-           (key < table->s->keys) && (res == MAX_KEY);
-           key++,keyinfo++)
-      {
-        if (!(table->s->keys_in_use.is_set(key)) || /* key is no active */
-            (keyinfo->flags & HA_NOSAME) || /* skip uniques */
-            (key == table->s->primary_key)) /* skip primary */
-          continue;
-
-        res= is_usable_key(keyinfo, bi_cols) ? key : MAX_KEY;
-
-        if (res < MAX_KEY)
-          return res;
-      }
+      if (res < MAX_KEY)
+        return res;
     }
   }
 
@@ -8980,7 +9013,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
 
-  if (invalid_bi(table, &m_cols))
+  if (!is_any_column_signaled_for_table(table, &m_cols))
   {
     error= HA_ERR_END_OF_FILE;
     goto err;
@@ -8991,7 +9024,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif
 
-  if ((key= search_key_for_bi(table, &m_cols, PRI_KEY_FLAG)) >= MAX_KEY)
+  if ((key= search_key_in_table(table, &m_cols, PRI_KEY_FLAG)) >= MAX_KEY)
     /* we dont have a PK, or PK is not usable with BI values */
     goto INDEX_SCAN;
 
@@ -9037,8 +9070,8 @@ INDEX_SCAN:
    */ 
   store_record(table,record[1]);    
 
-  if ((key= search_key_for_bi(table, &m_cols, 
-                              (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))) 
+  if ((key= search_key_in_table(table, &m_cols, 
+                                (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))) 
        >= MAX_KEY)
     /* we dont have a key, or no key is suitable for the BI values */
     goto TABLE_SCAN; 
