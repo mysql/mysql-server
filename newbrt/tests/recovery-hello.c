@@ -1,3 +1,5 @@
+// test recovery of "hello" comments
+
 #include "test.h"
 #include "includes.h"
 
@@ -16,7 +18,13 @@ run_test(void) {
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
     BYTESTRING hello  = { strlen("hello"), "hello" };
-    r = toku_log_comment(logger, NULL, TRUE, 0, hello);
+    r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
+    LSN beginlsn;
+    r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+    r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
+    BYTESTRING there  = { strlen("there"), "there" };
+    r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery

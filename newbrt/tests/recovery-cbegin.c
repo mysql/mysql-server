@@ -17,6 +17,8 @@ run_test(void) {
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
     LSN beginlsn;
     r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+    r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery
