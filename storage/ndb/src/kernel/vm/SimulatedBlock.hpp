@@ -331,6 +331,8 @@ protected:
   void handle_lingering_sections_after_execute(Signal*) const;
   void handle_lingering_sections_after_execute(SectionHandle*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
+  void handle_send_failed(SendStatus, Signal*) const;
+  void handle_out_of_longsignal_memory(Signal*) const;
 
   /**
    * Send routed signals (ONLY LOCALLY)
