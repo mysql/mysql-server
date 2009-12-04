@@ -29,12 +29,14 @@ IF(CMAKE_COMPILER_IS_GNUCC AND UNIX)
   ENDIF()
   SET(API_PREPROCESSOR_HEADER 
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin.h
-    ${CMAKE_SOURCE_DIR}/include/mysql.h)
+    ${CMAKE_SOURCE_DIR}/include/mysql.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v1.h 
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v2.h
+  )
 
   SET(TEST_PREPROCESSOR_HEADER 
-    ${CMAKE_SOURCE_DIR}/include/mysql/plugin.h
     ${CMAKE_SOURCE_DIR}/sql/mysql_priv.h
-    ${CMAKE_SOURCE_DIR}/include/mysql.h)
+  )
 
 
   ADD_CUSTOM_TARGET(abi_check ALL
