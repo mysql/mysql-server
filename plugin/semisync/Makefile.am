@@ -25,12 +25,12 @@ noinst_HEADERS = semisync.h semisync_master.h semisync_slave.h
 
 pkgplugin_LTLIBRARIES =	libsemisync_master.la libsemisync_slave.la
 
-libsemisync_master_la_LDFLAGS =	-module
+libsemisync_master_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 libsemisync_master_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_master_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_master_la_SOURCES = semisync.cc semisync_master.cc semisync_master_plugin.cc
 
-libsemisync_slave_la_LDFLAGS =	-module
+libsemisync_slave_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 libsemisync_slave_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_slave_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libsemisync_slave_la_SOURCES = semisync.cc semisync_slave.cc semisync_slave_plugin.cc
