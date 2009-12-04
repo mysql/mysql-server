@@ -2947,4 +2947,23 @@ execute stmt;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 drop table t1;
 deallocate prepare stmt;
+#
+# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
+#
+prepare encode from "select encode(?, ?) into @ciphertext";
+prepare decode from "select decode(?, ?) into @plaintext";
+set @str="abc", @key="cba";
+execute encode using @str, @key;
+execute decode using @ciphertext, @key;
+select @plaintext;
+@plaintext
+abc
+set @str="bcd", @key="dcb";
+execute encode using @str, @key;
+execute decode using @ciphertext, @key;
+select @plaintext;
+@plaintext
+bcd
+deallocate prepare encode;
+deallocate prepare decode;
 End of 5.1 tests.
