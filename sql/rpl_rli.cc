@@ -182,10 +182,10 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln) ||
+    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
         rli->relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
                             (max_relay_log_size ? max_relay_log_size :
-                            max_binlog_size), 1))
+                            max_binlog_size), 1, TRUE))
     {
       pthread_mutex_unlock(&rli->data_lock);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
