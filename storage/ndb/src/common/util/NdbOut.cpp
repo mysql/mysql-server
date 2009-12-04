@@ -156,6 +156,17 @@ ndbout_c(const char * fmt, ...){
   va_end(ap);
 }
 
+extern "C" int ndbout_printer(const char * fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vndbout_c(fmt, ap);
+  va_end(ap);
+  return 1;
+}
+
+
 FilteredNdbOut::FilteredNdbOut(OutputStream & out, 
 			       int threshold, int level)
   : NdbOut(out) {

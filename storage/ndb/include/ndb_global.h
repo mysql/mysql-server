@@ -219,6 +219,7 @@ C_MODE_START
 typedef int(*RequirePrinter)(const char *fmt, ...);
 void require_failed(int exitcode, RequirePrinter p,
                     const char* expr, const char* file, int line);
+int ndbout_printer(const char * fmt, ...);
 C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero
