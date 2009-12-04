@@ -3190,9 +3190,15 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     need to commit any outstanding transactions.
    */
   if (var->save_result.ulong_value != 0 &&
-      (thd->options & OPTION_NOT_AUTOCOMMIT) &&
-      trans_commit(thd))
-    return 1;
+      (thd->options & OPTION_NOT_AUTOCOMMIT))
+  {
+    if (trans_commit(thd))
+      return TRUE;
+
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
+  }
 
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;

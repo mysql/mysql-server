@@ -1350,24 +1350,36 @@ struct TABLE_LIST
   bool          prelocking_placeholder;
   /**
      Indicates that if TABLE_LIST object corresponds to the table/view
-     which requires special handling/meta-data locking.
+     which requires special handling.
   */
   enum
   {
-    /* Normal open, shared metadata lock should be taken. */
-    NORMAL_OPEN= 0,
+    /* Normal open. */
+    OPEN_NORMAL= 0,
+    /* Associate a table share only if the the table exists. */
+    OPEN_IF_EXISTS,
+    /* Don't associate a table share. */
+    OPEN_STUB
+  } open_strategy;
+  /**
+    Indicates the locking strategy for the object being opened:
+    whether the associated metadata lock is shared or exclusive.
+  */
+  enum
+  {
+    /* Take a shared metadata lock before the object is opened. */
+    SHARED_MDL= 0,
     /*
-      It's target table of CREATE TABLE ... SELECT so we should
-      either open table if it exists (and take shared metadata lock)
-      or take exclusive metadata lock if it doesn't exist.
+       Take a exclusive metadata lock before the object is opened.
+       If opening is successful, downgrade to a shared lock.
     */
-    OPEN_OR_CREATE,
-    /*
-      It's target view of CREATE/ALTER VIEW. We should take exclusive
-      metadata lock for this table list element.
-    */
-    TAKE_EXCLUSIVE_MDL
-  } open_type;
+    EXCLUSIVE_DOWNGRADABLE_MDL,
+    /* Take a exclusive metadata lock before the object is opened. */
+    EXCLUSIVE_MDL
+  } lock_strategy;
+  /* For transactional locking. */
+  int           lock_timeout;           /* NOWAIT or WAIT [X]               */
+  bool          lock_transactional;     /* If transactional lock requested. */
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;

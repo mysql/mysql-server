@@ -1618,6 +1618,7 @@ a	b
 SELECT * FROM t1;
 a	b
 1	init+con1+con2
+COMMIT;
 # Switch to connection con1
 # 3. test for updated key column:
 TRUNCATE t1;

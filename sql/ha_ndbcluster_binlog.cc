@@ -2347,7 +2347,7 @@ static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
   tables->required_type= FRMTYPE_TABLE;
   uint counter;
   thd->clear_error();
-  if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
+  if (simple_open_n_lock_tables(thd, tables))
   {
     if (thd->killed)
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
@@ -2381,28 +2381,11 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   ulong saved_options= thd->options;
   thd->options&= ~(OPTION_BIN_LOG);
 
-  for ( ; ; ) /* loop for need_reopen */
+  if (!ndb_binlog_index && open_ndb_binlog_index(thd, &ndb_binlog_index))
   {
-    if (!ndb_binlog_index && open_ndb_binlog_index(thd, &ndb_binlog_index))
-    {
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
-
-    if (lock_tables(thd, &binlog_tables, 1, 0, &need_reopen))
-    {
-      if (need_reopen)
-      {
-        TABLE_LIST *p_binlog_tables= &binlog_tables;
-        close_tables_for_reopen(thd, &p_binlog_tables, FALSE);
-        ndb_binlog_index= 0;
-        continue;
-      }
-      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
-    break;
+    sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+    error= -1;
+    goto add_ndb_binlog_index_err;
   }
 
   /*
@@ -2428,13 +2411,6 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   }
 
 
-  if (! thd->locked_tables_mode)                /* Is always TRUE */
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock= 0;
-  }
-  thd->options= saved_options;
-  return 0;
 add_ndb_binlog_index_err:
   close_thread_tables(thd);
   ndb_binlog_index= 0;
@@ -3904,9 +3880,6 @@ restart:
   }
   {
     static char db[]= "";
-    thd->db= db;
-    if (ndb_binlog_running)
-      open_ndb_binlog_index(thd, &ndb_binlog_index);
     thd->db= db;
   }
   do_ndbcluster_binlog_close_connection= BCCC_running;

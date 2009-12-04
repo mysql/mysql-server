@@ -491,7 +491,7 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
   @sa THD::enter_cond()/exit_cond()/killed.
 
   @note We can't use THD::enter_cond()/exit_cond()/killed directly here
-        since this will make metadata subsystem dependant on THD class
+        since this will make metadata subsystem dependent on THD class
         and thus prevent us from writing unit tests for it. And usage of
         wrapper functions to access THD::killed/enter_cond()/exit_cond()
         will probably introduce too much overhead.
@@ -881,6 +881,7 @@ static bool notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
   if (conflicting_ticket->is_shared())
   {
     THD *conflicting_thd= conflicting_ticket->get_ctx()->get_thd();
+    DBUG_ASSERT(thd != conflicting_thd); /* Self-deadlock */
     woke= mysql_notify_thread_having_shared_lock(thd, conflicting_thd);
   }
   return woke;
@@ -1089,7 +1090,6 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
 
   old_msg= MDL_ENTER_COND(thd, mysys_var);
 
-
   /*
     Since we should have already acquired an intention exclusive
     global lock this call is only enforcing asserts.
@@ -1164,7 +1164,7 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   @param conflict   [out] Indicates that conflicting lock exists
 
   @retval TRUE  Failure either conflicting lock exists or some error
-                occured (probably OOM).
+                occurred (probably OOM).
   @retval FALSE Success, lock was acquired.
 
   FIXME: Compared to lock_table_name_if_not_cached()

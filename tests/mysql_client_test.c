@@ -18479,8 +18479,8 @@ static void test_wl4284_1()
 
   mysql_free_result(result);
 
-  /* set AUTOCOMMIT to OFF */
-  rc= mysql_autocommit(mysql, FALSE);
+  /* set AUTOCOMMIT to ON */
+  rc= mysql_autocommit(mysql, TRUE);
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE trans");
@@ -18637,6 +18637,8 @@ static void test_bug40365(void)
       DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
+  rc= mysql_commit(mysql);
+  myquery(rc);
 
   DBUG_VOID_RETURN;
 }

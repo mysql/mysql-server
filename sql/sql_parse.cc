@@ -122,11 +122,11 @@ static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
   @param mask   Bitmask used for the SQL command match.
 
 */
-static bool opt_implicit_commit(THD *thd, uint mask)
+static bool stmt_causes_implicit_commit(THD *thd, uint mask)
 {
   LEX *lex= thd->lex;
-  bool res= FALSE, skip= FALSE;
-  DBUG_ENTER("opt_implicit_commit");
+  bool skip= FALSE;
+  DBUG_ENTER("stmt_causes_implicit_commit");
 
   if (!(sql_command_flags[lex->sql_command] & mask))
     DBUG_RETURN(FALSE);
@@ -147,15 +147,7 @@ static bool opt_implicit_commit(THD *thd, uint mask)
     break;
   }
 
-  if (!skip)
-  {
-    /* Commit or rollback the statement transaction. */
-    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-    /* Commit the normal transaction if one is active. */
-    res= trans_commit_implicit(thd);
-  }
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(!skip);
 }
 
 
@@ -1168,6 +1160,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
       break;
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
@@ -1196,6 +1191,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     if (trans_commit_implicit(thd))
       break;
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     my_ok(thd);
     break;
   }
@@ -1942,8 +1940,18 @@ mysql_execute_command(THD *thd)
     not run in it's own transaction it may simply never appear on
     the slave in case the outside transaction rolls back.
   */
-  if (opt_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
-    goto error;
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
+  {
+    /* Commit or rollback the statement transaction. */
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    /* Commit the normal transaction if one is active. */
+    if (trans_commit_implicit(thd))
+      goto error;
+    /* Close tables and release metadata locks. */
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
+  }
 
   switch (lex->sql_command) {
 
@@ -2363,7 +2371,9 @@ case SQLCOM_PREPARE:
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
       {
         lex->link_first_table_back(create_table, link_to_local);
-        create_table->open_type= TABLE_LIST::OPEN_OR_CREATE;
+        /* Set strategies: reset default or 'prepared' values. */
+        create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+        create_table->lock_strategy= TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3306,6 +3316,7 @@ end_with_restore_list:
     if (thd->options & OPTION_TABLE_LOCK)
     {
       trans_commit_implicit(thd);
+      thd->mdl_context.release_all_locks();
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
     if (thd->global_read_lock)
@@ -3317,6 +3328,8 @@ end_with_restore_list:
     /* we must end the trasaction first, regardless of anything */
     if (trans_commit_implicit(thd))
       goto error;
+    /* release transactional metadata locks. */
+    thd->mdl_context.release_all_locks();
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                            FALSE, UINT_MAX, FALSE))
       goto error;
@@ -3346,6 +3359,13 @@ end_with_restore_list:
       */
       trans_rollback_stmt(thd);
       trans_commit_implicit(thd);
+      /*
+        Close tables and release metadata locks otherwise a later call to
+        close_thread_tables might not release the locks if autocommit is off.
+      */
+      close_thread_tables(thd);
+      DBUG_ASSERT(!thd->locked_tables_mode);
+      thd->mdl_context.release_all_locks();
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
     else
@@ -3836,6 +3856,8 @@ end_with_restore_list:
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
     if (trans_commit(thd))
       goto error;
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     /* Begin transaction with the same isolation level. */
     if (lex->tx_chain && trans_begin(thd))
       goto error;
@@ -3849,6 +3871,8 @@ end_with_restore_list:
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
     if (trans_rollback(thd))
       goto error;
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     /* Begin transaction with the same isolation level. */
     if (lex->tx_chain && trans_begin(thd))
       goto error;
@@ -4196,6 +4220,12 @@ create_sp_error:
 
         if (trans_commit_implicit(thd))
           goto error;
+
+        close_thread_tables(thd);
+
+        if (!thd->locked_tables_mode)
+          thd->mdl_context.release_all_locks();
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (sp_automatic_privileges && !opt_noacl &&
 	    sp_revoke_privileges(thd, db, name, 
@@ -4375,11 +4405,15 @@ create_sp_error:
   case SQLCOM_XA_COMMIT:
     if (trans_xa_commit(thd))
       goto error;
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     my_ok(thd);
     break;
   case SQLCOM_XA_ROLLBACK:
     if (trans_xa_rollback(thd))
       goto error;
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
@@ -4524,10 +4558,20 @@ finish:
     start_waiting_global_read_lock(thd);
   }
 
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->stmt_da->can_overwrite_status= TRUE;
-  opt_implicit_commit(thd, CF_IMPLICIT_COMMIT_END);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
+  {
+    /* If commit fails, we should be able to reset the OK status. */
+    thd->stmt_da->can_overwrite_status= TRUE;
+    /* Commit or rollback the statement transaction. */
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    /* Commit the normal transaction if one is active. */
+    trans_commit_implicit(thd);
+    /* Close tables and release metadata locks. */
+    close_thread_tables(thd);
+    if (!thd->locked_tables_mode)
+      thd->mdl_context.release_all_locks();
+    thd->stmt_da->can_overwrite_status= FALSE;
+  }
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -6508,6 +6552,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     query_cache.flush();			// RESET QUERY CACHE
   }
 #endif /*HAVE_QUERY_CACHE*/
+
+  DBUG_ASSERT(thd->locked_tables_mode || !thd->mdl_context.has_locks());
+
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
     (see sql_yacc.yy)
