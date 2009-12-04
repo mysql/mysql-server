@@ -157,7 +157,7 @@ connection con1;
 --echo # 3. test for updated key column:
 
 TRUNCATE t1;
-TRUNCATE t2;
+DELETE FROM t2;
 
 INSERT INTO t1 VALUES (1,'init');
 

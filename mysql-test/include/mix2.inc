@@ -1994,6 +1994,7 @@ commit;
 connection b;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
+commit;
 connection a;
 delimiter |;
 create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
@@ -2056,6 +2057,7 @@ update t2 set b = b + 5 where a = 1;
 update t3 set b = b + 5 where a = 1;
 update t4 set b = b + 5 where a = 1;
 insert into t5(a) values(20);
+commit;
 connection b;
 set autocommit = 0;
 insert into t1(a) values(7);

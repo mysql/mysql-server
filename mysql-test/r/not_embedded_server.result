@@ -1,6 +1,16 @@
-select 1;
-1
-1
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was not locked with LOCK TABLES");
 SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	OFF
+#
+# WL#4284: Transactional DDL locking
+#
+# FLUSH PRIVILEGES should not implicitly unlock locked tables.
+#
+drop table if exists t1;
+create table t1 (c1 int);
+lock tables t1 read;
+flush privileges;
+ERROR HY000: Table 'host' was not locked with LOCK TABLES
+unlock tables;
+drop table t1;

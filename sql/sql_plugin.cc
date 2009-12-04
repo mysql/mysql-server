@@ -1349,6 +1349,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 #ifdef EMBEDDED_LIBRARY
   bool table_exists;
 #endif /* EMBEDDED_LIBRARY */
+  MDL_request mdl_request;
   DBUG_ENTER("plugin_load");
 
   if (!(new_thd= new THD))
@@ -1366,7 +1367,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   tables.alias= tables.table_name= (char*)"plugin";
   tables.lock_type= TL_READ;
   tables.db= new_thd->db;
-  alloc_mdl_requests(&tables, tmp_root);
+  tables.mdl_request= &mdl_request;
+  mdl_request.init(0, tables.db, tables.table_name);
 
 #ifdef EMBEDDED_LIBRARY
   /*

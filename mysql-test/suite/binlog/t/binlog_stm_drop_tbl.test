@@ -1,0 +1,5 @@
+# This is a wrapper for drop_table.test so that the same test case can be used
+# For both statement and row based bin logs
+
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source extra/binlog_tests/drop_table.test

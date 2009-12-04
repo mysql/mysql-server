@@ -1478,11 +1478,22 @@ void close_thread_tables(THD *thd,
   if (thd->open_tables)
     close_open_tables(thd);
 
-  thd->mdl_context.release_all_locks();
   if (!is_back_off)
   {
     thd->mdl_context.remove_all_requests();
   }
+
+  /*
+    Defer the release of metadata locks until the current transaction
+    is either committed or rolled back. This prevents other statements
+    from modifying the table for the entire duration of this transaction.
+    This provides commitment ordering for guaranteeing serializability
+    across multiple transactions.
+  */
+  if (!thd->in_multi_stmt_transaction() ||
+      (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    thd->mdl_context.release_all_locks();
+
   DBUG_VOID_RETURN;
 }
 
@@ -2284,7 +2295,7 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
 {
   thd->mdl_context.add_request(mdl_request);
 
-  if (table_list->open_type)
+  if (table_list->lock_strategy)
   {
     /*
       In case of CREATE TABLE .. If NOT EXISTS .. SELECT, the table
@@ -2358,10 +2369,16 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
 
-    If table list element for the table to be opened has "open_type" set
-    to OPEN_OR_CREATE and table does not exist, this function will take
-    exclusive metadata lock on the table, also it will do this if
-    "open_type" is TAKE_EXCLUSIVE_MDL.
+    If TABLE_LIST::open_strategy is set to OPEN_IF_EXISTS, the table is opened
+    only if it exists. If the open strategy is OPEN_STUB, the underlying table
+    is never opened. In both cases, metadata locks are always taken according
+    to the lock strategy.
+
+    This function will take a exclusive metadata lock on the table if
+    TABLE_LIST::lock_strategy is EXCLUSIVE_DOWNGRADABLE_MDL or EXCLUSIVE_MDL.
+    If the lock strategy is EXCLUSIVE_DOWNGRADABLE_MDL and opening the table
+    is successful, the exclusive metadata lock is downgraded to a shared
+    lock.
 
   RETURN
     TRUE  Open failed. "action" parameter may contain type of action
@@ -2595,7 +2612,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(TRUE);
   }
 
-  if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
+  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
   {
     bool exists;
 
@@ -2609,7 +2626,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     /* Table exists. Let us try to open it. */
   }
-  else if (table_list->open_type == TABLE_LIST::TAKE_EXCLUSIVE_MDL)
+  else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
   {
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(FALSE);
@@ -2794,7 +2811,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table exists now we should downgrade our exclusive metadata
     lock on this table to shared metadata lock.
   */
-  if (table_list->open_type == TABLE_LIST::OPEN_OR_CREATE)
+  if (table_list->lock_strategy == TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL)
     mdl_ticket->downgrade_exclusive_lock();
 
   table->mdl_ticket= mdl_ticket;
@@ -3623,7 +3640,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   /* Also used for indicating that prelocking is need */
   TABLE_LIST **query_tables_last_own;
   bool safe_to_ignore_table;
-
+  bool has_locks= thd->mdl_context.has_locks();
   DBUG_ENTER("open_tables");
   /*
     temporary mem_root for new .frm parsing.
@@ -3764,6 +3781,18 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       if (action)
       {
         /*
+          We have met a exclusive metadata lock or a old version of table and
+          we are inside a transaction that already hold locks. We can't follow
+          the locking protocol in this scenario as it might lead to deadlocks.
+        */
+        if (thd->in_multi_stmt_transaction() && has_locks)
+        {
+          my_error(ER_LOCK_DEADLOCK, MYF(0));
+          result= -1;
+          goto err;
+        }
+
+        /*
           We have met exclusive metadata lock or old version of table. Now we
           have to close all tables which are not up to date/release metadata
           locks. We also have to throw away set of prelocked tables (and thus
@@ -3841,7 +3870,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       Special types of open can succeed but still don't set
       TABLE_LIST::table to anything.
     */
-    if (tables->open_type && !tables->table)
+    if (tables->open_strategy && !tables->table)
       continue;
 
     /*
@@ -4122,7 +4151,7 @@ retry:
   if (!error)
   {
     /*
-      We can't have a view or some special "open_type" in this function
+      We can't have a view or some special "open_strategy" in this function
       so there should be a TABLE instance.
     */
     DBUG_ASSERT(table_list->table);
@@ -4662,6 +4691,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables, bool is_back_off)
   for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
     tmp->table= 0;
   close_thread_tables(thd, is_back_off);
+  if (!thd->locked_tables_mode)
+    thd->mdl_context.release_all_locks();
 }
 
 

@@ -2063,6 +2063,7 @@ insert into t1(a) values (1),(2),(3);
 commit;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
+commit;
 create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 set autocommit = 0;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
@@ -2105,6 +2106,7 @@ update t2 set b = b + 5 where a = 1;
 update t3 set b = b + 5 where a = 1;
 update t4 set b = b + 5 where a = 1;
 insert into t5(a) values(20);
+commit;
 set autocommit = 0;
 insert into t1(a) values(7);
 insert into t2(a) values(8);
