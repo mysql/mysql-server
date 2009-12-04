@@ -2590,7 +2590,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables &&
-        !table->file->info(HA_BLOCK_CONST_TABLES))
+        !table->file->push_flags(HA_PUSH_BLOCK_CONST_TABLE))
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
@@ -2760,7 +2760,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched && 
               !table->pos_in_table_list->embedding &&
-              !table->file->info(HA_BLOCK_CONST_TABLES))
+              !table->file->push_flags(HA_PUSH_BLOCK_CONST_TABLE))
 	  {
             if ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY))
                  == HA_NOSAME)

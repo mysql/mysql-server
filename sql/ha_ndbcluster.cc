@@ -418,6 +418,34 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
   DBUG_RETURN(true);
 }
 
+uint
+ha_ndbcluster::push_flags(uint flags) const
+{
+  DBUG_ENTER("push_flags");
+  if (flags == HA_PUSH_BLOCK_CONST_TABLE)
+  {
+    /**
+     * We don't support join push down if...
+     *   - not LM_CommittedRead
+     *   - uses blobs
+     *
+     * But, lock-mode is upgraded to LM_Read is using blobs, so
+     *      it' sufficient to check that
+     */
+    THD *thd= current_thd;
+    if (unlikely(!(thd->variables.ndb_join_pushdown)))
+      DBUG_RETURN(0);
+
+    NdbOperation::LockMode lm=
+      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+    if (lm == NdbOperation::LM_CommittedRead)
+    {
+      DBUG_RETURN(1);
+    }
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(0);
+}
 
 uint
 ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs, 
@@ -6024,33 +6052,6 @@ int ha_ndbcluster::info(uint flag)
   {
     stats.rows_updated= m_rows_updated;
     stats.rows_deleted= m_rows_deleted;
-  }
-
-  if (flag & HA_BLOCK_CONST_TABLES)
-  {
-    DBUG_ASSERT(flag == HA_BLOCK_CONST_TABLES); // alone
-    /**
-     * We don't support join push down if...
-     *   - not LM_CommittedRead
-     *   - uses blobs
-     *
-     * But, lock-mode is upgraded to LM_Read is using blobs, so
-     *      it' sufficient to check that
-     *
-     * NOTE: For yet unknown reasons, if query doesnt use blob, but table has
-     *       blobs, mysqld does something differently...
-     */
-    THD *thd= current_thd;
-    if (unlikely(!(thd->variables.ndb_join_pushdown)))
-      DBUG_RETURN(0);
-
-    NdbOperation::LockMode lm=
-      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-    if (lm == NdbOperation::LM_CommittedRead)
-    {
-      DBUG_RETURN(1);
-    }
-    DBUG_RETURN(0);
   }
 
   if(result == -1)

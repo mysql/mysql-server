@@ -386,6 +386,11 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+/* Flag checks for push_flags() */
+
+/* Do handler want to block const table optimization */
+#define HA_PUSH_BLOCK_CONST_TABLE 1
+
 /**
   struct xid_t is binary compatible with the XID structure as
   in the X/Open CAE Specification, Distributed Transaction Processing:
@@ -1822,6 +1827,9 @@ public:
 
   virtual int read_pushed_next(uchar *buf)
   { return -1; }
+
+  virtual uint push_flags(uint flag) const
+  { return 0; }
 
  /*
     Part of old fast alter table, to be depricated
