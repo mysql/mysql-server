@@ -412,6 +412,8 @@ int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__
 int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
+void db_env_set_recover_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
+void db_env_set_recover_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif
