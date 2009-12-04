@@ -7237,7 +7237,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item);
+        item_equal->add(const_item, field_item);
       }
       else
       {
