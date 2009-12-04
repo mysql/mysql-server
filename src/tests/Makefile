@@ -539,12 +539,19 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
                           for f in $$fset; do \
                              for g in $$gset; do \
                                 for h in $$hset; do \
-                                   errorfile=dir.$@.errors/crash.$$O.$$a.$$b.$$c.$$d.$$e.$$f.$$g.$$h; \
-                                   combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$"; \
-                                   ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile && { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
-                                   grep 'HAPPY CRASH' $$errorfile >/dev/null || { cat $$errorfile; echo Error: incorrect crash in $$errorfile ; exit 1; }; \
-                                   ./$< $(VERBVERBOSE) -r $$combination 2>> $$errorfile || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
-                                   count=$$(($$count + 1)); \
+                                   if test \( $$O != c \) -a \( $$c -eq 0 \) -a \( \( $$b -eq 0 \) -o \( $$e -eq 0 \) -o  \( $$d -eq 1 \)  \) ; then \
+                                      iset="0 1"; \
+                                   else \
+                                      iset="0"; \
+                                   fi; \
+                                   for i in $$iset; do \
+                                      errorfile=dir.$@.errors/crash.$$O.$$a.$$b.$$c.$$d.$$e.$$f.$$g.$$h.$$i; \
+                                      combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$h -I $$i"; \
+                                      ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile && { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
+                                      grep 'HAPPY CRASH' $$errorfile >/dev/null || { cat $$errorfile; echo Error: incorrect crash in $$errorfile ; exit 1; }; \
+                                      ./$< $(VERBVERBOSE) -r $$combination 2>> $$errorfile || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
+                                      count=$$(($$count + 1)); \
+                                   done; \
                                 done; \
                              done; \
                           done; \

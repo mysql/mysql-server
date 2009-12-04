@@ -11,7 +11,7 @@
 static int do_recover;
 static int do_crash;
 static char fileop;
-static int choices['H'-'A'+1];
+static int choices['I'-'A'+1];
 const int num_choices = sizeof(choices)/sizeof(choices[0]);
 static DB_TXN *txn;
 const char *oldname = "oldfoo";
@@ -21,24 +21,25 @@ DB     *db;
 static int crash_during_checkpoint;
 static char *cmd;
 
-#define usage() assert(FALSE)
-#if 0
 static void
 usage(void) {
-    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] (-c|-r) -O fileop -A# -B# -C# -D# -E# [-F# -G#]\n"
+    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] (-c|-r) -O fileop -A# -B# -C# -D# -E# -F# [-G# -H# -I#]\n"
                     "  fileop = c/r/d (create/rename/delete)\n"
                     "  Where # is a single digit number > 0.\n"
                     "  A-F are required for fileop=create\n"
-                    "  A-H are required for fileop=delete, fileop=rename\n", cmd);
+                    "  A-I are required for fileop=delete, fileop=rename\n", cmd);
     exit(1);
 }
-#endif
 
 
 enum { CLOSE_TXN_COMMIT, CLOSE_TXN_ABORT, CLOSE_TXN_NONE };
 enum {CREATE_CREATE, CREATE_CHECKPOINT, CREATE_COMMIT_NEW,
       CREATE_COMMIT_NEW_CHECKPOINT,     CREATE_COMMIT_CHECKPOINT_NEW,
       CREATE_CHECKPOINT_COMMIT_NEW};
+
+static int fileop_did_commit(void);
+static void close_txn(int type);
+
 static int
 get_x_choice(char c, int possibilities) {
     assert(c < 'A' + num_choices);
@@ -103,6 +104,14 @@ get_choice_txn_does_open_close_before_fileop(void) {
     return get_bool_choice('H');
 }
 
+static int
+get_choice_lock_table_split_fcreate(void) {
+    int choice = get_bool_choice('I');
+    if (choice)
+        assert(fileop_did_commit());
+    return choice;
+}
+
 static void
 do_args(int argc, char *argv[]) {
     cmd = argv[0];
@@ -113,7 +122,7 @@ do_args(int argc, char *argv[]) {
     }
 
     char c;
-    while ((c = getopt(argc, argv, "vqhcrO:A:B:C:D:E:F:G:H:")) != -1) {
+    while ((c = getopt(argc, argv, "vqhcrO:A:B:C:D:E:F:G:H:I:")) != -1) {
 	switch(c) {
         case 'v':
 	    verbose++;
@@ -154,6 +163,7 @@ do_args(int argc, char *argv[]) {
         case 'F':
         case 'G':
         case 'H':
+        case 'I':
             if (fileop == '\0')
                 usage();
             int num = atoi(optarg);
@@ -247,6 +257,7 @@ maybe_make_oldest_living_txn(void) {
 static void
 make_txn(void) {
     int r;
+    assert(!txn);
     r = env->txn_begin(env, NULL, &txn, 0);
     CKERR(r);
 }
@@ -254,10 +265,24 @@ make_txn(void) {
 static void
 fcreate(void) {
     int r;
-    r = db_create(&db, env, 0);                                                             
+    r = db_create(&db, env, 0);
     CKERR(r);
     r = db->open(db, txn, oldname, NULL, DB_BTREE, DB_CREATE|DB_EXCL, 0666);
     CKERR(r);
+
+    if (fileop!='c' && get_choice_lock_table_split_fcreate()) {
+        r = db->close(db, 0);
+        CKERR(r);
+        close_txn(CLOSE_TXN_COMMIT);
+        make_txn();
+        r = db_create(&db, env, 0);
+        CKERR(r);
+        r = db->open(db, txn, oldname, NULL, DB_BTREE, 0, 0666);
+        CKERR(r);
+        r = db->pre_acquire_table_lock(db, txn);
+        CKERR(r);
+    }
+
     DBT key, val;
     dbt_init(&key, choices, sizeof(choices));
     dbt_init(&val, NULL, 0);
