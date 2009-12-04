@@ -280,7 +280,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     }
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: free all nodes back to free list", kWho);
+      sql_print_information("%s: cleared all nodes", kWho);
   }
   else if (new_front != trx_front_)
   {
@@ -292,6 +292,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     while (curr_node != new_front)
     {
       next_node = curr_node->next_;
+      n_frees++;
 
       /* Remove the node from the hash table. */
       unsigned int hash_val = get_hash_value(curr_node->log_name_, curr_node->log_pos_);
@@ -312,7 +313,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     trx_front_ = new_front;
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: free %d nodes back until pos (%s, %lu)",
+      sql_print_information("%s: cleared %d nodes back until pos (%s, %lu)",
                             kWho, n_frees,
                             trx_front_->log_name_, (unsigned long)trx_front_->log_pos_);
   }
