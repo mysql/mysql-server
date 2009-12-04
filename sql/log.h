@@ -594,20 +594,11 @@ public:
 };
 
 enum enum_binlog_row_image {
-  /*
-    MINIMAL
-      means PK in the before image and changed columns in after image
-
-    NOBLOB 
-      means that whenever possible, before and after image contain all columns
-      except blobs 
-
-    FULL
-      means all columns in both before and after image
-   */
-
+  /** PKE in the before image and changed columns in the after image */
   BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
   BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
   BINLOG_ROW_IMAGE_FULL= 2
 };
 extern TYPELIB binlog_row_image_typelib;

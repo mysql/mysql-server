@@ -153,7 +153,7 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
 
-   // The read- and write sets with autorestore
+   // The read- and write sets with autorestore (in the destructor)
    table::save_sets saveset(tbl, cols, cols);
 
    m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(), before, after);

@@ -1292,6 +1292,7 @@ bool sys_var_thd_binlog_format::is_readonly() const
   return sys_var_thd_enum::is_readonly();
 }
 
+
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
   thd->reset_current_stmt_binlog_row_based();

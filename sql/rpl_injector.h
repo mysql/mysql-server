@@ -124,12 +124,12 @@ public:
               save_read_set(m_table->read_set),
               save_write_set(m_table->write_set)
           {
-            m_table->column_bitmaps_set(const_cast<MY_BITMAP*>(new_rs),
-                                        const_cast<MY_BITMAP*>(new_ws));
+            m_table->column_bitmaps_set_no_signal(const_cast<MY_BITMAP*>(new_rs),
+                                                  const_cast<MY_BITMAP*>(new_ws));
           }
 
           ~save_sets() {
-            m_table->column_bitmaps_set(save_read_set, save_write_set);
+            m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
           }
 
         private:

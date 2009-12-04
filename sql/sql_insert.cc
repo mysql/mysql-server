@@ -2203,7 +2203,11 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                            (ulong) row->forced_insert_id));
   }
   
-  /* Copy the original write set */
+  /*
+    Since insert delayed has its own thread and table, we
+    need to copy the original threads write_set to this
+    thread's table bitmaps.
+  */
   bitmap_clear_all(di->table->write_set);
   bitmap_union(di->table->write_set, table->write_set);
   di->table->file->column_bitmaps_signal();
@@ -2574,9 +2578,14 @@ bool Delayed_insert::handle_inserts(void)
 
   table->next_number_field=table->found_next_number_field;
   /* 
-     needed for some autoinc not null fields.
-     Otherwise, one would hit an assertion
-     when the insert tried to read the field.
+    Needed for some autoinc not null fields.
+    Otherwise, one would hit an assertion
+    when the insert tried to read the field.
+
+    This was once use_all_columns, but this would
+    set both read and write set to use all columns
+    which after introducing binlog-row-image is 
+    not what we want.
   */
   bitmap_set_all(table->read_set);
   table->mark_columns_needed_for_insert();

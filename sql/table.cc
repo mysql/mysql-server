@@ -4457,9 +4457,7 @@ void st_table::mark_columns_needed_for_delete()
     }
     file->column_bitmaps_signal();
   }
-  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE ||
-      mysql_bin_log.is_open() && in_use &&
-      in_use->current_stmt_binlog_row_based)
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
     /*
       If the handler has no cursor capabilites, or we have row-based
@@ -4507,9 +4505,8 @@ void st_table::mark_columns_needed_for_delete()
 void st_table::mark_columns_needed_for_update()
 {
 
-  mark_columns_per_binlog_row_image();
-
   DBUG_ENTER("mark_columns_needed_for_update");
+  mark_columns_per_binlog_row_image();
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
@@ -4551,6 +4548,37 @@ void st_table::mark_columns_needed_for_update()
   DBUG_VOID_RETURN;
 }
 
+/*
+  Mark columns according the binlog row image option.
+
+  When logging in RBR, the user can select whether to
+  log partial or full rows, depending on the table
+  definition, and the value of binlog_row_image.
+
+  Semantics of the binlog_row_image are the following 
+  (PKE - primary key equivalent, ie, PK fields if PK 
+  exists, all fields otherwise):
+
+  binlog_row_image= MINIMAL
+    - This marks the PKE fields in the read_set
+    - This marks all fields where a value was specified
+      in the write_set
+
+  binlog_row_image= NOBLOB
+    - This marks PKE + all non-blob fields in the read_set
+    - This marks all fields where a value was specified
+      and all non-blob fields in the write_set
+
+  binlog_row_image= FULL
+    - all columns in the read_set
+    - all columns in the write_set
+    
+  This marking is done without resetting the original 
+  bitmaps. This means that we will strip extra fields in
+  the read_set at binlogging time (for those cases that 
+  we only want to log a PK and we needed other fields for
+  execution).
+ */
 void st_table::mark_columns_per_binlog_row_image()
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
@@ -4583,14 +4611,15 @@ void st_table::mark_columns_per_binlog_row_image()
           Field *field= *ptr;
           /* 
             bypass blob fields. These can be set or not set, we don't care.
-            Later if we don't need them in the before image, we will discard
-            them.
+            Later, at binlogging time, if we don't need them in the before 
+            image, we will discard them.
 
-            If set in the AI, then the blob is really needed. There is nothing
-            we can do.
+            If set in the AI, then the blob is really needed, there is 
+            nothing we can do about it.
            */
-          if ((field->flags & PRI_KEY_FLAG) || 
-              (field->type() != MYSQL_TYPE_BLOB))
+          if ((s->primary_key < MAX_KEY) && 
+              ((field->flags & PRI_KEY_FLAG) || 
+              (field->type() != MYSQL_TYPE_BLOB)))
             bitmap_set_bit(read_set, field->field_index);
 
           if (field->type() != MYSQL_TYPE_BLOB)
