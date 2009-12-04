@@ -5,40 +5,35 @@ drop table if exists t1;
 create table t1 (a int key, b int) engine ndb;
 insert into t1 values (1,1);
 #
-# extra table to be used to ensure data has arrived to binlog
-create table t2 (a int key, b int) engine ndb;
-#
 # reset and restore schema
 drop table t1;
 reset master;
 show tables;
 Tables_in_test
-t2
 t1
 #
 # restore and _no_ binlog
 #
-# check the binlog, should be empty
-# extra insert (not logged) to ensure data has arrived to binlog
-set SQL_LOG_BIN=0;
-insert into t2 values (1,1);
+# check the binlog, should be empty apart from our marker
+# create dummy table to wait for to ensure Binlog contains any previous events
+create table binlogmarker (a int) engine=ndb;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	1	#	use `test`; create table binlogmarker (a int) engine=ndb
 #
 # reset and restore schema again
+drop table binlogmarker;
 drop table t1;
 reset master;
 show tables;
 Tables_in_test
-t2
 t1
 #
-# restore and  binlog should now happen
+# restore and  binlog should now happen as well as the marker
 #
 # check the binlog, should contain data
-# extra insert (not logged) to ensure data has arrived to binlog
-set SQL_LOG_BIN=0;
-insert into t2 values (2,2);
+# create dummy table to wait for to ensure Binlog contains any previous events
+create table binlogmarker (a int) engine=ndb;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	1	#	BEGIN
@@ -47,7 +42,8 @@ mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 mysqld-bin.000001	#	Write_rows	1	#	table_id: #
 mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	1	#	COMMIT
-drop table t1, t2;
+mysqld-bin.000001	#	Query	1	#	use `test`; create table binlogmarker (a int) engine=ndb
+drop table binlogmarker, t1;
 #
 # Now more complex using "BANK schema" including restore of log
 #
