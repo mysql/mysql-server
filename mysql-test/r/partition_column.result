@@ -1,4 +1,14 @@
 drop table if exists t1;
+create table t1 (a int, b int)
+partition by range columns (a,b)
+( partition p0 values less than (maxvalue, 10),
+partition p1 values less than (maxvalue, maxvalue));
+ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
+create table t1 (a int, b int, c int)
+partition by range columns (a,b,c)
+( partition p0 values less than (1, maxvalue, 10),
+partition p1 values less than (1, maxvalue, maxvalue));
+ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
 create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
 partition by range columns(a)
 ( partition p0 values less than ('a'),
@@ -89,7 +99,7 @@ subpartition by hash (to_seconds(d))
 subpartitions 4
 ( partition p0 values less than (1, '0', MAXVALUE, '1900-01-01'),
 partition p1 values less than (1, 'a', MAXVALUE, '1999-01-01'),
-partition p2 values less than (1, 'a', MAXVALUE, MAXVALUE),
+partition p2 values less than (1, 'b', MAXVALUE, MAXVALUE),
 partition p3 values less than (1, MAXVALUE, MAXVALUE, MAXVALUE));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
@@ -102,10 +112,10 @@ RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
 RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
 RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
 RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,'1999-01-01'
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
-RANGE COLUMNS	a,b,c,d	1,'a',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
+RANGE COLUMNS	a,b,c,d	1,'b',MAXVALUE,MAXVALUE
 RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
 RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
 RANGE COLUMNS	a,b,c,d	1,MAXVALUE,MAXVALUE,MAXVALUE
@@ -123,7 +133,7 @@ SUBPARTITION BY HASH (to_seconds(d))
 SUBPARTITIONS 4
 (PARTITION p0 VALUES LESS THAN (1,'0',MAXVALUE,'1900-01-01') ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (1,'a',MAXVALUE,'1999-01-01') ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN (1,'a',MAXVALUE,MAXVALUE) ENGINE = MyISAM,
+ PARTITION p2 VALUES LESS THAN (1,'b',MAXVALUE,MAXVALUE) ENGINE = MyISAM,
  PARTITION p3 VALUES LESS THAN (1,MAXVALUE,MAXVALUE,MAXVALUE) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b int)
