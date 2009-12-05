@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   */
 #ifdef THREAD
   if (param->need_print_msg_lock)
-    pthread_mutex_lock(&param->print_msg_mutex);
+    mysql_mutex_lock(&param->print_msg_mutex);
 #endif
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
@@ -130,7 +130,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 		    msgbuf);
 #ifdef THREAD
   if (param->need_print_msg_lock)
-    pthread_mutex_unlock(&param->print_msg_mutex);
+    mysql_mutex_unlock(&param->print_msg_mutex);
 #endif
   return;
 }
@@ -762,13 +762,13 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 	mi_is_crashed(file))
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 			       STATE_CRASHED_ON_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
 	error=update_state_info(&param,file,UPDATE_TIME | UPDATE_OPEN_COUNT |
 				UPDATE_STAT);
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
       info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	   HA_STATUS_CONST);
     }
@@ -812,9 +812,9 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   error = chk_key(&param, file);
   if (!error)
   {
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     error=update_state_info(&param,file,UPDATE_STAT);
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   }
   else if (!mi_is_crashed(file) && !thd->killed)
     mi_mark_crashed(file);
@@ -1925,6 +1925,10 @@ int myisam_panic(handlerton *hton, ha_panic_function flag)
 static int myisam_init(void *p)
 {
   handlerton *myisam_hton;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_myisam_psi_keys();
+#endif
 
   myisam_hton= (handlerton *)p;
   myisam_hton->state= SHOW_OPTION_YES;
