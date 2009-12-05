@@ -69,6 +69,7 @@
 #include "atomic/nolock.h"
 #endif
 
+#ifndef MY_ATOMICS_MADE
 #ifndef make_atomic_cas_body
 /* nolock.h was not able to generate even a CAS function, fall back */
 #include "atomic/rwlock.h"
@@ -277,6 +278,7 @@ make_atomic_store(ptr)
 #undef make_atomic_load_body
 #undef make_atomic_store_body
 #undef make_atomic_fas_body
+#endif /* MY_ATOMICS_MADE */
 #undef intptr
 
 /*
