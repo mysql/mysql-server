@@ -163,7 +163,11 @@ IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
   IF(UNIX)
     # Name of shared library is mysqlclient on Unix
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES OUTPUT_NAME mysqlclient)
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
+      OUTPUT_NAME mysqlclient 
+      VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0" 
+      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+
     # clean direct output needs to be set several targets have the same name
     #(mysqlclient in this case)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
