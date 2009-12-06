@@ -1117,18 +1117,27 @@ be equal for the Statement-format replication to work";
         goto err;
       }
     }
-    else if (is_network_error(mysql_errno(mysql)))
+    else if (is_network_error(err_code= mysql_errno(mysql)))
     {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
+      mi->report(ERROR_LEVEL, err_code,
+                 "Get master TIME_ZONE failed with error: %s",
+                 mysql_error(mysql));
       goto network_err;
-    } 
+    }
+    else if (err_code == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      /* We use ERROR_LEVEL to get the error logged to file */
+      mi->report(ERROR_LEVEL, err_code,
+
+                 "MySQL master doesn't have a TIME_ZONE variable. Note that"
+                 "if your timezone is not same between master and slave, your "
+                 "slave may get wrong data into timestamp columns");
+    }
     else
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered \
 when it try to get the value of TIME_ZONE global variable from master.";
-      err_code= mysql_errno(mysql);
       sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
     }
