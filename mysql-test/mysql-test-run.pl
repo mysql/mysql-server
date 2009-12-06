@@ -5683,12 +5683,15 @@ Misc options
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
-  parallel=N            Run tests in N parallel threads (default=1)
+  parallel=N            Run tests in N parallel threads (default 1)
                         Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
-  retry=N               Retry tests that fail N times, limit number of failures
-                        to $opt_retry_failure
-  retry-failure=N       Limit number of retries for a failed test
+  retry=N               Retry tests that fail up to N times (default $opt_retry).
+                        Retries are also limited by the maximum number of
+                        failures before stopping, set with the --retry-failure
+                        option
+  retry-failure=N       When using the --retry option to retry failed tests,
+                        stop when N failures have occured (default $opt_retry_failure)
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
 
