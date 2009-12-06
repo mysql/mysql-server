@@ -20,6 +20,7 @@
 #include <NDBT_Test.hpp>
 #include "../../src/ndbapi/NdbInfo.hpp"
 
+#include <NdbRestarter.hpp>
 
 int runTestNdbInfo(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -121,10 +122,10 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
         columnId++;
       // At least one column
       assert(columnId >= 1);
-
-      if(scanOp->execute() != 0)
+      int ret;
+      if((ret = scanOp->execute()) != 0)
       {
-        g_err << "scanOp->execute failed" << endl;
+        g_err << "scanOp->execute failed, ret: " << ret << endl;
         return NDBT_FAILED;
       }
 
@@ -142,6 +143,20 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
   assert(false);
   return NDBT_FAILED;
 }
+
+
+int runScanAllUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int i = 0;
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (runScanAll(ctx,  step) != NDBT_OK){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
 
 int runScanStop(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -372,6 +387,84 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int sync_threads = ctx->getProperty("SyncThreads", (unsigned)0);
+  int sleep0 = ctx->getProperty("Sleep0", (unsigned)0);
+  int sleep1 = ctx->getProperty("Sleep1", (unsigned)0);
+  int randnode = ctx->getProperty("RandNode", (unsigned)0);
+  NdbRestarter restarter;
+  int i = 0;
+  int lastId = 0;
+
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if(restarter.waitClusterStarted() != 0){
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  loops *= (restarter.getNumDbNodes() > 2 ? 2 : restarter.getNumDbNodes());
+  if (loops < restarter.getNumDbNodes())
+    loops = restarter.getNumDbNodes();
+
+  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
+
+    int id = lastId % restarter.getNumDbNodes();
+    if (randnode == 1)
+    {
+      id = rand() % restarter.getNumDbNodes();
+    }
+    int nodeId = restarter.getDbNodeId(id);
+    ndbout << "Restart node " << nodeId << endl;
+    if(restarter.restartOneDbNode(nodeId, false, true, true) != 0){
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&nodeId, 1))
+    {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (sleep1)
+      NdbSleep_MilliSleep(sleep1);
+
+    if (restarter.startNodes(&nodeId, 1))
+    {
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if(restarter.waitClusterStarted() != 0){
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (sleep0)
+      NdbSleep_MilliSleep(sleep0);
+
+    ctx->sync_up_and_wait("PauseThreads", sync_threads);
+
+    lastId++;
+    i++;
+  }
+
+  ctx->stopTest();
+
+  return result;
+}
+
+
 
 NDBT_TESTSUITE(testNdbinfo);
 TESTCASE("Ndbinfo",
@@ -399,6 +492,13 @@ TESTCASE("TestTable",
           "of rows which will depend on how many TUP blocks are configured"){
   STEP(runTestTable);
 }
+#if 0
+TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
+  TC_PROPERTY("Sleep0", 29000); // Between restarts
+  STEP(runRestarter);
+  STEPS(runScanAllUntilStopped, 1);
+}
+#endif
 NDBT_TESTSUITE_END(testNdbinfo);
 
 

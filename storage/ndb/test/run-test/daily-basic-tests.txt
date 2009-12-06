@@ -274,6 +274,10 @@ max-time: 2500
 cmd: testIndex
 args: -n BuildDuring T6 
 
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
 max-time: 600
 cmd: testIndex
 args: -n Bug46069 T1
@@ -1469,6 +1473,32 @@ cmd: testBasic
 args: -n DDInsertFailUpdateBatch
 
 max-time: 300
+cmd: testBlobs
+args: -skip hp -bug 28116
+
+max-time: 300
 cmd: testNdbApi
 args: -n FragmentedApiFailure T1
+
+# Series of short (signal train) request generation/handling tests
+# Start
+max-time: 500
+cmd: testBasic
+args: --forceshortreqs -n PkUpdate
+
+max-time: 300
+cmd: testIndex
+args: --forceshortreqs -n InsertDelete T2
+
+max-time: 2500
+cmd: testPartitioning
+args: --forceshortreqs
+
+# End of short (signal train) handling tests
+
+max-time: 300
+cmd: testIndex
+args: -n ConstraintDetails
+
+
 

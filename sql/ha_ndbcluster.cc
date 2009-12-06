@@ -1961,7 +1961,7 @@ void ha_ndbcluster::release_blobs_buffer()
   DBUG_ENTER("releaseBlobsBuffer");
   if (m_blobs_buffer_size > 0)
   {
-    DBUG_PRINT("info", ("Deleting blobs buffer, size %u", m_blobs_buffer_size));
+    DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blobs_buffer_size));
     my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     m_blobs_buffer= 0;
     m_blobs_row_total_size= 0;
@@ -13581,6 +13581,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     DBUG_PRINT("info", ("Failed to start schema transaction"));
     ERR_PRINT(dict->getNdbError());
     error= ndb_to_mysql_error(&dict->getNdbError());
+    table->file->print_error(error, MYF(0));
     goto err;
   }
 

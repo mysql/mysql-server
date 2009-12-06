@@ -74,6 +74,9 @@ class GetTabInfoRef {
   friend bool printGET_TABINFO_REF(FILE *, const Uint32 *, Uint32, Uint16);    
 public:
   STATIC_CONST( SignalLength = 7 );
+  /* 6.3 <-> 7.0 upgrade code */
+  STATIC_CONST( OriginalSignalLength = 5 );
+  STATIC_CONST( OriginalErrorOffset = 4 );
 public:
   Uint32 senderData;
   Uint32 senderRef;

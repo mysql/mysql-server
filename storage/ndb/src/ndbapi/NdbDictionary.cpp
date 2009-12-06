@@ -582,6 +582,11 @@ NdbDictionary::Table::getNoOfColumns() const {
 }
 
 int
+NdbDictionary::Table::getNoOfAutoIncrementColumns() const {
+  return m_impl.m_noOfAutoIncColumns;
+}
+
+int
 NdbDictionary::Table::getNoOfPrimaryKeys() const {
   return m_impl.m_noOfKeys;
 }
@@ -2539,7 +2544,17 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
-  return m_impl.listObjects(list, type);
+  // delegate to variant with FQ names param
+  return listObjects(list, type, 
+                     m_impl.m_ndb.usingFullyQualifiedNames());
+}
+
+int
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type,
+                                       bool fullyQualified) const
+{
+  return m_impl.listObjects(list, type, 
+                            fullyQualified);
 }
 
 int

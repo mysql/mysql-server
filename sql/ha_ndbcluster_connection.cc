@@ -72,7 +72,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
                         opt_ndb_connectstring));
     my_errno= HA_ERR_OUT_OF_MEM;
-    goto ndbcluster_connect_error;
+    DBUG_RETURN(-1);
   }
   {
     char buf[128];
@@ -89,14 +89,14 @@ int ndbcluster_connect(int (*connect_callback)(void))
     sql_print_error("NDB: failed to allocate global ndb object");
     DBUG_PRINT("error", ("failed to create global ndb object"));
     my_errno= HA_ERR_OUT_OF_MEM;
-    goto ndbcluster_connect_error;
+    DBUG_RETURN(-1);
   }
   if (g_ndb->init() != 0)
   {
     DBUG_PRINT("error", ("%d  message: %s",
                          g_ndb->getNdbError().code,
                          g_ndb->getNdbError().message));
-    goto ndbcluster_connect_error;
+    DBUG_RETURN(-1);
   }
 
   /* Connect to management server */
@@ -110,7 +110,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
       break;
     do_retry_sleep(100);
     if (abort_loop)
-      goto ndbcluster_connect_error;
+      DBUG_RETURN(-1);
   }
 
   {
@@ -131,7 +131,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
                         i);
         DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",
                             i, opt_ndb_connectstring));
-        goto ndbcluster_connect_error;
+        DBUG_RETURN(-1);
       }
       {
         char buf[128];
@@ -200,7 +200,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
       {
         sql_print_error("NDB[%u]: failed to start connect thread", i);
         DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-        goto ndbcluster_connect_error;
+        DBUG_RETURN(-1);
       }
     }
 #ifndef DBUG_OFF
@@ -221,11 +221,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
     sql_print_error("NDB: error (%u) %s",
                     g_ndb_cluster_connection->get_latest_error(),
                     g_ndb_cluster_connection->get_latest_error_msg());
-    goto ndbcluster_connect_error;
+    DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
-ndbcluster_connect_error:
-  DBUG_RETURN(-1);
 }
 
 void ndbcluster_disconnect(void)

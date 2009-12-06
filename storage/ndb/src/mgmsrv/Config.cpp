@@ -24,12 +24,6 @@
 
 #include <HashMap.hpp>
 
-static void require(bool b)
-{
-  if (!b)
-    abort();
-}
-
 Config::Config(struct ndb_mgm_configuration *config_values) :
   m_configValues(config_values)
 {
@@ -822,5 +816,21 @@ Config::get_nodemask(NodeBitmask& mask,
       mask.set(nodeid);
     }
   }
+}
+
+
+Uint32
+Config::checksum(void) const {
+  Uint32 chk;
+
+  UtilBuffer buf;
+  pack(buf);
+
+  // Checksum is the last 4 bytes in buffer
+  const char* chk_ptr = (const char*)buf.get_data();
+  chk_ptr += buf.length() - sizeof(Uint32);
+  chk = *(Uint32*) chk_ptr;
+
+  return chk;
 }
 

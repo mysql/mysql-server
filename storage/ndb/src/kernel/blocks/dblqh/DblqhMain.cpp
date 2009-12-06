@@ -1183,12 +1183,12 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     if (!ndb_mgm_get_string_parameter(p, CFG_DB_INIT_REDO, &conf) && conf)
     {
       jam();
-      if (strcmp(conf, "sparse") == 0)
+      if (strcasecmp(conf, "sparse") == 0)
       {
         jam();
         m_use_om_init = 0;
       }
-      else if (strcmp(conf, "full") == 0)
+      else if (strcasecmp(conf, "full") == 0)
       {
         jam();
         m_use_om_init = 1;

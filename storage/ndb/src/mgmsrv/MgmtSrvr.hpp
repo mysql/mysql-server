@@ -123,6 +123,7 @@ public:
     MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
     int reload;
     int initial;
+    NodeBitmask nowait_nodes;
   };
 
   MgmtSrvr(); // Not implemented

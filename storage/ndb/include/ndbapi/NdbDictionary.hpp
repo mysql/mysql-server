@@ -741,6 +741,11 @@ public:
     int getNoOfColumns() const;
     
     /**
+     * Get number of auto_increment columns in the table
+     */
+    int getNoOfAutoIncrementColumns() const;
+    
+    /**
      * Get number of primary keys in the table
      */
     int getNoOfPrimaryKeys() const;
@@ -2033,6 +2038,9 @@ public:
 #endif
     int listObjects(List & list,
 		    Object::Type type = Object::TypeUndefined) const;
+    int listObjects(List & list,
+                    Object::Type type,
+                    bool fullyQualified) const;
 
     /**
      * Get the latest error

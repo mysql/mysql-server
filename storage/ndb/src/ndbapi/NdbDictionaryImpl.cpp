@@ -591,6 +591,7 @@ NdbTableImpl::init(){
   m_noOfDistributionKeys= 0;
   m_noOfBlobs= 0;
   m_replicaCount= 0;
+  m_noOfAutoIncColumns = 0;
   m_ndbrecord= 0;
   m_pkMask= 0;
   m_min_rows = 0;
@@ -872,6 +873,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_noOfBlobs = org.m_noOfBlobs;
   m_replicaCount = org.m_replicaCount;
 
+  m_noOfAutoIncColumns = org.m_noOfAutoIncColumns;
+
   m_id = org.m_id;
   m_version = org.m_version;
   m_status = org.m_status;
@@ -921,6 +924,9 @@ NdbTableImpl::computeAggregates()
       m_noOfDiskColumns++;
     
     col->m_keyInfoPos = ~0;
+
+    if (col->m_autoIncrement)
+      m_noOfAutoIncColumns++;
   }
   if (m_noOfDistributionKeys == m_noOfKeys) {
     // all is none!
@@ -2432,7 +2438,17 @@ NdbDictInterface::execGET_TABINFO_REF(NdbApiSignal * signal,
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, 
 					   signal->getDataPtr());
   
-  m_error.code= ref->errorCode;
+  if (likely(signal->getLength() == GetTabInfoRef::SignalLength))
+  {
+    m_error.code= ref->errorCode;
+  }
+  else
+  {
+    /* 6.3 <-> 7.0 upgrade only */
+    assert (signal->getLength() == GetTabInfoRef::OriginalSignalLength);
+    m_error.code = (*(signal->getDataPtr() + 
+                      GetTabInfoRef::OriginalErrorOffset));
+  }
   m_waiter.signal(NO_WAIT);
 }
 
@@ -4713,7 +4729,18 @@ NdbDictInterface::execSUB_START_CONF(NdbApiSignal * signal,
   }
   }
 
-  m_sub_start_conf.m_buckets = subStartConf->bucketCount;
+  if (signal->getLength() == SubStartConf::SignalLength)
+  {
+    m_sub_start_conf.m_buckets = subStartConf->bucketCount;
+  }
+  else
+  {
+    /* 6.3 <-> 7.0 upgrade 
+     * 6.3 doesn't send required bucketCount.  
+     * ~0 indicates no bucketCount received
+     */
+    m_sub_start_conf.m_buckets = ~0;
+  }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
   m_waiter.signal(NO_WAIT);
@@ -5071,7 +5098,9 @@ NdbDictionaryImpl::listEvents(List& list)
  * List objects or indexes
  */
 int
-NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
+NdbDictionaryImpl::listObjects(List& list, 
+                               NdbDictionary::Object::Type type,
+                               bool fullyQualified)
 {
   int ret;
   List list1, list2;
@@ -5091,8 +5120,8 @@ NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
   if (!list2.count)
-    return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
-  ret = m_receiver.listObjects(list1, req, m_ndb.usingFullyQualifiedNames());
+    return m_receiver.listObjects(list, req, fullyQualified);
+  ret = m_receiver.listObjects(list1, req, fullyQualified);
   if (ret)
     return ret;
   list.count = list1.count + list2.count;
@@ -7758,6 +7787,13 @@ NdbDictionaryImpl::beginSchemaTrans()
     m_error.code = 4410;
     DBUG_RETURN(-1);
   }
+  if (!m_receiver.checkAllNodeVersionsMin(NDBD_SCHEMA_TRANS_VERSION))
+  {
+    /* Upgrade 6.3 -> 7.0 path */
+    /* Schema transaction not possible until upgrade complete */
+    m_error.code = 4411;
+    DBUG_RETURN(-1);
+  }
   // TODO real transId
   m_tx.m_transId = rand();
   m_tx.m_state = NdbDictInterface::Tx::Started;
@@ -7838,6 +7874,27 @@ committed:
   m_tx.m_op.clear();
   DBUG_RETURN(0);
 }
+
+bool
+NdbDictInterface::checkAllNodeVersionsMin(Uint32 minNdbVersion) const
+{
+  for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  {
+    if (m_transporter->getIsDbNode(nodeId) &&
+        m_transporter->getIsNodeSendable(nodeId) &&
+        (m_transporter->getNodeNdbVersion(nodeId) <
+         minNdbVersion))
+    {
+      /* At least 1 sendable data node has lower-than-min
+       * version
+       */
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 
 int
 NdbDictInterface::beginSchemaTrans()

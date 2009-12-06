@@ -259,14 +259,6 @@ wakeup(struct thr_wait* wait)
 
 #endif
 
-static inline
-void
-require(bool x)
-{
-  if (unlikely(!(x)))
-    abort();
-}
-
 #ifdef NDB_HAVE_XCNG
 struct thr_spin_lock
 {
