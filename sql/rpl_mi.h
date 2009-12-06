@@ -110,6 +110,7 @@ class Master_info : public Slave_reporting_capability
   uint sync_counter;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+  time_t last_heartbeat;
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
 };
