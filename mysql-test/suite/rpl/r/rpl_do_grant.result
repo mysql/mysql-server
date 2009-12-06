@@ -169,4 +169,77 @@ DROP USER 'create_rout_db'@'localhost';
 call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
 USE mtr;
 call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+######## BUG#49119 #######
+### i) test case from the 'how to repeat section'
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1(c1 INT);
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
+ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' on routine 'p1'
+DROP TABLE t1;
+DROP PROCEDURE p1;
+### ii) Test case in which REVOKE partially succeeds
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1(c1 INT);
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+CREATE USER 'user49119'@'localhost';
+GRANT EXECUTE ON PROCEDURE p1 TO 'user49119'@'localhost';
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO 'user49119'@'localhost'
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO 'user49119'@'localhost'
+GRANT EXECUTE ON PROCEDURE `test`.`p1` TO 'user49119'@'localhost'
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+## This statement will make the revoke fail because root has no
+## execute grant. However, it will still revoke the grant for
+## user49119.
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'user49119'@'localhost', 'root'@'localhost';
+ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' on routine 'p1'
+##############################################################
+### Showing grants for both users: root and user49119 (master)
+### after revoke statement failure
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO 'user49119'@'localhost'
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+#############################################################
+### Showing grants for both users: root and user49119 (slave)
+### after revoke statement failure (should match 
+SHOW GRANTS FOR 'user49119'@'localhost';
+Grants for user49119@localhost
+GRANT USAGE ON *.* TO 'user49119'@'localhost'
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+##############################################################
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP USER 'user49119'@'localhost';
 "End of test"
