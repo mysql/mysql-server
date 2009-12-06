@@ -17,7 +17,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
 ADD_LIBRARY(ndbNDBT STATIC

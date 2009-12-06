@@ -77,18 +77,6 @@ int g_errorInsert;
 
 extern "C" my_bool opt_core;
 
-static void require(bool v)
-{
-  if(!v)
-  {
-    if (opt_core)
-      abort();
-    else
-      exit(-1);
-  }
-}
-
-
 void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
@@ -2605,7 +2593,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
   SimpleSignal ssig;
   AllocNodeIdReq* req = CAST_PTR(AllocNodeIdReq, ssig.getDataPtrSend());
   ssig.set(ss, TestOrd::TraceAPI, QMGR, GSN_ALLOC_NODEID_REQ,
-	   AllocNodeIdReq::SignalLength);
+           AllocNodeIdReq::SignalLength);
   
   req->senderRef = ss.getOwnRef();
   req->senderData = 19;
@@ -2661,7 +2649,9 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
           /* sleep for a while (100ms) before retrying */
+          ss.unlock();
           NdbSleep_MilliSleep(100);  
+          ss.lock();
         }
         continue;
       }
@@ -2669,20 +2659,20 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
     }
     case GSN_NF_COMPLETEREP:
     {
-      const NFCompleteRep * const rep =
-        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
-#ifdef VM_TRACE
-      ndbout_c("Node %d fail completed", rep->failedNodeId);
-#endif
-      if (rep->failedNodeId == nodeId)
-      {
-	do_send = 1;
-        nodeId = 0;
-      }
       continue;
     }
     case GSN_NODE_FAILREP:{
-      // ignore NF_COMPLETEREP will come
+      /**
+       * ok to trap using NODE_FAILREP
+       *   as we don't really wait on anything interesting
+       */
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, nodeId))
+      {
+        do_send = 1;
+        nodeId = 0;
+      }
       continue;
     }
     case GSN_API_REGCONF:
@@ -2894,7 +2884,6 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
       m_connect_address[id].s_addr= 0;
     }
   }
-  m_reserved_nodes.set(id);
   if (theFacade && id != theFacade->ownId())
   {
     /**
@@ -2980,12 +2969,21 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       continue;
 
     const char *config_hostname= nodes_info[i].host.c_str();
+    /**
+     * set bit as reserved, release mutex, try-alloc reaquire mutex
+     * and clear bit if alloc failed
+     */
+    m_reserved_nodes.set(id);
+    NdbMutex_Unlock(m_node_id_mutex);
     if (!try_alloc(id, config_hostname, type, client_addr, timeout_ms))
     {
+      NdbMutex_Lock(m_node_id_mutex);
       // success
       *nodeId= id;
       DBUG_RETURN(true);
     }
+    NdbMutex_Lock(m_node_id_mutex);
+    m_reserved_nodes.clear(id);
   }
 
   /* now try the open nodes */
@@ -3001,12 +2999,21 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (exact_nodes.get(id))
       continue;
 
+    /**
+     * set bit as reserved, release mutex, try-alloc reaquire mutex
+     * and clear bit if alloc failed
+     */
+    m_reserved_nodes.set(id);
+    NdbMutex_Unlock(m_node_id_mutex);
     if (!try_alloc(id, NULL, type, client_addr, timeout_ms))
     {
+      NdbMutex_Lock(m_node_id_mutex);
       // success
       *nodeId= id;
       DBUG_RETURN(true);
     }
+    NdbMutex_Lock(m_node_id_mutex);
+    m_reserved_nodes.clear(id);
   }
 
   /*
@@ -3315,9 +3322,15 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
-  Guard g(m_mgmsrv.m_node_id_mutex);
-  if (!m_reserved_nodes.isclear()) {
-    m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
+  if (!m_reserved_nodes.isclear())
+  {
+    /**
+     * No need to aquire mutex if we didn't have any reservation in
+     * our sesssion
+     */
+    Guard g(m_mgmsrv.m_node_id_mutex);
+    m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes);
+
     // node has been reserved, force update signal to ndb nodes
     m_mgmsrv.updateStatus();
 

@@ -582,3 +582,21 @@ epoch
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 epoch > (1 << 32)
 1
+create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
+engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+drop table t1;

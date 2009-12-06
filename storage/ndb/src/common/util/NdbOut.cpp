@@ -136,16 +136,36 @@ NdbOut::println(const char * fmt, ...){
 
 extern "C"
 void 
-ndbout_c(const char * fmt, ...){
-  va_list ap;
+vndbout_c(const char * fmt, va_list ap){
   char buf[1000];
   
-  va_start(ap, fmt);
   if (fmt != 0)
+  {
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  }
   ndbout << buf << endl;
+}
+
+extern "C"
+void
+ndbout_c(const char * fmt, ...){
+  va_list ap;
+
+  va_start(ap, fmt);
+  vndbout_c(fmt, ap);
   va_end(ap);
 }
+
+extern "C" int ndbout_printer(const char * fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vndbout_c(fmt, ap);
+  va_end(ap);
+  return 1;
+}
+
 
 FilteredNdbOut::FilteredNdbOut(OutputStream & out, 
 			       int threshold, int level)

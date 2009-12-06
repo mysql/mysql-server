@@ -219,6 +219,11 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
   m_systemPrefix.assfmt("%s%c%s%c", NDB_SYSTEM_DATABASE, table_name_separator,
 			NDB_SYSTEM_SCHEMA, table_name_separator);
+
+  forceShortRequests = false;
+  const char* f= getenv("NDB_FORCE_SHORT_REQUESTS");
+  if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    forceShortRequests = true;
 }
 
 NdbImpl::~NdbImpl()

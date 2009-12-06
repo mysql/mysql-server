@@ -69,6 +69,7 @@
 // Error Codes for Add Table
 // --------------------------------------
 #define ZREPLERROR1 306
+#define ZREPLERROR2 307
 
 // --------------------------------------
 // Crash Codes

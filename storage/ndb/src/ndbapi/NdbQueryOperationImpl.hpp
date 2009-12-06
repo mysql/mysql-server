@@ -22,10 +22,10 @@
 #include "NdbQueryOperation.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include "NdbIndexScanOperation.hpp"
-#include "NdbError.hpp"
-#include "ndb_limits.h"
-#include "Vector.hpp"
-#include "Bitmask.hpp"
+#include <NdbError.hpp>
+#include <ndb_limits.h>
+#include <Vector.hpp>
+#include <Bitmask.hpp>
 
 // Forward declarations
 class NdbTableImpl;

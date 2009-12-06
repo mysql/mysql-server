@@ -30,7 +30,7 @@ libNDBT_a_SOURCES = \
 	CpcClient.cpp NdbMixRestarter.cpp NDBT_Thread.cpp DbUtil.cpp \
 	SocketInputStream2.cpp NDBT_Find.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/common/mgmcommon -I$(top_srcdir)/storage/ndb/include/mgmcommon -I$(top_srcdir)/storage/ndb/include/kernel -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/include
+INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/common/mgmcommon -I$(top_srcdir)/storage/ndb/include/mgmcommon -I$(top_srcdir)/storage/ndb/include/kernel -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/include -I$(top_srcdir)/storage/ndb/include/debugger
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am

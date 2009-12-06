@@ -130,6 +130,128 @@ NdbOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
   TcKeyReq::setExecuteFlag(req->requestInfo, lastFlag);
 }
 
+int
+NdbOperation::doSendKeyReq(int aNodeId, 
+                           GenericSectionPtr* secs, 
+                           Uint32 numSecs)
+{
+  /* Send a KeyRequest - could be TCKEYREQ or TCINDXREQ
+   *
+   * Normally we send a single long signal with 1 or 2
+   * sections containing KeyInfo and AttrInfo.
+   * For backwards compatibility and testing purposes 
+   * we can send signal trains instead.
+   */
+  NdbApiSignal* request = theTCREQ;
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+  Uint32 tcNodeVersion = tp->getNodeNdbVersion(aNodeId);
+  bool forceShort = false;
+  forceShort = theNdb->theImpl->forceShortRequests;
+  bool sendLong = ( tcNodeVersion >= NDBD_LONG_TCKEYREQ ) &&
+    ! forceShort;
+  
+  if (sendLong)
+  {
+    return tp->sendSignal(request, aNodeId, secs, numSecs);
+  }
+  else
+  {
+    /* Send signal as short request - either for backwards
+     * compatibility or testing
+     */
+    Uint32 sigCount = 1;
+    Uint32 keyInfoLen  = secs[0].sz;
+    Uint32 attrInfoLen = (numSecs == 2)?
+      secs[1].sz : 
+      0;
+    
+    Uint32 keyInfoInReq = MIN(keyInfoLen, TcKeyReq::MaxKeyInfo);
+    Uint32 attrInfoInReq = MIN(attrInfoLen, TcKeyReq::MaxAttrInfo);
+    TcKeyReq* tcKeyReq = (TcKeyReq*) request->getDataPtrSend();
+    Uint32 connectPtr = tcKeyReq->apiConnectPtr;
+    Uint32 transId1 = tcKeyReq->transId1;
+    Uint32 transId2 = tcKeyReq->transId2;
+    bool indexReq = (request->theVerId_signalNumber == GSN_TCINDXREQ);
+    
+    Uint32 reqLen = request->theLength;
+    
+    /* Set TCKEYREQ flags */
+    TcKeyReq::setKeyLength(tcKeyReq->requestInfo, keyInfoLen);
+    TcKeyReq::setAIInTcKeyReq(tcKeyReq->requestInfo , attrInfoInReq);
+    TcKeyReq::setAttrinfoLen(tcKeyReq->attrLen, attrInfoLen);
+    
+    Uint32* writePtr = request->getDataPtrSend() + reqLen;
+
+    GSIReader keyInfoReader(secs[0].sectionIter);
+    GSIReader attrInfoReader(secs[1].sectionIter);
+    
+    keyInfoReader.copyNWords(writePtr, keyInfoInReq);
+    writePtr += keyInfoInReq;
+    attrInfoReader.copyNWords(writePtr, attrInfoInReq);
+
+    reqLen += keyInfoInReq + attrInfoInReq;
+    assert( reqLen <= TcKeyReq::SignalLength );
+
+    request->setLength(reqLen);
+
+    if (tp->sendSignal(request, aNodeId) == -1)
+      return -1;
+    
+    keyInfoLen -= keyInfoInReq;
+    attrInfoLen -= attrInfoInReq;
+
+    if (keyInfoLen)
+    {
+      request->theVerId_signalNumber = indexReq ? 
+        GSN_INDXKEYINFO : GSN_KEYINFO;
+      KeyInfo* keyInfo = (KeyInfo*) request->getDataPtrSend();
+      keyInfo->connectPtr = connectPtr;
+      keyInfo->transId[0] = transId1;
+      keyInfo->transId[1] = transId2;
+
+      while(keyInfoLen)
+      {
+        Uint32 dataWords = MIN(keyInfoLen, KeyInfo::DataLength);
+
+        keyInfoReader.copyNWords(&keyInfo->keyData[0], dataWords);
+        request->setLength(KeyInfo::HeaderLength + dataWords);
+
+        if (tp->sendSignal(request, aNodeId) == -1)
+          return -1;
+
+        keyInfoLen-= dataWords;
+        sigCount++;
+      }
+    }
+
+    if (attrInfoLen)
+    {
+      request->theVerId_signalNumber = indexReq ? 
+        GSN_INDXATTRINFO : GSN_ATTRINFO;
+      AttrInfo* attrInfo = (AttrInfo*) request->getDataPtrSend();
+      attrInfo->connectPtr = connectPtr;
+      attrInfo->transId[0] = transId1;
+      attrInfo->transId[1] = transId2;
+
+      while(attrInfoLen)
+      {
+        Uint32 dataWords = MIN(attrInfoLen, AttrInfo::DataLength);
+
+        attrInfoReader.copyNWords(&attrInfo->attrData[0], dataWords);
+        request->setLength(AttrInfo::HeaderLength + dataWords);
+
+        if (tp->sendSignal(request, aNodeId) == -1)
+          return -1;
+
+        attrInfoLen-= dataWords;
+        sigCount++;
+      }
+    }
+    
+    return sigCount;
+  }
+}
+
 /******************************************************************************
 int doSend()
 
@@ -144,17 +266,40 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
 {
   assert(theTCREQ != NULL);
   setLastFlag(theTCREQ, lastFlag);
+  Uint32 numSecs= 1;
+  GenericSectionPtr secs[2];
 
   if (m_attribute_record != NULL)
   {
-    /* NdbRecord send - single long signal */
-    if (doSendNdbRecord(aNodeId) == -1 )
+    /*
+     * NdbRecord signal building code puts all KeyInfo and 
+     * AttrInfo into the KeyInfo and AttrInfo signal lists.
+     */
+    SignalSectionIterator keyInfoIter(theTCREQ->next());
+    SignalSectionIterator attrInfoIter(theFirstATTRINFO);
+    
+    /* KeyInfo - always present for TCKEY/INDXREQ*/
+    secs[0].sz= theTupKeyLen;
+    secs[0].sectionIter= &keyInfoIter;
+    
+    /* AttrInfo - not always needed (e.g. Delete) */
+    if (theTotalCurrAI_Len != 0)
+    {
+      secs[1].sz= theTotalCurrAI_Len;
+      secs[1].sectionIter= &attrInfoIter;
+      numSecs++;
+    }
+    
+    if (doSendKeyReq(aNodeId, &secs[0], numSecs) == -1)
       return -1;
   }
   else
   {
-    /* Old Api send - transform signal train to long sections */
-    TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+    /* 
+     * Old Api signal building code puts first words of KeyInfo
+     * and AttrInfo into the initial request signal
+     * We use special iterators to extract this
+     */
 
     TcKeyReq* tcKeyReq= (TcKeyReq*) theTCREQ->getDataPtrSend();
     const Uint32 inlineKIOffset= Uint32(tcKeyReq->keyInfo - (Uint32*)tcKeyReq);
@@ -164,8 +309,6 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
     const Uint32 inlineAILength= MIN(TcKeyReq::MaxAttrInfo, 
                                      theTotalCurrAI_Len);
     
-    Uint32 numSecs= 1;
-    GenericSectionPtr secs[2];
     /* Create iterators which use the signal train to extract
      * long sections from the short signal trains
      */
@@ -190,7 +333,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
       numSecs++;
     }
 
-    if (tp->sendSignal(theTCREQ, aNodeId, &secs[0], numSecs) == -1)
+    if (doSendKeyReq(aNodeId, &secs[0], numSecs) == -1)
       return -1;
   }
 
@@ -202,37 +345,6 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
   theNdbCon->OpSent();
   return 1;
 }//NdbOperation::doSend()
-
-
-int
-NdbOperation::doSendNdbRecord(int aNodeId)
-{
- /*
-  * Send a long signal to the kernel.
-  * KeyInfo and AttrInfo for NdbRecord are always sent as
-  * separate sections, with none in the TCKEYREQ
-  */
-  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-
-  Uint32 numSecs= 1;
-  GenericSectionPtr secs[2];
-  SignalSectionIterator keyInfoIter(theTCREQ->next());
-  SignalSectionIterator attrInfoIter(theFirstATTRINFO);
-  
-  /* KeyInfo - always present for TCKEY/INDXREQ*/
-  secs[0].sz= theTupKeyLen;
-  secs[0].sectionIter= &keyInfoIter;
-
-  /* AttrInfo - not always needed (e.g. Delete) */
-  if (theTotalCurrAI_Len != 0)
-  {
-    secs[1].sz= theTotalCurrAI_Len;
-    secs[1].sectionIter= &attrInfoIter;
-    numSecs++;
-  }
-
-  return tp->sendSignal(theTCREQ, aNodeId, &secs[0], numSecs);
-}
 
 
 /***************************************************************************

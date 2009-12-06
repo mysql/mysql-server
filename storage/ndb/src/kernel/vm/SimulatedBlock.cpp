@@ -335,6 +335,38 @@ SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
 #endif
 }
 
+void
+SimulatedBlock::handle_out_of_longsignal_memory(Signal * signal) const
+{
+  ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+			     "Out of LongMessageBuffer in sendSignal",
+			     "");
+}
+
+void
+SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
+{
+  switch(ss){
+  case SEND_BUFFER_FULL:
+    ErrorReporter::handleError(NDBD_EXIT_GENERIC,
+                               "Out of SendBufferMemory in sendSignal", "");
+    break;
+  case SEND_MESSAGE_TOO_BIG:
+    ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
+                               "Message to big in sendSignal", "");
+    break;
+  case SEND_UNKNOWN_NODE:
+    ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
+                               "Unknown node in sendSignal", "");
+    break;
+  case SEND_OK:
+  case SEND_BLOCKED:
+  case SEND_DISCONNECTED:
+    break;
+  }
+  ndbrequire(false);
+}
+
 static void
 linkSegments(Uint32 head, Uint32 tail){
   
@@ -522,18 +554,13 @@ SimulatedBlock::sendSignal(BlockReference ref,
                                                &signal->theData[0], recNode,
                                                (LinearSectionPtr*)0);
 #endif
-/*  if(!(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED)){
- *      ndbout << "Failed to send signal no " << gsn 
- *	     << " sender blockNumber=" << refToMain(sendBRef)
- *	     << " sender Nodeno=" << refToNode(sendBRef)
- *	     << " sender instanceNo=" << refToInstance(sendBRef) 
- *	     << " blockNumber=" << refToMain(ref)
- *	     << " Nodeno=" << refToNode(ref)
- *	     << " instanceNo=" << refToInstance(ref) << endl;
- *     ndbout.flushline();
- *   }
- */   
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
   return;
 }
@@ -635,7 +662,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
                                                (LinearSectionPtr*)0);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   return;
@@ -692,10 +724,16 @@ SimulatedBlock::sendSignal(BlockReference ref,
     /**
      * We have to copy the data
      */
+    bool ok = true;
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz));
+      ok &= ::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz);
       signal->theData[length+i] = segptr[i].i;
+    }
+
+    if (unlikely(! ok))
+    {
+      handle_out_of_longsignal_memory(signal);
     }
     
 #ifdef NDBD_MULTITHREADED
@@ -743,7 +781,12 @@ SimulatedBlock::sendSignal(BlockReference ref,
                                                ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   signal->header.m_noOfSections = 0;
@@ -807,10 +850,16 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     /**
      * We have to copy the data
      */
+    bool ok = true;
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz));
+      ok &= ::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz);
       signal->theData[length+i] = segptr[i].i;
+    }
+
+    if (unlikely(! ok))
+    {
+      handle_out_of_longsignal_memory(signal);
     }
 
 #ifdef NDBD_MULTITHREADED
@@ -862,7 +911,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
                                                ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
   
   signal->header.m_noOfSections = 0;
@@ -967,7 +1021,13 @@ SimulatedBlock::sendSignal(BlockReference ref,
                                                sections->m_ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
+
     ::releaseSections(SB_SP_ARG noOfSections, sections->m_ptr);
   }
 
@@ -1090,7 +1150,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
                                                sections->m_ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   if (release)
@@ -2679,8 +2744,9 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   
   /* Store main signal data in a segment for sending later */
   Ptr<SectionSegment> tmp;
-  if(!import(tmp, &signal->theData[0], length)){
-    ndbrequire(false);
+  if(!import(tmp, &signal->theData[0], length))
+  {
+    handle_out_of_longsignal_memory(0);
     return false;
   }
   info.m_theDataSection.p = &tmp.p->theData[0];
@@ -3019,8 +3085,9 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   info.m_callback.m_callbackFunction = 0;
 
   Ptr<SectionSegment> tmp;
-  if(!import(tmp, &signal->theData[0], length)){
-    ndbrequire(false);
+  if(unlikely(!import(tmp, &signal->theData[0], length)))
+  {
+    handle_out_of_longsignal_memory(0);
     return false;
   }
 
@@ -3739,7 +3806,10 @@ SimulatedBlock::sendRoutedSignal(RoutePath path[], Uint32 pathcnt,
     handle.m_ptr[2] = handle.m_ptr[1];
     handle.m_ptr[1] = handle.m_ptr[0];
     Ptr<SectionSegment> tmp;
-    ndbrequire(import(tmp, signal->theData, sigLen));
+    if (unlikely(! import(tmp, signal->theData, sigLen)))
+    {
+      handle_out_of_longsignal_memory(0);
+    }
     handle.m_ptr[0].p = tmp.p;
     handle.m_ptr[0].i = tmp.i;
     handle.m_ptr[0].sz = sigLen;

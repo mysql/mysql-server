@@ -290,7 +290,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
   : Ndb_cluster_connection(*this),
     m_main_connection(main_connection),
     m_optimized_node_selection(1),
-    m_name(0),
     m_run_connect_thread(0),
     m_latest_trans_gci(0),
     m_first_ndb_object(0),
@@ -335,13 +334,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
       ("Could not initialize handle to management server: %s",
        m_config_retriever->getErrorString());
     printf("%s\n", get_latest_error_msg());
-    delete m_config_retriever;
-    m_config_retriever= 0;
-  }
-  if (m_name)
-  {
-    NdbMgmHandle h= m_config_retriever->get_mgmHandle();
-    ndb_mgm_set_name(h, m_name);
   }
   if (!m_main_connection)
   {
@@ -354,6 +346,11 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_globalDictCache = 0;
     m_transporter_facade=
       new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
+
+    // The secondary connection can't use same nodeid, clear the nodeid
+    // in ConfigRetriver to avoid asking for the same nodeid again
+    m_config_retriever->setNodeId(0);
+
   }
 
   DBUG_VOID_RETURN;
@@ -395,8 +392,6 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     ndb_print_state_mutex= NULL;
   }
 #endif
-  if (m_name)
-    free(m_name);
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(--g_ndb_connection_count == 0)
@@ -483,14 +478,8 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
 void
 Ndb_cluster_connection_impl::set_name(const char *name)
 {
-  if (m_name)
-    free(m_name);
-  m_name= strdup(name);
-  if (m_config_retriever && m_name)
-  {
-    NdbMgmHandle h= m_config_retriever->get_mgmHandle();
-    ndb_mgm_set_name(h, m_name);
-  }
+  NdbMgmHandle h= m_config_retriever->get_mgmHandle();
+  ndb_mgm_set_name(h, name);
 }
 
 int

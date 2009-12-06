@@ -1,0 +1,105 @@
+create table t1 (
+th int primary key, 
+un int, 
+de int, 
+rb varchar(1000), 
+al longtext, 
+key(de),
+unique(rb)) 
+engine=ndb;
+insert into t1 values (1, 1, 1, repeat('O', 1000), repeat('L', 60000));
+insert into t1 values (2, 2, 2, repeat('W',  999), repeat('B', 60001));
+insert into t1 values (3, 3, 3, repeat('P',  998), repeat('P', 60002));
+insert into t1 values (4, 4, 4, repeat('Q',  997), repeat('E', 60003));
+insert into t1 values (5, 5, 5, repeat('E',  996), repeat('A', 60004));
+select th, un, de, length(rb), length(al) 
+from t1 
+where th in (2,4) 
+order by th;
+th	un	de	length(rb)	length(al)
+2	2	2	999	60001
+4	4	4	997	60003
+select th, un, de, length(rb), length(al) 
+from t1 
+where rb 
+in (repeat('O', 1000), repeat('Q', 997))
+order by th;
+th	un	de	length(rb)	length(al)
+1	1	1	1000	60000
+4	4	4	997	60003
+select th, un, de, length(rb), length(al)
+from t1
+where de between 3 and 5
+order by th;
+th	un	de	length(rb)	length(al)
+3	3	3	998	60002
+4	4	4	997	60003
+5	5	5	996	60004
+select th, un, de, length(rb), length(al) 
+from t1 
+order by th;
+th	un	de	length(rb)	length(al)
+1	1	1	1000	60000
+2	2	2	999	60001
+3	3	3	998	60002
+4	4	4	997	60003
+5	5	5	996	60004
+update t1 
+set un=6, de=6, rb= repeat('S', 995), al = repeat('O', 60005)
+where th = 1;
+update t1
+set un=7, de=7, al = repeat('F', 60006)
+where rb = repeat('W', 999);
+update t1
+set un= un + 5, rb = repeat('U', 1000 - un), al = repeat('U', 60000 + un)
+where de >= 3 and de <= 5;
+select th, un, de, length(rb), length(al) 
+from t1 
+order by th;
+th	un	de	length(rb)	length(al)
+1	6	6	995	60005
+2	7	7	999	60006
+3	8	3	992	60008
+4	9	4	991	60009
+5	10	5	990	60010
+alter table t1 add column extra varchar(2000);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+update t1 set extra = repeat(rb, 2);
+select th, un, de, length(rb), length(al), length(extra)
+from t1 
+order by th;
+th	un	de	length(rb)	length(al)	length(extra)
+1	6	6	995	60005	1990
+2	7	7	999	60006	1998
+3	8	3	992	60008	1984
+4	9	4	991	60009	1982
+5	10	5	990	60010	1980
+select th, un, de, length(rb), length(al), length(extra)
+from t1
+where extra in (
+repeat('U', 2000),
+repeat('U', 1998),
+repeat('U', 1996),
+repeat('U', 1994),
+repeat('U', 1992),
+repeat('U', 1990),
+repeat('U', 1988),
+repeat('U', 1986),
+repeat('U', 1984),
+repeat('U', 1982),
+repeat('U', 1980),
+repeat('U', 1978),
+repeat('U', 1976),
+repeat('U', 1974),
+repeat('U', 1972),
+repeat('U', 1970),
+repeat('U', 1968),
+repeat('U', 1966),
+repeat('U', 1964))
+order by th;
+th	un	de	length(rb)	length(al)	length(extra)
+3	8	3	992	60008	1984
+4	9	4	991	60009	1982
+5	10	5	990	60010	1980
+drop table t1;

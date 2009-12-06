@@ -27,9 +27,9 @@
 #include <NdbReceiver.hpp>
 #include <NdbOperation.hpp>
 #include <kernel/ndb_limits.h>
-#include <NdbQueryOperationImpl.hpp>
 #include <NdbTick.h>
 
+#include "NdbQueryOperationImpl.hpp"
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
@@ -109,6 +109,14 @@ public:
     ndb.theError.code = code;
     return;
   }
+
+  bool forceShortRequests;
+
+  static inline void setForceShortRequests(Ndb* ndb, bool val)
+  {
+    ndb->theImpl->forceShortRequests = val;
+  }
+
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 

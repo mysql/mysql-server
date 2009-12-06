@@ -2395,15 +2395,93 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }
 
   TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+
+  Uint32 tcNodeVersion = tp->getNodeNdbVersion(aProcessorId);
+  bool forceShort = false;
+  forceShort = theNdb->theImpl->forceShortRequests;
+  bool sendLong = ( tcNodeVersion >= NDBD_LONG_SCANTABREQ) &&
+    ! forceShort;
   
-  /* Send Fragmented as SCAN_TABREQ can be large */
-  if (tp->sendFragmentedSignal(theSCAN_TABREQ, 
-                               aProcessorId, 
-                               &secs[0], 
-                               numSections) == -1)
+  if (sendLong)
   {
-    setErrorCode(4002);
-    return -1;
+    /* Send Fragmented as SCAN_TABREQ can be large */
+    if (tp->sendFragmentedSignal(theSCAN_TABREQ, 
+                                 aProcessorId, 
+                                 &secs[0], 
+                                 numSections) == -1)
+    {
+      setErrorCode(4002);
+      return -1;
+    }
+  }
+  else
+  {
+    /* Send a 'short' SCANTABREQ - e.g. long SCANTABREQ
+     * with signalIds as first section, followed by
+     * AttrInfo and KeyInfo trains
+     */
+    Uint32 attrInfoLen = secs[1].sz;
+    Uint32 keyInfoLen = (numSections == 3)? secs[2].sz : 0;
+
+    ScanTabReq* scanTabReq = (ScanTabReq*) theSCAN_TABREQ->getDataPtrSend();
+    Uint32 connectPtr = scanTabReq->apiConnectPtr;
+    Uint32 transId1 = scanTabReq->transId1;
+    Uint32 transId2 = scanTabReq->transId2;
+
+    /* Modify ScanTabReq to carry length of keyinfo and attrinfo */
+    scanTabReq->attrLenKeyLen = (keyInfoLen << 16) | attrInfoLen;
+
+    /* Send with receiver Ids as first and only section */
+    if (tp->sendSignal(theSCAN_TABREQ, aProcessorId, &secs[0], 1) == -1)
+    {
+      setErrorCode(4002);
+      return -1;
+    }
+
+    if (keyInfoLen)
+    {
+      GSIReader keyInfoReader(secs[2].sectionIter);
+      theSCAN_TABREQ->theVerId_signalNumber = GSN_KEYINFO;
+      KeyInfo* keyInfo = (KeyInfo*) theSCAN_TABREQ->getDataPtrSend();
+      keyInfo->connectPtr = connectPtr;
+      keyInfo->transId[0] = transId1;
+      keyInfo->transId[1] = transId2;
+
+      while(keyInfoLen)
+      {
+        Uint32 dataWords = MIN(keyInfoLen, KeyInfo::DataLength);
+        keyInfoReader.copyNWords(&keyInfo->keyData[0], dataWords);
+        theSCAN_TABREQ->setLength(KeyInfo::HeaderLength + dataWords);
+
+        if (tp->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
+        {
+          setErrorCode(4002);
+          return -1;
+        }
+        keyInfoLen -= dataWords;
+      }
+    }
+
+    GSIReader attrInfoReader(secs[1].sectionIter);
+    theSCAN_TABREQ->theVerId_signalNumber = GSN_ATTRINFO;
+    AttrInfo* attrInfo = (AttrInfo*) theSCAN_TABREQ->getDataPtrSend();
+    attrInfo->connectPtr = connectPtr;
+    attrInfo->transId[0] = transId1;
+    attrInfo->transId[1] = transId2;
+    
+    while(attrInfoLen)
+    {
+      Uint32 dataWords = MIN(attrInfoLen, AttrInfo::DataLength);
+      attrInfoReader.copyNWords(&attrInfo->attrData[0], dataWords);
+      theSCAN_TABREQ->setLength(AttrInfo::HeaderLength + dataWords);
+
+      if (tp->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
+      {
+        setErrorCode(4002);
+        return -1;
+      }
+      attrInfoLen -= dataWords;
+    }
   }
 
   theStatus = WaitResponse;  
