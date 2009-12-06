@@ -226,6 +226,25 @@ end:
 stack trace is much more helpful in diagnosing the problem, so please do \n\
 resolve it\n");
 }
+
+#elif defined(__sun)
+
+/* Use Solaris' symbolic stack trace routine. */
+#include <ucontext.h>
+
+void  print_stacktrace(gptr stack_bottom __attribute__((unused)), 
+                       ulong thread_stack __attribute__((unused)))
+{
+  if (printstack(fileno(stderr)) == -1)
+    fprintf(stderr, "Error when traversing the stack, stack appears corrupt.\n");
+  else
+    fprintf(stderr, "Please read "
+            "http://dev.mysql.com/doc/mysql/en/using-stack-trace.html "
+            "and follow instructions on how to resolve the stack trace. "
+            "Resolved\nstack trace is much more helpful in diagnosing the "
+            "problem, so please do \nresolve it\n");
+}
+
 #endif /* TARGET_OS_LINUX */
 #endif /* HAVE_STACKTRACE */
 
