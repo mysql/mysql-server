@@ -12824,7 +12824,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  }
 	  DBUG_RETURN(1);
 	}
-	if (tab->ref.key_parts <= used_key_parts)
+	if (tab->ref.key_parts <= used_key_parts && tab->type == JT_REF)
 	{
 	  /*
 	    SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
