@@ -34,7 +34,7 @@ public:
   /**
    * Default constructor.
    */
-  ConsoleLogHandler(const NdbOut &out= ndbout);
+  ConsoleLogHandler(NdbOut &out= ndbout);
   /**
    * Destructor.
    */
@@ -51,7 +51,7 @@ protected:
   virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
-  const NdbOut& _out;
+  NdbOut& _out;
 
 private:
   /** Prohibit*/
