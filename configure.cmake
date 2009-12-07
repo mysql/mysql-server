@@ -265,8 +265,8 @@ FUNCTION(MY_SEARCH_LIBS func libs result)
     CHECK_LIBRARY_EXISTS(${lib} ${func} "" HAVE_${func}_IN_${lib}) 
     IF(HAVE_${func}_IN_${lib})
       SET(${result} ${lib} PARENT_SCOPE)
+      RETURN()
     ENDIF()
-    RETURN()
   ENDFOREACH()
 ENDFUNCTION()
 
@@ -665,8 +665,15 @@ ELSE()
 ENDIF()
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
 CHECK_SYMBOL_EXISTS(isnan math.h HAVE_ISNAN)
-CHECK_SYMBOL_EXISTS(isinf math.h HAVE_ISINF)
 CHECK_SYMBOL_EXISTS(rint  math.h HAVE_RINT)
+
+# isinf() prototype not found on Solaris
+CHECK_CXX_SOURCE_COMPILES(
+"#include  <math.h>
+int main() { 
+  isinf(0.0); 
+  return 0;
+}" HAVE_ISINF)
 
 
 
