@@ -94,9 +94,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   ENDIF()
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-IF(WIN32)
-  SET(CAN_CONVERT_STATIC_TO_SHARED_LIB 1)
-ENDIF()
 
 # Large files
 SET(_LARGEFILE_SOURCE  1)
@@ -134,13 +131,9 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
 	
     # VS2003 needs the /Op compiler option to disable floating point 
     # optimizations
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Op")
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Op")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Op")
-    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Op")
-    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Op")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Op")
-ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Op")
+    SET(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /Op")
+ENDIF()
 
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" )
@@ -148,13 +141,31 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" )
     # HPUX linker crashes building plugins
     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
   ENDIF()
-  # If not PA-RISC make shared library suffix .so
+  # If Itanium make shared library suffix .so
   # OS understands both .sl and .so. CMake would
   # use .sl, however MySQL prefers .so
   IF(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "9000")
     SET(CMAKE_SHARED_LIBRARY_SUFFIX ".so" CACHE INTERNAL "" FORCE)
     SET(CMAKE_SHARED_MODULE_SUFFIX ".so" CACHE INTERNAL "" FORCE)
   ENDIF()
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Ensure we have clean build for shared libraries
+  # without extra dependencies and without unresolved symbols
+  FOREACH(LANG C CXX)
+  STRING(REPLACE "-rdynamic" "" 
+    CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS
+    ${CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS}  
+  )
+  ENDFOREACH()
+  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--as-needed")
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed")
+  SET(LINK_FLAG_NO_UNDEFINED "--Wl,--no-undefined")
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  SET(LINK_FLAG_NO_UNDEFINED "-z defs")
 ENDIF()
 
 #Some OS specific hacks
@@ -244,48 +255,41 @@ IF(WIN32)
  LINK_LIBRARIES(ws2_32)
 ENDIF()
 
-
-
-MACRO(MY_CHECK_LIB func lib found)
-  SET(${found} 0)
+# Searches function in libraries
+# if function is found, sets output parameter result to the name of the library
+# if function is found in libc, result will be empty 
+FUNCTION(MY_SEARCH_LIBS func libs result)
   CHECK_FUNCTION_EXISTS(${func} HAVE_${func}_IN_LIBC)
-  CHECK_LIBRARY_EXISTS(${lib} ${func} "" HAVE_${func}_IN_${lib}) 
-  IF (HAVE_${func}_IN_${lib})
-    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${lib})
-    LINK_LIBRARIES(${lib})
-    STRING(TOUPPER ${lib} upper_lib) 
-    SET(HAVE_LIB${upper_lib} 1 CACHE INTERNAL "Library check")
-    SET(${found} 1)
+  IF(HAVE_${func}_IN_LIBC)
+    SET(${result} "" PARENT_SCOPE)
+    RETURN()
   ENDIF()
-ENDMACRO()
-
-MACRO(MY_SEARCH_LIBS func lib found)
-  SET(${found} 0)
-  CHECK_FUNCTION_EXISTS(${func} HAVE_${func}_IN_LIBC)
-  IF(NOT HAVE_${func}_IN_LIBC) 
-    MY_CHECK_LIB(${func} ${lib} ${found})    
-  ELSE()
-    SET(${found} 1)
-  ENDIF()
-ENDMACRO()
+  FOREACH(lib  ${libs})
+    CHECK_LIBRARY_EXISTS(${lib} ${func} "" HAVE_${func}_IN_${lib}) 
+    IF(HAVE_${func}_IN_${lib})
+      SET(${result} ${lib} PARENT_SCOPE)
+    ENDIF()
+    RETURN()
+  ENDFOREACH()
+ENDFUNCTION()
 
 IF(UNIX)
-  MY_CHECK_LIB(floor m found)
-  IF(NOT found)
-    MY_CHECK_LIB( __infinity m found)
+  MY_SEARCH_LIBS(floor m LIBM)
+  IF(NOT LIBM)
+    MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
-  MY_CHECK_LIB(gethostbyname_r  nsl_r found)
-  IF (NOT found)
-    MY_CHECK_LIB(gethostbyname_r nsl found)
-  ENDIF()
-  MY_SEARCH_LIBS(bind bind found)
-  MY_SEARCH_LIBS(crypt crypt found)
-  MY_SEARCH_LIBS(setsockopt socket found)
-  MY_SEARCH_LIBS(aio_read rt found)
-  MY_SEARCH_LIBS(sched_yield posix4 found)
-  MY_CHECK_LIB(pthread_create pthread found)
-  MY_SEARCH_LIBS(dlopen dl found)
- 
+  MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNLS)
+  MY_SEARCH_LIBS(bind bind LIBBIND)
+  MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
+  MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
+  MY_SEARCH_LIBS(dlopen dl LIBDL)
+  FIND_PACKAGE(Threads)
+
+  SET(CMAKE_REQUIRED_LIBRARIES 
+    ${LIBNLS} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT})
+
+  LINK_LIBRARIES(${CMAKE_THREAD_LIBS_INIT})
+  
   OPTION(WITH_LIBWRAP "Compile with tcp wrappers support" OFF)
   IF(WITH_LIBWRAP)
     SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
@@ -303,7 +307,7 @@ IF(UNIX)
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
     IF(HAVE_LIBWRAP)
       SET(MYSYS_LIBWRAP_SOURCE  ${CMAKE_SOURCE_DIR}/mysys/my_libwrap.c)
-      SET(LIBWRAP_LIBRARY "wrap")
+      SET(LIBWRAP "wrap")
     ENDIF()
   ENDIF()
 ENDIF()

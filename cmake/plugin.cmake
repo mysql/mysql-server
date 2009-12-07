@@ -125,7 +125,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     DTRACE_INSTRUMENT(${target})
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
+    IF(ARG_LINK_LIBRARIES)
+      TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
+    ENDIF()
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
+
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
     # unresolved symbols. Others are less strict and allow unresolved symbols
