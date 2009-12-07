@@ -13,3 +13,9 @@ DataMemory=25M
 
 [cluster_config.ndbd.2.jonas]
 DataMemory=35M
+
+[cluster_config.bug44689]
+NoOfReplicas=2
+ndbd = 192.168.0.1,192.168.0.2,192.168.0.3,192.168.0.4
+ndb_mgmd = 192.168.0.1
+mysqld = 192.168.0.1
