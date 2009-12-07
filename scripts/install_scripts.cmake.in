@@ -88,6 +88,15 @@ ENDIF()
 # mysqlclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
+
+# Avoid compatibility warning about lists with empty elements
+IF(POLICY CMP0011)
+  CMAKE_POLICY(SET CMP0011 NEW)
+ENDIF()
+IF(POLICY CMP0007)
+  CMAKE_POLICY(SET CMP0007 OLD)
+ENDIF()
+
 LIST(REMOVE_ITEM mysqlclient_LIB_DEPENDS "")
 LIST(REMOVE_DUPLICATES mysqlclient_LIB_DEPENDS)
 FOREACH(lib ${mysqlclient_LIB_DEPENDS})
