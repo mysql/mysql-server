@@ -1179,6 +1179,13 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     ndbrequire(cmaxLogFilesInPageZero);
   }
 
+  Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
+  Uint64 limit = totalmb / 3;
+  ndbrequire(limit < Uint64(0xFFFFFFFF));
+  c_free_mb_force_lcp_limit = limit; // If less than 33% of REDO free, force LCP
+  c_free_mb_tail_problem_limit = 4;  // If less than 4Mb set TAIL_PROBLEM
+
+
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, 
                             &cTransactionDeadlockDetectionTimeout);
   
@@ -11759,11 +11766,27 @@ template class Vector<TraceLCP::Sig>;
 #else
 #endif
 
+void
+Dblqh::force_lcp(Signal* signal)
+{
+  if (cLqhTimeOutCount == c_last_force_lcp_time)
+  {
+    jam();
+    return;
+  }
+
+  c_last_force_lcp_time = cLqhTimeOutCount;
+  signal->theData[0] = 7099;
+  sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+}
+
 void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(5010);
-  LcpFragOrd * const lcpFragOrd = (LcpFragOrd *)&signal->theData[0];
+
+  LcpFragOrd lcpFragOrdCopy = * (LcpFragOrd *)&signal->theData[0];
+  LcpFragOrd * lcpFragOrd = &lcpFragOrdCopy;
 
   Uint32 lcpId = lcpFragOrd->lcpId;
 
@@ -12351,6 +12374,8 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
 
   for (sltLogPartPtr.i = 0; sltLogPartPtr.i < 4; sltLogPartPtr.i++) {
     jam();
+    bool TchangeMB = false;
+retry:
     ptrAss(sltLogPartPtr, logPartRecord);
     findLogfile(signal, sltLogPartPtr.p->logTailFileNo,
                 sltLogPartPtr, &sltLogFilePtr);
@@ -12437,33 +12462,125 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
       UintR ToldTailFileNo = sltLogPartPtr.p->logTailFileNo;
       UintR ToldTailMByte = sltLogPartPtr.p->logTailMbyte;
 
-      arrGuard(tsltMbyte, clogFileSize);
-      sltLogPartPtr.p->logTailFileNo = 
-         sltLogFilePtr.p->logLastPrepRef[tsltMbyte] >> 16;
 /* ------------------------------------------------------------------------- */
 /*SINCE LOG_MAX_GCI_STARTED ONLY KEEP TRACK OF COMMIT LOG RECORDS WE ALSO    */
 /*HAVE TO STEP BACK THE TAIL SO THAT WE INCLUDE ALL PREPARE RECORDS          */
 /*NEEDED FOR THOSE COMMIT RECORDS IN THIS MBYTE. THIS IS A RATHER            */
 /*CONSERVATIVE APPROACH BUT IT WORKS.                                        */
 /* ------------------------------------------------------------------------- */
+      arrGuard(tsltMbyte, clogFileSize);
+      sltLogPartPtr.p->logTailFileNo =
+        sltLogFilePtr.p->logLastPrepRef[tsltMbyte] >> 16;
       sltLogPartPtr.p->logTailMbyte = 
         sltLogFilePtr.p->logLastPrepRef[tsltMbyte] & 65535;
-      if ((ToldTailFileNo != sltLogPartPtr.p->logTailFileNo) ||
-          (ToldTailMByte != sltLogPartPtr.p->logTailMbyte)) {
+
+      bool tailmoved = !(ToldTailFileNo == sltLogPartPtr.p->logTailFileNo &&
+                         ToldTailMByte == sltLogPartPtr.p->logTailMbyte);
+
+      LogFileRecordPtr tmpfile;
+      tmpfile.i = sltLogPartPtr.p->currentLogfile;
+      ptrCheckGuard(tmpfile, clogFileFileSize, logFileRecord);
+
+      LogPosition head = { tmpfile.p->fileNo, tmpfile.p->currentMbyte };
+      LogPosition tail = { sltLogPartPtr.p->logTailFileNo,
+                           sltLogPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
+                           clogFileSize);
+
+      if (mb <= c_free_mb_force_lcp_limit)
+      {
+        /**
+         * Force a new LCP
+         */
+        force_lcp(signal);
+      }
+
+      if (tailmoved && mb > c_free_mb_tail_problem_limit)
+      {
         jam();
-        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM) {
-          if (sltLogPartPtr.p->firstLogQueue == RNIL) {
+        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM)
+        {
+          if (sltLogPartPtr.p->firstLogQueue == RNIL)
+          {
             jam();
             sltLogPartPtr.p->logPartState = LogPartRecord::IDLE;
-          } else {
+          }
+          else
+          {
             jam();
             sltLogPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-          }//if
-        }//if
-      }//if
-    }
-  }//for
+          }
+        }
+      }
+      else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
+      {
+        jam();
+        /**
+         * Tail didn't move...and we forced a new LCP
+         *   This could be as currentMb, contains backreferences making it
+         *   Check if changing mb forward will help situation
+         */
+        if (mb < 2)
+        {
+          /**
+           * 0 or 1 mb free, no point in trying to changeMbyte forward...
+           */
+          jam();
+          goto next;
+        }
 
+        if (TchangeMB)
+        {
+          jam();
+          /**
+           * We already did move forward...
+           */
+          goto next;
+        }
+
+        TcConnectionrecPtr tmp;
+        tmp.i = sltLogPartPtr.p->firstLogTcrec;
+        if (tmp.i != RNIL)
+        {
+          jam();
+          ptrCheckGuard(tmp, ctcConnectrecFileSize, tcConnectionrec);
+          Uint32 fileNo = tmp.p->logStartFileNo;
+          Uint32 mbyte = tmp.p->logStartPageNo >> ZTWOLOG_NO_PAGES_IN_MBYTE;
+
+          if (fileNo == sltLogPartPtr.p->logTailFileNo &&
+              mbyte == sltLogPartPtr.p->logTailMbyte)
+          {
+            jam();
+            /**
+             * An uncommitted operation...still pending...
+             *   with back-reference to tail...not much to do
+             *   (theoretically we could rewrite log-entry here...
+             *    but this is for future)
+             * skip to next
+             */
+            goto next;
+          }
+        }
+
+        {
+          /**
+           * Try forcing a changeMbyte
+           */
+          jam();
+          logPartPtr = sltLogPartPtr;
+          logFilePtr.i = logPartPtr.p->currentLogfile;
+          ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+          logPagePtr.i = logFilePtr.p->currentLogpage;
+          ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+          changeMbyte(signal);
+          TchangeMB = true; // don't try this twice...
+          goto retry;
+        }
+      }
+    }
+next:
+    (void)1;
+  }//for
 }//Dblqh::setLogTail()
 
 /* ######################################################################### */
@@ -19598,8 +19715,6 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       CAN INVOKE THIS SYSTEM CRASH. HOWEVER ONLY   */
 /*       VERY SERIOUS TIMING PROBLEMS.                */
 /* -------------------------------------------------- */
-      signal->theData[0] = 2398;
-      execDUMP_STATE_ORD(signal);
       char buf[100];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
@@ -19608,6 +19723,9 @@ void Dblqh::writeNextLog(Signal* signal)
                            logFilePtr.p->fileNo,
                            logFilePtr.p->currentMbyte);
 
+
+      signal->theData[0] = 2398;
+      execDUMP_STATE_ORD(signal);
       progError(__LINE__, NDBD_EXIT_NO_MORE_REDOLOG, buf);
       systemError(signal, __LINE__);
     }//if
@@ -19628,7 +19746,14 @@ void Dblqh::writeNextLog(Signal* signal)
 
   LogPosition head = { twnlNextFileNo, twnlNextMbyte };
   LogPosition tail = { logPartPtr.p->logTailFileNo, logPartPtr.p->logTailMbyte};
-  if (free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize) <= 4)
+  Uint32 free_mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+  if (free_mb <= c_free_mb_force_lcp_limit)
+  {
+    jam();
+    force_lcp(signal);
+  }
+
+  if (free_mb <= c_free_mb_tail_problem_limit)
   {
     jam();
     logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
