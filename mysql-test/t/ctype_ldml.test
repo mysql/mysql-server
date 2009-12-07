@@ -144,3 +144,11 @@ CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
 INSERT INTO t1 VALUES ('a'),('b');
 SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 DROP TABLE t1;
+
+
+#
+# Bug#47756 Setting 2byte collation ID with 'set names' crashes the server
+#
+SET NAMES utf8 COLLATE utf8_phone_ci;
+SHOW COLLATION LIKE 'utf8_phone_ci';
+SET NAMES utf8;
