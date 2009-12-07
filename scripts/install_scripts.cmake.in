@@ -6,12 +6,19 @@ SET(CFLAGS "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
 SET(CXXFLAGS "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
 SET(LDFLAGS "@CMAKE_SHARED_LIBRARY_LINK_FLAGS@")
 SET(mysqlclient_LIB_DEPENDS "@mysqlclient_LIB_DEPENDS@")
-SET(mysqlclient_LIB_DEPENDS "@mysqlserver_LIB_DEPENDS@")
+SET(mysqlserver_LIB_DEPENDS "@mysqlserver_LIB_DEPENDS@")
 SET(CMAKE_CURRENT_SOURCE_DIR "@CMAKE_CURRENT_SOURCE_DIR@")
 SET(CMAKE_CURRENT_BINARY_DIR "@CMAKE_CURRENT_BINARY_DIR@")
 SET(CMAKE_COMPILER_IS_GNUCXX "@CMAKE_COMPILER_IS_GNUCXX@")
 SET(CMAKE_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
 SET(CMAKE_CXX_COMPILER_ARG1 "@CMAKE_CXX_COMPILER_ARG1@")
+SET(VERSION "@VERSION@")
+SET(MYSQL_UNIX_ADDR "@MYSQL_UNIX_ADDR@")
+SET(MYSQL_TCP_PORT_DEFAULT "@MYSQL_TCP_PORT_DEFAULT@")
+SET(MYSQL_TCP_PORT "@MYSQL_TCP_PORT@")
+SET(LIBDL "@LIBDL@")
+SET(LIBWRAP "@LIBWRAP@")
+
 
 IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe
@@ -81,17 +88,34 @@ ENDIF()
 # mysqlclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
+LIST(REMOVE_DUPLICATES mysqlclient_LIB_DEPENDS)
 FOREACH(lib ${mysqlclient_LIB_DEPENDS})
   # Filter out "general", it is not a library, just CMake hint
   IF(NOT lib STREQUAL "general" AND NOT CLIENT_LIBS MATCHES "-l${lib} ")
-     SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
+     IF (lib MATCHES "^\\-l")
+       SET(CLIENT_LIBS "${CLIENT_LIBS} ${lib} ") 
+     ELSEIF(lib MATCHES "^/")
+       # Full path, convert to just filename, strip "lib" prefix and extension
+       GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+       STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
+     ELSE()
+       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
+     ENDIF()
   ENDIF()
 ENDFOREACH()
-FOREACH(lib ${mysqlserver_LIB_DEPENDS})
-  IF(NOT lib STREQUAL "general" AND NOT LIBS MATCHES "-l${lib} ")
-     SET(LIBS "${LIBS}-l${lib} " ) 
-  ENDIF()
-ENDFOREACH()
+
+
+IF(LIBDL AND NOT LIBDL MATCHES "-l")
+  SET(LIBDL "-l${LIBDL}")
+ENDIF()
+
+IF(LIBWRAP)
+  SET(WRAPLIBS "-lwrap")
+ENDIF()
+
+SET(LIBS "${CLIENT_LIBS}")
+
 IF(MSVC)
   STRING(REPLACE "-l" "" CLIENT_LIBS "${CLIENT_LIBS}")
   STRING(REPLACE "-l" "" LIBS "${LIBS}" )
@@ -106,6 +130,7 @@ IF(WIN32)
   # Input files with pl.in extension
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
+
   SET(SH_FILES mysql_convert_table_format mysqld_multi)
 
   FOREACH(file ${PLIN_FILES})
