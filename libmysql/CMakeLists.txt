@@ -167,7 +167,14 @@ IF(NOT DISABLE_SHARED)
       OUTPUT_NAME mysqlclient 
       VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-
+    IF(LINK_FLAG_NO_UNDEFINED)
+      GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
+      IF(NOT libmysql_link_flag)
+        SET(libmysql_link_flags)
+      ENDIF()
+      SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS 
+        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    ENDIF() 
     # clean direct output needs to be set several targets have the same name
     #(mysqlclient in this case)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
