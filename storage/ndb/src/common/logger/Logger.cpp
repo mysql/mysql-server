@@ -71,7 +71,7 @@ Logger::setCategory(const char* pCategory)
 }
 
 bool
-Logger::createConsoleHandler(const NdbOut &out)
+Logger::createConsoleHandler(NdbOut &out)
 {
   Guard g(m_handler_mutex);
   bool rc = true;
