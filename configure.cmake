@@ -467,21 +467,8 @@ CHECK_INCLUDE_FILES_UNIX (sys/param.h HAVE_SYS_PARAM_H)
 CHECK_INCLUDE_FILES_UNIX (sys/vadvise.h HAVE_SYS_VADVISE_H)
 CHECK_INCLUDE_FILES_UNIX (fnmatch.h HAVE_FNMATCH_H)
 CHECK_INCLUDE_FILES (stdarg.h  HAVE_STDARG_H)
+CHECK_INCLUDE_FILES_UNIX("stdlib.h;sys/un.h" HAVE_SYS_UN_H)
 
-# sys/un.h is broken on Linux and Solaris
-# It cannot be included alone ( it references types 
-# defined in stdlib.h, i.e size_t) 
-CHECK_C_SOURCE_COMPILES_UNIX("
-#include <stdlib.h>
-#include <sys/un.h>
-int main()
-{
-  return 0;
-}
-"
-HAVE_SYS_UN_H)
-
-#
 # Figure out threading library
 #
 FIND_PACKAGE (Threads)
@@ -676,7 +663,10 @@ IF(HAVE_FINITE_IN_MATH_H)
 ELSE()
   CHECK_SYMBOL_EXISTS(finite  "ieeefp.h" HAVE_FINITE)
 ENDIF()
-CHECK_SYMBOL_EXISTS(log2 "math.h" HAVE_LOG2)
+CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
+CHECK_SYMBOL_EXISTS(isnan math.h HAVE_ISNAN)
+CHECK_SYMBOL_EXISTS(isinf math.h HAVE_ISINF)
+CHECK_SYMBOL_EXISTS(rint  math.h HAVE_RINT)
 
 
 
@@ -685,7 +675,8 @@ CHECK_SYMBOL_EXISTS(log2 "math.h" HAVE_LOG2)
 #
 INCLUDE(TestBigEndian)
 IF(APPLE)
-  # Care for universal binary format
+  # Can'r run endian test on universal PPC/Intel binaries 
+  # would return inconsistent result.
   SET(WORDS_BIGENDIAN __BIG_ENDIAN CACHE INTERNAL "big endian test")
 ELSE()
   TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
@@ -725,8 +716,7 @@ CHECK_TYPE_SIZE(char SIZEOF_CHAR)
 CHECK_TYPE_SIZE(short SIZEOF_SHORT)
 CHECK_TYPE_SIZE(int SIZEOF_INT)
 CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
-SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h)
-SET(CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
+SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h)
 CHECK_TYPE_SIZE(off_t SIZEOF_OFF_T)
 CHECK_TYPE_SIZE(uchar SIZEOF_UCHAR)
 CHECK_TYPE_SIZE(uint SIZEOF_UINT)
@@ -897,7 +887,7 @@ IF(NOT STACK_DIRECTION)
      ELSE()
        SET(STACK_DIRECTION 1 CACHE INTERNAL "Stack grows direction")
      ENDIF()
-     MESSAGE(STATUS "Checking stack grows direction : ${STACK_DIRECTION}")
+     MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
    ENDIF()
 ENDIF()
 
@@ -922,60 +912,9 @@ ELSE(SIGNAL_RETURN_TYPE_IS_VOID)
   SET(RETSIGTYPE int)
 ENDIF(SIGNAL_RETURN_TYPE_IS_VOID)
 
-#
-# isnan() is trickier than the usual function test -- it may be a macro
-#
-CHECK_CXX_SOURCE_COMPILES("#include <math.h>
-  int main(int ac, char **av)
-  {
-    isnan(0.0);
-    return 0;
-  }"
-  HAVE_ISNAN)
 
-#
-# isinf() is trickier than the usual function test -- it may be a macro
-#
-CHECK_CXX_SOURCE_COMPILES("#include <math.h>
-  int main(int ac, char **av)
-  {
-    isinf(0.0);
-    return 0;
-  }"
-  HAVE_ISINF)
-#
-# rint() is trickier than the usual function test -- it may be a macro
-#
-CHECK_CXX_SOURCE_COMPILES("#include <math.h>
-  int main(int ac, char **av)
-  {
-    rint(0.0);
-    return 0;
-  }"
-  HAVE_RINT)
-
-CHECK_CXX_SOURCE_COMPILES("
-    #include <time.h>
-    #include <sys/time.h>
-    int main()
-    {
-      return 0;
-    }"
-    TIME_WITH_SYS_TIME)
-
-IF(UNIX)
-CHECK_C_SOURCE_COMPILES("
-#include <unistd.h>
-#include <fcntl.h>
-int main()
-{
-  fcntl(0, F_SETFL, O_NONBLOCK);
-  return 0;
-}
-"
-HAVE_FCNTL_NONBLOCK)
-ENDIF()
-
+CHECK_INCLUDE_FILES_UNIX("time.h;sys/time.h" TIME_WITH_SYS_TIME)
+CHECK_SYMBOL_EXISTS_UNIX(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)
 IF(NOT HAVE_FCNTL_NONBLOCK)
  SET(NO_FCNTL_NONBLOCK 1)
 ENDIF()
@@ -1020,13 +959,9 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
    " HAVE_FAKE_PAUSE_INSTRUCTION)
   ENDIF()
 ENDIF()
-
-
-
   
 CHECK_SYMBOL_EXISTS_UNIX(tcgetattr "termios.h" HAVE_TCGETATTR 1)
 CHECK_INCLUDE_FILES_UNIX(sys/ioctl.h HAVE_SYS_IOCTL 1)
-
 
 #
 # Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
@@ -1130,8 +1065,8 @@ CHECK_CXX_SOURCE_COMPILES_UNIX("
     {
 
        struct hostent *foo =
-	  gethostbyaddr_r((const char *) 0,
-			  0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
+       gethostbyaddr_r((const char *) 0,
+          0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
        return 0;
     }
   "
@@ -1200,8 +1135,8 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "AIX" OR CMAKE_SYSTEM_NAME STREQUAL "OS400")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qstaticinline")
   ENDIF()
 
-  # The following is required to export all symbols (also with leading underscore
-  # from libraries and mysqld
+  # The following is required to export all symbols 
+  # (also with leading underscore)
   STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS
           ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
   STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS
@@ -1358,5 +1293,3 @@ IF(WIN32)
   ENDIF()
 
 ENDIF(WIN32)
-
-
