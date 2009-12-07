@@ -846,7 +846,6 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
-AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_SEARCH_LIBS(setsockopt, socket)
 # This may get things to compile even if bind-8 is installed
