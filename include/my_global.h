@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,16 @@
 #undef inline				/* fix configure problem */
 #endif
 #endif /* _WIN32... */
+
+#ifdef EMBEDDED_LIBRARY
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#undef WITH_PERFSCHEMA_STORAGE_ENGINE
+#endif
+#endif /* EMBEDDED_LIBRARY */
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#define HAVE_PSI_INTERFACE
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditionl code for windows */
 #ifdef __WIN__
