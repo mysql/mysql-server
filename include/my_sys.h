@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1017,6 +1017,16 @@ char* my_cgets(char *string, size_t clen, size_t* plen);
 void netware_reg_user(const char *ip, const char *user,
 		      const char *application);
 #endif
+
+#include <mysql/psi/psi.h>
+
+#ifdef HAVE_PSI_INTERFACE
+extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;
+void my_init_mysys_psi_keys(void);
+#endif
+
+struct st_mysql_file;
+extern struct st_mysql_file *mysql_stdin;
 
 C_MODE_END
 #endif /* _my_sys_h */

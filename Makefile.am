@@ -269,11 +269,12 @@ test-full-qa:
 #
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                           $(top_srcdir)/include/mysql.h
+			$(top_srcdir)/include/mysql.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
 
-TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                            $(top_srcdir)/sql/mysql_priv.h \
-                            $(top_srcdir)/include/mysql.h
+TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
+			$(top_srcdir)/sql/mysql_priv.h
 
 #
 # Rules for checking that the abi/api has not changed.
