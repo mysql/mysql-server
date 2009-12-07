@@ -1182,7 +1182,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
   Uint64 limit = totalmb / 3;
   ndbrequire(limit < Uint64(0xFFFFFFFF));
-  c_free_mb_force_lcp_limit = limit; // If less than 33% of REDO free, force LCP
+  // If less than 33% of REDO free, force LCP
+  c_free_mb_force_lcp_limit = Uint32(limit); 
   c_free_mb_tail_problem_limit = 4;  // If less than 4Mb set TAIL_PROBLEM
 
 
@@ -19746,7 +19747,7 @@ void Dblqh::writeNextLog(Signal* signal)
 
   LogPosition head = { twnlNextFileNo, twnlNextMbyte };
   LogPosition tail = { logPartPtr.p->logTailFileNo, logPartPtr.p->logTailMbyte};
-  Uint32 free_mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+  Uint64 free_mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
   if (free_mb <= c_free_mb_force_lcp_limit)
   {
     jam();
