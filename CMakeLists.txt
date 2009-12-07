@@ -13,7 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+# Avoid warnings in higher versions
+if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
+ CMAKE_POLICY(VERSION 2.8)
+endif()
+
 
 # First, decide about build type (debug or release)
 # If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE, 
@@ -136,15 +141,15 @@ ENDIF()
 
 # Set commonly used variables
 IF(WIN32)
-  SET(DEFAULT_MYSQL_HOME "C:/Program Files/MySQL/MySQL Server ${MYSQL_BASE_VERSION}/" )
+  SET(DEFAULT_MYSQL_HOME "C:/Program Files/MySQL/MySQL Server ${MYSQL_BASE_VERSION}" )
   SET(SHAREDIR share)
 ELSE()
   SET(DEFAULT_MYSQL_HOME ${CMAKE_INSTALL_PREFIX})
-  SET(SHAREDIR ${DEFAULT_MYSQL_HOME}share)
+  SET(SHAREDIR ${DEFAULT_MYSQL_HOME}/share)
 ENDIF()
 
 SET(DEFAULT_BASEDIR "${DEFAULT_MYSQL_HOME}")
-SET(MYSQL_DATADIR "${DEFAULT_MYSQL_HOME}data")
+SET(MYSQL_DATADIR "${DEFAULT_MYSQL_HOME}/data")
 SET(DEFAULT_CHARSET_HOME "${DEFAULT_MYSQL_HOME}")
 
 
