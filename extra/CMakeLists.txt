@@ -58,17 +58,11 @@ TARGET_LINK_LIBRARIES(perror mysys)
 
 ADD_EXECUTABLE(resolveip resolveip.c)
 TARGET_LINK_LIBRARIES(resolveip mysys)
-# On Solaris, inet_aton() function used by resolveip could be in resolv library
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   INCLUDE(CheckFunctionExists)
   INCLUDE(CheckLibraryExists)
-  CHECK_FUNCTION_EXISTS(inet_aton HAVE_INET_ATON)
-  IF(NOT HAVE_INET_ATON)
-    CHECK_LIBRARY_EXISTS(resolv inet_aton "" HAVE_INET_ATON_IN_RESOLV)
-    IF(HAVE_INET_ATON_IN_RESOLV)
-      TARGET_LINK_LIBRARIES(resolveip resolv)
-    ENDIF()
-  ENDIF()
+  MY_SEARCH_LIBS(inet_aton  "nsl;socket;resolv" SOLARIS_NSL)
+  TARGET_LINK_LIBRARIES(resolveip ${SOLARIS_NSL})
 ENDIF()
 
 
