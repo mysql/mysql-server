@@ -132,25 +132,31 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
 
+  SET(OSLIBS)
   FOREACH(LIB ${LIBS_TO_MERGE})
     GET_TARGET_PROPERTY(LIB_LOCATION ${LIB} LOCATION)
     GET_TARGET_PROPERTY(LIB_TYPE ${LIB} TYPE)
     IF(NOT LIB_LOCATION)
        # 3rd party library like libz.so. Make sure that everything
        # that links to our library links to this one as well.
-       TARGET_LINK_LIBRARIES(${TARGET} ${LIB})
+       LIST(APPEND OSLIBS ${LIB})
     ELSE()
       # This is a target in current project
       # (can be a static or shared lib)
       IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
         SET(STATIC_LIBS ${STATIC_LIBS} ${LIB_LOCATION})
         ADD_DEPENDENCIES(${TARGET} ${LIB})
+        # Extract dependend OS libraries
+        GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
+        LIST(APPEND OSLIBS ${LIB_OSLIBS})
       ELSE()
         # This is a shared library our static lib depends on.
-        TARGET_LINK_LIBRARIES(${TARGET} ${LIB})
+        LIST(APPEND OSLIBS ${LIB})
       ENDIF()
     ENDIF()
   ENDFOREACH()
+  LIST(REMOVE_DUPLICATES OSLIBS)
+  TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
 
   # Make the generated dummy source file depended on all static input
   # libs. If input lib changes,the source file is touched
@@ -249,15 +255,26 @@ MACRO(MERGE_LIBRARIES)
     IF(ARG_OUTPUT_NAME)
       SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
     ENDIF()
-    # Disallow undefined symbols in shared libraries, but allow for modules
-    # (they export from loading executable)
-    IF(LIBTYPE MATCHES "SHARED" AND CMAKE_SYSTEM_TYPE MATCHES "Linux")
-      SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_FLAGS "-Wl,--no-undefined")
-    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown library type")
   ENDIF()
 ENDMACRO()
+
+FUNCTION(GET_DEPENDEND_OS_LIBS target result)
+  SET(deps ${${target}_LIB_DEPENDS})
+  IF(deps)
+   FOREACH(lib ${deps})
+    # Filter out keywords for used for debug vs optimized builds
+    IF(NOT lib MATCHES "general" AND NOT lib MATCHES "debug" AND NOT lib MATCHES "optimized")
+      GET_TARGET_PROPERTY(lib_location ${lib} LOCATION)
+      IF(NOT lib_location)
+        SET(ret ${ret} ${lib})
+      ENDIF()
+    ENDIF()
+   ENDFOREACH()
+  ENDIF()
+  SET(${result} ${ret} PARENT_SCOPE)
+ENDFUNCTION()
 
 MACRO(RESTRICT_SYMBOL_EXPORTS target)
   IF(CMAKE_COMPILER_IS_GNUCXX AND UNIX)
