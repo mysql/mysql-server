@@ -1,3 +1,5 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
+
 SET(CMAKE_SYSTEM_NAME @CMAKE_SYSTEM_NAME@)
 SET(UNIX @UNIX@)
 SET(WIN32 @WIN32@)
@@ -88,6 +90,7 @@ ENDIF()
 # mysqlclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
+LIST(REMOVE_ITEM mysqlclient_LIB_DEPENDS "")
 LIST(REMOVE_DUPLICATES mysqlclient_LIB_DEPENDS)
 FOREACH(lib ${mysqlclient_LIB_DEPENDS})
   # Filter out "general", it is not a library, just CMake hint
