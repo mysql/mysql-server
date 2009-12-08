@@ -233,6 +233,8 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
 
+static int  make_pushed_join(JOIN *join);
+
 
 /**
   This handles SELECT with and without UNION.
@@ -1360,7 +1362,7 @@ JOIN::optimize()
         DBUG_RETURN(1);
       }
     }
-    
+  
     if (!(select_options & SELECT_BIG_RESULT) &&
         ((group_list &&
           (!simple_group ||
@@ -1376,6 +1378,20 @@ JOIN::optimize()
     if (order)
     {
       /*
+        Explore skipability of ORDER BY expression. Can skip if either completely obsolete,
+        or if an index may be used to scan in sorted order. In later case JT_NEXT and
+        tab->index is set by test_if_skip_sort_order()
+      */
+      if (!(select_options & SELECT_BIG_RESULT) &&
+          (simple_order && !skip_sort_order))
+      { 
+        skip_sort_order= test_if_skip_sort_order(&join_tab[const_tables], order,
+                                        unit->select_limit_cnt, 0, 
+                                        &join_tab[const_tables].table->
+                                        keys_in_use_for_order_by);
+      }
+
+      /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
       */
@@ -1390,6 +1406,20 @@ JOIN::optimize()
         }
       }
     }
+  }
+
+  if (make_pushed_join(this))
+    DBUG_RETURN(1);
+
+  /* If we just pushed a join containing an order by clause, we have to ensure that
+     we eiter can skip the sort by scaning an ordered index, or write to a
+     temp table later being filesorted.
+  */
+  if (order && simple_order && !skip_sort_order && 
+      join_tab[const_tables].table->file->has_pushed_joins())
+  {
+    need_tmp=1; simple_order=simple_group=0;  // Force tmp table+sort, no further 'simple' logic
+    DBUG_PRINT("info", ("need_tmp= %d, at:%d", need_tmp, __LINE__));
   }
 
   tmp_having= having;
@@ -6432,6 +6462,34 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 }
 
 
+static int
+make_pushed_join(JOIN *join)
+{
+  int pushed= 0;
+
+  for (uint i=join->const_tables ; i < join->tables ; i++)
+  {
+    JOIN_TAB *tab=join->join_tab+i;
+    TABLE *table=tab->table;
+
+    if (pushed > 0)   // Is inside a previous sequence of pushed joins
+    {
+      // Replace 'read_key' access with it linked counterpart 
+      // ... Which is effectively a NOOP as the row is read as part of the linked operation
+      DBUG_ASSERT(tab->read_first_record == join_read_key);
+      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
+      tab->read_first_record= join_read_linked_key;
+    }
+    else              // Try to start a pushed join from current join_tab
+    {
+      pushed = table->file->make_pushed_join(tab, join->tables-i);
+    }
+    pushed--;
+  }
+  return 0;
+}
+
+
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
 {
@@ -6440,8 +6498,6 @@ make_join_readinfo(JOIN *join, ulonglong options)
   bool ordered_set= 0;
   bool sorted= 1;
   DBUG_ENTER("make_join_readinfo");
-
-  int pushed= 0;
 
   for (i=join->const_tables ; i < join->tables ; i++)
   {
@@ -6626,21 +6682,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_MAYBE_REF:
       abort();					/* purecov: deadcode */
     }
-
-    if (pushed > 0)   // Is inside a previous sequence of pushed joins
-    {
-      // Replace 'read_key' access with it linked counterpart 
-      // ... Which is effectively a NOOP as the row is read as part of the linked operation
-      DBUG_ASSERT(tab->read_first_record == join_read_key);
-      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
-      tab->read_first_record= join_read_linked_key;
-    }
-    else              // Try to start a pushed join from current join_tab
-    {
-      pushed = table->file->make_pushed_join(tab, join->tables-i);
-    }
-    pushed--;
   }
+
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
   DBUG_VOID_RETURN;
 }
@@ -13167,7 +13210,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       which filesort() is not able to buffer.
     */
     if (select_limit >= table_records  &&
-       !table->file->has_pushed_joins())
+       !table->file->prefer_index())
     {
       /* 
         filesort() and join cache are usually faster than reading in 
@@ -13227,7 +13270,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	*/ 
         if (is_covering ||
             select_limit != HA_POS_ERROR || 
-            (ref_key < 0 && (group || table->file->has_pushed_joins() || table->force_index)))
+            (ref_key < 0 && (group || table->file->prefer_index() || table->force_index)))
         { 
           double rec_per_key;
           double index_scan_time;
@@ -13293,7 +13336,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           index_scan_time= select_limit/rec_per_key *
 	                   min(rec_per_key, table->file->scan_time());
           if ((ref_key < 0 && is_covering) || 
-              (ref_key < 0 && (group || table->file->has_pushed_joins() || table->force_index)) ||
+              (ref_key < 0 && (group || table->file->prefer_index() || table->force_index)) ||
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
@@ -13446,6 +13489,7 @@ check_reverse_order:
   }
   else if (select && select->quick)
     select->quick->sorted= 1;
+
   DBUG_RETURN(1);
 }
 

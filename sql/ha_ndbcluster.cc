@@ -452,22 +452,22 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
                          int max_joins)
 {
   DBUG_ENTER("make_pushed_join");
-  THD *thd= current_thd;
   const JOIN *join = join_tabs->join;
   Item_field* join_items[MAX_LINKED_KEYS+1];
 
   DBUG_ASSERT (m_pushed_join == NULL);
-  if (unlikely(!(thd->variables.ndb_join_pushdown)))
+  if (!(current_thd->variables.ndb_join_pushdown))
     DBUG_RETURN(0);
 
   if (max_joins < 2)
     DBUG_RETURN(0);
 
   JOIN_TAB& join_root = join_tabs[0];
-  if (join_root.type != JT_EQ_REF &&  // Pushed lookups
-      join_root.type != JT_REF    &&  // Pushed EQ-bounded index scan
-      join_root.type != JT_ALL    &&  // Pushed scan
-      join_root.type != JT_CONST)     // First op is lookup
+  if (join_root.type != JT_EQ_REF &&  // Lookup with complete key specified
+      join_root.type != JT_CONST  &&  // 'EQ_REF' where key is constant
+      join_root.type != JT_REF    &&  // EQ-bounded index scan
+      join_root.type != JT_ALL    &&  // Table or index scan, optionally with bounds
+      join_root.type != JT_NEXT)      // Ordered index scan, optionally with bounds
   {
     DBUG_RETURN(0);
   }
@@ -479,11 +479,25 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   }
 
 /******/
+  DBUG_PRINT("info", ("join_root.type:%d", join_root.type));
   DBUG_PRINT("info", ("join_root.ref.key:%d", join_root.ref.key));
   DBUG_PRINT("info", ("join_root.ref.key_parts:%d", join_root.ref.key_parts));
   DBUG_PRINT("info", ("join_root.ref.key_length:%d", join_root.ref.key_length));
 
-  DBUG_PRINT("info", ("join_root.type:%d", join_root.type));
+  DBUG_PRINT("info", ("order:%p", join->order));
+  DBUG_PRINT("info", ("skip_sort_order:%d", join->skip_sort_order));
+  DBUG_PRINT("info", ("no_order:%d", join->no_order));
+  DBUG_PRINT("info", ("simple_order:%d", join->simple_order));
+
+  DBUG_PRINT("info", ("group:%d", join->group));
+  DBUG_PRINT("info", ("group_list:%p", join->group_list));
+  DBUG_PRINT("info", ("simple_group:%d", join->simple_group));
+  DBUG_PRINT("info", ("group_optimized_away:%d", join->group_optimized_away));
+
+  DBUG_PRINT("info", ("full_join:%d", join->full_join));
+  DBUG_PRINT("info", ("need_tmp:%d", join->need_tmp));
+  DBUG_PRINT("info", ("select_distinct:%d", join->select_distinct));
+
   DBUG_PRINT("info", ("join_root.use_quick:%d", join_root.use_quick));
   DBUG_PRINT("info", ("join_root.index:%d", join_root.index));
   DBUG_PRINT("info", ("join_root.quick:%p", join_root.quick));
@@ -494,7 +508,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
                          join_root.select->quick));
   }
 /*****/
-
 
   /****** TODO: BEGIN: Further temporary limitations we expect to remove soon: ******/
   // TODO: Incomplete testing of 'late quick-optimized' range scan, will be liftet soon
@@ -513,19 +526,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   // 'pk' in (x,y,z) is not correctly handled in MRR result handling yet.
   if (join_root.select && join_root.select->quick &&
       m_index[join_root.select->quick->index].index == NULL)
-  {
-    DBUG_RETURN(0);
-  }
-
-  /**
-   * Can't push joins in combination with possible filesort()
-   * May be too restrictive as there are cases where we may use an index
-   * to scan the root operation of the pushed join in correct order.
-   * The core logic to detect possible index usage is in 
-   * test_if_skip_sort_order() - This should be further explored later.
-   */
-  if (&join_root == &join->join_tab[join->const_tables] &&
-      join->order && !join->skip_sort_order)
   {
     DBUG_RETURN(0);
   }
@@ -594,8 +594,20 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
                 join_root.ref.key, m_index[join_root.ref.key].index->getName()));
 
     // Bounds will be generated and supplied during execute
+    DBUG_ASSERT (join_root.ref.key>=0);
     DBUG_ASSERT (m_index[join_root.ref.key].index);
     operationDefs[0]= builder.scanIndex(m_index[join_root.ref.key].index, m_table);
+  }
+  else if (join_root.type == JT_NEXT)  // Ordered index scan
+  {
+    DBUG_PRINT("info", ("Root operation is ordered index scan"));
+    DBUG_PRINT("info", ("Creating ordered scanIndex on index id:%d, name:%s",
+                join_root.index, m_index[join_root.index].index->getName()));
+
+    // Bounds could be generated and supplied during execute
+    DBUG_ASSERT (join_root.index>=0);
+    DBUG_ASSERT (m_index[join_root.index].index);
+    operationDefs[0]= builder.scanIndex(m_index[join_root.index].index, m_table);
   }
   else
   {
@@ -773,6 +785,19 @@ ha_ndbcluster::has_pushed_joins() const
     return 0;
   else
     return m_pushed_join->m_count;
+}
+
+
+/**
+ * Prefer ordered indexscan over filesort?
+ *
+ * At least where we may have a pushed join, it will pay of 
+ * doing an ordered index scan which may be pushable.
+ */
+bool 
+ha_ndbcluster::prefer_index() const  // TODO: discuss w/ mainline when merged up
+{
+  return true;
 }
 
 
@@ -2744,7 +2769,7 @@ static const ulong index_type_flags[]=
   /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
      Enable HA_KEYREAD_ONLY when "sorted" indexes are supported, 
-     thus ORDERD BY clauses can be optimized by reading directly 
+     thus ORDER BY clauses can be optimized by reading directly 
      through the index.
   */
   // HA_KEYREAD_ONLY | 
@@ -3596,8 +3621,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   }
 
   NdbQuery* const query= m_thd_ndb->trans->createQuery(m_pushed_join->m_queryDef, paramValues);
-  if (!query)
-    return NULL;
+  if (unlikely(!query))
+    DBUG_RETURN(NULL);
 
   for (uint i = 0; i<m_pushed_join->m_count; i++)
   {
@@ -3606,10 +3631,12 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
     const NdbRecord* const resultRec= handler->m_ndb_record;
-    query->getQueryOperation(i)
+    const int error= query->getQueryOperation(i)
       ->setResultRowRef(resultRec,
                         handler->_m_next_row,
                         (uchar *)(tab->read_set->bitmap));
+    if (unlikely(error))
+      DBUG_RETURN(NULL);
   }
 
 #if 0
@@ -3710,7 +3737,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_ENTER("ha_ndbcluster::ordered_index_scan");
   DBUG_PRINT("enter", ("index: %u, sorted: %d, descending: %d read_set=0x%x",
              active_index, sorted, descending, table->read_set->bitmap[0]));
-  DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
 
   // Check that sorted seems to be initialised
   DBUG_ASSERT(sorted == 0 || sorted == 1);
@@ -3760,14 +3786,14 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
 
-    if (sorted)
+    if (sorted && query->getQueryOperation(0U)
+                       ->setOrdering(descending ? NdbScanOrdering_descending
+                                                : NdbScanOrdering_ascending))
     {
-      query->getQueryOperation(0U)
-        ->setOrdering(descending ? NdbScanOrdering_descending
-                                 : NdbScanOrdering_ascending);
+      ERR_RETURN(query->getNdbError());
     }
 
-    if (pbound  && query->setBound(pbound)!=0)
+    if (pbound  && query->setBound(key_rec, pbound)!=0)
       ERR_RETURN(query->getNdbError());
 
     for (uint i = 0; i<m_pushed_join->m_count; i++)
@@ -3777,10 +3803,12 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
       const NdbRecord* const resultRec= handler->m_ndb_record;
-      query->getQueryOperation(i)
+      const int error= query->getQueryOperation(i)
         ->setResultRowRef(resultRec,
                           handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
+      if (unlikely(error))
+        ERR_RETURN(query->getNdbError());
     }
 
     m_thd_ndb->m_scan_count++;
@@ -3951,9 +3979,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                           m_pushed_join->m_tabs[0].table->alias)
                           );
 
-    const void* const* paramValues = NULL;
-    NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef, paramValues);
-    if (!query)
+    NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef);
+    if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
 
@@ -3964,10 +3991,12 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
       const NdbRecord* const resultRec= handler->m_ndb_record;
-      query->getQueryOperation(i)
+      const int error= query->getQueryOperation(i)
         ->setResultRowRef(resultRec,
                           handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
+      if (unlikely(error))
+        ERR_RETURN(query->getNdbError());
     }
 
     m_thd_ndb->m_scan_count++;
@@ -5639,7 +5668,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   const KEY* key_info= table->key_info+active_index;
   int error; 
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
-  DBUG_PRINT("info", ("type: %d, desc: %d, sorted: %d", type, desc, sorted));
+  DBUG_PRINT("enter", ("type: %d, sorted: %d, descending: %d", type, sorted, desc));
 
   if (m_use_partition_pruning)
   {
@@ -12000,8 +12029,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             ERR_RETURN(trans->getNdbError());
           m_active_query= query;
 
-          if (sorted)
-            query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending);
+          if (sorted && query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending))
+            ERR_RETURN(query->getNdbError());
 
           for (uint i = 0; i<m_pushed_join->m_count; i++)
           {
@@ -12010,10 +12039,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
             const NdbRecord* const resultRec= handler->m_ndb_record;
-            query->getQueryOperation(i)
+            const int error= query->getQueryOperation(i)
               ->setResultRowRef(resultRec,
                                 handler->_m_next_row,
                                 (uchar *)(tab->read_set->bitmap));
+            if (unlikely(error))
+              ERR_RETURN(query->getNdbError());
 
             /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
             handler->_m_next_row= 0;
@@ -12097,17 +12128,18 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       compute_index_bounds(bound, key_info, &r->start_key, &r->end_key);
       bound.range_no= i;
 
+      const NdbRecord *key_rec= m_index[active_index].ndb_record_key;
       if (m_active_query)
       {
         DBUG_PRINT("info", ("setBound:%d, for pushed join", bound.range_no));
-        if (m_active_query->setBound(&bound))
+        if (m_active_query->setBound(key_rec, &bound))
         {
           ERR_RETURN(trans->getNdbError());
         }
       }
       else
       {
-        if (m_multi_cursor->setBound(m_index[active_index].ndb_record_key,
+        if (m_multi_cursor->setBound(key_rec,
                                      bound,
                                      ndbPartSpecPtr, // Only for user-def tables
                                      sizeof(Ndb::PartitionSpec)))

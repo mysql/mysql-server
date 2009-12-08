@@ -343,9 +343,10 @@ NdbQuery::getParameter(Uint32 num) const
 }
 
 int
-NdbQuery::setBound(const NdbIndexScanOperation::IndexBound *bound)
+NdbQuery::setBound(const NdbRecord *keyRecord,
+                   const NdbIndexScanOperation::IndexBound *bound)
 {
-  const int error = m_impl.setBound(bound);
+  const int error = m_impl.setBound(keyRecord,bound);
   if (unlikely(error)) {
     m_impl.setErrorCodeAbort(error);
     return -1;
@@ -662,7 +663,8 @@ insert_bound(Uint32Buffer& keyInfo, const NdbRecord *key_record,
 
 
 int
-NdbQueryImpl::setBound(const NdbIndexScanOperation::IndexBound *bound)
+NdbQueryImpl::setBound(const NdbRecord *key_record,
+                       const NdbIndexScanOperation::IndexBound *bound)
 {
   if (unlikely(bound==NULL))
     return QRY_REQ_ARG_IS_NULL;
@@ -691,8 +693,6 @@ NdbQueryImpl::setBound(const NdbIndexScanOperation::IndexBound *bound)
     key_count= bound->high_key_count;
   else
     common_key_count= bound->high_key_count;
-
-  const NdbRecord* key_record = rootDef.getIndex()->getDefaultRecord();
 
   /* Has the user supplied an open range (no bounds)? */
   const bool openRange= ((bound->low_key == NULL || bound->low_key_count == 0) && 

@@ -541,6 +541,9 @@ static void set_tabname(const char *pathname, char *tabname);
   uint push_flags(uint flags) const;
   uint make_pushed_join(struct st_join_table* join_tabs, int count);
   uint has_pushed_joins() const;
+
+  bool prefer_index() const;
+
   int read_pushed_next(uchar *buf);
 
   uint8 table_cache_type();
