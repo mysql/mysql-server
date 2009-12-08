@@ -378,9 +378,15 @@ private:
   bool m_stats_loop_on;
   bool m_busy_loop_on;
   bool m_cleanup_loop_on;
-  bool m_lcp_loop_on;
 
   // LCP variables
+  enum LCP_STATE
+  {
+    LS_LCP_OFF = 0
+    ,LS_LCP_ON = 1
+    ,LS_LCP_MAX_LCP_OUTSTANDING = 2
+    ,LS_LCP_LOCKED = 3
+  } m_lcp_state;
   Uint32 m_last_lcp;
   Uint32 m_last_lcp_complete;
   Uint32 m_lcp_curr_bucket;
@@ -472,7 +478,7 @@ private:
   void do_stats_loop(Signal*);
   void do_busy_loop(Signal*, bool direct = false);
   void do_cleanup_loop(Signal*);
-  void do_lcp_loop(Signal*, bool direct = false);
+  void do_lcp_loop(Signal*);
 
   bool process_bind(Signal*);
   bool process_bind(Signal*, Ptr<Page_entry> ptr);
@@ -484,7 +490,7 @@ private:
   bool process_cleanup(Signal*);
   void move_cleanup_ptr(Ptr<Page_entry> ptr);
 
-  bool process_lcp(Signal*);
+  LCP_STATE process_lcp(Signal*);
   void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
   void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
