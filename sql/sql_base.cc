@@ -114,6 +114,7 @@ TABLE *unused_tables;
 HASH table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
 static bool table_def_inited= 0;
+static bool table_def_shutdown_in_progress= 0;
 
 static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
@@ -279,13 +280,36 @@ bool table_def_init(void)
 }
 
 
+/**
+  Notify table definition cache that process of shutting down server
+  has started so it has to keep number of TABLE and TABLE_SHARE objects
+  minimal in order to reduce number of references to pluggable engines.
+*/
+
+void table_def_start_shutdown(void)
+{
+  if (table_def_inited)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    /* Free all cached but unused TABLEs and TABLE_SHAREs first. */
+    close_cached_tables(NULL, NULL, TRUE, FALSE);
+    /*
+      Ensure that TABLE and TABLE_SHARE objects which are created for
+      tables that are open during process of plugins' shutdown are
+      immediately released. This keeps number of references to engine
+      plugins minimal and allows shutdown to proceed smoothly.
+    */
+    table_def_shutdown_in_progress= TRUE;
+    pthread_mutex_unlock(&LOCK_open);
+  }
+}
+
+
 void table_def_free(void)
 {
   DBUG_ENTER("table_def_free");
   if (table_def_inited)
   {
-    /* Free all open TABLEs first. */
-    close_cached_tables(NULL, NULL, FALSE, FALSE);
     table_def_inited= 0;
     /* Free table definitions. */
     my_hash_free(&table_def_cache);
@@ -646,7 +670,8 @@ void release_table_share(TABLE_SHARE *share)
   DBUG_ASSERT(share->ref_count);
   if (!--share->ref_count)
   {
-    if (share->version != refresh_version)
+    if (share->version != refresh_version ||
+        table_def_shutdown_in_progress)
       to_be_deleted=1;
     else
     {
@@ -1513,7 +1538,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 
   table->mdl_ticket= NULL;
   if (table->needs_reopen() ||
-      thd->version != refresh_version || !table->db_stat)
+      thd->version != refresh_version || !table->db_stat ||
+      table_def_shutdown_in_progress)
   {
     free_cache_entry(table);
     found_old_table=1;
