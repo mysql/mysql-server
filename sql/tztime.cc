@@ -1637,6 +1637,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_init_table_list(tz_tables+1);
   tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];
   tz_tables[1].prev_global= &tz_tables[0].next_global;
+  init_mdl_requests(tz_tables);
 
   /*
     We need to open only mysql.time_zone_leap_second, but we try to
@@ -2296,6 +2297,7 @@ my_tz_find(THD *thd, const String *name)
       Open_tables_state open_tables_state_backup;
 
       tz_init_table_list(tz_tables);
+      init_mdl_requests(tz_tables);
       if (!open_system_tables_for_read(thd, tz_tables,
                                        &open_tables_state_backup))
       {

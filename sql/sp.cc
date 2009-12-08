@@ -263,13 +263,11 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
+  TABLE_LIST table;
+
   DBUG_ENTER("open_proc_table_for_read");
 
-  TABLE_LIST table;
-  bzero((char*) &table, sizeof(table));
-  table.db= (char*) "mysql";
-  table.table_name= table.alias= (char*)"proc";
-  table.lock_type= TL_READ;
+  table.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
 
   if (!open_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(table.table);
@@ -294,13 +292,10 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 
 static TABLE *open_proc_table_for_update(THD *thd)
 {
+  TABLE_LIST table;
   DBUG_ENTER("open_proc_table_for_update");
 
-  TABLE_LIST table;
-  bzero((char*) &table, sizeof(table));
-  table.db= (char*) "mysql";
-  table.table_name= table.alias= (char*)"proc";
-  table.lock_type= TL_WRITE;
+  table.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
 
   DBUG_RETURN(open_system_table_for_update(thd, &table));
 }

@@ -4583,6 +4583,14 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   }
   while (parent_embedding &&
          parent_embedding->nested_join->join_list.head() == embedded);
+
+  mdl_request.ticket= NULL;
+  /*
+    Not strictly necessary, but we manipulate with the type in open_table(),
+    so it's "safe" to reset the lock request type to the parser default, to
+    restore things back to first-execution state.
+  */
+  mdl_request.set_type(MDL_SHARED);
 }
 
 /*
@@ -4811,11 +4819,11 @@ size_t max_row_length(TABLE *table, const uchar *data)
    objects for all elements of table list.
 */
 
-void alloc_mdl_requests(TABLE_LIST *table_list, MEM_ROOT *root)
+void init_mdl_requests(TABLE_LIST *table_list)
 {
   for ( ; table_list ; table_list= table_list->next_global)
-    table_list->mdl_request=
-      MDL_request::create(0, table_list->db, table_list->table_name, root);
+    table_list->mdl_request.init(0, table_list->db, table_list->table_name,
+                                 MDL_SHARED);
 }
 
 

@@ -228,11 +228,7 @@ bool servers_reload(THD *thd)
   DBUG_PRINT("info", ("locking servers_cache"));
   rw_wrlock(&THR_LOCK_servers);
 
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "servers";
-  tables[0].db= (char*) "mysql";
-  tables[0].lock_type= TL_READ;
-  alloc_mdl_requests(tables, thd->mem_root);
+  tables[0].init_one_table("mysql", 5, "servers", 7, "servers", TL_READ);
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -363,10 +359,7 @@ insert_server(THD *thd, FOREIGN_SERVER *server)
 
   DBUG_ENTER("insert_server");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.alias= tables.table_name= (char*) "servers";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
 
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
@@ -582,10 +575,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   DBUG_PRINT("info", ("server name server->server_name %s",
                       server_options->server_name));
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.alias= tables.table_name= (char*) "servers";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
 
   rw_wrlock(&THR_LOCK_servers);
 
@@ -707,10 +697,8 @@ int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   TABLE_LIST tables;
   DBUG_ENTER("update_server");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.alias= tables.table_name= (char*)"servers";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "servers", 7, "servers",
+                         TL_WRITE);
 
   if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
   {
