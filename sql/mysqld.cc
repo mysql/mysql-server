@@ -1294,9 +1294,7 @@ void clean_up(bool print_message)
   grant_free();
 #endif
   query_cache_destroy();
-  table_def_free();
   hostname_cache_free();
-  mdl_destroy();
   item_user_lock_free();
   lex_free();				/* Free some memory */
   item_create_cleanup();
@@ -1308,12 +1306,15 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   }
+  table_def_start_shutdown();
   plugin_shutdown();
   ha_end();
   if (tc_log)
     tc_log->close();
   delegates_destroy();
   xid_cache_free();
+  table_def_free();
+  mdl_destroy();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
