@@ -319,6 +319,21 @@ alter table t1 add column j int;
 unlock tables;
 drop table t1;
 #
+# Bug #43272 HANDLER SQL command does not work under LOCK TABLES
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+# HANDLER commands are not allowed in LOCK TABLES mode
+HANDLER t1 OPEN;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+HANDLER t1 READ FIRST;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+HANDLER t1 CLOSE;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+#
 # Bug#45066 FLUSH TABLES WITH READ LOCK deadlocks against 
 #           LOCK TABLE 
 #
