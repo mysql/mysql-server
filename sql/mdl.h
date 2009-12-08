@@ -109,7 +109,6 @@ public:
     mdl_key_init(type_arg, db_arg, name_arg);
   }
   MDL_key() {} /* To use when part of MDL_request. */
-
 private:
   char m_ptr[MAX_MDLKEY_LENGTH];
   uint m_length;
@@ -157,12 +156,20 @@ public:
   /**
     Pointers for participating in the list of lock requests for this context.
   */
-  MDL_request *next_in_context;
-  MDL_request **prev_in_context;
+  MDL_request *next_in_list;
+  MDL_request **prev_in_list;
+  /**
+    Pointer to the lock ticket object for this lock request.
+    Valid only if this lock request is satisfied.
+  */
+  MDL_ticket *ticket;
+
   /** A lock is requested based on a fully qualified name and type. */
   MDL_key key;
 
-  void init(unsigned char type_arg, const char *db_arg, const char *name_arg);
+public:
+  void init(unsigned char type_arg, const char *db_arg, const char *name_arg,
+            enum_mdl_type mdl_type_arg);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
   {
@@ -171,15 +178,37 @@ public:
   }
   bool is_shared() const { return type < MDL_EXCLUSIVE; }
 
-  /**
-    Pointer to the lock ticket object for this lock request.
-    Valid only if this lock request is satisfied.
-  */
-  MDL_ticket *ticket;
-
   static MDL_request *create(unsigned char type, const char *db,
-                             const char *name, MEM_ROOT *root);
+                             const char *name, enum_mdl_type mdl_type,
+                             MEM_ROOT *root);
 
+  /*
+    This is to work around the ugliness of TABLE_LIST
+    compiler-generated assignment operator. It is currently used
+    in several places to quickly copy "most" of the members of the
+    table list. These places currently never assume that the mdl
+    request is carried over to the new TABLE_LIST, or shared
+    between lists.
+
+    This method does not initialize the instance being assigned!
+    Use of init() for initialization after this assignment operator
+    is mandatory. Can only be used before the request has been
+    granted.
+  */
+  MDL_request& operator=(const MDL_request &rhs)
+  {
+    ticket= NULL;
+    /* Do nothing, in particular, don't try to copy the key. */
+    return *this;
+  }
+  /* Another piece of ugliness for TABLE_LIST constructor */
+  MDL_request() {}
+
+  MDL_request(const MDL_request *rhs)
+    :type(rhs->type),
+    ticket(NULL),
+    key(&rhs->key)
+  {}
 };
 
 
@@ -248,6 +277,11 @@ private:
 };
 
 
+typedef I_P_List<MDL_request, I_P_List_adapter<MDL_request,
+                 &MDL_request::next_in_list,
+                 &MDL_request::prev_in_list> >
+        MDL_request_list;
+
 /**
   Context of the owner of metadata locks. I.e. each server
   connection has such a context.
@@ -256,14 +290,6 @@ private:
 class MDL_context
 {
 public:
-  typedef I_P_List<MDL_request,
-                   I_P_List_adapter<MDL_request,
-                                    &MDL_request::next_in_context,
-                                    &MDL_request::prev_in_context> >
-          Request_list;
-
-  typedef Request_list::Iterator Request_iterator;
-
   typedef I_P_List<MDL_ticket,
                    I_P_List_adapter<MDL_ticket,
                                     &MDL_ticket::next_in_context,
@@ -279,16 +305,13 @@ public:
   void restore_from_backup(MDL_context *backup);
   void merge(MDL_context *source);
 
-  void add_request(MDL_request *mdl_request);
-  void remove_request(MDL_request *mdl_request);
-  void remove_all_requests();
-
-  bool acquire_shared_lock(MDL_request *mdl_request, bool *retry);
-  bool acquire_exclusive_locks();
-  bool try_acquire_exclusive_lock(MDL_request *mdl_request, bool *conflict);
+  bool try_acquire_shared_lock(MDL_request *mdl_request);
+  bool acquire_exclusive_lock(MDL_request *mdl_request);
+  bool acquire_exclusive_locks(MDL_request_list *requests);
+  bool try_acquire_exclusive_lock(MDL_request *mdl_request);
   bool acquire_global_shared_lock();
 
-  bool wait_for_locks();
+  bool wait_for_locks(MDL_request_list *requests);
 
   void release_all_locks();
   void release_all_locks_for_name(MDL_ticket *ticket);
@@ -312,16 +335,8 @@ public:
 
   void rollback_to_savepoint(MDL_ticket *mdl_savepoint);
 
-  /**
-    Get iterator for walking through all lock requests in the context.
-  */
-  inline Request_iterator get_requests()
-  {
-    return Request_iterator(m_requests);
-  }
   inline THD *get_thd() const { return m_thd; }
 private:
-  Request_list m_requests;
   Ticket_list m_tickets;
   bool m_has_global_shared_lock;
   THD *m_thd;

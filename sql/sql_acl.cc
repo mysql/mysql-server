@@ -691,7 +691,7 @@ my_bool acl_reload(THD *thd)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].skip_temporary= tables[1].skip_temporary=
     tables[2].skip_temporary= TRUE;
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -1596,10 +1596,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.alias= tables.table_name= (char*) "user";
-  tables.db= (char*) "mysql";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3111,7 +3108,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 			    ? tables+2 : 0);
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3329,7 +3326,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3468,7 +3465,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3797,12 +3794,10 @@ static my_bool grant_reload_procs_priv(THD *thd)
   my_bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
-  bzero((char*) &table, sizeof(table));
-  table.alias= table.table_name= (char*) "procs_priv";
-  table.db= (char *) "mysql";
-  table.lock_type= TL_READ;
+  table.init_one_table("mysql", 5, "procs_priv",
+                       strlen("procs_priv"), "procs_priv",
+                       TL_READ);
   table.skip_temporary= 1;
-  alloc_mdl_requests(&table, thd->mem_root);
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3869,7 +3864,7 @@ my_bool grant_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
   tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -5219,7 +5214,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     (tables+4)->lock_type= TL_WRITE;
   tables->db= (tables+1)->db= (tables+2)->db= 
     (tables+3)->db= (tables+4)->db= (char*) "mysql";
-  alloc_mdl_requests(tables, thd->mem_root);
+  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*

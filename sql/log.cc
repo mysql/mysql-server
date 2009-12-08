@@ -423,14 +423,10 @@ bool Log_to_csv_event_handler::
   save_thd_options= thd->options;
   thd->options&= ~OPTION_BIN_LOG;
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-  table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
-  table_list.table_name_length= GENERAL_LOG_NAME.length;
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
+                            GENERAL_LOG_NAME.str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   /*
     1) open_performance_schema_table generates an error of the
@@ -588,14 +584,10 @@ bool Log_to_csv_event_handler::
   */
   save_time_zone_used= thd->time_zone_used;
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-  table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
-  table_list.table_name_length= SLOW_LOG_NAME.length;
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
+                            SLOW_LOG_NAME.str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   if (!(table= open_performance_schema_table(thd, & table_list,
                                              & open_tables_backup)))
@@ -733,29 +725,25 @@ int Log_to_csv_event_handler::
 {
   TABLE_LIST table_list;
   TABLE *table;
+  LEX_STRING *UNINIT_VAR(log_name);
   int result;
   Open_tables_state open_tables_backup;
 
   DBUG_ENTER("Log_to_csv_event_handler::activate_log");
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-
   if (log_table_type == QUERY_LOG_GENERAL)
   {
-    table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
-    table_list.table_name_length= GENERAL_LOG_NAME.length;
+    log_name= &GENERAL_LOG_NAME;
   }
   else
   {
     DBUG_ASSERT(log_table_type == QUERY_LOG_SLOW);
-    table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
-    table_list.table_name_length= SLOW_LOG_NAME.length;
+
+    log_name= &SLOW_LOG_NAME;
   }
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            log_name->str, log_name->length, log_name->str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   table= open_performance_schema_table(thd, & table_list,
                                        & open_tables_backup);

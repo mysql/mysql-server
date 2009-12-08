@@ -150,7 +150,6 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     }
     pthread_mutex_unlock(&LOCK_open);
     thd->handler_mdl_context.release_lock(mdl_ticket);
-    thd->handler_mdl_context.remove_request(tables->mdl_request);
   }
   else if (tables->table)
   {
@@ -163,6 +162,8 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 
   /* Mark table as closed, ready for re-open if necessary. */
   tables->table= NULL;
+  /* Safety, cleanup the pointer to satisfy MDL assertions. */
+  tables->mdl_request.ticket= NULL;
 }
 
 /*
@@ -195,7 +196,6 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   int           error;
   TABLE         *backup_open_tables;
   MDL_context   backup_mdl_context;
-  MDL_request  *mdl_request;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -246,7 +246,6 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &db, (uint) dblen,
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
-                          &mdl_request, sizeof(MDL_request),
                           NullS)))
     {
       DBUG_PRINT("exit",("ERROR"));
@@ -260,8 +259,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    mdl_request->init(0, db, name);
-    hash_tables->mdl_request= mdl_request;
+    hash_tables->mdl_request.init(0, db, name, MDL_SHARED);
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))

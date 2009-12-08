@@ -2399,7 +2399,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     thd->lex->set_stmt_unsafe();
     thd->set_current_stmt_binlog_row_based_if_mixed();
 
-    alloc_mdl_requests(&di->table_list, thd->mem_root);
+    init_mdl_requests(&di->table_list);
 
     if (di->open_and_lock_table())
       goto err;
@@ -3464,7 +3464,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   Item *item;
   Field *tmp_field;
   bool not_used;
-  enum_open_table_action not_used2;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -3543,13 +3542,13 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-        enum enum_open_table_action ot_action_unused;
+        Open_table_context ot_ctx_unused(thd);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
         */
         if (open_table(thd, create_table, thd->mem_root,
-                       &ot_action_unused, MYSQL_OPEN_REOPEN))
+                       &ot_ctx_unused, MYSQL_OPEN_REOPEN))
         {
           pthread_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
@@ -3562,7 +3561,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        if (open_table(thd, create_table, thd->mem_root, &not_used2,
+        Open_table_context ot_ctx_unused(thd);
+        if (open_table(thd, create_table, thd->mem_root, &ot_ctx_unused,
                        MYSQL_OPEN_TEMPORARY_ONLY) &&
             !create_info->table_existed)
         {
@@ -3637,18 +3637,28 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
    */
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
-    MY_HOOKS(select_create *x, TABLE_LIST *create_table,
-             TABLE_LIST *select_tables)
-      : ptr(x), all_tables(*create_table)
+    MY_HOOKS(select_create *x, TABLE_LIST *create_table_arg,
+             TABLE_LIST *select_tables_arg)
+      : ptr(x),
+        create_table(create_table_arg),
+        select_tables(select_tables_arg)
       {
-        all_tables.next_global= select_tables;
       }
 
   private:
     virtual int do_postlock(TABLE **tables, uint count)
     {
+      int error;
       THD *thd= const_cast<THD*>(ptr->get_thd());
-      if (int error= decide_logging_format(thd, &all_tables))
+      TABLE_LIST *save_next_global= create_table->next_global;
+
+      create_table->next_global= select_tables;
+
+      error= decide_logging_format(thd, create_table);
+
+      create_table->next_global= save_next_global;
+
+      if (error)
         return error;
 
       TABLE const *const table = *tables;
@@ -3662,7 +3672,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     }
 
     select_create *ptr;
-    TABLE_LIST all_tables;
+    TABLE_LIST *create_table;
+    TABLE_LIST *select_tables;
   };
 
   MY_HOOKS hooks(this, create_table, select_tables);

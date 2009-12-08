@@ -466,8 +466,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-   main_warning_info(0),
-   locked_tables_root(NULL)
+   main_warning_info(0)
 {
   ulong tmp;
 

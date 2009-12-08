@@ -1100,7 +1100,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
-  MDL_request *mdl_request= NULL;
+  MDL_request mdl_request;
+  bool has_mdl_lock= FALSE;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1145,6 +1146,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   if (!dont_send_ok)
   {
     enum legacy_db_type table_type;
+    /*
+      FIXME: Code of TRUNCATE breaks the meta-data
+      locking protocol since it tries to find out the table storage
+      engine and therefore accesses table in some way without holding
+      any kind of meta-data lock.
+    */
     mysql_frm_type(thd, path, &table_type);
     if (table_type == DB_TYPE_UNKNOWN)
     {
@@ -1170,20 +1177,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
-    /*
-      FIXME: Actually code of TRUNCATE breaks meta-data locking protocol since
-             tries to get table enging and therefore accesses table in some way
-             without holding any kind of meta-data lock.
-    */
-    mdl_request= MDL_request::create(0, table_list->db,
-                                     table_list->table_name, thd->mem_root);
-    mdl_request->set_type(MDL_EXCLUSIVE);
-    thd->mdl_context.add_request(mdl_request);
-    if (thd->mdl_context.acquire_exclusive_locks())
-    {
-      thd->mdl_context.remove_request(mdl_request);
+    mdl_request.init(0, table_list->db, table_list->table_name, MDL_EXCLUSIVE);
+    if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
       DBUG_RETURN(TRUE);
-    }
+
+    has_mdl_lock= TRUE;
+
     pthread_mutex_lock(&LOCK_open);
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
                      table_list->table_name);
@@ -1212,19 +1211,13 @@ end:
       write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
-    if (mdl_request)
-    {
-      thd->mdl_context.release_lock(mdl_request->ticket);
-      thd->mdl_context.remove_request(mdl_request);
-    }
+    if (has_mdl_lock)
+      thd->mdl_context.release_lock(mdl_request.ticket);
   }
   else if (error)
   {
-    if (mdl_request)
-    {
-      thd->mdl_context.release_lock(mdl_request->ticket);
-      thd->mdl_context.remove_request(mdl_request);
-    }
+    if (has_mdl_lock)
+      thd->mdl_context.release_lock(mdl_request.ticket);
   }
   DBUG_RETURN(error);
 

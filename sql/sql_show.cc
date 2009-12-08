@@ -2934,7 +2934,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                            table, res, db_name,
                                            table_name));
    thd->temporary_tables= 0;
-   close_tables_for_reopen(thd, &show_table_list, FALSE);
+   close_tables_for_reopen(thd, &show_table_list);
    DBUG_RETURN(error);
 }
 
@@ -3065,30 +3065,21 @@ uint get_table_open_method(TABLE_LIST *tables,
 */
 
 static bool
-acquire_high_prio_shared_mdl_lock(THD *thd, MDL_request *mdl_request,
-                                  TABLE_LIST *table)
+acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table)
 {
-  bool retry;
-
-  mdl_request->init(0, table->db, table->table_name);
-  table->mdl_request= mdl_request;
-  thd->mdl_context.add_request(mdl_request);
-  mdl_request->set_type(MDL_SHARED_HIGH_PRIO);
-
-  while (1)
+  bool error;
+  table->mdl_request.init(0, table->db, table->table_name,
+                          MDL_SHARED_HIGH_PRIO);
+  while (!(error=
+           thd->mdl_context.try_acquire_shared_lock(&table->mdl_request)) &&
+         !table->mdl_request.ticket)
   {
-    if (thd->mdl_context.acquire_shared_lock(mdl_request, &retry))
-    {
-      if (!retry || thd->mdl_context.wait_for_locks())
-      {
-        thd->mdl_context.remove_all_requests();
-        return TRUE;
-      }
-      continue;
-    }
-    break;
+    MDL_request_list mdl_requests;
+    mdl_requests.push_front(&table->mdl_request);
+    if ((error= thd->mdl_context.wait_for_locks(&mdl_requests)))
+      break;
   }
-  return FALSE;
+  return error;
 }
 
 
@@ -3123,7 +3114,6 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
-  MDL_request mdl_request;
 
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   bzero((char*) &tbl, sizeof(TABLE));
@@ -3153,7 +3143,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
           simply obtaining internal lock of data-dictionary (ATM it
           is LOCK_open) instead of obtaning full-blown metadata lock.
   */
-  if (acquire_high_prio_shared_mdl_lock(thd, &mdl_request, &table_list))
+  if (acquire_high_prio_shared_mdl_lock(thd, &table_list))
   {
     /*
       Some error occured (most probably we have been killed while
@@ -3213,8 +3203,7 @@ err_share:
 err_unlock:
   pthread_mutex_unlock(&LOCK_open);
 
-  thd->mdl_context.release_lock(mdl_request.ticket);
-  thd->mdl_context.remove_request(&mdl_request);
+  thd->mdl_context.release_lock(table_list.mdl_request.ticket);
   thd->clear_error();
   return res;
 }
@@ -3462,7 +3451,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               res= schema_table->process_table(thd, show_table_list, table,
                                                res, &orig_db_name,
                                                &tmp_lex_string);
-              close_tables_for_reopen(thd, &show_table_list, FALSE);
+              close_tables_for_reopen(thd, &show_table_list);
             }
             DBUG_ASSERT(!lex->query_tables_own_last);
             if (res)
@@ -7199,14 +7188,14 @@ static bool show_create_trigger_impl(THD *thd,
     - do not update Lex::query_tables in add_table_to_list().
 */
 
-static TABLE_LIST *get_trigger_table_impl(
-  THD *thd,
-  const sp_name *trg_name)
+static
+TABLE_LIST *get_trigger_table_impl(THD *thd, const sp_name *trg_name)
 {
   char trn_path_buff[FN_REFLEN];
-
   LEX_STRING trn_path= { trn_path_buff, 0 };
+  LEX_STRING db;
   LEX_STRING tbl_name;
+  TABLE_LIST *table;
 
   build_trn_path(thd, trg_name, &trn_path);
 
@@ -7220,25 +7209,19 @@ static TABLE_LIST *get_trigger_table_impl(
     return NULL;
 
   /* We need to reset statement table list to be PS/SP friendly. */
-
-  TABLE_LIST *table;
-
-  if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
-  {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+  if (!(table= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
     return NULL;
-  }
 
-  table->db_length= trg_name->m_db.length;
-  table->db= thd->strmake(trg_name->m_db.str, trg_name->m_db.length);
+  db= trg_name->m_db;
 
-  table->table_name_length= tbl_name.length;
-  table->table_name= thd->strmake(tbl_name.str, tbl_name.length);
+  db.str= thd->strmake(db.str, db.length);
+  tbl_name.str= thd->strmake(tbl_name.str, tbl_name.length);
 
-  table->alias= thd->strmake(tbl_name.str, tbl_name.length);
+  if (db.str == NULL || tbl_name.str == NULL)
+    return NULL;
 
-  table->lock_type= TL_IGNORE;
-  table->cacheable_table= 0;
+  table->init_one_table(db.str, db.length, tbl_name.str, tbl_name.length,
+                        tbl_name.str, TL_IGNORE);
 
   return table;
 }
@@ -7254,7 +7237,8 @@ static TABLE_LIST *get_trigger_table_impl(
   @return TABLE_LIST object corresponding to the base table.
 */
 
-static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
+static
+TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   /* Acquire LOCK_open (stop the server). */
 
@@ -7309,8 +7293,6 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   */
 
   uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
-
-  alloc_mdl_requests(lst, thd->mem_root);
 
   if (open_tables(thd, &lst, &num_tables, 0))
   {

@@ -1180,6 +1180,49 @@ private:
   Internal_error_handler *m_err_handler;
 };
 
+
+/**
+  A context of open_tables() function, used to recover
+  from a failed open_table() attempt.
+
+  Implemented in sql_base.cc.
+*/
+
+class Open_table_context
+{
+public:
+  enum enum_open_table_action
+  {
+    OT_NO_ACTION= 0,
+    OT_WAIT,
+    OT_DISCOVER,
+    OT_REPAIR
+  };
+  Open_table_context(THD *thd);
+
+  bool recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *tables);
+  bool request_backoff_action(enum_open_table_action action_arg);
+
+  void add_request(MDL_request *request)
+  { m_mdl_requests.push_front(request); }
+
+  bool can_recover_from_failed_open_table() const
+  { return m_action != OT_NO_ACTION; }
+  bool can_deadlock() const { return m_can_deadlock; }
+private:
+  /** List of requests for all locks taken so far. Used for waiting on locks. */
+  MDL_request_list m_mdl_requests;
+  /** Back off action. */
+  enum enum_open_table_action m_action;
+  /**
+    Whether we had any locks when this context was created.
+    If we did, they are from the previous statement of a transaction,
+    and we can't safely do back-off (and release them).
+  */
+  bool m_can_deadlock;
+};
+
+
 /**
   Tables that were locked with LOCK TABLES statement.
 
@@ -1236,7 +1279,6 @@ public:
   }
   bool init_locked_tables(THD *thd);
   TABLE_LIST *locked_tables() { return m_locked_tables; }
-  MEM_ROOT *locked_tables_root() { return &m_locked_tables_root; }
   void unlink_from_list(THD *thd, TABLE_LIST *table_list,
                         bool remove_from_locked_tables);
   void unlink_all_closed_tables(THD *thd,
@@ -1895,15 +1937,6 @@ public:
   /* Debug Sync facility. See debug_sync.cc. */
   struct st_debug_sync_control *debug_sync_control;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-
-  /**
-    Points to the memory root of Locked_tables_list if
-    we're locking the tables for LOCK TABLES. Otherwise is NULL.
-    This is necessary to ensure that metadata locks allocated for
-    tables used in triggers will persist after statement end.
-  */
-  MEM_ROOT *locked_tables_root;
-
   THD();
   ~THD();
 

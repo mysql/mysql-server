@@ -18,6 +18,7 @@
 
 
 #include "sql_plist.h"
+#include "mdl.h"
 
 /* Structs that defines the TABLE */
 
@@ -30,8 +31,6 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
-class MDL_request;
-class MDL_ticket;
 
 /*************************************************************************/
 
@@ -1126,6 +1125,7 @@ struct TABLE_LIST
     table_name_length= table_name_length_arg;
     alias= (char*) alias_arg;
     lock_type= lock_type_arg;
+    mdl_request.init(0, db, table_name, MDL_SHARED);
   }
 
   /*
@@ -1429,7 +1429,7 @@ struct TABLE_LIST
   uint table_open_method;
   enum enum_schema_table_state schema_table_state;
 
-  MDL_request *mdl_request;
+  MDL_request mdl_request;
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
@@ -1798,6 +1798,6 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
 size_t max_row_length(TABLE *table, const uchar *data);
 
 
-void alloc_mdl_requests(TABLE_LIST *table_list, MEM_ROOT *root);
+void init_mdl_requests(TABLE_LIST *table_list);
 
 #endif /* TABLE_INCLUDED */
