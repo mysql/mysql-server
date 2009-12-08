@@ -1,0 +1,58 @@
+-- source include/have_innodb.inc
+
+--echo #
+--echo # Bug #22876 Four-way deadlock
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+--echo # Connection 1
+connection con1;
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+--send INSERT INTO t1 VALUES (1)
+
+--echo # Connection 3
+connection con3;
+set @@autocommit=0;
+--send DROP TABLE t1
+
+--echo # Connection 1
+connection con1;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "INSERT INTO t1 VALUES (1)" and 
+  state = "update";
+--source include/wait_condition.inc
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "DROP TABLE t1" and 
+  state = "Waiting for table";
+--source include/wait_condition.inc
+--echo # Connection 1 is now holding the lock.
+--echo # Issuing insert from connection 1 while connection 2&3 
+--echo # is waiting for the lock should give a deadlock error.
+--error ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (2);
+
+--echo # Cleanup
+connection con2;
+--reap
+commit;
+connection con1;
+commit;
+connection con3;
+--reap
+connection default;
