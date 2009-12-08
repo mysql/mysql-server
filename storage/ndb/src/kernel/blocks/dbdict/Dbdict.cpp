@@ -3872,11 +3872,23 @@ Dbdict::restart_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 void
 Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 {
-  ndbrequire(ret == 0); //wl3600_todo
-
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, tx_key);
   ndbrequire(!tx_ptr.isNull());
+
+  if (unlikely(hasError(tx_ptr.p->m_error)))
+  {
+    jam();
+    char msg[128];
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Failure to restore schema during restart, error %u"
+                         " Check configuration changes and instructions from"
+                         " \'perror --ndb %u\'"
+                         ,tx_ptr.p->m_error.errorCode
+                         ,tx_ptr.p->m_error.errorCode);
+    progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
+  }
+  ndbrequire(ret == 0); //wl3600_todo
 
   releaseTxHandle(tx_ptr);
 
@@ -3900,11 +3912,23 @@ Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 void
 Dbdict::restartEndPass_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 {
-  ndbrequire(ret == 0); //wl3600_todo
-  
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, tx_key);
   ndbrequire(!tx_ptr.isNull());
+
+  if (unlikely(hasError(tx_ptr.p->m_error)))
+  {
+    jam();
+    char msg[128];
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Failure to restore schema during restart, error %u"
+                         " Check configuration changes and instructions from"
+                         " \'perror --ndb %u\'"
+                         ,tx_ptr.p->m_error.errorCode
+                         ,tx_ptr.p->m_error.errorCode);
+    progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
+  }
+  ndbrequire(ret == 0); //wl3600_todo
 
   releaseTxHandle(tx_ptr);
   c_restartRecord.m_tx_ptr_i = RNIL;
