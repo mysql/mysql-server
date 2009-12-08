@@ -1,0 +1,103 @@
+#
+# Test of MyISAM MRG tables with corrupted children.
+# Run with --myisam-recover=force option.
+#
+# Preparation: we need to make sure that the merge parent
+# is never left in the table cache when closed, since this may
+# have effect on merge children.
+# For that, we set the table cache to minimal size and populate it
+# in a concurrent connection.
+#
+# Switching to connection con1
+#
+#
+# Minimal values.
+#
+call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
+call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
+call mtr.add_suppression(" '\..test.t1'");
+set global table_open_cache=256;
+set global table_definition_cache=400;
+drop procedure if exists p_create;
+create procedure p_create()
+begin
+declare i int default 1;
+set @lock_table_stmt="lock table ";
+set @drop_table_stmt="drop table ";
+while i < @@global.table_definition_cache + 1 do
+set @table_name=concat("t_", i);
+set @opt_comma=if(i=1, "", ", ");
+set @lock_table_stmt=concat(@lock_table_stmt, @opt_comma,
+@table_name, " read");
+set @drop_table_stmt=concat(@drop_table_stmt, @opt_comma, @table_name);
+set @create_table_stmt=concat("create table if not exists ",
+@table_name, " (a int)");
+prepare stmt from @create_table_stmt;
+execute stmt;
+deallocate prepare stmt;
+set i= i+1;
+end while;
+end|
+call p_create();
+drop procedure p_create;
+#
+# Switching to connection 'default'
+#
+#
+# We have to disable the ps-protocol, to avoid 
+# "Prepared statement needs to be re-prepared" errors
+# -- table def versions change all the time with full table cache.
+# 
+drop table if exists t1, t1_mrg, t1_copy;
+#
+# Prepare a MERGE engine table, that refers to a corrupted
+# child.
+# 
+create table t1 (a int, key(a)) engine=myisam;
+create table t1_mrg (a int) union (t1) engine=merge;
+#
+# Create a table with a corrupted index file:
+# save an old index file, insert more rows, 
+# overwrite the new index file with the old one.
+#
+insert into  t1 (a) values (1), (2), (3);
+flush table t1;
+insert into  t1 (a) values (4), (5), (6);
+flush table t1;
+# check table is needed to mark the table as crashed.
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Size of datafile is: 42       Should be: 21
+test.t1	check	error	Record-count is not ok; is 6   Should be: 3
+test.t1	check	warning	Found 6 key parts. Should be: 3
+test.t1	check	error	Corrupt
+#
+# At this point we have a merge table t1_mrg pointing to t1,
+# and t1 is corrupted, and will be auto-repaired at open.
+# Check that this doesn't lead to memory corruption.
+#
+select * from t1_mrg;
+a
+1
+2
+3
+4
+5
+6
+Warnings:
+Error	145	Table 't1' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 3 to 6
+#
+# Cleanup
+#
+drop table t1, t1_mrg;
+#
+# Switching to connection con1
+#
+unlock tables;
+prepare stmt from @drop_table_stmt;
+execute stmt;
+deallocate prepare stmt;
+set @@global.table_definition_cache=default;
+set @@global.table_open_cache=default;

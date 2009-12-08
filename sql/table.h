@@ -1486,20 +1486,6 @@ struct TABLE_LIST
   */
   bool process_index_hints(TABLE *table);
 
-  /* Access MERGE child def version.  See top comment in ha_myisammrg.cc */
-  inline ulong get_child_def_version()
-  {
-    return child_def_version;
-  }
-  inline void set_child_def_version(ulong version)
-  {
-    child_def_version= version;
-  }
-  inline void init_child_def_version()
-  {
-    child_def_version= ~0UL;
-  }
-
   /**
     Compare the version of metadata from the previous execution
     (if any) with values obtained from the current table
@@ -1522,9 +1508,14 @@ struct TABLE_LIST
   */
   inline
   void set_table_ref_id(TABLE_SHARE *s)
+  { set_table_ref_id(s->get_table_ref_type(), s->get_table_ref_version()); }
+
+  inline
+  void set_table_ref_id(enum_table_ref_type table_ref_type_arg,
+                        ulong table_ref_version_arg)
   {
-    m_table_ref_type= s->get_table_ref_type();
-    m_table_ref_version= s->get_table_ref_version();
+    m_table_ref_type= table_ref_type_arg;
+    m_table_ref_version= table_ref_version_arg;
   }
 
   /**
@@ -1550,13 +1541,6 @@ struct TABLE_LIST
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
-  /*
-    Cleanup for re-execution in a prepared statement or a stored
-    procedure.
-  */
-
-  /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
-  ulong         child_def_version;
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
   /** See comments for set_metadata_id() */
