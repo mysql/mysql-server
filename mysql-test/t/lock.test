@@ -385,6 +385,30 @@ alter table t1 add column j int;
 unlock tables;
 drop table t1;
 
+
+--echo #
+--echo # Bug #43272 HANDLER SQL command does not work under LOCK TABLES
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+
+--echo # HANDLER commands are not allowed in LOCK TABLES mode
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+HANDLER t1 OPEN;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+HANDLER t1 READ FIRST;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+HANDLER t1 CLOSE;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
 --echo #
 --echo # Bug#45066 FLUSH TABLES WITH READ LOCK deadlocks against 
 --echo #           LOCK TABLE 

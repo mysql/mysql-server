@@ -201,6 +201,11 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                       tables->db, tables->table_name, tables->alias,
                       (int) reopen));
 
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   if (tables->schema_table)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
@@ -386,6 +391,11 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
 
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   if ((hash_tables= (TABLE_LIST*) my_hash_search(&thd->handler_tables_hash,
                                                  (uchar*) tables->alias,
                                                  strlen(tables->alias) + 1)))
@@ -447,6 +457,12 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   thd->lex->select_lex.context.resolve_in_table_list_only(tables);
   list.push_front(new Item_field(&thd->lex->select_lex.context,
