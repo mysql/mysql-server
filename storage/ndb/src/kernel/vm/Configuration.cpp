@@ -184,15 +184,19 @@ Configuration::fetch_configuration(const char* _connect_string,
   {
     Uint32 generation;
     ndb_mgm_configuration_iterator sys_iter(*p, CFG_SECTION_SYSTEM);
-    if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation)) {
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                "Invalid configuration fetched", "generation missing");
+    if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation))
+    {
+      g_eventLogger->info("Configuration fetched from '%s:%d', unknown generation!! (likely older ndb_mgmd)",
+                          m_config_retriever->get_mgmd_host(),
+                          m_config_retriever->get_mgmd_port());
     }
-
-    g_eventLogger->info("Configuration fetched from '%s:%d', generation: %d",
-                        m_config_retriever->get_mgmd_host(),
-                        m_config_retriever->get_mgmd_port(),
-                        generation);
+    else
+    {
+      g_eventLogger->info("Configuration fetched from '%s:%d', generation: %d",
+                          m_config_retriever->get_mgmd_host(),
+                          m_config_retriever->get_mgmd_port(),
+                          generation);
+    }
   }
 
   ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
