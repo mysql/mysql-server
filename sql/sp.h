@@ -42,6 +42,9 @@ sp_head *
 sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
+int
+sp_cache_routine(THD *thd, int type, sp_name *name, sp_head **sp);
+
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
@@ -60,22 +63,45 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
 int
 sp_drop_routine(THD *thd, int type, sp_name *name);
 
-/*
-  Procedures for pre-caching of stored routines and building table list
-  for prelocking.
+
+/**
+  Structure that represents element in the set of stored routines
+  used by statement or routine.
 */
-void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
-                            bool *first_no_prelocking);
-void sp_add_used_routine(LEX *lex, Query_arena *arena,
+
+struct Sroutine_hash_entry
+{
+  /**
+    Set key consisting of one-byte routine type and quoted routine name.
+  */
+  LEX_STRING key;
+  /**
+    Next element in list linking all routines in set. See also comments
+    for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
+  */
+  Sroutine_hash_entry *next;
+  /**
+    Uppermost view which directly or indirectly uses this routine.
+    0 if routine is not used in view. Note that it also can be 0 if
+    statement uses routine both via view and directly.
+  */
+  TABLE_LIST *belong_to_view;
+};
+
+
+/*
+  Procedures for handling sets of stored routines used by statement or routine.
+*/
+void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type);
-void sp_remove_not_own_routines(LEX *lex);
+bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
+                         const LEX_STRING *key, TABLE_LIST *belong_to_view);
+void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
-int sp_cache_routines_and_add_tables(THD *thd, LEX *lex,
-                                     bool first_no_prelock);
-int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
-                                              TABLE_LIST *view);
-int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                                  TABLE_LIST *table);
+void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                                  HASH *src, TABLE_LIST *belong_to_view);
+void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                                  SQL_LIST *src, TABLE_LIST *belong_to_view);
 
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first);

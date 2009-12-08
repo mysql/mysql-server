@@ -6560,9 +6560,26 @@ view_err:
     DBUG_RETURN(error);
   }
 
-  if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ,
-                                        MYSQL_OPEN_TAKE_UPGRADABLE_MDL)))
+
+  /*
+    Code below can handle only base tables so ensure that we won't open a view.
+    Note that RENAME TABLE the only ALTER clause which is supported for views
+    has been already processed.
+  */
+  table_list->required_type= FRMTYPE_TABLE;
+
+  Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
+
+  error= open_and_lock_tables_derived(thd, table_list, FALSE,
+                                      MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                                      &alter_prelocking_strategy);
+
+  if (error)
+  {
     DBUG_RETURN(TRUE);
+  }
+
+  table= table_list->table;
   table->use_all_columns();
   mdl_ticket= table->mdl_ticket;
 
@@ -6572,7 +6589,8 @@ view_err:
     set of tables from the old table or to open a new TABLE object for
     an extended list and verify that they belong to locked tables.
   */
-  if (thd->locked_tables_mode &&
+  if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
       (create_info->used_fields & HA_CREATE_USED_UNION) &&
       (table->s->tmp_table == NO_TMP_TABLE))
   {
@@ -6806,7 +6824,8 @@ view_err:
     table_list->table= NULL;                    // For query cache
     query_cache_invalidate3(thd, table_list, 0);
 
-    if (thd->locked_tables_mode)
+    if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
+         thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
     {
       /*
         Under LOCK TABLES we should adjust meta-data locks before finishing
@@ -7290,7 +7309,9 @@ view_err:
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Close lock if this is a transactional table */
-    if (thd->lock && ! thd->locked_tables_mode)
+    if (thd->lock &&
+        ! (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+           thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
     {
       mysql_unlock_tables(thd, thd->lock);
       thd->lock=0;
@@ -7492,7 +7513,8 @@ view_err:
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 
-  if (thd->locked_tables_mode)
+  if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
   {
     if ((new_name != table_name || new_db != db))
     {

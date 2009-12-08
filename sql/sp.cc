@@ -17,7 +17,6 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
-#include "sql_trigger.h"
 
 #include <my_user.h>
 
@@ -1388,32 +1387,6 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
 }
 
 
-/**
-  Structure that represents element in the set of stored routines
-  used by statement or routine.
-*/
-struct Sroutine_hash_entry;
-
-struct Sroutine_hash_entry
-{
-  /**
-    Set key consisting of one-byte routine type and quoted routine name.
-  */
-  LEX_STRING key;
-  /**
-    Next element in list linking all routines in set. See also comments
-    for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
-  */
-  Sroutine_hash_entry *next;
-  /**
-    Uppermost view which directly or indirectly uses this routine.
-    0 if routine is not used in view. Note that it also can be 0 if
-    statement uses routine both via view and directly.
-  */
-  TABLE_LIST *belong_to_view;
-};
-
-
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first)
 {
@@ -1424,51 +1397,16 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
 
 
 /**
-  Check if
-   - current statement (the one in thd->lex) needs table prelocking
-   - first routine in thd->lex->sroutines_list needs to execute its body in
-     prelocked mode.
-
-  @param thd                  Current thread, thd->lex is the statement to be
-                              checked.
-  @param[out] need_prelocking    TRUE  - prelocked mode should be activated
-                                 before executing the statement; 
-                                 FALSE - Don't activate prelocking
-  @param[out] first_no_prelocking  TRUE  - Tables used by first routine in
-                                   thd->lex->sroutines_list should be
-                                   prelocked. FALSE - Otherwise.
-
-  @note
-    This function assumes that for any "CALL proc(...)" statement routines_list 
-    will have 'proc' as first element (it may have several, consider e.g.
-    "proc(sp_func(...)))". This property is currently guaranted by the parser.
-*/
-
-void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
-                            bool *first_no_prelocking)
-{
-  Sroutine_hash_entry *routine;
-  routine= (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
-
-  DBUG_ASSERT(routine);
-  bool first_is_procedure= (routine->key.str[0] == TYPE_ENUM_PROCEDURE);
-
-  *first_no_prelocking= first_is_procedure;
-  *need_prelocking= !first_is_procedure || test(routine->next);
-}
-
-
-/**
   Auxilary function that adds new element to the set of stored routines
   used by statement.
 
   In case when statement uses stored routines but does not need
   prelocking (i.e. it does not use any tables) we will access the
-  elements of LEX::sroutines set on prepared statement re-execution.
-  Because of this we have to allocate memory for both hash element
-  and copy of its key in persistent arena.
+  elements of Query_tables_list::sroutines set on prepared statement
+  re-execution. Because of this we have to allocate memory for both
+  hash element and copy of its key in persistent arena.
 
-  @param lex             LEX representing statement
+  @param prelocking_ctx  Prelocking context of the statement
   @param arena           Arena in which memory for new element will be
                          allocated
   @param key             Key for the hash representing set
@@ -1476,7 +1414,7 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
                          (0 if routine is not used by view)
 
   @note
-    Will also add element to end of 'LEX::sroutines_list' list.
+    Will also add element to end of 'Query_tables_list::sroutines_list' list.
 
   @todo
     When we will got rid of these accesses on re-executions we will be
@@ -1491,15 +1429,15 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
     the set).
 */
 
-static bool add_used_routine(LEX *lex, Query_arena *arena,
-                             const LEX_STRING *key,
-                             TABLE_LIST *belong_to_view)
+bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
+                         const LEX_STRING *key, TABLE_LIST *belong_to_view)
 {
-  my_hash_init_opt(&lex->sroutines, system_charset_info,
+  my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
                    Query_tables_list::START_SROUTINES_HASH_SIZE,
                    0, 0, sp_sroutine_key, 0, 0);
 
-  if (!my_hash_search(&lex->sroutines, (uchar *)key->str, key->length))
+  if (!my_hash_search(&prelocking_ctx->sroutines, (uchar *)key->str,
+                      key->length))
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
@@ -1509,8 +1447,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
     rn->key.length= key->length;
     rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
     memcpy(rn->key.str, key->str, key->length + 1);
-    my_hash_insert(&lex->sroutines, (uchar *)rn);
-    lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
+    my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn);
+    prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
     return TRUE;
   }
@@ -1525,24 +1463,25 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
   To be friendly towards prepared statements one should pass
   persistent arena as second argument.
 
-  @param lex       LEX representing statement
-  @param arena     arena in which memory for new element of the set
-                   will be allocated
-  @param rt        routine name
-  @param rt_type   routine type (one of TYPE_ENUM_PROCEDURE/...)
+  @param prelocking_ctx  Prelocking context of the statement
+  @param arena           Arena in which memory for new element of the set
+                         will be allocated
+  @param rt              Routine name
+  @param rt_type         Routine type (one of TYPE_ENUM_PROCEDURE/...)
 
   @note
-    Will also add element to end of 'LEX::sroutines_list' list (and will
-    take into account that this is explicitly used routine).
+    Will also add element to end of 'Query_tables_list::sroutines_list' list
+    (and will take into account that this is an explicitly used routine).
 */
 
-void sp_add_used_routine(LEX *lex, Query_arena *arena,
+void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type)
 {
   rt->set_routine_type(rt_type);
-  (void)add_used_routine(lex, arena, &rt->m_sroutines_key, 0);
-  lex->sroutines_list_own_last= lex->sroutines_list.next;
-  lex->sroutines_list_own_elements= lex->sroutines_list.elements;
+  (void)sp_add_used_routine(prelocking_ctx, arena, &rt->m_sroutines_key, 0);
+  prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
+  prelocking_ctx->sroutines_list_own_elements=
+                    prelocking_ctx->sroutines_list.elements;
 }
 
 
@@ -1550,13 +1489,14 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
   Remove routines which are only indirectly used by statement from
   the set of routines used by this statement.
 
-  @param lex  LEX representing statement
+  @param prelocking_ctx  Prelocking context of the statement
 */
 
-void sp_remove_not_own_routines(LEX *lex)
+void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 {
   Sroutine_hash_entry *not_own_rt, *next_rt;
-  for (not_own_rt= *(Sroutine_hash_entry **)lex->sroutines_list_own_last;
+  for (not_own_rt= 
+         *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last;
        not_own_rt; not_own_rt= next_rt)
   {
     /*
@@ -1564,12 +1504,13 @@ void sp_remove_not_own_routines(LEX *lex)
       but we want to be more future-proof.
     */
     next_rt= not_own_rt->next;
-    my_hash_delete(&lex->sroutines, (uchar *)not_own_rt);
+    my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
   }
 
-  *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
-  lex->sroutines_list.next= lex->sroutines_list_own_last;
-  lex->sroutines_list.elements= lex->sroutines_list_own_elements;
+  *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last= NULL;
+  prelocking_ctx->sroutines_list.next= prelocking_ctx->sroutines_list_own_last;
+  prelocking_ctx->sroutines_list.elements= 
+                    prelocking_ctx->sroutines_list_own_elements;
 }
 
 
@@ -1605,23 +1546,24 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
   routines used by statement.
 
   @param thd             Thread context
-  @param lex             LEX representing statement
+  @param prelocking_ctx  Prelocking context of the statement
   @param src             Hash representing set from which routines will
                          be added
   @param belong_to_view  Uppermost view which uses these routines, 0 if none
 
-  @note
-    It will also add elements to end of 'LEX::sroutines_list' list.
+  @note It will also add elements to end of
+        'Query_tables_list::sroutines_list' list.
 */
 
-static void
-sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
-                             TABLE_LIST *belong_to_view)
+void
+sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                             HASH *src, TABLE_LIST *belong_to_view)
 {
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
+    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena, &rt->key,
+                              belong_to_view);
   }
 }
 
@@ -1631,251 +1573,101 @@ sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
   routines used by statement.
 
   @param thd             Thread context
-  @param lex             LEX representing statement
+  @param prelocking_ctx  Prelocking context of the statement
   @param src             List representing set from which routines will
                          be added
   @param belong_to_view  Uppermost view which uses these routines, 0 if none
 
-  @note
-    It will also add elements to end of 'LEX::sroutines_list' list.
+  @note It will also add elements to end of
+        'Query_tables_list::sroutines_list' list.
 */
 
-static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
-                                         TABLE_LIST *belong_to_view)
+void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                                  SQL_LIST *src, TABLE_LIST *belong_to_view)
 {
   for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
        rt; rt= rt->next)
-    (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
+    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena, &rt->key,
+                              belong_to_view);
 }
 
 
 /**
-  Cache sub-set of routines used by statement, add tables used by these
-  routines to statement table list. Do the same for all routines used
-  by these routines.
+  Ensure that routine is present in cache by loading it from the mysql.proc
+  table if needed. Emit an appropriate error if there was a problem during
+  loading.
 
-  @param thd               thread context
-  @param lex               LEX representing statement
-  @param start             first routine from the list of routines to be cached
-                           (this list defines mentioned sub-set).
-  @param first_no_prelock  If true, don't add tables or cache routines used by
-                           the body of the first routine (i.e. *start)
-                           will be executed in non-prelocked mode.
-  @param tabs_changed      Set to TRUE some tables were added, FALSE otherwise
+  @param[in]  thd   Thread context.
+  @param[in]  type  Type of object (TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE).
+  @param[in]  name  Name of routine.
+  @param[out] sp    Pointer to sp_head object for routine, NULL if routine was
+                    not found,
 
-  @note
-    If some function is missing this won't be reported here.
-    Instead this fact will be discovered during query execution.
-
-  @retval
-    0       success
-  @retval
-    non-0   failure
+  @retval 0      Either routine is found and was succesfully loaded into cache
+                 or it does not exist.
+  @retval non-0  Error while loading routine from mysql,proc table.
 */
 
-static int
-sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
-                                     Sroutine_hash_entry *start, 
-                                     bool first_no_prelock)
+int sp_cache_routine(THD *thd, int type, sp_name *name, sp_head **sp)
 {
   int ret= 0;
-  bool first= TRUE;
-  DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
-  for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
-  {
-    sp_name name(thd, rt->key.str, rt->key.length);
-    int type= rt->key.str[0];
-    sp_head *sp;
+  DBUG_ENTER("sp_cache_routine");
 
-    /*
-      Triggers can't happen here: their bodies are always processed
-      in sp_cache_routines_and_add_tables_for_triggers().
-    */
-    DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
+  DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
 
-    if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
+  if (!(*sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
                               &thd->sp_func_cache : &thd->sp_proc_cache),
-                              &name)))
+                             name)))
+  {
+    switch ((ret= db_find_routine(thd, type, name, sp)))
     {
-      switch ((ret= db_find_routine(thd, type, &name, &sp)))
+    case SP_OK:
+      if (type == TYPE_ENUM_FUNCTION)
+        sp_cache_insert(&thd->sp_func_cache, *sp);
+      else
+        sp_cache_insert(&thd->sp_proc_cache, *sp);
+      break;
+    case SP_KEY_NOT_FOUND:
+      ret= SP_OK;
+      break;
+    default:
+      /* Query might have been killed, don't set error. */
+      if (thd->killed)
+        break;
+      /*
+        Any error when loading an existing routine is either some problem
+        with the mysql.proc table, or a parse error because the contents
+        has been tampered with (in which case we clear that error).
+      */
+      if (ret == SP_PARSE_ERROR)
+        thd->clear_error();
+      /*
+        If we cleared the parse error, or when db_find_routine() flagged
+        an error with it's return value without calling my_error(), we
+        set the generic "mysql.proc table corrupt" error here.
+      */
+      if (! thd->is_error())
       {
-      case SP_OK:
-        {
-          if (type == TYPE_ENUM_FUNCTION)
-            sp_cache_insert(&thd->sp_func_cache, sp);
-          else
-            sp_cache_insert(&thd->sp_proc_cache, sp);
-        }
-        break;
-      case SP_KEY_NOT_FOUND:
-        ret= SP_OK;
-        break;
-      default:
-        /* Query might have been killed, don't set error. */
-        if (thd->killed)
-          break;
         /*
-          Any error when loading an existing routine is either some problem
-          with the mysql.proc table, or a parse error because the contents
-          has been tampered with (in which case we clear that error).
+          SP allows full NAME_LEN chars thus he have to allocate enough
+          size in bytes. Otherwise there is stack overrun could happen
+          if multibyte sequence is `name`. `db` is still safe because the
+          rest of the server checks agains NAME_LEN bytes and not chars.
+          Hence, the overrun happens only if the name is in length > 32 and
+          uses multibyte (cyrillic, greek, etc.)
         */
-        if (ret == SP_PARSE_ERROR)
-          thd->clear_error();
-        /*
-          If we cleared the parse error, or when db_find_routine() flagged
-          an error with it's return value without calling my_error(), we
-          set the generic "mysql.proc table corrupt" error here.
-         */
-        if (! thd->is_error())
-        {
-          /*
-            SP allows full NAME_LEN chars thus he have to allocate enough
-            size in bytes. Otherwise there is stack overrun could happen
-            if multibyte sequence is `name`. `db` is still safe because the
-            rest of the server checks agains NAME_LEN bytes and not chars.
-            Hence, the overrun happens only if the name is in length > 32 and
-            uses multibyte (cyrillic, greek, etc.)
-          */
-          char n[NAME_LEN*2+2];
+        char n[NAME_LEN*2+2];
 
-          /* m_qname.str is not always \0 terminated */
-          memcpy(n, name.m_qname.str, name.m_qname.length);
-          n[name.m_qname.length]= '\0';
-          my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), n, ret);
-        }
-        break;
+        /* m_qname.str is not always \0 terminated */
+        memcpy(n, name->m_qname.str, name->m_qname.length);
+        n[name->m_qname.length]= '\0';
+        my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), n, ret);
       }
+      break;
     }
-    if (sp)
-    {
-      if (!(first && first_no_prelock))
-      {
-        sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines,
-                                     rt->belong_to_view);
-        (void)sp->add_used_tables_to_table_list(thd, &lex->query_tables_last,
-                                                rt->belong_to_view);
-      }
-      sp->propagate_attributes(lex);
-    }
-    first= FALSE;
   }
   DBUG_RETURN(ret);
-}
-
-
-/**
-  Cache all routines from the set of used by statement, add tables used
-  by those routines to statement table list. Do the same for all routines
-  used by those routines.
-
-  @param thd               thread context
-  @param lex               LEX representing statement
-  @param first_no_prelock  If true, don't add tables or cache routines used by
-                           the body of the first routine (i.e. *start)
-
-  @retval
-    0       success
-  @retval
-    non-0   failure
-*/
-
-int
-sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
-{
-  return sp_cache_routines_and_add_tables_aux(thd, lex,
-           (Sroutine_hash_entry *)lex->sroutines_list.first,
-           first_no_prelock);
-}
-
-
-/**
-  Add all routines used by view to the set of routines used by
-  statement.
-
-  Add tables used by those routines to statement table list. Do the same
-  for all routines used by these routines.
-
-  @param thd   Thread context
-  @param lex   LEX representing statement
-  @param view  Table list element representing view
-
-  @retval
-    0       success
-  @retval
-    non-0   failure
-*/
-
-int
-sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, TABLE_LIST *view)
-{
-  Sroutine_hash_entry **last_cached_routine_ptr=
-                          (Sroutine_hash_entry **)lex->sroutines_list.next;
-  sp_update_stmt_used_routines(thd, lex, &view->view->sroutines_list,
-                               view->top_table());
-  return sp_cache_routines_and_add_tables_aux(thd, lex,
-                                              *last_cached_routine_ptr, FALSE);
-}
-
-
-/**
-  Add triggers for table to the set of routines used by statement.
-  Add tables used by them to statement table list. Do the same for
-  all implicitly used routines.
-
-  @param thd    thread context
-  @param lex    LEX respresenting statement
-  @param table  Table list element for table with trigger
-
-  @retval
-    0       success
-  @retval
-    non-0   failure
-*/
-
-int
-sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                              TABLE_LIST *table)
-{
-  if (static_cast<int>(table->lock_type) >=
-      static_cast<int>(TL_WRITE_ALLOW_WRITE))
-  {
-    for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
-    {
-      if (table->trg_event_map &
-          static_cast<uint8>(1 << static_cast<int>(i)))
-      {
-        for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
-        {
-          /* We can have only one trigger per action type currently */
-          sp_head *trigger= table->table->triggers->bodies[i][j];
-          if (trigger &&
-              add_used_routine(lex, thd->stmt_arena, &trigger->m_sroutines_key,
-                               table->belong_to_view))
-          {
-            int ret;
-            /* Sic: excludes the trigger key from processing */
-            Sroutine_hash_entry **last_cached_routine_ptr=
-              (Sroutine_hash_entry **)lex->sroutines_list.next;
-
-            trigger->add_used_tables_to_table_list(thd, &lex->query_tables_last,
-                                                   table->belong_to_view);
-            trigger->propagate_attributes(lex);
-            sp_update_stmt_used_routines(thd, lex,
-                                         &trigger->m_sroutines,
-                                         table->belong_to_view);
-
-            ret= sp_cache_routines_and_add_tables_aux(thd, lex,
-                                                      *last_cached_routine_ptr,
-                                                      FALSE);
-            if (ret)
-              return ret;
-          }
-        }
-      }
-    }
-  }
-  return 0;
 }
 
 

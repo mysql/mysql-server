@@ -454,10 +454,10 @@ public:
 
   /*
     This method is intended for attributes of a routine which need
-    to propagate upwards to the LEX of the caller (when a property of a
-    sp_head needs to "taint" the caller).
+    to propagate upwards to the Query_tables_list of the caller (when
+    a property of a sp_head needs to "taint" the calling statement).
   */
-  void propagate_attributes(LEX *lex)
+  void propagate_attributes(Query_tables_list *prelocking_ctx)
   {
     /*
       If this routine needs row-based binary logging, the entire top statement
@@ -466,7 +466,7 @@ public:
       the substatements not).
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      lex->set_stmt_unsafe();
+      prelocking_ctx->set_stmt_unsafe();
   }
 
 
