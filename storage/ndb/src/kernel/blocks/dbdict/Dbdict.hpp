@@ -2494,6 +2494,7 @@ private:
   void restartDropObj_commit_start_done(Signal*, Uint32, Uint32);
   void restartDropObj_commit_complete_done(Signal*, Uint32, Uint32);
   void restartDropObj_updateSchemaFile(Signal*, DropObjRecordPtr);
+  void restartDropObj_fail(DropObjRecordPtr);
 
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
   void restart_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
@@ -2547,6 +2548,7 @@ private:
   void restartCreateObj_prepare_complete_done(Signal*, Uint32, Uint32);
   void restartCreateObj_commit_start_done(Signal*, Uint32, Uint32);
   void restartCreateObj_commit_complete_done(Signal*, Uint32, Uint32);
+  void restartCreateObj_fail(CreateObjRecordPtr);
 
   void execDICT_COMMIT_REQ(Signal*);
   void execDICT_COMMIT_REF(Signal*);
