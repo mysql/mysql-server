@@ -2216,7 +2216,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(main_da.is_error());
+    DBUG_ASSERT(stmt_da->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
