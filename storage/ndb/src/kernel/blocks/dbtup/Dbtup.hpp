@@ -273,6 +273,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZROWID_ALLOCATED 899
 #define ZINVALID_ALTER_TAB 741
 
+#define ZTOO_MANY_BITS_ERROR 791
+
           /* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
 
 #define ZTH_MM_FREE 3                     /* PAGE STATE, TUPLE HEADER PAGE WITH FREE AREA      */
