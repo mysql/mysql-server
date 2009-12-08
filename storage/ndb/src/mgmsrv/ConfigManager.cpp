@@ -558,7 +558,7 @@ ConfigManager::prepareConfigChange(const Config* config)
 void
 ConfigManager::commitConfigChange(void)
 {
-  require(m_prepared_config);
+  require(m_prepared_config != 0);
 
   /* Set new config locally and in all subscribers */
   set_config(m_prepared_config);
@@ -2180,7 +2180,7 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
 
   }
 
-  require(m_config);
+  require(m_config != 0);
   if (!m_packed_config.length())
   {
     // No packed config exist, generate a new one

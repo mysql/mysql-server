@@ -374,7 +374,7 @@ MgmtSrvr::init()
   }
 
   /* 'config_changed' should have been called from 'init' */
-  require(m_local_config);
+  require(m_local_config != 0);
 
   if (m_opts.print_full_config)
   {
@@ -678,7 +678,7 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
     delete m_local_config;
 
   m_local_config= new Config(new_config); // Copy
-  require(m_local_config);
+  require(m_local_config != 0);
 
   /* Rebuild node arrays */
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
