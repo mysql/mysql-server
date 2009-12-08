@@ -1825,6 +1825,12 @@ public:
   virtual uint has_pushed_joins() const
   { return 0; }
 
+  /**
+   Do handler prefer ordered indexscan over filesort?
+  */
+  virtual bool prefer_index() const
+  { return false; }
+
   virtual int read_pushed_next(uchar *buf)
   { return -1; }
 

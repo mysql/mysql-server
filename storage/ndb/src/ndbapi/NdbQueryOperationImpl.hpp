@@ -118,7 +118,8 @@ public:
    */
   int assignParameters(const constVoidPtr paramValues[]);
 
-  int setBound(const NdbIndexScanOperation::IndexBound *bound);
+  int setBound(const NdbRecord *keyRecord,
+               const NdbIndexScanOperation::IndexBound *bound);
 
   /** Prepare for execution. 
    *  @return possible error code.

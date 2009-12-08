@@ -310,37 +310,176 @@ explain
     y.a=x.d and y.b=x.b;
 
 # Test ORDER BY expressons
-# Order by on non indexed fields require filesort()
-# .... Which is not possible to combine with pushed_join
+# Filesort on pushed joins are not possible as the
+# read of rows to be filesorted will also prefetch rows from pushed child
+# operands. These are not cached by the filesort buffer mechanisnm and are
+# effectively lost.
+# With pushed joins we either has to:
+#  1)  find a suitable ordered index which we can create an ordered indexscan on 
+#  (-> joinType() -> JT_NEXT, or type: 'index' w/ explain)
+#  or:
+# 2) Use a temporary result file for the result, which is then filesort'ed
+#  (-> 'Using temporary; Using filesort')
+#
+# Comment1: As 'order by' correctness is part of what we want to test,
+#           '--sorted_result' is *not* specified. Instead we aim at
+#           specifying a deterministic sort ordering in order by list.
+#
+# Comment2: 't1.a, t1.b' is appended where required to the order by spec 
+#           to get a deterministic sorting order wo/ '--sorted_result'
+#           
+
+## pushed join w/ 'simple order' on non_PK - Need temp table + filesort
 explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
-order by t1.c,t1.d;
---sorted_result
+order by t1.c,t1.d,
+t1.a, t1.b;
+#--sorted_result
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
-order by t1.c,t1.d;
+order by t1.c,t1.d,
+t1.a, t1.b;
 
-# Temporarily pushed joins are also disabled for PK order by
-# The plan is to push these joins and use ordered index scan 
-# to provide sorted access.
+## pushed join w/ non-'simple order' on non_PK - Need temp table + filesort
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.c,t2.d,
+t1.a, t1.b;
+#--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.c,t2.d,
+t1.a, t1.b;
+
+## pushed join w/ 'simple order' on PK - Should use ordered index scan 
 explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a,t1.b;
---sorted_result
+#--sorted_result
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a,t1.b;
 
+## pushed join w/ non-'simple order' on PK - will need temp table + filesort 
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a,t2.b,
+t1.a, t1.b;
+#--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a,t2.b,
+t1.a, t1.b;
+
+## Descending ordering on PK - use reversed ordered index scan
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a desc,t1.b desc;
+#--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a desc,t1.b desc;
+
+## PK column in incorrect order, -> filesort to tempfile
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.b,t1.a;
+#--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.b,t1.a;
+
+## Explore other permutations of PK columns in ORDER BY clause
+## Don't care about the results here....
+# Subset of first part of PK -> ordered index scan
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.a;
+
+# PK columns not including first part -> filesort to tempfile
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+order by t1.b;
+
+
+## Similar tests for GROUP BY expression
+## PK grouping (or subpart) may be optimized
+## by ordered index access.
+##
+explain
+select t1.a, t1.b, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.a, t1.b;
+--sorted_result
+select t1.a, t1.b, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.a, t1.b;
+
+explain
+select t1.a, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.a;
+--sorted_result
+select t1.a, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.a;
+
+explain
+select t1.b, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.b;
+--sorted_result
+select t1.b, count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+group by t1.b;
 
 drop table t1;
 
